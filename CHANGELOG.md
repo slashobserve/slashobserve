@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can change between minor releases.
 
-## [0.1.1] - 2026-11-08
+## [0.1.1] - 2026-11-09
 
 This release adds features and database migrations despite its patch number.
 Migration 25 is the only new one, and no later migration exists.

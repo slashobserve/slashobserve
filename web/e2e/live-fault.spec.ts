@@ -4,6 +4,8 @@ import { expect, test } from "./fixtures"
 
 const shopUrl = `http://localhost:${process.env.SLASHOBSERVE_SHOP_HOST_PORT ?? "18081"}`
 
+const errorRateWindowDecayMs = 120_000
+
 test.afterEach(async ({ request }) => {
   await request.delete(`${shopUrl}/fault`).catch(() => undefined)
 })
@@ -12,7 +14,7 @@ test("an injected fault turns the error rate critical", async ({
   page,
   request,
 }) => {
-  test.setTimeout(150_000)
+  test.setTimeout(30_000 + errorRateWindowDecayMs + 90_000 + 30_000)
   const spec = loadSpec("fault")
   spec.title = uniqueTitle("E2E live fault")
   const { id } = await createDashboard(request, spec)
@@ -22,7 +24,7 @@ test("an injected fault turns the error rate critical", async ({
   const tile = article.getByRole("group")
   await expect(tile).toBeVisible({ timeout: 30_000 })
   await expect(tile).toHaveAttribute("data-threshold", "base", {
-    timeout: 60_000,
+    timeout: errorRateWindowDecayMs,
   })
 
   const injected = await request.post(`${shopUrl}/fault?type=errors&pct=100`)
