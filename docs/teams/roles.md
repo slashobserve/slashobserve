@@ -12,14 +12,20 @@ Every person and every service account has one of four instance roles, from the 
 | Commenter | View dashboards and versions, and add comments. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                 |
 | Viewer    | View dashboards and versions only. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                              |
 
+
+## Folders, keys and actions
+
 A restricted folder's list can give a person more than their role on that folder, and never less: Edit lets them change, create and start dashboards there, and Admin lets them manage the folder (see [Folders and access](folders.md)).
 Every person also has a private My Dashboards folder where they always have Edit, so a Viewer or Commenter can ask the agent for dashboards there.
 Those runs spend model tokens and let the agent query every configured datasource for them.
+
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 A service-account key can never create or revoke keys, whatever its role.
 A canvas action sends a request to another site on a person's behalf (see [Actions](../operate/outbound-access.md#actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
+
+## How a role is decided
 
 A person's role is decided in this order, and the first rule that applies wins:
 
@@ -35,6 +41,8 @@ A person's role is decided in this order, and the first rule that applies wins:
 
 The first three are set by configuration, so the People page cannot change them.
 
+## Mapping OIDC groups to roles
+
 `SLASHOBSERVE_OIDC_GROUP_ROLES` is a comma-separated list of up to 100 `group=role` entries, split on the last `=`, where the role is `admin`, `editor`, `commenter` or `viewer`.
 A group name is 1 to 256 bytes without control characters and cannot contain a comma.
 For example:
@@ -47,6 +55,8 @@ Groups come from the `groups` claim of the ID token, a JSON array of strings.
 The server asks for the `groups` scope only when the provider lists it in `scopes_supported` in its discovery document (Dex does; Google rejects unknown scopes), and it reads the claim whenever the token has one.
 At most 200 groups are kept, each 1 to 256 bytes without control characters; others are dropped.
 Without a `groups` claim a person has no groups.
+
+## When a role changes
 
 A role is recomputed every time the person signs in, and for everyone when the server starts.
 Changing `SLASHOBSERVE_ADMIN_EMAILS` or `SLASHOBSERVE_OIDC_GROUP_ROLES` therefore applies at the next restart, and a group change reaches a person at their next sign-in.

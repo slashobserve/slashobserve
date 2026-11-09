@@ -3,6 +3,8 @@ title: Run your own deployment
 description: Pull the image and run SlashObserve against your own Postgres, identity provider and datasources.
 ---
 
+## Deploy with Docker
+
 1. Create a Postgres database and a user that owns it.
    The server keeps a connection pool of at least 16 connections unless the database URL sets `pool_max_conns`, so `max_connections` must allow that for each server process.
    The project tests against Postgres 18.6; other versions are unverified.
@@ -48,9 +50,13 @@ description: Pull the image and run SlashObserve against your own Postgres, iden
    curl -fsS http://localhost:8080/readyz
    ```
 
+## Startup behavior
+
 The server applies database migrations when it starts, so an empty database is enough.
 If it cannot connect to Postgres within 30 seconds, or any setting is invalid, it logs the problem and exits; `--restart unless-stopped` retries.
 Every problem found in the settings is reported in one message.
+
+## The container image
 
 The image runs as a non-root user and listens on `:8080`.
 Files you mount, such as the datasources file or a secret file, must be readable by that user.

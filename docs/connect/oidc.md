@@ -4,6 +4,9 @@ description: Set up sign-in through an OpenID Connect identity provider and deci
 ---
 
 People sign in through an OIDC identity provider; there are no local passwords.
+
+## Configure the client
+
 Create a client in your provider and give SlashObserve its settings:
 
 - Register the redirect URI `<SLASHOBSERVE_PUBLIC_URL>/api/v1/auth/callback`.
@@ -16,6 +19,8 @@ Create a client in your provider and give SlashObserve its settings:
   Only the server's own calls to the provider are rewritten; the issuer and the browser redirects keep the public address.
   The demo stack does this: browsers use `http://localhost:5556/dex` and the server uses `http://dex:5556`.
 
+## Decide who may sign in
+
 `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` decides who gets in:
 
 - A comma-separated list such as `example.com,example.org`.
@@ -23,6 +28,8 @@ Create a client in your provider and give SlashObserve its settings:
 - `*` allows every account the provider authenticates that has an email address, verified or not, and logs a warning at startup.
   Use it only when the provider itself is the access control, for example a private tenant.
 - The setting is required, so a deployment can never be open by accident.
+
+## Users and groups
 
 Users are identified by the provider's issuer and subject, and are created on first sign-in.
 The server also asks for the `groups` scope when the provider lists it in `scopes_supported`, so that `SLASHOBSERVE_OIDC_GROUP_ROLES` can map groups to roles (see [Roles](../teams/roles.md)).

@@ -24,6 +24,7 @@ Three choices in the format follow from how dashboards are used here:
 
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
+
 **Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing.
 **Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
 
@@ -136,121 +137,213 @@ Relative times used to resolve in UTC whatever the `timezone` said, so a dashboa
 
 ## Panels and layout
 
+### Ids and grid position
+
 Every panel has an `id`, a `type` and a `gridPos`.
 An `id` starts with a letter, continues with letters, digits, `_` or `-`, is at most 64 characters, and is unique across the whole dashboard, row children included.
 
 `gridPos` places a panel on a grid 24 columns wide with `x`, `y`, `w` and `h`.
 `x + w` cannot exceed 24, and panels cannot overlap.
+
+### Responsive layout
+
 The web app draws every panel at its saved `gridPos` when the screen is wide enough for it.
 When a panel would be narrower than its type reads well at, about 160 pixels for a stat, 180 for a gauge, 240 for a chart and 300 for a table, the panels beside it wrap onto more lines and widen to fill the grid; below 768 pixels every panel takes the full width.
 This changes only what you see: the saved `gridPos` stays as it is, and the layout editor always shows it.
+
 A panel with `responsive: false` keeps its saved size at every width down to the single-column view; it may move to another line when a panel beside it wraps, but it is never widened.
 A save that changes an existing panel's width or height sets `responsive: false`, whether the change comes from the layout editor, the panel editor, the agent, MCP or the CLI; a new panel, an import and a restored version keep what they carry.
 The panel menu's **Keep this size** sets it, and **Make responsive** removes it.
+
+### Panel types
 
 A data panel also has a `title`, a `datasource` and `queries`.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.
 The other panel types are:
 
 - `text`, which holds Markdown in `content`, rendered sanitized.
-  An image in the Markdown loads through the server, and only from an https address on an allowed domain (see [Outbound access](../operate/outbound-access.md#images-and-geojson)); otherwise the panel shows its alt text.
-  Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
-  People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
-  In `markdown` and `html` modes HTML is cleaned before it is drawn: scripts, styles, forms, embedded frames, SVG and event handlers are removed, links keep only http, https and mailto addresses, and every image loads through the server.
-  Inline `style` attributes keep colours, fonts, spacing, borders, sizes and simple layout, and drop positioning, backgrounds with images, `var()` and anything that loads a resource.
-  Whatever the HTML draws stays inside its panel.
-  Variable values are inserted as text in all three modes, never as HTML.
+  - An image in the Markdown loads through the server, and only from an https address on an allowed domain (see [Outbound access](../operate/outbound-access.md#images-and-geojson)); otherwise the panel shows its alt text.
+  - Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
+  - People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
+  - In `markdown` and `html` modes HTML is cleaned before it is drawn: scripts, styles, forms, embedded frames, SVG and event handlers are removed, links keep only http, https and mailto addresses, and every image loads through the server.
+  - Inline `style` attributes keep colours, fonts, spacing, borders, sizes and simple layout, and drop positioning, backgrounds with images, `var()` and anything that loads a resource.
+  - Whatever the HTML draws stays inside its panel.
+  - Variable values are inserted as text in all three modes, never as HTML.
 - `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
   They have no datasource and no queries.
 - `row`, described below.
 - `placeholder`, which only the importer writes.
   The agent may move or delete one but never creates or edits one.
 
+### Panel timezone, time overrides and step
+
 A data panel can set its own `timezone` (`browser`, `utc` or an IANA zone), which draws that panel's times in this zone instead of the dashboard's; the queries keep the dashboard's range and zone.
-It can also set `timeFrom` and `timeShift` to override the dashboard's time range (the panel header names the override, and `hideTimeOverride: true` hides that note without changing the queries), `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
-The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show `legendValues`, each any reducer (the percentiles `p1` to `p99` and `variance`, `step`, `diffperc`, `logmin` and `countAll` among the numbers, and the four that are not numbers: `allIsNull` and `allIsZero` answer true or false, `allValues` and `uniqueValues` list the values as text), sorts by a number reducer or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
-A `timeseries`, `trend` or `candlestick` tooltip that lists all series is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default), can drop zero values with `tooltipHideZeros`, can show the running total of a stacked series with `tooltipCumulative`, and is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
+
+It can also set:
+
+- `timeFrom` and `timeShift`, which override the dashboard's time range (the panel header names the override, and `hideTimeOverride: true` hides that note without changing the queries).
+- `interval` (the same forms as a query's) and `maxDataPoints`, which shape the step of its queries.
+- `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
+
+### Time series, trend and candlestick display options
+
+The legend of a `timeseries` or `trend` panel:
+
+- is a `list` or a `table` (`legendMode`).
+- may show `legendValues`, each any reducer (the percentiles `p1` to `p99` and `variance`, `step`, `diffperc`, `logmin` and `countAll` among the numbers, and the four that are not numbers: `allIsNull` and `allIsZero` answer true or false, `allValues` and `uniqueValues` list the values as text).
+- sorts by a number reducer or by name (`legendSortBy`, `legendSortDesc`).
+- takes a width when it sits on the right (`legendWidth`).
+- hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
+
+When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
+
+A `timeseries`, `trend` or `candlestick` tooltip that lists all series:
+
+- is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default).
+- can drop zero values with `tooltipHideZeros`.
+- can show the running total of a stacked series with `tooltipCumulative`.
+- is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
+
+A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
+
 A `candlestick` panel draws only its open, high, low, close and volume fields unless `includeAllFields` is `true`, which draws its other number fields as lines.
 `flatColor` paints a candle whose open equals its close, a color token or a hex color, and adds a Flat swatch to the Up and Down legend; without it a flat candle takes the up color.
 A `candlestick` legend takes the same `legendValues`, `legendMode`, `legendSortBy`, `legendSortDesc` and `legendWidth` as a `timeseries` one; with legend values or table mode it lists every drawn series (open, high, low, close, volume and any extra) through the shared legend instead of the Up and Down swatches.
-A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
-When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
-A `table` panel's `display` also takes `cellHeight` (`sm`, the default, `md` or `lg` row padding, or `auto`, which fits each row to its content), `maxRowHeight` (20 to 1000 pixels, the tallest an `auto` row or a `dynamicHeight` cell grows), `frameIndex` (0 to 99; the table shows only that frame when the data has several and no transform merges them, the last one when the index is past it, and every frame when absent), `typeIcons` (an icon for the column type before each header), `pagination` (pages of rows sized to the panel, with previous and next buttons), `frozenColumns` (0 to 10 columns from the left that stay in view while the table scrolls sideways, which also fixes the column widths), `sortBy` (a column name, as written in the header) with `sortDesc`, which set the sort the table starts with, `footerFields` (column names; the footer then covers only those columns) and `footerCountRows` (a footer row with the number of rows).
+
+### Table display options
+
+A `table` panel's `display` also takes:
+
+- `cellHeight` (`sm`, the default, `md` or `lg` row padding, or `auto`, which fits each row to its content).
+- `maxRowHeight` (20 to 1000 pixels, the tallest an `auto` row or a `dynamicHeight` cell grows).
+- `frameIndex` (0 to 99; the table shows only that frame when the data has several and no transform merges them, the last one when the index is past it, and every frame when absent).
+- `typeIcons` (an icon for the column type before each header).
+- `pagination` (pages of rows sized to the panel, with previous and next buttons).
+- `frozenColumns` (0 to 10 columns from the left that stay in view while the table scrolls sideways, which also fixes the column widths).
+- `sortBy` (a column name, as written in the header) with `sortDesc`, which set the sort the table starts with.
+- `footerFields` (column names; the footer then covers only those columns).
+- `footerCountRows` (a footer row with the number of rows).
+
 The footer and the row count cover the rows left after filtering.
 The agent prompt does not list these options.
+
+### Heatmap display options
+
 A `heatmap` panel colors its cells with `colorMode`: `opacity` (the default) varies the opacity of `colorFill` (a semantic color; the first series color when absent), and `scheme` takes the color of the ramp `colorScheme` names (the same names as the field prop, `blues` when absent).
 `colorSteps` (2 to 128) quantizes the colors into that many steps and is continuous when absent, `colorMin` and `colorMax` fix the counts that get the first and last color (the data otherwise; a scheme starts at the lowest count and opacity at zero), and `colorReverse` flips the ramp.
 `colorScale` (`linear`, the default, or `exponential`) and `colorExponent` (0.1 to 2, 0.5 when absent) bend the opacity of the opacity mode only.
+
 `cellGap` (0 to 25 pixels) and `cellRadius` (0 to 10) shape the cells, `showValues` (`auto` where the text fits, `always` or `never`, the default) writes each count in its cell, and `cellUnit` and `cellDecimals` format the counts in the cells, the tooltip and the color legend.
 `hideBelow` (0 when absent) and `hideAbove` leave out cells whose count is at or below, or at or above, them, and those cells do not count toward the color range.
+
 With `calculate` on, `xBuckets` and `yBuckets` choose the buckets: `{ "mode": "size", "value": 60 }` makes columns of 60 seconds (a y bucket is `value` wide in the unit of the data) and `{ "mode": "count", "value": 30 }` makes that many columns or rows; with no `value`, `size` picks a round step (about 16 rows, or the sample step for columns) and `count` keeps the default of 16 rows and one column per sample.
+
 `yBucketScale` (`linear`, `log` or `symlog`, else the heatmap's `yScale`) spaces the calculated rows and `yBucketLogBase` (2 or 10, 2 when absent) sets the base of the log and symlog scales; only calculated rows use them, because bucket series and ordinal rows are drawn at equal heights.
 `xBucketScale` and `xBucketLogBase` do the same for the columns: a `log` or `symlog` scale spaces them by the logarithm of the time, with 16 columns when `xBuckets` has no count, and a `size` is then a step in scaled units and not seconds.
 A heatmap panel whose data holds the output of the `heatmap` transformation (a frame with `xMin`, `yMin`, `yMax` and `count`) draws those cells directly, whatever `calculate` says, and ignores the other frames.
+
 `rowsLayout` says how bucket series are named: `auto` (the `le` label), `le` or `ge` (the series name is the upper or lower bound; `ge` rows are de-accumulated from above) or `unknown` (ordinal rows).
 `rowsValue` names the field that holds the cell value when the data is already bucketed in rows: each frame that has a number field of that name keeps only that field.
+
 `yUnit` and `yDecimals` format the row labels (the field's unit when absent), `yMin` and `yMax` crop the rows, `yReverse` puts the first row on top, and `yAxis` (`left`, `right` or `hidden`), `yAxisWidth` (0 to 400 pixels) and `yAxisLabel` set the row axis.
 `tooltip` is `single` (the hovered cell, the default), `all` (every row of the hovered column) or `hidden`; `tooltipHistogram` adds a bar per row for the hovered column, `tooltipColorScale` marks the count on the color scale, and `tooltipMaxWidth` and `tooltipMaxHeight` (100 to 2000 pixels) clip it.
+
 `exemplars` (on by default) draws the exemplars of queries with `exemplar: true` as diamonds in `exemplarColor` (the foreground color when absent), placed by time and value.
 `legend: "hidden"` removes the color legend under the chart.
 The agent prompt does not list these options.
+
+### Traces display options
+
 A `traces` panel filters the spans it draws.
 A span matches when it satisfies every filter that is set: `spanSearch` (text found, in any case, in its service, operation, id, attribute keys or attribute values), `serviceNames` and `spanNames` (the span's service or operation is one of the names, or none of them with `excludeServices` or `excludeSpanNames`, which compare whole names), and `minSpanDuration` and `maxSpanDuration` (milliseconds, ends included).
 The spans that do not match are dimmed and a note counts the matches, and `matchesOnly: true` hides them instead, keeping the indentation of the spans that stay.
+
 `criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out.
 When both options are on, only the spans that match and sit on the critical path stay.
 The agent prompt does not list these options.
+
+### State timeline and status history display options
+
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
 When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
+
 `alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.
 `perPage` (1 to 100) shows that many rows at a time, with previous and next buttons and a page indicator, and the row height follows the rows on the page.
+
 These two types take the same `legend`, `legendMode` and `legendWidth` as a time series, where the legend lists the states and clicking one hides its segments, and `tooltip` (`single`, `all` or `hidden`), `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
 `legendValues`, legend sorting and legend calculations do not apply to them.
+
 Their `fill` field prop (0 to 100) sets how opaque the bars are, and `lineWidth` (0 to 10) draws a border around them.
 A timeline written without `fill` is opaque and one written without `lineWidth` has no border, and a `fill` of 0 is drawn opaque.
 `spanNulls` joins a gap between two values into the earlier state: `true` joins every gap and a number joins gaps up to that many milliseconds.
+
+### Values on stat, gauge, bar gauge and pie chart panels
+
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
-`allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.
-`fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
-When `fields` is absent the panel shows the number fields.
-Time fields are never shown as values.
+
+- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.
+- `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
+  When `fields` is absent the panel shows the number fields.
+  Time fields are never shown as values.
+
+### Stat display options
+
 A `stat` panel has more optional `display` keys.
-`justify: center` centers the name and the value in each tile.
-`titleSize` and `valueSize` set the font size of the name and the value in pixels (1 to 200), where the tile otherwise uses 13 and 28.
-`percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
-`percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
-`wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
-`percentSize` sets the font size of the percent change in pixels (1 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
+
+- `justify: center` centers the name and the value in each tile.
+- `titleSize` and `valueSize` set the font size of the name and the value in pixels (1 to 200), where the tile otherwise uses 13 and 28.
+- `percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
+- `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
+- `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
+- `percentSize` sets the font size of the percent change in pixels (1 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
+
+### Pie chart display options
+
 A `piechart` panel has more optional `display` keys.
-`sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
-Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
-Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
-`sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
+
+- `sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
+- Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
+- Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
+- `sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
+
+### Gauge and bar gauge display options
+
 A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
 A gauge narrower than 120 pixels leaves those labels out, and one narrower than 160 pixels shortens its value to at most six characters, first with fewer decimals and then, for a number without a unit, with a K, Mil or Bil scale; a mapped text, the no-value text and a value that would round to zero stay as they are.
+
 A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
 Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
+
 `minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
 `titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of a gauge or a bar gauge.
+
+### Bar chart display options
+
 A `barchart` panel takes its categories from the first text field, else the time field, unless `xField` names one.
 When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series label (see [Queries and datasources](#queries-and-datasources)), and the bars of one number field form one series.
+
+### Logs display options
+
 A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime` off, and has more optional `display` keys.
-`showLabels: true` writes each line's unique labels after the time, and `showCommonLabels: true` writes the labels shared by every line once above the list; with one series every label is common.
-`details: false` turns off expanding a line, and `detailsMode: sidebar` shows the fields of the chosen line in a column beside the list instead of under the line.
-`prettify: true` indents a message that is a JSON object or array.
-`dedup` shows one line for messages the strategy counts as equal and writes "Repeated N times" beside it: `exact`, `numbers` (numbers are ignored) or `signature` (letters and numbers are ignored), `none` by default.
-`controls: true` adds a bar above the list to change the order, wrapping, time and deduplication while looking at the panel; the choices are not saved.
-`fontSize: small` draws the lines at 11px, and `highlight: true` colors `key=value` pairs and upper case level words in a message.
-`lineFields` (1 to 20 names) builds each line from those fields, or labels, joined by a space instead of the message, and skips a name the data lacks.
-`showAttributes: false` hides the labels that `showLabels` writes on each line.
-`timePrecision: ns` writes the time with nine digits after the second, using the digits the time carries and zeros after the millisecond otherwise (`ms` by default).
+
+- `showLabels: true` writes each line's unique labels after the time, and `showCommonLabels: true` writes the labels shared by every line once above the list; with one series every label is common.
+- `details: false` turns off expanding a line, and `detailsMode: sidebar` shows the fields of the chosen line in a column beside the list instead of under the line.
+- `prettify: true` indents a message that is a JSON object or array.
+- `dedup` shows one line for messages the strategy counts as equal and writes "Repeated N times" beside it: `exact`, `numbers` (numbers are ignored) or `signature` (letters and numbers are ignored), `none` by default.
+- `controls: true` adds a bar above the list to change the order, wrapping, time and deduplication while looking at the panel; the choices are not saved.
+- `fontSize: small` draws the lines at 11px, and `highlight: true` colors `key=value` pairs and upper case level words in a message.
+- `lineFields` (1 to 20 names) builds each line from those fields, or labels, joined by a space instead of the message, and skips a name the data lacks.
+- `showAttributes: false` hides the labels that `showLabels` writes on each line.
+- `timePrecision: ns` writes the time with nine digits after the second, using the digits the time carries and zeros after the millisecond otherwise (`ms` by default).
 
 ## Maps, canvases and actions
 
 These options are all optional, and a dashboard that leaves them out looks the same as before.
 The web app draws them as support lands; an option it does not draw yet is kept and ignored.
+
+### Geomap
 
 A `geomap` panel can load map tiles and draw several layers.
 Its `display` takes:
@@ -261,26 +354,37 @@ Its `display` takes:
   `noRepeat: true` draws the basemap and tile layers once, instead of repeating the world sideways when it is narrower than the panel.
 - `minZoom`, `maxZoom` and `zoom`: `minZoom` cannot exceed `maxZoom`, and when all three are set `zoom` lies between them.
 - Fit and controls: `fitLayer`, `fitLastOnly`, `fitPadding`, `sharedView`, `showZoom`, `mouseWheelZoom`, `showAttribution`, `showScale`, `showMeasure`, `showDebug` and `tooltip` (`details` or `none`).
-- `layers`: up to 10 layers, each with a `type` (`markers`, `heatmap`, `geojson`, `dayNight`, `route`, `photos`, `network`, `carto`, `esri`, `osm` or `xyz`) and the options of that type, such as `query`, `location`, `latField`, `lonField`, `rules` and `opacity`.
-  A markers layer can draw a fixed label with `text` (or a label per row with `textField`, which wins when both are set), placed with `textOffsetX` and `textOffsetY` (pixels from -100 to 100), `textAlign` (`left`, `center` or `right`) and `textBaseline` (`top`, `middle` or `bottom`, measured against the marker center; without it the label sits below the marker).
-  `fillOpacity` (0 to 1, 0.8 when absent) sets how opaque the marker symbols are inside the layer's `opacity`, and `symbolAlign` (`left`, `center` or `right`) with `symbolVerticalAlign` (`top`, `center` or `bottom`) moves each symbol by one marker radius against its point while the label stays on the point.
-  `showLegend: true` lists the layer in the map legend at the bottom right: its name, then one swatch for a fixed color, one entry per threshold step (the lower bound in the field's unit, the base step as Base) when the color field has thresholds, else the smallest and largest color values; absent means no legend.
-  A heatmap layer without `weightField` gives every point the `weight` (0 to 1, 1 when absent); with `weightField` the values are scaled by the largest value and then into `weightMin` to `weightMax` (0 to 100, 0 and 1 when absent), and a weight above 1 draws as 1.
-  A network layer draws its edges in `edgeColor` when set, else in the node `color`.
-  A day and night layer shows the night at the end of the dashboard time range, or at its start with `nightAt` `from` (`to` when absent).
-  A photos layer shows each whole photo inside its frame, or fills the frame and cuts the photo to it with `crop: true`, and `shadow: true` adds a drop shadow.
-  `symbolField` names a field whose values pick the symbol of each row, by name (`circle`, `square`, `triangle`, `star`, `cross`, `x`) or by a path ending in `/<symbol>.svg`, and any other value draws a circle; it wins over `symbol`.
-  `rotation` turns every marker by a fixed number of degrees (-360 to 360), and `rotationField` turns each marker by its own angle, wrapped around by default or stopped at -360 and 360 with `rotationMode` `clamp`; the field wins over `rotation`.
-  `location` `wkt` reads the position from the field named by `wktField` (else a field called `wkt` or `geometry`): only `POINT (lon lat)` text places a marker, with an optional `SRID=...;` prefix and in any case, and rows holding lines, polygons or anything else count as having no location.
-  When `layers` is set, the list is the whole layer set, so the flat marker options (`location`, `latField`, `lonField`, `geohashField`, `sizeField`, `colorField`, `markerSize`, `markerSizeMax`) are refused with `geomap_layers_conflict`.
+
+### Geomap layers
+
+`layers`: up to 10 layers, each with a `type` (`markers`, `heatmap`, `geojson`, `dayNight`, `route`, `photos`, `network`, `carto`, `esri`, `osm` or `xyz`) and the options of that type, such as `query`, `location`, `latField`, `lonField`, `rules` and `opacity`.
+
+- A markers layer can draw a fixed label with `text` (or a label per row with `textField`, which wins when both are set), placed with `textOffsetX` and `textOffsetY` (pixels from -100 to 100), `textAlign` (`left`, `center` or `right`) and `textBaseline` (`top`, `middle` or `bottom`, measured against the marker center; without it the label sits below the marker).
+- `fillOpacity` (0 to 1, 0.8 when absent) sets how opaque the marker symbols are inside the layer's `opacity`, and `symbolAlign` (`left`, `center` or `right`) with `symbolVerticalAlign` (`top`, `center` or `bottom`) moves each symbol by one marker radius against its point while the label stays on the point.
+- `symbolField` names a field whose values pick the symbol of each row, by name (`circle`, `square`, `triangle`, `star`, `cross`, `x`) or by a path ending in `/<symbol>.svg`, and any other value draws a circle; it wins over `symbol`.
+- `rotation` turns every marker by a fixed number of degrees (-360 to 360), and `rotationField` turns each marker by its own angle, wrapped around by default or stopped at -360 and 360 with `rotationMode` `clamp`; the field wins over `rotation`.
+- `location` `wkt` reads the position from the field named by `wktField` (else a field called `wkt` or `geometry`): only `POINT (lon lat)` text places a marker, with an optional `SRID=...;` prefix and in any case, and rows holding lines, polygons or anything else count as having no location.
+- `showLegend: true` lists the layer in the map legend at the bottom right: its name, then one swatch for a fixed color, one entry per threshold step (the lower bound in the field's unit, the base step as Base) when the color field has thresholds, else the smallest and largest color values; absent means no legend.
+- A heatmap layer without `weightField` gives every point the `weight` (0 to 1, 1 when absent); with `weightField` the values are scaled by the largest value and then into `weightMin` to `weightMax` (0 to 100, 0 and 1 when absent), and a weight above 1 draws as 1.
+- A network layer draws its edges in `edgeColor` when set, else in the node `color`.
+- A day and night layer shows the night at the end of the dashboard time range, or at its start with `nightAt` `from` (`to` when absent).
+- A photos layer shows each whole photo inside its frame, or fills the frame and cuts the photo to it with `crop: true`, and `shadow: true` adds a drop shadow.
+- When `layers` is set, the list is the whole layer set, so the flat marker options (`location`, `latField`, `lonField`, `geohashField`, `sizeField`, `colorField`, `markerSize`, `markerSizeMax`) are refused with `geomap_layers_conflict`.
+
+### Canvas panels
 
 A `canvas` panel takes a background (`backgroundColor`, `backgroundImage`, `backgroundSize`), a border (`borderColor`, `borderWidth`, `borderRadius`), `panZoom`, `infinitePan` and `tooltip`.
 An image is `{ "url": "https://..." }` or `{ "field": "<field>" }`.
+
 A canvas element can have the kinds `icon`, `button`, `server`, `triangle`, `cloud`, `parallelogram`, `windTurbine`, `droneTop`, `droneFront` and `droneSide` next to `metric`, `text`, `rectangle` and `ellipse`, and options such as `placement`, `rotation`, `valign`, `image`, `links` and `actions`.
 `placement` wins over `left`, `top`, `width` and `height` when present: numbers are pixels of the panel body, or percent on an axis whose mode is `scale`.
+
 An icon's `stroke` and `strokeWidth` (a whole number of pixels from 0 to 20, 0 by default) draw its outline; no outline is drawn while the width is 0.
 `textTemplate` is a text of 1 to 200 characters whose `${...}` data references, such as `${__data.fields.cpu}` and `${__value.text}`, are replaced with the element's field values, and a reference to a missing field becomes an empty string; it is never combined with `text`.
+
 A connection can set `path`, `vertices`, `lineStyle`, `arrow`, `widthField`, `minWidth` and `maxWidth`.
+
+### Actions
 
 An element's `actions` are HTTP requests that a person triggers from the panel:
 
@@ -302,17 +406,23 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
 - `oneClick` on an element (`action` or `link`) needs at least one action or link.
 - A person with Edit on the dashboard runs an action, and the server sends it on their behalf to an allowed domain; see [Actions](../operate/outbound-access.md#actions).
   An action is sent as the latest saved version describes it, and it carries no credentials.
-
-Field props take `actions` too, on any panel and on any override, with the same fields, and a stat tile, gauge, bar gauge or table cell offers them (the table cell type `actions` shows them as buttons).
 - `variables` lists up to 10 values the person types when running the action, each a `key` (letters, digits and underscores, starting with a letter, unique within the action) and a `name` for the form; `${key}` refers to the typed value in the `url`, `body` and header and query values, and shadows a dashboard variable of the same name.
 - `color` is the color of the action's button.
 - `oneClick` (fields only; a canvas element keeps its own `oneClick`, and one set on a canvas element's action is refused with `invalid_reference`) makes a click on the cell, tile, gauge or bar run the action when it is the field's only link or action.
+
+### Field actions
+
+Field props take `actions` too, on any panel and on any override, with the same fields, and a stat tile, gauge, bar gauge or table cell offers them (the table cell type `actions` shows them as buttons).
+
+### What the agent and MCP clients cannot write
 
 People and imports write HTML text panels, canvas actions and field actions.
 The agent and MCP clients cannot add or change them, and cannot write HTML tags in any text panel: a save that does is refused with `html_not_allowed` or `action_not_allowed`.
 They may still move or delete such a panel or element.
 
 ## Queries and datasources
+
+### Query fields
 
 A data panel has 1 to 26 `queries`.
 A query has the text in `query` and, optionally:
@@ -327,27 +437,50 @@ A query has the text in `query` and, optionally:
 - `exemplar`, on a Prometheus range query, to also fetch its exemplars, which a time series and a heatmap draw.
 - `hide`, to keep the query out of the panel's data.
 
+### Series labels
+
 A Prometheus series without a `legend` is named like `up{job="api", pod="checkout-0"}`, and overrides, `fillBelowTo` and Grafana imports match that name.
 Legend rows, tooltip rows and the categories of an instant bar chart show a shorter label instead when the panel has more than one series: the values of the labels that differ between its series, joined by a space in the label order of the first series, with the metric name first only when it differs, and `<no label>` for a series that has none of them.
 Two series of different queries that end up with the same label show their query ref before it.
+
+### Query language and macros
 
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
 `$name`, `${name}` and `${name:format}` insert the value of a variable.
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 On ClickHouse, `$__conditionalAll(condition, $variable)` writes `(condition)`, or `1=1` when the variable selects All.
 `$__conditionalAll(condition, otherwise, $variable)` writes `(otherwise)` instead of `1=1` when the variable selects All, and the otherwise condition cannot use that variable.
+
+### Datasource selection
+
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
 When the panels of a dashboard read more than one datasource, each panel header names the datasources that panel reads; on a dashboard that reads one, no header names it.
+
+### Ad hoc and group by variables
+
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
-An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each a `key`, an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise), a `value`, an optional `condition` (`and`, the default, or `or`, ClickHouse only), and the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
+
+An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each with:
+
+- a `key`.
+- an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise).
+- a `value`.
+- an optional `condition` (`and`, the default, or `or`, ClickHouse only).
+- the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
+
 Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
 `baseFilters` are always applied, never shown and never in the URL, and form one more group that is ANDed with the selected filters as a whole, so a selection cannot loosen them.
 Prometheus can only AND label matchers, so a Prometheus variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
+
 An `adhoc` variable can set `keys` (up to 100 unique names), which the filter picker offers instead of asking the datasource, and `listedValuesOnly: true`, which makes the picker accept a filter only when its key and value are picked from the lists it shows (the value list comes from Prometheus label values); absent means any text may be typed.
 A `groupby` variable can set `keys` (up to 100 unique label names) in the same way for its label picker.
-Any variable can set `skipUrlSync: true` to stay out of the URL: its selection is not read from `var-<name>` and not written to it, and it starts from its default on every load.
-A `query` variable can set `staticOptions` (up to 50 `text` and `value` pairs, where a `value` may be empty) that are offered next to the query results, before them by default and after them or merged and sorted with `sort` through `staticOrder` (`before`, `after` or `sorted`); an option with an empty `value` is never part of All.
-`refresh: "never"` runs no query and offers only the `staticOptions`.
+
+### Other variable options
+
+- Any variable can set `skipUrlSync: true` to stay out of the URL: its selection is not read from `var-<name>` and not written to it, and it starts from its default on every load.
+- A `query` variable can set `staticOptions` (up to 50 `text` and `value` pairs, where a `value` may be empty) that are offered next to the query results, before them by default and after them or merged and sorted with `sort` through `staticOrder` (`before`, `after` or `sorted`); an option with an empty `value` is never part of All.
+  `refresh: "never"` runs no query and offers only the `staticOptions`.
+
 See [Datasources and variables](datasources-and-variables.md).
 
 ## Expressions
@@ -377,6 +510,7 @@ The server runs the source panel's queries once, under the source's cache key, s
 
 `withTransforms: true` applies the source panel's transforms to the results before the panel's own `transform` list.
 `adHocFilters: true` filters the reused rows in the browser by the selections of every ad hoc variable of the dashboard, after the source panel's transforms (when `withTransforms` is set) and before the panel's own: a filter keeps the rows whose field named by its key passes the operator (`=`, `!=`, `=~` and `!~`, the regular expressions matching the whole value, and `<` and `>`, which skip empty cells), the variable's base filters apply too, groups and `or` combine as for queries, and a frame with no field of that name is left as it is.
+
 The panel's `overrides` match the source's query refs.
 A reusing query can set `hide`, which leaves the panel without data.
 The response of a reusing panel names the source in `meta.source_panel`.
@@ -384,99 +518,222 @@ The response of a reusing panel names the source in `meta.source_panel`.
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
-The options are `unit`, `decimals`, `min`, `max`, `fieldMinMax`, `thresholds` and `thresholdMode`, `color`, `colorMode`, `colorScheme`, `colorBy`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineDash`, `lineColor`, `fillColor`, `pointColor`, `showValues`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `pointShape`, `pointStrokeWidth`, `spanNulls`, `insertNulls`, `neutral`, `nullAsZero`, `barAlignment`, `barWidthFactor`, `barMaxWidth`, `thresholdsStyle`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
+
+The options are:
+
+- `unit`, `decimals`, `min`, `max`, `fieldMinMax`, `thresholds` and `thresholdMode`, `color`, `colorMode`, `colorScheme`, `colorBy`, `displayName`, `noValue`, `mappings`, `links`.
+- For charts, `style`, `fill`, `lineStyle`, `lineDash`, `lineColor`, `fillColor`, `pointColor`, `showValues`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `pointShape`, `pointStrokeWidth`, `spanNulls`, `insertNulls`, `neutral`, `nullAsZero`, `barAlignment`, `barWidthFactor`, `barMaxWidth`, `thresholdsStyle`, `stack`, `axis`, `hidden`.
+- For the axes, `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
+
+### Minimum, maximum and display names
+
 `fieldMinMax: true` makes a gauge or bar gauge range each field by its own values when it has no `min` or `max`, instead of one range shared by every field; other panel types already range each field by itself.
+
 `displayName` may use `${__field.name}`, `${__field.displayName}`, `${__series.name}`, `${__data.refId}`, `${__field.labels}` and `${__field.labels.<label>}`, and dashboard variables as `$name`, `${name}`, `[[name]]` and `${name:format}` (`raw`, `csv`, `text`, `pipe`, `json`, `percentencode` or `queryparam`); several selected values are joined with a comma and a space, and All reads `All`.
 A name that is not known is left as written.
+
+### Data links
+
 A link with `oneClick: true` is a data link on stat, gauge, bar gauge and table panels: when it is the only data link, the whole tile, bar, gauge or cell is the link.
 A link `url` may use `${__url_time_range}`, which becomes `from=...&to=...` for the time range of the page, and `${__all_variables}`, which becomes `var-<name>=<value>` for every dashboard variable's selection (an All selection is written as `$__all`), next to `${name:queryparam}` for one variable.
 A link to `/dashboards/by-title?title=<title>` opens the one dashboard you can see with that title (an exact match first, else a match that differs only in case) and carries `from`, `to` and the `var-` parameters over; when several dashboards or none match, it opens the dashboards list filtered by the title.
 On those panels a field's actions show in the same menu after its links (a bar gauge shows its actions in a menu of their own), and a `oneClick` action that is the field's only link or action runs from the whole tile, gauge, bar or cell, after the same confirm dialog a menu item opens.
-`lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
-`lineStyle` is `solid` (the default), `dashed`, `dotted` (round dots) or `square` (square dots as long as the line is wide), and `lineDash` is a dash length and a gap length in pixels, 1 to 100 each, that replaces the pattern of a dashed line.
-`lineColor`, `fillColor` and `pointColor` fix the color of the line, the area fill (still drawn at the `fill` opacity) and the points, and each falls back to the series color; the legend and tooltip keep the series color.
-`showValues: true` prints each visible point's value above it, formatted as the tooltip formats it, and leaves out a label that would touch the previous one.
-`lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
-`points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style. `pointShape` is `circle` (the default) or `square` and `pointStrokeWidth` is the width of the marker outline, 0 to 20 (0 by default); an `xychart` panel draws both, and time series and trend panels draw the shape.
-`spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
-`insertNulls` is a number of milliseconds or `true`: a series with a longer pause between two samples breaks its line there, and `true` means longer than the query's own resolution, which is the step the panel data reports for that query; a series that also sets `spanNulls` then joins only up to its own limit.
-A state timeline and a status history break a state the same way: it ends one interval (or the written number of milliseconds) after its last sample.
-`nullAsZero` draws a series' missing values as 0 (`false` by default).
-`neutral` is the value a gauge's bar grows from instead of the minimum, upward or downward to the value; a neutral value outside the range is held at the nearest end.
-`barAlignment` puts a bar `before`, at the `center` (the default) or `after` its sample, `barWidthFactor` is the share of the space between samples a bar fills, 0.05 to 1 (0.6 by default), and `barMaxWidth` caps a bar at 1 to 200 pixels (64 by default).
-`thresholdsStyle` draws the thresholds on the chart as `off`, `line`, `dashed` (the default), `area`, `line+area`, `dashed+area` or `series` (the line takes the color of the threshold band its value is in), and the first series on the left axis decides it for the panel.
+
+### Lines and points
+
+- `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
+- `lineStyle` is `solid` (the default), `dashed`, `dotted` (round dots) or `square` (square dots as long as the line is wide), and `lineDash` is a dash length and a gap length in pixels, 1 to 100 each, that replaces the pattern of a dashed line.
+- `lineColor`, `fillColor` and `pointColor` fix the color of the line, the area fill (still drawn at the `fill` opacity) and the points, and each falls back to the series color; the legend and tooltip keep the series color.
+- `showValues: true` prints each visible point's value above it, formatted as the tooltip formats it, and leaves out a label that would touch the previous one.
+- `lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
+- `points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style.
+- `pointShape` is `circle` (the default) or `square` and `pointStrokeWidth` is the width of the marker outline, 0 to 20 (0 by default); an `xychart` panel draws both, and time series and trend panels draw the shape.
+- `spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
+- `insertNulls` is a number of milliseconds or `true`: a series with a longer pause between two samples breaks its line there, and `true` means longer than the query's own resolution, which is the step the panel data reports for that query; a series that also sets `spanNulls` then joins only up to its own limit.
+- A state timeline and a status history break a state the same way: it ends one interval (or the written number of milliseconds) after its last sample.
+- `nullAsZero` draws a series' missing values as 0 (`false` by default).
+
+### Neutral value, bars and threshold style
+
+- `neutral` is the value a gauge's bar grows from instead of the minimum, upward or downward to the value; a neutral value outside the range is held at the nearest end.
+- `barAlignment` puts a bar `before`, at the `center` (the default) or `after` its sample, `barWidthFactor` is the share of the space between samples a bar fills, 0.05 to 1 (0.6 by default), and `barMaxWidth` caps a bar at 1 to 200 pixels (64 by default).
+- `thresholdsStyle` draws the thresholds on the chart as `off`, `line`, `dashed` (the default), `area`, `line+area`, `dashed+area` or `series` (the line takes the color of the threshold band its value is in), and the first series on the left axis decides it for the panel.
+
+### Axes
+
 The axis options belong to the axis a series draws on, and the first series on an axis decides its settings.
-`axisLabel` is up to 100 characters of text beside the axis.
-`axisSoftMin` and `axisSoftMax` widen the automatic range to include them but never cut data, while `min` and `max` are hard limits that win over them.
-`scale` is `linear` (the default), `log` (with `logBase` 2 or 10, 10 by default; values at or below zero are not drawn) or `symlog` (linear within `linearThreshold` of zero, 1 by default, and logarithmic outside).
-`axisCenteredZero` makes the range symmetric around zero.
-`axisWidth` fixes the width of the axis in pixels (0 to 400), `axisGrid` shows or hides its grid lines (by default only the left axis, or the right one when there is no left axis, draws a grid), `axisBorder` draws a line along the axis, and `axisColor` is `text` (the default) or `series` (the axis takes the color of its first series).
-`valueTransform` draws a series `negativeY` (below zero, mirrored, while the legend and tooltip keep its real values) or `constant` (a flat line at its first value).
-`hideInLegend` and `hideInTooltip` leave a series out of the legend or the tooltip but keep it drawn, and `hidden` leaves it out of the chart.
-`stackGroup` (up to 50 characters, `A` by default) makes series stack with the others of the same group only, and `fillBelowTo` is the name of another series: the area between the two is filled, in the series' color at its `fill` (20% when `fill` is 0), and it is ignored for a stacked series or a name no series has.
+
+- `axisLabel` is up to 100 characters of text beside the axis.
+- `axisSoftMin` and `axisSoftMax` widen the automatic range to include them but never cut data, while `min` and `max` are hard limits that win over them.
+- `scale` is `linear` (the default), `log` (with `logBase` 2 or 10, 10 by default; values at or below zero are not drawn) or `symlog` (linear within `linearThreshold` of zero, 1 by default, and logarithmic outside).
+- `axisCenteredZero` makes the range symmetric around zero.
+- `axisWidth` fixes the width of the axis in pixels (0 to 400), `axisGrid` shows or hides its grid lines (by default only the left axis, or the right one when there is no left axis, draws a grid), `axisBorder` draws a line along the axis, and `axisColor` is `text` (the default) or `series` (the axis takes the color of its first series).
+
+Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
+
+### Series display and stacking
+
+- `valueTransform` draws a series `negativeY` (below zero, mirrored, while the legend and tooltip keep its real values) or `constant` (a flat line at its first value).
+- `hideInLegend` and `hideInTooltip` leave a series out of the legend or the tooltip but keep it drawn, and `hidden` leaves it out of the chart.
+- `stackGroup` (up to 50 characters, `A` by default) makes series stack with the others of the same group only, and `fillBelowTo` is the name of another series: the area between the two is filled, in the series' color at its `fill` (20% when `fill` is 0), and it is ignored for a stacked series or a name no series has.
+
 Only `timeseries` and `trend` panels draw these five options.
 A percent stack always uses a 0 to 100% axis whatever the scale.
-A `table` panel also takes `cell`, which sets how a column draws its cells: its `type` is `auto` (the plain cell, colored by thresholds and colored mappings), `text` (colored by the threshold, mapping or field `color`), `background` (filled with that color, with text chosen for contrast; `wholeRow` fills the whole row), `gauge` (a bar over the column's range, `gaugeStyle` `basic` or `lcd`), `sparkline` (a mini chart of an array of numbers, such as the `Trend` column of a `timeSeriesTable` transform, drawn with the column's `style`, `fill`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `min`, `max`, `axisSoftMin` and `axisSoftMax`), `json` (a disclosure with the pretty-printed value), `image` (the value is an https address, drawn through the server, with `imageAlt` and `imageTitle`), `links` (the field's data links as anchors), `pill` (the value split on commas into labels), `actions` (one button per field action, with the value kept for screen readers) or `markdown` (the value drawn as sanitized markdown, the same renderer as a text panel; it shows one line unless `dynamicHeight` is true, which lets the cell grow up to the table's `maxRowHeight`).
+
+### Table cells and columns
+
+A `table` panel also takes `cell`, which sets how a column draws its cells.
+Its `type` is:
+
+- `auto` (the plain cell, colored by thresholds and colored mappings).
+- `text` (colored by the threshold, mapping or field `color`).
+- `background` (filled with that color, with text chosen for contrast; `wholeRow` fills the whole row).
+- `gauge` (a bar over the column's range, `gaugeStyle` `basic` or `lcd`).
+- `sparkline` (a mini chart of an array of numbers, such as the `Trend` column of a `timeSeriesTable` transform, drawn with the column's `style`, `fill`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `min`, `max`, `axisSoftMin` and `axisSoftMax`).
+- `json` (a disclosure with the pretty-printed value).
+- `image` (the value is an https address, drawn through the server, with `imageAlt` and `imageTitle`).
+- `links` (the field's data links as anchors).
+- `pill` (the value split on commas into labels).
+- `actions` (one button per field action, with the value kept for screen readers).
+- `markdown` (the value drawn as sanitized markdown, the same renderer as a text panel; it shows one line unless `dynamicHeight` is true, which lets the cell grow up to the table's `maxRowHeight`).
+
 `valueMode` (`color`, `text`, the default, or `hidden`) sets how a gauge or sparkline cell shows its value, and `wrap` lets the cell's text wrap onto several lines.
 A column's field actions also show in the menu beside its cell's value, and a one-click action runs from the whole cell.
 Other panel types ignore `cell`, and the agent prompt does not list it.
-A `table` column also takes `width` and `minWidth` (20 to 2000 pixels), `align` (`auto`, the default, right-aligns numbers and left-aligns the rest, or `left`, `center`, `right`), `filterable` (a button in the header opens a checklist of the column's distinct values and keeps the rows that match), `inspect` (a button in every cell opens its full value in a dialog), `hideHeader` (the header text is hidden visually but still read by screen readers), `wrapHeader` (the header text wraps onto several lines), `fieldDescription` (a tooltip on the column header; it is named apart from the panel's `description` because field props sit beside it on the panel) and `tooltipField` with `tooltipPlacement` (`auto`, the default, `top`, `bottom`, `left` or `right`), which show the value of another field in the same row as a tooltip on this column's cells.
+
+A `table` column also takes:
+
+- `width` and `minWidth` (20 to 2000 pixels).
+- `align` (`auto`, the default, right-aligns numbers and left-aligns the rest, or `left`, `center`, `right`).
+- `filterable` (a button in the header opens a checklist of the column's distinct values and keeps the rows that match).
+- `inspect` (a button in every cell opens its full value in a dialog).
+- `hideHeader` (the header text is hidden visually but still read by screen readers).
+- `wrapHeader` (the header text wraps onto several lines).
+- `fieldDescription` (a tooltip on the column header; it is named apart from the panel's `description` because field props sit beside it on the panel).
+- `tooltipField` with `tooltipPlacement` (`auto`, the default, `top`, `bottom`, `left` or `right`), which show the value of another field in the same row as a tooltip on this column's cells.
+
 The agent prompt does not list these options.
+
 A column with `width` has exactly that width, the other columns share what is left and never get narrower than their `minWidth`, and the table scrolls sideways when they do not fit; with none of them set the browser sizes the columns from their content.
-`colorMode` chooses how a color is picked: `palette` (the series palette, the default when no `color` is set), `paletteByName` (a palette color from a stable hash of the series name, so a series keeps its color when others come and go), `fixed` (the `color`, the default when one is set), `shades` (the `color` in a step lighter or darker per series), `thresholds` (each series takes the color of the threshold its value reaches) or `scheme` (each value or series takes a color from the ramp `colorScheme` names, by its place between the field's `min` and `max`, else the data range).
+
+### Colors
+
+`colorMode` chooses how a color is picked:
+
+- `palette` (the series palette, the default when no `color` is set).
+- `paletteByName` (a palette color from a stable hash of the series name, so a series keeps its color when others come and go).
+- `fixed` (the `color`, the default when one is set).
+- `shades` (the `color` in a step lighter or darker per series).
+- `thresholds` (each series takes the color of the threshold its value reaches).
+- `scheme` (each value or series takes a color from the ramp `colorScheme` names, by its place between the field's `min` and `max`, else the data range).
+
 `colorScheme` is one of `greenYellowRed`, `redYellowGreen`, `blueYellowRed`, `yellowRed`, `bluePurple`, `yellowBlue`, `blues`, `reds`, `greens`, `purples`, `oranges`, `viridis`, `magma`, `plasma`, `inferno`, `cividis` or `warm`; every ramp is built from the theme's own colors, so light and dark themes follow it.
 `colorBy` is the value of a series that picks its color under `thresholds` and `scheme`: `last` (the default), `min` or `max`.
 Time series and trend panels draw every `colorMode`, while stat, gauge, bar gauge, table cells with colored values, bar chart and XY chart draw `scheme`; stat, gauge, bar gauge, table, bar chart, pie chart and XY chart already color values by their thresholds.
-Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
+
+### Thresholds and color names
+
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical`, `text` (the theme's text color, which follows the light and dark themes) or a `#rrggbb` hex value.
 Beside a stat, gauge or bar gauge value, a step colored `ok`, `info`, `warning` or `critical` is named by that word, and a step with any other color by its value in the field's unit, such as `80%`.
+
+### Units
+
 A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
 
+### Overrides
+
 An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field`, `fieldType`, `value` or `fields`, and at least one option to apply.
-A `value` match selects the number fields whose `reducer` result compares to `value` with `op` (`eq`, `neq`, `lt`, `lte`, `gt` or `gte`).
-A `value` reducer may also be `allIsNull` or `allIsZero`, whose true result compares as 1 and false as 0.
-A `fields` match selects by position: `first` the first field of each frame, `firstTime` the first time field of each frame, and `all` every field.
+
+- A `value` match selects the number fields whose `reducer` result compares to `value` with `op` (`eq`, `neq`, `lt`, `lte`, `gt` or `gte`).
+  A `value` reducer may also be `allIsNull` or `allIsZero`, whose true result compares as 1 and false as 0.
+- A `fields` match selects by position: `first` the first field of each frame, `firstTime` the first time field of each frame, and `all` every field.
+
 A panel has at most 50 overrides.
+
+### Transforms
 
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.
 The steps are `merge`, `seriesToRows`, `organize`, `reduce`, `joinByField`, `filterFieldsByName`, `calculateField`, `sortBy` and `limit`.
 The `reducers` of a `reduce` step may be any reducer: a number reducer gives a number field, `allIsNull` and `allIsZero` a true or false field, and `allValues` and `uniqueValues` a text field.
-Seven more steps reshape single fields and filter rows: `convertFieldType` (`conversions` of `field` and `to`: `number`, `string`, `time`, `boolean`, `enum` or `other`, with `dateFormat` and `joinWith`), `formatString` (`field`, `format` and, for `substring`, `start` and `end`), `formatTime` (`field`, a date `format` made of `YYYY YY MM M DD D HH H hh h mm ss SSS A a`, and `utc`), `renameByRegex` (`regex` and `renameTo`, where `$1` is a captured group), `filterByValue` (`keep` and `match`, and `filters` of `field`, `op` and `value`, or `from` and `to` for `range`), `filterByRefId` (`include` lists the query refs to keep) and `extractFields` (`field`, `format` of `auto`, `json`, `kvp`, `delimiter` or `regexp`, `paths`, `delimiter`, `regex`, `replace` and `keepTime`).
+
+### Field and row transform steps
+
+Seven more steps reshape single fields and filter rows:
+
+- `convertFieldType` (`conversions` of `field` and `to`: `number`, `string`, `time`, `boolean`, `enum` or `other`, with `dateFormat` and `joinWith`).
+- `formatString` (`field`, `format` and, for `substring`, `start` and `end`).
+- `formatTime` (`field`, a date `format` made of `YYYY YY MM M DD D HH H hh h mm ss SSS A a`, and `utc`).
+- `renameByRegex` (`regex` and `renameTo`, where `$1` is a captured group).
+- `filterByValue` (`keep` and `match`, and `filters` of `field`, `op` and `value`, or `from` and `to` for `range`).
+- `filterByRefId` (`include` lists the query refs to keep).
+- `extractFields` (`field`, `format` of `auto`, `json`, `kvp`, `delimiter` or `regexp`, `paths`, `delimiter`, `regex`, `replace` and `keepTime`).
+
+### Label and layout transform steps
+
 Eight more steps reshape frames by their labels and layout:
-`labelsToFields` (`mode` of `columns` or `rows`, `include` to keep some labels, `valueLabel` to name the value field after a label),
-`joinByLabels` (`value` is the label whose values become columns and `on` the labels to join on),
-`partitionByValues` (`fields`, `keepFields`, and `naming` of `labels`, `name` or `append`),
-`prepareTimeSeries` (`format` of `wide`, `many` or `long`),
-`timeSeriesTable` (one row per series with a trend and a reduced value, `stats` choosing the reducer per query ref, `lastNotNull` by default),
-`rowsToFields` (each row becomes a field, with `mappings` of a column `field` to `name`, `value`, `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color`),
-`configFromData` (reads field settings from the frame of the `configQuery` ref, with `mappings` of `field` to `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color` and an optional `reducer`, and applies them to the number fields or to the fields `applyTo` matches) and
-`concatenate` (puts the fields of every frame side by side, and `nameMode` of `drop`, `field` or `label` with `nameLabel` says where the frame name goes).
+
+- `labelsToFields` (`mode` of `columns` or `rows`, `include` to keep some labels, `valueLabel` to name the value field after a label).
+- `joinByLabels` (`value` is the label whose values become columns and `on` the labels to join on).
+- `partitionByValues` (`fields`, `keepFields`, and `naming` of `labels`, `name` or `append`).
+- `prepareTimeSeries` (`format` of `wide`, `many` or `long`).
+- `timeSeriesTable` (one row per series with a trend and a reduced value, `stats` choosing the reducer per query ref, `lastNotNull` by default).
+- `rowsToFields` (each row becomes a field, with `mappings` of a column `field` to `name`, `value`, `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color`).
+- `configFromData` (reads field settings from the frame of the `configQuery` ref, with `mappings` of `field` to `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color` and an optional `reducer`, and applies them to the number fields or to the fields `applyTo` matches).
+- `concatenate` (puts the fields of every frame side by side, and `nameMode` of `drop`, `field` or `label` with `nameLabel` says where the frame name goes).
+
+### Grouping and computing transform steps
+
 Seven more steps group rows and compute new data:
-`groupBy` (one row per distinct combination of the `by` fields, with `aggregate` entries of a `field` and its `reducers`, each giving a `<field> (<reducer>)` column; only those fields are kept; a reducer here may be any reducer, so `allIsNull` and `allIsZero` give a true or false column and `allValues` and `uniqueValues` a text column),
-`groupToNestedTable` (the same `by` and `aggregate`, with the rows of each group in a nested table that opens from the row, and `hideHeaders` to drop its header),
-`groupingToMatrix` (a matrix of the `row` field by the `column` field holding the `value` field, the first three fields unless named, and `empty` of `empty`, `zero`, `true` or `false` for cells without data),
-`heatmap` (counts the samples of the time series into the cells of a time column and a value row, with `xBuckets` and `yBuckets` of a `mode` of `size` or `count` and a `value`, `yScale` of `linear`, `log`, `symlog` or `ordinal` (each distinct value is its own row, in order of first appearance) with `yLogBase` of 2 or 10, `xScale` of `linear`, `log` or `symlog` with `xLogBase` of 2 or 10, and one output row per non-empty cell with `xMin`, `yMin`, `yMax` and `count`; `keepOriginalData` puts the original frames before it),
-`histogram` (counts every number field into `bucketCount` or `bucketSize` buckets shifted by `bucketOffset`, or all of them together with `combine`),
-`regression` (a least squares `model` of `linear` or `polynomial` with a `degree` of 1 to 5, 2 by default, fitted from the `x` field to the `y` field and added as a series named after the `y` field and "regression", at `predictions` evenly spaced points) and
-`transpose` (fields become rows and rows become fields, `firstName` names the first column, `restName` the others and `empty` fills missing cells).
+
+- `groupBy` (one row per distinct combination of the `by` fields, with `aggregate` entries of a `field` and its `reducers`, each giving a `<field> (<reducer>)` column; only those fields are kept; a reducer here may be any reducer, so `allIsNull` and `allIsZero` give a true or false column and `allValues` and `uniqueValues` a text column).
+- `groupToNestedTable` (the same `by` and `aggregate`, with the rows of each group in a nested table that opens from the row, and `hideHeaders` to drop its header).
+- `groupingToMatrix` (a matrix of the `row` field by the `column` field holding the `value` field, the first three fields unless named, and `empty` of `empty`, `zero`, `true` or `false` for cells without data).
+- `heatmap` (counts the samples of the time series into the cells of a time column and a value row, with `xBuckets` and `yBuckets` of a `mode` of `size` or `count` and a `value`, `yScale` of `linear`, `log`, `symlog` or `ordinal` (each distinct value is its own row, in order of first appearance) with `yLogBase` of 2 or 10, `xScale` of `linear`, `log` or `symlog` with `xLogBase` of 2 or 10, and one output row per non-empty cell with `xMin`, `yMin`, `yMax` and `count`; `keepOriginalData` puts the original frames before it).
+- `histogram` (counts every number field into `bucketCount` or `bucketSize` buckets shifted by `bucketOffset`, or all of them together with `combine`).
+- `regression` (a least squares `model` of `linear` or `polynomial` with a `degree` of 1 to 5, 2 by default, fitted from the `x` field to the `y` field and added as a series named after the `y` field and "regression", at `predictions` evenly spaced points).
+- `transpose` (fields become rows and rows become fields, `firstName` names the first column, `restName` the others and `empty` fills missing cells).
+
+### Location transform steps
+
 Two steps add locations to rows so a map can draw them:
-`fieldLookup` (looks the `lookupField` text field, the first text field by default, up in the built-in `gazetteer` of `countries` (the default) or `usa-states` by name or code, and adds `lat` and `lon` fields, empty where nothing matched) and
-`spatial` (its `source` says where a row is: `mode` `auto` (the default) takes fields named lat, latitude, lon, lng or longitude, else a field named geohash; `coords`, `geohash` and `lookup` name the fields, and a lookup takes a `gazetteer`;
-the `action` `prepare` (the default) adds `lat` and `lon`, `calculate` adds a field named by `field` with the `calc` `heading` (degrees, the default), `distance` (meters) or `area` (square meters of the polygon the rows outline, repeated on every row) measured from the previous located row,
-and `modify` with `modify` `lineBuilder` (the default) turns each row into a two-row frame from the `source` to the `target` location, or `asLine` keeps the located rows in order for the map's route layer).
+
+- `fieldLookup` (looks the `lookupField` text field, the first text field by default, up in the built-in `gazetteer` of `countries` (the default) or `usa-states` by name or code, and adds `lat` and `lon` fields, empty where nothing matched).
+- `spatial`, whose `source` says where a row is:
+  `mode` `auto` (the default) takes fields named lat, latitude, lon, lng or longitude, else a field named geohash; `coords`, `geohash` and `lookup` name the fields, and a lookup takes a `gazetteer`.
+  Its `action` is one of:
+  - `prepare` (the default) adds `lat` and `lon`.
+  - `calculate` adds a field named by `field` with the `calc` `heading` (degrees, the default), `distance` (meters) or `area` (square meters of the polygon the rows outline, repeated on every row) measured from the previous located row.
+  - `modify` with `modify` `lineBuilder` (the default) turns each row into a two-row frame from the `source` to the `target` location, or `asLine` keeps the located rows in order for the map's route layer.
+
 A lookup step waits for its gazetteer to load and changes nothing until it has.
-Any step can carry `queries`, a list of query refs: the step then reshapes only the frames of those queries and passes the others through unchanged, and a list that matches no frame changes nothing.
+
+### Options added to the first transform steps
+
 The first steps take more options:
-`organize` adds `include` (keep only the listed fields, before `exclude`, `rename` and `order`),
-`reduce` adds `includeTime` (reduce the time field too), `labelsToFields` (add each label as a column) and `fields` or `fieldsRegex` (reduce only those number fields),
-`joinByField` adds the `mode` `outerTabular` (an outer join that keeps repeated keys as separate rows instead of pairing them),
-`filterFieldsByName` adds `exclude`, `excludeRegex` and `variable` (keep the fields named by the variable's selection; an unset selection or All keeps every field),
-`sortBy` adds `then`, further `field` and `desc` keys that break ties,
-`limit` takes `count` as `${name}` to read the row count from a variable (an unset selection or All keeps every row), and
-`calculateField` adds `unary` (`fn` of `abs`, `exp`, `ln`, `floor`, `ceil` or `round` on a `field`, the first number field when none is named), `index` (the row number, or with `percentile` its place from 0 to 1), `cumulative` (a running `sum` or `mean` of a `field`), `window` (a moving `mean`, `stdDev` or `variance` of a `field` over `size` rows or a `share` of the rows, `trailing` or `centered`), `replace` (keep only the time field and the new field), the operators `%` and `^` in `expr`, field names with spaces in `expr` (write spaces around the operator, as in `Value #A (lastNotNull) - Value #B (lastNotNull)`; a name that holds its own ` - ` is ambiguous and cannot be used), and `include` (with `reduceRow`, the names of the number fields to reduce; names the frame lacks are skipped).
+
+- `organize` adds `include` (keep only the listed fields, before `exclude`, `rename` and `order`).
+- `reduce` adds `includeTime` (reduce the time field too), `labelsToFields` (add each label as a column) and `fields` or `fieldsRegex` (reduce only those number fields).
+- `joinByField` adds the `mode` `outerTabular` (an outer join that keeps repeated keys as separate rows instead of pairing them).
+- `filterFieldsByName` adds `exclude`, `excludeRegex` and `variable` (keep the fields named by the variable's selection; an unset selection or All keeps every field).
+- `sortBy` adds `then`, further `field` and `desc` keys that break ties.
+- `limit` takes `count` as `${name}` to read the row count from a variable (an unset selection or All keeps every row).
+- `calculateField` adds:
+  - `unary` (`fn` of `abs`, `exp`, `ln`, `floor`, `ceil` or `round` on a `field`, the first number field when none is named).
+  - `index` (the row number, or with `percentile` its place from 0 to 1).
+  - `cumulative` (a running `sum` or `mean` of a `field`).
+  - `window` (a moving `mean`, `stdDev` or `variance` of a `field` over `size` rows or a `share` of the rows, `trailing` or `centered`).
+  - `replace` (keep only the time field and the new field).
+  - the operators `%` and `^` in `expr`.
+  - field names with spaces in `expr` (write spaces around the operator, as in `Value #A (lastNotNull) - Value #B (lastNotNull)`; a name that holds its own ` - ` is ambiguous and cannot be used).
+  - `include` (with `reduceRow`, the names of the number fields to reduce; names the frame lacks are skipped).
+
+### Using transforms
+
+Any step can carry `queries`, a list of query refs: the step then reshapes only the frames of those queries and passes the others through unchanged, and a list that matches no frame changes nothing.
+
 Field names match a field's name or its series name, and a step that names a field the data does not have changes nothing.
 Prefer a query that returns the shape you need, and use a transform when it cannot.
 

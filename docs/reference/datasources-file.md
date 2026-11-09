@@ -10,6 +10,8 @@ The server reads it once at startup.
 The file never holds a secret.
 Passwords and tokens are referenced by environment variable name or by file path instead, so the file can live in version control.
 
+## Example
+
 ```yaml
 datasources:
   - uid: prom
@@ -50,7 +52,7 @@ datasources:
 
 `deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
 
-Fields common to every entry:
+## Fields common to every entry
 
 | Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -66,7 +68,7 @@ The Grafana importer matches a dashboard's datasources by the mapping given with
 
 The fields of each block are described under [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md), [Tempo](../connect/tempo.md), [Elasticsearch](../connect/elasticsearch.md) and [OpenSearch](../connect/opensearch.md).
 
-Rules for secrets:
+## Rules for secrets
 
 - An environment variable name must start with `SLASHOBSERVE_`, must be set and non-empty, and must not be one of the server's own settings (such as `SLASHOBSERVE_DATABASE_URL`).
 - A file's content is used with trailing newlines removed; an empty file is an error.
@@ -74,10 +76,14 @@ Rules for secrets:
 - A header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
   Prometheus, Loki, Tempo, Elasticsearch and OpenSearch reject an `Authorization` header there; use `basicAuth`, a bearer token or, on Elasticsearch and OpenSearch, an API key instead.
 
+## Limits
+
 Limits bound every query the server runs for that datasource.
 The defaults are a 30 second timeout, 1000 series, 1,000,000 points and 10,000 rows.
 A value you set replaces the default, up or down; a ClickHouse settings profile can still cap it further.
+
 The agent's and MCP's ad-hoc queries, the draft preview in the panel editor, the logs page, the trace view and `POST /api/v1/datasources/{uid}/query` use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
+
 For ClickHouse table results (the `table` and `logs` formats, and instant queries) each row counts as one point, so the row limit bounds them.
 A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo query returns at most the row limit of spans or traces.
 Separate from these limits, the server refuses a Prometheus, Loki, Tempo, Elasticsearch or OpenSearch response over 64 MiB and a ClickHouse result over 32 MiB.

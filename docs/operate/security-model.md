@@ -3,6 +3,8 @@ title: Security model
 description: What SlashObserve protects and what an operator should know.
 ---
 
+## Sign-in and roles
+
 - **Sign-in.**
   Only accounts from your OIDC provider, and only in the allowed email domains, get a session.
   Sessions and keys are random tokens stored only as SHA-256 hashes.
@@ -12,6 +14,9 @@ description: What SlashObserve protects and what an operator should know.
   Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, open the Datasources page, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
   Every person, Viewers included, can ask the agent for dashboards in their My Dashboards, which spends model tokens and lets the agent query every configured datasource for them.
   New people are Editors by default, so allow into SlashObserve only the people you would trust to create and change dashboards.
+
+## Dashboard access
+
 - **Folders hide dashboards.**
   A restricted folder (see [Folders and access](../teams/folders.md)) is hidden from everyone who is not on its list, did not create it and is not an Admin, in lists, search, tags, datasource dashboard counts, panel data, comments, events, import records and the agent.
   The server filters lists by the folders the caller can see, so a failed lookup shows nothing rather than everything, and re-checks access on each request, including at every ping of an event stream.
@@ -26,18 +31,32 @@ description: What SlashObserve protects and what an operator should know.
   A free link accepts a variable value only when it is one of the options the server lists for it.
   Links are refused for dashboards in My Dashboards and for dashboards whose queries read the viewer's identity, revoking deletes the link at once, and the server answers every public route with `Cache-Control: no-store`.
   A public link cannot be embedded in another site, because framing stays refused.
-- **Datasource credentials stay on the server.**
-  They never reach the browser.
-  The datasources API returns health only, with no address, user or secret.
-  The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
-  There are three exceptions.
-  The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
-  The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
+
+## Datasource credentials and queries
+
+### Credentials stay on the server
+
+Datasource credentials never reach the browser.
+The datasources API returns health only, with no address, user or secret.
+The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
+There are three exceptions.
+
+- The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+- The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
   Only the signed-in user who made the request can call them, and for a revision only while they can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.
-  The explore query behind the logs page and trace view (`POST /api/v1/datasources/{uid}/query`) runs a query the caller writes against one datasource, for any signed-in role from Viewer and for service-account keys, under the same limits, and never caches or shares results.
-  People who can see a dashboard see how far its revision has come, never the build's panels.
-  The revisions list (`GET /api/v1/dashboards/{id}/revisions`) is visible to every viewer of the dashboard, and carries a stopped build's progress counts, besides the continue note a person gave; the build's title is shown only to the person who asked, and is null for everyone else.
+- The explore query behind the logs page and trace view (`POST /api/v1/datasources/{uid}/query`) runs a query the caller writes against one datasource, for any signed-in role from Viewer and for service-account keys, under the same limits, and never caches or shares results.
+
+People who can see a dashboard see how far its revision has come, never the build's panels.
+The revisions list (`GET /api/v1/dashboards/{id}/revisions`) is visible to every viewer of the dashboard, and carries a stopped build's progress counts, besides the continue note a person gave; the build's title is shown only to the person who asked, and is null for everyone else.
+
+### Every query is bounded
+
+Whatever a prompt or a client asks for, each query has a timeout and limits on series, points and rows, applied on the server.
+ClickHouse is queried only as a read-only user.
+
+## The agent and its builds
+
 - **Only the requester saves a stopped build.**
   When an agent run fails, its build is kept for 7 days.
   The person or key that made the request can save it as one version with `POST /api/v1/observe/{id}/build/save`, if its role is Editor or higher and it can edit the dashboard (or create dashboards, for a new one); nobody else can, and the route answers them 404.
@@ -46,13 +65,14 @@ description: What SlashObserve protects and what an operator should know.
   `POST /api/v1/observe/{id}/cancel` and `POST /api/v1/observe/{id}/continue` answer anyone else 403, or 404 for a new-dashboard request they cannot see, and no role or folder level overrides that.
   Continue also needs the access that starting a run needs, and it answers 409 when someone saved a newer version of the dashboard after the build started.
   A run that does not end holds back other editors' revisions on its dashboard until its limits, its requester or a run time limit end it.
-- **Every query is bounded.**
-  Whatever a prompt or a client asks for, each query has a timeout and limits on series, points and rows, applied on the server.
-  ClickHouse is queried only as a read-only user.
+
 - **The agent can only save dashboards.**
   Its only product is a dashboard definition that the server validates, and no code or markup written by the model is rendered.
   A save from the agent or an MCP client is refused when it writes HTML in a text panel (`html_not_allowed`) or adds or changes a canvas or field action (`action_not_allowed`), so only people and imports can create them.
   Through MCP, a key can also list datasources, run bounded queries and sample rows, and create and update dashboards.
+
+## Outbound requests and the browser
+
 - **Outbound requests are allowlisted.**
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
   A Grafana connection an Admin configures is the exception: it may use `http` and a private address, because the Grafana being migrated usually runs inside the same network.
@@ -70,6 +90,9 @@ description: What SlashObserve protects and what an operator should know.
   Every image loads through the server, so the policy above still decides what the browser fetches.
 - **Framing is refused.**
   Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
+
+## Keys
+
 - **Keep keys short-lived.**
   Prefer an expiry, one service account per tool or person, and revoke on the API keys page when a laptop or pipeline is retired.
 - **Keys from a file are the operator's.**

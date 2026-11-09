@@ -142,7 +142,7 @@ Pass the datasource, the query and the line's `time_ns` from a `query_instant` r
 The answer holds each side's lines with `time`, `time_ns`, `body` and `labels`, the before side newest first and the after side oldest first, and says when more lines exist within an hour on either side.
 The built-in agent has the same tool.
 
-`log_patterns` groups the lines a logs query matches into patterns with counts on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, as [Patterns](logs-and-traces.md#logs-page) does: from Loki's pattern index or Elasticsearch's `categorize_text` when it has one, otherwise from the newest 2,000 lines.
+`log_patterns` groups the lines a logs query matches into patterns with counts on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, as [Patterns](logs-and-traces.md#pattern-templates) does: from Loki's pattern index or Elasticsearch's `categorize_text` when it has one, otherwise from the newest 2,000 lines.
 OpenSearch has no such aggregation, so the server clusters the newest 2,000 lines there and says `source: server`.
 Pass the datasource, the query and optionally `from`, `to` and `limit`, 10 patterns by default and at most 30.
 The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`, the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
