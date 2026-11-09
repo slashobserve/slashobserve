@@ -8,7 +8,7 @@ CI runs all of them on every pull request: the `check` job runs the unit and com
 
 ## Unit tests
 
-`make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, and the tests of the release and install scripts.
+`make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, and the tests of the release, install and docs lint scripts.
 Run one part on its own with `go test -race ./...` from the repository root or `bun run test` from `web/`.
 
 Go tests sit next to the code as `*_test.go` files.
@@ -69,6 +69,8 @@ A page passes when:
 - it has no em dash or en dash
 - every relative link to a `.md` file points at a file that exists
 - each prose line holds one sentence
+- no paragraph runs longer than 8 prose lines without a blank line
+- a page with more than 60 non-blank lines has at least one `## ` heading
 
 A prose line is any line outside front matter and code blocks that is not a heading, a list item or a table row.
 It holds more than one sentence when a period followed by a space and a capital letter appears outside inline code, parentheses and double quotes.

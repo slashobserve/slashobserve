@@ -59,6 +59,7 @@ test: web-deps
 	cd web && bun run test $(WEB_TEST_FLAGS)
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
+	scripts/docs-lint-test.sh
 
 lint: web-deps
 	$(GOLANGCI_LINT) config verify
