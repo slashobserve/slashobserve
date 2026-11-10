@@ -9,7 +9,21 @@ import { ThreadEntry } from "./thread-entry"
 import type { TimelineEntry } from "./timeline-model"
 
 const ada = { kind: "user" as const, id: "user-ada", name: "Ada" }
+const actor = {
+  ...ada,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
 const grace = { kind: "user" as const, id: "user-grace", name: "Grace" }
+const graceViaMcp = {
+  ...grace,
+  origin: "mcp" as const,
+  client: "Claude Code",
+  run_id: null,
+  label: "Grace (via Claude Code)",
+}
 
 function comment(overrides: Partial<Comment>): Comment {
   return {
@@ -21,10 +35,15 @@ function comment(overrides: Partial<Comment>): Comment {
     body: "Latency looks high",
     status: "open",
     author: ada,
+    actor,
     created_at: "2026-11-06T10:00:00Z",
     updated_at: "2026-11-06T10:00:00Z",
     resolved_at: null,
     resolved_by: null,
+    resolved_actor: null,
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -40,6 +59,9 @@ function thread(
     status,
     resolved_at: resolved ? "2026-11-06T11:00:00Z" : null,
     resolved_by: resolved ? grace : null,
+    resolved_actor: resolved
+      ? { ...graceViaMcp, origin: "web", client: null, label: "Grace" }
+      : null,
   })
   const reply = comment({
     id: "reply",
@@ -47,6 +69,7 @@ function thread(
     body: "Looking now",
     status,
     author: grace,
+    actor: graceViaMcp,
     created_at: "2026-11-06T10:30:00Z",
     updated_at: "2026-11-06T10:30:00Z",
   })
@@ -95,6 +118,12 @@ describe("ThreadEntry", () => {
     expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument()
     expect(screen.getByText("Looking now")).toBeInTheDocument()
+  })
+
+  it("labels each comment with its actor", () => {
+    renderThread("open")
+    expect(screen.getByText("Ada")).toBeInTheDocument()
+    expect(screen.getByText("Grace (via Claude Code)")).toBeInTheDocument()
   })
 
   it("folds a resolved thread to its first line", () => {

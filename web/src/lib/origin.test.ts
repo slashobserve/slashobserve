@@ -5,6 +5,7 @@ import type { components } from "@/api/schema.gen"
 import {
   madeByBreadcrumb,
   madeByChannel,
+  isAgentActor,
   madeByDetail,
   versionActor,
 } from "./origin"
@@ -157,5 +158,20 @@ describe("versionActor", () => {
         actor: actor({ run_id: "r1", label: "/observe for Ada" }),
       })
     ).toEqual({ who: "/observe for Ada", verb: "saved", agent: true })
+  })
+})
+
+describe("isAgentActor", () => {
+  it("is true for the built-in agent and for an MCP client", () => {
+    expect(isAgentActor(actor({ run_id: "r1" }))).toBe(true)
+    expect(isAgentActor(actor({ origin: "mcp", client: "Claude Code" }))).toBe(
+      true
+    )
+  })
+
+  it("is false for a person on the web, the CLI or the API", () => {
+    for (const origin of ["web", "cli", "api", null] as const) {
+      expect(isAgentActor(actor({ origin }))).toBe(false)
+    }
   })
 })

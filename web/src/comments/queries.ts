@@ -35,6 +35,7 @@ export function withStatus(
     status,
     resolved_at: resolved ? now : null,
     resolved_by: resolved ? comment.resolved_by : null,
+    resolved_actor: resolved ? comment.resolved_actor : null,
     resolved_by_version: resolved ? comment.resolved_by_version : null,
   }
 }

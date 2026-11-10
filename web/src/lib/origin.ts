@@ -38,12 +38,18 @@ export function madeByBreadcrumb(
   return client === null ? "made by an MCP client" : `made by ${client}`
 }
 
+type Actor = components["schemas"]["Actor"]
+
+export function isAgentActor(actor: Pick<Actor, "run_id" | "origin">): boolean {
+  return actor.run_id !== null || actor.origin === "mcp"
+}
+
 export type VersionActor = { who: string; verb: string; agent: boolean }
 
 export function versionActor(meta: Pick<VersionMeta, "actor">): VersionActor {
   return {
     who: meta.actor.label,
     verb: "saved",
-    agent: meta.actor.run_id !== null || meta.actor.origin === "mcp",
+    agent: isAgentActor(meta.actor),
   }
 }

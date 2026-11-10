@@ -6,6 +6,8 @@ import { AgentMark } from "@/components/agent-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
+import type { Comment } from "@/comments/queries"
+import { isAgentActor } from "@/lib/origin"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
@@ -24,6 +26,12 @@ export function avatarFor(author: {
   return author.kind === "service_account"
     ? { kind: "service", name: author.name }
     : { kind: "person", name: author.name }
+}
+
+export function commentAvatar(comment: Pick<Comment, "actor" | "author">) {
+  return isAgentActor(comment.actor)
+    ? { kind: "agent" as const }
+    : avatarFor(comment.author)
 }
 
 type Props = {

@@ -19,6 +19,7 @@ Without a model on the server it reads "Comments and saved versions."
 Entries are sorted by time and come in four kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
+  The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by /observe for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".

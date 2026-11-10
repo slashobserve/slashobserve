@@ -24,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -631,5 +632,151 @@ func TestACommentShowsTheLaterOfThreadAndMessageUpdateTimes(t *testing.T) {
 	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
 	if err != nil || len(listed) != 1 || !listed[0].UpdatedAt.Equal(resolved.UpdatedAt) {
 		t.Fatalf("listed = %+v, err %v, want updated_at %v", listed, err, resolved.UpdatedAt)
+	}
+}
+
+func TestACommentShowsItsActorMentionsAndEdits(t *testing.T) {
+	r := newAgentRig(t, false)
+	dash := r.createDashboard(t)
+	bo := r.createUser(t, "Bo Baker", "bo@example.com")
+	viaMCP := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+
+	root, err := r.comments.Create(viaMCP, testUser, dash, NewComment{Version: 1, Body: "ping @[x](user:" + bo.String() + ") and @observe"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	web, err := r.comments.Create(t.Context(), testUser, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "from the web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if label := root.Actor.JSON().Label; label != "Ada (via Claude Code)" || root.Actor.ID != testUserID {
+		t.Fatalf("mcp actor = %+v, label %q", root.Actor, label)
+	}
+	if label := web.Actor.JSON().Label; label != "Ada" {
+		t.Fatalf("web actor label = %q, want Ada", label)
+	}
+	if len(root.Mentions) != 2 || root.Mentions[0].Name != "Bo Baker" || root.Mentions[1].Agent != AgentObserve {
+		t.Fatalf("mentions = %+v", root.Mentions)
+	}
+	if root.EditedAt != nil || !root.CanEdit {
+		t.Fatalf("a new comment: edited_at %v, can_edit %v", root.EditedAt, root.CanEdit)
+	}
+
+	if _, _, changed, err := r.service.Edit(t.Context(), testUser, mustParse(t, root.ID), "no mentions now"); err != nil || !changed {
+		t.Fatalf("edit: changed %v, err %v", changed, err)
+	}
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
+	if err != nil || len(listed) != 2 {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	byID := map[string]Comment{}
+	for _, c := range listed {
+		byID[c.ID] = c
+	}
+	if got := byID[root.ID]; got.EditedAt == nil || len(got.Mentions) != 0 || got.Body != "no mentions now" {
+		t.Fatalf("edited comment = %+v", got)
+	}
+	if got := byID[web.ID]; got.EditedAt != nil {
+		t.Fatalf("an untouched reply shows edited_at %v", got.EditedAt)
+	}
+}
+
+func TestACommentIsEditableOnlyByItsAuthorWhoCanStillComment(t *testing.T) {
+	r := newAgentRig(t, false)
+	dash := r.createDashboard(t)
+	mine := r.createComment(t, dash, NewComment{Version: 1, Body: "mine"})
+	theirs, err := r.comments.Create(t.Context(), commenter, dash, NewComment{ParentID: mustParse(t, mine.ID), Body: "theirs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !theirs.CanEdit {
+		t.Fatal("a commenter should be able to edit their own reply on creation")
+	}
+
+	cases := []struct {
+		name   string
+		reader auth.Principal
+		mine   bool
+		theirs bool
+	}{
+		{"author of the root", testUser, true, false},
+		{"author of the reply", commenter, false, true},
+		{"viewer", viewer, false, false},
+	}
+	for _, tc := range cases {
+		listed, _, err := r.comments.List(t.Context(), tc.reader, dash, StatusAll, "", 10, "")
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		for _, c := range listed {
+			want := tc.mine
+			if c.ID == theirs.ID {
+				want = tc.theirs
+			}
+			if c.CanEdit != want {
+				t.Errorf("%s: comment %s can_edit = %v, want %v", tc.name, c.ID, c.CanEdit, want)
+			}
+		}
+	}
+
+	resolved, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, mine.ID), StatusResolved, nil)
+	if err != nil || !resolved.CanEdit || resolved.Actor.ID != testUserID {
+		t.Fatalf("resolved = %+v, err %v", resolved, err)
+	}
+	if resolved.ResolvedActor == nil || resolved.ResolvedActor.JSON().Label != "Ada" {
+		t.Fatalf("resolved actor = %+v", resolved.ResolvedActor)
+	}
+}
+
+func TestAThreadResolvedByARunNamesTheAgentActingForTheRequester(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	r.addVersion(t, dash, 1)
+	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
+	if err := r.resolveForRun(t, r.runFor(t, dash, comment, 2)); err != nil {
+		t.Fatal(err)
+	}
+
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusResolved, "", 10, "")
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	got := listed[0]
+	if got.ResolvedActor == nil || got.ResolvedActor.JSON().Label != "/observe for Ada" || got.ResolvedActor.RunID == "" {
+		t.Fatalf("resolved actor = %+v", got.ResolvedActor)
+	}
+	if got.Actor.JSON().Label != "Ada" {
+		t.Fatalf("author actor label = %q, want Ada", got.Actor.JSON().Label)
+	}
+}
+
+func TestCommentJSONAlwaysHasMentionsAndNullableEditAndResolver(t *testing.T) {
+	r := newAgentRig(t, false)
+	dash := r.createDashboard(t)
+	comment := r.createComment(t, dash, NewComment{Version: 1, Body: "plain"})
+
+	raw, err := json.Marshal(newCommentJSON(comment))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if mentions, ok := got["mentions"].([]any); !ok || len(mentions) != 0 {
+		t.Errorf("mentions = %#v, want an empty array", got["mentions"])
+	}
+	for _, key := range []string{"edited_at", "resolved_actor", "resolved_at", "resolved_by"} {
+		if value, present := got[key]; !present || value != nil {
+			t.Errorf("%s = %#v, want present and null", key, value)
+		}
+	}
+	if got["can_edit"] != true {
+		t.Errorf("can_edit = %#v, want true", got["can_edit"])
+	}
+	wantActor := map[string]any{"kind": "user", "id": testUserID, "name": "Ada", "origin": nil, "client": nil, "run_id": nil, "label": "Ada"}
+	if !reflect.DeepEqual(got["actor"], wantActor) {
+		t.Errorf("actor = %#v, want %#v", got["actor"], wantActor)
 	}
 }

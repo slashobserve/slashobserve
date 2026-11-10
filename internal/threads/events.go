@@ -16,19 +16,19 @@ type objectRef struct {
 	ID   string `json:"id"`
 }
 
-type mentionRef struct {
+type mentionJSON struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 type eventData struct {
-	Object            objectRef   `json:"object"`
-	Version           *int32      `json:"version,omitempty"`
-	PanelID           string      `json:"panel_id,omitempty"`
-	MessageID         string      `json:"message_id,omitempty"`
-	ResolvedByVersion *int32      `json:"resolved_by_version,omitempty"`
-	Mentioned         *mentionRef `json:"mentioned,omitempty"`
+	Object            objectRef    `json:"object"`
+	Version           *int32       `json:"version,omitempty"`
+	PanelID           string       `json:"panel_id,omitempty"`
+	MessageID         string       `json:"message_id,omitempty"`
+	ResolvedByVersion *int32       `json:"resolved_by_version,omitempty"`
+	Mentioned         *mentionJSON `json:"mentioned,omitempty"`
 }
 
 type emitter struct {
@@ -119,7 +119,7 @@ func (e emitter) mentioned(ctx context.Context, q *dbsqlc.Queries, message dbsql
 	for _, m := range mentions {
 		data := e.data()
 		data.MessageID = message.ID.String()
-		data.Mentioned = &mentionRef{Kind: m.Kind(), ID: m.RefID(), Name: m.Name}
+		data.Mentioned = &mentionJSON{Kind: m.Kind(), ID: m.RefID(), Name: m.Name}
 		if err := e.append(ctx, q, activity.TypeThreadMentioned, data, nil); err != nil {
 			return err
 		}

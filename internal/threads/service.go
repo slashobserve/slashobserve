@@ -407,6 +407,22 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	return page, nil
 }
 
+func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.UUID) (Message, error) {
+	row, err := s.db.Queries().GetMessage(ctx, id)
+	if err != nil {
+		return Message{}, threadLookup(err)
+	}
+	_, sc, err := s.threadAndScope(ctx, by, row.ThreadID)
+	if err != nil {
+		return Message{}, err
+	}
+	mentions, err := s.mentionsOf(ctx, s.db.Queries(), row.ID)
+	if err != nil {
+		return Message{}, err
+	}
+	return messageOf(row, mentions, by, sc.abilities.Comment), nil
+}
+
 func (s *Service) writableThread(ctx context.Context, by auth.Principal, id pgtype.UUID) (dbsqlc.Thread, scope, error) {
 	row, err := s.db.Queries().GetThreadOfMessage(ctx, id)
 	if err != nil {

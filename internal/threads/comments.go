@@ -38,12 +38,17 @@ type Comment struct {
 	Body              string
 	Status            string
 	Author            Author
+	Actor             actor.Actor
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	EditedAt          *time.Time
 	ResolvedAt        *time.Time
 	ResolvedBy        *Author
+	ResolvedActor     *actor.Actor
 	ResolvedByVersion *int
 	PanelPresent      bool
+	Mentions          []Mention
+	CanEdit           bool
 	Revision          *CommentRevision
 }
 
@@ -173,11 +178,11 @@ func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardI
 	if err != nil {
 		return Comment{}, false, legacyError(err)
 	}
-	first, err := cm.service.db.Queries().GetMessage(ctx, row.ID)
+	first, err := cm.service.ReadMessage(ctx, by, row.ID)
 	if err != nil {
-		return Comment{}, false, threadLookup(err)
+		return Comment{}, false, err
 	}
-	comments := []Comment{commentOf(thread, messageOf(first, nil, by, false))}
+	comments := []Comment{commentOf(thread, first)}
 	if err := cm.attachRevisions(ctx, comments); err != nil {
 		return Comment{}, false, err
 	}
@@ -249,9 +254,13 @@ func commentOf(thread Thread, message Message) Comment {
 		Body:         message.Body,
 		Status:       thread.Status,
 		Author:       authorOf(message.Author, message.AuthorEmail),
+		Actor:        message.Author,
 		CreatedAt:    message.CreatedAt,
 		UpdatedAt:    message.UpdatedAt,
+		EditedAt:     message.EditedAt,
 		PanelPresent: thread.PanelPresent,
+		Mentions:     message.Mentions,
+		CanEdit:      message.CanEdit,
 	}
 	if message.ID != thread.ID {
 		comment.ParentID = thread.ID
@@ -265,6 +274,7 @@ func commentOf(thread Thread, message Message) Comment {
 	if thread.ResolvedBy != nil {
 		by := authorOf(*thread.ResolvedBy, "")
 		comment.ResolvedBy = &by
+		comment.ResolvedActor = thread.ResolvedBy
 	}
 	return comment
 }

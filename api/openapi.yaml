@@ -1310,12 +1310,17 @@ components:
         - body
         - status
         - author
+        - actor
         - created_at
         - updated_at
+        - edited_at
         - resolved_at
         - resolved_by
+        - resolved_actor
         - resolved_by_version
         - panel_present
+        - mentions
+        - can_edit
         - revision
       properties:
         id:
@@ -1344,12 +1349,19 @@ components:
           description: For a reply, the status of its thread.
         author:
           $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+        edited_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the body was last edited; null when it never was.
         resolved_at:
           type: string
           format: date-time
@@ -1358,6 +1370,11 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Author"
+        resolved_actor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Actor"
+          description: Who resolved the thread, with the one `label` to show; `/observe for <name>` when an agent run did. Null on a reply and on an open thread.
         resolved_by_version:
           type: integer
           minimum: 1
@@ -1366,6 +1383,14 @@ components:
         panel_present:
           type: boolean
           description: Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment.
+        mentions:
+          type: array
+          description: The people and agents the body mentions, in the order shown.
+          items:
+            $ref: "#/components/schemas/Mention"
+        can_edit:
+          type: boolean
+          description: Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment.
         revision:
           type: object
           nullable: true
@@ -1379,6 +1404,20 @@ components:
             status:
               type: string
               enum: [queued, running, succeeded, failed]
+    Mention:
+      type: object
+      additionalProperties: false
+      required: [kind, id, name]
+      properties:
+        kind:
+          type: string
+          enum: [user, agent]
+        id:
+          type: string
+          description: The user's id for a `user` mention, and `observe` for the built-in agent.
+        name:
+          type: string
+          description: The name the mention showed when it was written.
     CommentEnvelope:
       type: object
       additionalProperties: false

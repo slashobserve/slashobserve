@@ -4,6 +4,13 @@ import type { Comment } from "./queries"
 import { groupThreads, openThreadCount, openThreadsByPanel } from "./threads"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
+const actor = {
+  ...author,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
 
 function comment(overrides: Partial<Comment> & { id: string }): Comment {
   return {
@@ -14,10 +21,15 @@ function comment(overrides: Partial<Comment> & { id: string }): Comment {
     body: "text",
     status: "open",
     author,
+    actor,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     resolved_at: null,
     resolved_by: null,
+    resolved_actor: null,
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,

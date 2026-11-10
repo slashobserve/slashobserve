@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -53,12 +54,17 @@ type commentJSON struct {
 	Body              string               `json:"body"`
 	Status            string               `json:"status"`
 	Author            authorJSON           `json:"author"`
+	Actor             actor.JSON           `json:"actor"`
 	CreatedAt         string               `json:"created_at"`
 	UpdatedAt         string               `json:"updated_at"`
+	EditedAt          *string              `json:"edited_at"`
 	ResolvedAt        *string              `json:"resolved_at"`
 	ResolvedBy        *authorJSON          `json:"resolved_by"`
+	ResolvedActor     *actor.JSON          `json:"resolved_actor"`
 	ResolvedByVersion *int                 `json:"resolved_by_version"`
 	PanelPresent      bool                 `json:"panel_present"`
+	Mentions          []mentionJSON        `json:"mentions"`
+	CanEdit           bool                 `json:"can_edit"`
 	Revision          *commentRevisionJSON `json:"revision"`
 }
 
@@ -208,10 +214,17 @@ func newCommentJSON(c Comment) commentJSON {
 		Body:              c.Body,
 		Status:            c.Status,
 		Author:            newAuthorJSON(c.Author),
+		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(c.UpdatedAt),
 		ResolvedByVersion: c.ResolvedByVersion,
 		PanelPresent:      c.PanelPresent,
+		Mentions:          newMentionsJSON(c.Mentions),
+		CanEdit:           c.CanEdit,
+	}
+	if c.EditedAt != nil {
+		at := httpapi.FormatTime(*c.EditedAt)
+		out.EditedAt = &at
 	}
 	if c.ResolvedAt != nil {
 		at := httpapi.FormatTime(*c.ResolvedAt)
@@ -221,8 +234,20 @@ func newCommentJSON(c Comment) commentJSON {
 		by := newAuthorJSON(*c.ResolvedBy)
 		out.ResolvedBy = &by
 	}
+	if c.ResolvedActor != nil {
+		resolver := c.ResolvedActor.JSON()
+		out.ResolvedActor = &resolver
+	}
 	if c.Revision != nil {
 		out.Revision = &commentRevisionJSON{ID: c.Revision.ID, Status: c.Revision.Status}
+	}
+	return out
+}
+
+func newMentionsJSON(mentions []Mention) []mentionJSON {
+	out := make([]mentionJSON, 0, len(mentions))
+	for _, m := range mentions {
+		out = append(out, mentionJSON{Kind: m.Kind(), ID: m.RefID(), Name: m.Name})
 	}
 	return out
 }

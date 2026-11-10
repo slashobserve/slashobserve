@@ -41,7 +41,7 @@ export function threadState(input: {
   if (resolved) {
     return {
       kind: "resolved",
-      text: `Resolved by ${root.resolved_by?.name ?? "someone"}`,
+      text: `Resolved by ${root.resolved_actor?.label ?? "someone"}`,
     }
   }
   if (request?.status === "succeeded" && request.result_version === null) {
