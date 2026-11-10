@@ -62,6 +62,13 @@ function fakeSummary(
       origin: "web" as const,
       origin_client: null,
       via: "direct" as const,
+      actor: {
+        ...author,
+        origin: "web" as const,
+        client: null,
+        run_id: null,
+        label: author.name,
+      },
     },
     datasource_uids: ["prom"],
     open_comment_count: 0,
