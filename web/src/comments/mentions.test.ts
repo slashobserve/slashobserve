@@ -99,10 +99,10 @@ describe("insertMention", () => {
 describe("threadParticipants", () => {
   it("lists each user once, in first-seen order, and skips service accounts", () => {
     const people = threadParticipants([
-      { author: { kind: "user", id: "a", name: "Ada" } },
-      { author: { kind: "service_account", id: "s", name: "Bot" } },
-      { author: { kind: "user", id: "g", name: "Grace" } },
-      { author: { kind: "user", id: "a", name: "Ada" } },
+      { kind: "user", id: "a", name: "Ada" },
+      { kind: "service_account", id: "s", name: "Bot" },
+      { kind: "user", id: "g", name: "Grace" },
+      { kind: "user", id: "a", name: "Ada" },
     ])
     expect(people).toEqual([
       { id: "a", name: "Ada" },

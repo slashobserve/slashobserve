@@ -48,6 +48,18 @@ The finding page at `/findings/<id>` shows the title, who found it, the answer a
 Its header reads "Found by /observe for Ishan" for a finding the agent saved and "Saved by Ishan (via Claude Code)" for one saved over MCP, with the same label every surface shows.
 The evidence panels always show the finding's own window, not the dashboard's current range.
 
+## Comment on a finding
+
+Under the finding on its page, **Comments** lists the finding's threads, each with its messages and who wrote them, and says "No comments yet." when there are none.
+Write in the box "Comment on this finding" and choose **Comment**, or press Cmd+Enter (Ctrl+Enter elsewhere), to start a thread.
+Each thread has **Reply**, **Resolve** and, once resolved, **Reopen**, and your own messages have **Edit**.
+Mention people and the agent the way you do on a dashboard; see [Edit a comment and mention people](review.md#edit-a-comment-and-mention-people).
+A mention is recorded in the [activity log](activity.md) and starts no agent run.
+
+Commenting follows who can see the finding.
+A finding on a dashboard follows that dashboard's folder, so you need Comment on it; a finding without a dashboard can be seen and commented on by the person who saved it, and by Admins.
+Anyone else who can read the finding sees its threads but no box and no buttons.
+
 ## Pin it to the dashboard
 
 **Pin to dashboard** adds the finding to its dashboard as an annotation at the end of the finding's window, tagged `finding`, whose text is the finding's first line and a link to it.

@@ -61,7 +61,9 @@ export function ThreadEntry({
   const toggleButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
   const commentsKey = dashboardKeys.comments(dashboardId)
-  const people = threadParticipants([root, ...replies])
+  const people = threadParticipants(
+    [root, ...replies].map((comment) => comment.author)
+  )
   const resolved = root.status === "resolved"
   const folded = resolved && !expanded
   const verb = threadVerbText(askedAgent, panelId, panelTitle)

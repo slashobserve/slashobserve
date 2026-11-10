@@ -63,10 +63,10 @@ export function insertMention(
 }
 
 export function threadParticipants(
-  messages: readonly { author: { kind: string; id: string; name: string } }[]
+  authors: readonly { kind: string; id: string; name: string }[]
 ): MentionPerson[] {
   const people = new Map<string, MentionPerson>()
-  for (const { author } of messages) {
+  for (const author of authors) {
     if (author.kind !== "user" || people.has(author.id)) continue
     people.set(author.id, { id: author.id, name: author.name })
   }

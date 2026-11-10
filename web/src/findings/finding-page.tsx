@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
 import { FindingCard } from "./finding-card"
+import { FindingComments } from "./finding-comments"
 import { findingQuery, type Finding } from "./queries"
 
 const outlineLink = cn(buttonVariants({ variant: "outline", size: "sm" }))
@@ -82,6 +83,7 @@ function LoadedFinding({ finding }: { finding: Finding }) {
         }
       />
       <FindingCard finding={finding} showOpenLink={false} variant="page" />
+      <FindingComments findingId={finding.id} />
     </>
   )
 }
