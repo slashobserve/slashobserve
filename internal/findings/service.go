@@ -53,14 +53,7 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if in.Evidence == nil {
 		in.Evidence = []spec.Panel{}
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), runID(in.AgentRequestID)), in)
-}
-
-func runID(id pgtype.UUID) string {
-	if !id.Valid {
-		return ""
-	}
-	return id.String()
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in)
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {

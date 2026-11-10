@@ -540,7 +540,7 @@ func dashboardFromRow(row dbsqlc.Dashboard, updatedBy Author) Dashboard {
 			Origin:       row.CreatedOrigin.String,
 			OriginClient: row.CreatedOriginClient.String,
 			Via:          row.CreatedVia,
-			RunID:        uuidText(row.CreatedRunID),
+			RunID:        row.CreatedRunID.String(),
 		},
 	}
 }
@@ -579,15 +579,8 @@ func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, aut
 		CreatedAt:      createdAt.Time.UTC(),
 		Origin:         originKind.String,
 		OriginClient:   originClient.String,
-		AgentRequestID: uuidText(agentRequestID),
+		AgentRequestID: agentRequestID.String(),
 	}
-}
-
-func uuidText(id pgtype.UUID) string {
-	if !id.Valid {
-		return ""
-	}
-	return id.String()
 }
 
 func authorFromRow(kind string, id pgtype.UUID, name string, email pgtype.Text) Author {

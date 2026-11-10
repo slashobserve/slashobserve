@@ -44,7 +44,7 @@ export function ImportEntry({
   return (
     <EntryFrame
       avatar={avatarFor(record.created_by)}
-      who={record.created_by.name}
+      who={record.actor.label}
       verb="imported this dashboard from Grafana"
       at={entry.at}
     >

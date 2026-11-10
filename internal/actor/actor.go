@@ -49,21 +49,14 @@ func (a Actor) Columns() (Columns, error) {
 func FromColumns(c Columns) Actor {
 	return Actor{
 		Kind: auth.PrincipalKind(c.Kind),
-		ID:   uuidString(c.ID),
+		ID:   c.ID.String(),
 		Name: c.Name,
 		Origin: origin.Origin{
 			Kind:   origin.Kind(textOf(c.Origin)),
 			Client: textOf(c.Client),
 		},
-		RunID: uuidString(c.RunID),
+		RunID: c.RunID.String(),
 	}
-}
-
-func uuidString(u pgtype.UUID) string {
-	if !u.Valid {
-		return ""
-	}
-	return u.String()
 }
 
 func textOf(t pgtype.Text) string {

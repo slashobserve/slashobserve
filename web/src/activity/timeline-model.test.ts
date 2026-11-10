@@ -130,6 +130,15 @@ function imported(
       notes: [],
     },
     created_by: author,
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
     created_at: createdAt,
   }
   return { record, unverified }

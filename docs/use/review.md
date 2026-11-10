@@ -29,7 +29,7 @@ Entries are sorted by time and come in four kinds:
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.
   The button shows while the filters keep versions in the list, so it is hidden under **Open comments** and when a panel is chosen.
-- **Imports** show "`<name>` imported this dashboard from Grafana" with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
+- **Imports** show "`<label>` imported this dashboard from Grafana", where the label is the importer's, such as "Ishan" or "Ishan (via Claude Code)", with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
   See [Import Grafana dashboards](import-grafana.md).
 
 Two menus filter the list.

@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
@@ -212,6 +213,38 @@ func TestImportStoresTheVerifiedReport(t *testing.T) {
 	}
 	if stored.Mapping["prom"] != "prom2" || stored.Summary.Title != "Shop" || len(stored.Datasources) != 1 {
 		t.Errorf("stored mapping %v, summary %+v, datasources %+v", stored.Mapping, stored.Summary, stored.Datasources)
+	}
+}
+
+func TestAnImportRecordCarriesTheActorOfItsVersion(t *testing.T) {
+	r := newRig(t)
+	over := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	got, err := r.imports.Import(over, ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "Ada (via Claude Code)"
+	if got.Record.Actor.Label() != want {
+		t.Errorf("created record label = %q, want %q", got.Record.Actor.Label(), want)
+	}
+	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Actor.Label() != want || stored.Actor.ID != ada.ID || stored.Actor.Origin.Client != "claude-code" {
+		t.Errorf("stored actor = %+v, label %q, want %q", stored.Actor, stored.Actor.Label(), want)
+	}
+
+	plain, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Plain", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedPlain, err := r.imports.ForDashboard(t.Context(), uuid(t, plain.Dashboard.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Record.Actor.Label() != "Ada" || storedPlain.Actor.Label() != "Ada" {
+		t.Errorf("labels without an origin = %q and %q, want Ada", plain.Record.Actor.Label(), storedPlain.Actor.Label())
 	}
 }
 

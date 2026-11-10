@@ -3064,7 +3064,7 @@ components:
     ImportRecord:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, version, source, importer_version, title, mapping, summary, datasources, report, created_by, created_at]
+      required: [id, dashboard_id, version, source, importer_version, title, mapping, summary, datasources, report, created_by, actor, created_at]
       properties:
         id:
           type: string
@@ -3104,6 +3104,8 @@ components:
             a later import of the same uid, from a file or a connection, gets an empty value.
         created_by:
           $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
