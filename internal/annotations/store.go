@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -24,17 +25,33 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 	if err != nil {
 		return Annotation{}, err
 	}
-	row, err := s.db.Queries().InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
-		DashboardID:   in.DashboardID,
-		PanelID:       in.PanelID,
-		TimeFrom:      timestamp(&in.From),
-		TimeTo:        timestamp(in.To),
-		Text:          in.Text,
-		Tags:          in.Tags,
-		CreatedBy:     cols.ID,
-		CreatedByKind: pgtype.Text{String: cols.Kind, Valid: true},
-		Origin:        cols.Origin,
-		OriginClient:  cols.Client,
+	var created Annotation
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		row, err := q.InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
+			DashboardID:   in.DashboardID,
+			PanelID:       in.PanelID,
+			TimeFrom:      timestamp(&in.From),
+			TimeTo:        timestamp(in.To),
+			Text:          in.Text,
+			Tags:          in.Tags,
+			CreatedBy:     cols.ID,
+			CreatedByKind: pgtype.Text{String: cols.Kind, Valid: true},
+			Origin:        cols.Origin,
+			OriginClient:  cols.Client,
+		})
+		if err != nil {
+			return err
+		}
+		created = annotationOf(row)
+		_, err = activity.Append(ctx, q, activity.Entry{
+			Type:        activity.TypeAnnotationCreated,
+			TargetID:    row.ID,
+			DashboardID: row.DashboardID,
+			Global:      !row.DashboardID.Valid,
+			Actor:       by,
+			Data:        newCreatedData(created),
+		}, nil)
+		return err
 	})
 	if db.IsForeignKeyViolation(err) {
 		return Annotation{}, ErrNotFound
@@ -42,7 +59,22 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 	if err != nil {
 		return Annotation{}, err
 	}
-	return annotationOf(row), nil
+	return created, nil
+}
+
+type createdData struct {
+	PanelID  string   `json:"panel_id,omitempty"`
+	Tags     []string `json:"tags"`
+	TimeFrom string   `json:"time_from"`
+	TimeTo   string   `json:"time_to,omitempty"`
+}
+
+func newCreatedData(a Annotation) createdData {
+	d := createdData{PanelID: a.PanelID, Tags: a.Tags, TimeFrom: httpapi.FormatTime(a.From)}
+	if a.To != nil {
+		d.TimeTo = httpapi.FormatTime(*a.To)
+	}
+	return d
 }
 
 func (s *store) get(ctx context.Context, id pgtype.UUID) (Annotation, error) {
@@ -56,15 +88,33 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Annotation, error) {
 	return annotationOf(row), nil
 }
 
-func (s *store) remove(ctx context.Context, id pgtype.UUID) error {
-	n, err := s.db.Queries().DeleteAnnotation(ctx, id)
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+func (s *store) remove(ctx context.Context, id pgtype.UUID, by actor.Actor) error {
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		row, err := q.GetAnnotation(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := activity.Append(ctx, q, activity.Entry{
+			Type:        activity.TypeAnnotationDeleted,
+			TargetID:    id,
+			DashboardID: row.DashboardID,
+			Global:      !row.DashboardID.Valid,
+			Actor:       by,
+		}, nil); err != nil {
+			return err
+		}
+		n, err := q.DeleteAnnotation(ctx, id)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *store) list(ctx context.Context, q ListQuery, limit int) ([]Annotation, error) {

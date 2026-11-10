@@ -179,7 +179,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if by.Role != auth.RoleAdmin && (a.CreatedBy == "" || a.CreatedBy != by.ID) {
 		return ErrNotCreator
 	}
-	return s.store.remove(ctx, id)
+	return s.store.remove(ctx, id, actor.Of(by, origin.From(ctx), ""))
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, q ListQuery) (Page, error) {
