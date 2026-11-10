@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -342,6 +342,30 @@ Without either flag it prints the folders as a table of uid, title and dashboard
 It then waits for the import, showing `Imported <done> of <total>` on a terminal, and prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
 It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
 The server keeps an import only until it restarts, and an interrupt stops the waiting while the import continues on the server.
+
+## Activity
+
+`bin/observe activity` prints the newest events of the [activity log](activity.md), oldest first, one line each with the time, who did it and what happened:
+
+```sh
+bin/observe activity
+bin/observe activity --dashboard <dashboard-id> --since 24h
+bin/observe activity --follow --type run.failed --type run.canceled
+```
+
+```text
+2026-11-01T10:00:00Z  /observe for Sam  run failed (no_progress)
+2026-11-01T10:05:09Z  Sam  saved version 12 of "Checkout"
+```
+
+`--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
+`--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
+You see only the events of the folders the key can see, and an empty log prints `No activity yet`.
+
+`--follow` prints that page and then keeps printing new events until you press Ctrl-C, which exits 0.
+It reads `GET /api/v1/activity/stream` from the newest event it printed, so no event is skipped or repeated, and with `--json` it prints one event object per line, the first page included.
+When the connection drops it reconnects after the server's retry delay from the last event it printed, and it exits 1 after 3 failed attempts in a row.
+If the server no longer knows that event it prints `Some activity may have been missed.` and continues from the newest event; run `bin/observe activity` again to read what happened in between.
 
 ## Shell completion
 

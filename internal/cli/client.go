@@ -165,7 +165,7 @@ func (c *client) send(ctx context.Context, method, path string, payload any) ([]
 	return c.do(ctx, method, path, nil, data)
 }
 
-func (c *client) do(ctx context.Context, method, path string, query url.Values, payload []byte) ([]byte, error) {
+func (c *client) newRequest(ctx context.Context, method, path string, query url.Values, payload []byte, accept string) (*http.Request, error) {
 	endpoint := c.base.JoinPath("api", "v1", path)
 	endpoint.RawQuery = query.Encode()
 	var body io.Reader
@@ -177,10 +177,31 @@ func (c *client) do(ctx context.Context, method, path string, query url.Values, 
 		return nil, fmt.Errorf("build the request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", accept)
 	req.Header.Set("User-Agent", c.userAgent)
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	return req, nil
+}
+
+func statusError(resp *http.Response, data []byte) error {
+	if resp.StatusCode == http.StatusUnauthorized {
+		return errUnauthorized
+	}
+	if resp.StatusCode >= 300 && resp.StatusCode <= 399 {
+		return redirectError(resp)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return decodeAPIError(resp.StatusCode, data)
+	}
+	return nil
+}
+
+func (c *client) do(ctx context.Context, method, path string, query url.Values, payload []byte) ([]byte, error) {
+	req, err := c.newRequest(ctx, method, path, query, payload, "application/json")
+	if err != nil {
+		return nil, err
 	}
 	resp, err := c.http.Do(req) //nolint:gosec // calling the server the user configured is the CLI's purpose
 	if err != nil {
@@ -194,16 +215,34 @@ func (c *client) do(ctx context.Context, method, path string, query url.Values, 
 	if len(data) > maxBodyBytes {
 		return nil, errors.New("the server's response is too large")
 	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errUnauthorized
-	}
-	if resp.StatusCode >= 300 && resp.StatusCode <= 399 {
-		return nil, redirectError(resp)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, decodeAPIError(resp.StatusCode, data)
+	if err := statusError(resp, data); err != nil {
+		return nil, err
 	}
 	return data, nil
+}
+
+func (c *client) stream(ctx context.Context, path string, query url.Values, lastEventID string) (io.ReadCloser, error) {
+	req, err := c.newRequest(ctx, http.MethodGet, path, query, nil, "text/event-stream")
+	if err != nil {
+		return nil, err
+	}
+	if lastEventID != "" {
+		req.Header.Set("Last-Event-ID", lastEventID)
+	}
+	open := c.withTimeout(0)
+	resp, err := open.http.Do(req)
+	if err != nil {
+		return nil, open.transportError(ctx, err)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return resp.Body, nil
+	}
+	defer func() { _ = resp.Body.Close() }()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	if err != nil {
+		return nil, open.transportError(ctx, err)
+	}
+	return nil, statusError(resp, data)
 }
 
 func redirectError(resp *http.Response) error {
