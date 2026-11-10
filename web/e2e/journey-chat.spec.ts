@@ -121,10 +121,20 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
 
       await test.step("follow up", async () => {
+        const releaseFollowUp = await holdRequestPollsUntilFinished(page)
+        const followUpCreated = page.waitForResponse(
+          (response) =>
+            response.request().method() === "POST" &&
+            new URL(response.url()).pathname === "/api/v1/observe"
+        )
         await composer(page).fill(followUpPrompt)
         await composer(page).press("Enter")
+        const followUp = (await (await followUpCreated).json()) as {
+          request: { id: string }
+        }
 
         await expect(secondTurn).toBeVisible()
+        await releaseFollowUp(followUp.request.id)
         await expect(secondTurn.getByText(/Saved as version 2/)).toBeVisible({
           timeout: agentTimeout,
         })
