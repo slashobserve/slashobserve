@@ -130,7 +130,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
 	}
-	if err := notifyRevision(ctx, q, row); err != nil {
+	if err := recordRun(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
@@ -256,6 +256,9 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
 	}
+	if err := recordRun(ctx, q, row); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
@@ -274,17 +277,8 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
-	if err := s.checkRun(ctx, SourceInvestigate, p.DashboardID, p.By); err != nil {
+	if err := s.checkInvestigate(ctx, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
-	}
-	if p.PanelID != "" {
-		latest, _, err := s.baseVersionFor(ctx, p.DashboardID, nil)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, err
-		}
-		if err := s.checkPanel(ctx, p.DashboardID, latest, p.PanelID); err != nil {
-			return dbsqlc.AgentRequest{}, err
-		}
 	}
 	requesterID, err := db.ParseUUID(p.By.ID)
 	if err != nil {
@@ -326,6 +320,9 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		if err != nil {
 			return fmt.Errorf("enqueue investigate request: %w", err)
 		}
+		if err := recordRun(ctx, q, row); err != nil {
+			return err
+		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 			return fmt.Errorf("notify workers: %w", err)
 		}
@@ -335,6 +332,20 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
 	}
 	return row, err
+}
+
+func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {
+	if err := s.checkRun(ctx, SourceInvestigate, p.DashboardID, p.By); err != nil {
+		return err
+	}
+	if p.PanelID == "" {
+		return nil
+	}
+	latest, _, err := s.baseVersionFor(ctx, p.DashboardID, nil)
+	if err != nil {
+		return err
+	}
+	return s.checkPanel(ctx, p.DashboardID, latest, p.PanelID)
 }
 
 func (s *Service) checkPanel(ctx context.Context, dashboardID pgtype.UUID, latest int, panelID string) error {
@@ -540,7 +551,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		}
 		s.deleteExpiredBuilds(ctx, savepoint)
 		for _, row := range exhausted {
-			if err := notifyRevision(ctx, q, row); err != nil {
+			if err := recordRun(ctx, q, row); err != nil {
 				return err
 			}
 			if row.Status == string(StatusSucceeded) {
@@ -555,7 +566,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 			return fmt.Errorf("claim agent request: %w", err)
 		}
 		claimed, found = row, true
-		return notifyRevision(ctx, q, row)
+		return recordRun(ctx, q, row)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {
@@ -637,7 +648,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return fmt.Errorf("finish agent request: %w", err)
 		}
 		finished = true
-		if err := notifyRevision(ctx, q, row); err != nil {
+		if err := recordRun(ctx, q, row); err != nil {
 			return err
 		}
 		if o.version != nil {
@@ -688,25 +699,6 @@ func (s *Service) hasFinding(ctx context.Context, claimed dbsqlc.AgentRequest) (
 		return false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	return true, nil
-}
-
-func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	if !row.DashboardID.Valid || row.Source == string(SourceSuggest) || row.Source == string(SourceInvestigate) {
-		return nil
-	}
-	ev := events.Event{
-		Type:        events.TypeRevisionUpdated,
-		DashboardID: row.DashboardID.String(),
-		RevisionID:  row.ID.String(),
-		Status:      row.Status,
-	}
-	if row.ResultVersion.Valid {
-		ev.Version = int(row.ResultVersion.Int32)
-	}
-	if row.CommentID.Valid {
-		ev.CommentID = row.CommentID.String()
-	}
-	return events.Notify(ctx, q, 0, &ev)
 }
 
 func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
