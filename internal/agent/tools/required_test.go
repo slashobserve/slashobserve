@@ -44,12 +44,12 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
-	comments := threads.NewComments(threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes), nil)
+	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes)
 	registry := New(Deps{
 		Datasources: datasources,
 		Runner:      runner,
 		Dashboards:  service,
-		Comments:    comments,
+		Threads:     commentThreads,
 		Imports:     imports.New(database.DB, service, access, datasources, logger),
 		Folders:     access,
 		Findings:    findings.New(database.DB, access, notes, service, logger),
@@ -69,7 +69,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := comments.Create(ctx, placeholderUser, dashboardID, threads.NewComment{Version: 1, Body: "seed"})
+	_, comment, err := commentThreads.Open(ctx, placeholderUser, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: dashboardID}, Body: "seed"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,6 +81,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),
 		"dashboard_id":   json.RawMessage(`"` + dash.ID + `"`),
+		"target":         json.RawMessage(`"dashboard:` + dash.ID + `"`),
 		"comment_id":     json.RawMessage(`"` + comment.ID + `"`),
 		"parent_version": json.RawMessage(`1`),
 		"spec":           json.RawMessage(validSpec),
@@ -96,7 +97,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
-	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}}
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {

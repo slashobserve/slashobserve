@@ -294,12 +294,11 @@ func run() error {
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
-	toolComments := threads.NewComments(threadsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
 		Runner:      runner,
 		Dashboards:  dashboardsService,
-		Comments:    toolComments,
+		Threads:     threadsService,
 		Imports:     importsService,
 		Folders:     folderAccess,
 		Findings:    findingsService,

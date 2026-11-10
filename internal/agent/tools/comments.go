@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -18,12 +17,15 @@ import (
 )
 
 const (
-	defaultListComments = 50
-	maxListComments     = 100
-	maxCommentOutBytes  = 2000
-	maxPanelFilterBytes = 64
-
-	codeUnknownVersion = "unknown_version"
+	defaultListComments   = 50
+	maxListComments       = 100
+	maxCommentOutBytes    = 2000
+	maxMentionNameBytes   = 48
+	maxPanelFilterBytes   = 64
+	codeUnknownVersion    = "unknown_version"
+	codeUnknownPanel      = "unknown_panel"
+	codeNotAuthor         = "not_author"
+	commentNotFoundNotice = "comment or target not found"
 )
 
 var errCommentsNotConfigured = errors.New("comments are not configured")
@@ -32,28 +34,41 @@ func init() { registerEntries((*Registry).commentEntries) }
 
 func (r *Registry) commentEntries() []entry {
 	return []entry{
+		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.createComment},
+		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.editComment},
 		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listComments},
+		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.reopenComment},
 		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.replyToComment},
 		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.resolveComment},
 	}
 }
 
+type mentionOut struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type commentOut struct {
-	ID                string  `json:"id"`
-	ParentID          *string `json:"parent_id"`
-	PanelID           *string `json:"panel_id"`
-	PanelPresent      bool    `json:"panel_present"`
-	Version           int     `json:"version"`
-	Status            string  `json:"status"`
-	Author            string  `json:"author"`
-	CreatedAt         string  `json:"created_at"`
-	Body              string  `json:"body"`
-	BodyTruncated     bool    `json:"body_truncated,omitempty"`
-	ResolvedByVersion *int    `json:"resolved_by_version"`
+	ID                string       `json:"id"`
+	ParentID          *string      `json:"parent_id"`
+	Target            string       `json:"target,omitempty"`
+	PanelID           *string      `json:"panel_id"`
+	PanelPresent      bool         `json:"panel_present"`
+	Version           *int         `json:"version"`
+	Status            string       `json:"status"`
+	Author            string       `json:"author"`
+	CreatedAt         string       `json:"created_at"`
+	EditedAt          *string      `json:"edited_at"`
+	Body              string       `json:"body"`
+	BodyTruncated     bool         `json:"body_truncated,omitempty"`
+	ResolvedByVersion *int         `json:"resolved_by_version"`
+	Mentions          []mentionOut `json:"mentions"`
 }
 
 type commentListOut struct {
-	DashboardID string       `json:"dashboard_id"`
+	Target      string       `json:"target,omitempty"`
+	DashboardID string       `json:"dashboard_id,omitempty"`
 	Comments    []commentOut `json:"comments"`
 	NextCursor  *string      `json:"next_cursor"`
 }
@@ -62,37 +77,65 @@ type commentResultOut struct {
 	Comment commentOut `json:"comment"`
 }
 
-type commentResolvedOut struct {
+type commentChangedOut struct {
 	Comment commentOut `json:"comment"`
 	Changed bool       `json:"changed"`
 }
 
-func commentItem(c threads.Comment) commentOut {
+type commentRef struct {
+	thread  threads.Thread
+	message threads.Message
+}
+
+func commentItem(ref commentRef) commentOut {
+	t, m := ref.thread, ref.message
 	out := commentOut{
-		ID:                c.ID,
-		PanelPresent:      c.PanelPresent,
-		Version:           c.Version,
-		Status:            c.Status,
-		Author:            authorLabel(c.Author),
-		CreatedAt:         c.CreatedAt.UTC().Format(time.RFC3339),
-		Body:              clip(c.Body, maxCommentOutBytes),
-		BodyTruncated:     len(c.Body) > maxCommentOutBytes,
-		ResolvedByVersion: c.ResolvedByVersion,
+		ID:           m.ID,
+		PanelPresent: t.PanelPresent,
+		Version:      t.Version,
+		Status:       t.Status,
+		Author:       authorLabel(m),
+		CreatedAt:    formatCommentTime(m.CreatedAt),
+		Body:         clip(m.Body, maxCommentOutBytes),
+		Mentions:     mentionItems(m.Mentions),
 	}
-	if c.ParentID != "" {
-		out.ParentID = &c.ParentID
+	out.BodyTruncated = len(m.Body) > maxCommentOutBytes
+	if m.EditedAt != nil {
+		edited := formatCommentTime(*m.EditedAt)
+		out.EditedAt = &edited
 	}
-	if c.PanelID != "" {
-		out.PanelID = &c.PanelID
+	if m.ID != t.ID {
+		out.ParentID = &t.ID
+	} else {
+		out.ResolvedByVersion = t.ResolvedByVersion
+	}
+	if t.PanelID != "" {
+		out.PanelID = &t.PanelID
 	}
 	return out
 }
 
-func authorLabel(a threads.Author) string {
-	if a.Name == "" {
-		return a.Email
+func targetedCommentItem(ref commentRef) commentOut {
+	out := commentItem(ref)
+	out.Target = ref.thread.Target.String()
+	return out
+}
+
+func formatCommentTime(t time.Time) string { return t.UTC().Format(time.RFC3339) }
+
+func mentionItems(mentions []threads.Mention) []mentionOut {
+	out := make([]mentionOut, len(mentions))
+	for i, m := range mentions {
+		out[i] = mentionOut{Kind: m.Kind(), ID: m.RefID(), Name: clip(m.Name, maxMentionNameBytes)}
 	}
-	return a.Name
+	return out
+}
+
+func authorLabel(m threads.Message) string {
+	if m.Author.Name == "" {
+		return m.AuthorEmail
+	}
+	return m.Author.Name
 }
 
 func parseCommentID(raw string) (pgtype.UUID, Result, bool) {
@@ -117,37 +160,40 @@ func commentFailure(err error) (Result, error) {
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
-	case errors.Is(err, threads.ErrNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
-		return toolError(codeNotFound, "dashboard or comment not found"), nil
+	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		return toolError(codeNotFound, commentNotFoundNotice), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
+	case errors.Is(err, threads.ErrNotAuthor):
+		return toolError(codeNotAuthor, err.Error()), nil
+	case errors.Is(err, threads.ErrUnknownPanel):
+		return toolError(codeUnknownPanel, err.Error()), nil
+	case errors.Is(err, threads.ErrUnknownVersion):
+		return toolError(codeUnknownVersion, err.Error()), nil
 	}
 	return Result{}, err
 }
 
-func (r *Registry) commentTarget(ctx context.Context, raw string) (pgtype.UUID, pgtype.UUID, Result, bool, error) {
-	commentID, res, ok := parseCommentID(raw)
-	if !ok {
-		return pgtype.UUID{}, pgtype.UUID{}, res, false, nil
+func versionFailure(err error) (Result, error) {
+	var bad *threads.InvalidInputError
+	if errors.As(err, &bad) && bad.Code == threads.CodeInvalidVersion {
+		return invalid("%s", strings.ReplaceAll(bad.Message, "resolved_by_version", "version")), nil
 	}
-	dashboardID, err := r.deps.Comments.DashboardOf(ctx, commentID)
-	if err != nil {
-		res, err := commentFailure(err)
-		return pgtype.UUID{}, pgtype.UUID{}, res, false, err
-	}
-	return commentID, dashboardID, Result{}, true, nil
+	return commentFailure(err)
 }
 
 type commentQuery struct {
-	dashboardID pgtype.UUID
-	status      string
-	panelID     string
-	limit       int
-	cursor      string
+	target   threads.Target
+	byTarget bool
+	status   string
+	panelID  string
+	limit    int
+	cursor   string
 }
 
 func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 	var in struct {
+		Target      string  `json:"target"`
 		DashboardID string  `json:"dashboard_id"`
 		Status      string  `json:"status"`
 		PanelID     *string `json:"panel_id"`
@@ -157,15 +203,29 @@ func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 	if res, ok := decodeInput(input, &in); !ok {
 		return commentQuery{}, res, false
 	}
-	dashboardID, res, ok := parseDashboardID(in.DashboardID)
-	if !ok {
-		return commentQuery{}, res, false
+	q := commentQuery{byTarget: in.Target != "", status: in.Status, cursor: in.Cursor}
+	switch {
+	case (in.Target == "") == (in.DashboardID == ""):
+		return commentQuery{}, invalid("give exactly one of target and dashboard_id"), false
+	case q.byTarget:
+		target, err := threads.ParseTarget(in.Target)
+		if err != nil {
+			res, _ := commentFailure(err)
+			return commentQuery{}, res, false
+		}
+		q.target = target
+	default:
+		id, res, ok := parseDashboardID(in.DashboardID)
+		if !ok {
+			return commentQuery{}, res, false
+		}
+		q.target = threads.Target{Kind: threads.KindDashboard, ID: id}
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListComments, 1, maxListComments, "limit")
 	if !ok {
 		return commentQuery{}, res, false
 	}
-	q := commentQuery{dashboardID: dashboardID, status: in.Status, limit: limit, cursor: in.Cursor}
+	q.limit = limit
 	if q.status == "" {
 		q.status = threads.StatusOpen
 	}
@@ -184,27 +244,32 @@ func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 	return q, Result{}, true
 }
 
-func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Result, error) {
+func (r *Registry) commentCaller(ctx context.Context) (auth.Principal, Result, bool, error) {
 	if res, ok := rejectAgentRun(ctx); !ok {
-		return res, nil
+		return auth.Principal{}, res, false, nil
 	}
-	if r.deps.Comments == nil {
-		return Result{}, errCommentsNotConfigured
+	if r.deps.Threads == nil {
+		return auth.Principal{}, Result{}, false, errCommentsNotConfigured
+	}
+	principal, _, _, err := r.saveRun(ctx)
+	return principal, Result{}, err == nil, err
+}
+
+func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
 	}
 	q, res, ok := parseCommentQuery(input)
 	if !ok {
 		return res, nil
 	}
-	if res, ok, err := r.viewableDashboard(ctx, q.dashboardID, "dashboard or comment not found"); err != nil || !ok {
-		return res, err
-	}
-	principal, _ := auth.FromContext(ctx)
 	for {
-		list, cursor, err := r.deps.Comments.List(ctx, principal, q.dashboardID, q.status, q.panelID, q.limit, q.cursor)
+		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor})
 		if err != nil {
 			return commentFailure(err)
 		}
-		out, kept, cut := commentPage(q.dashboardID.String(), list, cursor)
+		out, kept, cut := commentPage(q, commentRefs(page), page.Next)
 		if !cut {
 			return success("Listed "+plural(len(out.Comments), "comment", "comments"), out), nil
 		}
@@ -212,8 +277,26 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	}
 }
 
-func commentPage(dashboardID string, list []threads.Comment, next string) (commentListOut, int, bool) {
-	out := commentListOut{DashboardID: dashboardID, Comments: make([]commentOut, 0, len(list))}
+func commentRefs(page threads.Page) []commentRef {
+	byID := make(map[string]threads.Thread, len(page.Threads))
+	for _, t := range page.Threads {
+		byID[t.ID] = t
+	}
+	refs := make([]commentRef, len(page.Messages))
+	for i, m := range page.Messages {
+		refs[i] = commentRef{thread: byID[m.ThreadID], message: m}
+	}
+	return refs
+}
+
+func commentPage(q commentQuery, refs []commentRef, next string) (commentListOut, int, bool) {
+	out := commentListOut{Comments: make([]commentOut, 0, len(refs))}
+	if q.target.Kind == threads.KindDashboard {
+		out.DashboardID = q.target.ID.String()
+	}
+	if q.byTarget {
+		out.Target = q.target.String()
+	}
 	if next != "" {
 		out.NextCursor = &next
 	}
@@ -222,44 +305,64 @@ func commentPage(dashboardID string, list []threads.Comment, next string) (comme
 		return out, 0, false
 	}
 	budget := listBudget - len(envelope)
-	for _, c := range list {
-		out.Comments = append(out.Comments, commentItem(c))
+	for _, ref := range refs {
+		out.Comments = append(out.Comments, commentItem(ref))
 	}
 	kept, cut := fit(out.Comments, budget)
 	if !cut {
 		return out, len(kept), false
 	}
-	if len(list) == 1 {
-		out.Comments[0] = commentWithin(list[0], budget)
+	if len(refs) == 1 {
+		out.Comments[0] = commentWithin(refs[0], budget)
 		return out, 1, false
 	}
 	return out, len(kept), true
 }
 
-func commentWithin(c threads.Comment, budget int) commentOut {
-	out := commentItem(c)
-	n := min(len(c.Body), maxCommentOutBytes)
+func commentWithin(ref commentRef, budget int) commentOut {
+	out := commentItem(ref)
+	body := ref.message.Body
+	n := min(len(body), maxCommentOutBytes)
 	for n > 0 {
 		b, err := json.Marshal(out)
 		if err != nil || len(b)+1 <= budget {
 			break
 		}
 		n = max(n-(len(b)+1-budget), 0)
-		out.Body, out.BodyTruncated = clip(c.Body, n), true
+		out.Body, out.BodyTruncated = clip(body, n), true
 	}
 	return out
 }
 
-func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	if res, ok := rejectAgentRun(ctx); !ok {
+func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
+	}
+	var in struct {
+		Target  string  `json:"target"`
+		Body    string  `json:"body"`
+		PanelID *string `json:"panel_id"`
+		Version *int    `json:"version"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if r.deps.Comments == nil {
-		return Result{}, errCommentsNotConfigured
-	}
-	principal, _, _, err := r.saveRun(ctx)
+	target, err := threads.ParseTarget(in.Target)
 	if err != nil {
-		return Result{}, err
+		return commentFailure(err)
+	}
+	thread, message, err := r.deps.Threads.Open(ctx, principal, threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, Body: in.Body}, nil)
+	if err != nil {
+		return commentFailure(err)
+	}
+	return success("Opened a comment", commentResultOut{Comment: targetedCommentItem(commentRef{thread, message})}), nil
+}
+
+func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
 	}
 	var in struct {
 		CommentID string `json:"comment_id"`
@@ -268,42 +371,48 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	commentID, dashboardID, res, ok, err := r.commentTarget(ctx, in.CommentID)
-	if err != nil || !ok {
-		return res, err
+	commentID, res, ok := parseCommentID(in.CommentID)
+	if !ok {
+		return res, nil
 	}
-	comment, err := r.deps.Comments.Create(ctx, principal, dashboardID, threads.NewComment{ParentID: commentID, Body: in.Body})
+	thread, message, err := r.deps.Threads.Reply(ctx, principal, commentID, in.Body)
 	if err != nil {
 		return commentFailure(err)
 	}
-	return success("Replied to a comment", commentResultOut{Comment: commentItem(comment)}), nil
+	return success("Replied to a comment", commentResultOut{Comment: targetedCommentItem(commentRef{thread, message})}), nil
 }
 
-func (r *Registry) checkThreadVersion(ctx context.Context, dashboardID, commentID pgtype.UUID, version *int) (Result, bool, error) {
-	if version == nil {
-		return Result{}, true, nil
+func (r *Registry) editComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
 	}
-	threadVersion, err := r.deps.Comments.ThreadVersion(ctx, dashboardID, commentID)
+	var in struct {
+		CommentID string `json:"comment_id"`
+		Body      string `json:"body"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	commentID, res, ok := parseCommentID(in.CommentID)
+	if !ok {
+		return res, nil
+	}
+	thread, message, changed, err := r.deps.Threads.Edit(ctx, principal, commentID, in.Body)
 	if err != nil {
-		res, err := commentFailure(err)
-		return res, false, err
+		return commentFailure(err)
 	}
-	if *version < threadVersion {
-		return invalid("version must be at least %d, the version the thread is on", threadVersion), false, nil
+	step := "Edited a comment"
+	if !changed {
+		step = "Comment already had that text"
 	}
-	return Result{}, true, nil
+	return success(step, commentChangedOut{Comment: targetedCommentItem(commentRef{thread, message}), Changed: changed}), nil
 }
 
 func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	if res, ok := rejectAgentRun(ctx); !ok {
-		return res, nil
-	}
-	if r.deps.Comments == nil {
-		return Result{}, errCommentsNotConfigured
-	}
-	principal, _, _, err := r.saveRun(ctx)
-	if err != nil {
-		return Result{}, err
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
 	}
 	var in struct {
 		CommentID string `json:"comment_id"`
@@ -312,28 +421,46 @@ func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (R
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if in.Version != nil {
-		if _, res, ok := boundedInt(in.Version, 0, 1, math.MaxInt32, "version"); !ok {
-			return res, nil
-		}
-	}
-	commentID, dashboardID, res, ok, err := r.commentTarget(ctx, in.CommentID)
+	return r.changeStatus(ctx, principal, in.CommentID, threads.StatusResolved, in.Version)
+}
+
+func (r *Registry) reopenComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
-	if res, ok, err := r.checkThreadVersion(ctx, dashboardID, commentID, in.Version); err != nil || !ok {
-		return res, err
+	var in struct {
+		CommentID string `json:"comment_id"`
 	}
-	comment, changed, err := r.deps.Comments.SetStatus(ctx, principal, dashboardID, commentID, threads.StatusResolved, in.Version)
-	if errors.Is(err, threads.ErrUnknownVersion) && in.Version != nil {
-		return toolError(codeUnknownVersion, fmt.Sprintf("version %d is not a version of this dashboard", *in.Version)), nil
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
 	}
+	return r.changeStatus(ctx, principal, in.CommentID, threads.StatusOpen, nil)
+}
+
+func (r *Registry) changeStatus(ctx context.Context, principal auth.Principal, rawID, status string, version *int) (Result, error) {
+	commentID, res, ok := parseCommentID(rawID)
+	if !ok {
+		return res, nil
+	}
+	thread, changed, err := r.deps.Threads.SetStatus(ctx, principal, commentID, status, version)
+	if err != nil {
+		return versionFailure(err)
+	}
+	threadID, err := db.ParseUUID(thread.ID)
+	if err != nil {
+		return Result{}, err
+	}
+	first, err := r.deps.Threads.ReadMessage(ctx, principal, threadID)
 	if err != nil {
 		return commentFailure(err)
 	}
 	step := "Resolved a comment"
-	if !changed {
-		step = "Comment was already resolved"
+	if status == threads.StatusOpen {
+		step = "Reopened a comment"
 	}
-	return success(step, commentResolvedOut{Comment: commentItem(comment), Changed: changed}), nil
+	if !changed {
+		step = "Comment was already " + status
+	}
+	return success(step, commentChangedOut{Comment: targetedCommentItem(commentRef{thread, first}), Changed: changed}), nil
 }

@@ -2,6 +2,8 @@ package tools
 
 const (
 	nameCreateDashboard = "create_dashboard"
+	nameCreateComment   = "create_comment"
+	nameEditComment     = "edit_comment"
 	nameGetDashboard    = "get_dashboard"
 	nameGetPanels       = "get_panels"
 	nameGetSchema       = "get_schema"
@@ -18,6 +20,7 @@ const (
 	nameLogsForTrace    = "logs_for_trace"
 	nameQueryInstant    = "query_instant"
 	nameQueryRange      = "query_range"
+	nameReopenComment   = "reopen_comment"
 	nameReplyToComment  = "reply_to_comment"
 	nameResolveComment  = "resolve_comment"
 	nameSampleRows      = "sample_rows"
@@ -38,7 +41,7 @@ const (
 	descGetSpecGuide    = "{spec_guide_desc}"
 	descImportGrafana   = "Import a Grafana dashboard as a new SlashObserve dashboard. Pass the dashboard JSON text in json (classic model, export with __inputs, or an API response). Grafana datasources are matched to ours automatically when unambiguous; otherwise the result lists them and you map each key to one of our datasource uids in mapping. Panels whose queries fail are saved and reported as unverified; fix them afterwards with update_dashboard. The dashboard goes to the folder named in folder, else the folder named in the Grafana export; a missing folder is created when your role allows, otherwise the dashboard goes to your default folder and folder_note says so. The result's folder is the title of the folder the dashboard went to."
 	descLintQuery       = "Check a PromQL, LogQL, TraceQL, ClickHouse SQL, KQL, Lucene or Query DSL query for syntax and policy problems without running it; ok is false when any diagnostic is an error. Use it on each new or changed query before you run or save it. It cannot tell whether the query returns data; query_range and query_instant do. An error such as datasource_unavailable means the check could not run, not that the query is wrong."
-	descListComments    = "List a dashboard's comments, oldest first: open threads by default. A reply has parent_id; panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
+	descListComments    = "List the comments on a dashboard, finding or annotation, oldest first: open threads by default. Give exactly one of target, written kind:uuid such as finding:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f, or dashboard_id, which means the same as dashboard:<id>. A reply has parent_id; on a dashboard, panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
 	descListDashboards  = "List the saved dashboards you can see, most recently updated first, with id, title, tags, folder, latest version and URL, 20 per page by default. Pass next_cursor as cursor for the next page. Use it to find the dashboard_id of a dashboard to read or revise."
 	descListDatasources = "List the configured datasources with their uid, type (prometheus, clickhouse, loki or tempo) and health. Every discovery and query tool, and every panel, names its datasource by this uid; call it first unless you already know the uids."
 	descListFolders     = "List the folders you can see, with their id and whether you can create dashboards in each. Pass a folder id as folder_id to create_dashboard to save a dashboard there."
@@ -48,8 +51,11 @@ const (
 	descLogsForTrace    = "Read the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elastic or OpenSearch logs datasource over a time window. Use it after get_trace or a TraceQL query to see what the services logged while the trace ran; pass the trace's start and end as from and to."
 	descQueryInstant    = "Run a PromQL, LogQL, TraceQL, ClickHouse SQL, KQL, Lucene or Query DSL query as an instant query, PromQL evaluated once at to, and get a compact summary of the rows or series it returns. Use it to check a query with instant: true, or a table panel's query, before saving; for other panels use query_range. It takes no format or max_data_points. Pass variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descQueryRange      = "Run a PromQL, LogQL, TraceQL, ClickHouse SQL, KQL, Lucene or Query DSL query over a time range, as a range query, and get a compact summary: up to 20 series with points, min, max and last, or the first rows of a table. This is how most panels run, a stat or gauge included; use it to check a panel query returns data before saving. Use query_instant instead for a query with instant: true or a table panel's query. Pass format as the panel's query has it, variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
-	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
-	descResolveComment  = "Resolve a comment thread once it is addressed. Pass version, the dashboard version that fixed it, so people see Resolved by version N. Resolving a resolved thread changes nothing."
+	descReplyToComment  = "Reply to a comment thread on a dashboard, finding or annotation, for example to say what you changed or why you did not. A reply to a reply joins the same thread; a reply never reopens a resolved thread."
+	descResolveComment  = "Resolve a comment thread once it is addressed. On a dashboard, pass version, the dashboard version that fixed it, so people see Resolved by version N. Resolving a resolved thread changes nothing."
+	descCreateComment   = "Start a comment thread on a dashboard, finding or annotation, naming it in target as kind:uuid. On a dashboard the comment is about the whole dashboard, or about one panel with panel_id, on version (default the latest). Write @observe to address the built-in agent, or @[Name](user:<uuid>) for a person; a mention is recorded and shown, and starts no run. The result's id is the thread's id, for reply_to_comment, edit_comment, resolve_comment and reopen_comment."
+	descEditComment     = "Change the text of a comment you wrote, by its id from list_comments or create_comment. Only its author can edit it, and only while they may still comment on its target. Mentions are read again from the new text. Sending the same text changes nothing."
+	descReopenComment   = "Reopen a resolved comment thread, for example when the fix did not hold. Reopening an open thread changes nothing."
 	descSampleRows      = "Read up to 20 recent rows of a ClickHouse table, up to 20 Loki log lines of the last 15 minutes with their labels, or up to 20 recent documents of an Elastic or OpenSearch index pattern with their fields, 5 by default, to see real values such as log messages, span names or attribute keys before writing a query."
 	descUpdateDashboard = "Save a new version of an existing dashboard from a complete ObserveSpec document that replaces it whole.{guide_first} Use it only to rewrite most of a dashboard; for some panels, the variables, the time range, title, tags or links, use update_panels, which sends only what changed. The save runs every panel query and rejects the document when a query fails or returns no data, listing each issue with its path. Placeholder panels may be moved or removed, never added or edited.{build_note}"
 	descUpdatePanels    = `Change an existing dashboard by sending only what changed; prefer it to update_dashboard for any edit. upsert is an array of complete panels matched by id, such as [{"id":"errors","type":"stat",...}]: an existing id replaces that panel, keeping its position when you leave out gridPos, and a new id adds a panel. A new or empty row may carry its children in panels; afterwards upsert each child by its own id. delete lists ids to remove, a row only with all of its children. layout moves existing panels by id to a gridPos or into a row (row "" is the top level). variables replaces the whole variable list. dashboard sets the default time, title, tags or links; each key you send replaces that value. The save runs the queries of the panels and variables it changed, or every query when the default time range changes, and rejects panels that fail or return no data, listing them in failing_panels: fix and resend only those. Placeholder panels may be moved or removed, never added or edited.{build_note}`
@@ -75,7 +81,9 @@ const (
 	propSummary       = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID        = `"dashboard_id":{"type":"string","description":"Dashboard id from list_dashboards or a save result."}`
 	propFolderID      = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default General."}`
-	propCommentID     = `"comment_id":{"type":"string","description":"Comment id from list_comments."}`
+	propCommentID     = `"comment_id":{"type":"string","description":"Comment id from list_comments or create_comment."}`
+	propBody          = `"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The comment, plain text."}`
+	propTarget        = `"target":{"type":"string","description":"What the comment is on, written kind:uuid with kind dashboard, finding or annotation, for example finding:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f."}`
 )
 
 const (
@@ -113,7 +121,10 @@ const (
 )
 
 const (
-	schemaListComments   = `{"type":"object","properties":{` + propDashID + `,"status":{"type":"string","enum":["open","resolved","all"],"description":"Which threads to list. Default open."},"panel_id":{"type":"string","minLength":1,"maxLength":64,"description":"Only comments on this panel."},"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Comments per page. Default 50."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"required":["dashboard_id"],"additionalProperties":false}`
+	schemaListComments   = `{"type":"object","properties":{` + propTarget + `,"dashboard_id":{"type":"string","description":"Dashboard id from list_dashboards; the same as target dashboard:<id>. Give exactly one of target and dashboard_id."},"status":{"type":"string","enum":["open","resolved","all"],"description":"Which threads to list. Default open."},"panel_id":{"type":"string","minLength":1,"maxLength":64,"description":"Only comments on this panel of a dashboard."},"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Comments per page. Default 50."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+	schemaCreateComment  = `{"type":"object","properties":{` + propTarget + `,` + propBody + `,"panel_id":{"type":"string","minLength":1,"maxLength":64,"description":"The panel the comment is about; dashboards only. Omit it to comment on the whole dashboard."},"version":{"type":"integer","minimum":1,"description":"The dashboard version the comment is about; dashboards only. Default the latest."}},"required":["target","body"],"additionalProperties":false}`
+	schemaEditComment    = `{"type":"object","properties":{` + propCommentID + `,"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The new text, plain text."}},"required":["comment_id","body"],"additionalProperties":false}`
+	schemaReopenComment  = `{"type":"object","properties":{` + propCommentID + `},"required":["comment_id"],"additionalProperties":false}`
 	schemaReplyToComment = `{"type":"object","properties":{` + propCommentID + `,"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The reply, plain text."}},"required":["comment_id","body"],"additionalProperties":false}`
-	schemaResolveComment = `{"type":"object","properties":{` + propCommentID + `,"version":{"type":"integer","minimum":1,"description":"The dashboard version that fixed the comment."}},"required":["comment_id"],"additionalProperties":false}`
+	schemaResolveComment = `{"type":"object","properties":{` + propCommentID + `,"version":{"type":"integer","minimum":1,"description":"The dashboard version that fixed the comment; dashboard threads only."}},"required":["comment_id"],"additionalProperties":false}`
 )

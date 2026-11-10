@@ -135,7 +135,7 @@ type Deps struct {
 	Datasources *datasource.Registry
 	Runner      *queryproxy.Runner
 	Dashboards  *dashboards.Service
-	Comments    *threads.Comments
+	Threads     *threads.Service
 	Imports     *imports.Service
 	Folders     *folders.Access
 	Findings    *findings.Service
