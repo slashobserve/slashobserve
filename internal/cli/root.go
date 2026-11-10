@@ -36,6 +36,7 @@ type app struct {
 	show           showOptions
 	remove         deleteOptions
 	commentList    commentListOptions
+	commentAdd     commentAddOptions
 	commentResolve commentResolveOptions
 	importing      importOptions
 	run            runOptions
@@ -139,6 +140,15 @@ func noArgs(cmd *cobra.Command, args []string) error {
 func exactArgs(count int, names string) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) != count {
+			return usagef("%s takes %s", cmd.CommandPath(), names)
+		}
+		return nil
+	}
+}
+
+func rangeArgs(least, most int, names string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) < least || len(args) > most {
 			return usagef("%s takes %s", cmd.CommandPath(), names)
 		}
 		return nil

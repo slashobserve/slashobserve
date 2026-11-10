@@ -16,6 +16,7 @@ const (
 	testThread    = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 	testReply     = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 	testPanel     = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+	testFinding   = "dddddddd-dddd-dddd-dddd-dddddddddddd"
 )
 
 var spaces = regexp.MustCompile(` {2,}`)
@@ -39,6 +40,15 @@ func orNull(s string) string {
 	return fmt.Sprintf("%q", s)
 }
 
+func threadJSON(id, kind, targetID, panel string, present bool, status, version string) string {
+	return fmt.Sprintf(`{"id":%q,"target":{"kind":%q,"id":%q},"panel_id":%s,"panel_present":%t,"status":%q,"resolved_by_version":%s}`,
+		id, kind, targetID, orNull(panel), present, status, version)
+}
+
+func messageJSON(id, threadID, label, body string) string {
+	return fmt.Sprintf(`{"id":%q,"thread_id":%q,"actor":{"label":%q},"created_at":"2026-01-02T03:04:05Z","body":%q}`, id, threadID, label, body)
+}
+
 func TestCommentsCommands(t *testing.T) {
 	longBody := strings.Repeat("é", 81)
 	listBody := `{"comments":[` + strings.Join([]string{
@@ -50,6 +60,19 @@ func TestCommentsCommands(t *testing.T) {
 		commentJSON("c6", "", "", true, "Eve\u202eevil", "bidi author", "null"),
 	}, ",") + `],"next_cursor":null}`
 	envelope := func(c string) string { return `{"comment":` + c + `}` }
+	threadsPage := `{"threads":[` + strings.Join([]string{
+		threadJSON(testThread, "finding", testFinding, "", true, "open", "null"),
+		threadJSON(testReply, "dashboard", testDashboard, testPanel, false, "resolved", "2"),
+	}, ",") + `],"messages":[` + strings.Join([]string{
+		messageJSON(testThread, testThread, "Ada", "is this real?"),
+		messageJSON("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", testThread, "/observe for Sam", "yes, see the finding"),
+		messageJSON(testReply, testReply, "Eve\u202eevil", "gone panel"),
+	}, ",") + `],"next_cursor":"next","can_comment":true}`
+	threadResolved := func(version string) string {
+		return `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "resolved", version) + `}`
+	}
+	messageEnvelope := `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `,"message":` + messageJSON(testReply, testThread, "Ada", "x") + `}`
+	on := "finding:" + testFinding
 	replyBody := envelope(commentJSON(testReply, testThread, "", true, "Ada", "x", "null"))
 	resolvedPlain := envelope(commentJSON(testThread, "", "", true, "Ada", "x", "null"))
 	resolvedV3 := envelope(commentJSON(testThread, "", "", true, "Ada", "x", "3"))
@@ -208,12 +231,12 @@ func TestCommentsCommands(t *testing.T) {
 		{
 			name:    "reply with a help flag as its whole text shows help",
 			args:    []string{"comments", "reply", testDashboard, testThread, "--help"},
-			wantOut: []string{"observe comments reply [flags] <dashboard-id> <comment-id> <text...>"},
+			wantOut: []string{"observe comments reply [flags] [<dashboard-id>] <comment-id> <text...>"},
 		},
 		{
 			name:    "reply with -h as its whole text shows help",
 			args:    []string{"comments", "reply", testDashboard, testThread, "-h"},
-			wantOut: []string{"observe comments reply [flags] <dashboard-id> <comment-id> <text...>"},
+			wantOut: []string{"observe comments reply [flags] [<dashboard-id>] <comment-id> <text...>"},
 		},
 		{
 			name:       "resolve with --json reports a version that was not applied",
@@ -226,6 +249,283 @@ func TestCommentsCommands(t *testing.T) {
 			wantOut:    []string{`"resolved_by_version":2`},
 			wantNotOut: []string{"Resolved thread"},
 			wantErr:    "thread " + testThread + " is already resolved by version 2; --version was not applied",
+		},
+		{
+			name:       "list on a target renders messages with their thread",
+			args:       []string{"comments", "list", "--on", on},
+			response:   threadsPage,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&status=open&target=finding%3A" + testFinding,
+			wantOut: []string{
+				testThread + " - finding open Ada",
+				"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee " + testThread + " finding open /observe for Sam",
+				testReply + " - " + testPanel + " (removed) resolved Eve evil",
+			},
+			wantNotOut: []string{"\u202e"},
+			wantErr:    "more results: --cursor next",
+		},
+		{
+			name:       "list on a target sends status and panel",
+			args:       []string{"comments", "list", "--on", "dashboard:" + testDashboard, "--status", "all", "--panel", testPanel},
+			response:   `{"threads":[],"messages":[],"next_cursor":null,"can_comment":true}`,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&panel_id=" + testPanel + "&status=all&target=dashboard%3A" + testDashboard,
+		},
+		{
+			name:       "list on a target with --json prints the body",
+			args:       []string{"comments", "list", "--json", "--on", on},
+			response:   threadsPage,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&status=open&target=finding%3A" + testFinding,
+			wantOut:    []string{`"can_comment":true`},
+		},
+		{
+			name:     "list takes a dashboard id or --on",
+			args:     []string{"comments", "list"},
+			wantCode: 2,
+			wantErr:  "comments list takes a dashboard id or --on <kind>:<id>, one of them",
+		},
+		{
+			name:     "list refuses a dashboard id with --on",
+			args:     []string{"comments", "list", testDashboard, "--on", on},
+			wantCode: 2,
+			wantErr:  "comments list takes a dashboard id or --on <kind>:<id>, one of them",
+		},
+		{
+			name:     "list rejects an unknown target kind",
+			args:     []string{"comments", "list", "--on", "run:" + testFinding},
+			wantCode: 2,
+			wantErr:  `--on "run:` + testFinding + `" is not <kind>:<id>`,
+		},
+		{
+			name:     "list rejects a target without an id",
+			args:     []string{"comments", "list", "--on", "finding"},
+			wantCode: 2,
+			wantErr:  `--on "finding" is not <kind>:<id>`,
+		},
+		{
+			name:     "list rejects a target with a bad id",
+			args:     []string{"comments", "list", "--on", "finding:nope"},
+			wantCode: 2,
+			wantErr:  `--on "finding:nope" is not <kind>:<id>`,
+		},
+		{
+			name:       "add starts a thread on a finding",
+			args:       []string{"comments", "add", "--on", on, "looks", "wrong"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"looks wrong","target":"` + on + `"}`,
+			wantOut:    []string{"Started thread " + testThread + " on finding:" + testFinding},
+		},
+		{
+			name:       "add anchors to a panel and a version",
+			args:       []string{"comments", "add", "--on", "dashboard:" + testDashboard, "--panel", "p1", "--version", "3", "check", "this"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"check this","panel_id":"p1","target":"dashboard:` + testDashboard + `","version":3}`,
+		},
+		{
+			name:       "add keeps flag-like words and mentions in the text",
+			args:       []string{"comments", "add", "--on", on, "@observe", "rerun", "with", "--json"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"@observe rerun with --json","target":"` + on + `"}`,
+			wantNotOut: []string{`"thread"`},
+		},
+		{
+			name:       "add with --json prints the body",
+			args:       []string{"comments", "add", "--json", "--on", on, "ok"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"ok","target":"` + on + `"}`,
+			wantOut:    []string{`"thread"`},
+		},
+		{
+			name:     "add needs a target",
+			args:     []string{"comments", "add", "ok"},
+			wantCode: 2,
+			wantErr:  "--on <kind>:<id> is required",
+		},
+		{
+			name:     "add needs text",
+			args:     []string{"comments", "add", "--on", on, "  "},
+			wantCode: 2,
+			wantErr:  "add needs text",
+		},
+		{
+			name:     "add rejects version 0",
+			args:     []string{"comments", "add", "--on", on, "--version", "0", "ok"},
+			wantCode: 2,
+			wantErr:  "--version must be 1 or higher",
+		},
+		{
+			name:       "reply with one id uses the thread endpoint",
+			args:       []string{"comments", "reply", testThread, "looks", "good"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/messages",
+			wantBody:   `{"body":"looks good"}`,
+			wantOut:    []string{"Replied to thread " + testThread + " as " + testReply},
+		},
+		{
+			name:       "reply with one id with --json prints the body",
+			args:       []string{"comments", "reply", "--json", testThread, "ok"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/messages",
+			wantBody:   `{"body":"ok"}`,
+			wantOut:    []string{`"message"`},
+		},
+		{
+			name:     "reply with one id needs text",
+			args:     []string{"comments", "reply", testThread},
+			wantCode: 2,
+			wantErr:  "reply needs text",
+		},
+		{
+			name:     "reply rejects an id that is not one",
+			args:     []string{"comments", "reply", "nope", "text"},
+			wantCode: 2,
+			wantErr:  `"nope" is not a valid id`,
+		},
+		{
+			name:     "reply needs an id",
+			args:     []string{"comments", "reply"},
+			wantCode: 2,
+			wantErr:  "comments reply takes a comment id and the reply text",
+		},
+		{
+			name:       "edit replaces the text",
+			args:       []string{"comments", "edit", testReply, "better", "text"},
+			response:   messageEnvelope,
+			wantMethod: http.MethodPatch,
+			wantPath:   "/api/v1/messages/" + testReply,
+			wantBody:   `{"body":"better text"}`,
+			wantOut:    []string{"Edited comment " + testReply},
+		},
+		{
+			name:       "edit with --quiet prints nothing",
+			args:       []string{"-q", "comments", "edit", testReply, "ok"},
+			response:   messageEnvelope,
+			wantMethod: http.MethodPatch,
+			wantPath:   "/api/v1/messages/" + testReply,
+			wantBody:   `{"body":"ok"}`,
+			wantExact:  new(string),
+		},
+		{
+			name:       "edit with --json prints the body",
+			args:       []string{"comments", "edit", "--json", testReply, "ok"},
+			response:   messageEnvelope,
+			wantMethod: http.MethodPatch,
+			wantPath:   "/api/v1/messages/" + testReply,
+			wantBody:   `{"body":"ok"}`,
+			wantOut:    []string{`"message"`},
+		},
+		{
+			name:     "edit needs text",
+			args:     []string{"comments", "edit", testReply},
+			wantCode: 2,
+			wantErr:  "edit needs text",
+		},
+		{
+			name:     "edit needs an id",
+			args:     []string{"comments", "edit"},
+			wantCode: 2,
+			wantErr:  "comments edit takes a comment id and the new text",
+		},
+		{
+			name:    "edit with -h as its whole text shows help",
+			args:    []string{"comments", "edit", testReply, "-h"},
+			wantOut: []string{"observe comments edit [flags] <comment-id> <text...>"},
+		},
+		{
+			name:       "resolve with one id uses the thread endpoint",
+			args:       []string{"comments", "resolve", testThread},
+			response:   threadResolved("null"),
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/resolve",
+			wantBody:   `{}`,
+			wantOut:    []string{"Resolved thread " + testThread},
+			wantNotOut: []string{"by version"},
+		},
+		{
+			name:       "resolve with one id and a version",
+			args:       []string{"comments", "resolve", testThread, "--version", "3"},
+			response:   threadResolved("3"),
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/resolve",
+			wantBody:   `{"version":3}`,
+			wantOut:    []string{"Resolved thread " + testThread + " by version 3"},
+		},
+		{
+			name:       "resolve with one id reports a version that was not applied",
+			args:       []string{"comments", "resolve", testThread, "--version", "5"},
+			response:   threadResolved("2"),
+			wantCode:   1,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/resolve",
+			wantBody:   `{"version":5}`,
+			wantExact:  new(string),
+			wantErr:    "thread " + testThread + " is already resolved by version 2; --version was not applied",
+		},
+		{
+			name:       "resolve with one id and --json prints the body",
+			args:       []string{"comments", "resolve", "--json", testThread},
+			response:   threadResolved("null"),
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/resolve",
+			wantBody:   `{}`,
+			wantOut:    []string{`"thread"`},
+			wantNotOut: []string{"Resolved thread"},
+		},
+		{
+			name:     "resolve takes at most two ids",
+			args:     []string{"comments", "resolve", testDashboard, testThread, testReply},
+			wantCode: 2,
+			wantErr:  "comments resolve takes a comment id, after an optional dashboard id",
+		},
+		{
+			name:       "reopen sends no body",
+			args:       []string{"comments", "reopen", testThread},
+			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
+			wantOut:    []string{"Reopened thread " + testThread},
+		},
+		{
+			name:       "reopen with --quiet prints nothing",
+			args:       []string{"-q", "comments", "reopen", testThread},
+			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
+			wantExact:  new(string),
+		},
+		{
+			name:       "reopen with --json prints the body",
+			args:       []string{"comments", "reopen", "--json", testThread},
+			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
+			wantOut:    []string{`"thread"`},
+		},
+		{
+			name:     "reopen needs one id",
+			args:     []string{"comments", "reopen"},
+			wantCode: 2,
+			wantErr:  "comments reopen takes a comment id",
 		},
 	}
 	for _, tc := range cases {

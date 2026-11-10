@@ -2,6 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -9,10 +12,19 @@ import (
 
 const commentPreviewRunes = 80
 
+var commentTargetKinds = []string{"dashboard", "finding", "annotation"}
+
 type commentListOptions struct {
 	pageOptions
 	status string
 	panel  string
+	on     string
+}
+
+type commentAddOptions struct {
+	on      string
+	panel   string
+	version int
 }
 
 type commentResolveOptions struct {
@@ -40,50 +52,132 @@ type commentEnvelope struct {
 	Comment comment `json:"comment"`
 }
 
+type commentThread struct {
+	ID     string `json:"id"`
+	Target struct {
+		Kind string `json:"kind"`
+		ID   string `json:"id"`
+	} `json:"target"`
+	PanelID           *string `json:"panel_id"`
+	PanelPresent      bool    `json:"panel_present"`
+	Status            string  `json:"status"`
+	ResolvedByVersion *int    `json:"resolved_by_version"`
+}
+
+type threadMessage struct {
+	ID        string        `json:"id"`
+	ThreadID  string        `json:"thread_id"`
+	Actor     activityActor `json:"actor"`
+	CreatedAt string        `json:"created_at"`
+	Body      string        `json:"body"`
+}
+
+type threadPage struct {
+	Threads    []commentThread `json:"threads"`
+	Messages   []threadMessage `json:"messages"`
+	NextCursor *string         `json:"next_cursor"`
+}
+
+type threadEnvelope struct {
+	Thread commentThread `json:"thread"`
+}
+
+type threadMessageEnvelope struct {
+	Thread  commentThread `json:"thread"`
+	Message threadMessage `json:"message"`
+}
+
+type commentRow struct {
+	id, thread, panel, status, author, created, body string
+}
+
+func (r commentRow) cells() []string {
+	return []string{text(r.id), r.thread, r.panel, text(r.status), text(r.author), when(r.created), commentPreview(r.body)}
+}
+
 func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
-		Short: "List, answer and resolve dashboard comments",
+		Short: "Comment on dashboards, findings and annotations",
+		Long:  "comments works the comment threads on a dashboard, a finding or an annotation.\nA target is written <kind>:<id> with kind dashboard, finding or annotation, for example finding:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>) and the built-in agent as @observe; a mention is recorded in the activity log and starts no run.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.commentsListCommand(), a.commentsReplyCommand(), a.commentsResolveCommand())
+	cmd.AddCommand(
+		a.commentsListCommand(),
+		a.commentsAddCommand(),
+		a.commentsReplyCommand(),
+		a.commentsEditCommand(),
+		a.commentsResolveCommand(),
+		a.commentsReopenCommand(),
+	)
 	return cmd
+}
+
+func parseOn(raw string) (string, error) {
+	if raw == "" {
+		return "", usagef("--on <kind>:<id> is required")
+	}
+	kind, id, found := strings.Cut(raw, ":")
+	if !found || !slices.Contains(commentTargetKinds, kind) || !idPattern.MatchString(id) {
+		return "", usagef("--on %q is not <kind>:<id> with kind dashboard, finding or annotation", text(raw))
+	}
+	return raw, nil
 }
 
 func (a *app) commentsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list <dashboard-id>",
-		Short: "List the comments of a dashboard, oldest first",
-		Args:  exactArgs(1, "one dashboard id"),
+		Use:   "list [<dashboard-id>] [--on <kind>:<id>]",
+		Short: "List the comments of a dashboard, finding or annotation, oldest first",
+		Args:  cobra.MaximumNArgs(1),
 		RunE:  a.runCommentsList,
 	}
 	addPageFlags(cmd, &a.commentList.pageOptions)
 	cmd.Flags().StringVar(&a.commentList.status, "status", "open", "open, resolved or all")
 	cmd.Flags().StringVar(&a.commentList.panel, "panel", "", "only comments on this panel id")
+	cmd.Flags().StringVar(&a.commentList.on, "on", "", "the target to list, as <kind>:<id>, instead of a dashboard id")
 	return cmd
 }
 
-func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
-	id, err := parseID(args[0])
-	if err != nil {
-		return err
+func (a *app) commentListRequest(args []string) (string, url.Values, error) {
+	if (len(args) == 1) == (a.commentList.on != "") {
+		return "", nil, usagef("comments list takes a dashboard id or --on <kind>:<id>, one of them")
 	}
 	switch a.commentList.status {
 	case "open", "resolved", "all":
 	default:
-		return usagef("--status must be open, resolved or all")
+		return "", nil, usagef("--status must be open, resolved or all")
 	}
 	query := a.commentList.query()
 	query.Set("status", a.commentList.status)
 	if a.commentList.panel != "" {
 		query.Set("panel_id", a.commentList.panel)
 	}
+	if len(args) == 0 {
+		target, err := parseOn(a.commentList.on)
+		if err != nil {
+			return "", nil, err
+		}
+		query.Set("target", target)
+		return "threads", query, nil
+	}
+	id, err := parseID(args[0])
+	if err != nil {
+		return "", nil, err
+	}
+	return "dashboards/" + id + "/comments", query, nil
+}
+
+func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
+	path, query, err := a.commentListRequest(args)
+	if err != nil {
+		return err
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "dashboards/"+id+"/comments", query)
+	data, err := c.get(cmd.Context(), path, query)
 	if err != nil {
 		return err
 	}
@@ -92,33 +186,73 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	page, err := decode[commentList](data)
+	rows, next, err := commentRows(data, len(args) == 1)
 	if err != nil {
 		return err
 	}
-	rows := make([][]string, 0, len(page.Comments))
-	for _, cm := range page.Comments {
-		rows = append(rows, []string{
-			text(cm.ID),
-			orDash(cm.ParentID),
-			commentPanel(cm),
-			text(cm.Status),
-			text(cm.Author.Name),
-			when(cm.CreatedAt),
-			commentPreview(cm.Body),
-		})
+	cells := make([][]string, 0, len(rows))
+	for _, row := range rows {
+		cells = append(cells, row.cells())
 	}
-	out.table([]string{"ID", "THREAD", "PANEL", "STATUS", "AUTHOR", "CREATED", "COMMENT"}, rows)
-	nextPageHint(out, page.NextCursor)
+	out.table([]string{"ID", "THREAD", "PANEL", "STATUS", "AUTHOR", "CREATED", "COMMENT"}, cells)
+	nextPageHint(out, next)
 	return nil
 }
 
-func commentPanel(cm comment) string {
-	if cm.PanelID == nil {
-		return "dashboard"
+func commentRows(data []byte, byDashboard bool) ([]commentRow, *string, error) {
+	if byDashboard {
+		page, err := decode[commentList](data)
+		if err != nil {
+			return nil, nil, err
+		}
+		rows := make([]commentRow, 0, len(page.Comments))
+		for _, cm := range page.Comments {
+			rows = append(rows, commentRow{
+				id:      cm.ID,
+				thread:  orDash(cm.ParentID),
+				panel:   panelLabel(cm.PanelID, cm.PanelPresent, "dashboard"),
+				status:  cm.Status,
+				author:  cm.Author.Name,
+				created: cm.CreatedAt,
+				body:    cm.Body,
+			})
+		}
+		return rows, page.NextCursor, nil
 	}
-	panel := text(*cm.PanelID)
-	if !cm.PanelPresent {
+	page, err := decode[threadPage](data)
+	if err != nil {
+		return nil, nil, err
+	}
+	threads := make(map[string]commentThread, len(page.Threads))
+	for _, th := range page.Threads {
+		threads[th.ID] = th
+	}
+	rows := make([]commentRow, 0, len(page.Messages))
+	for _, m := range page.Messages {
+		th := threads[m.ThreadID]
+		thread := "-"
+		if m.ID != m.ThreadID {
+			thread = text(m.ThreadID)
+		}
+		rows = append(rows, commentRow{
+			id:      m.ID,
+			thread:  thread,
+			panel:   panelLabel(th.PanelID, th.PanelPresent, th.Target.Kind),
+			status:  th.Status,
+			author:  m.Actor.Label,
+			created: m.CreatedAt,
+			body:    m.Body,
+		})
+	}
+	return rows, page.NextCursor, nil
+}
+
+func panelLabel(panelID *string, present bool, whole string) string {
+	if panelID == nil {
+		return text(whole)
+	}
+	panel := text(*panelID)
+	if !present {
 		panel += " (removed)"
 	}
 	return panel
@@ -133,11 +267,65 @@ func commentPreview(body string) string {
 	return string(runes)
 }
 
+func (a *app) commentsAddCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add [flags] --on <kind>:<id> <text...>",
+		Short: "Start a comment thread on a dashboard, finding or annotation",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on a finding or an annotation.",
+		Args:  cobra.ArbitraryArgs,
+		RunE:  a.runCommentsAdd,
+	}
+	cmd.Flags().SetInterspersed(false)
+	cmd.Flags().StringVar(&a.commentAdd.on, "on", "", "what to comment on, as <kind>:<id>")
+	cmd.Flags().StringVar(&a.commentAdd.panel, "panel", "", "the panel of the dashboard to comment on")
+	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
+	return cmd
+}
+
+func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
+	target, err := parseOn(a.commentAdd.on)
+	if err != nil {
+		return err
+	}
+	payload := map[string]any{"target": target, "body": strings.TrimSpace(strings.Join(args, " "))}
+	if payload["body"] == "" {
+		return usagef("add needs text")
+	}
+	if a.commentAdd.panel != "" {
+		payload["panel_id"] = a.commentAdd.panel
+	}
+	if cmd.Flags().Changed("version") {
+		if a.commentAdd.version < 1 {
+			return usagef("--version must be 1 or higher")
+		}
+		payload["version"] = a.commentAdd.version
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	data, err := c.post(cmd.Context(), "threads", payload)
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	created, err := decode[threadMessageEnvelope](data)
+	if err != nil {
+		return err
+	}
+	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
+	return nil
+}
+
 func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reply [flags] <dashboard-id> <comment-id> <text...>",
+		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the two ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.",
+		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, a finding or an annotation.\nWhen the first two arguments are both ids, the first is read as a dashboard id.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
@@ -145,21 +333,34 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	return cmd
 }
 
+func hasDashboardID(args []string) bool {
+	return len(args) > 1 && idPattern.MatchString(args[0]) && idPattern.MatchString(args[1])
+}
+
 func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
-	if len(args) < 2 {
-		return usagef("%s takes a dashboard id, a comment id and the reply text", cmd.CommandPath())
+	if len(args) < 1 {
+		return usagef("%s takes a comment id and the reply text", cmd.CommandPath())
 	}
-	body := strings.TrimSpace(strings.Join(args[2:], " "))
+	withDashboard := hasDashboardID(args)
+	ids := 1
+	if withDashboard {
+		ids = 2
+	}
+	body := strings.TrimSpace(strings.Join(args[ids:], " "))
 	if body == "-h" || body == "--help" {
 		return cmd.Help()
 	}
-	dashboardID, err := parseID(args[0])
+	commentID, err := parseID(args[ids-1])
 	if err != nil {
 		return err
 	}
-	commentID, err := parseID(args[1])
-	if err != nil {
-		return err
+	path, payload := "threads/"+commentID+"/messages", map[string]string{"body": body}
+	if withDashboard {
+		dashboardID, err := parseID(args[0])
+		if err != nil {
+			return err
+		}
+		path, payload = "dashboards/"+dashboardID+"/comments", map[string]string{"parent_id": commentID, "body": body}
 	}
 	if body == "" {
 		return usagef("reply needs text")
@@ -168,7 +369,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.post(cmd.Context(), "dashboards/"+dashboardID+"/comments", map[string]string{"parent_id": commentID, "body": body})
+	data, err := c.post(cmd.Context(), path, payload)
 	if err != nil {
 		return err
 	}
@@ -177,50 +378,114 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	created, err := decode[commentEnvelope](data)
+	thread, message, err := repliedIDs(data, withDashboard, commentID)
 	if err != nil {
 		return err
 	}
-	thread := commentID
-	if created.Comment.ParentID != nil {
-		thread = *created.Comment.ParentID
-	}
-	out.line("Replied to thread %s as %s", text(thread), text(created.Comment.ID))
+	out.line("Replied to thread %s as %s", text(thread), text(message))
 	return nil
 }
 
-func (a *app) commentsResolveCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "resolve <dashboard-id> <comment-id>",
-		Short: "Resolve a comment thread",
-		Args:  exactArgs(2, "a dashboard id and a comment id"),
-		RunE:  a.runCommentsResolve,
+func repliedIDs(data []byte, legacy bool, commentID string) (thread, message string, err error) {
+	if !legacy {
+		created, err := decode[threadMessageEnvelope](data)
+		return created.Thread.ID, created.Message.ID, err
 	}
-	cmd.Flags().IntVar(&a.commentResolve.version, "version", 0, "record the version that fixed the thread")
+	created, err := decode[commentEnvelope](data)
+	if err != nil {
+		return "", "", err
+	}
+	thread = commentID
+	if created.Comment.ParentID != nil {
+		thread = *created.Comment.ParentID
+	}
+	return thread, created.Comment.ID, nil
+}
+
+func (a *app) commentsEditCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "edit [flags] <comment-id> <text...>",
+		Short: "Replace the text of one of your own comments",
+		Long:  "Everything after the id is the new text, flag-like words included, so flags such as --json or -q must come before the id.\nOnly the author can edit a comment, and only while they can still comment on its target.",
+		Args:  cobra.ArbitraryArgs,
+		RunE:  a.runCommentsEdit,
+	}
+	cmd.Flags().SetInterspersed(false)
 	return cmd
 }
 
-func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
-	dashboardID, err := parseID(args[0])
+func (a *app) runCommentsEdit(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		return usagef("%s takes a comment id and the new text", cmd.CommandPath())
+	}
+	body := strings.TrimSpace(strings.Join(args[1:], " "))
+	if body == "-h" || body == "--help" {
+		return cmd.Help()
+	}
+	commentID, err := parseID(args[0])
 	if err != nil {
 		return err
 	}
-	commentID, err := parseID(args[1])
-	if err != nil {
-		return err
-	}
-	payload := map[string]any{"status": "resolved"}
-	if cmd.Flags().Changed("version") {
-		if a.commentResolve.version < 1 {
-			return usagef("--version must be 1 or higher")
-		}
-		payload["resolved_by_version"] = a.commentResolve.version
+	if body == "" {
+		return usagef("edit needs text")
 	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.patch(cmd.Context(), "dashboards/"+dashboardID+"/comments/"+commentID, payload)
+	data, err := c.patch(cmd.Context(), "messages/"+commentID, map[string]string{"body": body})
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	edited, err := decode[threadMessageEnvelope](data)
+	if err != nil {
+		return err
+	}
+	out.confirm("Edited comment %s", text(edited.Message.ID))
+	return nil
+}
+
+type resolution struct {
+	id                string
+	resolvedByVersion *int
+}
+
+func (a *app) commentsResolveCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resolve [<dashboard-id>] <comment-id>",
+		Short: "Resolve a comment thread",
+		Long:  "The comment id can be any comment of the thread, on a dashboard, a finding or an annotation.\nWhen two ids are given, the first is read as a dashboard id.",
+		Args:  rangeArgs(1, 2, "a comment id, after an optional dashboard id"),
+		RunE:  a.runCommentsResolve,
+	}
+	cmd.Flags().IntVar(&a.commentResolve.version, "version", 0, "record the version that fixed the thread; dashboards only")
+	return cmd
+}
+
+func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
+	ids := make([]string, 0, len(args))
+	for _, arg := range args {
+		id, err := parseID(arg)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	versionGiven := cmd.Flags().Changed("version")
+	if versionGiven && a.commentResolve.version < 1 {
+		return usagef("--version must be 1 or higher")
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	legacy := len(ids) == 2
+	data, err := a.sendResolve(cmd, c, ids, versionGiven)
 	if err != nil {
 		return err
 	}
@@ -228,28 +493,87 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	if a.json {
 		out.body(data)
 	}
-	resolved, err := decode[commentEnvelope](data)
+	resolved, err := resolutionOf(data, legacy)
 	if err != nil {
 		return err
 	}
-	thread := resolved.Comment
-	if cmd.Flags().Changed("version") && (thread.ResolvedByVersion == nil || *thread.ResolvedByVersion != a.commentResolve.version) {
-		return notAppliedError(thread)
+	if versionGiven && (resolved.resolvedByVersion == nil || *resolved.resolvedByVersion != a.commentResolve.version) {
+		return notAppliedError(resolved)
 	}
 	if a.json {
 		return nil
 	}
-	if thread.ResolvedByVersion != nil {
-		out.confirm("Resolved thread %s by version %d", text(thread.ID), *thread.ResolvedByVersion)
+	if resolved.resolvedByVersion != nil {
+		out.confirm("Resolved thread %s by version %d", text(resolved.id), *resolved.resolvedByVersion)
 		return nil
 	}
-	out.confirm("Resolved thread %s", text(thread.ID))
+	out.confirm("Resolved thread %s", text(resolved.id))
 	return nil
 }
 
-func notAppliedError(thread comment) error {
-	if thread.ResolvedByVersion == nil {
-		return fmt.Errorf("thread %s is already resolved; --version was not applied", text(thread.ID))
+func (a *app) sendResolve(cmd *cobra.Command, c *client, ids []string, versionGiven bool) ([]byte, error) {
+	if len(ids) == 2 {
+		payload := map[string]any{"status": "resolved"}
+		if versionGiven {
+			payload["resolved_by_version"] = a.commentResolve.version
+		}
+		return c.patch(cmd.Context(), "dashboards/"+ids[0]+"/comments/"+ids[1], payload)
 	}
-	return fmt.Errorf("thread %s is already resolved by version %d; --version was not applied", text(thread.ID), *thread.ResolvedByVersion)
+	payload := map[string]any{}
+	if versionGiven {
+		payload["version"] = a.commentResolve.version
+	}
+	return c.post(cmd.Context(), "threads/"+ids[0]+"/resolve", payload)
+}
+
+func resolutionOf(data []byte, legacy bool) (resolution, error) {
+	if !legacy {
+		resolved, err := decode[threadEnvelope](data)
+		return resolution{resolved.Thread.ID, resolved.Thread.ResolvedByVersion}, err
+	}
+	resolved, err := decode[commentEnvelope](data)
+	return resolution{resolved.Comment.ID, resolved.Comment.ResolvedByVersion}, err
+}
+
+func notAppliedError(r resolution) error {
+	if r.resolvedByVersion == nil {
+		return fmt.Errorf("thread %s is already resolved; --version was not applied", text(r.id))
+	}
+	return fmt.Errorf("thread %s is already resolved by version %d; --version was not applied", text(r.id), *r.resolvedByVersion)
+}
+
+func (a *app) commentsReopenCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reopen <comment-id>",
+		Short: "Reopen a resolved comment thread",
+		Long:  "The comment id can be any comment of the thread.\nReopening clears who resolved the thread and the version that fixed it.",
+		Args:  exactArgs(1, "a comment id"),
+		RunE:  a.runCommentsReopen,
+	}
+}
+
+func (a *app) runCommentsReopen(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	data, err := c.do(cmd.Context(), http.MethodPost, "threads/"+id+"/reopen", nil, nil)
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	reopened, err := decode[threadEnvelope](data)
+	if err != nil {
+		return err
+	}
+	out.confirm("Reopened thread %s", text(reopened.Thread.ID))
+	return nil
 }

@@ -49,6 +49,14 @@ type activityData struct {
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
 	FailureCode   string   `json:"failure_code"`
+	Object        struct {
+		Kind string `json:"kind"`
+	} `json:"object"`
+	ResolvedByVersion int `json:"resolved_by_version"`
+	Mentioned         struct {
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+	} `json:"mentioned"`
 }
 
 type activityEvent struct {
@@ -79,7 +87,7 @@ func (a *app) activityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity",
 		Short: "List and follow what changed in the workspace",
-		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings and agent runs in the folders the key can see.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
+		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
 		Example: "  observe activity\n" +
 			"  observe activity --dashboard <id> --since 24h\n" +
 			"  observe activity --follow --type run.failed --type run.canceled",
@@ -249,6 +257,9 @@ func describe(e activityEvent) string {
 	if phrase, ok := describeRun(e); ok {
 		return phrase
 	}
+	if phrase, ok := describeThread(e); ok {
+		return phrase
+	}
 	return text(e.Type)
 }
 
@@ -290,6 +301,48 @@ func describeRun(e activityEvent) (string, bool) {
 		return "run canceled", true
 	}
 	return "", false
+}
+
+func describeThread(e activityEvent) (string, bool) {
+	d := e.Data
+	switch e.Type {
+	case "thread.opened":
+		return "commented on " + objectPhrase(d.Object.Kind), true
+	case "thread.replied":
+		return "replied to a thread", true
+	case "thread.edited":
+		return "edited a comment", true
+	case "thread.resolved":
+		if d.ResolvedByVersion > 0 {
+			return fmt.Sprintf("resolved a thread (fixed by version %d)", d.ResolvedByVersion), true
+		}
+		return "resolved a thread", true
+	case "thread.reopened":
+		return "reopened a thread", true
+	case "thread.mentioned":
+		return "mentioned " + mentionedPhrase(d.Mentioned.Kind, d.Mentioned.Name), true
+	}
+	return "", false
+}
+
+func objectPhrase(kind string) string {
+	switch kind {
+	case "dashboard", "finding":
+		return "a " + kind
+	case "annotation":
+		return "an annotation"
+	}
+	return "an object"
+}
+
+func mentionedPhrase(kind, name string) string {
+	switch {
+	case kind == "agent":
+		return "@observe"
+	case name == "":
+		return "someone"
+	}
+	return text(name)
 }
 
 type activityFollower struct {
