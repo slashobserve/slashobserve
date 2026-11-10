@@ -17,12 +17,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
-func TestDeletedEventPayloadCarriesOnlyTypeIDAndAuthor(t *testing.T) {
+func TestDeletedEventCarriesOnlyTypeIDAndAuthor(t *testing.T) {
 	id, err := db.ParseUUID("0b8f6f0e-3c9a-4a43-9d0a-6f2b0c1d2e3f")
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload, err := deletedEventPayload(id, Author{Kind: "user", ID: "u-1", Name: "Ada", Email: "ada@example.com"})
+	payload, err := json.Marshal(deletedEvent(id, Author{Kind: "user", ID: "u-1", Name: "Ada", Email: "ada@example.com"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,8 +39,8 @@ func TestDeletedEventPayloadCarriesOnlyTypeIDAndAuthor(t *testing.T) {
 	}
 }
 
-func TestDeletedEventPayloadCapsAuthorName(t *testing.T) {
-	payload, err := deletedEventPayload(pgtype.UUID{}, Author{Kind: "user", ID: "u-1", Name: strings.Repeat("é", 300)})
+func TestDeletedEventCapsAuthorName(t *testing.T) {
+	payload, err := json.Marshal(deletedEvent(pgtype.UUID{}, Author{Kind: "user", ID: "u-1", Name: strings.Repeat("é", 300)}))
 	if err != nil {
 		t.Fatal(err)
 	}

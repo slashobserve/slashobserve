@@ -27,7 +27,7 @@ import (
 
 const notifyPayloadLimit = 8000
 
-func TestCommentEventPayloadStaysUnderNotifyLimit(t *testing.T) {
+func TestCommentEventStaysUnderNotifyLimit(t *testing.T) {
 	id, err := db.ParseUUID("11111111-2222-3333-4444-555555555555")
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +35,7 @@ func TestCommentEventPayloadStaysUnderNotifyLimit(t *testing.T) {
 	row := dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: pgtype.Text{String: strings.Repeat("\x01", maxPanelIDRunes), Valid: true}, ParentID: id, Status: CommentOpen}
 	actor := Author{Kind: "service_account", ID: id.String(), Name: strings.Repeat("\x01", 100000)}
 	for _, eventType := range []string{events.TypeCommentCreated, events.TypeCommentUpdated} {
-		payload, err := commentEventPayload(eventType, row, CommentResolved, actor)
+		payload, err := json.Marshal(commentEvent(eventType, row, CommentResolved, actor))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -103,7 +103,7 @@ func TestPanelCacheEvictsLeastRecentlyUsed(t *testing.T) {
 	}
 }
 
-func TestCommentEventPayloadOmitsAbsentPanelAndParent(t *testing.T) {
+func TestCommentEventOmitsAbsentPanelAndParent(t *testing.T) {
 	id := mustParse(t, "11111111-2222-3333-4444-555555555555")
 	parent := mustParse(t, "66666666-7777-4888-8999-aaaaaaaaaaaa")
 	tests := []struct {
@@ -119,7 +119,7 @@ func TestCommentEventPayloadOmitsAbsentPanelAndParent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload, err := commentEventPayload(events.TypeCommentCreated, tt.row, CommentOpen, Author{Kind: "user", ID: id.String(), Name: "Ada"})
+			payload, err := json.Marshal(commentEvent(events.TypeCommentCreated, tt.row, CommentOpen, Author{Kind: "user", ID: id.String(), Name: "Ada"}))
 			if err != nil {
 				t.Fatal(err)
 			}

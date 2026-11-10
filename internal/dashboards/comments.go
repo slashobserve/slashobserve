@@ -2,7 +2,6 @@ package dashboards
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -497,7 +496,7 @@ func checkCommentBody(body string) (string, error) {
 
 // pg_notify refuses payloads of 8000 bytes or more. The payload holds no comment text; with the panel id
 // at 64 characters and the author name cut to 256, even all-escaped characters (6 bytes each) stay under 2500 bytes.
-func commentEventPayload(eventType string, row dbsqlc.DashboardComment, threadStatus string, actor Author) ([]byte, error) {
+func commentEvent(eventType string, row dbsqlc.DashboardComment, threadStatus string, actor Author) events.Event {
 	event := events.Event{
 		Type:        eventType,
 		DashboardID: row.DashboardID.String(),
@@ -509,18 +508,12 @@ func commentEventPayload(eventType string, row dbsqlc.DashboardComment, threadSt
 	if row.ParentID.Valid {
 		event.ParentID = row.ParentID.String()
 	}
-	return json.Marshal(event)
+	return event
 }
 
 func notifyComment(ctx context.Context, q *dbsqlc.Queries, eventType string, row dbsqlc.DashboardComment, threadStatus string, actor Author) error {
-	payload, err := commentEventPayload(eventType, row, threadStatus, actor)
-	if err != nil {
-		return fmt.Errorf("marshal event: %w", err)
-	}
-	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-		return fmt.Errorf("notify event: %w", err)
-	}
-	return nil
+	ev := commentEvent(eventType, row, threadStatus, actor)
+	return events.Notify(ctx, q, 0, &ev)
 }
 
 func commentFromRow(row dbsqlc.DashboardComment, threadStatus string, latestPanels map[string]struct{}) Comment {

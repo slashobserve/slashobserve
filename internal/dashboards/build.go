@@ -604,20 +604,14 @@ func (st store) saveBuild(ctx context.Context, in BuildSave, canonical []byte, u
 		if !in.DashboardID.Valid {
 			return nil
 		}
-		payload, err := json.Marshal(events.Event{
+		ev := events.Event{
 			Type:        events.TypeRevisionUpdated,
 			DashboardID: in.DashboardID.String(),
 			RevisionID:  in.RequestID.String(),
 			Status:      "running",
 			BuildSaves:  int(row.Saves),
-		})
-		if err != nil {
-			return fmt.Errorf("marshal event: %w", err)
 		}
-		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-			return fmt.Errorf("notify event: %w", err)
-		}
-		return nil
+		return events.Notify(ctx, q, 0, &ev)
 	})
 	return row, err
 }

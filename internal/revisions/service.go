@@ -706,14 +706,7 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 	if row.CommentID.Valid {
 		ev.CommentID = row.CommentID.String()
 	}
-	payload, err := json.Marshal(ev)
-	if err != nil {
-		return fmt.Errorf("marshal event: %w", err)
-	}
-	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-		return fmt.Errorf("notify event: %w", err)
-	}
-	return nil
+	return events.Notify(ctx, q, 0, &ev)
 }
 
 func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
@@ -749,14 +742,7 @@ func resolveThreadOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentReq
 		Status:      root.Status,
 		Author:      &events.Author{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: capEventAuthorName(row.RequestedByName)},
 	}
-	payload, err := json.Marshal(ev)
-	if err != nil {
-		return fmt.Errorf("marshal event: %w", err)
-	}
-	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-		return fmt.Errorf("notify event: %w", err)
-	}
-	return nil
+	return events.Notify(ctx, q, 0, &ev)
 }
 
 func capEventAuthorName(name string) string {

@@ -174,12 +174,12 @@ func (st store) move(ctx context.Context, id, folderID pgtype.UUID) error {
 	return nil
 }
 
-func deletedEventPayload(dashboardID pgtype.UUID, by Author) ([]byte, error) {
-	return json.Marshal(events.Event{
+func deletedEvent(dashboardID pgtype.UUID, by Author) events.Event {
+	return events.Event{
 		Type:        events.TypeDashboardDeleted,
 		DashboardID: dashboardID.String(),
 		Author:      &events.Author{Kind: by.Kind, ID: by.ID, Name: capEventAuthorName(by.Name)},
-	})
+	}
 }
 
 func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
@@ -197,14 +197,8 @@ func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
 			}
 			return ErrBeingCreated
 		}
-		payload, err := deletedEventPayload(id, by)
-		if err != nil {
-			return fmt.Errorf("marshal event: %w", err)
-		}
-		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-			return fmt.Errorf("notify event: %w", err)
-		}
-		return nil
+		ev := deletedEvent(id, by)
+		return events.Notify(ctx, q, 0, &ev)
 	})
 }
 
@@ -293,12 +287,9 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		return VersionMeta{}, fmt.Errorf("insert dashboard version: %w", err)
 	}
 	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
-	payload, err := versionEventPayload(in.dashboardID, meta)
-	if err != nil {
-		return VersionMeta{}, fmt.Errorf("marshal event: %w", err)
-	}
-	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
-		return VersionMeta{}, fmt.Errorf("notify event: %w", err)
+	ev := versionEvent(in.dashboardID, meta)
+	if err := events.Notify(ctx, q, 0, &ev); err != nil {
+		return VersionMeta{}, err
 	}
 	return meta, nil
 }
@@ -312,8 +303,8 @@ func capEventAuthorName(name string) string {
 
 // pg_notify refuses payloads of 8000 bytes or more. With the summary capped at 500 characters and the
 // name at 256, even all-escaped characters (6 bytes each) leave this payload under 5000 bytes.
-func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, error) {
-	return json.Marshal(events.Event{
+func versionEvent(dashboardID pgtype.UUID, meta VersionMeta) events.Event {
+	return events.Event{
 		Type:          events.TypeVersionCreated,
 		DashboardID:   dashboardID.String(),
 		Version:       meta.Number,
@@ -322,7 +313,7 @@ func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, err
 		Summary:       meta.Summary,
 		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: capEventAuthorName(meta.Author.Name)},
 		CreatedAt:     httpapi.FormatTime(meta.CreatedAt),
-	})
+	}
 }
 
 func (st store) latestVersion(ctx context.Context, id pgtype.UUID) (int, error) {
