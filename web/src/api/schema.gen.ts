@@ -2628,7 +2628,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -2639,10 +2639,10 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "thread" | "run";
                 /**
                  * Format: uuid
-                 * @description The id of the dashboard, annotation, finding or agent request the event is about.
+                 * @description The id of the dashboard, annotation, finding, comment thread or agent request the event is about.
                  */
                 id: string;
             };

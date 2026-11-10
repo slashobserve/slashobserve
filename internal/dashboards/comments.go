@@ -503,7 +503,7 @@ func commentEvent(eventType string, row dbsqlc.DashboardComment, threadStatus st
 		CommentID:   row.ID.String(),
 		PanelID:     row.PanelID.String,
 		Status:      threadStatus,
-		Author:      &events.Author{Kind: actor.Kind, ID: actor.ID, Name: capEventAuthorName(actor.Name)},
+		Author:      events.NewAuthor(actor.Kind, actor.ID, actor.Name),
 	}
 	if row.ParentID.Valid {
 		event.ParentID = row.ParentID.String()

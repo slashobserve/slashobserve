@@ -205,6 +205,32 @@ func (s *Service) List(ctx context.Context, by auth.Principal, q ListQuery) (Pag
 	return page, nil
 }
 
+func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (pgtype.UUID, folders.Abilities, error) {
+	a, err := s.store.get(ctx, id)
+	if err != nil {
+		return pgtype.UUID{}, folders.Abilities{}, err
+	}
+	if a.DashboardID == "" {
+		levels, err := s.access.Levels(ctx, by)
+		if errors.Is(err, folders.ErrForbidden) {
+			return pgtype.UUID{}, folders.Abilities{}, ErrNotFound
+		}
+		if err != nil {
+			return pgtype.UUID{}, folders.Abilities{}, err
+		}
+		return pgtype.UUID{}, levels.General(), nil
+	}
+	dashboardID, err := db.ParseUUID(a.DashboardID)
+	if err != nil {
+		return pgtype.UUID{}, folders.Abilities{}, err
+	}
+	abilities, err := s.dashboard(ctx, by, dashboardID)
+	if err != nil {
+		return pgtype.UUID{}, folders.Abilities{}, err
+	}
+	return dashboardID, abilities, nil
+}
+
 func (s *Service) mayCreate(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {
 	if !dashboardID.Valid {
 		if !by.Role.AtLeast(auth.RoleEditor) {

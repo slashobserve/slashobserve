@@ -271,3 +271,36 @@ func TestSavingAFindingWithoutEvidenceAsADashboardIsRefused(t *testing.T) {
 		t.Fatalf("save without evidence: %v", err)
 	}
 }
+
+func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
+	r := newRig(t)
+	onDashboard := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
+	hidden := r.dashboard(t, "Payroll")
+	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
+	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
+	private := r.save(t, editor, findings.SaveInput{})
+	cases := []struct {
+		name      string
+		by        auth.Principal
+		finding   findings.Finding
+		dashboard pgtype.UUID
+		want      folders.Abilities
+		err       error
+	}{
+		{"a viewer of the dashboard", viewer, onDashboard, r.open, folders.AbilitiesFor(folders.LevelView), nil},
+		{"an editor of the dashboard", otherEditor, onDashboard, r.open, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"a viewer without access to the dashboard", viewer, onHidden, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+		{"the creator of a finding without a dashboard", editor, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelComment), nil},
+		{"an admin of a finding without a dashboard", admin, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
+		{"another editor of a finding without a dashboard", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+	}
+	for _, c := range cases {
+		dashboard, abilities, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))
+		if !errors.Is(err, c.err) || dashboard != c.dashboard || abilities != c.want {
+			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, dashboard, abilities, err, c.dashboard, c.want, c.err)
+		}
+	}
+	if _, _, err := r.service.Access(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
+		t.Errorf("a missing finding: %v", err)
+	}
+}

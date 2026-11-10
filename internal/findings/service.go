@@ -189,29 +189,60 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
 }
 
-func (s *Service) visible(ctx context.Context, by auth.Principal, f Finding) error {
-	if f.DashboardID == "" {
-		if (string(by.Kind) == f.CreatedBy.Kind && by.ID == f.CreatedBy.ID) || by.Role == auth.RoleAdmin {
-			return nil
+func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (pgtype.UUID, folders.Abilities, error) {
+	f, err := s.store.get(ctx, id)
+	if err != nil {
+		return pgtype.UUID{}, folders.Abilities{}, err
+	}
+	abilities, err := s.abilities(ctx, by, f)
+	if err != nil {
+		return pgtype.UUID{}, folders.Abilities{}, err
+	}
+	var dashboardID pgtype.UUID
+	if f.DashboardID != "" {
+		if dashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
+			return pgtype.UUID{}, folders.Abilities{}, err
 		}
-		return ErrNotFound
+	}
+	return dashboardID, abilities, nil
+}
+
+func (s *Service) visible(ctx context.Context, by auth.Principal, f Finding) error {
+	_, err := s.abilities(ctx, by, f)
+	return err
+}
+
+func (s *Service) abilities(ctx context.Context, by auth.Principal, f Finding) (folders.Abilities, error) {
+	if f.DashboardID == "" {
+		switch {
+		case by.Role == auth.RoleAdmin:
+			return folders.AbilitiesFor(folders.LevelAdmin), nil
+		case string(by.Kind) == f.CreatedBy.Kind && by.ID == f.CreatedBy.ID:
+			return folders.AbilitiesFor(folders.LevelComment), nil
+		}
+		return folders.Abilities{}, ErrNotFound
 	}
 	dashboardID, err := db.ParseUUID(f.DashboardID)
 	if err != nil {
-		return err
+		return folders.Abilities{}, err
 	}
-	return s.viewable(ctx, by, dashboardID)
+	return s.dashboardAbilities(ctx, by, dashboardID)
 }
 
 func (s *Service) viewable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {
+	_, err := s.dashboardAbilities(ctx, by, dashboardID)
+	return err
+}
+
+func (s *Service) dashboardAbilities(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (folders.Abilities, error) {
 	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
-		return ErrNotFound
+		return folders.Abilities{}, ErrNotFound
 	case err != nil:
-		return err
+		return folders.Abilities{}, err
 	case !access.Abilities.View:
-		return ErrNotFound
+		return folders.Abilities{}, ErrNotFound
 	}
-	return nil
+	return access.Abilities, nil
 }

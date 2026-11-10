@@ -22,8 +22,6 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxEventAuthorNameRunes = 256
-
 const (
 	viaDirect = "direct"
 	viaAgent  = "agent"
@@ -199,7 +197,7 @@ func deletedEvent(dashboardID pgtype.UUID, by Author) events.Event {
 	return events.Event{
 		Type:        events.TypeDashboardDeleted,
 		DashboardID: dashboardID.String(),
-		Author:      &events.Author{Kind: by.Kind, ID: by.ID, Name: capEventAuthorName(by.Name)},
+		Author:      events.NewAuthor(by.Kind, by.ID, by.Name),
 	}
 }
 
@@ -366,13 +364,6 @@ func versionActivityData(title string, meta VersionMeta) versionActivityFields {
 	}
 }
 
-func capEventAuthorName(name string) string {
-	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
-		return string(r[:maxEventAuthorNameRunes])
-	}
-	return name
-}
-
 // pg_notify refuses payloads of 8000 bytes or more. With the summary capped at 500 characters and the
 // name at 256, even all-escaped characters (6 bytes each) leave this payload under 5000 bytes.
 func versionEvent(dashboardID pgtype.UUID, meta VersionMeta) events.Event {
@@ -383,7 +374,7 @@ func versionEvent(dashboardID pgtype.UUID, meta VersionMeta) events.Event {
 		ParentVersion: meta.ParentVersion,
 		RestoredFrom:  meta.RestoredFrom,
 		Summary:       meta.Summary,
-		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: capEventAuthorName(meta.Author.Name)},
+		Author:        events.NewAuthor(meta.Author.Kind, meta.Author.ID, meta.Author.Name),
 		CreatedAt:     httpapi.FormatTime(meta.CreatedAt),
 	}
 }

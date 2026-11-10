@@ -1,6 +1,10 @@
 package events
 
-const Channel = "slashobserve_events"
+const (
+	Channel = "slashobserve_events"
+
+	maxAuthorNameRunes = 256
+)
 
 const (
 	TypeVersionCreated = "version.created"
@@ -16,6 +20,13 @@ type Author struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+func NewAuthor(kind, id, name string) *Author {
+	if r := []rune(name); len(r) > maxAuthorNameRunes {
+		name = string(r[:maxAuthorNameRunes])
+	}
+	return &Author{Kind: kind, ID: id, Name: name}
 }
 
 type Event struct {

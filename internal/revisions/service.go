@@ -24,11 +24,10 @@ import (
 )
 
 const (
-	uniqueViolationCode     = "23505"
-	runningDashboardIndex   = "agent_requests_running_dashboard_idx"
-	maxEventAuthorNameRunes = 256
-	pinnedCursorPrefix      = "p."
-	unpinnedCursorPrefix    = "u."
+	uniqueViolationCode   = "23505"
+	runningDashboardIndex = "agent_requests_running_dashboard_idx"
+	pinnedCursorPrefix    = "p."
+	unpinnedCursorPrefix  = "u."
 )
 
 type Service struct {
@@ -732,16 +731,9 @@ func resolveThreadOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentReq
 		CommentID:   root.ID.String(),
 		PanelID:     root.PanelID.String,
 		Status:      root.Status,
-		Author:      &events.Author{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: capEventAuthorName(row.RequestedByName)},
+		Author:      events.NewAuthor(row.RequestedByKind, row.RequestedByID.String(), row.RequestedByName),
 	}
 	return events.Notify(ctx, q, 0, &ev)
-}
-
-func capEventAuthorName(name string) string {
-	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
-		return string(r[:maxEventAuthorNameRunes])
-	}
-	return name
 }
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {

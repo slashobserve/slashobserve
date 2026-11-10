@@ -22,6 +22,13 @@ const (
 	TypeFindingCreated = "finding.created"
 	TypeFindingPinned  = "finding.pinned"
 
+	TypeThreadOpened    = "thread.opened"
+	TypeThreadReplied   = "thread.replied"
+	TypeThreadEdited    = "thread.edited"
+	TypeThreadResolved  = "thread.resolved"
+	TypeThreadReopened  = "thread.reopened"
+	TypeThreadMentioned = "thread.mentioned"
+
 	TypeRunQueued    = "run.queued"
 	TypeRunStarted   = "run.started"
 	TypeRunSucceeded = "run.succeeded"
@@ -39,6 +46,12 @@ var knownTypes = []string{
 	TypeAnnotationDeleted,
 	TypeFindingCreated,
 	TypeFindingPinned,
+	TypeThreadOpened,
+	TypeThreadReplied,
+	TypeThreadEdited,
+	TypeThreadResolved,
+	TypeThreadReopened,
+	TypeThreadMentioned,
 	TypeRunQueued,
 	TypeRunStarted,
 	TypeRunSucceeded,

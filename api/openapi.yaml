@@ -961,7 +961,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -982,11 +982,11 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, run]
+              enum: [dashboard, annotation, finding, thread, run]
             id:
               type: string
               format: uuid
-              description: The id of the dashboard, annotation, finding or agent request the event is about.
+              description: The id of the dashboard, annotation, finding, comment thread or agent request the event is about.
         dashboard_id:
           type: string
           format: uuid
