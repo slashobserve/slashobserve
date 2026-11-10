@@ -183,14 +183,11 @@ func (cm *Comments) patchComment(c *gin.Context) {
 }
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
+	if abortKnown(c, err) {
+		return
+	}
 	var invalid *InvalidInputError
 	switch {
-	case errors.Is(err, ErrNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrUnknownPanel):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
-	case errors.Is(err, ErrUnknownVersion):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_version", err.Error())
 	case errors.Is(err, revisions.ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):

@@ -391,6 +391,7 @@ func run() error {
 			activity.NewHandler(activityStore, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
+			threads.NewThreads(threadsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,

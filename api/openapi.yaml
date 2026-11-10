@@ -86,6 +86,16 @@ paths:
     $ref: "./paths/comments.yaml#/dashboards-id-comments"
   /dashboards/{id}/comments/{comment_id}:
     $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
+  /threads:
+    $ref: "./paths/threads.yaml#/threads"
+  /threads/{thread_id}/messages:
+    $ref: "./paths/threads.yaml#/threads-threadid-messages"
+  /threads/{thread_id}/resolve:
+    $ref: "./paths/threads.yaml#/threads-threadid-resolve"
+  /threads/{thread_id}/reopen:
+    $ref: "./paths/threads.yaml#/threads-threadid-reopen"
+  /messages/{message_id}:
+    $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
@@ -1425,6 +1435,160 @@ components:
       properties:
         comment:
           $ref: "#/components/schemas/Comment"
+    Thread:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - target
+        - dashboard_id
+        - version
+        - panel_id
+        - panel_present
+        - status
+        - created_at
+        - updated_at
+        - resolved_at
+        - resolved_actor
+        - resolved_by_version
+        - revision
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The thread's id, which is also the id of its first message.
+        target:
+          type: object
+          additionalProperties: false
+          required: [kind, id]
+          properties:
+            kind:
+              type: string
+              enum: [dashboard, finding, annotation]
+            id:
+              type: string
+              format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the thread is on; null for a finding or annotation.
+        version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The dashboard version the thread is anchored to; null for a finding or annotation.
+        panel_id:
+          type: string
+          nullable: true
+          description: The panel the thread is on; null for the whole object.
+        panel_present:
+          type: boolean
+          description: Whether the latest version of the dashboard still has the panel the thread is anchored to. Always true when there is no panel.
+        status:
+          type: string
+          enum: [open, resolved]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolved_actor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Actor"
+          description: Who resolved the thread, `/observe for <name>` when an agent run did; null while it is open.
+        resolved_by_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded.
+        revision:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, status]
+          description: The latest revision requested for this thread, or null when none was requested.
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [queued, running, succeeded, failed]
+    Message:
+      type: object
+      additionalProperties: false
+      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit]
+      properties:
+        id:
+          type: string
+          format: uuid
+        thread_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        actor:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        edited_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the body was last edited; null when it never was.
+        mentions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mention"
+        can_edit:
+          type: boolean
+          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+    ThreadPage:
+      type: object
+      additionalProperties: false
+      required: [threads, messages, next_cursor, can_comment]
+      properties:
+        threads:
+          type: array
+          items:
+            $ref: "#/components/schemas/Thread"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        next_cursor:
+          type: string
+          nullable: true
+        can_comment:
+          type: boolean
+          description: Whether the caller may start threads and write messages on the target.
+    ThreadEnvelope:
+      type: object
+      additionalProperties: false
+      required: [thread]
+      properties:
+        thread:
+          $ref: "#/components/schemas/Thread"
+    ThreadMessageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [thread, message]
+      properties:
+        thread:
+          $ref: "#/components/schemas/Thread"
+        message:
+          $ref: "#/components/schemas/Message"
     Field:
       type: object
       additionalProperties: false
@@ -4104,6 +4268,13 @@ components:
             $ref: "#/components/schemas/Error"
     NotFound:
       description: The resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ThreadRefused:
+      description: >-
+        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec) or `unknown_version` (the version does not exist on the dashboard).
       content:
         application/json:
           schema:

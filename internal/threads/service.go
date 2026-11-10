@@ -407,6 +407,29 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	return page, nil
 }
 
+func (s *Service) latestRevisions(ctx context.Context, commentIDs []string) (map[string]*CommentRevision, error) {
+	if len(commentIDs) == 0 {
+		return nil, nil
+	}
+	ids := make([]pgtype.UUID, len(commentIDs))
+	for i, raw := range commentIDs {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			return nil, fmt.Errorf("comment id: %w", err)
+		}
+		ids[i] = id
+	}
+	rows, err := s.db.Queries().LatestAgentRequestsForComments(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("latest agent requests for comments: %w", err)
+	}
+	byComment := make(map[string]*CommentRevision, len(rows))
+	for _, r := range rows {
+		byComment[r.CommentID.String()] = &CommentRevision{ID: r.ID.String(), Status: r.Status}
+	}
+	return byComment, nil
+}
+
 func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.UUID) (Message, error) {
 	row, err := s.db.Queries().GetMessage(ctx, id)
 	if err != nil {

@@ -220,24 +220,13 @@ func (cm *Comments) threadOn(ctx context.Context, dashboardID, commentID pgtype.
 }
 
 func (cm *Comments) attachRevisions(ctx context.Context, comments []Comment) error {
-	if len(comments) == 0 {
-		return nil
-	}
-	ids := make([]pgtype.UUID, len(comments))
+	ids := make([]string, len(comments))
 	for i, c := range comments {
-		id, err := db.ParseUUID(c.ID)
-		if err != nil {
-			return fmt.Errorf("comment id: %w", err)
-		}
-		ids[i] = id
+		ids[i] = c.ID
 	}
-	rows, err := cm.service.db.Queries().LatestAgentRequestsForComments(ctx, ids)
+	byComment, err := cm.service.latestRevisions(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("latest agent requests for comments: %w", err)
-	}
-	byComment := make(map[string]*CommentRevision, len(rows))
-	for _, r := range rows {
-		byComment[r.CommentID.String()] = &CommentRevision{ID: r.ID.String(), Status: r.Status}
+		return err
 	}
 	for i := range comments {
 		comments[i].Revision = byComment[comments[i].ID]
