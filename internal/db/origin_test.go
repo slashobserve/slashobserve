@@ -19,6 +19,10 @@ func TestOriginClientConstraintsRequireAnMCPOrigin(t *testing.T) {
 VALUES ($1::uuid, $2, '{}'::jsonb, 's', 'user', gen_random_uuid(), 'n', $3, $4)`,
 		"agent_requests": `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, origin, origin_client)
 VALUES ($1::uuid, 'prompt', 'p', $2, 'user', gen_random_uuid(), 'n', $3, $4)`,
+		"findings": `INSERT INTO findings (dashboard_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client)
+VALUES ($1::uuid, 't' || $2::int::text, 'm', now() - interval '1 hour', now(), 'user', gen_random_uuid(), 'n', $3, $4)`,
+		"annotations": `INSERT INTO annotations (dashboard_id, panel_id, time_from, text, created_by, created_by_kind, origin, origin_client)
+VALUES ($1::uuid, 'p' || $2::int::text, now(), 'x', gen_random_uuid(), 'user', $3, $4)`,
 	}
 	tests := []struct {
 		name   string

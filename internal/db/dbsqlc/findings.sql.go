@@ -12,7 +12,7 @@ import (
 )
 
 const getFinding = `-- name: GetFinding :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, r.context_to AS request_to
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, r.context_to AS request_to
 FROM findings f
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
 WHERE f.id = $1
@@ -32,6 +32,8 @@ type GetFindingRow struct {
 	CreatedByName  string
 	AnnotationID   pgtype.UUID
 	CreatedAt      pgtype.Timestamptz
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
 	RequestTo      pgtype.Timestamptz
 }
 
@@ -52,13 +54,15 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 		&i.CreatedByName,
 		&i.AnnotationID,
 		&i.CreatedAt,
+		&i.Origin,
+		&i.OriginClient,
 		&i.RequestTo,
 	)
 	return i, err
 }
 
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at FROM findings WHERE agent_request_id = $1
+SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client FROM findings WHERE agent_request_id = $1
 `
 
 func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID pgtype.UUID) (Finding, error) {
@@ -78,6 +82,8 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 		&i.CreatedByName,
 		&i.AnnotationID,
 		&i.CreatedAt,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }
@@ -88,7 +94,7 @@ INSERT INTO findings (agent_request_id, dashboard_id, title, markdown, evidence,
 VALUES ($1::uuid, $2::uuid, $3, $4, $5::jsonb,
   $6, $7, $8, $9, $10)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
-RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at
+RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client
 `
 
 type InsertFindingParams struct {
@@ -132,12 +138,14 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		&i.CreatedByName,
 		&i.AnnotationID,
 		&i.CreatedAt,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }
 
 const listFindingsBy = `-- name: ListFindingsBy :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at FROM findings f
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client FROM findings f
 WHERE f.created_by_kind = $1 AND f.created_by_id = $2
   AND (f.dashboard_id IS NULL OR f.dashboard_id IN (SELECT d.id FROM dashboards d WHERE d.folder_id = ANY($3::uuid[])))
   AND ($4::timestamptz IS NULL
@@ -185,6 +193,8 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 			&i.CreatedByName,
 			&i.AnnotationID,
 			&i.CreatedAt,
+			&i.Origin,
+			&i.OriginClient,
 		); err != nil {
 			return nil, err
 		}
@@ -197,7 +207,7 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 }
 
 const listFindingsByDashboard = `-- name: ListFindingsByDashboard :many
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at FROM findings
+SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client FROM findings
 WHERE dashboard_id = $1
   AND ($2::timestamptz IS NULL
     OR (created_at, id) < ($2::timestamptz, $3::uuid))
@@ -240,6 +250,8 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 			&i.CreatedByName,
 			&i.AnnotationID,
 			&i.CreatedAt,
+			&i.Origin,
+			&i.OriginClient,
 		); err != nil {
 			return nil, err
 		}

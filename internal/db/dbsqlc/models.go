@@ -65,15 +65,18 @@ type AgentRequestBuild struct {
 }
 
 type Annotation struct {
-	ID          pgtype.UUID
-	DashboardID pgtype.UUID
-	PanelID     string
-	TimeFrom    pgtype.Timestamptz
-	TimeTo      pgtype.Timestamptz
-	Text        string
-	Tags        []string
-	CreatedBy   pgtype.UUID
-	CreatedAt   pgtype.Timestamptz
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	PanelID       string
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	Text          string
+	Tags          []string
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	CreatedByKind pgtype.Text
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
 }
 
 type AppliedDashboard struct {
@@ -99,6 +102,7 @@ type Dashboard struct {
 	CreatedOriginClient pgtype.Text
 	CreatedVia          string
 	FolderID            pgtype.UUID
+	CreatedRunID        pgtype.UUID
 }
 
 type DashboardComment struct {
@@ -194,6 +198,8 @@ type Finding struct {
 	CreatedByName  string
 	AnnotationID   pgtype.UUID
 	CreatedAt      pgtype.Timestamptz
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
 }
 
 type Folder struct {

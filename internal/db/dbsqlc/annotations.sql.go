@@ -24,7 +24,7 @@ func (q *Queries) DeleteAnnotation(ctx context.Context, id pgtype.UUID) (int64, 
 }
 
 const getAnnotation = `-- name: GetAnnotation :one
-SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
+SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
 FROM annotations
 WHERE id = $1
 `
@@ -42,6 +42,9 @@ func (q *Queries) GetAnnotation(ctx context.Context, id pgtype.UUID) (Annotation
 		&i.Tags,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CreatedByKind,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }
@@ -49,7 +52,7 @@ func (q *Queries) GetAnnotation(ctx context.Context, id pgtype.UUID) (Annotation
 const insertAnnotation = `-- name: InsertAnnotation :one
 INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by)
 VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, $6::text[], $7)
-RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
+RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
 `
 
 type InsertAnnotationParams struct {
@@ -83,6 +86,9 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 		&i.Tags,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CreatedByKind,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }

@@ -1,10 +1,10 @@
 -- name: InsertAnnotation :one
 INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by)
 VALUES (sqlc.narg('dashboard_id')::uuid, @panel_id, @time_from, sqlc.narg('time_to')::timestamptz, @text, @tags::text[], @created_by)
-RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at;
+RETURNING *;
 
 -- name: GetAnnotation :one
-SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
+SELECT *
 FROM annotations
 WHERE id = @id;
 

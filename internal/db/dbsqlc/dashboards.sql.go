@@ -15,7 +15,7 @@ const bumpDashboardVersion = `-- name: BumpDashboardVersion :one
 UPDATE dashboards
 SET latest_version = latest_version + 1, title = $1, tags = $2, updated_at = now()
 WHERE id = $3 AND latest_version = $4
-RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id
+RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
 
 type BumpDashboardVersionParams struct {
@@ -48,6 +48,7 @@ func (q *Queries) BumpDashboardVersion(ctx context.Context, arg BumpDashboardVer
 		&i.CreatedOriginClient,
 		&i.CreatedVia,
 		&i.FolderID,
+		&i.CreatedRunID,
 	)
 	return i, err
 }
@@ -144,7 +145,7 @@ INSERT INTO dashboards (
   $7::text, $8::text, $9,
   coalesce($10::uuid, general_folder_id())
 )
-RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id
+RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
 
 type CreateDashboardParams struct {
@@ -189,6 +190,7 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 		&i.CreatedOriginClient,
 		&i.CreatedVia,
 		&i.FolderID,
+		&i.CreatedRunID,
 	)
 	return i, err
 }
@@ -212,7 +214,7 @@ func (q *Queries) DeleteDashboard(ctx context.Context, id pgtype.UUID) (int64, e
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -245,6 +247,7 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.Dashboard.CreatedOriginClient,
 		&i.Dashboard.CreatedVia,
 		&i.Dashboard.FolderID,
+		&i.Dashboard.CreatedRunID,
 		&i.DashboardVersion.DashboardID,
 		&i.DashboardVersion.Version,
 		&i.DashboardVersion.ParentVersion,
@@ -280,7 +283,7 @@ func (q *Queries) GetDashboardLatestVersion(ctx context.Context, id pgtype.UUID)
 }
 
 const getDashboardVersion = `-- name: GetDashboardVersion :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
@@ -326,6 +329,7 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.Dashboard.CreatedOriginClient,
 		&i.Dashboard.CreatedVia,
 		&i.Dashboard.FolderID,
+		&i.Dashboard.CreatedRunID,
 		&i.DashboardVersion.DashboardID,
 		&i.DashboardVersion.Version,
 		&i.DashboardVersion.ParentVersion,
@@ -568,7 +572,7 @@ func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVe
 }
 
 const listDashboards = `-- name: ListDashboards :many
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id,
   v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
   v.author_name AS updated_by_name, v.author_email AS updated_by_email,
   v.datasource_uids,
@@ -668,6 +672,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 			&i.Dashboard.CreatedOriginClient,
 			&i.Dashboard.CreatedVia,
 			&i.Dashboard.FolderID,
+			&i.Dashboard.CreatedRunID,
 			&i.UpdatedByKind,
 			&i.UpdatedByID,
 			&i.UpdatedByName,
@@ -691,7 +696,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 }
 
 const listDashboardsByFolder = `-- name: ListDashboardsByFolder :many
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id,
   v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
   v.author_name AS updated_by_name, v.author_email AS updated_by_email,
   v.datasource_uids,
@@ -801,6 +806,7 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 			&i.Dashboard.CreatedOriginClient,
 			&i.Dashboard.CreatedVia,
 			&i.Dashboard.FolderID,
+			&i.Dashboard.CreatedRunID,
 			&i.UpdatedByKind,
 			&i.UpdatedByID,
 			&i.UpdatedByName,
@@ -824,7 +830,7 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 }
 
 const moveDashboard = `-- name: MoveDashboard :one
-UPDATE dashboards SET folder_id = $1 WHERE id = $2 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id
+UPDATE dashboards SET folder_id = $1 WHERE id = $2 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
 
 type MoveDashboardParams struct {
@@ -850,6 +856,7 @@ func (q *Queries) MoveDashboard(ctx context.Context, arg MoveDashboardParams) (D
 		&i.CreatedOriginClient,
 		&i.CreatedVia,
 		&i.FolderID,
+		&i.CreatedRunID,
 	)
 	return i, err
 }
