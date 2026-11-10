@@ -174,8 +174,8 @@ func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Act
 		case err != nil:
 			return fmt.Errorf("move dashboard: %w", err)
 		}
-		if _, err := q.MoveDashboardActivity(ctx, dbsqlc.MoveDashboardActivityParams{FolderID: to, DashboardID: id}); err != nil {
-			return fmt.Errorf("move dashboard activity: %w", err)
+		if err := activity.MoveDashboard(ctx, q, id, to); err != nil {
+			return err
 		}
 		entry := activity.Entry{
 			Type:        activity.TypeDashboardMoved,

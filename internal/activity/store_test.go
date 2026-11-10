@@ -2,6 +2,7 @@ package activity
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -90,6 +91,14 @@ func newTarget() pgtype.UUID {
 
 func (r rig) append(t *testing.T, e Entry) int64 {
 	t.Helper()
+	seq, err := r.tryAppend(t.Context(), e)
+	if err != nil {
+		t.Fatalf("append %s: %v", e.Type, err)
+	}
+	return seq
+}
+
+func (r rig) tryAppend(ctx context.Context, e Entry) (int64, error) {
 	if !e.TargetID.Valid {
 		e.TargetID = newTarget()
 	}
@@ -97,15 +106,51 @@ func (r rig) append(t *testing.T, e Entry) int64 {
 		e.Actor = editorActor
 	}
 	var seq int64
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		seq, err = Append(t.Context(), q, e, nil)
+		seq, err = Append(ctx, q, e, nil)
 		return err
 	})
-	if err != nil {
-		t.Fatalf("append %s: %v", e.Type, err)
+	return seq, err
+}
+
+func (r rig) folderOf(t *testing.T, seq int64) string {
+	t.Helper()
+	var got string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id::text FROM activity WHERE seq = $1`, seq).Scan(&got); err != nil {
+		t.Fatal(err)
 	}
-	return seq
+	return got
+}
+
+func (r rig) waitForAdvisoryLockWait(t *testing.T) {
+	t.Helper()
+	conn := r.db.SQLDB(t)
+	deadline := time.Now().Add(waitTimeout)
+	for {
+		var waiting int
+		if err := conn.QueryRowContext(t.Context(), `SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`).Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting > 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no transaction is waiting on the dashboard activity lock")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func finished[T any](t *testing.T, c <-chan T, what string) T {
+	t.Helper()
+	select {
+	case v := <-c:
+		return v
+	case <-time.After(waitTimeout):
+		t.Fatalf("%s did not finish", what)
+		panic("unreachable")
+	}
 }
 
 func (r rig) audience(t *testing.T, p auth.Principal) Audience {
@@ -151,6 +196,17 @@ func (r rig) hold(ctx context.Context, body func(q *dbsqlc.Queries) error, waitF
 		})
 	}()
 	return h
+}
+
+func (h *heldTx) releaseOnCleanup(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		select {
+		case <-h.release:
+		default:
+			close(h.release)
+		}
+	})
 }
 
 func (h *heldTx) commit(t *testing.T) {
@@ -334,6 +390,150 @@ func TestAppendTakesTheDashboardsFolder(t *testing.T) {
 	}
 	if got != folder.String() {
 		t.Fatalf("folder = %s, want %s", got, folder.String())
+	}
+}
+
+func TestAnAppendTakesNoDashboardRowLock(t *testing.T) {
+	cases := []struct {
+		name   string
+		hold   string
+		finish func(t *testing.T, tx *sql.Tx, dashboard pgtype.UUID)
+	}{
+		{
+			name: "a row lock held for a delete",
+			hold: `SELECT 1 FROM dashboards WHERE id = $1 FOR UPDATE`,
+			finish: func(t *testing.T, tx *sql.Tx, dashboard pgtype.UUID) {
+				if _, err := tx.ExecContext(t.Context(), `DELETE FROM dashboards WHERE id = $1`, dashboard.String()); err != nil {
+					t.Fatal(err)
+				}
+				if err := tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "an uncommitted version bump",
+			hold: `UPDATE dashboards SET latest_version = latest_version + 1 WHERE id = $1`,
+			finish: func(t *testing.T, tx *sql.Tx, _ pgtype.UUID) {
+				if err := tx.Rollback(); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			folder := r.openFolder(t, "Open")
+			dashboard := r.dashboardIn(t, folder)
+			tx, err := r.db.SQLDB(t).BeginTx(t.Context(), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.ExecContext(t.Context(), tc.hold, dashboard.String()); err != nil {
+				t.Fatal(err)
+			}
+
+			type appended struct {
+				seq int64
+				err error
+			}
+			done := make(chan appended, 1)
+			go func() {
+				seq, err := r.tryAppend(t.Context(), Entry{Type: TypeDashboardVersionCreated, DashboardID: dashboard})
+				done <- appended{seq, err}
+			}()
+			got := finished(t, done, "the append")
+			if got.err != nil {
+				t.Fatal(got.err)
+			}
+
+			tc.finish(t, tx, dashboard)
+			if folderID := r.folderOf(t, got.seq); folderID != folder.String() {
+				t.Fatalf("folder = %s, want %s", folderID, folder.String())
+			}
+		})
+	}
+}
+
+func TestAnAppendDuringAMoveReadsTheNewFolder(t *testing.T) {
+	r := newRig(t)
+	ctx := t.Context()
+	from := r.openFolder(t, "From")
+	to := r.openFolder(t, "To")
+	dashboard := r.dashboardIn(t, from)
+
+	moved := make(chan struct{})
+	mover := r.hold(ctx, func(q *dbsqlc.Queries) error {
+		if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
+			return err
+		}
+		if err := MoveDashboard(ctx, q, dashboard, to); err != nil {
+			return err
+		}
+		close(moved)
+		return nil
+	}, nil)
+	mover.releaseOnCleanup(t)
+	signalled(t, moved)
+
+	type appended struct {
+		seq int64
+		err error
+	}
+	done := make(chan appended, 1)
+	go func() {
+		seq, err := r.tryAppend(ctx, Entry{Type: TypeDashboardVersionCreated, DashboardID: dashboard})
+		done <- appended{seq, err}
+	}()
+	r.waitForAdvisoryLockWait(t)
+	mover.commit(t)
+
+	got := finished(t, done, "the append")
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	if folderID := r.folderOf(t, got.seq); folderID != to.String() {
+		t.Fatalf("folder = %s, want %s", folderID, to.String())
+	}
+}
+
+func TestAMoveWaitsForAnOpenAppend(t *testing.T) {
+	r := newRig(t)
+	ctx := t.Context()
+	from := r.openFolder(t, "From")
+	to := r.openFolder(t, "To")
+	dashboard := r.dashboardIn(t, from)
+
+	var heldSeq int64
+	appended := make(chan struct{})
+	appender := r.hold(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		heldSeq, err = Append(ctx, q, Entry{Type: TypeDashboardVersionCreated, TargetID: newTarget(), DashboardID: dashboard, Actor: editorActor}, nil)
+		close(appended)
+		return err
+	}, nil)
+	appender.releaseOnCleanup(t)
+	signalled(t, appended)
+
+	move := make(chan error, 1)
+	go func() {
+		move <- r.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+			if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
+				return err
+			}
+			return MoveDashboard(ctx, q, dashboard, to)
+		})
+	}()
+	r.waitForAdvisoryLockWait(t)
+	appender.commit(t)
+
+	if err := finished(t, move, "the move"); err != nil {
+		t.Fatal(err)
+	}
+	if folderID := r.folderOf(t, heldSeq); folderID != to.String() {
+		t.Fatalf("held row folder = %s, want %s", folderID, to.String())
 	}
 }
 

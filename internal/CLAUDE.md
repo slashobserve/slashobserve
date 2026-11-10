@@ -100,8 +100,9 @@ This lists only the packages whose purpose the name does not make obvious.
   List queries filter by `Levels.Visible()` and fail closed, services check writes themselves, and every count (lists, tag counts, `dashboard_count`) covers only folders the caller can see.
 - An agent run is checked when it is enqueued and again when a worker claims it, after reloading the requester.
   The event stream re-reads the caller's access at every ping.
-- An activity row's folder follows its dashboard: `InsertActivity` reads the dashboard's folder `FOR SHARE`, a global annotation takes General, and any other row has no folder and is visible only to its actor and to Admins.
-  A move runs `MoveDashboard`, then `MoveDashboardActivity`, then the `dashboard.moved` append in one transaction, so a concurrent append either is moved with the dashboard or reads the new folder; a deleted dashboard's rows keep their folder.
+- An activity row's folder follows its dashboard: `InsertActivity` reads the dashboard's current folder, a global annotation takes General, and any other row has no folder and is visible only to its actor and to Admins.
+  `Append` takes a shared per-dashboard advisory lock and never locks the dashboards row, because a delete holds that row and then cascades into child rows the appender may hold; a move runs `MoveDashboard`, then `activity.MoveDashboard` (the lock taken exclusively, then the rows rewritten), then the `dashboard.moved` append, so a concurrent append either is moved with the dashboard or reads the new folder.
+  A transaction writes or locks the dashboards row before it appends, never after; a deleted dashboard's rows keep their folder.
   Activity reads filter by `Levels.Visible()` in SQL through `activity.AudienceOf`, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
 - Deleting a dashboard is permanent: foreign keys cascade its versions, comments, agent requests and import record.
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -190,6 +191,57 @@ func TestAReleaseRecordsNoActivity(t *testing.T) {
 		t.Fatalf("after shutdown the request is %s, want it released to queued", got.Status)
 	}
 	assertTypes(t, runRecords(t, d, mustUUID(t, rev.ID)), "run.queued", "run.started")
+}
+
+func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	folder, err := d.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foldertest.Move(t, d, dash, folder.ID)
+	rev := submit(t, svc, dash, "add a panel")
+
+	tx, err := d.SQLDB(t).BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(t.Context(), `SELECT title FROM dashboards WHERE id = $1 FOR UPDATE`, dash.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	type claimed struct {
+		found bool
+		err   error
+	}
+	done := make(chan claimed, 1)
+	go func() {
+		_, found, err := svc.Claim(t.Context())
+		done <- claimed{found, err}
+	}()
+	select {
+	case got := <-done:
+		if got.err != nil || !got.found {
+			t.Fatalf("claim found %v with error %v, want a claimed request", got.found, got.err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("claim waited on the dashboard row lock")
+	}
+
+	if _, err := tx.ExecContext(t.Context(), `DELETE FROM dashboards WHERE id = $1`, dash.String()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	records := runRecords(t, d, mustUUID(t, rev.ID))
+	assertTypes(t, records, "run.queued", "run.started")
+	if got := records[1].FolderID; got != folder.ID.String() {
+		t.Fatalf("run.started folder = %q, want %q", got, folder.ID)
+	}
 }
 
 type notices struct {

@@ -34,6 +34,11 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 	if err != nil {
 		return 0, err
 	}
+	if e.DashboardID.Valid {
+		if err := q.ShareDashboardActivity(ctx, e.DashboardID); err != nil {
+			return 0, fmt.Errorf("lock dashboard activity: %w", err)
+		}
+	}
 	seq, err := q.InsertActivity(ctx, dbsqlc.InsertActivityParams{
 		Type:         e.Type,
 		TargetKind:   targetKind(e.Type),
@@ -55,6 +60,16 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 		return 0, err
 	}
 	return seq, nil
+}
+
+func MoveDashboard(ctx context.Context, q *dbsqlc.Queries, dashboardID, folderID pgtype.UUID) error {
+	if err := q.LockDashboardActivity(ctx, dashboardID); err != nil {
+		return fmt.Errorf("lock dashboard activity: %w", err)
+	}
+	if _, err := q.MoveDashboardActivity(ctx, dbsqlc.MoveDashboardActivityParams{FolderID: folderID, DashboardID: dashboardID}); err != nil {
+		return fmt.Errorf("move dashboard activity: %w", err)
+	}
+	return nil
 }
 
 func marshalData(data any) ([]byte, error) {

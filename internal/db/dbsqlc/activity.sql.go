@@ -63,7 +63,7 @@ VALUES (
   $4::uuid,
   CASE
     WHEN $4::uuid IS NOT NULL
-      THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $4::uuid FOR SHARE)
+      THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $4::uuid)
     WHEN $5::boolean THEN general_folder_id()
   END,
   $6::text,
@@ -92,6 +92,7 @@ type InsertActivityParams struct {
 	Data         []byte
 }
 
+// No row lock on dashboards: a delete holds that row and then cascades into child rows an appender may already hold.
 func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertActivity,
 		arg.Type,
@@ -270,6 +271,15 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 	return items, nil
 }
 
+const lockDashboardActivity = `-- name: LockDashboardActivity :exec
+SELECT pg_advisory_xact_lock(hashtextextended('activity:dashboard:' || CAST($1::uuid AS text), 0))
+`
+
+func (q *Queries) LockDashboardActivity(ctx context.Context, dashboardID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockDashboardActivity, dashboardID)
+	return err
+}
+
 const moveDashboardActivity = `-- name: MoveDashboardActivity :execrows
 UPDATE activity SET folder_id = $1 WHERE dashboard_id = $2
 `
@@ -303,4 +313,14 @@ func (q *Queries) PruneActivity(ctx context.Context, arg PruneActivityParams) (i
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const shareDashboardActivity = `-- name: ShareDashboardActivity :exec
+SELECT pg_advisory_xact_lock_shared(hashtextextended('activity:dashboard:' || CAST($1::uuid AS text), 0))
+`
+
+// Run alone before InsertActivity so the insert's snapshot sees a move that committed during the wait.
+func (q *Queries) ShareDashboardActivity(ctx context.Context, dashboardID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, shareDashboardActivity, dashboardID)
+	return err
 }
