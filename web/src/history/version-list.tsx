@@ -35,12 +35,11 @@ const rowLayout =
 const cellLayout = "max-sm:p-0"
 
 function Author({ meta }: { meta: VersionMeta }) {
-  if (meta.agent_request_id === null) return meta.author.name
+  if (meta.agent_request_id === null) return meta.actor.label
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       <AgentMark className="size-3.5" />
-      <span>Agent</span>
-      <span className="text-muted-foreground">for {meta.author.name}</span>
+      <span>{meta.actor.label}</span>
       <Link
         to="/c/$requestId"
         params={{ requestId: meta.agent_request_id }}

@@ -19,6 +19,19 @@ const ana = {
   email: "ana@example.com",
 } as const
 
+function actorOf(overrides: Partial<Creator["actor"]>): Creator["actor"] {
+  return {
+    kind: "user",
+    id: ana.id,
+    name: "Ana",
+    origin: "web",
+    client: null,
+    run_id: null,
+    label: "Ana",
+    ...overrides,
+  }
+}
+
 function summary(extra: Partial<DashboardSummary> = {}): DashboardSummary {
   return {
     id: "0b8e4c55-6c55-4d6a-9d8a-2a8c5b5e9a01",
@@ -29,7 +42,13 @@ function summary(extra: Partial<DashboardSummary> = {}): DashboardSummary {
     created_at: "2026-11-06T09:00:00Z",
     updated_at: "2026-11-06T09:00:00Z",
     updated_by: ana,
-    creator: { author: ana, origin: "web", origin_client: null, via: "direct" },
+    creator: {
+      author: ana,
+      origin: "web",
+      origin_client: null,
+      via: "direct",
+      actor: actorOf({}),
+    },
     datasource_uids: [],
     open_comment_count: 0,
     folder: {
@@ -116,6 +135,7 @@ describe("dashboard list cells", () => {
           origin: "web",
           origin_client: null,
           via: "direct",
+          actor: actorOf({}),
         },
         text: "Ana · Web",
         hover: "Ana · ana@example.com · Web",
@@ -126,9 +146,25 @@ describe("dashboard list cells", () => {
           origin: "web",
           origin_client: null,
           via: "agent",
+          actor: actorOf({ run_id: "r1", label: "/observe for Ana" }),
         },
-        text: "Ana · Agent",
-        hover: "Ana · ana@example.com · Agent",
+        text: "/observe for Ana",
+        hover: "/observe for Ana · ana@example.com",
+      },
+      {
+        creator: {
+          author: ana,
+          origin: "mcp",
+          origin_client: "claude-code",
+          via: "direct",
+          actor: actorOf({
+            origin: "mcp",
+            client: "Claude Code",
+            label: "Ana (via Claude Code)",
+          }),
+        },
+        text: "Ana (via Claude Code)",
+        hover: "Ana (via Claude Code) · ana@example.com",
       },
       {
         creator: {
@@ -136,6 +172,12 @@ describe("dashboard list cells", () => {
           origin: "api",
           origin_client: null,
           via: "direct",
+          actor: actorOf({
+            kind: "service_account",
+            name: "ci-deploy",
+            origin: "api",
+            label: "ci-deploy",
+          }),
         },
         text: "ci-deploy · API",
         hover: "ci-deploy · service account · API",
@@ -146,6 +188,7 @@ describe("dashboard list cells", () => {
           origin: null,
           origin_client: null,
           via: "direct",
+          actor: actorOf({ origin: null }),
         },
         text: "Ana",
         hover: "Ana",

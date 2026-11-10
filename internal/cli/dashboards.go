@@ -24,12 +24,16 @@ type dashboardSummary struct {
 	UpdatedBy     author `json:"updated_by"`
 }
 
+type actorLabel struct {
+	Label string `json:"label"`
+}
+
 type versionMeta struct {
-	Version       int    `json:"version"`
-	ParentVersion *int   `json:"parent_version"`
-	Summary       string `json:"summary"`
-	Author        author `json:"author"`
-	CreatedAt     string `json:"created_at"`
+	Version       int        `json:"version"`
+	ParentVersion *int       `json:"parent_version"`
+	Summary       string     `json:"summary"`
+	Actor         actorLabel `json:"actor"`
+	CreatedAt     string     `json:"created_at"`
 }
 
 type versionBody struct {
@@ -189,7 +193,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 		{"ID", text(shown.Dashboard.ID)},
 		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
-		{"Author", text(shown.Version.Author.Name)},
+		{"Author", text(shown.Version.Actor.Label)},
 		{"Summary", text(shown.Version.Summary)},
 	})
 	var rows [][]string
@@ -240,7 +244,7 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 		if v.ParentVersion != nil {
 			parent = strconv.Itoa(*v.ParentVersion)
 		}
-		rows = append(rows, []string{strconv.Itoa(v.Version), parent, text(v.Author.Name), when(v.CreatedAt), text(v.Summary)})
+		rows = append(rows, []string{strconv.Itoa(v.Version), parent, text(v.Actor.Label), when(v.CreatedAt), text(v.Summary)})
 	}
 	out.table([]string{"VERSION", "PARENT", "AUTHOR", "CREATED", "SUMMARY"}, rows)
 	nextPageHint(out, page.NextCursor)

@@ -49,6 +49,7 @@ type Creator struct {
 	Origin       string
 	OriginClient string
 	Via          string
+	RunID        string
 }
 
 type Dashboard struct {
@@ -127,6 +128,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 			CreatedOrigin:       originKind,
 			CreatedOriginClient: originClient,
 			CreatedVia:          via,
+			CreatedRunID:        in.requestID,
 			FolderID:            in.folder.ID,
 		})
 		if err != nil {
@@ -538,6 +540,7 @@ func dashboardFromRow(row dbsqlc.Dashboard, updatedBy Author) Dashboard {
 			Origin:       row.CreatedOrigin.String,
 			OriginClient: row.CreatedOriginClient.String,
 			Via:          row.CreatedVia,
+			RunID:        uuidText(row.CreatedRunID),
 		},
 	}
 }
@@ -567,20 +570,24 @@ func decodeUnverified(raw []byte) (Unverified, error) {
 }
 
 func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz, originKind, originClient pgtype.Text, agentRequestID pgtype.UUID) VersionMeta {
-	meta := VersionMeta{
-		Number:        int(number),
-		ParentVersion: optionalInt(parent),
-		RestoredFrom:  optionalInt(restored),
-		Summary:       summary,
-		Author:        author,
-		CreatedAt:     createdAt.Time.UTC(),
-		Origin:        originKind.String,
-		OriginClient:  originClient.String,
+	return VersionMeta{
+		Number:         int(number),
+		ParentVersion:  optionalInt(parent),
+		RestoredFrom:   optionalInt(restored),
+		Summary:        summary,
+		Author:         author,
+		CreatedAt:      createdAt.Time.UTC(),
+		Origin:         originKind.String,
+		OriginClient:   originClient.String,
+		AgentRequestID: uuidText(agentRequestID),
 	}
-	if agentRequestID.Valid {
-		meta.AgentRequestID = agentRequestID.String()
+}
+
+func uuidText(id pgtype.UUID) string {
+	if !id.Valid {
+		return ""
 	}
-	return meta
+	return id.String()
 }
 
 func authorFromRow(kind string, id pgtype.UUID, name string, email pgtype.Text) Author {

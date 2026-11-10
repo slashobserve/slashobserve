@@ -24,7 +24,7 @@ Entries are sorted by time and come in four kinds:
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
-- **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
+- **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "/observe for Ishan saved", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.

@@ -918,10 +918,42 @@ components:
           type: string
         email:
           type: string
+    Actor:
+      type: object
+      additionalProperties: false
+      required: [kind, id, name, origin, client, run_id, label]
+      description: Who made a change, as people see it. Display only, never used for access decisions.
+      properties:
+        kind:
+          type: string
+          enum: [user, service_account]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+        client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's display name, such as `Claude Code`, when `origin` is `mcp` and the client named itself; else null.
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request when the built-in agent made the change for this person or key; else null.
+        label:
+          type: string
+          minLength: 1
+          description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     Creator:
       type: object
       additionalProperties: false
-      required: [author, origin, origin_client, via]
+      required: [author, origin, origin_client, via, actor]
       description: Who made version 1 of the dashboard. It never changes.
       properties:
         author:
@@ -940,6 +972,8 @@ components:
           type: string
           enum: [direct, agent]
           description: "`agent` when the agent saved version 1; `author` is then the person or key that asked."
+        actor:
+          $ref: "#/components/schemas/Actor"
     DashboardFolder:
       type: object
       additionalProperties: false
@@ -1034,7 +1068,7 @@ components:
     VersionMeta:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor]
       properties:
         version:
           type: integer
@@ -1069,10 +1103,12 @@ components:
           format: uuid
           nullable: true
           description: The agent request that saved this version; null for a version saved directly.
+        actor:
+          $ref: "#/components/schemas/Actor"
     Version:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, spec, unverified]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor, spec, unverified]
       properties:
         version:
           type: integer
@@ -1107,6 +1143,8 @@ components:
           format: uuid
           nullable: true
           description: The agent request that saved this version; null for a version saved directly.
+        actor:
+          $ref: "#/components/schemas/Actor"
         spec:
           type: object
           additionalProperties: true

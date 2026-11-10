@@ -139,11 +139,12 @@ func (q *Queries) CountDashboardsByDatasource(ctx context.Context, folders []pgt
 const createDashboard = `-- name: CreateDashboard :one
 INSERT INTO dashboards (
   title, tags, latest_version, created_by_kind, created_by_id, created_by_name, created_by_email,
-  created_origin, created_origin_client, created_via, folder_id
+  created_origin, created_origin_client, created_via, created_run_id, folder_id
 ) VALUES (
   $1, $2, 1, $3, $4, $5, $6::text,
   $7::text, $8::text, $9,
-  coalesce($10::uuid, general_folder_id())
+  $10::uuid,
+  coalesce($11::uuid, general_folder_id())
 )
 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
@@ -158,6 +159,7 @@ type CreateDashboardParams struct {
 	CreatedOrigin       pgtype.Text
 	CreatedOriginClient pgtype.Text
 	CreatedVia          string
+	CreatedRunID        pgtype.UUID
 	FolderID            pgtype.UUID
 }
 
@@ -172,6 +174,7 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 		arg.CreatedOrigin,
 		arg.CreatedOriginClient,
 		arg.CreatedVia,
+		arg.CreatedRunID,
 		arg.FolderID,
 	)
 	var i Dashboard

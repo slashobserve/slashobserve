@@ -1,5 +1,4 @@
 import type { DashboardListFilters } from "@/api/keys"
-import { clientDisplayName } from "@/lib/origin"
 
 import { maxListPage } from "./list-pages"
 
@@ -139,7 +138,7 @@ export function madeByText(
   if (value === "me") return "me"
   if (value === "agent") return "Agent"
   if (value === "mcp") return "MCP clients"
-  if (value.startsWith("mcp:")) return clientDisplayName(value.slice(4))
+  if (value.startsWith("mcp:")) return value.slice(4)
   if (value.startsWith("user:")) {
     const id = value.slice(5)
     return users.find((user) => user.id === id)?.name ?? "a person"

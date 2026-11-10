@@ -141,11 +141,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         })
         await expect(version).toHaveCount(1)
         await expect(
-          version.getByText("Claude Code", { exact: true })
+          version.getByText(`${accountName} (via Claude Code)`, { exact: true })
         ).toBeVisible()
-        await expect(
-          version.getByText("saved over MCP", { exact: true })
-        ).toBeVisible()
+        await expect(version.getByText("saved", { exact: true })).toBeVisible()
         await expect(versionButton(page)).toHaveText("Live · v2")
       })
 

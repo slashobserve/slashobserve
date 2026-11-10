@@ -2566,6 +2566,25 @@ export interface components {
             name: string;
             email?: string;
         };
+        /** @description Who made a change, as people see it. Display only, never used for access decisions. */
+        Actor: {
+            /** @enum {string} */
+            kind: "user" | "service_account";
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string|null} */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's display name, such as `Claude Code`, when `origin` is `mcp` and the client named itself; else null. */
+            client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request when the built-in agent made the change for this person or key; else null.
+             */
+            run_id: string | null;
+            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted. */
+            label: string;
+        };
         /** @description Who made version 1 of the dashboard. It never changes. */
         Creator: {
             author: components["schemas"]["Author"];
@@ -2581,6 +2600,7 @@ export interface components {
              * @enum {string}
              */
             via: "direct" | "agent";
+            actor: components["schemas"]["Actor"];
         };
         DashboardFolder: {
             /** Format: uuid */
@@ -2647,6 +2667,7 @@ export interface components {
              * @description The agent request that saved this version; null for a version saved directly.
              */
             agent_request_id: string | null;
+            actor: components["schemas"]["Actor"];
         };
         Version: {
             version: number;
@@ -2668,6 +2689,7 @@ export interface components {
              * @description The agent request that saved this version; null for a version saved directly.
              */
             agent_request_id: string | null;
+            actor: components["schemas"]["Actor"];
             /** @description The ObserveSpec document, validated against its own schema. */
             spec: {
                 [key: string]: unknown;

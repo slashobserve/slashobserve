@@ -81,6 +81,15 @@ function version(n: number, createdAt: string): VersionMeta {
     origin: "web",
     origin_client: null,
     agent_request_id: null,
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
   }
 }
 

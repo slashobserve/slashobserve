@@ -384,3 +384,34 @@ func TestPeopleCountDashboardsSavedByTheirAgentRequests(t *testing.T) {
 		t.Fatalf("dashboard_count = %+v, want 2: the one saved by hand and the one saved by the person's agent request, not the key's", rows)
 	}
 }
+
+func TestDashboardCreatedUnderARequestRecordsTheRun(t *testing.T) {
+	r := newRig(t, true)
+	request, err := r.revisions.SubmitObserve(t.Context(), testUser, "show checkout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, _, _, err := r.service.CreateRequestDashboard(t.Context(), testUser, pgtype.UUID{}, panelsSpec("by agent", "rps"), "create", request.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := r.service.Get(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Creator.RunID != request.ID.String() {
+		t.Fatalf("Creator.RunID = %q, want %q", got.Creator.RunID, request.ID.String())
+	}
+
+	direct, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, panelsSpec("by hand", "rps"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if direct.Creator.RunID != "" {
+		t.Fatalf("direct Creator.RunID = %q, want empty", direct.Creator.RunID)
+	}
+}
