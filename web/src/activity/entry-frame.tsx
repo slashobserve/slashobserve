@@ -40,6 +40,7 @@ type Props = {
   verb: string
   panel?: { title: string; onSelect: () => void }
   at: string
+  edited?: boolean
   nested?: boolean
   children?: ReactNode
 }
@@ -61,6 +62,7 @@ export function EntryFrame({
   verb,
   panel,
   at,
+  edited,
   nested,
   children,
 }: Props) {
@@ -109,6 +111,7 @@ export function EntryFrame({
             )}
           </p>
           <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground tabular-nums">
+            {edited ? "edited · " : null}
             <RelativeTime iso={at} />
           </span>
         </div>

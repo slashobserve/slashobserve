@@ -6,6 +6,7 @@ import {
   useQueryClient,
   type InfiniteData,
   type QueryClient,
+  type QueryKey,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -205,5 +206,20 @@ export function useSetCommentStatus(
       toast.error("Could not update the comment")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  })
+}
+
+export function useEditMessage(queryKey: QueryKey) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { messageId: string; body: string }) =>
+      api
+        .PATCH("/messages/{message_id}", {
+          params: { path: { message_id: input.messageId } },
+          body: { body: input.body },
+        })
+        .then(unwrap),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
 }
