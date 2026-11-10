@@ -28,6 +28,12 @@ const (
 )
 
 const (
+	defaultActivityRetention = 4320 * time.Hour
+	minActivityRetention     = 24 * time.Hour
+	maxActivityRetention     = 87600 * time.Hour
+)
+
+const (
 	defaultHTTPAddr   = ":8080"
 	defaultSessionTTL = 168 * time.Hour
 	minSessionTTL     = 5 * time.Minute
@@ -87,6 +93,7 @@ const (
 	envOIDCClientID       = "SLASHOBSERVE_OIDC_CLIENT_ID"
 	envOIDCClientSecret   = "SLASHOBSERVE_OIDC_CLIENT_SECRET"
 	envSessionTTL         = "SLASHOBSERVE_SESSION_TTL"
+	envActivityRetention  = "SLASHOBSERVE_ACTIVITY_RETENTION"
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
 	envAuthProviderName   = "SLASHOBSERVE_AUTH_PROVIDER_NAME"
 
@@ -127,7 +134,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
+	envSessionTTL, envActivityRetention, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
@@ -172,6 +179,7 @@ type Config struct {
 	OIDCClientID        string
 	OIDCClientSecret    string
 	SessionTTL          time.Duration
+	ActivityRetention   time.Duration
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
 	AuthProviderName    string
@@ -197,7 +205,7 @@ type Config struct {
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
-	cfg := Config{LogLevel: slog.LevelInfo, LogFormat: LogFormatJSON, SessionTTL: defaultSessionTTL}
+	cfg := Config{LogLevel: slog.LevelInfo, LogFormat: LogFormatJSON, SessionTTL: defaultSessionTTL, ActivityRetention: defaultActivityRetention}
 	var errs []error
 
 	httpAddr, err := HTTPAddr(lookup)
@@ -229,6 +237,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadURLs(lookup, &cfg)...)
 	errs = append(errs, loadClient(lookup, &cfg)...)
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
+	errs = append(errs, loadActivityRetention(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
 	errs = append(errs, loadProviderName(lookup, &cfg)...)
 	errs = append(errs, loadAdminEmails(lookup, &cfg)...)
@@ -336,6 +345,24 @@ func loadSessionTTL(lookup func(string) (string, bool), cfg *Config) []error {
 			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envSessionTTL, minSessionTTL, maxSessionTTL, v))
 		default:
 			cfg.SessionTTL = ttl
+		}
+	}
+
+	return errs
+}
+
+func loadActivityRetention(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
+
+	if v := get(lookup, envActivityRetention); v != "" {
+		retention, err := time.ParseDuration(v)
+		switch {
+		case err != nil:
+			errs = append(errs, fmt.Errorf("%s: %w", envActivityRetention, err))
+		case retention < minActivityRetention || retention > maxActivityRetention:
+			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envActivityRetention, minActivityRetention, maxActivityRetention, v))
+		default:
+			cfg.ActivityRetention = retention
 		}
 	}
 

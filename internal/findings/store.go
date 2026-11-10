@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -30,19 +31,38 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 	if err != nil {
 		return Finding{}, false, fmt.Errorf("encode evidence: %w", err)
 	}
-	row, err := s.db.Queries().InsertFinding(ctx, dbsqlc.InsertFindingParams{
-		AgentRequestID: in.AgentRequestID,
-		DashboardID:    in.DashboardID,
-		Title:          in.Title,
-		Markdown:       in.Markdown,
-		Evidence:       evidence,
-		TimeFrom:       pgtype.Timestamptz{Time: in.From, Valid: true},
-		TimeTo:         pgtype.Timestamptz{Time: in.To, Valid: true},
-		CreatedByKind:  cols.Kind,
-		CreatedByID:    cols.ID,
-		CreatedByName:  cols.Name,
-		Origin:         cols.Origin,
-		OriginClient:   cols.Client,
+	var row dbsqlc.Finding
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = q.InsertFinding(ctx, dbsqlc.InsertFindingParams{
+			AgentRequestID: in.AgentRequestID,
+			DashboardID:    in.DashboardID,
+			Title:          in.Title,
+			Markdown:       in.Markdown,
+			Evidence:       evidence,
+			TimeFrom:       pgtype.Timestamptz{Time: in.From, Valid: true},
+			TimeTo:         pgtype.Timestamptz{Time: in.To, Valid: true},
+			CreatedByKind:  cols.Kind,
+			CreatedByID:    cols.ID,
+			CreatedByName:  cols.Name,
+			Origin:         cols.Origin,
+			OriginClient:   cols.Client,
+		})
+		if err != nil {
+			return err
+		}
+		data := map[string]string{"title": row.Title}
+		if row.AgentRequestID.Valid {
+			data["agent_request_id"] = row.AgentRequestID.String()
+		}
+		_, err = activity.Append(ctx, q, activity.Entry{
+			Type:        activity.TypeFindingCreated,
+			TargetID:    row.ID,
+			DashboardID: row.DashboardID,
+			Actor:       by,
+			Data:        data,
+		}, nil)
+		return err
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -118,12 +138,27 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	return findingsOf(found)
 }
 
-func (s *store) setAnnotation(ctx context.Context, id, annotationID pgtype.UUID) (bool, error) {
-	n, err := s.db.Queries().SetFindingAnnotation(ctx, dbsqlc.SetFindingAnnotationParams{ID: id, AnnotationID: annotationID})
+func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, annotationID pgtype.UUID) (bool, error) {
+	won := false
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.SetFindingAnnotation(ctx, dbsqlc.SetFindingAnnotationParams{ID: id, AnnotationID: annotationID})
+		if err != nil || n == 0 {
+			return err
+		}
+		won = true
+		_, err = activity.Append(ctx, q, activity.Entry{
+			Type:        activity.TypeFindingPinned,
+			TargetID:    id,
+			DashboardID: dashboardID,
+			Actor:       by,
+			Data:        map[string]string{"annotation_id": annotationID.String()},
+		}, nil)
+		return err
+	})
 	if err != nil {
 		return false, fmt.Errorf("set finding annotation: %w", err)
 	}
-	return n == 1, nil
+	return won, nil
 }
 
 func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Annotation, error) {

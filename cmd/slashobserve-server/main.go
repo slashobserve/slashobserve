@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actions"
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/annotations"
@@ -284,6 +285,7 @@ func run() error {
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
 	annotationsService := annotations.New(database, folderAccess)
 	annotationsHandler := annotations.NewHandler(annotationsService, logger)
+	activityStore := activity.NewStore(database, folderAccess)
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
@@ -301,6 +303,7 @@ func run() error {
 		Findings:    findingsService,
 		Health:      healthService,
 		Annotations: annotationsService,
+		Activity:    activityStore,
 		Provider:    llmProvider,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
@@ -338,6 +341,7 @@ func run() error {
 	defer stopWorkers()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
+	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
@@ -382,6 +386,8 @@ func run() error {
 			grafanaconn.NewHandler(grafanaService),
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
+			activity.NewHandler(activityStore, logger),
+			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),

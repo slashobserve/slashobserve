@@ -2,9 +2,11 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -313,6 +315,149 @@ func TestBrokerConcurrentSubscribeAndClose(t *testing.T) {
 
 	if _, err := h.broker.Subscribe("d1"); !errors.Is(err, ErrClosed) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func (h *harness) follow(t *testing.T) *Follower {
+	t.Helper()
+	f, err := h.broker.Follow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func expectWake(t *testing.T, f *Follower) {
+	t.Helper()
+	select {
+	case <-f.Wakes():
+	case <-time.After(waitTimeout):
+		t.Fatal("follower was not woken")
+	}
+}
+
+func expectNoWake(t *testing.T, f *Follower) {
+	t.Helper()
+	select {
+	case <-f.Wakes():
+		t.Fatal("follower woken unexpectedly")
+	case <-time.After(quietPeriod):
+	}
+}
+
+func expectFollowerDone(t *testing.T, f *Follower) {
+	t.Helper()
+	select {
+	case <-f.Done():
+	case <-time.After(waitTimeout):
+		t.Fatal("follower was not ended")
+	}
+}
+
+func expectFollowerNotDone(t *testing.T, f *Follower) {
+	t.Helper()
+	select {
+	case <-f.Done():
+		t.Fatal("follower ended unexpectedly")
+	default:
+	}
+}
+
+func TestBrokerSeqOnlyPayloadWakesFollowersAndNoSubscriber(t *testing.T) {
+	h := newHarness(t)
+	call, subs := h.listening(t, "d1")
+	f := h.follow(t)
+
+	call.handle(`{"seq":7}`)
+
+	expectWake(t, f)
+	expectNone(t, subs[0])
+}
+
+func TestBrokerStripsSeqFromLiveEventsAndWakesFollowers(t *testing.T) {
+	h := newHarness(t)
+	call, subs := h.listening(t, "d1")
+	f := h.follow(t)
+
+	call.handle(`{"seq":9,"type":"version.created","dashboard_id":"d1","version":3}`)
+
+	expectWake(t, f)
+	ev := recv(t, subs[0])
+	if ev.Type != TypeVersionCreated || ev.DashboardID != "d1" || ev.Version != 3 {
+		t.Fatalf("unexpected event %+v", ev)
+	}
+	raw, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "seq") {
+		t.Fatalf("delivered event carries seq: %s", raw)
+	}
+}
+
+func TestBrokerLiveEventWithoutSeqDoesNotWakeFollowers(t *testing.T) {
+	h := newHarness(t)
+	call, subs := h.listening(t, "d1")
+	f := h.follow(t)
+
+	call.handle(versionCreated("d1", 2))
+
+	recv(t, subs[0])
+	expectNoWake(t, f)
+}
+
+func TestBrokerCoalescesWakesAndNeverDropsASlowFollower(t *testing.T) {
+	h := newHarness(t)
+	call, _ := h.listening(t)
+	f := h.follow(t)
+
+	for i := range 100 {
+		call.handle(fmt.Sprintf(`{"seq":%d}`, i+1))
+	}
+
+	expectWake(t, f)
+	expectNoWake(t, f)
+	expectFollowerNotDone(t, f)
+	call.handle(`{"seq":101}`)
+	expectWake(t, f)
+}
+
+func TestBrokerReconnectWakesFollowers(t *testing.T) {
+	h := newHarness(t)
+	call, _ := h.listening(t)
+	f := h.follow(t)
+	expectNoWake(t, f)
+
+	call.fail <- errors.New("connection lost")
+	h.l.nextCall(t)
+
+	expectWake(t, f)
+}
+
+func TestBrokerFollowerCloseStopsWakes(t *testing.T) {
+	h := newHarness(t)
+	call, _ := h.listening(t)
+	f := h.follow(t)
+
+	f.Close()
+	f.Close()
+	call.handle(`{"seq":1}`)
+
+	expectFollowerDone(t, f)
+	expectNoWake(t, f)
+}
+
+func TestBrokerCloseEndsFollowersAndFollowAfterCloseFails(t *testing.T) {
+	h := newHarness(t)
+	h.listening(t)
+	f := h.follow(t)
+
+	h.broker.Close()
+
+	expectFollowerDone(t, f)
+	f.Close()
+	if got, err := h.broker.Follow(); !errors.Is(err, ErrClosed) || got != nil {
+		t.Fatalf("got %v, %v", got, err)
 	}
 }
 

@@ -135,7 +135,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		if updated.Status == string(StatusRunning) {
 			return nil
 		}
-		if err := notifyRevision(ctx, q, updated); err != nil {
+		if err := recordRun(ctx, q, updated); err != nil {
 			return err
 		}
 		if updated.Status == string(StatusSucceeded) {

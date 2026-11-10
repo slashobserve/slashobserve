@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -139,6 +140,7 @@ type Deps struct {
 	Findings    *findings.Service
 	Health      *health.Service
 	Annotations *annotations.Service
+	Activity    *activity.Store
 	Provider    llm.Provider
 	PublicURL   *url.URL
 	Logger      *slog.Logger

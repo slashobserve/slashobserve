@@ -1,0 +1,148 @@
+activity:
+  get:
+    operationId: listActivity
+    summary: List workspace activity, newest first.
+    description: >-
+      Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, and every agent run that is queued, started or settled.
+      Events are ordered by their position in the log, newest first, and `seq` is the id of an event.
+      A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin.
+      A global annotation belongs to General, so everyone who can read global annotations sees its events.
+      An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder.
+      Events of a deleted dashboard stay in the folder the dashboard was in.
+      `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more.
+      The fields of `data` by type:
+      `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore);
+      `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`;
+      `dashboard.deleted` carries `title`;
+      `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing;
+      `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`;
+      `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`.
+      Comments, suggestions and build progress are not recorded.
+      The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+    parameters:
+      - name: dashboard_id
+        in: query
+        description: Only events of this dashboard.
+        schema:
+          type: string
+          format: uuid
+      - name: folder_id
+        in: query
+        description: Only events whose folder is this one.
+        schema:
+          type: string
+          format: uuid
+      - name: type
+        in: query
+        description: Only events of these types; repeat the parameter for several.
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 14
+          items:
+            $ref: "../openapi.yaml#/components/schemas/ActivityType"
+      - name: since
+        in: query
+        description: RFC 3339 time; only events created at or after it.
+        schema:
+          type: string
+          format: date-time
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+    responses:
+      "200":
+        description: One page of events.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ActivityList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+activity-stream:
+  get:
+    operationId: streamActivity
+    summary: Follow workspace activity as Server-Sent Events.
+    description: >-
+      The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`.
+      Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `type` and `since` parameters as the list.
+      Without `Last-Event-ID` the stream sends only events appended after it opened.
+      A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated.
+      `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a positive integer is 400.
+      An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change.
+      A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone.
+      The server ends the stream after 30 minutes and clients reconnect.
+      A caller may hold 5 streams and the process 500.
+    parameters:
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: folder_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: type
+        in: query
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 14
+          items:
+            $ref: "../openapi.yaml#/components/schemas/ActivityType"
+      - name: since
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: Last-Event-ID
+        in: header
+        description: The `seq` of the last event the client handled.
+        schema:
+          type: string
+    responses:
+      "200":
+        description: An open `text/event-stream`.
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "429":
+        description: The caller already holds the maximum number of open streams (`too_many_streams`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

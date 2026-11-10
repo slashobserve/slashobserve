@@ -8,6 +8,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Activity struct {
+	Seq          int64
+	Xid          pgtype.Uint64
+	Type         string
+	TargetKind   string
+	TargetID     pgtype.UUID
+	DashboardID  pgtype.UUID
+	FolderID     pgtype.UUID
+	ActorKind    string
+	ActorID      pgtype.UUID
+	ActorName    string
+	Origin       pgtype.Text
+	OriginClient pgtype.Text
+	RunID        pgtype.UUID
+	Data         []byte
+	CreatedAt    pgtype.Timestamptz
+}
+
 type AgentRequest struct {
 	ID                pgtype.UUID
 	DashboardID       pgtype.UUID

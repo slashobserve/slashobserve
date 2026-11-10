@@ -186,3 +186,44 @@ func TestOIDCGroupRolesAreCappedAtOneHundred(t *testing.T) {
 		t.Fatalf("101 entries: err = %v", err)
 	}
 }
+
+func TestActivityRetentionSetting(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     string
+		want    time.Duration
+		wantErr string
+	}{
+		{name: "default is 180 days", want: 4320 * time.Hour},
+		{name: "a set value", set: "720h", want: 720 * time.Hour},
+		{name: "at the minimum", set: "24h", want: 24 * time.Hour},
+		{name: "at the maximum", set: "87600h", want: 87600 * time.Hour},
+		{name: "below the minimum", set: "23h", wantErr: envActivityRetention + ": must be between 24h0m0s and 87600h0m0s"},
+		{name: "above the maximum", set: "87601h", wantErr: envActivityRetention + ": must be between 24h0m0s and 87600h0m0s"},
+		{name: "zero", set: "0", wantErr: envActivityRetention + ": must be between"},
+		{name: "negative", set: "-48h", wantErr: envActivityRetention + ": must be between"},
+		{name: "without a unit", set: "720", wantErr: envActivityRetention + ": "},
+		{name: "garbage", set: "six months", wantErr: envActivityRetention + ": "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			if tt.set != "" {
+				extra[envActivityRetention] = tt.set
+			}
+			cfg, err := Load(envOf(llmEnv(extra)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.ActivityRetention != tt.want {
+				t.Fatalf("ActivityRetention = %s, want %s", cfg.ActivityRetention, tt.want)
+			}
+		})
+	}
+}

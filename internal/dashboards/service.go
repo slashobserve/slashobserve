@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -485,7 +486,8 @@ func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, erro
 }
 
 func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
-	if _, err := s.need(ctx, by, id, folders.NeedEdit); err != nil {
+	source, err := s.need(ctx, by, id, folders.NeedEdit)
+	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
 	target, abilities, err := s.access.Folder(ctx, by, folderID)
@@ -501,7 +503,7 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 	if !folders.MayMoveInto(target) {
 		return Dashboard{}, Version{}, folders.ErrMoveIntoPersonal
 	}
-	if err := s.store.move(ctx, id, folderID); err != nil {
+	if err := s.store.move(ctx, id, source.Folder.ID, folderID, actor.Of(by, origin.From(ctx), "")); err != nil {
 		return Dashboard{}, Version{}, err
 	}
 	dash, ver, err := s.store.latest(ctx, id)
@@ -519,7 +521,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return err
 	}
-	if err := s.store.delete(ctx, id, authorOf(by)); err != nil {
+	if err := s.store.delete(ctx, id, actor.Of(by, origin.From(ctx), "")); err != nil {
 		return err
 	}
 	s.logger.InfoContext(ctx, "dashboard deleted",

@@ -44,6 +44,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | --- | --- | --- |
 | `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts that the server creates or updates at every start, each with the key read from its `keyFile`. Unset or empty means none. An account from the file answers 409 `provisioned` to role changes and key revocation in the web app and the API; rotate its key by writing a new one to the file and restarting. See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file). |
 
+## Activity
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_ACTIVITY_RETENTION` | `4320h` | A Go duration from `24h` to `87600h`; `4320h` is 180 days. The hourly `activity_prune` job deletes [activity](../use/activity.md) events older than this. |
+
 ## Dashboard provisioning
 
 | Variable | Default | Notes |

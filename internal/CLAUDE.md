@@ -26,6 +26,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
 - `tailhttp`: `GET /datasources/{uid}/tail`, the SSE live tail; one poller per stream, 5 per person, no query slot.
 - `tracecompare`: the pure ranking of attribute values that set selected traces apart from a baseline, shared by `POST /datasources/{uid}/trace-compare` and the `compare_traces` tool; the adapters read the pairs through `datasource.TraceAttributeSource` (Tempo at 4 traces at a time, ClickHouse in one query).
+- `activity`: the persisted activity log: `Append` is the only writer, `Store` reads it per audience (`List`, and `Start` and `Next` for followers), `Handler` serves `GET /activity`, and `events/stream` serves `GET /activity/stream`.
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
@@ -99,6 +100,10 @@ This lists only the packages whose purpose the name does not make obvious.
   List queries filter by `Levels.Visible()` and fail closed, services check writes themselves, and every count (lists, tag counts, `dashboard_count`) covers only folders the caller can see.
 - An agent run is checked when it is enqueued and again when a worker claims it, after reloading the requester.
   The event stream re-reads the caller's access at every ping.
+- An activity row's folder follows its dashboard: `InsertActivity` reads the dashboard's current folder, a global annotation takes General, and any other row has no folder and is visible only to its actor and to Admins.
+  `Append` takes a shared per-dashboard advisory lock and never locks the dashboards row, because a delete holds that row and then cascades into child rows the appender may hold; a move runs `MoveDashboard`, then `activity.MoveDashboard` (the lock taken exclusively, then the rows rewritten), then the `dashboard.moved` append, so a concurrent append either is moved with the dashboard or reads the new folder.
+  A transaction writes or locks the dashboards row before it appends, never after; a deleted dashboard's rows keep their folder.
+  Activity reads filter by `Levels.Visible()` in SQL through `activity.AudienceOf`, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
 - Deleting a dashboard is permanent: foreign keys cascade its versions, comments, agent requests and import record.
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.
 
@@ -112,7 +117,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `AddChangedVersion` (the `update_panels` save) runs only the changed panels and variables, as `ChangedSince` decides against the stored parent, never against what the caller claims, unless `needsFullCheck` says a `time` change or a title used by `$__dashboard` moved every result, and then it runs `checkSave`.
   An unchanged panel that started failing stays verified until a full save runs.
   The conditional `latest_version` update is the concurrency check (409 `version_conflict`).
-  Events go out with `pg_notify` inside the saving transaction.
+  A change sends one notification, inside its transaction, and `events.Notify` is the only sender on `events.Channel`: the live event's JSON with the appended activity row's `seq`, `{"seq":N}` when the change has no live event, or the live event alone when it appends nothing.
 - A save that changes an existing panel's `w` or `h` sets `responsive: false` on it in `freezeResized` (`internal/dashboards/responsive.go`), called from `persistVersion` before the replay check and from `commitRevision`; creates, imports, duplicates and restores never freeze, and the server never re-sizes a panel because of the flag.
 - `agent_request_builds` holds one build per agent request: the canonical Spec, the carried `unverified` list, `planned_panels` and `panels`, so nothing parses the Spec to show progress.
   Every build write is fenced by the attempt (`status = 'running' AND attempts = @attempt`), so a worker that lost its lease writes nothing.
@@ -138,6 +143,9 @@ This lists only the packages whose purpose the name does not make obvious.
 ## Events, revisions and comments
 
 - Event payloads carry ids and a capped author name, never comment text, so they stay below the 8000 byte `pg_notify` limit.
+- `activity.Append` is the only writer of the `activity` table and runs inside the transaction of the change it records; the dashboard stream's frames never carry `seq`, because the broker strips it.
+- Every activity read is `WHERE xid < pg_snapshot_xmin(pg_current_snapshot())` ordered and cursored by `(xid, seq)`, never by `seq` alone, with the horizon and the scan in one statement, because a transaction that took its xid first can append a lower `seq` after a later one committed; `seq` is only the public id of an event (`id:` in SSE and `Last-Event-ID`).
+- An activity `data` object carries ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON.
 - `dashboard_versions.agent_request_id` stays unique: an agent request commits at most one version, so a retried run or a second commit returns the version it already created.
   The agent's `create_dashboard`, `update_dashboard` and `update_panels` change the build, never the history.
 - A saved version always wins: before a failure is recorded, and when the lease sweep exhausts a request, the request counts as succeeded with the version saved under its id.

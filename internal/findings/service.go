@@ -145,7 +145,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	won, err := s.store.setAnnotation(ctx, id, annotationID)
+	won, err := s.store.setAnnotation(ctx, actor.Of(by, origin.From(ctx), ""), id, dashboardID, annotationID)
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}

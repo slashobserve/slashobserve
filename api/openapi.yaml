@@ -42,6 +42,10 @@ paths:
     $ref: "./paths/prompts.yaml#/prompts"
   /prompts/{id}:
     $ref: "./paths/prompts.yaml#/prompts-id"
+  /activity:
+    $ref: "./paths/activity.yaml#/activity"
+  /activity/stream:
+    $ref: "./paths/activity.yaml#/activity-stream"
   /annotations:
     $ref: "./paths/annotations.yaml#/annotations"
   /annotations/{id}:
@@ -955,6 +959,65 @@ components:
           type: string
           minLength: 1
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
+    ActivityType:
+      type: string
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+    ActivityEvent:
+      type: object
+      additionalProperties: false
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at]
+      description: One entry of the activity log.
+      properties:
+        seq:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The event's id; `Last-Event-ID` of the stream takes it.
+        type:
+          $ref: "#/components/schemas/ActivityType"
+        target:
+          type: object
+          additionalProperties: false
+          required: [kind, id]
+          properties:
+            kind:
+              type: string
+              enum: [dashboard, annotation, finding, run]
+            id:
+              type: string
+              format: uuid
+              description: The id of the dashboard, annotation, finding or agent request the event is about.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the event belongs to; it may no longer exist.
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The folder that decides who sees the event; null for an event with no folder, which only its actor and Admins see.
+        actor:
+          $ref: "#/components/schemas/Actor"
+        data:
+          type: object
+          description: Ids, numbers, enums, titles and the version summary of the change, by type as `listActivity` lists; never body text.
+        created_at:
+          type: string
+          format: date-time
+    ActivityList:
+      type: object
+      additionalProperties: false
+      required: [activity, next_cursor]
+      properties:
+        activity:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+        next_cursor:
+          type: string
+          nullable: true
     Creator:
       type: object
       additionalProperties: false

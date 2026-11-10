@@ -166,6 +166,9 @@ WHERE d.id = @id
     WHERE v.dashboard_id = d.id AND r.source = 'observe' AND r.status IN ('queued', 'running')
   );
 
+-- name: LockDashboardForDelete :one
+SELECT title FROM dashboards WHERE id = @id FOR UPDATE;
+
 -- name: MoveDashboard :one
 UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
 
