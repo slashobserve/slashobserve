@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 func TestMain(m *testing.M) {
@@ -73,15 +74,28 @@ func fakeFrames() []datasource.Frame {
 	}}}
 }
 
+type noopReviser struct{}
+
+func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
+	return revisions.Result{}, nil
+}
+
 type rig struct {
 	db          *dbtest.Database
 	service     *Service
+	comments    *Comments
+	revisions   *revisions.Service
 	dashboards  *dashboards.Service
 	findings    *findings.Service
 	annotations *annotations.Service
 }
 
 func newRig(t *testing.T) *rig {
+	t.Helper()
+	return newAgentRig(t, false)
+}
+
+func newAgentRig(t *testing.T, agent bool) *rig {
 	t.Helper()
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
@@ -93,9 +107,17 @@ func newRig(t *testing.T) *rig {
 	dashboardService := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	annotationService := annotations.New(database.DB, access)
 	findingService := findings.New(database.DB, access, annotationService, dashboardService, logger)
+	var reviser revisions.Reviser
+	if agent {
+		reviser = noopReviser{}
+	}
+	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
+	service := NewService(database.DB, access, dashboardService, findingService, annotationService)
 	return &rig{
 		db:          database,
-		service:     NewService(database.DB, access, dashboardService, findingService, annotationService),
+		service:     service,
+		comments:    NewComments(service, queue),
+		revisions:   queue,
 		dashboards:  dashboardService,
 		findings:    findingService,
 		annotations: annotationService,

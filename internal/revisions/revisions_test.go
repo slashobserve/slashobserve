@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const userID = "11111111-1111-4111-8111-111111111111"
@@ -43,7 +44,7 @@ func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (au
 }
 
 func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
-	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database))}, opts...)...)
+	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns(database))}, opts...)...)
 }
 
 func TestMain(m *testing.M) {
@@ -765,12 +766,7 @@ func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) 
 	svc, d := newService(t, succeedWith(9))
 	ctx := context.Background()
 	dash := seedDashboard(t, d, 2)
-	root, err := d.Queries().CreateComment(ctx, dbsqlc.CreateCommentParams{
-		DashboardID: dash, Version: 1, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := openThread(t, d, dash)
 	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
 	if err != nil {
 		t.Fatal(err)
@@ -780,7 +776,7 @@ func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) 
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
-	got, err := d.Queries().GetComment(ctx, dbsqlc.GetCommentParams{ID: root.ID, DashboardID: dash})
+	got, err := d.Queries().GetThread(ctx, root.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -798,23 +794,43 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$`)
-	d.Exec(t, "CREATE TRIGGER block_thread_resolution BEFORE UPDATE ON dashboard_comments FOR EACH ROW EXECUTE FUNCTION block_thread_resolution()")
+	d.Exec(t, "CREATE TRIGGER block_thread_resolution BEFORE UPDATE ON threads FOR EACH ROW EXECUTE FUNCTION block_thread_resolution()")
 }
 
-func openThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID) dbsqlc.DashboardComment {
+func openThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID) dbsqlc.Thread {
 	t.Helper()
-	root, err := d.Queries().CreateComment(context.Background(), dbsqlc.CreateCommentParams{
-		DashboardID: dash, Version: 1, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
+	return newThread(t, d, dash, "")
+}
+
+func newThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID, panelID string) dbsqlc.Thread {
+	t.Helper()
+	ctx := context.Background()
+	thread, err := d.Queries().CreateThread(ctx, dbsqlc.CreateThreadParams{
+		DashboardID:      dash,
+		DashboardVersion: pgtype.Int4{Int32: 1, Valid: true},
+		PanelID:          pgtype.Text{String: panelID, Valid: panelID != ""},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return root
+	newMessage(t, d, thread.ID, thread.ID)
+	return thread
+}
+
+func newMessage(t *testing.T, d *dbtest.Database, id, threadID pgtype.UUID) dbsqlc.ThreadMessage {
+	t.Helper()
+	message, err := d.Queries().CreateMessage(context.Background(), dbsqlc.CreateMessageParams{
+		ID: id, ThreadID: threadID, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return message
 }
 
 func assertThreadOpen(t *testing.T, d *dbtest.Database, dash, id pgtype.UUID) {
 	t.Helper()
-	got, err := d.Queries().GetComment(context.Background(), dbsqlc.GetCommentParams{ID: id, DashboardID: dash})
+	got, err := d.Queries().GetThread(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1222,23 +1238,9 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 	ctx := context.Background()
 	dash := seedDashboard(t, d, 3)
 	author := mustUUID(t, userID)
-	newComment := func(parent pgtype.UUID) dbsqlc.DashboardComment {
+	thread := func(id pgtype.UUID) dbsqlc.Thread {
 		t.Helper()
-		params := dbsqlc.CreateCommentParams{
-			DashboardID: dash, Version: 1, Body: "split by route", AuthorKind: "user", AuthorID: author, AuthorName: "Ada", ParentID: parent,
-		}
-		if !parent.Valid {
-			params.PanelID = pgtype.Text{String: "p1", Valid: true}
-		}
-		row, err := d.Queries().CreateComment(ctx, params)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return row
-	}
-	thread := func(id pgtype.UUID) dbsqlc.DashboardComment {
-		t.Helper()
-		row, err := d.Queries().GetComment(ctx, dbsqlc.GetCommentParams{ID: id, DashboardID: dash})
+		row, err := d.Queries().GetThread(ctx, id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1255,8 +1257,8 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 		return get(t, svc, dash, row.ID.String())
 	}
 
-	root := newComment(pgtype.UUID{})
-	reply := newComment(root.ID)
+	root := newThread(t, d, dash, "p1")
+	reply := newMessage(t, d, pgtype.UUID{}, root.ID)
 	rev := sendFromThread(reply.ID, "go")
 	if rev.Source != revisions.SourceComment || rev.CommentID != root.ID.String() || rev.PanelID != "p1" || rev.BaseVersion == nil || *rev.BaseVersion != 1 {
 		t.Fatalf("enqueued revision = %+v", rev)
@@ -1271,19 +1273,16 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 	if resolved.Status != "resolved" || !resolved.ResolvedByVersion.Valid || resolved.ResolvedByVersion.Int32 != 4 || resolved.ResolvedByName.String != "Ada" || resolved.ResolvedByKind.String != "user" || !resolved.ResolvedAt.Valid {
 		t.Fatalf("thread after the request succeeded = %+v", resolved)
 	}
-	if got := thread(reply.ID); got.ResolvedByVersion.Valid {
-		t.Fatalf("a reply carries resolved_by_version: %+v", got)
-	}
 
-	other := newComment(pgtype.UUID{})
+	other := newThread(t, d, dash, "p1")
 	failedOther := sendFromThread(other.ID, "fail")
 	waitForStatus(t, svc, dash, failedOther.ID, revisions.StatusFailed)
 	if row := thread(other.ID); row.Status != "open" || row.ResolvedByVersion.Valid {
 		t.Fatalf("a failed request touched the thread: %+v", row)
 	}
 
-	earlier := newComment(pgtype.UUID{})
-	d.Exec(t, "UPDATE dashboard_comments SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = $2, resolved_by_name = 'Grace', resolved_by_version = 1 WHERE id = $1", earlier.ID, author)
+	earlier := newThread(t, d, dash, "p1")
+	d.Exec(t, "UPDATE threads SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = $2, resolved_by_name = 'Grace', resolved_by_version = 1 WHERE id = $1", earlier.ID, author)
 	before := thread(earlier.ID)
 	again := sendFromThread(earlier.ID, "go")
 	waitForStatus(t, svc, dash, again.ID, revisions.StatusSucceeded)

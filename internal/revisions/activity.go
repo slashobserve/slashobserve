@@ -30,18 +30,28 @@ func runType(row dbsqlc.AgentRequest) (string, bool) {
 	return "", false
 }
 
-func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
-	typ, ok := runType(row)
-	if !ok {
-		return activity.Entry{}, false
-	}
-	columns := actor.Columns{
+func requesterColumns(row dbsqlc.AgentRequest) actor.Columns {
+	return actor.Columns{
 		Kind:   row.RequestedByKind,
 		ID:     row.RequestedByID,
 		Name:   cmp.Or(row.RequestedByName, row.RequestedByEmail.String),
 		Origin: row.Origin,
 		Client: row.OriginClient,
 	}
+}
+
+func RunActor(row dbsqlc.AgentRequest) actor.Actor {
+	columns := requesterColumns(row)
+	columns.RunID = row.ID
+	return actor.FromColumns(columns)
+}
+
+func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
+	typ, ok := runType(row)
+	if !ok {
+		return activity.Entry{}, false
+	}
+	columns := requesterColumns(row)
 	data := map[string]any{"source": row.Source}
 	switch typ {
 	case activity.TypeRunQueued:

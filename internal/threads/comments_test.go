@@ -1,4 +1,4 @@
-package dashboards
+package threads
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -16,8 +17,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -28,14 +30,14 @@ import (
 const notifyPayloadLimit = 8000
 
 func TestCommentEventStaysUnderNotifyLimit(t *testing.T) {
-	id, err := db.ParseUUID("11111111-2222-3333-4444-555555555555")
-	if err != nil {
-		t.Fatal(err)
+	id := mustParse(t, "11111111-2222-3333-4444-555555555555")
+	e := emitter{
+		scope:  scope{target: Target{Kind: KindDashboard, ID: id}},
+		thread: dbsqlc.Thread{ID: id, DashboardID: id, PanelID: pgtype.Text{String: strings.Repeat("\x01", revisions.MaxPanelIDRunes), Valid: true}},
+		actor:  actor.Actor{Kind: auth.KindServiceAccount, ID: id.String(), Name: strings.Repeat("\x01", 100000)},
 	}
-	row := dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: pgtype.Text{String: strings.Repeat("\x01", maxPanelIDRunes), Valid: true}, ParentID: id, Status: CommentOpen}
-	actor := Author{Kind: "service_account", ID: id.String(), Name: strings.Repeat("\x01", 100000)}
 	for _, eventType := range []string{events.TypeCommentCreated, events.TypeCommentUpdated} {
-		payload, err := json.Marshal(commentEvent(eventType, row, CommentResolved, actor))
+		payload, err := json.Marshal(e.live(eventType, id, id, StatusResolved))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -48,12 +50,12 @@ func TestCommentEventStaysUnderNotifyLimit(t *testing.T) {
 func TestCheckCommentBody(t *testing.T) {
 	for name, in := range map[string]string{
 		"padded":               "  hello \n",
-		"4000 multibyte runes": strings.Repeat("\u00e9", maxCommentRunes),
+		"4000 multibyte runes": strings.Repeat("\u00e9", maxBodyRunes),
 		"tab newline CR":       "a\tb\r\nc",
 		"ZWJ sequence":         "\U0001F469\u200d\U0001F4BB",
 		"bidi marks":           "a\u200eb\u200fc\u061cd",
 	} {
-		got, err := checkCommentBody(in)
+		got, _, err := checkBody(in)
 		if err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -74,12 +76,12 @@ func TestCheckCommentBody(t *testing.T) {
 		"override":        "a\u202eb",
 		"isolate start":   "a\u2066b",
 		"isolate end":     "a\u2069b",
-		"too long":        strings.Repeat("a", maxCommentRunes+1),
+		"too long":        strings.Repeat("a", maxBodyRunes+1),
 		"invalid UTF-8":   "a\xffb",
 	}
 	for name, in := range invalid {
 		var target *InvalidInputError
-		if _, err := checkCommentBody(in); !errors.As(err, &target) {
+		if _, _, err := checkBody(in); !errors.As(err, &target) {
 			t.Errorf("%s: got %v, want InvalidInputError", name, err)
 		}
 	}
@@ -106,20 +108,27 @@ func TestPanelCacheEvictsLeastRecentlyUsed(t *testing.T) {
 func TestCommentEventOmitsAbsentPanelAndParent(t *testing.T) {
 	id := mustParse(t, "11111111-2222-3333-4444-555555555555")
 	parent := mustParse(t, "66666666-7777-4888-8999-aaaaaaaaaaaa")
+	panel := pgtype.Text{String: "rps", Valid: true}
 	tests := []struct {
 		name       string
-		row        dbsqlc.DashboardComment
+		panel      pgtype.Text
+		parent     pgtype.UUID
 		wantPanel  bool
 		wantParent bool
 	}{
-		{"panel root", dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: pgtype.Text{String: "rps", Valid: true}}, true, false},
-		{"whole-dashboard root", dbsqlc.DashboardComment{ID: id, DashboardID: id}, false, false},
-		{"reply on a panel", dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: pgtype.Text{String: "rps", Valid: true}, ParentID: parent}, true, true},
-		{"reply on the whole dashboard", dbsqlc.DashboardComment{ID: id, DashboardID: id, ParentID: parent}, false, true},
+		{"panel root", panel, pgtype.UUID{}, true, false},
+		{"whole-dashboard root", pgtype.Text{}, pgtype.UUID{}, false, false},
+		{"reply on a panel", panel, parent, true, true},
+		{"reply on the whole dashboard", pgtype.Text{}, parent, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload, err := json.Marshal(commentEvent(events.TypeCommentCreated, tt.row, CommentOpen, Author{Kind: "user", ID: id.String(), Name: "Ada"}))
+			e := emitter{
+				scope:  scope{target: Target{Kind: KindDashboard, ID: id}},
+				thread: dbsqlc.Thread{ID: id, DashboardID: id, PanelID: tt.panel},
+				actor:  actor.Actor{Kind: auth.KindUser, ID: id.String(), Name: "Ada"},
+			}
+			payload, err := json.Marshal(e.live(events.TypeCommentCreated, id, tt.parent, StatusOpen))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -139,10 +148,13 @@ func TestCommentEventOmitsAbsentPanelAndParent(t *testing.T) {
 	}
 }
 
-func (r *rig) addVersion(t *testing.T, dash pgtype.UUID, parent int) {
-	t.Helper()
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, parent, panelsSpec(fmt.Sprintf("t%d", parent), "rps", "errors"), "next"); err != nil {
-		t.Fatal(err)
+func TestOnlyDashboardThreadsSendLiveEvents(t *testing.T) {
+	id := mustParse(t, "11111111-2222-3333-4444-555555555555")
+	for _, kind := range []Kind{KindFinding, KindAnnotation} {
+		e := emitter{scope: scope{target: Target{Kind: kind, ID: id}}, thread: dbsqlc.Thread{ID: id}}
+		if ev := e.live(events.TypeCommentCreated, id, pgtype.UUID{}, StatusOpen); ev != nil {
+			t.Errorf("a %s thread sent %+v", kind, ev)
+		}
 	}
 }
 
@@ -156,7 +168,7 @@ func (r *rig) createComment(t *testing.T, dash pgtype.UUID, in NewComment) Comme
 }
 
 func TestReplyToAReplyJoinsTheRootsThread(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t, "rps", "errors")
 	r.addVersion(t, dash, 1)
 	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "root"})
@@ -164,14 +176,14 @@ func TestReplyToAReplyJoinsTheRootsThread(t *testing.T) {
 	second := r.createComment(t, dash, NewComment{ParentID: mustParse(t, first.ID), Body: "second"})
 
 	for name, reply := range map[string]Comment{"reply to the root": first, "reply to a reply": second} {
-		if reply.ParentID != root.ID || reply.Version != 1 || reply.PanelID != "errors" || reply.Status != CommentOpen || !reply.PanelPresent {
+		if reply.ParentID != root.ID || reply.Version != 1 || reply.PanelID != "errors" || reply.Status != StatusOpen || !reply.PanelPresent {
 			t.Errorf("%s = %+v, want parent %s on version 1, panel errors, open", name, reply, root.ID)
 		}
 	}
 }
 
 func TestReplyNeedsAParentOnTheSameDashboard(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t)
 	other := r.createDashboard(t)
 	foreign := r.createComment(t, other, NewComment{Version: 1, PanelID: new("rps"), Body: "elsewhere"})
@@ -181,18 +193,18 @@ func TestReplyNeedsAParentOnTheSameDashboard(t *testing.T) {
 		"an unknown id":                  "00000000-0000-4000-8000-000000000000",
 	} {
 		_, err := r.comments.Create(t.Context(), testUser, dash, NewComment{ParentID: mustParse(t, parent), Body: "reply"})
-		if !errors.Is(err, ErrCommentNotFound) {
-			t.Errorf("reply to %s: err = %v, want ErrCommentNotFound", name, err)
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("reply to %s: err = %v, want ErrNotFound", name, err)
 		}
 	}
-	listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, "")
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
 	if err != nil || len(listed) != 0 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 }
 
 func TestReplyCannotRequestARevision(t *testing.T) {
-	r := newRig(t, true)
+	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "root"})
 
@@ -204,13 +216,13 @@ func TestReplyCannotRequestARevision(t *testing.T) {
 	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
-	if listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, ""); err != nil || len(listed) != 1 {
+	if listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 1 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 }
 
 func TestWholeDashboardCommentQueuesAWholeDashboardRevision(t *testing.T) {
-	r := newRig(t, true)
+	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
 
@@ -225,14 +237,14 @@ func TestWholeDashboardCommentQueuesAWholeDashboardRevision(t *testing.T) {
 	if items[0].ID != comment.Revision.ID || items[0].PanelID != "" || items[0].CommentID != comment.ID || items[0].Source != revisions.SourceComment {
 		t.Fatalf("revision = %+v", items[0])
 	}
-	listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, "")
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
 	if err != nil || len(listed) != 1 || !listed[0].PanelPresent || listed[0].PanelID != "" {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 }
 
 func TestCommentRejectsAnEmptyPanelIDAndAMissingVersion(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t)
 
 	var invalid *InvalidInputError
@@ -243,14 +255,14 @@ func TestCommentRejectsAnEmptyPanelIDAndAMissingVersion(t *testing.T) {
 		t.Errorf("unknown panel: err = %v, want ErrUnknownPanel", err)
 	}
 	for name, panel := range map[string]*string{"whole dashboard": nil, "panel": new("rps")} {
-		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"}); !errors.Is(err, ErrNotFound) {
-			t.Errorf("%s on a missing version: err = %v, want ErrNotFound", name, err)
+		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"}); !errors.Is(err, dashboards.ErrNotFound) {
+			t.Errorf("%s on a missing version: err = %v, want dashboards.ErrNotFound", name, err)
 		}
 	}
 }
 
 func TestSetStatusResolvesTheWholeThread(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
 	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "root"})
@@ -260,19 +272,19 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 		return r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
 	}
 
-	resolved, changed, err := setStatus(reply.ID, CommentResolved, new(2))
+	resolved, changed, err := setStatus(reply.ID, StatusResolved, new(2))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !changed {
 		t.Fatal("the first resolve should report changed")
 	}
-	if resolved.ID != root.ID || resolved.ParentID != "" || resolved.Status != CommentResolved || resolved.ResolvedByVersion == nil || *resolved.ResolvedByVersion != 2 ||
+	if resolved.ID != root.ID || resolved.ParentID != "" || resolved.Status != StatusResolved || resolved.ResolvedByVersion == nil || *resolved.ResolvedByVersion != 2 ||
 		resolved.ResolvedAt == nil || resolved.ResolvedBy == nil {
 		t.Fatalf("resolved = %+v", resolved)
 	}
 
-	again, changed, err := setStatus(nested.ID, CommentResolved, new(1))
+	again, changed, err := setStatus(nested.ID, StatusResolved, new(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,12 +295,12 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 		t.Fatalf("a repeat call changed the thread: %+v, was %+v", again, resolved)
 	}
 
-	listed, _, err := r.comments.List(t.Context(), dash, CommentResolved, "", 10, "")
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusResolved, "", 10, "")
 	if err != nil || len(listed) != 3 {
 		t.Fatalf("resolved list = %+v, err %v", listed, err)
 	}
 	for _, c := range listed {
-		if c.Status != CommentResolved {
+		if c.Status != StatusResolved {
 			t.Errorf("%s status = %s, want resolved", c.ID, c.Status)
 		}
 		if c.ID == root.ID {
@@ -301,31 +313,31 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 			t.Errorf("reply = %+v, want parent %s and no resolved fields", c, root.ID)
 		}
 	}
-	if open, _, err := r.comments.List(t.Context(), dash, CommentOpen, "", 10, ""); err != nil || len(open) != 0 {
+	if open, _, err := r.comments.List(t.Context(), testUser, dash, StatusOpen, "", 10, ""); err != nil || len(open) != 0 {
 		t.Fatalf("open list = %+v, err %v", open, err)
 	}
 
-	reopened, changed, err := setStatus(reply.ID, CommentOpen, nil)
+	reopened, changed, err := setStatus(reply.ID, StatusOpen, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !changed {
 		t.Fatal("reopening a resolved thread should report changed")
 	}
-	if reopened.ID != root.ID || reopened.Status != CommentOpen || reopened.ResolvedByVersion != nil || reopened.ResolvedAt != nil || reopened.ResolvedBy != nil {
+	if reopened.ID != root.ID || reopened.Status != StatusOpen || reopened.ResolvedByVersion != nil || reopened.ResolvedAt != nil || reopened.ResolvedBy != nil {
 		t.Fatalf("reopened = %+v", reopened)
 	}
-	if open, _, err := r.comments.List(t.Context(), dash, CommentOpen, "", 10, ""); err != nil || len(open) != 3 {
+	if open, _, err := r.comments.List(t.Context(), testUser, dash, StatusOpen, "", 10, ""); err != nil || len(open) != 3 {
 		t.Fatalf("open list = %+v, err %v", open, err)
 	}
 
-	if _, changed, err := setStatus(root.ID, CommentOpen, nil); err != nil || changed {
+	if _, changed, err := setStatus(root.ID, StatusOpen, nil); err != nil || changed {
 		t.Fatalf("reopening an open thread: changed = %v, err = %v, want unchanged", changed, err)
 	}
 }
 
 func TestSetStatusChecksTheResolvedByVersion(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
 	r.addVersion(t, dash, 2)
@@ -344,37 +356,37 @@ func TestSetStatusChecksTheResolvedByVersion(t *testing.T) {
 		version *int
 		want    func(error) bool
 	}{
-		{"above the latest version", onFirst.ID, CommentResolved, new(4), func(err error) bool { return errors.Is(err, ErrUnknownVersion) }},
-		{"zero", onFirst.ID, CommentResolved, new(0), func(err error) bool { return errors.As(err, &invalid) }},
-		{"negative", onFirst.ID, CommentResolved, new(-1), func(err error) bool { return errors.As(err, &invalid) }},
-		{"with status open", onFirst.ID, CommentOpen, new(1), func(err error) bool { return errors.As(err, &invalid) }},
-		{"below the thread's version", onLatest.ID, CommentResolved, new(2), func(err error) bool { return errors.As(err, &invalid) }},
-		{"a missing comment with a version above the latest", "00000000-0000-4000-8000-000000000000", CommentResolved, new(99), func(err error) bool { return errors.Is(err, ErrCommentNotFound) }},
-		{"a missing comment", "00000000-0000-4000-8000-000000000000", CommentResolved, nil, func(err error) bool { return errors.Is(err, ErrCommentNotFound) }},
+		{"above the latest version", onFirst.ID, StatusResolved, new(4), func(err error) bool { return errors.Is(err, ErrUnknownVersion) }},
+		{"zero", onFirst.ID, StatusResolved, new(0), func(err error) bool { return errors.As(err, &invalid) }},
+		{"negative", onFirst.ID, StatusResolved, new(-1), func(err error) bool { return errors.As(err, &invalid) }},
+		{"with status open", onFirst.ID, StatusOpen, new(1), func(err error) bool { return errors.As(err, &invalid) }},
+		{"below the thread's version", onLatest.ID, StatusResolved, new(2), func(err error) bool { return errors.As(err, &invalid) }},
+		{"a missing comment with a version above the latest", "00000000-0000-4000-8000-000000000000", StatusResolved, new(99), func(err error) bool { return errors.Is(err, ErrNotFound) }},
+		{"a missing comment", "00000000-0000-4000-8000-000000000000", StatusResolved, nil, func(err error) bool { return errors.Is(err, ErrNotFound) }},
 	}
 	for _, tt := range tests {
 		if _, err := setStatus(tt.id, tt.status, tt.version); !tt.want(err) {
 			t.Errorf("%s: err = %v", tt.name, err)
 		}
 	}
-	listed, _, err := r.comments.List(t.Context(), dash, CommentOpen, "", 10, "")
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusOpen, "", 10, "")
 	if err != nil || len(listed) != 2 {
 		t.Fatalf("a rejected call changed a thread: %+v, err %v", listed, err)
 	}
 
 	for name, version := range map[string]*int{"the thread's own version": new(3), "no version": nil} {
-		got, err := setStatus(onLatest.ID, CommentResolved, version)
-		if err != nil || got.Status != CommentResolved {
+		got, err := setStatus(onLatest.ID, StatusResolved, version)
+		if err != nil || got.Status != StatusResolved {
 			t.Errorf("%s: %+v, err %v", name, got, err)
 		}
-		if _, err := setStatus(onLatest.ID, CommentOpen, nil); err != nil {
+		if _, err := setStatus(onLatest.ID, StatusOpen, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
 func TestReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
-	r := newRig(t, false)
+	r := newAgentRig(t, false)
 	dash := r.createDashboard(t)
 	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "root"})
 	sqlDB := r.db.SQLDB(t)
@@ -384,7 +396,7 @@ func TestReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(t.Context(), `UPDATE dashboard_comments SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = gen_random_uuid(), resolved_by_name = 'x' WHERE id = $1::uuid`, root.ID); err != nil {
+	if _, err := tx.ExecContext(t.Context(), `UPDATE threads SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = gen_random_uuid(), resolved_by_name = 'x' WHERE id = $1::uuid`, root.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -418,13 +430,13 @@ func TestReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
 	if got.err != nil {
 		t.Fatal(got.err)
 	}
-	if got.reply.Status != CommentResolved {
+	if got.reply.Status != StatusResolved {
 		t.Fatalf("reply status = %q, want resolved", got.reply.Status)
 	}
 }
 
 func TestRequestingARevisionNeedsEditAccess(t *testing.T) {
-	r := newRig(t, true)
+	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	commenter := auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Bo", Role: auth.RoleCommenter}
 
@@ -432,7 +444,7 @@ func TestRequestingARevisionNeedsEditAccess(t *testing.T) {
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a commenter requesting a revision gave %v, want folders.ErrForbidden", err)
 	}
-	if listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, ""); err != nil || len(listed) != 0 {
+	if listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 0 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
@@ -441,8 +453,8 @@ func TestRequestingARevisionNeedsEditAccess(t *testing.T) {
 
 	missing := mustParse(t, "55555555-5555-4555-8555-555555555555")
 	_, err = r.comments.Create(t.Context(), testUser, missing, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("a missing dashboard gave %v, want ErrNotFound", err)
+	if !errors.Is(err, dashboards.ErrNotFound) {
+		t.Fatalf("a missing dashboard gave %v, want dashboards.ErrNotFound", err)
 	}
 }
 
@@ -456,7 +468,8 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 	}{
 		{"role does not allow a revision", folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
 		{"no access to the dashboard", folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
-		{"dashboard is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+		{"dashboard is gone", dashboards.ErrNotFound, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
+		{"comment is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -464,7 +477,7 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/x/comments", nil)
-			(&Comments{dashboards: &Service{}}).fail(c, "create comment", tt.err)
+			(&Comments{service: &Service{dashboards: &dashboards.Service{}}}).fail(c, "create comment", tt.err)
 			var body struct{ Error, Code string }
 			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 				t.Fatal(err)
@@ -477,7 +490,7 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 }
 
 func TestConcurrentRevisionCommentsNeverExhaustThePool(t *testing.T) {
-	r := newRig(t, true)
+	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
@@ -493,4 +506,130 @@ func TestConcurrentRevisionCommentsNeverExhaustThePool(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "show this per route", RequestRevision: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comment.Revision == nil || comment.Revision.Status != "queued" {
+		t.Fatalf("revision = %+v", comment.Revision)
+	}
+	items, _, err := r.revisions.List(t.Context(), dash, 10, "")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+	rev := items[0]
+	storedUser := testUser
+	storedUser.Role = ""
+	if rev.ID != comment.Revision.ID || rev.Source != revisions.SourceComment || rev.CommentID != comment.ID || rev.PanelID != "errors" ||
+		rev.Prompt != "show this per route" || rev.BaseVersion == nil || *rev.BaseVersion != 1 || !reflect.DeepEqual(rev.RequestedBy, storedUser) {
+		t.Fatalf("revision = %+v", rev)
+	}
+
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
+	if err != nil || len(listed) != 1 || listed[0].Revision == nil || listed[0].Revision.ID != rev.ID {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	resolved, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), StatusResolved, nil)
+	if err != nil || resolved.Revision == nil || resolved.Revision.ID != rev.ID {
+		t.Fatalf("resolved = %+v, err %v", resolved, err)
+	}
+}
+
+func TestCommentCanOptOutOfARevision(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "just a note", RequestRevision: false})
+	if err != nil || comment.Revision != nil {
+		t.Fatalf("comment = %+v, err %v", comment, err)
+	}
+	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+}
+
+func TestCommentWithoutAnAgentQueuesNothing(t *testing.T) {
+	r := newAgentRig(t, false)
+	dash := r.createDashboard(t)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "anything", RequestRevision: true})
+	if err != nil || comment.Revision != nil {
+		t.Fatalf("comment = %+v, err %v", comment, err)
+	}
+	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+}
+
+func TestCommentIsNotCreatedWhenTheDashboardIsFull(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	for i := range revisions.MaxActive {
+		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: fmt.Sprintf("note %d", i), RequestRevision: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "one too many", RequestRevision: true})
+	if !errors.Is(err, revisions.ErrTooManyRevisions) {
+		t.Fatalf("err = %v", err)
+	}
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 100, "")
+	if err != nil || len(listed) != revisions.MaxActive {
+		t.Fatalf("%d comments stored, err %v", len(listed), err)
+	}
+	if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "plain note", RequestRevision: false}); err != nil {
+		t.Fatalf("a comment that asks for no revision is not capped: %v", err)
+	}
+	if got := len(r.activity(t)); got != revisions.MaxActive+1 {
+		t.Errorf("%d thread events, want one per stored comment: a refused comment appends nothing", got)
+	}
+}
+
+func TestCommentsOnOtherTargetsAreNotReachableThroughTheDashboardRoutes(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	other := r.createDashboard(t)
+	onFinding, _ := r.open(t, testUser, OpenInput{Target: target(KindFinding, r.createFinding(t, testUser, dash)), Body: "finding"})
+	onOther, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, other), Body: "elsewhere"})
+
+	for name, id := range map[string]string{"a finding thread": onFinding.ID, "a thread of another dashboard": onOther.ID} {
+		commentID := mustParse(t, id)
+		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{ParentID: commentID, Body: "reply"}); !errors.Is(err, ErrNotFound) {
+			t.Errorf("reply to %s: err = %v, want ErrNotFound", name, err)
+		}
+		if _, _, err := r.comments.SetStatus(t.Context(), testUser, dash, commentID, StatusResolved, nil); !errors.Is(err, ErrNotFound) {
+			t.Errorf("resolve of %s: err = %v, want ErrNotFound", name, err)
+		}
+		if _, err := r.comments.ThreadVersion(t.Context(), dash, commentID); !errors.Is(err, ErrNotFound) {
+			t.Errorf("version of %s: err = %v, want ErrNotFound", name, err)
+		}
+	}
+	if _, err := r.comments.DashboardOf(t.Context(), mustParse(t, onFinding.ID)); !errors.Is(err, ErrNotFound) {
+		t.Errorf("dashboard of a finding thread: err = %v, want ErrNotFound", err)
+	}
+	got, err := r.comments.DashboardOf(t.Context(), mustParse(t, onOther.ID))
+	if err != nil || got != other {
+		t.Errorf("dashboard of a thread = %v, %v, want %v", got, err, other)
+	}
+}
+
+func TestACommentShowsTheLaterOfThreadAndMessageUpdateTimes(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "root"})
+	resolved, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, root.ID), StatusResolved, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resolved.UpdatedAt.After(root.UpdatedAt) {
+		t.Errorf("updated_at %v after resolving, was %v", resolved.UpdatedAt, root.UpdatedAt)
+	}
+	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, "")
+	if err != nil || len(listed) != 1 || !listed[0].UpdatedAt.Equal(resolved.UpdatedAt) {
+		t.Fatalf("listed = %+v, err %v, want updated_at %v", listed, err, resolved.UpdatedAt)
+	}
 }

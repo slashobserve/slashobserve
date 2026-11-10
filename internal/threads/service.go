@@ -78,11 +78,27 @@ type anchor struct {
 	latestPanels map[string]struct{}
 }
 
-func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
+func checkAnchorShape(in OpenInput) error {
 	if in.Target.Kind != KindDashboard {
 		if in.Version != nil || in.PanelID != nil {
-			return anchor{}, invalidTarget("version and panel_id apply only to a dashboard")
+			return invalidTarget("version and panel_id apply only to a dashboard")
 		}
+		return nil
+	}
+	if in.Version != nil && !validVersion(*in.Version) {
+		return &InvalidInputError{Code: CodeInvalidVersion, Message: "version must be a positive 32-bit integer"}
+	}
+	if in.PanelID != nil {
+		return checkPanelID(*in.PanelID)
+	}
+	return nil
+}
+
+func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
+	if err := checkAnchorShape(in); err != nil {
+		return anchor{}, err
+	}
+	if in.Target.Kind != KindDashboard {
 		return anchor{}, nil
 	}
 	latest, err := s.dashboards.LatestVersion(ctx, in.Target.ID)
@@ -94,9 +110,6 @@ func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
 	}
 	version := latest
 	if in.Version != nil {
-		if !validVersion(*in.Version) {
-			return anchor{}, &InvalidInputError{Code: CodeInvalidVersion, Message: "version must be a positive 32-bit integer"}
-		}
 		if *in.Version > latest {
 			return anchor{}, ErrUnknownVersion
 		}
@@ -105,9 +118,6 @@ func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
 	at := anchor{version: pgtype.Int4{Int32: httpapi.Int32(version), Valid: true}}
 	if in.PanelID == nil {
 		return at, nil
-	}
-	if err := checkPanelID(*in.PanelID); err != nil {
-		return anchor{}, err
 	}
 	onVersion, err := s.panels(ctx, in.Target.ID, version)
 	if err != nil {
@@ -160,12 +170,13 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		}
 		thread = threadOf(threadRow, at.latestPanels)
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
-		if hook != nil {
-			if err := hook(q, thread, message); err != nil {
-				return err
-			}
+		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
+			return err
 		}
-		return emitter{scope: sc, thread: threadRow, actor: author}.opened(ctx, q, messageRow, recorded)
+		if hook == nil {
+			return nil
+		}
+		return hook(q, thread, message)
 	})
 	if err != nil {
 		return Thread{}, Message{}, targetGone(err)

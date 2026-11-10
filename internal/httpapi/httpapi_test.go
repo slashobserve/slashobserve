@@ -88,3 +88,35 @@ func TestOffsetParam(t *testing.T) {
 		})
 	}
 }
+
+func TestNonEmptyQuery(t *testing.T) {
+	cases := []struct {
+		name   string
+		query  string
+		want   string
+		status int
+	}{
+		{"absent", "", "", http.StatusOK},
+		{"present", "status=open", "open", http.StatusOK},
+		{"other parameter only", "panel_id=rps", "", http.StatusOK},
+		{"empty", "status=", "", http.StatusBadRequest},
+	}
+	gin.SetMode(gin.TestMode)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodGet, "/x?"+tc.query, nil)
+			got, ok := NonEmptyQuery(c, "status")
+			if (tc.status == http.StatusOK) != ok {
+				t.Fatalf("ok = %v, want status %d", ok, tc.status)
+			}
+			if ok && got != tc.want {
+				t.Fatalf("value = %q, want %q", got, tc.want)
+			}
+			if !ok && rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.status)
+			}
+		})
+	}
+}

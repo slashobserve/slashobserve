@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -134,7 +135,7 @@ type Deps struct {
 	Datasources *datasource.Registry
 	Runner      *queryproxy.Runner
 	Dashboards  *dashboards.Service
-	Comments    *dashboards.Comments
+	Comments    *threads.Comments
 	Imports     *imports.Service
 	Folders     *folders.Access
 	Findings    *findings.Service

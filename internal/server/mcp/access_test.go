@@ -14,16 +14,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 func TestMain(m *testing.M) {
@@ -97,7 +100,7 @@ type accessFixture struct {
 	*fixture
 	db       *dbtest.Database
 	service  *dashboards.Service
-	comments *dashboards.Comments
+	comments *threads.Comments
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
@@ -112,7 +115,8 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	queue := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
-	comments := dashboards.NewComments(database.DB, service, queue)
+	notes := annotations.New(database.DB, access)
+	comments := threads.NewComments(threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes), queue)
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
@@ -175,7 +179,7 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 		t.Fatal(err)
 	}
 	foldertest.Move(t, f.db, hiddenID, foldertest.Restricted(t, f.db, hiddenFolder, privateGroup))
-	comment, err := f.comments.Create(t.Context(), adminKey, hiddenID, dashboards.NewComment{Version: 1, Body: commentText})
+	comment, err := f.comments.Create(t.Context(), adminKey, hiddenID, threads.NewComment{Version: 1, Body: commentText})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +265,7 @@ func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
 	f := newAccessFixture(t)
 	id := f.seed(t, adminKey, pgtype.UUID{}, openTitle)
 	dashID := mustUUID(t, id)
-	comment, err := f.comments.Create(t.Context(), adminKey, dashID, dashboards.NewComment{Version: 1, Body: commentText})
+	comment, err := f.comments.Create(t.Context(), adminKey, dashID, threads.NewComment{Version: 1, Body: commentText})
 	if err != nil {
 		t.Fatal(err)
 	}

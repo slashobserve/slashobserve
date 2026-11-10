@@ -275,44 +275,41 @@ func TestListReportsDatasourcesAndCreator(t *testing.T) {
 	}
 }
 
-func TestListCountsOnlyOpenRootThreads(t *testing.T) {
+func TestListCountsOnlyOpenThreads(t *testing.T) {
 	r := newRig(t, false)
 	busy := r.createDashboard(t, "rps")
 	quiet := r.createDashboard(t, "rps")
-	panel := "rps"
+	r.insertThread(t, busy, "open")
+	r.insertThread(t, busy, "open")
+	r.insertThread(t, busy, "resolved")
 
-	open := r.createComment(t, busy, NewComment{Version: 1, PanelID: &panel, Body: "open root"})
-	r.createComment(t, busy, NewComment{ParentID: mustParse(t, open.ID), Body: "reply"})
-	r.createComment(t, busy, NewComment{ParentID: mustParse(t, open.ID), Body: "second reply"})
-	resolved := r.createComment(t, busy, NewComment{Version: 1, PanelID: &panel, Body: "resolved root"})
-	r.createComment(t, busy, NewComment{ParentID: mustParse(t, resolved.ID), Body: "reply to the resolved root"})
-	if _, _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, resolved.ID), CommentResolved, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
-	if err != nil {
-		t.Fatal(err)
-	}
-	counts := map[string]int{}
-	for _, item := range page.Items {
-		counts[item.ID] = item.OpenComments
-	}
-	if counts[busy.String()] != 1 || counts[quiet.String()] != 0 {
-		t.Errorf("open comment counts = %v, want 1 for the busy dashboard and 0 for the quiet one", counts)
-	}
-
-	if _, _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, open.ID), CommentResolved, nil); err != nil {
-		t.Fatal(err)
-	}
-	page, err = r.service.List(t.Context(), testUser, ListParams{Limit: 50})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, item := range page.Items {
-		if item.OpenComments != 0 {
-			t.Errorf("%s still counts %d open threads after every thread is resolved", item.ID, item.OpenComments)
+	count := func() map[string]int {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
+		if err != nil {
+			t.Fatal(err)
 		}
+		counts := map[string]int{}
+		for _, item := range page.Items {
+			counts[item.ID] = item.OpenComments
+		}
+		return counts
+	}
+	if counts := count(); counts[busy.String()] != 2 || counts[quiet.String()] != 0 {
+		t.Errorf("open comment counts = %v, want 2 for the busy dashboard and 0 for the quiet one", counts)
+	}
+
+	r.db.Exec(t, `UPDATE threads SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = gen_random_uuid(), resolved_by_name = 'x' WHERE dashboard_id = $1 AND status = 'open'`, busy)
+	if counts := count(); counts[busy.String()] != 0 {
+		t.Errorf("the busy dashboard still counts %d open threads after every thread is resolved", counts[busy.String()])
+	}
+}
+
+func (r *rig) insertThread(t *testing.T, dash pgtype.UUID, status string) {
+	t.Helper()
+	_, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO threads (dashboard_id, dashboard_version, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name)
+VALUES ($1, 1, $2, CASE WHEN $2 = 'resolved' THEN now() END, CASE WHEN $2 = 'resolved' THEN 'user' END, CASE WHEN $2 = 'resolved' THEN gen_random_uuid() END, CASE WHEN $2 = 'resolved' THEN 'x' END)`, dash, status)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

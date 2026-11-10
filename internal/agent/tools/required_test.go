@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
@@ -42,8 +43,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	runner := queryproxy.NewRunner(datasources, logger)
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
-	comments := dashboards.NewComments(database.DB, service, nil)
 	notes := annotations.New(database.DB, access)
+	comments := threads.NewComments(threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes), nil)
 	registry := New(Deps{
 		Datasources: datasources,
 		Runner:      runner,
@@ -68,7 +69,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := comments.Create(ctx, placeholderUser, dashboardID, dashboards.NewComment{Version: 1, Body: "seed"})
+	comment, err := comments.Create(ctx, placeholderUser, dashboardID, threads.NewComment{Version: 1, Body: "seed"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -467,7 +467,7 @@ SET status = 'resolved',
   resolved_run_id = $6::uuid,
   resolved_by_version = $7::integer,
   updated_at = clock_timestamp()
-WHERE id = $8 AND status = 'open'
+WHERE id = $8 AND dashboard_id = $9 AND status = 'open'
 RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at
 `
 
@@ -480,6 +480,7 @@ type ResolveThreadForRunParams struct {
 	ResolvedRunID        pgtype.UUID
 	ResolvedByVersion    int32
 	ID                   pgtype.UUID
+	DashboardID          pgtype.UUID
 }
 
 func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForRunParams) (Thread, error) {
@@ -492,6 +493,7 @@ func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForR
 		arg.ResolvedRunID,
 		arg.ResolvedByVersion,
 		arg.ID,
+		arg.DashboardID,
 	)
 	var i Thread
 	err := row.Scan(

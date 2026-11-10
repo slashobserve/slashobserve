@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const commentRejection = "comment tools are for MCP clients; the server answers and resolves threads after a run"
@@ -83,16 +84,16 @@ func TestParseCommentQuery(t *testing.T) {
 		want    commentQuery
 		wantMsg string
 	}{
-		{name: "defaults", input: dash + `}`, want: commentQuery{status: dashboards.CommentOpen, limit: defaultListComments}},
+		{name: "defaults", input: dash + `}`, want: commentQuery{status: threads.StatusOpen, limit: defaultListComments}},
 		{name: "status kept", input: dash + `,"status":"all"}`, want: commentQuery{status: "all", limit: defaultListComments}},
-		{name: "panel kept", input: dash + `,"panel_id":"p1","limit":7,"cursor":"abc"}`, want: commentQuery{status: dashboards.CommentOpen, panelID: "p1", limit: 7, cursor: "abc"}},
+		{name: "panel kept", input: dash + `,"panel_id":"p1","limit":7,"cursor":"abc"}`, want: commentQuery{status: threads.StatusOpen, panelID: "p1", limit: 7, cursor: "abc"}},
 		{name: "empty panel", input: dash + `,"panel_id":""}`, wantMsg: "panel_id must be at least 1 character"},
 		{name: "long panel", input: dash + `,"panel_id":"` + strings.Repeat("p", maxPanelFilterBytes+1) + `"}`, wantMsg: "panel_id must be at most 64 bytes"},
-		{name: "limit one", input: dash + `,"limit":1}`, want: commentQuery{status: dashboards.CommentOpen, limit: 1}},
-		{name: "limit max", input: dash + `,"limit":100}`, want: commentQuery{status: dashboards.CommentOpen, limit: maxListComments}},
+		{name: "limit one", input: dash + `,"limit":1}`, want: commentQuery{status: threads.StatusOpen, limit: 1}},
+		{name: "limit max", input: dash + `,"limit":100}`, want: commentQuery{status: threads.StatusOpen, limit: maxListComments}},
 		{name: "limit zero", input: dash + `,"limit":0}`, wantMsg: "limit must be between"},
 		{name: "limit over", input: dash + `,"limit":101}`, wantMsg: "limit must be between"},
-		{name: "cursor at limit", input: dash + `,"cursor":"` + strings.Repeat("c", maxNameBytes) + `"}`, want: commentQuery{status: dashboards.CommentOpen, limit: defaultListComments, cursor: strings.Repeat("c", maxNameBytes)}},
+		{name: "cursor at limit", input: dash + `,"cursor":"` + strings.Repeat("c", maxNameBytes) + `"}`, want: commentQuery{status: threads.StatusOpen, limit: defaultListComments, cursor: strings.Repeat("c", maxNameBytes)}},
 		{name: "cursor too long", input: dash + `,"cursor":"` + strings.Repeat("c", maxNameBytes+1) + `"}`, wantMsg: "cursor must be at most 256 bytes"},
 		{name: "bad dashboard", input: `{"dashboard_id":"nope"}`, wantMsg: "dashboard_id must be a UUID"},
 		{name: "unknown field", input: dash + `,"extra":1}`, wantMsg: "unknown field"},
@@ -122,23 +123,23 @@ func TestCommentItem(t *testing.T) {
 	version := 4
 	tests := []struct {
 		name          string
-		in            dashboards.Comment
+		in            threads.Comment
 		wantParent    bool
 		wantPanel     bool
 		wantTruncated bool
 		wantBodyLen   int
 	}{
-		{name: "whole dashboard root", in: dashboards.Comment{Body: "hi"}, wantBodyLen: 2},
-		{name: "panel reply", in: dashboards.Comment{ParentID: dashB, PanelID: "p1", PanelPresent: true, Body: "hi"}, wantParent: true, wantPanel: true, wantBodyLen: 2},
-		{name: "body at the limit", in: dashboards.Comment{Body: strings.Repeat("a", maxCommentOutBytes)}, wantBodyLen: maxCommentOutBytes},
-		{name: "body over the limit", in: dashboards.Comment{Body: strings.Repeat("a", maxCommentOutBytes+1)}, wantTruncated: true, wantBodyLen: maxCommentOutBytes + len("...")},
+		{name: "whole dashboard root", in: threads.Comment{Body: "hi"}, wantBodyLen: 2},
+		{name: "panel reply", in: threads.Comment{ParentID: dashB, PanelID: "p1", PanelPresent: true, Body: "hi"}, wantParent: true, wantPanel: true, wantBodyLen: 2},
+		{name: "body at the limit", in: threads.Comment{Body: strings.Repeat("a", maxCommentOutBytes)}, wantBodyLen: maxCommentOutBytes},
+		{name: "body over the limit", in: threads.Comment{Body: strings.Repeat("a", maxCommentOutBytes+1)}, wantTruncated: true, wantBodyLen: maxCommentOutBytes + len("...")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.in.ID = dashA
 			tt.in.CreatedAt = created
 			tt.in.ResolvedByVersion = &version
-			tt.in.Author = dashboards.Author{Name: "Ada", Email: "ada@example.com"}
+			tt.in.Author = threads.Author{Name: "Ada", Email: "ada@example.com"}
 			out := commentItem(tt.in)
 			if (out.ParentID != nil) != tt.wantParent || (out.PanelID != nil) != tt.wantPanel || out.PanelPresent != tt.in.PanelPresent {
 				t.Fatalf("out = %+v", out)
@@ -165,15 +166,15 @@ func TestCommentItem(t *testing.T) {
 
 func TestCommentItemAuthorFallsBackToEmail(t *testing.T) {
 	tests := []struct {
-		author dashboards.Author
+		author threads.Author
 		want   string
 	}{
-		{dashboards.Author{Name: "Ada", Email: "ada@example.com"}, "Ada"},
-		{dashboards.Author{Email: "ada@example.com"}, "ada@example.com"},
-		{dashboards.Author{}, ""},
+		{threads.Author{Name: "Ada", Email: "ada@example.com"}, "Ada"},
+		{threads.Author{Email: "ada@example.com"}, "ada@example.com"},
+		{threads.Author{}, ""},
 	}
 	for _, tt := range tests {
-		if got := commentItem(dashboards.Comment{Author: tt.author}).Author; got != tt.want {
+		if got := commentItem(threads.Comment{Author: tt.author}).Author; got != tt.want {
 			t.Errorf("author for %+v = %q, want %q", tt.author, got, tt.want)
 		}
 	}
@@ -188,10 +189,10 @@ func TestCommentFailure(t *testing.T) {
 		wantMsg  string
 		wantErr  error
 	}{
-		{name: "invalid input", err: &dashboards.InvalidInputError{Message: "body is empty"}, wantCode: codeInvalidRequest, wantMsg: "body is empty"},
-		{name: "wrapped invalid input", err: fmt.Errorf("wrap: %w", &dashboards.InvalidInputError{Message: "body is empty"}), wantCode: codeInvalidRequest, wantMsg: "body is empty"},
+		{name: "invalid input", err: &threads.InvalidInputError{Message: "body is empty"}, wantCode: codeInvalidRequest, wantMsg: "body is empty"},
+		{name: "wrapped invalid input", err: fmt.Errorf("wrap: %w", &threads.InvalidInputError{Message: "body is empty"}), wantCode: codeInvalidRequest, wantMsg: "body is empty"},
 		{name: "invalid cursor", err: dashboards.ErrInvalidCursor, wantCode: codeInvalidRequest, wantMsg: "cursor is not valid"},
-		{name: "comment not found", err: dashboards.ErrCommentNotFound, wantCode: codeNotFound},
+		{name: "comment not found", err: threads.ErrNotFound, wantCode: codeNotFound},
 		{name: "dashboard not found", err: dashboards.ErrNotFound, wantCode: codeNotFound},
 		{name: "internal", err: internal, wantErr: internal},
 	}
@@ -217,20 +218,20 @@ func TestCommentFailure(t *testing.T) {
 func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 	version := 2147483647
 	author := strings.Repeat("<", 256)
-	comment := dashboards.Comment{
+	comment := threads.Comment{
 		ID:                dashA,
 		ParentID:          dashB,
 		PanelID:           strings.Repeat("<", maxPanelFilterBytes),
 		PanelPresent:      true,
 		Version:           version,
-		Status:            dashboards.CommentResolved,
-		Author:            dashboards.Author{Name: author, Email: author},
+		Status:            threads.StatusResolved,
+		Author:            threads.Author{Name: author, Email: author},
 		CreatedAt:         time.Date(2026, 10, 19, 12, 30, 0, 0, time.UTC),
 		Body:              strings.Repeat("<", 2000),
 		ResolvedByVersion: &version,
 	}
 	cursor := strings.Repeat("c", 256)
-	out, _, cut := commentPage(dashA, []dashboards.Comment{comment}, cursor)
+	out, _, cut := commentPage(dashA, []threads.Comment{comment}, cursor)
 	if cut || len(out.Comments) != 1 {
 		t.Fatalf("cut = %v with %d comments", cut, len(out.Comments))
 	}
@@ -248,9 +249,9 @@ func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 
 func TestCommentPageShrinksToFewerComments(t *testing.T) {
 	body := strings.Repeat("<", 1000)
-	list := make([]dashboards.Comment, 5)
+	list := make([]threads.Comment, 5)
 	for i := range list {
-		list[i] = dashboards.Comment{ID: dashA, Body: body}
+		list[i] = threads.Comment{ID: dashA, Body: body}
 	}
 	out, kept, cut := commentPage(dashA, list, "next")
 	if !cut || kept < 1 || kept >= len(list) || len(out.Comments) != len(list) {

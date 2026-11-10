@@ -77,7 +77,7 @@ SET status = 'resolved',
   resolved_run_id = @resolved_run_id::uuid,
   resolved_by_version = @resolved_by_version::integer,
   updated_at = clock_timestamp()
-WHERE id = @id AND status = 'open'
+WHERE id = @id AND dashboard_id = @dashboard_id AND status = 'open'
 RETURNING *;
 
 -- name: ListThreadMessages :many

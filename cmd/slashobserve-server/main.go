@@ -60,6 +60,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
+	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/users"
 )
 
@@ -292,7 +293,8 @@ func run() error {
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	toolComments := dashboards.NewComments(database, dashboardsService, nil)
+	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
+	toolComments := threads.NewComments(threadsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
 		Runner:      runner,
@@ -332,7 +334,7 @@ func run() error {
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithBuilds(buildStore{dashboardsService}), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess))
+	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithBuilds(buildStore{dashboardsService}), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess), revisions.WithThreads(threads.NewRuns(database)))
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
@@ -388,7 +390,7 @@ func run() error {
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
-			dashboards.NewComments(database, dashboardsService, revisionsService),
+			threads.NewComments(threadsService, revisionsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,

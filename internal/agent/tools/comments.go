@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const (
@@ -66,7 +67,7 @@ type commentResolvedOut struct {
 	Changed bool       `json:"changed"`
 }
 
-func commentItem(c dashboards.Comment) commentOut {
+func commentItem(c threads.Comment) commentOut {
 	out := commentOut{
 		ID:                c.ID,
 		PanelPresent:      c.PanelPresent,
@@ -87,7 +88,7 @@ func commentItem(c dashboards.Comment) commentOut {
 	return out
 }
 
-func authorLabel(a dashboards.Author) string {
+func authorLabel(a threads.Author) string {
 	if a.Name == "" {
 		return a.Email
 	}
@@ -110,13 +111,13 @@ func rejectAgentRun(ctx context.Context) (Result, bool) {
 }
 
 func commentFailure(err error) (Result, error) {
-	var bad *dashboards.InvalidInputError
+	var bad *threads.InvalidInputError
 	switch {
 	case errors.As(err, &bad):
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
-	case errors.Is(err, dashboards.ErrCommentNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+	case errors.Is(err, threads.ErrNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeNotFound, "dashboard or comment not found"), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
@@ -166,7 +167,7 @@ func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 	}
 	q := commentQuery{dashboardID: dashboardID, status: in.Status, limit: limit, cursor: in.Cursor}
 	if q.status == "" {
-		q.status = dashboards.CommentOpen
+		q.status = threads.StatusOpen
 	}
 	if in.PanelID != nil {
 		if *in.PanelID == "" {
@@ -197,8 +198,9 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	if res, ok, err := r.viewableDashboard(ctx, q.dashboardID, "dashboard or comment not found"); err != nil || !ok {
 		return res, err
 	}
+	principal, _ := auth.FromContext(ctx)
 	for {
-		list, cursor, err := r.deps.Comments.List(ctx, q.dashboardID, q.status, q.panelID, q.limit, q.cursor)
+		list, cursor, err := r.deps.Comments.List(ctx, principal, q.dashboardID, q.status, q.panelID, q.limit, q.cursor)
 		if err != nil {
 			return commentFailure(err)
 		}
@@ -210,7 +212,7 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	}
 }
 
-func commentPage(dashboardID string, list []dashboards.Comment, next string) (commentListOut, int, bool) {
+func commentPage(dashboardID string, list []threads.Comment, next string) (commentListOut, int, bool) {
 	out := commentListOut{DashboardID: dashboardID, Comments: make([]commentOut, 0, len(list))}
 	if next != "" {
 		out.NextCursor = &next
@@ -234,7 +236,7 @@ func commentPage(dashboardID string, list []dashboards.Comment, next string) (co
 	return out, len(kept), true
 }
 
-func commentWithin(c dashboards.Comment, budget int) commentOut {
+func commentWithin(c threads.Comment, budget int) commentOut {
 	out := commentItem(c)
 	n := min(len(c.Body), maxCommentOutBytes)
 	for n > 0 {
@@ -270,7 +272,7 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	if err != nil || !ok {
 		return res, err
 	}
-	comment, err := r.deps.Comments.Create(ctx, principal, dashboardID, dashboards.NewComment{ParentID: commentID, Body: in.Body})
+	comment, err := r.deps.Comments.Create(ctx, principal, dashboardID, threads.NewComment{ParentID: commentID, Body: in.Body})
 	if err != nil {
 		return commentFailure(err)
 	}
@@ -322,8 +324,8 @@ func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (R
 	if res, ok, err := r.checkThreadVersion(ctx, dashboardID, commentID, in.Version); err != nil || !ok {
 		return res, err
 	}
-	comment, changed, err := r.deps.Comments.SetStatus(ctx, principal, dashboardID, commentID, dashboards.CommentResolved, in.Version)
-	if errors.Is(err, dashboards.ErrUnknownVersion) && in.Version != nil {
+	comment, changed, err := r.deps.Comments.SetStatus(ctx, principal, dashboardID, commentID, threads.StatusResolved, in.Version)
+	if errors.Is(err, threads.ErrUnknownVersion) && in.Version != nil {
 		return toolError(codeUnknownVersion, fmt.Sprintf("version %d is not a version of this dashboard", *in.Version)), nil
 	}
 	if err != nil {

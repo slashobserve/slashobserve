@@ -81,11 +81,37 @@ INSERT INTO thread_messages (id, thread_id, body, author_kind, author_id, author
 SELECT c.id, coalesce(c.parent_id, c.id), c.body, c.author_kind, c.author_id, c.author_name, c.author_email, c.created_at, c.created_at
 FROM dashboard_comments c;
 
+UPDATE agent_requests r SET comment_id = c.parent_id
+FROM dashboard_comments c
+WHERE c.id = r.comment_id AND c.parent_id IS NOT NULL;
+ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_comment_id_fkey;
+ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_comment_id_fkey
+  FOREIGN KEY (comment_id) REFERENCES threads (id) ON DELETE SET NULL;
+
 ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
 ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check
   CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread'));
 
 -- +goose Down
+DELETE FROM dashboard_comments;
+INSERT INTO dashboard_comments (
+  id, dashboard_id, version, panel_id, parent_id, body, status, author_kind, author_id, author_name, author_email,
+  resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_by_version, created_at, updated_at
+)
+SELECT
+  m.id, t.dashboard_id, t.dashboard_version, t.panel_id, CASE WHEN m.id = t.id THEN NULL ELSE t.id END, m.body,
+  CASE WHEN m.id = t.id THEN t.status ELSE 'open' END, m.author_kind, m.author_id, m.author_name, m.author_email,
+  CASE WHEN m.id = t.id THEN t.resolved_at END, CASE WHEN m.id = t.id THEN t.resolved_by_kind END,
+  CASE WHEN m.id = t.id THEN t.resolved_by_id END, CASE WHEN m.id = t.id THEN t.resolved_by_name END,
+  CASE WHEN m.id = t.id THEN t.resolved_by_version END, m.created_at, CASE WHEN m.id = t.id THEN t.updated_at ELSE m.created_at END
+FROM thread_messages m
+JOIN threads t ON t.id = m.thread_id
+WHERE t.dashboard_id IS NOT NULL;
+UPDATE agent_requests SET comment_id = NULL
+WHERE comment_id IS NOT NULL AND comment_id NOT IN (SELECT id FROM dashboard_comments WHERE parent_id IS NULL);
+ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_comment_id_fkey;
+ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_comment_id_fkey
+  FOREIGN KEY (comment_id) REFERENCES dashboard_comments (id) ON DELETE SET NULL;
 DELETE FROM activity WHERE target_kind = 'thread';
 ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
 ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check

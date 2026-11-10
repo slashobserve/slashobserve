@@ -11,16 +11,19 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const (
@@ -43,7 +46,7 @@ var (
 type accessRig struct {
 	registry *Registry
 	service  *dashboards.Service
-	comments *dashboards.Comments
+	comments *threads.Comments
 	db       *dbtest.Database
 }
 
@@ -68,7 +71,8 @@ func newAccessRig(t *testing.T) *accessRig {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	queue := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
-	comments := dashboards.NewComments(database.DB, service, queue)
+	notes := annotations.New(database.DB, access)
+	comments := threads.NewComments(threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes), queue)
 	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Comments: comments, Folders: access, Logger: logger})
 	return &accessRig{registry: registry, service: service, comments: comments, db: database}
 }
@@ -132,7 +136,7 @@ func (r *accessRig) seedHidden(t *testing.T) hiddenBoards {
 	b := hiddenBoards{open: r.seed(t, openTitle, "open-tag"), hidden: r.seed(t, hiddenTitle, hiddenTag)}
 	b.folder = foldertest.Restricted(t, r.db, hiddenFolder, privateGroup)
 	foldertest.Move(t, r.db, b.hidden, b.folder)
-	comment, err := r.comments.Create(t.Context(), adminCaller, b.hidden, dashboards.NewComment{Version: 1, Body: "who gets paid what"})
+	comment, err := r.comments.Create(t.Context(), adminCaller, b.hidden, threads.NewComment{Version: 1, Body: "who gets paid what"})
 	if err != nil {
 		t.Fatal(err)
 	}
