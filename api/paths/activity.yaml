@@ -18,6 +18,7 @@ activity:
       `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`;
       `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`.
       Comments, suggestions and build progress are not recorded.
+      The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
     parameters:
       - name: dashboard_id
         in: query

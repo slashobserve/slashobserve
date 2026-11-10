@@ -82,6 +82,13 @@ curl -N -H "Authorization: Bearer $OBSERVE_TOKEN" \
   "$OBSERVE_SERVER/api/v1/activity/stream?type=run.failed"
 ```
 
+## Retention
+
+The server keeps events for 180 days.
+The hourly `activity_prune` job deletes older events in batches, and a busy backlog is cleared over several runs.
+Set `SLASHOBSERVE_ACTIVITY_RETENTION` to a Go duration from `24h` to `87600h` to change it; see [Configuration](../reference/configuration.md#activity).
+A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
+
 ## Read it over MCP
 
 The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.

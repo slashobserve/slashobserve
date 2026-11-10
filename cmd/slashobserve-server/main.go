@@ -341,6 +341,7 @@ func run() error {
 	defer stopWorkers()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
+	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
