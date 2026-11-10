@@ -69,7 +69,8 @@ data: {"seq":412,"type":"dashboard.version_created", ...}
 ```
 
 It starts with `retry: 3000` and `event: ready`, and a `: ping` comment arrives every 15 seconds.
-Without `Last-Event-ID` it sends only events appended after it opened.
+Without `Last-Event-ID` it sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log.
+`observe activity --follow` sends `0` until it has printed an event, so an event appended between its list and its stream is not missed.
 When a connection drops, reconnect with the `id` of the last frame you handled as the `Last-Event-ID` header, and the stream continues with the next event.
 If that event is unknown, for example because it was removed, the stream sends `event: reset` after `ready` and continues from the newest event, which tells you some events may have been missed and to read the list again.
 

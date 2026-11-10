@@ -379,6 +379,19 @@ func TestActivityStreamResumesAfterLastEventID(t *testing.T) {
 	s.expectNoActivity(t)
 }
 
+func TestActivityStreamStartsAtTheBeginningForALastEventIDOfZero(t *testing.T) {
+	r := newActivityRig(t, viewer)
+	first := r.append(t, visibleToEveryone())
+	second := r.append(t, visibleToEveryone())
+
+	s := r.open(t, "", "0")
+
+	s.expectEvent(t, "ready")
+	s.expectActivity(t, first)
+	s.expectActivity(t, second)
+	s.expectNoActivity(t)
+}
+
 func TestActivityStreamSendsResetForAnUnknownLastEventID(t *testing.T) {
 	r := newActivityRig(t, viewer)
 	r.append(t, visibleToEveryone())
@@ -399,7 +412,7 @@ func TestActivityStreamRefusesBadRequests(t *testing.T) {
 		lastEventID string
 	}{
 		{"a Last-Event-ID that is not a number", "", "abc"},
-		{"a Last-Event-ID of zero", "", "0"},
+		{"a negative Last-Event-ID", "", "-1"},
 		{"an unknown type", "type=dashboard.renamed", ""},
 		{"a dashboard that is not a UUID", "dashboard_id=checkout", ""},
 	}

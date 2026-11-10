@@ -74,8 +74,11 @@ func (s *Store) Start(ctx context.Context, lastEventID string) (from Position, r
 		return from, false, err
 	}
 	seq, err := strconv.ParseInt(lastEventID, 10, 64)
-	if err != nil || seq <= 0 {
+	if err != nil || seq < 0 {
 		return Position{}, false, ErrInvalidLastEventID
+	}
+	if seq == 0 {
+		return Position{}, false, nil
 	}
 	xid, err := s.db.Queries().ActivityXid(ctx, seq)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -100,6 +103,10 @@ func (s *Store) head(ctx context.Context) (Position, error) {
 }
 
 func (s *Store) Next(ctx context.Context, a Audience, f Filter, from Position, limit int) (page []Event, to Position, held bool, err error) {
+	head, err := s.head(ctx)
+	if err != nil {
+		return nil, from, false, err
+	}
 	rows, err := s.db.Queries().ListActivityAfter(ctx, dbsqlc.ListActivityAfterParams{
 		Folders:     visibleFolders(a),
 		Admin:       a.Admin,
@@ -121,6 +128,7 @@ func (s *Store) Next(ctx context.Context, a Audience, f Filter, from Position, l
 		to = positionOf(rows[len(rows)-1])
 	}
 	if len(rows) < limit {
+		to = later(to, head)
 		held, err = s.db.Queries().ActivityHeld(ctx)
 		if err != nil {
 			return nil, from, false, fmt.Errorf("check held activity: %w", err)

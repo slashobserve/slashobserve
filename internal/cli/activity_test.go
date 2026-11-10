@@ -307,7 +307,7 @@ func TestActivityFollowPrintsFramesAndResumesFromTheLastOne(t *testing.T) {
 	}
 }
 
-func TestActivityFollowStartsWithoutAnIdWhenThePageIsEmpty(t *testing.T) {
+func TestActivityFollowStartsFromTheBeginningWhenThePageIsEmpty(t *testing.T) {
 	frames := "retry: 10\nevent: ready\ndata: {}\n\n" + activityFrame(5, "annotation.created", "Sam", "2026-11-01T10:00:00Z", `{"tags":["deploy"]}`)
 	f := newActivityFake(t, `{"activity":[],"next_cursor":null}`, sendFrames(frames))
 	stdout, _, code := f.run("activity", "--follow", "--json", "--dashboard", testDashboard, "--limit", "9")
@@ -317,7 +317,7 @@ func TestActivityFollowStartsWithoutAnIdWhenThePageIsEmpty(t *testing.T) {
 	if want := activityJSON(5, "annotation.created", "Sam", "2026-11-01T10:00:00Z", `{"tags":["deploy"]}`) + "\n"; stdout != want {
 		t.Errorf("stdout %q, want %q", stdout, want)
 	}
-	if fmt.Sprint(f.opened) != "[ 5]" {
+	if fmt.Sprint(f.opened) != "[0 5]" {
 		t.Errorf("Last-Event-ID sent %q", f.opened)
 	}
 }

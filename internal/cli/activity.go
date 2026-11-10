@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -331,7 +332,7 @@ func isTooManyStreams(err error) bool {
 }
 
 func (f *activityFollower) once(ctx context.Context) (bool, error) {
-	body, err := f.c.stream(ctx, "activity/stream", f.query, f.last)
+	body, err := f.c.stream(ctx, "activity/stream", f.query, cmp.Or(f.last, "0"))
 	if err != nil {
 		return false, err
 	}
