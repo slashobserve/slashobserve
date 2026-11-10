@@ -19,6 +19,15 @@ function annotation(over: Partial<Annotation> = {}): Annotation {
     tags: ["deploy", "checkout"],
     created_by: null,
     created_by_name: "ci-deploy",
+    actor: {
+      kind: "service_account",
+      id: "k1",
+      name: "ci-deploy",
+      origin: "api",
+      client: null,
+      run_id: null,
+      label: "ci-deploy",
+    },
     created_at: new Date(t0).toISOString(),
     ...over,
   }
@@ -78,9 +87,34 @@ describe("AnnotationLayer", () => {
     expect(screen.getByRole("button")).toHaveAttribute("aria-expanded", "true")
   })
 
+  it("shows the server's label for the author, client included", async () => {
+    const user = userEvent.setup()
+    const base = annotation()
+    layer([
+      annotation({
+        actor: {
+          ...base.actor!,
+          origin: "mcp",
+          client: "Claude Code",
+          label: "ci-deploy (via Claude Code)",
+        },
+      }),
+    ])
+    await user.hover(screen.getByRole("button"))
+    expect(screen.getByRole("group")).toHaveTextContent(
+      "ci-deploy (via Claude Code)"
+    )
+  })
+
   it("renders a same-origin path in the text as a link", async () => {
     const user = userEvent.setup()
-    layer([annotation({ text: "Pinned /findings/abc", created_by_name: null })])
+    layer([
+      annotation({
+        text: "Pinned /findings/abc",
+        created_by_name: null,
+        actor: null,
+      }),
+    ])
     await user.hover(screen.getByRole("button"))
     expect(screen.getByRole("link", { name: "/findings/abc" })).toHaveAttribute(
       "href",

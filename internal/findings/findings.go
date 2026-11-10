@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -42,6 +43,7 @@ type Finding struct {
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
 	CreatedBy                                     Author
+	Actor                                         actor.Actor
 }
 
 func Title(text string) string {

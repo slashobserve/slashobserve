@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 func TestMain(m *testing.M) {
@@ -144,6 +145,41 @@ func TestListNamesTheUserOrServiceAccountThatAddedIt(t *testing.T) {
 		if names[text] != name {
 			t.Errorf("%q created_by_name %q, want %q", text, names[text], name)
 		}
+	}
+}
+
+func TestAnnotationRecordsWhoAddedItAndThroughWhat(t *testing.T) {
+	r := newRig(t)
+	sql := r.db.SQLDB(t)
+	if _, err := sql.ExecContext(t.Context(), `INSERT INTO service_accounts (id, name) VALUES ($1, $2)`, deployKey.ID, deployKey.Name); err != nil {
+		t.Fatal(err)
+	}
+	over := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	created, err := r.service.Create(over, deployKey, CreateInput{From: at(0), Text: "deploy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kind, kindOrigin, client string
+	if err := sql.QueryRowContext(t.Context(), `SELECT created_by_kind, origin, origin_client FROM annotations WHERE id = $1::uuid`, created.ID).Scan(&kind, &kindOrigin, &client); err != nil {
+		t.Fatal(err)
+	}
+	if kind != "service_account" || kindOrigin != "mcp" || client != "claude-code" {
+		t.Fatalf("stored kind %q, origin %q, client %q", kind, kindOrigin, client)
+	}
+	for name, a := range map[string]Annotation{"created": created, "listed": r.list(t, viewer, ListQuery{}).Annotations[0]} {
+		who, ok := a.Actor()
+		if !ok || who.Label() != "ci (via Claude Code)" {
+			t.Errorf("%s: actor %+v (present %v), want the label ci (via Claude Code)", name, who, ok)
+		}
+	}
+}
+
+func TestAnnotationOfAGoneAccountHasNoActor(t *testing.T) {
+	r := newRig(t)
+	r.create(t, deployKey, CreateInput{From: at(0), Text: "deploy"})
+	got := r.list(t, viewer, ListQuery{}).Annotations[0]
+	if who, ok := got.Actor(); ok {
+		t.Fatalf("actor %+v for an account that is not in service_accounts, want none", who)
 	}
 }
 

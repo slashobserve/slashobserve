@@ -90,12 +90,12 @@ export const dashboardColumns = column.columns([
         <div
           title={
             detail === ""
-              ? creator.author.name
-              : `${creator.author.name} · ${detail}`
+              ? creator.actor.label
+              : `${creator.actor.label} · ${detail}`
           }
           className="max-w-56 truncate"
         >
-          {creator.author.name}
+          {creator.actor.label}
           {channel === null ? null : (
             <span className="text-muted-foreground">{` · ${channel}`}</span>
           )}

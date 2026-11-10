@@ -81,6 +81,15 @@ function version(n: number, createdAt: string): VersionMeta {
     origin: "web",
     origin_client: null,
     agent_request_id: null,
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
   }
 }
 
@@ -121,6 +130,15 @@ function imported(
       notes: [],
     },
     created_by: author,
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
     created_at: createdAt,
   }
   return { record, unverified }
@@ -138,6 +156,15 @@ function finding(id: string, createdAt: string): Finding {
     to: at(10),
     annotation_id: null,
     created_by: { kind: "user", id: "u1", name: "Ada" },
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
     created_at: createdAt,
     url: "",
   }

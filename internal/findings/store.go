@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -20,10 +21,10 @@ type store struct {
 	db *db.DB
 }
 
-func (s *store) insert(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {
-	creator, err := db.ParseUUID(by.ID)
+func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Finding, bool, error) {
+	cols, err := by.Columns()
 	if err != nil {
-		return Finding{}, false, fmt.Errorf("creator id: %w", err)
+		return Finding{}, false, err
 	}
 	evidence, err := json.Marshal(in.Evidence)
 	if err != nil {
@@ -37,9 +38,11 @@ func (s *store) insert(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 		Evidence:       evidence,
 		TimeFrom:       pgtype.Timestamptz{Time: in.From, Valid: true},
 		TimeTo:         pgtype.Timestamptz{Time: in.To, Valid: true},
-		CreatedByKind:  string(by.Kind),
-		CreatedByID:    creator,
-		CreatedByName:  by.Name,
+		CreatedByKind:  cols.Kind,
+		CreatedByID:    cols.ID,
+		CreatedByName:  cols.Name,
+		Origin:         cols.Origin,
+		OriginClient:   cols.Client,
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -69,6 +72,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		ID: row.ID, AgentRequestID: row.AgentRequestID, DashboardID: row.DashboardID, Title: row.Title, Markdown: row.Markdown,
 		Evidence: row.Evidence, TimeFrom: row.TimeFrom, TimeTo: row.TimeTo, CreatedByKind: row.CreatedByKind,
 		CreatedByID: row.CreatedByID, CreatedByName: row.CreatedByName, AnnotationID: row.AnnotationID, CreatedAt: row.CreatedAt,
+		Origin: row.Origin, OriginClient: row.OriginClient,
 	}, row.RequestTo)
 }
 
@@ -175,6 +179,10 @@ func findingOf(r dbsqlc.Finding, requestTo pgtype.Timestamptz) (Finding, error) 
 		To:        r.TimeTo.Time.UTC(),
 		CreatedAt: r.CreatedAt.Time.UTC(),
 		CreatedBy: Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
+		Actor: actor.FromColumns(actor.Columns{
+			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
+			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,
+		}),
 	}
 	if err := json.Unmarshal(r.Evidence, &f.Evidence); err != nil {
 		return Finding{}, fmt.Errorf("decode evidence of finding %s: %w", f.ID, err)

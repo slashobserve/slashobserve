@@ -28,6 +28,15 @@ function finding(): Finding {
     to: "2026-11-06T11:00:00Z",
     annotation_id: null,
     created_by: { kind: "user", id: "u1", name: "Ada" },
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: "r1",
+      label: "/observe for Ada",
+    },
     created_at: "2026-11-06T11:05:00Z",
     url: "",
   }

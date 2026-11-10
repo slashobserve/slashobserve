@@ -119,6 +119,7 @@ curl -fsS -H "Authorization: Bearer $OBSERVE_TOKEN" \
 - `tags` is comma-separated and keeps the annotations with any of the tags.
 - `limit` is 1 to 500 and defaults to 100; pass the `next_cursor` of a page as `cursor` to read the next one, until `next_cursor` is null.
 - Each annotation carries `created_by_name`, the name of the person or service account that added it, or null once they are deleted.
+  It also carries `actor`, with the `label` the web app shows, such as `deploy-bot (via Claude Code)`, or null once they are deleted; `list_annotations` over MCP returns that label as `created_by_label`.
 
 ## Delete an annotation
 

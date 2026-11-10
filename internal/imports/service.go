@@ -1,6 +1,7 @@
 package imports
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -22,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -81,6 +84,7 @@ type Record struct {
 	Report          grafana.Report
 	GrafanaUID      string
 	CreatedBy       dashboards.Author
+	Actor           actor.Actor
 	CreatedAt       time.Time
 }
 
@@ -238,6 +242,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 			Report:          result.Report,
 			GrafanaUID:      inserted.GrafanaUid,
 			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
+			Actor:           actor.Of(by, origin.From(ctx), req.RequestID.String()),
 			CreatedAt:       inserted.CreatedAt.Time.UTC(),
 		},
 	}
@@ -452,7 +457,11 @@ func (s *Service) ForDashboard(ctx context.Context, dashboardID pgtype.UUID) (Re
 		Title:           row.Title,
 		GrafanaUID:      row.GrafanaUid,
 		CreatedBy:       author(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.CreatedByEmail),
-		CreatedAt:       row.CreatedAt.Time.UTC(),
+		Actor: actor.FromColumns(actor.Columns{
+			Kind: row.CreatedByKind, ID: row.CreatedByID, Name: cmp.Or(row.CreatedByName, row.CreatedByEmail.String),
+			Origin: row.Origin, Client: row.OriginClient, RunID: row.AgentRequestID,
+		}),
+		CreatedAt: row.CreatedAt.Time.UTC(),
 	}
 	for _, column := range []struct {
 		name string

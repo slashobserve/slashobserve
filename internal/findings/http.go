@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
@@ -42,6 +43,7 @@ type FindingJSON struct {
 	To             string            `json:"to"`
 	AnnotationID   *string           `json:"annotation_id"`
 	CreatedBy      FindingAuthorJSON `json:"created_by"`
+	Actor          actor.JSON        `json:"actor"`
 	CreatedAt      string            `json:"created_at"`
 	URL            string            `json:"url"`
 }
@@ -71,6 +73,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 		To:             httpapi.FormatTime(f.To),
 		AnnotationID:   httpapi.OptionalString(f.AnnotationID),
 		CreatedBy:      FindingAuthorJSON{Kind: f.CreatedBy.Kind, ID: f.CreatedBy.ID, Name: f.CreatedBy.Name},
+		Actor:          f.Actor.JSON(),
 		CreatedAt:      httpapi.FormatTime(f.CreatedAt),
 		URL:            url,
 	}

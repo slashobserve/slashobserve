@@ -42,7 +42,9 @@ ORDER BY i.created_at DESC, i.id DESC
 LIMIT @row_limit;
 
 -- name: GetImportByDashboard :one
-SELECT id, dashboard_id, version, source, importer_version, mapping, summary, datasources, report, title,
-  created_by_kind, created_by_id, created_by_name, created_by_email, created_at, grafana_uid
-FROM imports
-WHERE dashboard_id = @dashboard_id;
+SELECT i.id, i.dashboard_id, i.version, i.source, i.importer_version, i.mapping, i.summary, i.datasources, i.report, i.title,
+  i.created_by_kind, i.created_by_id, i.created_by_name, i.created_by_email, i.created_at, i.grafana_uid,
+  v.origin, v.origin_client, v.agent_request_id
+FROM imports i
+JOIN dashboard_versions v ON v.dashboard_id = i.dashboard_id AND v.version = i.version
+WHERE i.dashboard_id = @dashboard_id;

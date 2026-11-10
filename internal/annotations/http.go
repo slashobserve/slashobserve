@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -32,16 +33,17 @@ type Annotations interface {
 }
 
 type JSON struct {
-	ID            string   `json:"id"`
-	DashboardID   *string  `json:"dashboard_id"`
-	PanelID       *string  `json:"panel_id"`
-	TimeFrom      string   `json:"time_from"`
-	TimeTo        *string  `json:"time_to"`
-	Text          string   `json:"text"`
-	Tags          []string `json:"tags"`
-	CreatedBy     *string  `json:"created_by"`
-	CreatedByName *string  `json:"created_by_name"`
-	CreatedAt     string   `json:"created_at"`
+	ID            string      `json:"id"`
+	DashboardID   *string     `json:"dashboard_id"`
+	PanelID       *string     `json:"panel_id"`
+	TimeFrom      string      `json:"time_from"`
+	TimeTo        *string     `json:"time_to"`
+	Text          string      `json:"text"`
+	Tags          []string    `json:"tags"`
+	CreatedBy     *string     `json:"created_by"`
+	CreatedByName *string     `json:"created_by_name"`
+	Actor         *actor.JSON `json:"actor"`
+	CreatedAt     string      `json:"created_at"`
 }
 
 type listJSON struct {
@@ -80,6 +82,10 @@ func JSONOf(a Annotation) JSON {
 	if a.To != nil {
 		to := httpapi.FormatTime(*a.To)
 		out.TimeTo = &to
+	}
+	if who, ok := a.Actor(); ok {
+		j := who.JSON()
+		out.Actor = &j
 	}
 	return out
 }

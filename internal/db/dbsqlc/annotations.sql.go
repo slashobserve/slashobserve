@@ -24,7 +24,7 @@ func (q *Queries) DeleteAnnotation(ctx context.Context, id pgtype.UUID) (int64, 
 }
 
 const getAnnotation = `-- name: GetAnnotation :one
-SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
+SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
 FROM annotations
 WHERE id = $1
 `
@@ -42,24 +42,31 @@ func (q *Queries) GetAnnotation(ctx context.Context, id pgtype.UUID) (Annotation
 		&i.Tags,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CreatedByKind,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }
 
 const insertAnnotation = `-- name: InsertAnnotation :one
-INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by)
-VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, $6::text[], $7)
-RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
+INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client)
+VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, $6::text[], $7,
+  $8, $9::text, $10::text)
+RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
 `
 
 type InsertAnnotationParams struct {
-	DashboardID pgtype.UUID
-	PanelID     string
-	TimeFrom    pgtype.Timestamptz
-	TimeTo      pgtype.Timestamptz
-	Text        string
-	Tags        []string
-	CreatedBy   pgtype.UUID
+	DashboardID   pgtype.UUID
+	PanelID       string
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	Text          string
+	Tags          []string
+	CreatedBy     pgtype.UUID
+	CreatedByKind pgtype.Text
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
 }
 
 func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationParams) (Annotation, error) {
@@ -71,6 +78,9 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 		arg.Text,
 		arg.Tags,
 		arg.CreatedBy,
+		arg.CreatedByKind,
+		arg.Origin,
+		arg.OriginClient,
 	)
 	var i Annotation
 	err := row.Scan(
@@ -83,12 +93,15 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 		&i.Tags,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CreatedByKind,
+		&i.Origin,
+		&i.OriginClient,
 	)
 	return i, err
 }
 
 const listAnnotations = `-- name: ListAnnotations :many
-SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at,
+SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at, a.created_by_kind, a.origin, a.origin_client,
   COALESCE(NULLIF(u.name, ''), u.email, sa.name, '')::text AS created_by_name
 FROM annotations a
 LEFT JOIN users u ON u.id = a.created_by
@@ -123,6 +136,9 @@ type ListAnnotationsRow struct {
 	Tags          []string
 	CreatedBy     pgtype.UUID
 	CreatedAt     pgtype.Timestamptz
+	CreatedByKind pgtype.Text
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
 	CreatedByName string
 }
 
@@ -153,6 +169,9 @@ func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams
 			&i.Tags,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.CreatedByKind,
+			&i.Origin,
+			&i.OriginClient,
 			&i.CreatedByName,
 		); err != nil {
 			return nil, err

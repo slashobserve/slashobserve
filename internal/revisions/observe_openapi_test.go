@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -140,6 +141,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 			To:             now,
 			CreatedAt:      now,
 			CreatedBy:      findings.Author{Kind: "user", ID: userID, Name: "Ada"},
+			Actor:          actor.Actor{Kind: auth.KindUser, ID: userID, Name: "Ada"},
 		}, "/findings/"+findingID)), true, nil
 	}
 	return findingID, finding

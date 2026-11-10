@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -79,6 +80,7 @@ type importJSON struct {
 	Report          grafana.Report             `json:"report"`
 	GrafanaUID      string                     `json:"grafana_uid"`
 	CreatedBy       authorJSON                 `json:"created_by"`
+	Actor           actor.JSON                 `json:"actor"`
 	CreatedAt       string                     `json:"created_at"`
 }
 
@@ -124,6 +126,7 @@ func newImportJSON(r Record) importJSON {
 		Report:          r.Report,
 		GrafanaUID:      r.GrafanaUID,
 		CreatedBy:       authorJSON(r.CreatedBy),
+		Actor:           r.Actor.JSON(),
 		CreatedAt:       httpapi.FormatTime(r.CreatedAt),
 	}
 }

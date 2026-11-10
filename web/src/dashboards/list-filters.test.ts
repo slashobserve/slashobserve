@@ -300,7 +300,7 @@ describe("madeByText", () => {
     expect(madeByText("me", users)).toBe("me")
     expect(madeByText("agent", users)).toBe("Agent")
     expect(madeByText("mcp", users)).toBe("MCP clients")
-    expect(madeByText("mcp:claude-code", users)).toBe("Claude Code")
+    expect(madeByText("mcp:claude-code", users)).toBe("claude-code")
     expect(madeByText("mcp:my-tool", users)).toBe("my-tool")
     expect(madeByText(`user:${id}`, users)).toBe("Ishan")
     expect(madeByText(`service_account:${id}`, users)).toBe("a service account")

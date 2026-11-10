@@ -2491,6 +2491,8 @@ export interface components {
             created_by: string | null;
             /** @description The name of the person or service account that added it; null when it is gone. */
             created_by_name: string | null;
+            /** @description Null when the person or service account is gone. */
+            actor: components["schemas"]["Actor"] | null;
             /** Format: date-time */
             created_at: string;
         };
@@ -2566,6 +2568,25 @@ export interface components {
             name: string;
             email?: string;
         };
+        /** @description Who made a change, as people see it. Display only, never used for access decisions. */
+        Actor: {
+            /** @enum {string} */
+            kind: "user" | "service_account";
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string|null} */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's display name, such as `Claude Code`, when `origin` is `mcp` and the client named itself; else null. */
+            client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request when the built-in agent made the change for this person or key; else null.
+             */
+            run_id: string | null;
+            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted. */
+            label: string;
+        };
         /** @description Who made version 1 of the dashboard. It never changes. */
         Creator: {
             author: components["schemas"]["Author"];
@@ -2581,6 +2602,7 @@ export interface components {
              * @enum {string}
              */
             via: "direct" | "agent";
+            actor: components["schemas"]["Actor"];
         };
         DashboardFolder: {
             /** Format: uuid */
@@ -2647,6 +2669,7 @@ export interface components {
              * @description The agent request that saved this version; null for a version saved directly.
              */
             agent_request_id: string | null;
+            actor: components["schemas"]["Actor"];
         };
         Version: {
             version: number;
@@ -2668,6 +2691,7 @@ export interface components {
              * @description The agent request that saved this version; null for a version saved directly.
              */
             agent_request_id: string | null;
+            actor: components["schemas"]["Actor"];
             /** @description The ObserveSpec document, validated against its own schema. */
             spec: {
                 [key: string]: unknown;
@@ -3474,6 +3498,7 @@ export interface components {
              */
             annotation_id: string | null;
             created_by: components["schemas"]["FindingAuthor"];
+            actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
             /** @description The address of the finding, empty when the server has no public URL configured. */
@@ -3637,6 +3662,7 @@ export interface components {
             /** @description The Grafana dashboard uid this import answers for, or empty. Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; a later import of the same uid, from a file or a connection, gets an empty value. */
             grafana_uid?: string;
             created_by: components["schemas"]["Author"];
+            actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
         };

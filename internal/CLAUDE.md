@@ -8,6 +8,7 @@ The rules for `pkg/` are in the root `CLAUDE.md`.
 This lists only the packages whose purpose the name does not make obvious.
 
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
+- `actor`: who made a write and how it is shown: `Actor` (principal kind, id, name, origin and client, and the agent request id), its column mapping, and `Label` and `ClientName`, the only place an actor or an MCP client name becomes display text for the web, the CLI and MCP.
 - `logattrs`: turns an error into log attributes that are safe to write.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
 - `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
@@ -69,7 +70,7 @@ This lists only the packages whose purpose the name does not make obvious.
   Request and panic logs pass the path through `loggedPath`, which replaces the token of `/api/v1/public/<token>` and `/p/<token>` with `:token`.
 - Creating, listing and revoking a public link needs Manage on the dashboard's folder; the routes declare `RequireDashboard(NeedView)` and `public.Service` decides, so a dashboard in a personal folder answers 409 `personal_folder` and one whose latest version reads `${__user.*}` answers 422 `user_scoped`.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
-- Origin is a display label and never an access decision.
+- Origin, an actor and its label are display only and never an access decision; access always reads `auth.Principal`.
 
 ## Folders and access
 

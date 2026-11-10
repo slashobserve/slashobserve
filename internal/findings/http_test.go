@@ -132,6 +132,16 @@ func TestFindingReadsMatchTheDocument(t *testing.T) {
 	if !strings.Contains(get.Body.String(), `"url":"/findings/`+shared.ID+`"`) {
 		t.Fatalf("finding without its address: %s", get.Body)
 	}
+	var shown struct {
+		Finding struct {
+			Actor struct {
+				Label string `json:"label"`
+			} `json:"actor"`
+		} `json:"finding"`
+	}
+	if err := json.Unmarshal(get.Body.Bytes(), &shown); err != nil || shown.Finding.Actor.Label != editor.Name {
+		t.Fatalf("actor label %q, want %q: %s, %v", shown.Finding.Actor.Label, editor.Name, get.Body, err)
+	}
 
 	refusals := []struct {
 		name string

@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -134,6 +135,47 @@ func TestSavingTwiceForOneRequestReturnsTheFirstFinding(t *testing.T) {
 	})
 	if err != nil || !replayed || again.ID != first.ID || again.Markdown != "first" {
 		t.Fatalf("second save: %+v replayed %v, %v", again, replayed, err)
+	}
+}
+
+func TestFindingRecordsTheOriginItWasSavedThrough(t *testing.T) {
+	r := newRig(t)
+	over := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	saved, _, err := r.service.Save(over, editor, findings.SaveInput{
+		DashboardID: r.open, Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kind, client string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT origin, origin_client FROM findings WHERE id = $1::uuid`, saved.ID).Scan(&kind, &client); err != nil {
+		t.Fatal(err)
+	}
+	if kind != "mcp" || client != "claude-code" {
+		t.Fatalf("stored origin %q and client %q, want mcp and claude-code", kind, client)
+	}
+	got, err := r.service.Get(t.Context(), editor, mustUUID(t, saved.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if label := got.Actor.Label(); label != "Eve (via Claude Code)" {
+		t.Fatalf("label %q, want %q", label, "Eve (via Claude Code)")
+	}
+}
+
+func TestFindingSavedInARunLabelsTheAgent(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, r.open)
+	saved := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
+	got, err := r.service.Get(t.Context(), editor, mustUUID(t, saved.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if label := got.Actor.Label(); label != "/observe for Eve" {
+		t.Fatalf("label %q, want %q", label, "/observe for Eve")
+	}
+	if saved.Actor.Label() != "/observe for Eve" {
+		t.Fatalf("label of the saved finding %q, want %q", saved.Actor.Label(), "/observe for Eve")
 	}
 }
 

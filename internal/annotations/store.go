@@ -8,24 +8,33 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type store struct {
 	db *db.DB
 }
 
-func (s *store) insert(ctx context.Context, in CreateInput, creator pgtype.UUID) (Annotation, error) {
+func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Annotation, error) {
+	cols, err := by.Columns()
+	if err != nil {
+		return Annotation{}, err
+	}
 	row, err := s.db.Queries().InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
-		DashboardID: in.DashboardID,
-		PanelID:     in.PanelID,
-		TimeFrom:    timestamp(&in.From),
-		TimeTo:      timestamp(in.To),
-		Text:        in.Text,
-		Tags:        in.Tags,
-		CreatedBy:   creator,
+		DashboardID:   in.DashboardID,
+		PanelID:       in.PanelID,
+		TimeFrom:      timestamp(&in.From),
+		TimeTo:        timestamp(in.To),
+		Text:          in.Text,
+		Tags:          in.Tags,
+		CreatedBy:     cols.ID,
+		CreatedByKind: pgtype.Text{String: cols.Kind, Valid: true},
+		Origin:        cols.Origin,
+		OriginClient:  cols.Client,
 	})
 	if db.IsForeignKeyViolation(err) {
 		return Annotation{}, ErrNotFound
@@ -89,6 +98,10 @@ func (s *store) list(ctx context.Context, q ListQuery, limit int) ([]Annotation,
 			Tags:        r.Tags,
 			CreatedBy:   r.CreatedBy,
 			CreatedAt:   r.CreatedAt,
+
+			CreatedByKind: r.CreatedByKind,
+			Origin:        r.Origin,
+			OriginClient:  r.OriginClient,
 		})
 		a.CreatedByName = r.CreatedByName
 		out = append(out, a)
@@ -105,12 +118,14 @@ func timestamp(t *time.Time) pgtype.Timestamptz {
 
 func annotationOf(r dbsqlc.Annotation) Annotation {
 	a := Annotation{
-		ID:        r.ID.String(),
-		PanelID:   r.PanelID,
-		From:      r.TimeFrom.Time.UTC(),
-		Text:      r.Text,
-		Tags:      r.Tags,
-		CreatedAt: r.CreatedAt.Time.UTC(),
+		ID:            r.ID.String(),
+		PanelID:       r.PanelID,
+		From:          r.TimeFrom.Time.UTC(),
+		Text:          r.Text,
+		Tags:          r.Tags,
+		CreatedAt:     r.CreatedAt.Time.UTC(),
+		CreatedByKind: r.CreatedByKind.String,
+		Origin:        origin.Origin{Kind: origin.Kind(r.Origin.String), Client: r.OriginClient.String},
 	}
 	if r.DashboardID.Valid {
 		a.DashboardID = r.DashboardID.String()

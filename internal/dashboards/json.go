@@ -1,8 +1,13 @@
 package dashboards
 
 import (
+	"cmp"
+
+	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -18,6 +23,7 @@ type creatorJSON struct {
 	Origin       *string    `json:"origin"`
 	OriginClient *string    `json:"origin_client"`
 	Via          string     `json:"via"`
+	Actor        actor.JSON `json:"actor"`
 }
 
 type dashboardFolderJSON struct {
@@ -66,6 +72,7 @@ type versionMetaJSON struct {
 	Origin         *string    `json:"origin"`
 	OriginClient   *string    `json:"origin_client"`
 	AgentRequestID *string    `json:"agent_request_id"`
+	Actor          actor.JSON `json:"actor"`
 }
 
 type versionJSON struct {
@@ -131,6 +138,27 @@ func newCreatorJSON(c Creator) creatorJSON {
 		Origin:       httpapi.OptionalString(c.Origin),
 		OriginClient: httpapi.OptionalString(c.OriginClient),
 		Via:          c.Via,
+		Actor:        creatorActor(c).JSON(),
+	}
+}
+
+func creatorActor(c Creator) actor.Actor {
+	return actor.Actor{
+		Kind:   auth.PrincipalKind(c.Author.Kind),
+		ID:     c.Author.ID,
+		Name:   cmp.Or(c.Author.Name, c.Author.Email),
+		Origin: origin.Origin{Kind: origin.Kind(c.Origin), Client: c.OriginClient},
+		RunID:  c.RunID,
+	}
+}
+
+func versionActor(v VersionMeta) actor.Actor {
+	return actor.Actor{
+		Kind:   auth.PrincipalKind(v.Author.Kind),
+		ID:     v.Author.ID,
+		Name:   cmp.Or(v.Author.Name, v.Author.Email),
+		Origin: origin.Origin{Kind: origin.Kind(v.Origin), Client: v.OriginClient},
+		RunID:  v.AgentRequestID,
 	}
 }
 
@@ -164,6 +192,7 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 		Origin:         httpapi.OptionalString(v.Origin),
 		OriginClient:   httpapi.OptionalString(v.OriginClient),
 		AgentRequestID: httpapi.OptionalString(v.AgentRequestID),
+		Actor:          versionActor(v).JSON(),
 	}
 }
 
