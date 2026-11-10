@@ -147,6 +147,15 @@ function finding(id: string, createdAt: string): Finding {
     to: at(10),
     annotation_id: null,
     created_by: { kind: "user", id: "u1", name: "Ada" },
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: null,
+      label: "Ada",
+    },
     created_at: createdAt,
     url: "",
   }

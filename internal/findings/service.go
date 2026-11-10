@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -17,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -51,7 +53,14 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if in.Evidence == nil {
 		in.Evidence = []spec.Panel{}
 	}
-	return s.store.insert(ctx, by, in)
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), runID(in.AgentRequestID)), in)
+}
+
+func runID(id pgtype.UUID) string {
+	if !id.Valid {
+		return ""
+	}
+	return id.String()
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {

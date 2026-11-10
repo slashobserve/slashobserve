@@ -47,9 +47,9 @@ function FindingNotFound() {
 function LoadedFinding({ finding }: { finding: Finding }) {
   useDocumentTitle(`${finding.title} - SlashObserve`)
   const foundBy =
-    finding.agent_request_id === null
-      ? `Saved by ${finding.created_by.name}`
-      : "Found by the agent"
+    finding.actor.run_id === null
+      ? `Saved by ${finding.actor.label}`
+      : `Found by ${finding.actor.label}`
   return (
     <>
       <PageHeader

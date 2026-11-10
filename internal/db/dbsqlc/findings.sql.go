@@ -90,9 +90,10 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 
 const insertFinding = `-- name: InsertFinding :one
 INSERT INTO findings (agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client)
 VALUES ($1::uuid, $2::uuid, $3, $4, $5::jsonb,
-  $6, $7, $8, $9, $10)
+  $6, $7, $8, $9, $10,
+  $11::text, $12::text)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client
 `
@@ -108,6 +109,8 @@ type InsertFindingParams struct {
 	CreatedByKind  string
 	CreatedByID    pgtype.UUID
 	CreatedByName  string
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
 }
 
 func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (Finding, error) {
@@ -122,6 +125,8 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		arg.CreatedByKind,
 		arg.CreatedByID,
 		arg.CreatedByName,
+		arg.Origin,
+		arg.OriginClient,
 	)
 	var i Finding
 	err := row.Scan(

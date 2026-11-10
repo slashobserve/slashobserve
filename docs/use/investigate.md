@@ -45,6 +45,7 @@ When it ends, the turn shows the finding: the answer, the evidence panels, and w
 On a dashboard, your running investigations show in the activity pane as running entries, and each finding about the dashboard appears there as "Agent found" with the same card and an **Open finding** link to its page.
 
 The finding page at `/findings/<id>` shows the title, who found it, the answer and the evidence, with links to the dashboard and to the chat that asked.
+Its header reads "Found by /observe for Ishan" for a finding the agent saved and "Saved by Ishan (via Claude Code)" for one saved over MCP, with the same label every surface shows.
 The evidence panels always show the finding's own window, not the dashboard's current range.
 
 ## Pin it to the dashboard

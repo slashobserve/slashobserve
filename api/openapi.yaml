@@ -2689,6 +2689,7 @@ components:
         - to
         - annotation_id
         - created_by
+        - actor
         - created_at
         - url
       properties:
@@ -2735,6 +2736,8 @@ components:
           description: The annotation the finding was pinned as; null until it is pinned.
         created_by:
           $ref: "#/components/schemas/FindingAuthor"
+        actor:
+          $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time

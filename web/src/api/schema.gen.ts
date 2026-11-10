@@ -3496,6 +3496,7 @@ export interface components {
              */
             annotation_id: string | null;
             created_by: components["schemas"]["FindingAuthor"];
+            actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
             /** @description The address of the finding, empty when the server has no public URL configured. */

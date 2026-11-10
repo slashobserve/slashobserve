@@ -1,8 +1,9 @@
 -- name: InsertFinding :one
 INSERT INTO findings (agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client)
 VALUES (sqlc.narg('agent_request_id')::uuid, sqlc.narg('dashboard_id')::uuid, @title, @markdown, @evidence::jsonb,
-  @time_from, @time_to, @created_by_kind, @created_by_id, @created_by_name)
+  @time_from, @time_to, @created_by_kind, @created_by_id, @created_by_name,
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING *;
 
