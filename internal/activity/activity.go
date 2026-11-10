@@ -71,3 +71,10 @@ type Position struct {
 	xid uint64
 	seq int64
 }
+
+func later(a, b Position) Position {
+	if b.xid > a.xid || (b.xid == a.xid && b.seq > a.seq) {
+		return b
+	}
+	return a
+}

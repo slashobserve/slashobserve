@@ -681,12 +681,20 @@ func TestStartResumesAfterASeqAndResetsForAnUnknownOne(t *testing.T) {
 		t.Fatalf("after seq 1: %v, want %v", seqsOf(got), seqs[1:])
 	}
 
+	beginning, reset, err := r.store.Start(ctx, "0")
+	if err != nil || reset || beginning != (Position{}) {
+		t.Fatalf("zero: position %+v, reset %v, err %v", beginning, reset, err)
+	}
+	if got, _, _ := r.next(t, all, beginning, 10); !slices.Equal(seqsOf(got), seqs) {
+		t.Fatalf("from zero: %v, want %v", seqsOf(got), seqs)
+	}
+
 	unknown, reset, err := r.store.Start(ctx, "999999")
 	if err != nil || !reset || unknown != head {
 		t.Fatalf("unknown seq: position %+v, reset %v, err %v", unknown, reset, err)
 	}
 
-	for _, bad := range []string{"abc", "0", "-3", "1.5", " 2"} {
+	for _, bad := range []string{"abc", "-1", "-3", "1.5", " 2"} {
 		if _, _, err := r.store.Start(ctx, bad); !errors.Is(err, ErrInvalidLastEventID) {
 			t.Errorf("Start(%q): got %v, want ErrInvalidLastEventID", bad, err)
 		}
@@ -708,5 +716,29 @@ func TestNextReportsAFullBatchWithoutHeld(t *testing.T) {
 	rest, _, held := r.next(t, all, to, 2)
 	if len(rest) != 1 || held {
 		t.Fatalf("rest: %d events, held %v", len(rest), held)
+	}
+}
+
+func TestAFilteredNextFromTheStartAdvancesToTheHead(t *testing.T) {
+	r := newRig(t)
+	all := r.audience(t, admin)
+	for range 3 {
+		r.append(t, Entry{Type: TypeFindingCreated})
+	}
+	head, _, err := r.store.Start(t.Context(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	onlyMoves := Filter{Types: []string{TypeDashboardMoved}}
+
+	got, to, _, err := r.store.Next(t.Context(), all, onlyMoves, Position{}, 10)
+
+	if err != nil || len(got) != 0 || to != head {
+		t.Fatalf("got %v, to %+v, want no rows and %+v, err %v", seqsOf(got), to, head, err)
+	}
+	moved := r.append(t, Entry{Type: TypeDashboardMoved})
+	got, _, _, err = r.store.Next(t.Context(), all, onlyMoves, to, 10)
+	if err != nil || !slices.Equal(seqsOf(got), []int64{moved}) {
+		t.Fatalf("after the head: %v, want [%d], err %v", seqsOf(got), moved, err)
 	}
 }

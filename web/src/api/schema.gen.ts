@@ -374,7 +374,7 @@ export interface paths {
         };
         /**
          * Follow workspace activity as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a positive integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
          */
         get: operations["streamActivity"];
         put?: never;
@@ -5054,7 +5054,7 @@ export interface operations {
                 since?: string;
             };
             header?: {
-                /** @description The `seq` of the last event the client handled. */
+                /** @description The `seq` of the last event the client handled, or `0` to start at the beginning of the log. */
                 "Last-Event-ID"?: string;
             };
             path?: never;

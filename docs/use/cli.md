@@ -364,7 +364,7 @@ You see only the events of the folders the key can see, and an empty log prints 
 
 `--follow` prints that page and then keeps printing new events until you press Ctrl-C, which exits 0.
 It reads `GET /api/v1/activity/stream` from the newest event it printed, so no event is skipped or repeated, and with `--json` it prints one event object per line, the first page included.
-When the connection drops it reconnects after the server's retry delay from the last event it printed, and it exits 1 after 3 failed attempts in a row.
+When the connection drops, or nothing arrives for 45 seconds (not even the server's 15 second pings), it reconnects after the server's retry delay from the last event it printed, and it exits 1 after 3 failed attempts in a row.
 If the server no longer knows that event it prints `Some activity may have been missed.` and continues from the newest event; run `bin/observe activity` again to read what happened in between.
 
 ## Shell completion
