@@ -345,6 +345,46 @@ export interface paths {
         patch: operations["updateSavedPrompt"];
         trace?: never;
     };
+    "/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List workspace activity, newest first.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`. Comments, suggestions and build progress are not recorded.
+         */
+        get: operations["listActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/activity/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow workspace activity as Server-Sent Events.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a positive integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
+         */
+        get: operations["streamActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/annotations": {
         parameters: {
             query?: never;
@@ -2586,6 +2626,45 @@ export interface components {
             run_id: string | null;
             /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted. */
             label: string;
+        };
+        /** @enum {string} */
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
+        /** @description One entry of the activity log. */
+        ActivityEvent: {
+            /**
+             * Format: int64
+             * @description The event's id; `Last-Event-ID` of the stream takes it.
+             */
+            seq: number;
+            type: components["schemas"]["ActivityType"];
+            target: {
+                /** @enum {string} */
+                kind: "dashboard" | "annotation" | "finding" | "run";
+                /**
+                 * Format: uuid
+                 * @description The id of the dashboard, annotation, finding or agent request the event is about.
+                 */
+                id: string;
+            };
+            /**
+             * Format: uuid
+             * @description The dashboard the event belongs to; it may no longer exist.
+             */
+            dashboard_id: string | null;
+            /**
+             * Format: uuid
+             * @description The folder that decides who sees the event; null for an event with no folder, which only its actor and Admins see.
+             */
+            folder_id: string | null;
+            actor: components["schemas"]["Actor"];
+            /** @description Ids, numbers, enums, titles and the version summary of the change, by type as `listActivity` lists; never body text. */
+            data: Record<string, never>;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ActivityList: {
+            activity: components["schemas"]["ActivityEvent"][];
+            next_cursor: string | null;
         };
         /** @description Who made version 1 of the dashboard. It never changes. */
         Creator: {
@@ -4928,6 +5007,92 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    listActivity: {
+        parameters: {
+            query?: {
+                /** @description Only events of this dashboard. */
+                dashboard_id?: string;
+                /** @description Only events whose folder is this one. */
+                folder_id?: string;
+                /** @description Only events of these types; repeat the parameter for several. */
+                type?: components["schemas"]["ActivityType"][];
+                /** @description RFC 3339 time; only events created at or after it. */
+                since?: string;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    streamActivity: {
+        parameters: {
+            query?: {
+                dashboard_id?: string;
+                folder_id?: string;
+                type?: components["schemas"]["ActivityType"][];
+                since?: string;
+            };
+            header?: {
+                /** @description The `seq` of the last event the client handled. */
+                "Last-Event-ID"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An open `text/event-stream`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listAnnotations: {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -54,14 +53,11 @@ type Handler struct {
 	view         gin.HandlerFunc
 	logger       *slog.Logger
 	pingInterval time.Duration
-
-	mu          sync.Mutex
-	total       int
-	byPrincipal map[string]int
+	slots        *slots
 }
 
 func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, sessions: sessions, access: access, view: view, logger: logger, pingInterval: pingInterval, byPrincipal: map[string]int{}}
+	return &Handler{broker: b, dashboards: d, sessions: sessions, access: access, view: view, logger: logger, pingInterval: pingInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -86,11 +82,11 @@ func (h *Handler) serve(c *gin.Context) {
 	}
 	principal, _ := auth.FromContext(c.Request.Context())
 	key := string(principal.Kind) + ":" + principal.ID
-	if status, code := h.acquire(key); status != 0 {
+	if status, code := h.slots.acquire(key); status != 0 {
 		abort(c, status, code, "too many open event streams")
 		return
 	}
-	defer h.release(key)
+	defer h.slots.release(key)
 
 	dashboardID := id.String()
 	sub, err := h.broker.Subscribe(dashboardID)
@@ -202,29 +198,6 @@ func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bo
 		h.logger.WarnContext(c.Request.Context(), "re-check event stream dashboard access", logattrs.Failure("stream_access_check_failed", err, slog.String("dashboard_id", id.String()))...)
 	}
 	return c.Request.Context().Err() == nil, true
-}
-
-func (h *Handler) acquire(key string) (int, string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.byPrincipal[key] >= maxStreamsPerUser {
-		return http.StatusTooManyRequests, "too_many_streams"
-	}
-	if h.total >= maxStreamsPerProc {
-		return http.StatusServiceUnavailable, "too_many_streams"
-	}
-	h.byPrincipal[key]++
-	h.total++
-	return 0, ""
-}
-
-func (h *Handler) release(key string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.total--
-	if h.byPrincipal[key]--; h.byPrincipal[key] <= 0 {
-		delete(h.byPrincipal, key)
-	}
 }
 
 func writeEvent(c *gin.Context, name string, data any) bool {
