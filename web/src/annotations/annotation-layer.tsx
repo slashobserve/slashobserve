@@ -202,7 +202,7 @@ function Entry({
         {timeText(annotation, zone)}
       </div>
       <div className="text-muted-foreground">
-        {annotation.created_by_name ?? "Unknown"}
+        {annotation.actor?.label ?? "Unknown"}
         {annotation.dashboard_id === null ? " · Every dashboard" : null}
       </div>
       <p className="text-[13px] break-words whitespace-pre-wrap">

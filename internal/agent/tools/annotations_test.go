@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 func TestAnnotationQueryBoundsTheInput(t *testing.T) {
@@ -64,6 +65,25 @@ func TestAnnotationOfFormatsTimesAndLeavesOutEmptyFields(t *testing.T) {
 	got := annotationOf(annotations.Annotation{ID: "a2", DashboardID: "d1", PanelID: "p1", From: from, To: &to, Text: "load test", Tags: []string{"test"}, CreatedByName: "ci"})
 	if got.DashboardID != "d1" || got.PanelID != "p1" || got.TimeTo != "2026-11-06T10:00:00Z" || got.CreatedByName != "ci" || got.Tags[0] != "test" {
 		t.Errorf("range = %+v", got)
+	}
+}
+
+func TestAnnotationOfLabelsTheCreatorWhenItIsKnown(t *testing.T) {
+	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	known := annotationOf(annotations.Annotation{
+		ID: "a1", From: from, Text: "deploy", CreatedBy: "11111111-1111-4111-8111-111111111111",
+		CreatedByKind: "service_account", CreatedByName: "deploy-bot", Origin: origin.Origin{Kind: origin.MCP, Client: "claude-code"},
+	})
+	if known.CreatedByLabel != "deploy-bot (via Claude Code)" || known.CreatedByName != "deploy-bot" {
+		t.Errorf("known creator = %+v", known)
+	}
+	gone := annotationOf(annotations.Annotation{ID: "a2", From: from, Text: "deploy", CreatedByKind: "service_account"})
+	raw, err := json.Marshal(gone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "created_by_label") {
+		t.Errorf("a creator that is gone still has a label: %s", raw)
 	}
 }
 

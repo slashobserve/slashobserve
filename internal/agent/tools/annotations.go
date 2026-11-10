@@ -62,14 +62,15 @@ type listAnnotationsInput struct {
 }
 
 type annotationOut struct {
-	ID            string   `json:"id"`
-	DashboardID   string   `json:"dashboard_id,omitempty"`
-	PanelID       string   `json:"panel_id,omitempty"`
-	TimeFrom      string   `json:"time_from"`
-	TimeTo        string   `json:"time_to,omitempty"`
-	Text          string   `json:"text"`
-	Tags          []string `json:"tags"`
-	CreatedByName string   `json:"created_by_name,omitempty"`
+	ID             string   `json:"id"`
+	DashboardID    string   `json:"dashboard_id,omitempty"`
+	PanelID        string   `json:"panel_id,omitempty"`
+	TimeFrom       string   `json:"time_from"`
+	TimeTo         string   `json:"time_to,omitempty"`
+	Text           string   `json:"text"`
+	Tags           []string `json:"tags"`
+	CreatedByName  string   `json:"created_by_name,omitempty"`
+	CreatedByLabel string   `json:"created_by_label,omitempty"`
 }
 
 type annotationListOut struct {
@@ -185,6 +186,9 @@ func annotationOf(a annotations.Annotation) annotationOut {
 	}
 	if a.To != nil {
 		out.TimeTo = a.To.UTC().Format(time.RFC3339)
+	}
+	if who, ok := a.Actor(); ok {
+		out.CreatedByLabel = who.Label()
 	}
 	return out
 }

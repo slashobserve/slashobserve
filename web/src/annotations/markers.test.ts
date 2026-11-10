@@ -28,6 +28,7 @@ function annotation(over: Partial<Annotation> = {}): Annotation {
     tags: [],
     created_by: null,
     created_by_name: null,
+    actor: null,
     created_at: iso(t0),
     ...over,
   }

@@ -2491,6 +2491,8 @@ export interface components {
             created_by: string | null;
             /** @description The name of the person or service account that added it; null when it is gone. */
             created_by_name: string | null;
+            /** @description Null when the person or service account is gone. */
+            actor: components["schemas"]["Actor"] | null;
             /** Format: date-time */
             created_at: string;
         };

@@ -1,7 +1,6 @@
 package annotations
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"regexp"
@@ -11,10 +10,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -56,8 +57,17 @@ type Annotation struct {
 	Text          string
 	Tags          []string
 	CreatedBy     string
+	CreatedByKind string
 	CreatedByName string
+	Origin        origin.Origin
 	CreatedAt     time.Time
+}
+
+func (a Annotation) Actor() (actor.Actor, bool) {
+	if a.CreatedByKind == "" || a.CreatedByName == "" {
+		return actor.Actor{}, false
+	}
+	return actor.Actor{Kind: auth.PrincipalKind(a.CreatedByKind), ID: a.CreatedBy, Name: a.CreatedByName, Origin: a.Origin}, true
 }
 
 type CreateInput struct {
@@ -138,15 +148,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err := s.mayCreate(ctx, by, clean.DashboardID); err != nil {
 		return Annotation{}, err
 	}
-	creator, err := db.ParseUUID(by.ID)
-	if err != nil {
+	creator := actor.Of(by, origin.From(ctx), "")
+	if _, err := db.ParseUUID(creator.ID); err != nil {
 		return Annotation{}, ErrForbidden
 	}
 	a, err := s.store.insert(ctx, clean, creator)
 	if err != nil {
 		return Annotation{}, err
 	}
-	a.CreatedByName = cmp.Or(by.Name, by.Email)
+	a.CreatedByKind = string(creator.Kind)
+	a.CreatedByName = creator.Name
+	a.Origin = creator.Origin
 	return a, nil
 }
 

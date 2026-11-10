@@ -731,7 +731,7 @@ components:
     Annotation:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_name, created_at]
+      required: [id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_name, actor, created_at]
       properties:
         id:
           type: string
@@ -770,6 +770,11 @@ components:
           type: string
           nullable: true
           description: The name of the person or service account that added it; null when it is gone.
+        actor:
+          nullable: true
+          description: Null when the person or service account is gone.
+          allOf:
+            - $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time

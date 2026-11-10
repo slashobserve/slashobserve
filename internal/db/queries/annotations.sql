@@ -1,6 +1,7 @@
 -- name: InsertAnnotation :one
-INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by)
-VALUES (sqlc.narg('dashboard_id')::uuid, @panel_id, @time_from, sqlc.narg('time_to')::timestamptz, @text, @tags::text[], @created_by)
+INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client)
+VALUES (sqlc.narg('dashboard_id')::uuid, @panel_id, @time_from, sqlc.narg('time_to')::timestamptz, @text, @tags::text[], @created_by,
+  @created_by_kind, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
 RETURNING *;
 
 -- name: GetAnnotation :one
@@ -12,7 +13,7 @@ WHERE id = @id;
 DELETE FROM annotations WHERE id = @id;
 
 -- name: ListAnnotations :many
-SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at,
+SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at, a.created_by_kind, a.origin, a.origin_client,
   COALESCE(NULLIF(u.name, ''), u.email, sa.name, '')::text AS created_by_name
 FROM annotations a
 LEFT JOIN users u ON u.id = a.created_by

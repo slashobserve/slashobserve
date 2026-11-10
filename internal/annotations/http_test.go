@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -37,7 +38,7 @@ func (f *fakeAnnotations) Create(_ context.Context, _ auth.Principal, in CreateI
 	if f.err != nil {
 		return Annotation{}, f.err
 	}
-	return Annotation{ID: annotationText, DashboardID: in.DashboardID.String(), PanelID: in.PanelID, From: in.From, To: in.To, Text: in.Text, Tags: append([]string{}, in.Tags...), CreatedBy: editor.ID, CreatedByName: editor.Name, CreatedAt: base}, nil
+	return Annotation{ID: annotationText, DashboardID: in.DashboardID.String(), PanelID: in.PanelID, From: in.From, To: in.To, Text: in.Text, Tags: append([]string{}, in.Tags...), CreatedBy: editor.ID, CreatedByKind: string(editor.Kind), CreatedByName: editor.Name, Origin: origin.Origin{Kind: origin.MCP, Client: "claude-code"}, CreatedAt: base}, nil
 }
 
 func (f *fakeAnnotations) Delete(_ context.Context, _ auth.Principal, id pgtype.UUID) error {
@@ -98,6 +99,10 @@ func TestCreateParsesTheBodyAndAnswersTheAnnotation(t *testing.T) {
 		"id": annotationText, "dashboard_id": dashboardText, "panel_id": "latency",
 		"time_from": "2026-11-01T10:00:00Z", "time_to": "2026-11-01T10:30:00.5Z", "text": "deploy v2",
 		"tags": []any{"deploy"}, "created_by": editor.ID, "created_by_name": editor.Name, "created_at": "2026-11-01T10:00:00Z",
+		"actor": map[string]any{
+			"kind": "user", "id": editor.ID, "name": editor.Name, "origin": "mcp", "client": "Claude Code",
+			"run_id": nil, "label": "Eve (via Claude Code)",
+		},
 	}
 	for k, v := range want {
 		if got, err := json.Marshal(body[k]); err != nil || !slices.Equal(got, must(json.Marshal(v))) {
@@ -214,7 +219,7 @@ func TestListAnswersTheNextCursor(t *testing.T) {
 
 func TestListAnswersTheAuthorNameOrNull(t *testing.T) {
 	fake := &fakeAnnotations{page: Page{Annotations: []Annotation{
-		{ID: annotationText, From: base, Text: "deploy", Tags: []string{}, CreatedBy: editor.ID, CreatedByName: "Eve", CreatedAt: base},
+		{ID: annotationText, From: base, Text: "deploy", Tags: []string{}, CreatedBy: editor.ID, CreatedByKind: "user", CreatedByName: "Eve", CreatedAt: base},
 		{ID: annotationText, From: base, Text: "gone", Tags: []string{}, CreatedAt: base},
 	}}}
 	rec := serve(t, fake, http.MethodGet, "/api/v1/annotations", "")
@@ -232,6 +237,12 @@ func TestListAnswersTheAuthorNameOrNull(t *testing.T) {
 	}
 	if got, ok := body.Annotations[1]["created_by_name"]; !ok || got != nil {
 		t.Errorf("created_by_name %v (present %v), want null", got, ok)
+	}
+	if actor, ok := body.Annotations[0]["actor"].(map[string]any); !ok || actor["label"] != "Eve" {
+		t.Errorf("actor %v, want one labelled Eve", body.Annotations[0]["actor"])
+	}
+	if got, ok := body.Annotations[1]["actor"]; !ok || got != nil {
+		t.Errorf("actor %v (present %v), want null", got, ok)
 	}
 }
 
