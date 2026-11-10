@@ -332,7 +332,7 @@ func newFollower(t *testing.T, f *activityFake, stdout io.Writer) *activityFollo
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &activityFollower{c: c, query: url.Values{}, out: &output{out: stdout, err: io.Discard}, retry: time.Millisecond}
+	return &activityFollower{c: c, query: url.Values{}, out: &output{out: stdout, err: io.Discard}, retry: time.Millisecond, idle: streamIdleTimeout}
 }
 
 func TestActivityFollowGivesUpAfterRepeatedServerFailures(t *testing.T) {
@@ -350,6 +350,48 @@ func TestActivityFollowTreatsAnEmptyStreamAsAFailure(t *testing.T) {
 	f := newActivityFake(t, "", sendFrames(""), sendFrames(""), sendFrames(""), sendFrames(""))
 	err := newFollower(t, f, io.Discard).run(t.Context())
 	if err == nil || !strings.Contains(err.Error(), "without sending anything") || len(f.opened) != maxPollFailures {
+		t.Fatalf("run: %v after %d streams", err, len(f.opened))
+	}
+}
+
+func TestActivityFollowReconnectsFromTheLastEventWhenTheStreamGoesSilent(t *testing.T) {
+	silent := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "retry: 10\nevent: ready\ndata: {}\n\n"+activityFrame(7, "annotation.created", "Sam", "2026-11-01T10:00:00Z", `{"tags":["deploy"]}`))
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}
+	f := newActivityFake(t, "", silent)
+	var stdout strings.Builder
+	follower := newFollower(t, f, &stdout)
+	follower.idle = 50 * time.Millisecond
+
+	err := follower.run(t.Context())
+
+	if err == nil || !strings.Contains(err.Error(), "stop (stop_here)") {
+		t.Fatalf("run: %v", err)
+	}
+	if fmt.Sprint(f.opened) != "[0 7]" {
+		t.Errorf("Last-Event-ID sent %q", f.opened)
+	}
+	if want := "2026-11-01T10:00:00Z  Sam  added an annotation (deploy)\n"; stdout.String() != want {
+		t.Errorf("stdout %q, want %q", stdout.String(), want)
+	}
+}
+
+func TestActivityFollowReportsASilentStreamThatNeverSentAnything(t *testing.T) {
+	silent := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}
+	f := newActivityFake(t, "", silent, silent, silent, silent)
+	follower := newFollower(t, f, io.Discard)
+	follower.idle = 20 * time.Millisecond
+
+	err := follower.run(t.Context())
+
+	if err == nil || !isTransient(err) || !strings.Contains(err.Error(), "sent nothing for 20ms") || len(f.opened) != maxPollFailures {
 		t.Fatalf("run: %v after %d streams", err, len(f.opened))
 	}
 }

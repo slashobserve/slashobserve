@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,6 +24,7 @@ const (
 	defaultActivityLimit = 20
 	maxActivityLimit     = 100
 	defaultStreamRetry   = 3 * time.Second
+	streamIdleTimeout    = 45 * time.Second
 	maxFrameBytes        = 1 << 20
 	activityTimeLayout   = "2006-01-02T15:04:05Z"
 )
@@ -176,7 +178,7 @@ func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
 	if !opts.follow {
 		return nil
 	}
-	follower := &activityFollower{c: c, query: filters, out: out, json: a.json, retry: defaultStreamRetry}
+	follower := &activityFollower{c: c, query: filters, out: out, json: a.json, retry: defaultStreamRetry, idle: streamIdleTimeout}
 	if len(entries) > 0 {
 		follower.last = strconv.FormatInt(entries[len(entries)-1].event.Seq, 10)
 	}
@@ -297,6 +299,30 @@ type activityFollower struct {
 	json  bool
 	last  string
 	retry time.Duration
+	idle  time.Duration
+}
+
+type idleReader struct {
+	body  io.Reader
+	idle  time.Duration
+	timer *time.Timer
+	fired atomic.Bool
+}
+
+func newIdleReader(body io.ReadCloser, idle time.Duration) *idleReader {
+	r := &idleReader{body: body, idle: idle}
+	r.timer = time.AfterFunc(idle, func() {
+		r.fired.Store(true)
+		_ = body.Close()
+	})
+	r.timer.Stop()
+	return r
+}
+
+func (r *idleReader) Read(p []byte) (int, error) {
+	r.timer.Reset(r.idle)
+	defer r.timer.Stop()
+	return r.body.Read(p)
 }
 
 func (f *activityFollower) run(ctx context.Context) error {
@@ -337,9 +363,10 @@ func (f *activityFollower) once(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	defer func() { _ = body.Close() }()
+	watched := newIdleReader(body, f.idle)
 	received := false
 	var handled error
-	err = readFrames(body, func(fr sseFrame) error {
+	err = readFrames(watched, func(fr sseFrame) error {
 		received = true
 		handled = f.handle(fr)
 		return handled
@@ -347,6 +374,8 @@ func (f *activityFollower) once(ctx context.Context) (bool, error) {
 	switch {
 	case handled != nil:
 		return received, handled
+	case watched.fired.Load():
+		return received, transportFailure{fmt.Errorf("the activity stream sent nothing for %s", f.idle)}
 	case err != nil:
 		return received, f.c.transportError(ctx, err)
 	}
