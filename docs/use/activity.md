@@ -1,6 +1,6 @@
 ---
 title: Activity
-description: Read and follow what changed in your workspace, from dashboard saves to agent runs, through the HTTP API, with each person seeing only the folders they can view.
+description: Read and follow what changed in your workspace, from dashboard saves to agent runs, through the HTTP API and MCP, with each person seeing only the folders they can view.
 ---
 
 The activity log records every change to a dashboard, annotation or finding, and every agent run, in the order it happened.
@@ -81,6 +81,12 @@ A person or key may hold 5 streams, and the server 500; beyond that the answer i
 curl -N -H "Authorization: Bearer $OBSERVE_TOKEN" \
   "$OBSERVE_SERVER/api/v1/activity/stream?type=run.failed"
 ```
+
+## Read it over MCP
+
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.
+It lists only what the key may see, by the rules above, and pages with `next_cursor`.
+The tool has no stream; an agent calls it again with `since` to see what changed.
 
 ## Not recorded
 

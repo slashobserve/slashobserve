@@ -28,6 +28,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `get_trace` | Editor |
 | `import_grafana_dashboard` | Editor |
 | `lint_query` | Editor |
+| `list_activity` | Viewer |
 | `list_annotations` | Viewer |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
@@ -147,6 +148,10 @@ OpenSearch has no such aggregation, so the server clusters the newest 2,000 line
 Pass the datasource, the query and optionally `from`, `to` and `limit`, 10 patterns by default and at most 30.
 The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`, the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
 The built-in agent has the same tool.
+
+`list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
+Narrow it with `dashboard_id`, `folder_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
+It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
 It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.

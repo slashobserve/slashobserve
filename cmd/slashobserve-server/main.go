@@ -303,6 +303,7 @@ func run() error {
 		Findings:    findingsService,
 		Health:      healthService,
 		Annotations: annotationsService,
+		Activity:    activityStore,
 		Provider:    llmProvider,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
