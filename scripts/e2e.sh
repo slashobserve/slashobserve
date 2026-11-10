@@ -2479,7 +2479,7 @@ mcp_suite() {
   vid="$(comment_ids "$TMP/api.body")"
   [[ -n "$vid" ]] || fail "no comment id in the version 2 comment response ($(cat "$TMP/api.body"))"
   mcp_tool resolve_comment "{\"comment_id\":\"$vid\",\"version\":1}"
-  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body" || ! grep -q 'version must be at least 2' "$TMP/mcp.body"; then
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body" || ! grep -q 'version must be at least the version the thread is on (2)' "$TMP/mcp.body"; then
     fail "resolve_comment with a version before the thread's ($(cat "$TMP/mcp.body"))"
   fi
   mcp_tool reply_to_comment '{"comment_id":"x","body":"hello"}'
