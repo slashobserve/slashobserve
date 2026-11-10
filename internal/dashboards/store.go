@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -161,17 +163,36 @@ func isFolderGone(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == dashboardFolderFK
 }
 
-func (st store) move(ctx context.Context, id, folderID pgtype.UUID) error {
-	_, err := st.db.Queries().MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: folderID})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return ErrNotFound
-	case isFolderGone(err):
-		return ErrFolderNotFound
-	case err != nil:
-		return fmt.Errorf("move dashboard: %w", err)
-	}
-	return nil
+func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
+	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to})
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrNotFound
+		case isFolderGone(err):
+			return ErrFolderNotFound
+		case err != nil:
+			return fmt.Errorf("move dashboard: %w", err)
+		}
+		if _, err := q.MoveDashboardActivity(ctx, dbsqlc.MoveDashboardActivityParams{FolderID: to, DashboardID: id}); err != nil {
+			return fmt.Errorf("move dashboard activity: %w", err)
+		}
+		entry := activity.Entry{
+			Type:        activity.TypeDashboardMoved,
+			TargetID:    id,
+			DashboardID: id,
+			Actor:       by,
+			Data:        movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
+		}
+		_, err = activity.Append(ctx, q, entry, nil)
+		return err
+	})
+}
+
+type movedActivityFields struct {
+	Title        string `json:"title"`
+	FromFolderID string `json:"from_folder_id"`
+	ToFolderID   string `json:"to_folder_id"`
 }
 
 func deletedEvent(dashboardID pgtype.UUID, by Author) events.Event {
@@ -182,24 +203,39 @@ func deletedEvent(dashboardID pgtype.UUID, by Author) events.Event {
 	}
 }
 
-func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
+func (st store) delete(ctx context.Context, id pgtype.UUID, by actor.Actor) error {
 	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		title, err := q.LockDashboardForDelete(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("lock dashboard: %w", err)
+		}
+		ev := deletedEvent(id, Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name})
+		entry := activity.Entry{
+			Type:        activity.TypeDashboardDeleted,
+			TargetID:    id,
+			DashboardID: id,
+			Actor:       by,
+			Data:        deletedActivityFields{Title: title},
+		}
+		if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
+			return err
+		}
 		n, err := q.DeleteDashboard(ctx, id)
 		if err != nil {
 			return fmt.Errorf("delete dashboard: %w", err)
 		}
 		if n == 0 {
-			if _, err := q.GetDashboardLatestVersion(ctx, id); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					return ErrNotFound
-				}
-				return fmt.Errorf("get latest version: %w", err)
-			}
 			return ErrBeingCreated
 		}
-		ev := deletedEvent(id, by)
-		return events.Notify(ctx, q, 0, &ev)
+		return nil
 	})
+}
+
+type deletedActivityFields struct {
+	Title string `json:"title"`
 }
 
 func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Version, error) {
@@ -288,10 +324,46 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	}
 	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
 	ev := versionEvent(in.dashboardID, meta)
-	if err := events.Notify(ctx, q, 0, &ev); err != nil {
+	entry := activity.Entry{
+		Type:        versionActivityType(meta),
+		TargetID:    in.dashboardID,
+		DashboardID: in.dashboardID,
+		Actor:       versionActor(meta),
+		Data:        versionActivityData(in.spec.Title, meta),
+	}
+	if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 		return VersionMeta{}, err
 	}
 	return meta, nil
+}
+
+func versionActivityType(meta VersionMeta) string {
+	switch {
+	case meta.RestoredFrom != nil:
+		return activity.TypeDashboardRestored
+	case meta.Number == 1:
+		return activity.TypeDashboardCreated
+	default:
+		return activity.TypeDashboardVersionCreated
+	}
+}
+
+type versionActivityFields struct {
+	Version       int    `json:"version"`
+	ParentVersion *int   `json:"parent_version,omitempty"`
+	RestoredFrom  *int   `json:"restored_from,omitempty"`
+	Title         string `json:"title"`
+	Summary       string `json:"summary"`
+}
+
+func versionActivityData(title string, meta VersionMeta) versionActivityFields {
+	return versionActivityFields{
+		Version:       meta.Number,
+		ParentVersion: meta.ParentVersion,
+		RestoredFrom:  meta.RestoredFrom,
+		Title:         title,
+		Summary:       meta.Summary,
+	}
 }
 
 func capEventAuthorName(name string) string {

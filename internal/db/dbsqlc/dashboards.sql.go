@@ -832,6 +832,17 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 	return items, nil
 }
 
+const lockDashboardForDelete = `-- name: LockDashboardForDelete :one
+SELECT title FROM dashboards WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockDashboardForDelete(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, lockDashboardForDelete, id)
+	var title string
+	err := row.Scan(&title)
+	return title, err
+}
+
 const moveDashboard = `-- name: MoveDashboard :one
 UPDATE dashboards SET folder_id = $1 WHERE id = $2 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
