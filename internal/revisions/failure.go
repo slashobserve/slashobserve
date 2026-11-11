@@ -33,4 +33,6 @@ const (
 	FailureLeaseExpired        FailureCode = "lease_expired"
 	FailureNoProgress          FailureCode = "no_progress"
 	FailureBudgetExhausted     FailureCode = "budget_exhausted"
+	FailureAgentUnavailable    FailureCode = "agent_unavailable"
+	FailureAgentFailed         FailureCode = "agent_failed"
 )

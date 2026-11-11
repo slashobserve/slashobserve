@@ -377,6 +377,7 @@ func run() error {
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
+	jobs.Register("agent_requests_sweep", time.Minute, revisionsService.Sweep)
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)

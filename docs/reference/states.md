@@ -29,6 +29,7 @@ A run is one agent request, started by `POST /observe`, a comment, a prompt, an 
 | `fail` | `running` | `failed` | `run.failed` | server |
 | `settle` | `queued`, `canceling` | `canceled`, `succeeded` | `run.canceled` or `run.succeeded` | server |
 | `exhaust` | `running` | `failed`, `succeeded` | `run.failed` or `run.succeeded` | server |
+| `expire` | `queued`, `running` | `failed`, `succeeded` | `run.failed` or `run.succeeded` | server |
 | `keep_build` | `failed`, `canceled` | - | `run.kept` | requester |
 | `continue` | `failed`, `canceled` | - | - | requester |
 | `retry` | `succeeded`, `failed`, `canceled` | - | - | anyone who may start one |

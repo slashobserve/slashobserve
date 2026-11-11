@@ -553,27 +553,8 @@ func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, err
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
-		exhausted, err := q.FailExhaustedAgentRequests(ctx, dbsqlc.FailExhaustedAgentRequestsParams{FromStates: RunMachine.From(ActionExhaust), MaxAttempts: MaxAttempts})
-		if err != nil {
-			return fmt.Errorf("fail exhausted agent requests: %w", err)
-		}
-		settled, err := q.SettleCanceledAgentRequests(ctx, dbsqlc.SettleCanceledAgentRequestsParams{FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage})
-		if err != nil {
-			return fmt.Errorf("settle canceled agent requests: %w", err)
-		}
-		s.deleteExpiredBuilds(ctx, savepoint)
-		for _, group := range []struct {
-			rows   []dbsqlc.AgentRequest
-			action Action
-		}{{exhausted, ActionExhaust}, {settled, ActionSettle}} {
-			for _, row := range group.rows {
-				if err := recordRun(ctx, q, row, group.action); err != nil {
-					return err
-				}
-				if State(row.State) == StateSucceeded {
-					s.resolveThread(ctx, savepoint, row)
-				}
-			}
+		if err := s.sweep(ctx, q, savepoint); err != nil {
+			return err
 		}
 		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts,
 			AssignedKind: string(c.Kind), AssignedID: assignedID, ClaimedBy: c.Key(),

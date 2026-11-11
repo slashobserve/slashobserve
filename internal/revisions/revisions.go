@@ -39,10 +39,12 @@ const (
 	MaxSteps                         = 1000
 	MaxStepMessageRunes              = 200
 	BuildRetentionDays               = 7
+	UnclaimedFor                     = 10 * time.Minute
 
 	WakeChannel      = "slashobserve_agent_requests"
 	ExhaustedMessage = "agent run did not finish"
 	CanceledMessage  = "the run was canceled"
+	UnclaimedMessage = "no agent took this run within 10 minutes"
 )
 
 type Source string
