@@ -450,7 +450,7 @@ bin/observe webhooks list
 bin/observe webhooks test <webhook id>
 ```
 
-- `list` prints each webhook's id, name, address, number of event types and status, which is `enabled` or `disabled (<reason>)`.
+- `list` prints each webhook's id, name, address, number of event types and status, which is `sending`, `retrying` or `disabled (<reason>)`.
 - `add --name <name> --url <https address> --event <type>` creates a webhook, and `--event` repeats for several types.
   It prints the webhook and its signing secret once, and a notice on standard error says the secret is not shown again, so copy it then; `-q` hides the notice but not the secret.
   An address whose domain is not on the [outbound allowlist](../operate/outbound-access.md) fails with `outbound_domain_not_allowed`.
