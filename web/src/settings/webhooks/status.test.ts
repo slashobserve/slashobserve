@@ -11,17 +11,17 @@ describe("webhookStatus", () => {
   test("a healthy webhook is sending", () => {
     expect(
       webhookStatus({
-        enabled: true,
+        state: "sending",
         disabled_reason: null,
         consecutive_failures: 0,
       })
     ).toEqual({ tone: "ok", label: "Sending", detail: null })
   })
 
-  test("failures while enabled read as retrying", () => {
+  test("a webhook the server marks retrying says how many attempts failed", () => {
     expect(
       webhookStatus({
-        enabled: true,
+        state: "retrying",
         disabled_reason: null,
         consecutive_failures: 1,
       })
@@ -32,7 +32,7 @@ describe("webhookStatus", () => {
     })
     expect(
       webhookStatus({
-        enabled: true,
+        state: "retrying",
         disabled_reason: null,
         consecutive_failures: 4,
       }).detail
@@ -42,7 +42,7 @@ describe("webhookStatus", () => {
   test("a disabled webhook says why", () => {
     expect(
       webhookStatus({
-        enabled: false,
+        state: "disabled",
         disabled_reason: "gone",
         consecutive_failures: 3,
       })

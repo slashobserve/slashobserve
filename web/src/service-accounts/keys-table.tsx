@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { usersQuery } from "@/people/queries"
 
-import { expiryState, keyStatus } from "./key-status"
+import { canRevokeKey, expiryState } from "./key-status"
 import { loadProblemText } from "./queries"
 import { RevokeKeyButton } from "./revoke-key-button"
 import { useAllKeys } from "./use-all-keys"
@@ -144,7 +144,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                   <StatusLabel tone={state.tone}>{state.text}</StatusLabel>
                 </Cell>
                 <Cell data-cell="action" className="text-right">
-                  {keyStatus(key, now) === "active" ? (
+                  {canRevokeKey(key) ? (
                     <RevokeKeyButton
                       account={account}
                       serviceKey={key}

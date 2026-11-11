@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
-import { expiryOptions, expiryState, sortKeys } from "./key-status"
+import {
+  canRevokeKey,
+  expiryOptions,
+  expiryState,
+  sortKeys,
+} from "./key-status"
 import type { ServiceAccountKey } from "./queries"
 
 const now = Date.parse("2026-03-10T12:00:00Z")
@@ -23,6 +28,7 @@ function makeKey(
     expires_at: null,
     last_used_at: null,
     revoked_at: null,
+    state: "active",
     ...overrides,
   }
 }
@@ -58,23 +64,22 @@ describe("expiryOptions", () => {
 
 describe("expiryState", () => {
   test("reports a revoked key as critical", () => {
-    const key = makeKey({ revoked_at: at(-day), expires_at: at(30 * day) })
+    const key = makeKey({
+      state: "revoked",
+      revoked_at: at(-day),
+      expires_at: at(30 * day),
+    })
     expect(expiryState(key)).toEqual({ tone: "critical", text: "Revoked" })
   })
 
-  test("reports a revoked key as revoked even after it expired", () => {
-    const key = makeKey({ revoked_at: at(-2 * day), expires_at: at(-day) })
-    expect(expiryState(key)).toEqual({ tone: "critical", text: "Revoked" })
-  })
-
-  test("reports a key past its expiry as critical", () => {
-    const key = makeKey({ expires_at: at(-day) })
+  test("reports a key the server marks expired as critical", () => {
+    const key = makeKey({ state: "expired", expires_at: at(-day) })
     expect(expiryState(key)).toEqual({ tone: "critical", text: "Expired" })
   })
 
-  test("treats a key expiring right now as expired", () => {
-    const key = makeKey({ expires_at: at(0) })
-    expect(expiryState(key)).toEqual({ tone: "critical", text: "Expired" })
+  test("trusts the server's state over the browser's clock", () => {
+    const key = makeKey({ state: "active", expires_at: at(-day) })
+    expect(expiryState(key).tone).toBe("ok")
   })
 
   test("says a key without expiry never expires", () => {
@@ -84,18 +89,16 @@ describe("expiryState", () => {
     })
   })
 
-  test("warns when less than 7 days are left", () => {
-    expect(expiryState(makeKey({ expires_at: at(3 * day) }))).toEqual({
-      tone: "warning",
-      text: "In 3 days",
-    })
-    expect(expiryState(makeKey({ expires_at: at(6.5 * day - 1) }))).toEqual({
-      tone: "warning",
-      text: "In 6 days",
-    })
+  test("warns when the server marks the key expiring", () => {
+    expect(
+      expiryState(makeKey({ state: "expiring", expires_at: at(3 * day) }))
+    ).toEqual({ tone: "warning", text: "In 3 days" })
+    expect(
+      expiryState(makeKey({ state: "expiring", expires_at: at(6.5 * day - 1) }))
+    ).toEqual({ tone: "warning", text: "In 6 days" })
   })
 
-  test("is ok with 7 days or more left", () => {
+  test("is ok for an active key", () => {
     expect(expiryState(makeKey({ expires_at: at(6.5 * day) }))).toEqual({
       tone: "ok",
       text: "In 7 days",
@@ -130,7 +133,9 @@ describe("expiryState", () => {
     expect(expiryState(makeKey({ expires_at: at(1.5 * day) })).text).toBe(
       "In 2 days"
     )
-    expect(expiryState(makeKey({ expires_at: at(day - 1) }))).toEqual({
+    expect(
+      expiryState(makeKey({ state: "expiring", expires_at: at(day - 1) }))
+    ).toEqual({
       tone: "warning",
       text: "In 23 h",
     })
@@ -159,21 +164,32 @@ describe("expiryState", () => {
   test("measures against the given time when one is passed", () => {
     const key = makeKey({ expires_at: at(3 * day) })
     expect(expiryState(key, now + 2 * day).text).toBe("Tomorrow")
-    expect(expiryState(key, now + 4 * day)).toEqual({
-      tone: "critical",
-      text: "Expired",
-    })
   })
 })
 
 describe("sortKeys", () => {
   test("puts active keys first, then expired, then revoked", () => {
-    const revoked = makeKey({ id: "revoked", revoked_at: at(-day) })
-    const expired = makeKey({ id: "expired", expires_at: at(-day) })
-    const active = makeKey({ id: "active", expires_at: at(day) })
-    const sorted = sortKeys([revoked, expired, active])
+    const revoked = makeKey({
+      id: "revoked",
+      state: "revoked",
+      revoked_at: at(-day),
+    })
+    const expired = makeKey({
+      id: "expired",
+      state: "expired",
+      expires_at: at(-day),
+    })
+    const expiring = makeKey({
+      id: "expiring",
+      state: "expiring",
+      expires_at: at(day),
+      created_at: at(-40 * day),
+    })
+    const active = makeKey({ id: "active", expires_at: at(30 * day) })
+    const sorted = sortKeys([revoked, expired, expiring, active])
     expect(sorted.map((key) => key.id)).toEqual([
       "active",
+      "expiring",
       "expired",
       "revoked",
     ])
@@ -182,20 +198,28 @@ describe("sortKeys", () => {
   test("orders each group by newest created first", () => {
     const keys = [
       makeKey({ id: "active-old", created_at: at(-10 * day) }),
-      makeKey({ id: "revoked-new", created_at: at(-day), revoked_at: at(-1) }),
+      makeKey({
+        id: "revoked-new",
+        state: "revoked",
+        created_at: at(-day),
+        revoked_at: at(-1),
+      }),
       makeKey({ id: "active-new", created_at: at(-2 * day) }),
       makeKey({
         id: "expired-new",
+        state: "expired",
         created_at: at(-3 * day),
         expires_at: at(-day),
       }),
       makeKey({
         id: "expired-old",
+        state: "expired",
         created_at: at(-20 * day),
         expires_at: at(-day),
       }),
       makeKey({
         id: "revoked-old",
+        state: "revoked",
         created_at: at(-5 * day),
         revoked_at: at(-1),
       }),
@@ -212,10 +236,21 @@ describe("sortKeys", () => {
 
   test("does not change the input order", () => {
     const keys = [
-      makeKey({ id: "revoked", revoked_at: at(-day) }),
+      makeKey({ id: "revoked", state: "revoked", revoked_at: at(-day) }),
       makeKey({ id: "active" }),
     ]
     sortKeys(keys)
     expect(keys.map((key) => key.id)).toEqual(["revoked", "active"])
+  })
+})
+
+describe("canRevokeKey", () => {
+  test.each([
+    ["active", true],
+    ["expiring", true],
+    ["expired", false],
+    ["revoked", false],
+  ] as const)("a %s key: %s", (state, want) => {
+    expect(canRevokeKey({ state })).toBe(want)
   })
 })

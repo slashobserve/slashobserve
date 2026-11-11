@@ -2,21 +2,17 @@ import { formatShortRelative } from "@/lib/time"
 
 import type { ServiceAccountKey } from "./queries"
 
-export type KeyStatus = "active" | "expired" | "revoked"
+export type KeyStatus = ServiceAccountKey["state"]
 
-export function keyStatus(
-  key: Pick<ServiceAccountKey, "revoked_at" | "expires_at">,
-  now = Date.now()
-): KeyStatus {
-  if (key.revoked_at !== null) return "revoked"
-  if (key.expires_at !== null && Date.parse(key.expires_at) <= now) {
-    return "expired"
-  }
-  return "active"
+export function keyStatus(key: Pick<ServiceAccountKey, "state">): KeyStatus {
+  return key.state
+}
+
+export function canRevokeKey(key: Pick<ServiceAccountKey, "state">): boolean {
+  return key.state === "active" || key.state === "expiring"
 }
 
 const dayMs = 86_400_000
-const warningDays = 7
 const distantDays = 730
 
 export type ExpiryState = {
@@ -25,39 +21,32 @@ export type ExpiryState = {
 }
 
 export function expiryState(
-  key: Pick<ServiceAccountKey, "revoked_at" | "expires_at">,
+  key: Pick<ServiceAccountKey, "state" | "expires_at">,
   now = Date.now()
 ): ExpiryState {
-  const status = keyStatus(key, now)
+  const status = keyStatus(key)
   if (status === "revoked") return { tone: "critical", text: "Revoked" }
   if (status === "expired") return { tone: "critical", text: "Expired" }
-  if (key.expires_at === null) return { tone: "ok", text: "Never expires" }
+  const tone = status === "expiring" ? "warning" : "ok"
+  if (key.expires_at === null) return { tone, text: "Never expires" }
   const left = Date.parse(key.expires_at) - now
-  if (left < dayMs) {
-    return { tone: "warning", text: formatShortRelative(key.expires_at, now) }
-  }
-  if (left >= distantDays * dayMs) {
-    return { tone: "ok", text: formatShortRelative(key.expires_at, now) }
+  if (left < dayMs || left >= distantDays * dayMs) {
+    return { tone, text: formatShortRelative(key.expires_at, now) }
   }
   const days = Math.round(left / dayMs)
-  return {
-    tone: days < warningDays ? "warning" : "ok",
-    text: days === 1 ? "Tomorrow" : `In ${days} days`,
-  }
+  return { tone, text: days === 1 ? "Tomorrow" : `In ${days} days` }
 }
 
 const statusRank: Record<KeyStatus, number> = {
   active: 0,
+  expiring: 0,
   expired: 1,
   revoked: 2,
 }
 
-export function sortKeys(
-  keys: ServiceAccountKey[],
-  now = Date.now()
-): ServiceAccountKey[] {
+export function sortKeys(keys: ServiceAccountKey[]): ServiceAccountKey[] {
   return keys.toSorted((a, b) => {
-    const rank = statusRank[keyStatus(a, now)] - statusRank[keyStatus(b, now)]
+    const rank = statusRank[keyStatus(a)] - statusRank[keyStatus(b)]
     if (rank !== 0) return rank
     return Date.parse(b.created_at) - Date.parse(a.created_at)
   })

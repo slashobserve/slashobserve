@@ -25,6 +25,7 @@ const link = {
   last_viewed_at: null,
   expired: false,
   usable: true,
+  state: "active",
 }
 
 const variables: Variable[] = [

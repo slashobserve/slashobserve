@@ -58,9 +58,9 @@ export function expiryFor(
 }
 
 export function linkStatus(
-  link: Pick<PublicLink, "expired" | "usable">
+  link: Pick<PublicLink, "state" | "usable">
 ): string | null {
-  if (link.expired) return "Expired"
+  if (link.state === "expired") return "Expired"
   if (!link.usable) return "Not usable: uses the viewer's identity"
   return null
 }
