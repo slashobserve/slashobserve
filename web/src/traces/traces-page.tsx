@@ -42,6 +42,9 @@ import {
 } from "@/logs/datasource-picker"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { useAgentInfo } from "@/observe/queries"
+import { tracesDraft } from "@/saved-searches/draft"
+import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
+import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
@@ -129,6 +132,8 @@ export function TracesPage() {
   const datasource = eligible.find((candidate) => candidate.uid === search.ds)
   useTraceDatasource(datasource, eligible)
   const range = tracesTimeRange(search)
+  const [saving, setSaving] = useState(false)
+  const saveTrigger = useRef<HTMLButtonElement>(null)
 
   if (!datasources.isPending && eligible.length === 0) {
     return (
@@ -156,9 +161,32 @@ export function TracesPage() {
               label="Datasource"
             />
             <TimeRangeControl value={range} onChange={update} />
+            <SavedSearchesMenu kind="traces" />
+            <Button
+              ref={saveTrigger}
+              type="button"
+              variant="outline"
+              disabled={datasource === undefined}
+              onClick={() => setSaving(true)}
+            >
+              Save search
+            </Button>
           </>
         }
       />
+      {datasource ? (
+        <SaveSearchDialog
+          draft={tracesDraft({
+            uid: datasource.uid,
+            type: datasource.type,
+            search,
+            range,
+          })}
+          open={saving}
+          onOpenChange={setSaving}
+          finalFocus={() => saveTrigger.current ?? true}
+        />
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {datasource ? (
           <TraceSearchWorkspace

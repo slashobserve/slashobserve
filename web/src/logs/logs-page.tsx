@@ -22,6 +22,10 @@ import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
+import { logsDraft } from "@/saved-searches/draft"
+import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
+import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
+
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
 import { DatasourceControl } from "./datasource-control"
@@ -48,6 +52,13 @@ const description =
   "Search one datasource in its own query language, narrow by field, then jump to the trace."
 
 type Update = LogsWorkspace["update"]
+
+function saveHint(savable: ReturnType<typeof logsDraft>): string | undefined {
+  if (!("blocked" in savable)) return undefined
+  return savable.blocked === "no-query"
+    ? "Run a query first."
+    : "Filters are not applied: switch the query to KQL."
+}
 
 function useLogsSearch() {
   const search = useSearch({ from: routeId })
@@ -150,6 +161,11 @@ function LogsWorkspaceView({
   const [draft, setDraft] = useState(
     () => q ?? (type === "clickhouse" ? clickhouseLogsTemplate : "")
   )
+  const [seenQuery, setSeenQuery] = useState(q)
+  if (seenQuery !== q) {
+    setSeenQuery(q)
+    if (q !== undefined) setDraft(q)
+  }
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
@@ -164,6 +180,9 @@ function LogsWorkspaceView({
   const selection = current?.selection ?? null
   const detailTab = current?.tab ?? "table"
   const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const saveTrigger = useRef<HTMLButtonElement>(null)
+  const savable = logsDraft({ uid, type, search, range })
   const [labelsOpen, setLabelsOpen] = useState(
     type === "loki" && q === undefined
   )
@@ -335,6 +354,18 @@ function LogsWorkspaceView({
             >
               Copy link
             </CopyButton>
+            <SavedSearchesMenu kind="logs" />
+            <Button
+              ref={saveTrigger}
+              type="button"
+              variant="outline"
+              disabled={"blocked" in savable}
+              title={saveHint(savable)}
+              aria-describedby={q === undefined ? notRunId : undefined}
+              onClick={() => setSaving(true)}
+            >
+              Save search
+            </Button>
             <Button
               ref={addTrigger}
               type="button"
@@ -377,6 +408,14 @@ function LogsWorkspaceView({
           onClose={() => selectLine(null)}
           trigger={selectionTrigger}
           id={drawerId}
+        />
+      ) : null}
+      {"draft" in savable ? (
+        <SaveSearchDialog
+          draft={savable.draft}
+          open={saving}
+          onOpenChange={setSaving}
+          finalFocus={() => saveTrigger.current ?? true}
         />
       ) : null}
       {adding && q !== undefined ? (

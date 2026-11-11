@@ -306,6 +306,17 @@ export const findingKeys = {
   ) => ["findings", id, "panels", panelId, params] as const,
 }
 
+export type SavedSearchListParams = {
+  kind?: "logs" | "traces"
+  folderId?: string
+}
+
+export const savedSearchKeys = {
+  all: ["saved-searches"] as const,
+  list: (params: SavedSearchListParams) =>
+    ["saved-searches", "list", params] as const,
+}
+
 export const annotationKeys = {
   all: ["annotations"] as const,
   range: (dashboardId: string, from: string, to: string) =>

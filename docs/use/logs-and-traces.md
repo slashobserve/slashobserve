@@ -398,6 +398,11 @@ A range written like that stays relative, so the search opens on the latest hour
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
 A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
+On the logs page and the trace search, **Save search** asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
+The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
+A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+The folder list offers only the folders where you can create, and a refused save shows the server's message.
+
 A search is saved in a folder, which needs the Create permission there.
 Without a folder it goes to your My Dashboards, and a service account saves it in General.
 Everyone who can view the folder can open the search, and the folder's permissions decide who may change it, as [Folders](../teams/folders.md) describes.
