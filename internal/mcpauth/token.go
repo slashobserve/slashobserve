@@ -145,6 +145,9 @@ func (s *Server) exchangeCode(ctx context.Context, f tokenForm) (tokenResponse, 
 		case f.resource != "" && !canonicalEqual(f.resource, code.Resource):
 			return errInvalidTarget
 		}
+		if err := q.LockOAuthUser(ctx, code.UserID); err != nil {
+			return err
+		}
 		if err := q.ReplaceLiveOAuthGrant(ctx, dbsqlc.ReplaceLiveOAuthGrantParams{ClientID: code.ClientID, UserID: code.UserID}); err != nil {
 			return err
 		}

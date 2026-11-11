@@ -30,9 +30,26 @@ DELETE FROM oauth_requests
 WHERE id = $1 AND expires_at > now()
 RETURNING client_id, redirect_uri, state, code_challenge, resource;
 
--- name: CountLiveOAuthGrants :one
-SELECT count(*) FROM oauth_grants
-WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now();
+-- name: LockOAuthUser :exec
+SELECT pg_advisory_xact_lock(hashtextextended('oauth_user:' || CAST(@user_id::uuid AS text), 0));
+
+-- name: CountOAuthSlots :one
+SELECT ((SELECT count(*) FROM oauth_grants g
+        WHERE g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now())
+     + (SELECT count(DISTINCT c.client_id) FROM oauth_codes c
+        WHERE c.user_id = @user_id AND c.used_at IS NULL AND c.expires_at > now()
+          AND NOT EXISTS (SELECT 1 FROM oauth_grants g
+                          WHERE g.client_id = c.client_id AND g.user_id = c.user_id
+                            AND g.revoked_at IS NULL AND g.expires_at > now())))::bigint AS slots;
+
+-- name: HoldsOAuthSlot :one
+SELECT (EXISTS (
+  SELECT 1 FROM oauth_grants g
+  WHERE g.client_id = @client_id AND g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now()
+) OR EXISTS (
+  SELECT 1 FROM oauth_codes c
+  WHERE c.client_id = @client_id AND c.user_id = @user_id AND c.used_at IS NULL AND c.expires_at > now()
+))::boolean AS holds;
 
 -- name: HasLiveOAuthGrant :one
 SELECT EXISTS (

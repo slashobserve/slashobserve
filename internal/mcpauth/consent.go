@@ -137,15 +137,18 @@ func (s *Server) approveRequest(c *gin.Context) {
 			return err
 		}
 		clientID = req.ClientID
-		live, err := q.CountLiveOAuthGrants(c.Request.Context(), userID)
+		if err := q.LockOAuthUser(c.Request.Context(), userID); err != nil {
+			return err
+		}
+		slots, err := q.CountOAuthSlots(c.Request.Context(), userID)
 		if err != nil {
 			return err
 		}
-		replaces, err := q.HasLiveOAuthGrant(c.Request.Context(), dbsqlc.HasLiveOAuthGrantParams{ClientID: req.ClientID, UserID: userID})
+		holds, err := q.HoldsOAuthSlot(c.Request.Context(), dbsqlc.HoldsOAuthSlotParams{ClientID: req.ClientID, UserID: userID})
 		if err != nil {
 			return err
 		}
-		if live >= maxLiveGrantsPerPerson && !replaces {
+		if slots >= maxLiveGrantsPerPerson && !holds {
 			return errTooManyGrants
 		}
 		code, hash, err := opaquetoken.New(codePrefix)

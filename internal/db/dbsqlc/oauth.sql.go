@@ -38,16 +38,21 @@ func (q *Queries) ConsumeOAuthRequest(ctx context.Context, id pgtype.UUID) (Cons
 	return i, err
 }
 
-const countLiveOAuthGrants = `-- name: CountLiveOAuthGrants :one
-SELECT count(*) FROM oauth_grants
-WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+const countOAuthSlots = `-- name: CountOAuthSlots :one
+SELECT ((SELECT count(*) FROM oauth_grants g
+        WHERE g.user_id = $1 AND g.revoked_at IS NULL AND g.expires_at > now())
+     + (SELECT count(DISTINCT c.client_id) FROM oauth_codes c
+        WHERE c.user_id = $1 AND c.used_at IS NULL AND c.expires_at > now()
+          AND NOT EXISTS (SELECT 1 FROM oauth_grants g
+                          WHERE g.client_id = c.client_id AND g.user_id = c.user_id
+                            AND g.revoked_at IS NULL AND g.expires_at > now())))::bigint AS slots
 `
 
-func (q *Queries) CountLiveOAuthGrants(ctx context.Context, userID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countLiveOAuthGrants, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) CountOAuthSlots(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOAuthSlots, userID)
+	var slots int64
+	err := row.Scan(&slots)
+	return slots, err
 }
 
 const createOAuthClient = `-- name: CreateOAuthClient :one
@@ -396,6 +401,28 @@ func (q *Queries) HasLiveOAuthGrant(ctx context.Context, arg HasLiveOAuthGrantPa
 	return exists, err
 }
 
+const holdsOAuthSlot = `-- name: HoldsOAuthSlot :one
+SELECT (EXISTS (
+  SELECT 1 FROM oauth_grants g
+  WHERE g.client_id = $1 AND g.user_id = $2 AND g.revoked_at IS NULL AND g.expires_at > now()
+) OR EXISTS (
+  SELECT 1 FROM oauth_codes c
+  WHERE c.client_id = $1 AND c.user_id = $2 AND c.used_at IS NULL AND c.expires_at > now()
+))::boolean AS holds
+`
+
+type HoldsOAuthSlotParams struct {
+	ClientID string
+	UserID   pgtype.UUID
+}
+
+func (q *Queries) HoldsOAuthSlot(ctx context.Context, arg HoldsOAuthSlotParams) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsOAuthSlot, arg.ClientID, arg.UserID)
+	var holds bool
+	err := row.Scan(&holds)
+	return holds, err
+}
+
 const listOAuthGrants = `-- name: ListOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
@@ -531,6 +558,15 @@ func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGran
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockOAuthUser = `-- name: LockOAuthUser :exec
+SELECT pg_advisory_xact_lock(hashtextextended('oauth_user:' || CAST($1::uuid AS text), 0))
+`
+
+func (q *Queries) LockOAuthUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockOAuthUser, userID)
+	return err
 }
 
 const pruneOAuthClients = `-- name: PruneOAuthClients :execrows
