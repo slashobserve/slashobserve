@@ -117,6 +117,14 @@ Each panel type keeps a minimum height there, so a chart or a table stays readab
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
 
+## Connected agents
+
+Open Settings and choose **Connected agents** in its section list to see the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
+**Disconnect** asks first and then ends the connection at once; the client has to be connected again from the agent to work.
+The section also shows the command that adds this server to Claude Code.
+An Admin sees a second card, **Everyone's connected agents**, with the person each belongs to, and can disconnect any of them.
+[Connect your own agent](mcp.md#connect-your-own-agent) describes how a client is approved.
+
 ## Theme
 
 The app follows your system's light or dark setting until you choose one.

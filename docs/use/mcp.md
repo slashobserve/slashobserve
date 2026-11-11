@@ -203,6 +203,8 @@ An approval the client has not yet finished, which lasts 60 seconds, counts towa
 You can list and disconnect your connected agents over the API with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}` (any signed-in person), and an Admin can list and disconnect everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
 Service-account keys cannot call any of them.
 
+Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's there too.
+
 Each client's setup:
 
 ### Claude Code

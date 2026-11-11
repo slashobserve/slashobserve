@@ -6,12 +6,13 @@ const ids = (role: Parameters<typeof settingsSections>[0]) =>
   settingsSections(role).map((section) => section.id)
 
 describe("settingsSections", () => {
-  test("lists Grafana and Webhooks before Appearance, for admins only", () => {
+  test("lists Connected agents after Outbound access, and Grafana and Webhooks before Appearance, for admins only", () => {
     expect(ids("admin")).toEqual([
       "agent",
       "server",
       "sign-in",
       "outbound-access",
+      "connected-agents",
       "grafana",
       "webhooks",
       "appearance",
@@ -22,6 +23,7 @@ describe("settingsSections", () => {
         "server",
         "sign-in",
         "outbound-access",
+        "connected-agents",
         "appearance",
       ])
     }
@@ -41,6 +43,9 @@ describe("selectedSectionId", () => {
   test("selects the section the hash names", () => {
     expect(selectedSectionId(admin, "server")).toBe("server")
     expect(selectedSectionId(viewer, "outbound-access")).toBe("outbound-access")
+    expect(selectedSectionId(viewer, "connected-agents")).toBe(
+      "connected-agents"
+    )
     expect(selectedSectionId(admin, "grafana")).toBe("grafana")
     expect(selectedSectionId(admin, "webhooks")).toBe("webhooks")
     expect(selectedSectionId(viewer, "appearance")).toBe("appearance")

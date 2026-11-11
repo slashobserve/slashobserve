@@ -198,6 +198,11 @@ export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }
 
+export const grantKeys = {
+  all: ["grants"] as const,
+  list: (scope: "mine" | "all") => ["grants", scope] as const,
+}
+
 export const assetKeys = {
   geojson: (url: string) => ["assets", "geojson", url] as const,
 }
