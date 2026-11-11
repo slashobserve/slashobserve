@@ -88,6 +88,11 @@ func Main(args []string, std IO, version string) int {
 	return 1
 }
 
+func Commands() *cobra.Command {
+	quiet := IO{In: strings.NewReader(""), Out: io.Discard, Err: io.Discard}
+	return (&app{std: quiet}).command()
+}
+
 func (a *app) command() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "observe [flags] <prompt words...>",

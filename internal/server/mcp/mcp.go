@@ -79,6 +79,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
+		mcpserver.WithPromptCapabilities(false),
 		mcpserver.WithRecovery(),
 		mcpserver.WithInstructions(tools.ServerInstructions))
 	for _, t := range reg.List() {
@@ -87,6 +88,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		}
 		srv.AddTool(toolFor(t), h.callTool(t.Name))
 	}
+	srv.AddPrompt(observePrompt(), h.observePromptHandler())
 	// The library rejects loopback connections whose Host is not loopback, which breaks a same-host reverse proxy;
 	// the origin check and bearer authentication cover DNS rebinding here.
 	h.transport = mcpserver.NewStreamableHTTPServer(srv,
