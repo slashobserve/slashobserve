@@ -7,7 +7,7 @@ A webhook posts the events of the [activity log](activity.md) to an address you 
 Each event becomes one signed HTTPS request.
 A request that fails is retried, and a webhook never skips an event or sends a later one first.
 
-Only an Admin can create, change, test or delete a webhook, through the HTTP API below.
+Only an Admin can create, change, test or delete a webhook, through the HTTP API below or the [`observe webhooks`](cli.md#webhooks) commands.
 A service-account key with the Admin role can do the same.
 No MCP tool or agent tool reads or changes a webhook, because a webhook sends workspace activity to an outside address and that is an Admin's decision.
 
@@ -219,6 +219,6 @@ Events that happened while it was disabled are still in the log, so after a long
 
 Each attempt is kept for 7 days, with its time, duration, the receiver's status, an outcome (`delivered`, `failed` or `skipped`) and an error code: `status`, `unreachable`, `blocked_address`, `domain_not_allowed` or `too_large`.
 The server never stores or logs the address's path, a header, the request body or what the receiver answered, only that status and code.
-Read them with `GET /api/v1/webhooks/{id}/deliveries`.
+Read them with `GET /api/v1/webhooks/{id}/deliveries` or `observe webhooks deliveries`.
 
 `POST /api/v1/webhooks/{id}/test` sends a `webhook.test` event signed like any other and returns its attempt without waiting for the log, so you can check an address and a signature check right after creating the webhook.
