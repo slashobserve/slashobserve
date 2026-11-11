@@ -500,6 +500,13 @@ type PublicLink struct {
 	RcaID         pgtype.UUID
 }
 
+type RunSession struct {
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+	State          []byte
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type RunToken struct {
 	TokenHash      []byte
 	AgentRequestID pgtype.UUID
