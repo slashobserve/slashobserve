@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
+	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -57,6 +58,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		SavedSearches: savedsearches.New(database.DB, access, datasources, nil, logger),
 		Health:        health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
 		Annotations:   notes,
+		Search:        search.New(database.DB, access, nil),
 		Provider:      &scriptedDraft{},
 		Logger:        logger,
 	})
@@ -82,6 +84,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"title":          json.RawMessage(`"Checkout errors"`),
 		"question":       json.RawMessage(`"error logs from checkout"`),
 		"query":          json.RawMessage(`"up"`),
+		"q":              json.RawMessage(`"checkout"`),
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),
 		"dashboard_id":   json.RawMessage(`"` + dash.ID + `"`),

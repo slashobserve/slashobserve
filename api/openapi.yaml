@@ -46,6 +46,8 @@ paths:
     $ref: "./paths/activity.yaml#/activity"
   /activity/stream:
     $ref: "./paths/activity.yaml#/activity-stream"
+  /search:
+    $ref: "./paths/search.yaml#/search"
   /annotations:
     $ref: "./paths/annotations.yaml#/annotations"
   /annotations/{id}:
@@ -1116,6 +1118,94 @@ components:
           maxItems: 100
           items:
             $ref: "#/components/schemas/ActivityEvent"
+        next_cursor:
+          type: string
+          nullable: true
+    SearchSnippetSegment:
+      type: object
+      additionalProperties: false
+      required: [text, match]
+      properties:
+        text:
+          type: string
+        match:
+          type: boolean
+          description: True when the text is one of the matched words; render it as plain text, never as HTML.
+    SearchResultFolder:
+      type: object
+      additionalProperties: false
+      required: [id, title]
+      nullable: true
+      description: The folder the result is read through; null for a finding in no folder.
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+    SearchTarget:
+      type: object
+      additionalProperties: false
+      required: [kind, id, title]
+      nullable: true
+      description: What a comment is on; null for every other kind.
+      properties:
+        kind:
+          type: string
+          enum: [dashboard, finding, annotation]
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [kind, id, title, snippet, url, folder, target, thread_id, updated_at]
+      properties:
+        kind:
+          type: string
+          enum: [dashboard, finding, annotation, comment, saved_search]
+        id:
+          type: string
+          format: uuid
+          description: The id of the object, or of the message for a comment.
+        title:
+          type: string
+          description: The object's title; for a comment, the title of what it is on; for an annotation, the first line of its text.
+        snippet:
+          type: array
+          maxItems: 20
+          description: Up to two fragments of the object's text around the matched words, at most 300 characters in all; empty when the object has no text.
+          items:
+            $ref: "#/components/schemas/SearchSnippetSegment"
+        url:
+          type: string
+          nullable: true
+          description: The page that shows the object; a comment points at what it is on. Null for an annotation that is on no dashboard.
+        folder:
+          $ref: "#/components/schemas/SearchResultFolder"
+        target:
+          $ref: "#/components/schemas/SearchTarget"
+        thread_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The thread of a comment; null for every other kind.
+        updated_at:
+          type: string
+          format: date-time
+          description: When the object last changed; for a comment, when it was written or last edited.
+    SearchResultList:
+      type: object
+      additionalProperties: false
+      required: [results, next_cursor]
+      properties:
+        results:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/SearchResult"
         next_cursor:
           type: string
           nullable: true

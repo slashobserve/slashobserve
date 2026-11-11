@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -55,6 +56,7 @@ type app struct {
 	savedSearchList savedSearchListOptions
 	savedSearchSave savedSearchSaveOptions
 	savedSearchMove savedSearchMoveOptions
+	searching       searchOptions
 }
 
 type usageError struct{ message string }
@@ -90,8 +92,8 @@ func (a *app) command() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "observe [flags] <prompt words...>",
 		Short:         "Turn a prompt into a dashboard",
-		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.\nA prompt whose first word is a command name (dashboards, comments, import, run, investigate, status, cancel, continue, annotate, health, open, doctor, logs, traces, grafana, activity, webhooks, findings, saved-searches, login, logout, version, completion, help) must be quoted as one argument.",
-		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list\n  observe comments list <dashboard-id>\n  observe import dashboard.json\n  observe run Checkout health\n  observe investigate why did checkout errors rise after 10:00\n  observe annotate Deploy checkout v1.4.2 --tags deploy\n  observe health\n  observe open <dashboard-id>\n  observe doctor\n  observe logs '{app=\"shop\"}' --datasource loki --tail\n  observe traces <trace-id> --datasource tempo\n  observe grafana import <connection-id> --all\n  observe activity --follow\n  observe webhooks list\n  observe findings move <finding-id> --folder <folder-id>\n  observe saved-searches list --kind logs\n  observe completion zsh",
+		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.",
+		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list\n  observe comments list <dashboard-id>\n  observe import dashboard.json\n  observe run Checkout health\n  observe investigate why did checkout errors rise after 10:00\n  observe annotate Deploy checkout v1.4.2 --tags deploy\n  observe health\n  observe open <dashboard-id>\n  observe doctor\n  observe logs '{app=\"shop\"}' --datasource loki --tail\n  observe traces <trace-id> --datasource tempo\n  observe grafana import <connection-id> --all\n  observe activity --follow\n  observe webhooks list\n  observe findings move <finding-id> --folder <folder-id>\n  observe saved-searches list --kind logs\n  observe search checkout latency --kind dashboard\n  observe completion zsh",
 		Args:          cobra.ArbitraryArgs,
 		RunE:          a.runPrompt,
 		SilenceUsage:  true,
@@ -113,8 +115,18 @@ func (a *app) command() *cobra.Command {
 	a.addPromptFlags(root)
 	a.addOpenFlag(root)
 
-	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.webhooksCommand(), a.findingsCommand(), a.savedSearchesCommand())
+	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.webhooksCommand(), a.findingsCommand(), a.savedSearchesCommand(), a.searchCommand())
+	root.Long += quotedCommandsNote(root)
 	return root
+}
+
+func quotedCommandsNote(root *cobra.Command) string {
+	names := []string{"help"}
+	for _, c := range root.Commands() {
+		names = append(names, c.Name())
+	}
+	slices.Sort(names)
+	return "\nA prompt whose first word is a command name (" + strings.Join(slices.Compact(names), ", ") + ") must be quoted as one argument."
 }
 
 func (a *app) versionCommand() *cobra.Command {

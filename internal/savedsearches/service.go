@@ -16,7 +16,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -202,10 +201,6 @@ func (s *Service) item(row dbsqlc.SavedSearch, folder folders.Folder, abilities 
 		return SavedSearch{}, err
 	}
 	item.Folder, item.Abilities = folder, abilities
-	if item.Kind == KindLogs {
-		item.URL = links.Logs(s.publicURL, item.address())
-	} else {
-		item.URL = links.Traces(s.publicURL, item.address())
-	}
+	item.URL = URL(s.publicURL, item)
 	return item, nil
 }

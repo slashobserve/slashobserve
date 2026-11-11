@@ -105,6 +105,14 @@ The PNG is the panel's body at twice the screen's pixel density, on the page's b
 **Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
 The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
 
+## Search
+
+Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the top bar, and type at least two characters.
+The command palette lists the pages and your dashboards that match, and after a short pause it adds what the server finds in the workspace: dashboards, findings, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
+Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
+A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
+[Search](search.md) describes what each kind matches and how to write a query.
+
 ## Keyboard shortcuts
 
 Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.

@@ -22,7 +22,7 @@ function palette(page: Page) {
 
 function searchInput(page: Page) {
   return palette(page).getByRole("combobox", {
-    name: "Search dashboards and pages",
+    name: "Search the workspace or jump to a page",
   })
 }
 
@@ -121,7 +121,7 @@ test("explains an empty result", async ({ page }) => {
   await openFromButton(page)
   await page.keyboard.type("zzzz-no-match")
   await expect(
-    palette(page).getByText('No pages or dashboards match "zzzz-no-match".')
+    palette(page).getByText('Nothing matches "zzzz-no-match".')
   ).toBeVisible()
 })
 

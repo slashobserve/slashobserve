@@ -20,7 +20,7 @@ Press `?` on a dashboard to see them all in the app.
 | `f` | Go full screen in TV mode opened from a link. |
 | `?` | Show the keyboard shortcuts. |
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
-| `⌘K` or `Ctrl+K` | Open the command palette. |
+| `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 
 ## Which panel a key acts on
 

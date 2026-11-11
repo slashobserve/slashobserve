@@ -153,7 +153,7 @@ func finished[T any](t *testing.T, c <-chan T, what string) T {
 	}
 }
 
-func (r rig) audience(t *testing.T, p auth.Principal) Audience {
+func (r rig) audience(t *testing.T, p auth.Principal) folders.Audience {
 	t.Helper()
 	a, err := r.store.Audience(t.Context(), p)
 	if err != nil {
@@ -231,7 +231,7 @@ func signalled(t *testing.T, c <-chan struct{}) {
 	}
 }
 
-func (r rig) next(t *testing.T, a Audience, from Position, limit int) ([]Event, Position, bool) {
+func (r rig) next(t *testing.T, a folders.Audience, from Position, limit int) ([]Event, Position, bool) {
 	t.Helper()
 	got, to, held, err := r.store.Next(t.Context(), a, Filter{}, from, limit)
 	if err != nil {

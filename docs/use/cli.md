@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `findings`, `saved-searches`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `run`, `saved-searches`, `search`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -386,6 +386,28 @@ Without either flag it prints the folders as a table of uid, title and dashboard
 It then waits for the import, showing `Imported <done> of <total>` on a terminal, and prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
 It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
 The server keeps an import only until it restarts, and an interrupt stops the waiting while the import continues on the server.
+
+## Search
+
+`bin/observe search` finds dashboards, findings, annotations, comments and saved searches by words, ranked by relevance, as the [search](search.md) of the web app does:
+
+```sh
+bin/observe search checkout latency
+bin/observe search "connection reset" --kind comment --kind finding -- -staging
+```
+
+```text
+dashboard  Checkout latency  General  https://observe.example.com/d/0b6c...
+    Slow checkout requests by pod
+```
+
+Every word must match, and the page explains the rest of the syntax: quoted phrases, `or`, `-word` and a prefix on the last word.
+Write words that start with `-` after `--`, so the command does not read them as flags.
+A line holds the kind, the title, the folder and the address of the page that opens the result, with `no folder` or `no page` when it has none, and the snippet is indented on the line below.
+A comment shows the title of what it is on.
+`--kind` takes `dashboard`, `finding`, `annotation`, `comment` or `saved_search` and repeats, `--limit` prints 1 to 50 results (20 by default) and `--cursor` continues from the cursor a full page prints.
+`--json` prints the response of `GET /api/v1/search` unchanged, and no match prints `No results.`
+You find only what the key can read.
 
 ## Activity
 

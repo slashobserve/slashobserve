@@ -358,12 +358,12 @@ func TestNeighbourToolsNameEachOther(t *testing.T) {
 	}
 }
 
-var savedSearchTools = map[string]bool{nameSaveSearch: true, nameListSavedSearches: true}
+var toolsAboutSearch = map[string]bool{nameSaveSearch: true, nameListSavedSearches: true, nameSearchWorkspace: true}
 
 func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
 		for label, offered := range map[string]Tool{"MCP": tool, "agent": tool.ForAgent()} {
-			if !strings.Contains(offered.Description, "search") || savedSearchTools[tool.Name] {
+			if !strings.Contains(offered.Description, "search") || toolsAboutSearch[tool.Name] {
 				continue
 			}
 			if _, ok := schemaProperties(t, offered.InputSchema)["search"]; !ok {
