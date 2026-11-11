@@ -15,6 +15,7 @@ import { panelRetry } from "@/dashboards/use-panel-data"
 import type { Panel } from "@/spec"
 
 export type Finding = components["schemas"]["Finding"]
+export type FindingEnvelope = components["schemas"]["FindingEnvelope"]
 
 const findingsPage = 50
 
@@ -24,8 +25,7 @@ export function findingQuery(id: string) {
     queryFn: ({ signal }) =>
       api
         .GET("/findings/{id}", { params: { path: { id } }, signal })
-        .then(unwrap)
-        .then((body) => body.finding),
+        .then(unwrap),
     staleTime: 60_000,
   })
 }
@@ -134,5 +134,21 @@ export function useMakeDashboard(id: string) {
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
     },
+  })
+}
+
+export function useMoveFinding(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (folderId: string) =>
+      api
+        .POST("/findings/{id}/move", {
+          params: { path: { id } },
+          body: { folder_id: folderId },
+        })
+        .then(unwrap),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: findingKeys.all }),
   })
 }
