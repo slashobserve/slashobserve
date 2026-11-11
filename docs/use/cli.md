@@ -426,7 +426,7 @@ bin/observe activity --follow --type run.failed --type run.canceled
 ```
 
 ```text
-2026-11-01T10:00:00Z  /observe for Sam  run failed (no_progress)
+2026-11-01T10:00:00Z  Observe Agent for Sam  run failed (no_progress)
 2026-11-01T10:05:09Z  Sam  saved version 12 of "Checkout"
 ```
 

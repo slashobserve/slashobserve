@@ -743,7 +743,7 @@ func TestAThreadResolvedByARunNamesTheAgentActingForTheRequester(t *testing.T) {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 	got := listed[0]
-	if got.ResolvedActor == nil || got.ResolvedActor.JSON().Label != "/observe for Ada" || got.ResolvedActor.RunID == "" {
+	if got.ResolvedActor == nil || got.ResolvedActor.JSON().Label != "Observe Agent for Ada" || got.ResolvedActor.RunID == "" {
 		t.Fatalf("resolved actor = %+v", got.ResolvedActor)
 	}
 	if got.Actor.JSON().Label != "Ada" {

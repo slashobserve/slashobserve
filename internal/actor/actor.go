@@ -93,7 +93,7 @@ func (a Actor) Label() string {
 	name := cmp.Or(a.Name, "Unknown")
 	switch {
 	case a.RunID != "":
-		return "/observe for " + name
+		return "Observe Agent for " + name
 	case a.Origin.Kind == origin.MCP:
 		return name + " (via " + cmp.Or(ClientName(a.Origin.Client), "MCP") + ")"
 	default:

@@ -25,9 +25,9 @@ func TestLabel(t *testing.T) {
 		{"user over mcp with an unknown client", Actor{Kind: auth.KindUser, Name: "Ishan", Origin: origin.Origin{Kind: origin.MCP, Client: "My Bot "}}, "Ishan (via My Bot)"},
 		{"service account on the api", Actor{Kind: auth.KindServiceAccount, Name: "ci-deploys", Origin: origin.Origin{Kind: origin.API}}, "ci-deploys"},
 		{"service account over mcp", Actor{Kind: auth.KindServiceAccount, Name: "ci-deploys", Origin: origin.Origin{Kind: origin.MCP, Client: "cursor"}}, "ci-deploys (via Cursor)"},
-		{"user in a run", Actor{Kind: auth.KindUser, Name: "Ishan", Origin: origin.Origin{Kind: origin.Web}, RunID: runID}, "/observe for Ishan"},
-		{"service account in a run", Actor{Kind: auth.KindServiceAccount, Name: "ci-deploys", Origin: origin.Origin{Kind: origin.CLI}, RunID: runID}, "/observe for ci-deploys"},
-		{"mcp user in a run", Actor{Kind: auth.KindUser, Name: "Ishan", Origin: origin.Origin{Kind: origin.MCP, Client: "claude-code"}, RunID: runID}, "/observe for Ishan"},
+		{"user in a run", Actor{Kind: auth.KindUser, Name: "Ishan", Origin: origin.Origin{Kind: origin.Web}, RunID: runID}, "Observe Agent for Ishan"},
+		{"service account in a run", Actor{Kind: auth.KindServiceAccount, Name: "ci-deploys", Origin: origin.Origin{Kind: origin.CLI}, RunID: runID}, "Observe Agent for ci-deploys"},
+		{"mcp user in a run", Actor{Kind: auth.KindUser, Name: "Ishan", Origin: origin.Origin{Kind: origin.MCP, Client: "claude-code"}, RunID: runID}, "Observe Agent for Ishan"},
 		{"no name", Actor{Kind: auth.KindUser, Origin: origin.Origin{Kind: origin.Web}}, "Unknown"},
 	}
 	for _, tc := range cases {
