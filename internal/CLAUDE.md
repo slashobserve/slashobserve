@@ -76,6 +76,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts `Authorization: Bearer` service-account keys and OAuth access tokens (a session cookie is ignored); OAuth tokens are accepted nowhere else, and for them the registered client name is the origin client and `clientInfo` is ignored.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
+  `/mcp` tries keys, then run tokens, then OAuth; a run token is valid only while its attempt holds the lease and the run is `running`; `claim_run` long polls skip the global MCP slot because `internal/claims` caps them.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
 - `observe skill install` writes the skill embedded in the CLI binary and never one fetched from a server, because a skill instructs the person's own agents and the CLI talks to any `--server` it is given.

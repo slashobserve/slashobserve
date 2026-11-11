@@ -375,3 +375,32 @@ Without `kind` it returns the general guide as before.
 Any key that can call `/mcp` can list and get it, and the text holds nothing secret.
 How a client shows a prompt is up to the client; in Claude Code it appears as an `mcp__` command under the server's name.
 To get the same guide as `/observe` in Claude Code and other agents that read Agent Skills, run `observe skill install` (see [CLI](cli.md#agent-skill)).
+
+## Take runs as an agent
+
+A connected agent, signed in over OAuth, can claim the runs assigned to it with `claim_run`.
+A service account can claim runs only after an Admin turns on `takes_runs`, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
+Nothing assigns runs to outside agents yet, so SlashObserve's own agent runs every run until assignment arrives.
+
+The loop of an agent that takes runs:
+
+1. Call `claim_run`, which waits up to `wait_seconds` (30 by default) and answers `run: null` when nothing is waiting.
+   Call it again.
+2. A claimed run holds its `id`, `attempt`, `kind`, `prompt` and target, a `session` with a `url` and a `token`, and the `observe` prompt to read with the run's `kind`.
+3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
+4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
+5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
+6. Call `finish_run` with `outcome` `succeeded` or `failed`.
+
+The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none of the claim tools.
+It acts for the person who asked and records every call in the run's steps.
+Its prompt list is empty, because the `observe` prompt is read on the first connection.
+
+The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
+A report that arrives after the time limit ends the run as failed.
+A run that saved a dashboard version or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
+A run that no agent held for 10 minutes fails as `agent_unavailable`.
+
+The `usage` of `finish_run` is shown on the run as the agent reports it, and a reported cost does not stop a run.
+A connected agent or service account shows its presence, `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise, with `last_seen_at`; see [Agent presence](../reference/states.md#agent-presence).
+Every connection's `mode` is `direct`.
