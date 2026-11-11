@@ -107,6 +107,43 @@ func TestLLMPricesFileSetting(t *testing.T) {
 	})
 }
 
+func TestAgentRuntimeSetting(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     string
+		want    AgentRuntime
+		wantErr string
+	}{
+		{name: "unset is go", want: AgentRuntimeGo},
+		{name: "go", set: "go", want: AgentRuntimeGo},
+		{name: "sidecar", set: "sidecar", want: AgentRuntimeSidecar},
+		{name: "upper case", set: "SIDECAR", want: AgentRuntimeSidecar},
+		{name: "padded", set: " Sidecar ", want: AgentRuntimeSidecar},
+		{name: "unknown", set: "rust", wantErr: envAgentRuntime + `: must be go or sidecar, got "rust"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			if tt.set != "" {
+				extra[envAgentRuntime] = tt.set
+			}
+			cfg, err := Load(envOf(llmEnv(extra)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.Runtime != tt.want {
+				t.Fatalf("Runtime = %q, want %q", cfg.Agent.Runtime, tt.want)
+			}
+		})
+	}
+}
+
 func TestAgentRunMaxCostSetting(t *testing.T) {
 	tests := []struct {
 		name    string
