@@ -105,6 +105,7 @@ type agentRequestJSON struct {
 	Build          *buildProgressJSON `json:"build"`
 	BuildSavedAt   *string            `json:"build_saved_at"`
 	RequestedBy    authorJSON         `json:"requested_by"`
+	AssignedTo     *assigneeJSON      `json:"assigned_to"`
 	Origin         *string            `json:"origin"`
 	OriginClient   *string            `json:"origin_client"`
 	CreatedAt      string             `json:"created_at"`
@@ -125,6 +126,12 @@ type agentRequestJSON struct {
 	From       *string         `json:"from"`
 	To         *string         `json:"to"`
 	Finding    json.RawMessage `json:"finding"`
+}
+
+type assigneeJSON struct {
+	Kind AssigneeKind `json:"kind"`
+	ID   string       `json:"id"`
+	Name *string      `json:"name"`
 }
 
 type requestSummaryJSON struct {

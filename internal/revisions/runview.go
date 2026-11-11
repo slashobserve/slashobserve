@@ -62,12 +62,27 @@ func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller 
 	}
 	allowed := allowedActions(factsOf(row, states[row.ID], caller, mayStart))
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
+	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
+		return agentRequestJSON{}, err
+	}
 	if mayHaveFinding(row) && r.opts.Finding != nil {
 		if err := r.attachFinding(ctx, row, &out); err != nil {
 			return agentRequestJSON{}, err
 		}
 	}
 	return out, nil
+}
+
+func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assigneeJSON, error) {
+	kind := AssigneeKind(row.AssignedKind)
+	if kind == AssignBuiltin {
+		return nil, nil
+	}
+	name, err := s.db.Queries().GetAssigneeName(ctx, dbsqlc.GetAssigneeNameParams{Kind: row.AssignedKind, ID: row.AssignedID})
+	if err != nil {
+		return nil, fmt.Errorf("get assignee name: %w", err)
+	}
+	return &assigneeJSON{Kind: kind, ID: row.AssignedID.String(), Name: httpapi.OptionalString(name)}, nil
 }
 
 func mayHaveFinding(row dbsqlc.AgentRequest) bool {

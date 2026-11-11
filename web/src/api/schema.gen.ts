@@ -3969,7 +3969,7 @@ export interface components {
             } | null;
             /** @description Why the suggestion failed, set only when the status is `failed`. */
             error: string | null;
-            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know. */
+            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             /** @description Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
@@ -4149,7 +4149,7 @@ export interface components {
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
-            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know. */
+            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
             /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
@@ -4185,6 +4185,15 @@ export interface components {
              */
             continued_by: string | null;
             requested_by: components["schemas"]["Author"];
+            /** @description The outside agent this run waits for or runs on; null when the server's own agent runs it. */
+            assigned_to: {
+                /** @enum {string} */
+                kind: "grant" | "service_account";
+                /** Format: uuid */
+                id: string;
+                /** @description The client name of the connected agent, or the service account's name; null when the client registered none or the assignee is gone. */
+                name: string | null;
+            } | null;
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
              * @enum {string|null}

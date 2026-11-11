@@ -95,6 +95,47 @@ func requestIDOf(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return body.Request.ID
 }
 
+func TestAssignedRunsMatchTheDocument(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	h := newDocumentedObserve(t, svc, user, nil)
+	var creator, account string
+	sqlDB := d.SQLDB(t)
+	if err := sqlDB.QueryRow(`INSERT INTO users (oidc_issuer, oidc_subject, email) VALUES ('i', 's', 'a@example.com') RETURNING id`).Scan(&creator); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.QueryRow(`INSERT INTO service_accounts (name, description, created_by, role) VALUES ('codex-bot', '', $1, 'editor') RETURNING id`, creator).Scan(&account); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name     string
+		kind     string
+		assignee string
+		want     string
+	}{
+		{"a service account with a name", "service_account", account, `{"kind":"service_account","id":"` + account + `","name":"codex-bot"}`},
+		{"a grant that no longer exists", "grant", grantA, `{"kind":"grant","id":"` + grantA + `","name":null}`},
+	}
+	for _, c := range cases {
+		id := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
+		assignTo(t, d, id, c.kind, c.assignee)
+		var body struct {
+			Request struct {
+				AssignedTo json.RawMessage `json:"assigned_to"`
+			} `json:"request"`
+		}
+		if err := json.Unmarshal(h.call(t, http.MethodGet, "/api/v1/observe/"+id, "", http.StatusOK).Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if string(body.Request.AssignedTo) != c.want {
+			t.Errorf("%s: assigned_to = %s, want %s", c.name, body.Request.AssignedTo, c.want)
+		}
+	}
+	own := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"built in"}`, http.StatusAccepted))
+	if body := h.call(t, http.MethodGet, "/api/v1/observe/"+own, "", http.StatusOK).Body.String(); !strings.Contains(body, `"assigned_to":null`) {
+		t.Errorf("a built-in run does not show assigned_to null: %s", body)
+	}
+}
+
 func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
