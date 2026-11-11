@@ -52,6 +52,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/prompts"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/public"
@@ -321,7 +322,8 @@ func run() error {
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		FindingURL:   findingURL,
@@ -345,6 +347,7 @@ func run() error {
 		Imports:       importsService,
 		Folders:       folderAccess,
 		Findings:      findingsService,
+		Observations:  observationsService,
 		SavedSearches: savedSearchesService,
 		Health:        healthService,
 		Annotations:   annotationsService,
@@ -459,8 +462,10 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
+			observations.NewHandler(observationsService, logger),
 			savedsearches.NewHandler(savedSearchesService, logger),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
+			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
 			outbound,
 			prompts.NewHandler(database, logger),

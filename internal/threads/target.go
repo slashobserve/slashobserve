@@ -11,9 +11,10 @@ import (
 type Kind string
 
 const (
-	KindDashboard  Kind = "dashboard"
-	KindFinding    Kind = "finding"
-	KindAnnotation Kind = "annotation"
+	KindDashboard   Kind = "dashboard"
+	KindFinding     Kind = "finding"
+	KindAnnotation  Kind = "annotation"
+	KindObservation Kind = "observation"
 )
 
 type Target struct {
@@ -24,12 +25,12 @@ type Target struct {
 func ParseTarget(s string) (Target, error) {
 	kind, raw, ok := strings.Cut(s, ":")
 	if !ok {
-		return Target{}, invalidTarget("target must be kind:uuid, with kind dashboard, finding or annotation")
+		return Target{}, invalidTarget("target must be kind:uuid, with kind dashboard, finding, annotation or observation")
 	}
 	switch Kind(kind) {
-	case KindDashboard, KindFinding, KindAnnotation:
+	case KindDashboard, KindFinding, KindAnnotation, KindObservation:
 	default:
-		return Target{}, invalidTarget("target kind must be dashboard, finding or annotation")
+		return Target{}, invalidTarget("target kind must be dashboard, finding or annotation, or observation")
 	}
 	id, err := db.ParseUUID(raw)
 	if err != nil {

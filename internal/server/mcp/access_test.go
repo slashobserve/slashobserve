@@ -24,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
@@ -123,7 +124,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
 	found := findings.New(database.DB, access, notes, service, logger)
-	commentThreads := threads.NewService(database.DB, access, service, found, notes)
+	commentThreads := threads.NewService(database.DB, access, service, found, notes, observations.New(database.DB, access, nil, nil, logger))
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)

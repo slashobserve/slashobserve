@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -60,7 +61,7 @@ func newRig(t *testing.T) *rig {
 		access:      access,
 		findings:    findingService,
 		annotations: annotationService,
-		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService),
+		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observations.New(d.DB, access, nil, nil, logger)),
 		saved:       savedsearches.New(d.DB, access, nil, nil, logger),
 	}
 	for _, p := range []auth.Principal{admin, editor, payroll, ada} {
@@ -150,6 +151,8 @@ func (r *rig) comment(t *testing.T, kind Kind, target, body string) (thread, mes
 		thread = r.text(t, `INSERT INTO threads (dashboard_id, dashboard_version) VALUES ($1::uuid, 1) RETURNING id::text`, target)
 	case KindFinding:
 		thread = r.text(t, `INSERT INTO threads (finding_id) VALUES ($1::uuid) RETURNING id::text`, target)
+	case KindObservation:
+		thread = r.text(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid) RETURNING id::text`, target)
 	default:
 		thread = r.text(t, `INSERT INTO threads (annotation_id) VALUES ($1::uuid) RETURNING id::text`, target)
 	}

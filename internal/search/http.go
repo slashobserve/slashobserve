@@ -88,7 +88,7 @@ func kindsParam(c *gin.Context) ([]Kind, bool) {
 	for _, raw := range c.QueryArray("kind") {
 		kind := Kind(raw)
 		if !kind.Valid() {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, finding, annotation, comment, saved_search")
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, finding, annotation, observation, comment, saved_search")
 			return nil, false
 		}
 		kinds = append(kinds, kind)

@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -81,13 +82,14 @@ func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result,
 }
 
 type rig struct {
-	db          *dbtest.Database
-	service     *Service
-	comments    *Comments
-	revisions   *revisions.Service
-	dashboards  *dashboards.Service
-	findings    *findings.Service
-	annotations *annotations.Service
+	db           *dbtest.Database
+	service      *Service
+	comments     *Comments
+	revisions    *revisions.Service
+	dashboards   *dashboards.Service
+	findings     *findings.Service
+	annotations  *annotations.Service
+	observations *observations.Service
 }
 
 func newRig(t *testing.T) *rig {
@@ -112,15 +114,17 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 		reviser = noopReviser{}
 	}
 	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
-	service := NewService(database.DB, access, dashboardService, findingService, annotationService)
+	observationService := observations.New(database.DB, access, nil, nil, logger)
+	service := NewService(database.DB, access, dashboardService, findingService, annotationService, observationService)
 	return &rig{
-		db:          database,
-		service:     service,
-		comments:    NewComments(service, queue),
-		revisions:   queue,
-		dashboards:  dashboardService,
-		findings:    findingService,
-		annotations: annotationService,
+		db:           database,
+		service:      service,
+		comments:     NewComments(service, queue),
+		revisions:    queue,
+		dashboards:   dashboardService,
+		findings:     findingService,
+		annotations:  annotationService,
+		observations: observationService,
 	}
 }
 
