@@ -1,6 +1,6 @@
 -- No row lock on the owner: a delete holds that row and then cascades into child rows an appender may already hold.
 -- name: InsertActivity :one
-INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
+INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, observation_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
 VALUES (
   @type::text,
   @target_kind::text,
@@ -8,10 +8,12 @@ VALUES (
   CASE WHEN @owner_kind::text = 'dashboard' THEN sqlc.narg('owner_id')::uuid END,
   CASE WHEN @owner_kind::text = 'finding' THEN sqlc.narg('owner_id')::uuid END,
   CASE WHEN @owner_kind::text = 'saved_search' THEN sqlc.narg('owner_id')::uuid END,
+  CASE WHEN @owner_kind::text = 'observation' THEN sqlc.narg('owner_id')::uuid END,
   CASE @owner_kind::text
     WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = sqlc.narg('owner_id')::uuid)
     WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = sqlc.narg('owner_id')::uuid)
     WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = sqlc.narg('owner_id')::uuid)
+    WHEN 'observation' THEN (SELECT o.folder_id FROM observations o WHERE o.id = sqlc.narg('owner_id')::uuid)
     WHEN 'general' THEN general_folder_id()
   END,
   @actor_kind::text,
@@ -83,6 +85,9 @@ UPDATE activity SET folder_id = @folder_id WHERE finding_id = @finding_id;
 
 -- name: MoveSavedSearchActivity :execrows
 UPDATE activity SET folder_id = @folder_id WHERE saved_search_id = @saved_search_id;
+
+-- name: MoveObservationActivity :execrows
+UPDATE activity SET folder_id = @folder_id WHERE observation_id = @observation_id;
 
 -- name: PruneActivity :execrows
 DELETE FROM activity

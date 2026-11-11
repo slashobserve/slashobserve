@@ -55,7 +55,7 @@ func (q *Queries) ActivityXid(ctx context.Context, seq int64) (pgtype.Uint64, er
 }
 
 const insertActivity = `-- name: InsertActivity :one
-INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
+INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, observation_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
 VALUES (
   $1::text,
   $2::text,
@@ -63,10 +63,12 @@ VALUES (
   CASE WHEN $4::text = 'dashboard' THEN $5::uuid END,
   CASE WHEN $4::text = 'finding' THEN $5::uuid END,
   CASE WHEN $4::text = 'saved_search' THEN $5::uuid END,
+  CASE WHEN $4::text = 'observation' THEN $5::uuid END,
   CASE $4::text
     WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $5::uuid)
     WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = $5::uuid)
     WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = $5::uuid)
+    WHEN 'observation' THEN (SELECT o.folder_id FROM observations o WHERE o.id = $5::uuid)
     WHEN 'general' THEN general_folder_id()
   END,
   $6::text,
@@ -117,7 +119,7 @@ func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) 
 }
 
 const listActivity = `-- name: ListActivity :many
-SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id
+SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id, a.observation_id
 FROM activity a
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND (a.folder_id = ANY($1::uuid[])
@@ -187,6 +189,7 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 			&i.CreatedAt,
 			&i.FindingID,
 			&i.SavedSearchID,
+			&i.ObservationID,
 		); err != nil {
 			return nil, err
 		}
@@ -199,7 +202,7 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 }
 
 const listActivityAfter = `-- name: ListActivityAfter :many
-SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id
+SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id, a.observation_id
 FROM activity a
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND (a.folder_id = ANY($1::uuid[])
@@ -267,6 +270,7 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 			&i.CreatedAt,
 			&i.FindingID,
 			&i.SavedSearchID,
+			&i.ObservationID,
 		); err != nil {
 			return nil, err
 		}
@@ -320,6 +324,23 @@ type MoveFindingActivityParams struct {
 
 func (q *Queries) MoveFindingActivity(ctx context.Context, arg MoveFindingActivityParams) (int64, error) {
 	result, err := q.db.Exec(ctx, moveFindingActivity, arg.FolderID, arg.FindingID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const moveObservationActivity = `-- name: MoveObservationActivity :execrows
+UPDATE activity SET folder_id = $1 WHERE observation_id = $2
+`
+
+type MoveObservationActivityParams struct {
+	FolderID      pgtype.UUID
+	ObservationID pgtype.UUID
+}
+
+func (q *Queries) MoveObservationActivity(ctx context.Context, arg MoveObservationActivityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, moveObservationActivity, arg.FolderID, arg.ObservationID)
 	if err != nil {
 		return 0, err
 	}

@@ -1,8 +1,8 @@
 -- name: CreateThread :one
-INSERT INTO threads (dashboard_id, dashboard_version, panel_id, finding_id, annotation_id)
+INSERT INTO threads (dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, observation_id)
 VALUES (
   sqlc.narg('dashboard_id')::uuid, sqlc.narg('dashboard_version')::integer, sqlc.narg('panel_id')::text,
-  sqlc.narg('finding_id')::uuid, sqlc.narg('annotation_id')::uuid
+  sqlc.narg('finding_id')::uuid, sqlc.narg('annotation_id')::uuid, sqlc.narg('observation_id')::uuid
 )
 RETURNING *;
 
@@ -37,6 +37,9 @@ SELECT id FROM dashboards WHERE id = @id FOR KEY SHARE SKIP LOCKED;
 
 -- name: LockFindingKeyShare :one
 SELECT id FROM findings WHERE id = @id FOR KEY SHARE;
+
+-- name: LockObservationKeyShare :one
+SELECT id FROM observations WHERE id = @id FOR KEY SHARE;
 
 -- name: LockAnnotationKeyShare :one
 SELECT id FROM annotations WHERE id = @id FOR KEY SHARE;
@@ -86,7 +89,8 @@ FROM thread_messages m
 JOIN threads t ON t.id = m.thread_id
 WHERE (t.dashboard_id = sqlc.narg('dashboard_id')::uuid
     OR t.finding_id = sqlc.narg('finding_id')::uuid
-    OR t.annotation_id = sqlc.narg('annotation_id')::uuid)
+    OR t.annotation_id = sqlc.narg('annotation_id')::uuid
+    OR t.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('status')::text IS NULL OR t.status = sqlc.narg('status')::text)
   AND (sqlc.narg('panel_id')::text IS NULL OR t.panel_id = sqlc.narg('panel_id')::text)
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
