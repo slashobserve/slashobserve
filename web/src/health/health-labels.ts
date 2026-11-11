@@ -133,7 +133,7 @@ export function repairAction(
 ): RepairAction {
   const disabledReason = agentAvailable ? null : noAgentReason
   const repair = item.repair
-  switch (repair?.state) {
+  switch (repair?.outcome) {
     case "queued":
       return { kind: "queued" }
     case "running":
@@ -145,11 +145,8 @@ export function repairAction(
         canRetry: canRepair(item),
         disabledReason,
       }
-    case "succeeded":
-      if (
-        repair.version !== null &&
-        (item.checked_version === null || item.checked_version < repair.version)
-      ) {
+    case "repaired":
+      if (repair.version !== null) {
         return { kind: "repaired", version: repair.version }
       }
   }
@@ -157,7 +154,7 @@ export function repairAction(
 }
 
 function repairActive(item: HealthItem): boolean {
-  return item.repair?.state === "queued" || item.repair?.state === "running"
+  return item.repair?.outcome === "queued" || item.repair?.outcome === "running"
 }
 
 export type SummaryLabel = { tone: StatusTone; label: string }

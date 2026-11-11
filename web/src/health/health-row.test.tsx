@@ -131,7 +131,9 @@ describe("HealthRow", () => {
   })
 
   test("shows a running repair", async () => {
-    await renderRow(item({ repair: { ...repair, state: "running" } }))
+    await renderRow(
+      item({ repair: { ...repair, state: "running", outcome: "running" } })
+    )
     expect(screen.getByText("Repairing")).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Repair" })).toBeNull()
   })
@@ -140,7 +142,12 @@ describe("HealthRow", () => {
     await renderRow(
       item({
         checked_version: 1,
-        repair: { ...repair, state: "succeeded", version: 2 },
+        repair: {
+          ...repair,
+          state: "succeeded",
+          outcome: "repaired",
+          version: 2,
+        },
       })
     )
     expect(screen.getByText("Repaired")).toBeTruthy()
@@ -154,7 +161,12 @@ describe("HealthRow", () => {
   test("shows why a repair failed and offers it again", async () => {
     await renderRow(
       item({
-        repair: { ...repair, state: "failed", error: "the model gave up" },
+        repair: {
+          ...repair,
+          state: "failed",
+          outcome: "failed",
+          error: "the model gave up",
+        },
       })
     )
     expect(screen.getByText("Repair failed")).toBeTruthy()
