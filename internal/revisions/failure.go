@@ -32,4 +32,5 @@ const (
 	FailureNoFinding           FailureCode = "no_finding"
 	FailureLeaseExpired        FailureCode = "lease_expired"
 	FailureNoProgress          FailureCode = "no_progress"
+	FailureBudgetExhausted     FailureCode = "budget_exhausted"
 )

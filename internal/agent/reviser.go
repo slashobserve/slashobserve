@@ -113,7 +113,7 @@ func storedMessage(err error) string {
 	switch {
 	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrRefused),
 		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, llm.ErrNoFixture),
-		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding):
+		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding), errors.Is(err, ErrBudgetExhausted):
 		return err.Error()
 	case errors.Is(err, dashboards.ErrNotFound):
 		return messageDashboardGone

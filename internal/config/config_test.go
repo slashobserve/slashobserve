@@ -107,6 +107,48 @@ func TestLLMPricesFileSetting(t *testing.T) {
 	})
 }
 
+func TestAgentRunMaxCostSetting(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     string
+		want    float64
+		wantErr string
+	}{
+		{name: "unset means no limit"},
+		{name: "zero means no limit", set: "0"},
+		{name: "a decimal", set: "2.5", want: 2.5},
+		{name: "a small amount", set: "0.05", want: 0.05},
+		{name: "at the maximum", set: "10000", want: 10000},
+		{name: "negative", set: "-1", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars above 0 and at most 10000, or 0 for no limit, got \"-1\""},
+		{name: "not a number", set: "abc", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars"},
+		{name: "NaN", set: "NaN", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars"},
+		{name: "infinite", set: "Inf", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars"},
+		{name: "above the maximum", set: "20000", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars"},
+		{name: "with a currency sign", set: "$5", wantErr: envAgentRunMaxCostUSD + ": must be a number of US dollars"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			if tt.set != "" {
+				extra[envAgentRunMaxCostUSD] = tt.set
+			}
+			cfg, err := Load(envOf(llmEnv(extra)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.MaxRunCostUSD != tt.want {
+				t.Fatalf("MaxRunCostUSD = %v, want %v", cfg.Agent.MaxRunCostUSD, tt.want)
+			}
+		})
+	}
+}
+
 func TestAdminEmailsSetting(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -246,15 +246,9 @@ func run() error {
 
 	serverMetrics := metrics.New()
 
-	llmProvider, err := providers.New(cfg.LLM, logger)
+	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
 	if err != nil {
-		return described("llm_provider_failed", err)
-	}
-	if llmProvider != nil {
-		llmProvider = llm.WithMetrics(llmProvider, serverMetrics.ModelCalls())
-		logger.Info("llm provider configured", slog.String("provider", llmProvider.Name()), slog.String("model", llmProvider.Model()))
-	} else {
-		logger.Info("no llm provider configured; the agent is off")
+		return err
 	}
 	warnOptInLogging(logger, cfg)
 
@@ -342,6 +336,7 @@ func run() error {
 			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
 			LogToolInputs:     cfg.Agent.LogToolInputs,
 			Prices:            cfg.LLM.Prices,
+			MaxRunCostUSD:     cfg.Agent.MaxRunCostUSD,
 		}), revisions.NewSteps(database, logger))
 		reviser = agent.WithMetrics(reviser, serverMetrics.AgentRuns())
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
@@ -516,6 +511,33 @@ func metricsMounts(enabled bool, registry *metrics.Registry) []server.Mount {
 		return nil
 	}
 	return []server.Mount{{Path: "/metrics", Handler: registry.Handler()}}
+}
+
+func newLLMProvider(cfg config.Config, logger *slog.Logger, serverMetrics *metrics.Registry) (llm.Provider, error) {
+	provider, err := providers.New(cfg.LLM, logger)
+	if err != nil {
+		return nil, described("llm_provider_failed", err)
+	}
+	if provider == nil {
+		logger.Info("no llm provider configured; the agent is off")
+		return nil, nil
+	}
+	provider = llm.WithMetrics(provider, serverMetrics.ModelCalls())
+	logger.Info("llm provider configured", slog.String("provider", provider.Name()), slog.String("model", provider.Model()))
+	if err := requirePricedModel(cfg, provider); err != nil {
+		return nil, described("invalid_config", err)
+	}
+	return provider, nil
+}
+
+func requirePricedModel(cfg config.Config, provider llm.Provider) error {
+	if provider == nil || cfg.Agent.MaxRunCostUSD <= 0 {
+		return nil
+	}
+	if price, ok := cfg.LLM.Prices.Lookup(provider.Model()); !ok || !price.Complete() {
+		return fmt.Errorf("SLASHOBSERVE_AGENT_RUN_MAX_COST_USD is set but model %q has no price for every token class; add it to SLASHOBSERVE_LLM_PRICES_FILE", provider.Model())
+	}
+	return nil
 }
 
 func warnOptInLogging(logger *slog.Logger, cfg config.Config) {

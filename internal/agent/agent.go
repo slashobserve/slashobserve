@@ -95,6 +95,7 @@ type Config struct {
 	SessionRenewBytes int
 	LogToolInputs     bool
 	Prices            pricing.Table
+	MaxRunCostUSD     float64
 }
 
 type Task struct {
@@ -163,6 +164,7 @@ type Agent struct {
 	sessionRenewBytes int
 	logToolInputs     bool
 	prices            pricing.Table
+	maxRunCost        float64
 }
 
 func New(c Config) *Agent {
@@ -196,6 +198,7 @@ func New(c Config) *Agent {
 		sessionRenewBytes: c.SessionRenewBytes,
 		logToolInputs:     c.LogToolInputs,
 		prices:            c.Prices,
+		maxRunCost:        c.MaxRunCostUSD,
 	}
 }
 
@@ -658,6 +661,9 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 		return sessionEnd{}, err
 	}
 	for {
+		if r.overBudget() {
+			return sessionEnd{}, ErrBudgetExhausted
+		}
 		r.state.modelCalls++
 		r.state.window.calls++
 		turn, err := r.agent.modelCall(ctx, chat, results, r.totals)
@@ -951,6 +957,7 @@ var sentinelFailures = []struct {
 	{ErrDraftInvalid, revisions.FailureDraftInvalid},
 	{ErrRepairExhausted, revisions.FailureValidationExhausted},
 	{ErrNoProgress, revisions.FailureNoProgress},
+	{ErrBudgetExhausted, revisions.FailureBudgetExhausted},
 	{dashboards.ErrBuildLost, revisions.FailureLeaseExpired},
 	{ErrRefused, revisions.FailureRefused},
 	{ErrConflict, revisions.FailureConflict},

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -69,6 +70,7 @@ const (
 
 	minAgentSessionRenewKiB = 32
 	maxAgentSessionRenewKiB = 4096
+	maxAgentRunCostUSD      = 10000
 
 	defaultAgentWorkers = 8
 	minAgentWorkers     = 1
@@ -131,6 +133,7 @@ const (
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
 	envAgentWorkers         = "SLASHOBSERVE_AGENT_WORKERS"
+	envAgentRunMaxCostUSD   = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envAgentLogToolInputs = "SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS"
 
@@ -146,7 +149,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -174,6 +177,7 @@ type Agent struct {
 	RunTimeout        time.Duration
 	SessionRenewBytes int
 	Workers           int
+	MaxRunCostUSD     float64
 	LogToolInputs     bool
 }
 
@@ -624,7 +628,23 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.Agent.Workers = n
 		}
 	}
+	if err := loadRunMaxCost(lookup, cfg); err != nil {
+		errs = append(errs, err)
+	}
 	return errs
+}
+
+func loadRunMaxCost(lookup func(string) (string, bool), cfg *Config) error {
+	v := get(lookup, envAgentRunMaxCostUSD)
+	if v == "" {
+		return nil
+	}
+	usd, err := strconv.ParseFloat(v, 64)
+	if err != nil || math.IsNaN(usd) || math.IsInf(usd, 0) || usd < 0 || usd > maxAgentRunCostUSD {
+		return fmt.Errorf("%s: must be a number of US dollars above 0 and at most %d, or 0 for no limit, got %q", envAgentRunMaxCostUSD, maxAgentRunCostUSD, v)
+	}
+	cfg.Agent.MaxRunCostUSD = usd
+	return nil
 }
 
 func loadTimeout(lookup func(string) (string, bool), name string, def, minimum, maximum time.Duration) (time.Duration, error) {

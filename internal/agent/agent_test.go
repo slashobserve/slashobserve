@@ -531,6 +531,81 @@ func TestOutcomeCarriesTheEstimatedCostOfTheRun(t *testing.T) {
 	})
 }
 
+func budgetRig(t *testing.T, maxCostUSD float64, turns ...scriptedTurn) (*rig, *scriptedSession) {
+	t.Helper()
+	s := session(turns...)
+	r := newRigWithConfig(t, func(c *agent.Config) {
+		c.Prices = fakeModelPrices(t)
+		c.MaxRunCostUSD = maxCostUSD
+	}, s)
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	return r, s
+}
+
+func TestRunStopsBeforeTheCallThatTheCostLimitForbids(t *testing.T) {
+	const perTurnUSD = (100*2.00 + 10*10.00 + 5*0.20 + 2*2.50) / 1e6
+	cases := map[string]struct {
+		limit     float64
+		wantCalls int
+	}{
+		"limit below the first turn":    {perTurnUSD / 2, 1},
+		"limit equal to the first turn": {perTurnUSD, 1},
+		"limit crossed by the second":   {perTurnUSD * 1.5, 2},
+		"limit above the whole script":  {perTurnUSD * 10, 3},
+		"no limit":                      {0, 3},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r, s := budgetRig(t, tc.limit,
+				toolTurn(call("c1", "list_datasources", `{}`)),
+				toolTurn(call("c2", "lint_query", `{"n":1}`)),
+				toolTurn(call("c3", "create_dashboard", `{"spec":{}}`)),
+			)
+			out, err := r.agent.Run(context.Background(), r.task())
+			if got := s.modelCalls(); got != tc.wantCalls {
+				t.Fatalf("model calls = %d, want %d", got, tc.wantCalls)
+			}
+			if tc.wantCalls == 3 {
+				if err != nil || out.Version != 1 {
+					t.Fatalf("version %d, err %v: a limit never reached must not stop the run", out.Version, err)
+				}
+				return
+			}
+			if !errors.Is(err, agent.ErrBudgetExhausted) {
+				t.Fatalf("err = %v, want ErrBudgetExhausted", err)
+			}
+			if out.Usage.Calls != tc.wantCalls || out.CostUSD == nil {
+				t.Fatalf("outcome = %+v: the calls made must still be counted and priced", out)
+			}
+			if got := len(r.tools.names()); got != tc.wantCalls {
+				t.Fatalf("tools run = %v: the crossing turn's tool calls must still run", r.tools.names())
+			}
+		})
+	}
+}
+
+func TestRunStoppedByTheCostLimitFailsWithItsOwnCodeAndKeepsItsMessage(t *testing.T) {
+	r, _ := budgetRig(t, 1e-6, toolTurn(call("c1", "list_datasources", `{}`)))
+	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
+	if string(result.FailureCode) != "budget_exhausted" {
+		t.Fatalf("failure code = %q", result.FailureCode)
+	}
+	if err == nil || err.Error() != agent.ErrBudgetExhausted.Error() {
+		t.Fatalf("stored error = %v, want %q", err, agent.ErrBudgetExhausted)
+	}
+	if result.Usage == nil || result.Usage.CostUSD == nil {
+		t.Fatalf("usage = %+v: a stopped run still reports its cost", result.Usage)
+	}
+}
+
+func TestSaveInTheTurnThatCrossesTheCostLimitStillCommits(t *testing.T) {
+	r, s := budgetRig(t, 1e-6, toolTurn(call("c1", "create_dashboard", `{"spec":{}}`)))
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || s.modelCalls() != 1 {
+		t.Fatalf("version %d, calls %d, err %v: the finishing save must not be thrown away", out.Version, s.modelCalls(), err)
+	}
+}
+
 func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {
 	r := newRig(t,
 		session(toolTurn(call("c1", "create_dashboard", `{}`))),
