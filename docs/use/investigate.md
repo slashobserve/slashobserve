@@ -69,6 +69,17 @@ Charts on the dashboard then show it as a marker; see [Annotations](annotations.
 The card then reads "Pinned to the dashboard" with an **Open dashboard** link, and pinning again changes nothing.
 Pinning needs Edit on the dashboard.
 
+## Share a finding
+
+A finding without a dashboard is filed in a folder, and its page names that folder under the title.
+A finding you saved starts in your My Dashboards, where only you can read it.
+**Publish to folder** on such a finding, or **Move to folder** on one filed in a shared folder, moves it to another folder, and then everyone who can view that folder can read it.
+A finding on a dashboard follows the dashboard and has no folder of its own to move.
+
+Moving needs Edit on the finding and on the folder you move it to, and My Dashboards takes no moves.
+The move is recorded in the [activity log](activity.md) as `finding.moved`, and the finding's earlier activity moves to the new folder with it.
+From the command line, `bin/observe findings move <finding-id> --folder <folder-id>` does the same, and over [MCP](mcp.md) `move_finding` does.
+
 ## Make a dashboard from it
 
 **Make a dashboard** saves the evidence panels as a new dashboard in your My Dashboards and opens it.
@@ -90,4 +101,4 @@ Viewers can read the findings on dashboards they can view.
 ## From an MCP client
 
 An agent in your own editor can do the same over [MCP](mcp.md).
-It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves a finding with the `create_finding` tool and reads the saved ones with `list_findings`.
+It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves a finding with the `create_finding` tool, reads the saved ones with `list_findings` and moves one to another folder with `move_finding`.

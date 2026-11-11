@@ -12,6 +12,7 @@ export const eventTypeLabels = {
   "annotation.deleted": "Annotation removed",
   "finding.created": "Finding saved",
   "finding.pinned": "Finding pinned",
+  "finding.moved": "Finding moved",
   "thread.opened": "Thread opened",
   "thread.replied": "Thread replied to",
   "thread.edited": "Message edited",

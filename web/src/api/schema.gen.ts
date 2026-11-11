@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -1657,7 +1657,7 @@ export interface paths {
         };
         /**
          * List the findings the caller can read, newest first.
-         * @description Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are listed with their dashboard. `dashboard_id` and `folder_id` do not go together.
+         * @description Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together.
          */
         get: operations["listFindings"];
         put?: never;
@@ -1728,6 +1728,28 @@ export interface paths {
          * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`.
          */
         post: operations["saveFindingAsDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a finding without a dashboard into another folder.
+         * @description Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published. It needs Edit on the finding and on the target folder, so a finding in no folder can be moved by the account that saved it or by an Admin. A finding on a dashboard follows the dashboard and answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`. Moving a finding into the folder it is already in changes nothing. The move is recorded as `finding.moved`, and the finding's earlier activity moves to the target folder with it.
+         */
+        post: operations["moveFinding"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3044,7 +3066,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -9602,6 +9624,49 @@ export interface operations {
                 };
             };
             422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    moveFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    folder_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The finding in its new folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The finding is on a dashboard (`finding_on_dashboard`) or the target is a personal folder (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

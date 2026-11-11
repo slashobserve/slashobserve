@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `findings`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -160,6 +160,15 @@ It shows the steps like a prompt, then prints the finding's title, its answer as
 `--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
 It exits 1 when the investigation fails or ends without a finding.
 `bin/observe status <request-id>` on an investigation shows the finding's title and address, and with `--wait` prints the finding.
+
+## Findings
+
+`bin/observe findings list` prints your own findings, newest first, with where each one lives: a dashboard, a folder, or `-` for a finding in no folder.
+`--dashboard <id>` lists the findings on one dashboard and `--folder <id>` those filed in one folder, never both, and `--limit` and `--cursor` page through the result.
+
+`bin/observe findings move <finding-id> --folder <folder-id>` moves a finding without a dashboard into another folder and prints `Moved <title> to <folder title>`.
+It needs Edit on the finding and on the folder, and a finding on a dashboard or a move into My Dashboards is refused with a 409.
+`--json` prints the response of `GET /api/v1/findings` or `POST /api/v1/findings/{id}/move` unchanged.
 
 ## Comments
 

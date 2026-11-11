@@ -352,3 +352,64 @@ func TestCreateFindingRefusesWhatTheFolderCannotTake(t *testing.T) {
 		t.Errorf("listing by dashboard and folder: %#v", res.Content)
 	}
 }
+
+func TestMoveFindingSharesAFindingWithAnotherFolder(t *testing.T) {
+	r := newFindingRig(t)
+	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	onBoard := r.callIn(t, nil, adminCaller, nameCreateFinding, `{"markdown":"on a board","dashboard_id":"`+board.ID+`"}`).Content.(findings.FindingJSON)
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'eve', 'eve@example.com', 'Eve')`, editorCaller.ID)
+	filed := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"disk is full"}`).Content.(findings.FindingJSON)
+	target, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	elsewhere, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Platform"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := r.callIn(t, nil, adminCaller, nameCreateFinding, `{"markdown":"shared","folder_id":"`+target.ID.String()+`"}`).Content.(findings.FindingJSON)
+	var personal string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, editorCaller.ID).Scan(&personal); err != nil {
+		t.Fatal(err)
+	}
+	missing := "99999999-9999-4999-8999-999999999999"
+	move := func(by auth.Principal, run *Run, finding, folder string) Result {
+		return r.callIn(t, run, by, nameMoveFinding, `{"finding_id":"`+finding+`","folder_id":"`+folder+`"}`)
+	}
+
+	cases := []struct {
+		name   string
+		result Result
+		code   string
+	}{
+		{"a finding on a dashboard", move(adminCaller, nil, onBoard.ID, target.ID.String()), codeInvalidRequest},
+		{"an unknown finding", move(editorCaller, nil, missing, target.ID.String()), codeNotFound},
+		{"an unknown folder", move(editorCaller, nil, filed.ID, missing), codeNotFound},
+		{"My Dashboards", move(editorCaller, nil, filed.ID, personal), codeInvalidRequest},
+		{"a Viewer on a finding it cannot edit", move(viewerCaller, nil, shared.ID, elsewhere.ID.String()), codeForbiddenRole},
+		{"a Commenter on a finding it cannot edit", move(commenterCaller, nil, shared.ID, elsewhere.ID.String()), codeForbiddenRole},
+		{"a finding id that is not a uuid", move(editorCaller, nil, "nope", target.ID.String()), codeInvalidRequest},
+		{"a folder id that is not a uuid", move(editorCaller, nil, filed.ID, "nope"), codeInvalidRequest},
+		{"inside a run", move(editorCaller, &Run{Mode: ModeCreate}, filed.ID, target.ID.String()), codeInvalidRequest},
+	}
+	for _, c := range cases {
+		if got := errorCode(t, c.result); got != c.code {
+			t.Errorf("%s: %#v, want %s", c.name, c.result.Content, c.code)
+		}
+	}
+	if body := cases[len(cases)-1].result.Content.(errorBody); body.Message != "move_finding is for MCP clients; a run saves only dashboards or a finding" {
+		t.Errorf("in-run message = %q", body.Message)
+	}
+
+	res := move(editorCaller, nil, filed.ID, target.ID.String())
+	out, ok := res.Content.(findingMovedOut)
+	if res.IsError || !ok || out.ID != filed.ID || out.Folder != "Payments" || out.FolderID == nil || *out.FolderID != target.ID.String() {
+		t.Fatalf("move: %#v", res.Content)
+	}
+	if again := move(editorCaller, nil, filed.ID, target.ID.String()); again.IsError {
+		t.Errorf("moving into the folder it is in: %#v", again.Content)
+	}
+}

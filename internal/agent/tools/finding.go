@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -24,6 +25,7 @@ const (
 	nameSaveFinding   = "save_finding"
 	nameCreateFinding = "create_finding"
 	nameListFindings  = "list_findings"
+	nameMoveFinding   = "move_finding"
 
 	codeTooLong      = "finding_too_long"
 	codeNotInThisRun = "not_in_this_run"
@@ -36,6 +38,10 @@ const (
 	descSaveFinding   = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant."
 	descCreateFinding = "Save an investigation result as a finding: markdown of at most 400 words and up to 4 evidence panels, each checked by running its query. Returns the finding with its url."
 	descListFindings  = "List findings, newest first: those on one dashboard with dashboard_id, {findings_folder_scope}else your own. Page with next_cursor."
+
+	descMoveFinding = "Move a finding without a dashboard into another folder, which shares it with that folder's readers. Needs Edit on the finding and on the folder; a finding on a dashboard follows the dashboard."
+
+	schemaMoveFinding = `{"type":"object","properties":{"finding_id":{"type":"string","format":"uuid","description":"The finding to move, from list_findings."},"folder_id":{"type":"string","format":"uuid","description":"The folder to move it into, from list_folders. Not My Dashboards."}},"required":["finding_id","folder_id"],"additionalProperties":false}`
 
 	propFindingsFolderID = `"folder_id":{"type":"string","format":"uuid","description":"Only findings filed in this folder, from list_folders."}`
 
@@ -58,6 +64,7 @@ func (r *Registry) findingEntries() []entry {
 		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, Answers: true, MinRole: auth.RoleEditor}, r.saveFinding},
 		{Tool{Name: nameCreateFinding, Description: descCreateFinding, InputSchema: json.RawMessage(schemaCreateFinding), MCPOnly: true, MinRole: auth.RoleEditor}, r.createFinding},
 		{Tool{Name: nameListFindings, Description: descListFindings, InputSchema: json.RawMessage(schemaListFindings), ReadOnly: true, MinRole: auth.RoleViewer}, r.listFindings},
+		{Tool{Name: nameMoveFinding, Description: descMoveFinding, InputSchema: json.RawMessage(schemaMoveFinding), MCPOnly: true, MinRole: auth.RoleViewer}, r.moveFinding},
 	}
 }
 
@@ -195,6 +202,52 @@ func (r *Registry) createFinding(ctx context.Context, input json.RawMessage) (Re
 		return Result{}, err
 	}
 	return success("Saved finding "+f.ID, findings.JSONOf(f, links.Finding(r.deps.PublicURL, f.ID))), nil
+}
+
+type findingMovedOut struct {
+	findingItemOut
+	Folder string `json:"folder"`
+}
+
+func (r *Registry) moveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
+	if _, scoped := RunFrom(ctx); scoped {
+		return invalid("%s is for MCP clients; a run saves only dashboards or a finding", nameMoveFinding), nil
+	}
+	if r.deps.Findings == nil {
+		return Result{}, errFindingsNotConfigured
+	}
+	var in struct {
+		FindingID string `json:"finding_id"`
+		FolderID  string `json:"folder_id"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	findingID, err := db.ParseUUID(in.FindingID)
+	if err != nil {
+		return invalid("finding_id must be a UUID from list_findings"), nil
+	}
+	folderID, err := db.ParseUUID(in.FolderID)
+	if err != nil {
+		return invalid("folder_id must be a UUID from list_folders"), nil
+	}
+	principal, _ := auth.FromContext(ctx)
+	f, err := r.deps.Findings.Move(ctx, principal, findingID, folderID)
+	switch {
+	case errors.Is(err, findings.ErrNotFound):
+		return toolError(codeNotFound, "finding not found"), nil
+	case errors.Is(err, findings.ErrFolderNotFound):
+		return toolError(codeNotFound, "folder not found"), nil
+	case errors.Is(err, findings.ErrOnDashboard):
+		return invalid("%s", findings.ErrOnDashboard.Error()), nil
+	case errors.Is(err, folders.ErrMoveIntoPersonal):
+		return invalid("a finding cannot move into My Dashboards"), nil
+	case errors.Is(err, folders.ErrForbidden):
+		return toolError(codeForbiddenRole, roleDeniedMessage), nil
+	case err != nil:
+		return Result{}, err
+	}
+	return success("Moved finding "+f.ID, findingMovedOut{findingItemOut: r.findingItem(f), Folder: f.Folder.Title}), nil
 }
 
 func (r *Registry) listFindings(ctx context.Context, input json.RawMessage) (Result, error) {

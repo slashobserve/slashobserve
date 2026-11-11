@@ -36,6 +36,7 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
+	ErrOnDashboard    = errors.New("a finding on a dashboard follows the dashboard's folder")
 )
 
 type Author struct{ Kind, ID, Name string }

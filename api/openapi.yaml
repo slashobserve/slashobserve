@@ -166,6 +166,8 @@ paths:
     $ref: "./paths/findings.yaml#/findings-id-pin"
   /findings/{id}/dashboard:
     $ref: "./paths/findings.yaml#/findings-id-dashboard"
+  /findings/{id}/move:
+    $ref: "./paths/findings.yaml#/findings-id-move"
   /findings/{id}/panels/{panel_id}/data:
     $ref: "./paths/findings.yaml#/findings-id-panels-panel-id-data"
   /news:
@@ -1056,7 +1058,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -3766,7 +3768,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 20
+          maxItems: 21
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -3832,7 +3834,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 20
+          maxItems: 21
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -3851,7 +3853,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 20
+          maxItems: 21
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

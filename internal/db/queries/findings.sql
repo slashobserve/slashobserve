@@ -45,3 +45,6 @@ LIMIT @row_limit;
 
 -- name: SetFindingAnnotation :execrows
 UPDATE findings SET annotation_id = @annotation_id WHERE id = @id AND annotation_id IS NULL;
+
+-- name: MoveFinding :one
+UPDATE findings SET folder_id = @folder_id WHERE id = @id AND dashboard_id IS NULL RETURNING *;

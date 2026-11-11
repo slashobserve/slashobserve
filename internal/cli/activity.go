@@ -250,6 +250,8 @@ func describe(e activityEvent) string {
 		return "saved the finding " + quotedTitle(d.Title)
 	case "finding.pinned":
 		return "pinned a finding"
+	case "finding.moved":
+		return "moved the finding " + quotedTitle(d.Title)
 	}
 	if phrase, ok := describeDashboard(e); ok {
 		return phrase

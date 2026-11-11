@@ -16,6 +16,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
 | Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
+| Finding | `finding.moved` | A finding without a dashboard moves to another folder, which shares it with that folder's readers. |
 | Run | `run.queued`, `run.started` | An [agent request](chat.md) is queued, or a worker starts it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |

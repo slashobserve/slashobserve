@@ -13,6 +13,7 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"annotation.deleted":        "annotation",
 		"finding.created":           "finding",
 		"finding.pinned":            "finding",
+		"finding.moved":             "finding",
 		"thread.opened":             "thread",
 		"thread.replied":            "thread",
 		"thread.edited":             "thread",

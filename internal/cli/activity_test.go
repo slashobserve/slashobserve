@@ -208,6 +208,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"annotation.deleted", `{}`, `deleted an annotation`},
 		{"finding.created", `{"title":"Slow pod"}`, `saved the finding "Slow pod"`},
 		{"finding.pinned", `{"annotation_id":"a"}`, `pinned a finding`},
+		{"finding.moved", `{"title":"Slow pod","from_folder_id":null,"to_folder_id":"f"}`, `moved the finding "Slow pod"`},
 		{"run.queued", `{"source":"prompt"}`, `run queued`},
 		{"run.started", `{"source":"prompt","attempt":1}`, `run started`},
 		{"run.succeeded", `{"source":"prompt","result_version":4}`, `run succeeded (saved version 4)`},

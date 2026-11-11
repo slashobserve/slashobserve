@@ -152,6 +152,41 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	return findingsOf(found)
 }
 
+type movedActivityFields struct {
+	Title        string  `json:"title"`
+	FromFolderID *string `json:"from_folder_id"`
+	ToFolderID   string  `json:"to_folder_id"`
+}
+
+func (s *store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		moved, err := q.MoveFinding(ctx, dbsqlc.MoveFindingParams{ID: id, FolderID: to})
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrNotFound
+		case db.IsForeignKeyViolation(err):
+			return ErrFolderNotFound
+		case err != nil:
+			return fmt.Errorf("move finding: %w", err)
+		}
+		if err := activity.Move(ctx, q, activity.OnFinding(id), to); err != nil {
+			return err
+		}
+		data := movedActivityFields{Title: moved.Title, ToFolderID: to.String()}
+		if from.Valid {
+			data.FromFolderID = httpapi.OptionalString(from.String())
+		}
+		_, err = activity.Append(ctx, q, activity.Entry{
+			Type:     activity.TypeFindingMoved,
+			TargetID: id,
+			Owner:    activity.OnFinding(id),
+			Actor:    by,
+			Data:     data,
+		}, nil)
+		return err
+	})
+}
+
 func activityOwner(dashboardID, findingID pgtype.UUID) activity.Owner {
 	if dashboardID.Valid {
 		return activity.OnDashboard(dashboardID)

@@ -336,6 +336,39 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 	return items, nil
 }
 
+const moveFinding = `-- name: MoveFinding :one
+UPDATE findings SET folder_id = $1 WHERE id = $2 AND dashboard_id IS NULL RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id
+`
+
+type MoveFindingParams struct {
+	FolderID pgtype.UUID
+	ID       pgtype.UUID
+}
+
+func (q *Queries) MoveFinding(ctx context.Context, arg MoveFindingParams) (Finding, error) {
+	row := q.db.QueryRow(ctx, moveFinding, arg.FolderID, arg.ID)
+	var i Finding
+	err := row.Scan(
+		&i.ID,
+		&i.AgentRequestID,
+		&i.DashboardID,
+		&i.Title,
+		&i.Markdown,
+		&i.Evidence,
+		&i.TimeFrom,
+		&i.TimeTo,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.AnnotationID,
+		&i.CreatedAt,
+		&i.Origin,
+		&i.OriginClient,
+		&i.FolderID,
+	)
+	return i, err
+}
+
 const setFindingAnnotation = `-- name: SetFindingAnnotation :execrows
 UPDATE findings SET annotation_id = $1 WHERE id = $2 AND annotation_id IS NULL
 `

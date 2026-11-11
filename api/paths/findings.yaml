@@ -5,7 +5,7 @@ findings:
     description: >-
       Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder.
       With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
-      With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are listed with their dashboard.
+      With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`.
       `dashboard_id` and `folder_id` do not go together.
     parameters:
       - name: dashboard_id
@@ -166,6 +166,58 @@ findings-id-dashboard:
               $ref: "../openapi.yaml#/components/schemas/Error"
       "422":
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+findings-id-move:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: moveFinding
+    summary: Move a finding without a dashboard into another folder.
+    description: >-
+      Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published.
+      It needs Edit on the finding and on the target folder, so a finding in no folder can be moved by the account that saved it or by an Admin.
+      A finding on a dashboard follows the dashboard and answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`.
+      Moving a finding into the folder it is already in changes nothing.
+      The move is recorded as `finding.moved`, and the finding's earlier activity moves to the target folder with it.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [folder_id]
+            additionalProperties: false
+            properties:
+              folder_id:
+                type: string
+                format: uuid
+    responses:
+      "200":
+        description: The finding in its new folder.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/FindingEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The finding is on a dashboard (`finding_on_dashboard`) or the target is a personal folder (`personal_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 findings-id-panels-panel-id-data:

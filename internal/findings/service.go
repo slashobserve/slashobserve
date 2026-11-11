@@ -155,6 +155,44 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 	return rows, next, nil
 }
 
+func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Finding, error) {
+	f, err := s.Get(ctx, by, id)
+	if err != nil {
+		return Finding{}, err
+	}
+	if f.DashboardID != "" {
+		return Finding{}, ErrOnDashboard
+	}
+	if !f.Abilities.Edit {
+		return Finding{}, folders.ErrForbidden
+	}
+	target, abilities, err := s.access.Folder(ctx, by, folderID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound):
+		return Finding{}, ErrFolderNotFound
+	case err != nil:
+		return Finding{}, err
+	case !abilities.Edit:
+		return Finding{}, folders.ErrForbidden
+	case !folders.MayMoveInto(target):
+		return Finding{}, folders.ErrMoveIntoPersonal
+	case f.FolderID == target.ID.String():
+		return f, nil
+	}
+	var from pgtype.UUID
+	if f.FolderID != "" {
+		if from, err = db.ParseUUID(f.FolderID); err != nil {
+			return Finding{}, err
+		}
+	}
+	if err := s.store.move(ctx, id, from, folderID, actor.Of(by, origin.From(ctx), "")); err != nil {
+		return Finding{}, err
+	}
+	s.logger.InfoContext(ctx, "finding moved",
+		slog.String("actor_id", by.ID), slog.String("finding_id", f.ID), slog.String("folder_id", target.ID.String()))
+	return s.Get(ctx, by, id)
+}
+
 func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
 	f, err := s.Get(ctx, by, id)
 	if err != nil {

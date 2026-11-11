@@ -102,8 +102,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - General is never restricted, renamed or deleted.
 - Every person has one personal folder (`folders.personal`, `owner_id`), made by the `users_personal_folder` trigger and backfilled by its migration; `LevelFor` reads it first: the owner has Edit whatever their role and nobody else sees it, Admins included.
   It has no permission rows, nobody manages it, so it is never renamed, shared or deleted, and service accounts have none.
-  Deleting a user deletes their personal folder and its dashboards (`users_personal_dashboards` trigger and `ON DELETE CASCADE`), as it does their saved prompts.
-- A dashboard in a personal folder is private, and publishing it is a move out; `folders.MayMoveInto` is the one rule that a personal folder takes no moves, `dashboards.Service.move` is its only caller, and `ErrMoveIntoPersonal` maps to `409 personal_folder`.
+  Deleting a user deletes their personal folder and its dashboards, findings and saved searches (`users_personal_folder_contents` trigger and `ON DELETE CASCADE`), as it does their saved prompts.
+- A dashboard or finding in a personal folder is private, and publishing it is a move out; `folders.MayMoveInto` is the one rule that a personal folder takes no moves for every move (`dashboards.Service.move`, `findings.Service.Move` and, later, saved searches), and `ErrMoveIntoPersonal` maps to `409 personal_folder` with the wording of what moved.
   The web row menu hides personal folders as move targets as a display copy.
 - `pickCreationFolder` is the one default folder for every create, agent commits and Save what was built included: requested, else the caller's personal folder, else General, else 403.
   A key's default is therefore General; nothing remembers where a caller created before.
