@@ -71,6 +71,9 @@ type AgentRequest struct {
 	Trigger           string
 	State             string
 	ResultKind        string
+	AssignedKind      string
+	AssignedID        pgtype.UUID
+	ClaimedBy         pgtype.Text
 }
 
 type AgentRequestBuild struct {
@@ -85,6 +88,14 @@ type AgentRequestBuild struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	PlannedPanels  int32
+}
+
+type AgentWorker struct {
+	ID            string
+	PrincipalKind string
+	PrincipalID   pgtype.UUID
+	Client        string
+	SeenAt        pgtype.Timestamptz
 }
 
 type Annotation struct {
@@ -362,6 +373,7 @@ type OauthGrant struct {
 	RevokedAt     pgtype.Timestamptz
 	RevokedReason pgtype.Text
 	RevokedBy     pgtype.UUID
+	Mode          string
 }
 
 type OauthRequest struct {
@@ -427,6 +439,13 @@ type PublicLink struct {
 	LastViewedAt  pgtype.Timestamptz
 }
 
+type RunToken struct {
+	TokenHash      []byte
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+	ExpiresAt      pgtype.Timestamptz
+}
+
 type SavedPrompt struct {
 	ID        pgtype.UUID
 	OwnerID   pgtype.UUID
@@ -471,6 +490,7 @@ type ServiceAccount struct {
 	CreatedAt   pgtype.Timestamptz
 	Role        string
 	Provisioned bool
+	TakesRuns   bool
 }
 
 type ServiceAccountKey struct {

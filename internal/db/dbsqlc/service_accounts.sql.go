@@ -38,7 +38,7 @@ func (q *Queries) ActiveKeyByName(ctx context.Context, arg ActiveKeyByNameParams
 
 const createServiceAccount = `-- name: CreateServiceAccount :one
 INSERT INTO service_accounts (name, description, created_by, role) VALUES ($1, $2, $3, $4)
-RETURNING id, name, description, created_by, created_at, role, provisioned
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs
 `
 
 type CreateServiceAccountParams struct {
@@ -64,6 +64,7 @@ func (q *Queries) CreateServiceAccount(ctx context.Context, arg CreateServiceAcc
 		&i.CreatedAt,
 		&i.Role,
 		&i.Provisioned,
+		&i.TakesRuns,
 	)
 	return i, err
 }
@@ -147,7 +148,7 @@ func (q *Queries) GetKeyPrincipal(ctx context.Context, tokenHash []byte) (GetKey
 }
 
 const getServiceAccount = `-- name: GetServiceAccount :one
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE id = $1
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts WHERE id = $1
 `
 
 func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (ServiceAccount, error) {
@@ -161,12 +162,13 @@ func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (Servic
 		&i.CreatedAt,
 		&i.Role,
 		&i.Provisioned,
+		&i.TakesRuns,
 	)
 	return i, err
 }
 
 const getServiceAccountByName = `-- name: GetServiceAccountByName :one
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE name = $1
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts WHERE name = $1
 `
 
 func (q *Queries) GetServiceAccountByName(ctx context.Context, name string) (ServiceAccount, error) {
@@ -180,6 +182,7 @@ func (q *Queries) GetServiceAccountByName(ctx context.Context, name string) (Ser
 		&i.CreatedAt,
 		&i.Role,
 		&i.Provisioned,
+		&i.TakesRuns,
 	)
 	return i, err
 }
@@ -249,7 +252,7 @@ func (q *Queries) ListServiceAccountKeys(ctx context.Context, serviceAccountID p
 }
 
 const listServiceAccounts = `-- name: ListServiceAccounts :many
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts ORDER BY name
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts ORDER BY name
 `
 
 func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, error) {
@@ -269,6 +272,7 @@ func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, er
 			&i.CreatedAt,
 			&i.Role,
 			&i.Provisioned,
+			&i.TakesRuns,
 		); err != nil {
 			return nil, err
 		}
@@ -326,7 +330,7 @@ func (q *Queries) RevokeServiceAccountKey(ctx context.Context, arg RevokeService
 
 const setServiceAccountRole = `-- name: SetServiceAccountRole :one
 UPDATE service_accounts SET role = $1 WHERE id = $2
-RETURNING id, name, description, created_by, created_at, role, provisioned
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs
 `
 
 type SetServiceAccountRoleParams struct {
@@ -345,6 +349,7 @@ func (q *Queries) SetServiceAccountRole(ctx context.Context, arg SetServiceAccou
 		&i.CreatedAt,
 		&i.Role,
 		&i.Provisioned,
+		&i.TakesRuns,
 	)
 	return i, err
 }
@@ -363,7 +368,7 @@ const upsertProvisionedServiceAccount = `-- name: UpsertProvisionedServiceAccoun
 INSERT INTO service_accounts (name, description, role, provisioned) VALUES ($1, $2, $3, true)
 ON CONFLICT (name) DO UPDATE SET role = EXCLUDED.role, description = EXCLUDED.description
 WHERE service_accounts.provisioned
-RETURNING id, name, description, created_by, created_at, role, provisioned
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs
 `
 
 type UpsertProvisionedServiceAccountParams struct {
@@ -383,6 +388,7 @@ func (q *Queries) UpsertProvisionedServiceAccount(ctx context.Context, arg Upser
 		&i.CreatedAt,
 		&i.Role,
 		&i.Provisioned,
+		&i.TakesRuns,
 	)
 	return i, err
 }
