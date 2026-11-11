@@ -6,7 +6,7 @@ threads:
       Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to.
       `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page.
       `can_comment` says whether the caller may start threads and write messages on the target.
-      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard is visible to its creator and to Admins.
+      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins.
       A target the caller cannot see answers 404, never 403.
     parameters:
       - name: target

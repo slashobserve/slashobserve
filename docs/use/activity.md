@@ -43,7 +43,7 @@ You see an event when any of these holds:
 
 An event takes the folder of its dashboard.
 A global annotation takes General, which everyone with a role can view, so everyone who can read global annotations sees its events.
-A finding without a dashboard, and a run whose dashboard does not exist yet, belong to no folder.
+A finding without a dashboard belongs to its folder; an unfiled finding and a run whose dashboard does not exist yet belong to no folder.
 
 When a dashboard moves, its earlier events move with it, so only the viewers of the new folder see them.
 When a dashboard is deleted, its events stay in the folder it was in.

@@ -37,6 +37,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 		row, err = q.InsertFinding(ctx, dbsqlc.InsertFindingParams{
 			AgentRequestID: in.AgentRequestID,
 			DashboardID:    in.DashboardID,
+			FolderID:       in.FolderID,
 			Title:          in.Title,
 			Markdown:       in.Markdown,
 			Evidence:       evidence,
@@ -89,7 +90,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
 	return findingOf(dbsqlc.Finding{
-		ID: row.ID, AgentRequestID: row.AgentRequestID, DashboardID: row.DashboardID, Title: row.Title, Markdown: row.Markdown,
+		ID: row.ID, AgentRequestID: row.AgentRequestID, DashboardID: row.DashboardID, FolderID: row.FolderID, Title: row.Title, Markdown: row.Markdown,
 		Evidence: row.Evidence, TimeFrom: row.TimeFrom, TimeTo: row.TimeTo, CreatedByKind: row.CreatedByKind,
 		CreatedByID: row.CreatedByID, CreatedByName: row.CreatedByName, AnnotationID: row.AnnotationID, CreatedAt: row.CreatedAt,
 		Origin: row.Origin, OriginClient: row.OriginClient,
@@ -117,6 +118,19 @@ func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, af
 	found, err := s.db.Queries().ListFindingsByDashboard(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list findings of dashboard: %w", err)
+	}
+	return findingsOf(found)
+}
+
+func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
+	params := dbsqlc.ListFindingsInFolderParams{FolderID: folderID, RowLimit: httpapi.Int32(rows)}
+	if after != nil {
+		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorID = after.ID
+	}
+	found, err := s.db.Queries().ListFindingsInFolder(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list findings of folder: %w", err)
 	}
 	return findingsOf(found)
 }
@@ -234,6 +248,9 @@ func findingOf(r dbsqlc.Finding, requestTo pgtype.Timestamptz) (Finding, error) 
 	}
 	if r.DashboardID.Valid {
 		f.DashboardID = r.DashboardID.String()
+	}
+	if r.FolderID.Valid {
+		f.FolderID = r.FolderID.String()
 	}
 	if r.AnnotationID.Valid {
 		f.AnnotationID = r.AnnotationID.String()

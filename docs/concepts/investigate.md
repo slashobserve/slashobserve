@@ -26,8 +26,9 @@ The server runs every evidence query when the finding is saved and refuses a pan
 Evidence panels get the ids `evidence-1` to `evidence-4` in the order the agent sent them.
 Each finding has an address in the app, `/findings/<id>`, where its evidence panels run against the stored queries.
 
-Anyone who can view the finding's dashboard can read it.
-A finding without a dashboard is readable by the person who made it and by Admins.
+A finding on a dashboard follows that dashboard: anyone who can view the dashboard can read it.
+A finding without a dashboard is filed in a folder, by default the saver's My Dashboards, and anyone who can view that folder can read it; moving it to a shared folder shares it.
+A finding in no folder, such as one a service account saved before findings had folders, is readable by the account that saved it and by Admins.
 A finding someone cannot read answers 404, never 403.
 
 ## Acting on a finding

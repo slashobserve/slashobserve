@@ -176,7 +176,7 @@ func TestFolderVariant(t *testing.T) {
 		}
 		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
 		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
-		if mcp != (tool.Name == nameCreateDashboard) || agent {
+		if mcp != (tool.Name == nameCreateDashboard || tool.Name == nameListFindings) || agent {
 			t.Errorf("%s offers folder_id: MCP %t, agent %t", tool.Name, mcp, agent)
 		}
 	}

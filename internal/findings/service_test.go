@@ -32,6 +32,7 @@ var (
 	otherEditor = auth.Principal{Kind: auth.KindUser, ID: "22222222-2222-4222-8222-222222222222", Name: "Ed", Role: auth.RoleEditor}
 	viewer      = auth.Principal{Kind: auth.KindUser, ID: "33333333-3333-4333-8333-333333333333", Name: "Vic", Role: auth.RoleViewer}
 	admin       = auth.Principal{Kind: auth.KindUser, ID: "55555555-5555-4555-8555-555555555555", Name: "Root", Role: auth.RoleAdmin}
+	pipeline    = auth.Principal{Kind: auth.KindServiceAccount, ID: "66666666-6666-4666-8666-666666666666", Name: "pipeline", Role: auth.RoleViewer}
 )
 
 var windowTo = time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
@@ -48,8 +49,35 @@ func newRig(t *testing.T) rig {
 	access := folders.NewAccess(d.DB)
 	logger := slog.New(slog.DiscardHandler)
 	r := rig{db: d, service: findings.New(d.DB, access, annotations.New(d.DB, access), nil, logger)}
+	for _, p := range []auth.Principal{editor, otherEditor, viewer, admin} {
+		r.user(t, p)
+	}
+	d.Exec(t, `INSERT INTO service_accounts (id, name) VALUES ($1::uuid, $2)`, pipeline.ID, pipeline.Name)
 	r.open = r.dashboard(t, "Checkout")
 	return r
+}
+
+func (r rig) user(t *testing.T, p auth.Principal) {
+	t.Helper()
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
+}
+
+func (r rig) personalFolder(t *testing.T, p auth.Principal) pgtype.UUID {
+	t.Helper()
+	var raw string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, p.ID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	return mustUUID(t, raw)
+}
+
+func (r rig) folder(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	var raw string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, title).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	return mustUUID(t, raw)
 }
 
 func (r rig) dashboard(t *testing.T, title string) pgtype.UUID {
@@ -106,6 +134,7 @@ func TestFindingsAreReadableByWhoMayViewThem(t *testing.T) {
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
 	private := r.save(t, editor, findings.SaveInput{})
+	unfiled := r.save(t, pipeline, findings.SaveInput{})
 	cases := []struct {
 		name    string
 		by      auth.Principal
@@ -114,9 +143,12 @@ func TestFindingsAreReadableByWhoMayViewThem(t *testing.T) {
 	}{
 		{"a viewer of the dashboard", viewer, onDashboard, true},
 		{"a viewer without access to the dashboard", viewer, onHidden, false},
-		{"the creator of a finding without a dashboard", editor, private, true},
-		{"an admin", admin, private, true},
-		{"another editor", otherEditor, private, false},
+		{"the creator of a finding in their My Dashboards", editor, private, true},
+		{"an admin of a finding in someone's My Dashboards", admin, private, false},
+		{"another editor of a finding in someone's My Dashboards", otherEditor, private, false},
+		{"the creator of an unfiled finding", pipeline, unfiled, true},
+		{"an admin of an unfiled finding", admin, unfiled, true},
+		{"an editor of an unfiled finding", editor, unfiled, false},
 	}
 	for _, c := range cases {
 		_, err := r.service.Get(t.Context(), c.by, mustUUID(t, c.finding.ID))
@@ -202,7 +234,7 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 	var walked []string
 	cursor := ""
 	for pages := 0; pages < 10; pages++ {
-		page, next, err := r.service.List(t.Context(), editor, pgtype.UUID{}, 1, cursor)
+		page, next, err := r.service.List(t.Context(), editor, findings.ListFilter{}, 1, cursor)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,10 +250,10 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 	if !slices.Equal(walked, want) {
 		t.Fatalf("walked %v, want %v", walked, want)
 	}
-	if _, _, err := r.service.List(t.Context(), editor, pgtype.UUID{}, 1, "not a cursor"); !errors.Is(err, findings.ErrInvalidCursor) {
+	if _, _, err := r.service.List(t.Context(), editor, findings.ListFilter{}, 1, "not a cursor"); !errors.Is(err, findings.ErrInvalidCursor) {
 		t.Errorf("a bad cursor: %v", err)
 	}
-	onDashboard, _, err := r.service.List(t.Context(), viewer, r.open, 10, "")
+	onDashboard, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{DashboardID: r.open}, 10, "")
 	if err != nil || len(onDashboard) != 1 || onDashboard[0].ID != made[1] {
 		t.Errorf("dashboard list: %v, %v", onDashboard, err)
 	}
@@ -279,6 +311,7 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
 	private := r.save(t, editor, findings.SaveInput{})
+	unfiled := r.save(t, pipeline, findings.SaveInput{})
 	cases := []struct {
 		name      string
 		by        auth.Principal
@@ -290,9 +323,12 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 		{"a viewer of the dashboard", viewer, onDashboard, r.open, folders.AbilitiesFor(folders.LevelView), nil},
 		{"an editor of the dashboard", otherEditor, onDashboard, r.open, folders.AbilitiesFor(folders.LevelEdit), nil},
 		{"a viewer without access to the dashboard", viewer, onHidden, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
-		{"the creator of a finding without a dashboard", editor, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelComment), nil},
-		{"an admin of a finding without a dashboard", admin, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
-		{"another editor of a finding without a dashboard", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+		{"the creator of a finding in their My Dashboards", editor, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"an admin of a finding in someone's My Dashboards", admin, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+		{"another editor of a finding in someone's My Dashboards", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+		{"the creator of an unfiled finding", pipeline, unfiled, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"an admin of an unfiled finding", admin, unfiled, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
+		{"another editor of an unfiled finding", otherEditor, unfiled, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
 	}
 	for _, c := range cases {
 		placement, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))

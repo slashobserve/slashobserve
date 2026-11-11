@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -32,18 +33,24 @@ var (
 	ErrNoDashboard   = errors.New("the finding has no dashboard to pin to")
 	ErrNoEvidence    = errors.New("the finding has no evidence panels")
 	ErrInvalidCursor = errors.New("invalid cursor")
+
+	ErrFolderNotFound = errors.New("folder not found")
+	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
 )
 
 type Author struct{ Kind, ID, Name string }
 
 type Finding struct {
 	ID, AgentRequestID, DashboardID, AnnotationID string
+	FolderID                                      string
 	Title, Markdown                               string
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
 	CreatedBy                                     Author
 	Actor                                         actor.Actor
+	Folder                                        *folders.Folder
+	Abilities                                     folders.Abilities
 }
 
 func Title(text string) string {

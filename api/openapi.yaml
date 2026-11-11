@@ -3055,6 +3055,7 @@ components:
         - id
         - agent_request_id
         - dashboard_id
+        - folder_id
         - title
         - markdown
         - evidence
@@ -3079,6 +3080,11 @@ components:
           format: uuid
           nullable: true
           description: The dashboard the finding is about; null when it is about none.
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The folder a finding without a dashboard is filed in; null when it is on a dashboard, which it follows, or in no folder.
         title:
           type: string
           minLength: 1
@@ -3120,10 +3126,17 @@ components:
     FindingEnvelope:
       type: object
       additionalProperties: false
-      required: [finding]
+      required: [finding, folder, permissions]
       properties:
         finding:
           $ref: "#/components/schemas/Finding"
+        folder:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DashboardFolder"
+          description: The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder.
+        permissions:
+          $ref: "#/components/schemas/Permissions"
     FindingList:
       type: object
       additionalProperties: false

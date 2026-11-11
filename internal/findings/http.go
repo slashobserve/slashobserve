@@ -36,6 +36,7 @@ type FindingJSON struct {
 	ID             string            `json:"id"`
 	AgentRequestID *string           `json:"agent_request_id"`
 	DashboardID    *string           `json:"dashboard_id"`
+	FolderID       *string           `json:"folder_id"`
 	Title          string            `json:"title"`
 	Markdown       string            `json:"markdown"`
 	Evidence       []spec.Panel      `json:"evidence"`
@@ -48,8 +49,25 @@ type FindingJSON struct {
 	URL            string            `json:"url"`
 }
 
+type findingFolderJSON struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	General  bool   `json:"general"`
+	Personal bool   `json:"personal"`
+}
+
 type findingEnvelopeJSON struct {
-	Finding FindingJSON `json:"finding"`
+	Finding     FindingJSON         `json:"finding"`
+	Folder      *findingFolderJSON  `json:"folder"`
+	Permissions folders.Permissions `json:"permissions"`
+}
+
+func envelopeOf(f FindingJSON, folder *folders.Folder, abilities folders.Abilities) findingEnvelopeJSON {
+	body := findingEnvelopeJSON{Finding: f, Permissions: folders.PermissionsJSON(abilities)}
+	if folder != nil {
+		body.Folder = &findingFolderJSON{ID: folder.ID.String(), Title: folder.Title, General: folder.General, Personal: folder.Personal}
+	}
+	return body
 }
 
 type findingListJSON struct {
@@ -66,6 +84,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 		ID:             f.ID,
 		AgentRequestID: httpapi.OptionalString(f.AgentRequestID),
 		DashboardID:    httpapi.OptionalString(f.DashboardID),
+		FolderID:       httpapi.OptionalString(f.FolderID),
 		Title:          f.Title,
 		Markdown:       f.Markdown,
 		Evidence:       evidence,
@@ -105,16 +124,23 @@ func (h *Handler) list(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var dashboardID pgtype.UUID
-	if raw, present := c.GetQuery("dashboard_id"); present {
+	var filter ListFilter
+	for _, param := range []struct {
+		name   string
+		target *pgtype.UUID
+	}{{"dashboard_id", &filter.DashboardID}, {"folder_id", &filter.FolderID}} {
+		raw, present := c.GetQuery(param.name)
+		if !present {
+			continue
+		}
 		id, err := db.ParseUUID(raw)
 		if err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", param.name+" must be a UUID")
 			return
 		}
-		dashboardID = id
+		*param.target = id
 	}
-	rows, next, err := h.service.List(c.Request.Context(), httpapi.Caller(c), dashboardID, limit, c.Query("cursor"))
+	rows, next, err := h.service.List(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.fail(c, "list findings", err)
 		return
@@ -139,7 +165,7 @@ func (h *Handler) get(c *gin.Context) {
 		h.fail(c, "get finding", err)
 		return
 	}
-	c.JSON(http.StatusOK, findingEnvelopeJSON{Finding: h.render(f)})
+	c.JSON(http.StatusOK, envelopeOf(h.render(f), f.Folder, f.Abilities))
 }
 
 func (h *Handler) pin(c *gin.Context) {
@@ -182,6 +208,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
+	case errors.Is(err, ErrFolderNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
+	case errors.Is(err, ErrPlacement):
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrPlacement.Error())
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
 	case errors.Is(err, ErrNoDashboard):

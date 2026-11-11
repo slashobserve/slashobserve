@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -294,5 +295,60 @@ func TestListFindingsPagesTheCallersFindings(t *testing.T) {
 	}
 	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"cursor":"nope"}`); errorCode(t, res) != codeInvalidRequest {
 		t.Errorf("a bad cursor: %#v", res.Content)
+	}
+}
+
+func TestCreateFindingFilesInAFolderTheCallerMayWriteTo(t *testing.T) {
+	r := newFindingRig(t)
+	open, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Incidents"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	folderID := open.ID.String()
+	res := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"disk is full","folder_id":"`+folderID+`"}`)
+	created, ok := res.Content.(findings.FindingJSON)
+	if res.IsError || !ok || created.FolderID == nil || *created.FolderID != folderID || created.DashboardID != nil {
+		t.Fatalf("filed finding: %#v", res.Content)
+	}
+	res = r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+folderID+`"}`)
+	list, ok := res.Content.(findingListOut)
+	if res.IsError || !ok || len(list.Findings) != 1 || list.Findings[0].ID != created.ID || list.Findings[0].FolderID == nil || *list.Findings[0].FolderID != folderID {
+		t.Fatalf("folder list: %#v", res.Content)
+	}
+	res = r.callIn(t, nil, editorCaller, nameListFindings, `{}`)
+	if all, ok := res.Content.(findingListOut); res.IsError || !ok || len(all.Findings) != 1 {
+		t.Fatalf("own list: %#v", res.Content)
+	}
+}
+
+func TestCreateFindingRefusesWhatTheFolderCannotTake(t *testing.T) {
+	r := newFindingRig(t)
+	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	restricted := foldertest.Restricted(t, r.db, hiddenFolder, privateGroup)
+	missing := "99999999-9999-4999-8999-999999999999"
+	cases := []struct {
+		name  string
+		by    auth.Principal
+		input string
+		code  string
+	}{
+		{"a dashboard and a folder", editorCaller, `{"markdown":"x","dashboard_id":"` + board.ID + `","folder_id":"` + missing + `"}`, codeInvalidRequest},
+		{"a folder id that is not a uuid", editorCaller, `{"markdown":"x","folder_id":"nope"}`, codeInvalidRequest},
+		{"an unknown folder", editorCaller, `{"markdown":"x","folder_id":"` + missing + `"}`, codeNotFound},
+		{"a folder the caller cannot see", editorCaller, `{"markdown":"x","folder_id":"` + restricted.String() + `"}`, codeNotFound},
+	}
+	for _, c := range cases {
+		if res := r.callIn(t, nil, c.by, nameCreateFinding, c.input); errorCode(t, res) != c.code {
+			t.Errorf("%s: %#v, want %s", c.name, res.Content, c.code)
+		}
+	}
+	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+missing+`"}`); errorCode(t, res) != codeNotFound {
+		t.Errorf("listing an unknown folder: %#v", res.Content)
+	}
+	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+missing+`","dashboard_id":"`+board.ID+`"}`); errorCode(t, res) != codeInvalidRequest {
+		t.Errorf("listing by dashboard and folder: %#v", res.Content)
 	}
 }

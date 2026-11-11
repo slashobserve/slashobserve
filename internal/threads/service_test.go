@@ -182,27 +182,49 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	}
 }
 
-func TestAFindingWithNoDashboardIsPrivateToItsCreatorAndAdmins(t *testing.T) {
+func TestAnUnfiledFindingIsPrivateToItsCreatorAndAdmins(t *testing.T) {
 	r := newRig(t)
-	detached := r.createFinding(t, testUser, pgtype.UUID{})
-	tg := target(KindFinding, detached)
+	unfiled := r.createFinding(t, viewer, pgtype.UUID{})
+	tg := target(KindFinding, unfiled)
 
-	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "mine"})
+	thread, _ := r.open(t, viewer, OpenInput{Target: tg, Body: "mine"})
 	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
 		t.Errorf("admin list: %v", err)
 	}
 	r.reply(t, admin, thread.ID, "an admin may comment")
-	for _, by := range []auth.Principal{viewer, commenter, {Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Ed", Role: auth.RoleEditor}} {
+	for _, by := range []auth.Principal{testUser, commenter, {Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Ed", Role: auth.RoleEditor}} {
 		if _, err := r.service.List(t.Context(), by, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("%s list: err = %v, want ErrTargetNotFound", by.Name, err)
 		}
 	}
 
-	viewerCreated := r.createFinding(t, viewer, pgtype.UUID{})
-	abilities, err := r.service.Abilities(t.Context(), viewer, target(KindFinding, viewerCreated))
-	if err != nil || !abilities.View || !abilities.Comment || abilities.Edit || abilities.Manage {
-		t.Errorf("a creator's abilities = %+v, err %v, want view and comment only", abilities, err)
+	abilities, err := r.service.Abilities(t.Context(), viewer, tg)
+	if err != nil || !abilities.View || !abilities.Comment || !abilities.Edit || abilities.Manage {
+		t.Errorf("a creator's abilities = %+v, err %v, want view, comment and edit only", abilities, err)
 	}
+}
+
+func TestAFindingFiledInAFolderFollowsThatFoldersAccess(t *testing.T) {
+	r := newRig(t)
+	filed := target(KindFinding, r.createFinding(t, testUser, pgtype.UUID{}))
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'bo', 'bo@example.com', 'Bo')`, commenter.ID)
+	mine := target(KindFinding, r.createFinding(t, commenter, pgtype.UUID{}))
+
+	r.open(t, commenter, OpenInput{Target: filed, Body: "a commenter of General may comment"})
+	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: filed, Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
+		t.Errorf("a viewer of General opening: err = %v, want folders.ErrForbidden", err)
+	}
+	if page, err := r.service.List(t.Context(), viewer, ListQuery{Target: filed, Limit: 10}); err != nil || len(page.Messages) != 1 || page.CanComment {
+		t.Errorf("a viewer of General reads without commenting: %+v, err %v", page, err)
+	}
+
+	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+		t.Errorf("a finding in someone's My Dashboards: err = %v, want ErrTargetNotFound", err)
+	}
+	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+		t.Errorf("an admin reading a finding in someone's My Dashboards: err = %v, want ErrTargetNotFound", err)
+	}
+	r.open(t, commenter, OpenInput{Target: mine, Body: "mine"})
 }
 
 func TestAGlobalAnnotationFollowsTheGeneralFolder(t *testing.T) {

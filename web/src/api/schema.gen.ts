@@ -843,7 +843,7 @@ export interface paths {
         };
         /**
          * List the comment threads on a dashboard, a finding or an annotation.
-         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard is visible to its creator and to Admins. A target the caller cannot see answers 404, never 403.
+         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins. A target the caller cannot see answers 404, never 403.
          */
         get: operations["listThreads"];
         put?: never;
@@ -1657,7 +1657,7 @@ export interface paths {
         };
         /**
          * List the findings the caller can read, newest first.
-         * @description A finding on a dashboard is listed for anyone who can view that dashboard, and a finding without one only for the person who made it and Admins. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
+         * @description Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are listed with their dashboard. `dashboard_id` and `folder_id` do not go together.
          */
         get: operations["listFindings"];
         put?: never;
@@ -1679,7 +1679,7 @@ export interface paths {
         };
         /**
          * Read one finding.
-         * @description Anyone who can view the finding's dashboard may read it; a finding without a dashboard is readable by the person who made it and Admins. A finding the caller cannot read gives 404, never 403.
+         * @description A finding on a dashboard follows that dashboard, and a finding without one follows the folder it is filed in: anyone who can view that folder may read it. A finding in no folder is readable by the account that saved it and by Admins. `folder` is the folder that decides access and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403.
          */
         get: operations["getFinding"];
         put?: never;
@@ -4084,6 +4084,11 @@ export interface components {
              * @description The dashboard the finding is about; null when it is about none.
              */
             dashboard_id: string | null;
+            /**
+             * Format: uuid
+             * @description The folder a finding without a dashboard is filed in; null when it is on a dashboard, which it follows, or in no folder.
+             */
+            folder_id: string | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;
@@ -4113,6 +4118,9 @@ export interface components {
         };
         FindingEnvelope: {
             finding: components["schemas"]["Finding"];
+            /** @description The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder. */
+            folder: components["schemas"]["DashboardFolder"] | null;
+            permissions: components["schemas"]["Permissions"];
         };
         FindingList: {
             findings: components["schemas"]["Finding"][];
@@ -9461,6 +9469,7 @@ export interface operations {
         parameters: {
             query?: {
                 dashboard_id?: string;
+                folder_id?: string;
                 limit?: number;
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;

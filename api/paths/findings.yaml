@@ -3,10 +3,17 @@ findings:
     operationId: listFindings
     summary: List the findings the caller can read, newest first.
     description: >-
-      A finding on a dashboard is listed for anyone who can view that dashboard, and a finding without one only for the person who made it and Admins.
+      Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder.
       With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
+      With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are listed with their dashboard.
+      `dashboard_id` and `folder_id` do not go together.
     parameters:
       - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: folder_id
         in: query
         schema:
           type: string
@@ -50,7 +57,9 @@ findings-id:
     operationId: getFinding
     summary: Read one finding.
     description: >-
-      Anyone who can view the finding's dashboard may read it; a finding without a dashboard is readable by the person who made it and Admins.
+      A finding on a dashboard follows that dashboard, and a finding without one follows the folder it is filed in: anyone who can view that folder may read it.
+      A finding in no folder is readable by the account that saved it and by Admins.
+      `folder` is the folder that decides access and `permissions` what the caller may do with the finding.
       A finding the caller cannot read gives 404, never 403.
     responses:
       "200":

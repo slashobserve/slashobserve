@@ -144,7 +144,8 @@ Every opened, replied, edited, resolved and reopened thread appends to the activ
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
 `create_finding` saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
-`list_findings` lists findings newest first, those on one dashboard with `dashboard_id`, else the key's own.
+A finding without a `dashboard_id` is filed in `folder_id`, by default the key's My Dashboards when it has one, else General; `dashboard_id` and `folder_id` cannot go together.
+`list_findings` lists findings newest first, those on one dashboard with `dashboard_id`, those filed in one folder with `folder_id`, else the key's own.
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer with `create_finding`.
 
 `list_dashboard_health` is available over MCP only.

@@ -203,9 +203,9 @@ func TestAViewerReadsAFindingThreadButCannotWriteToIt(t *testing.T) {
 
 func TestAHiddenTargetOrThreadAnswersNotFound(t *testing.T) {
 	r := newRig(t)
-	detached := r.createFinding(t, testUser, pgtype.UUID{})
+	detached := r.createFinding(t, viewer, pgtype.UUID{})
 	targetValue := "finding:" + detached.String()
-	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "private"})
+	opened := r.call(t, viewer, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "private"})
 	opened.expect(t, http.StatusCreated, "")
 	threadID := opened.at(t, "thread", "id").(string)
 	messageID := opened.at(t, "message", "id").(string)
@@ -217,7 +217,7 @@ func TestAHiddenTargetOrThreadAnswersNotFound(t *testing.T) {
 		path   string
 		body   any
 	}{
-		{"list a finding of someone else without a dashboard", http.MethodGet, "/threads?target=" + targetValue, nil},
+		{"list an unfiled finding of someone else", http.MethodGet, "/threads?target=" + targetValue, nil},
 		{"open on it", http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "hi"}},
 		{"list a missing dashboard", http.MethodGet, "/threads?target=dashboard:" + missing, nil},
 		{"reply to its thread", http.MethodPost, "/threads/" + threadID + "/messages", map[string]any{"body": "hi"}},

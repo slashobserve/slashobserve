@@ -81,15 +81,15 @@ func sortedPairs(m map[string]string) []string {
 	return out
 }
 
-func TestAFindingWithoutADashboardHasNoFolderAndIsSeenByItsCreatorAndAdminsOnly(t *testing.T) {
+func TestAnUnfiledFindingHasNoFolderAndIsSeenByItsCreatorAndAdminsOnly(t *testing.T) {
 	r := newRig(t)
-	f := r.save(t, editor, findings.SaveInput{Title: "Private"})
+	f := r.save(t, pipeline, findings.SaveInput{Title: "Private"})
 	cases := []struct {
 		name    string
 		by      auth.Principal
 		visible bool
 	}{
-		{"the creator", editor, true},
+		{"the creator", pipeline, true},
 		{"an admin", admin, true},
 		{"another editor", otherEditor, false},
 		{"a viewer", viewer, false},
@@ -107,6 +107,33 @@ func TestAFindingWithoutADashboardHasNoFolderAndIsSeenByItsCreatorAndAdminsOnly(
 		}
 		if data := dataOf(t, got[0]); len(data) != 1 || data["title"] != "Private" {
 			t.Errorf("%s: data = %s", c.name, got[0].Data)
+		}
+	}
+}
+
+func TestAFindingInMyDashboardsFollowsItsFolderAndIsSeenByItsCreatorOnly(t *testing.T) {
+	r := newRig(t)
+	f := r.save(t, editor, findings.SaveInput{Title: "Private"})
+	personal := r.personalFolder(t, editor)
+	cases := []struct {
+		name    string
+		by      auth.Principal
+		visible bool
+	}{
+		{"the creator", editor, true},
+		{"an admin", admin, false},
+		{"another editor", otherEditor, false},
+	}
+	for _, c := range cases {
+		got := r.activityFor(t, c.by)
+		if !c.visible {
+			if len(got) != 0 {
+				t.Errorf("%s sees %+v", c.name, got)
+			}
+			continue
+		}
+		if len(got) != 1 || got[0].TargetID != f.ID || got[0].FolderID != personal.String() || got[0].DashboardID != "" {
+			t.Errorf("%s sees %+v, want the finding in folder %s", c.name, got, personal)
 		}
 	}
 }

@@ -35,7 +35,9 @@ const (
 
 	descSaveFinding   = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant."
 	descCreateFinding = "Save an investigation result as a finding: markdown of at most 400 words and up to 4 evidence panels, each checked by running its query. Returns the finding with its url."
-	descListFindings  = "List findings, newest first: those on one dashboard with dashboard_id, else your own. Page with next_cursor."
+	descListFindings  = "List findings, newest first: those on one dashboard with dashboard_id, {findings_folder_scope}else your own. Page with next_cursor."
+
+	propFindingsFolderID = `"folder_id":{"type":"string","format":"uuid","description":"Only findings filed in this folder, from list_folders."}`
 
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
@@ -43,8 +45,8 @@ const (
 	propFindingTo       = `"to":{"type":"string","description":"End of the window the evidence shows, such as now or an RFC 3339 time."}`
 
 	schemaSaveFinding   = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `},"required":["markdown"],"additionalProperties":false}`
-	schemaCreateFinding = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard the finding is about, from list_dashboards."},"title":{"type":"string","minLength":1,"maxLength":80,"description":"A short title. Default the first line of markdown."}},"required":["markdown"],"additionalProperties":false}`
-	schemaListFindings  = `{"type":"object","properties":{"dashboard_id":{"type":"string","format":"uuid","description":"Only findings on this dashboard. Default your own findings."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Findings per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+	schemaCreateFinding = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard the finding is about, from list_dashboards."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file a finding without a dashboard in, from list_folders. Default your My Dashboards, else General. Not with dashboard_id."},"title":{"type":"string","minLength":1,"maxLength":80,"description":"A short title. Default the first line of markdown."}},"required":["markdown"],"additionalProperties":false}`
+	schemaListFindings  = `{"type":"object","properties":{"dashboard_id":{"type":"string","format":"uuid","description":"Only findings on this dashboard. Default your own findings."}{findings_folder_prop},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Findings per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
@@ -69,6 +71,7 @@ type findingInput struct {
 type createFindingInput struct {
 	findingInput
 	DashboardID string  `json:"dashboard_id"`
+	FolderID    string  `json:"folder_id"`
 	Title       *string `json:"title"`
 }
 
@@ -84,6 +87,7 @@ type findingItemOut struct {
 	ID                string   `json:"id"`
 	Title             string   `json:"title"`
 	DashboardID       *string  `json:"dashboard_id"`
+	FolderID          *string  `json:"folder_id"`
 	Markdown          string   `json:"markdown"`
 	MarkdownTruncated bool     `json:"markdown_truncated,omitempty"`
 	Evidence          []string `json:"evidence"`
@@ -136,6 +140,24 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Finding(r.deps.PublicURL, f.ID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
 }
 
+func (r *Registry) findingPlacement(ctx context.Context, dashboard, folder string) (dashboardID, folderID pgtype.UUID, res Result, ok bool, err error) {
+	if dashboard != "" && folder != "" {
+		return dashboardID, folderID, invalid("dashboard_id and folder_id cannot go together: a finding is about a dashboard or filed in a folder"), false, nil
+	}
+	if dashboard != "" {
+		id, res, ok := parseDashboardID(dashboard)
+		if !ok {
+			return dashboardID, folderID, res, false, nil
+		}
+		if res, ok, err := r.viewableDashboard(ctx, id, "dashboard not found"); err != nil || !ok {
+			return dashboardID, folderID, res, false, err
+		}
+		dashboardID = id
+	}
+	folderID, res, ok = parseFolderID(folder)
+	return dashboardID, folderID, res, ok, nil
+}
+
 func (r *Registry) createFinding(ctx context.Context, input json.RawMessage) (Result, error) {
 	if r.deps.Findings == nil {
 		return Result{}, errFindingsNotConfigured
@@ -145,16 +167,9 @@ func (r *Registry) createFinding(ctx context.Context, input json.RawMessage) (Re
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	var dashboardID pgtype.UUID
-	if in.DashboardID != "" {
-		id, res, ok := parseDashboardID(in.DashboardID)
-		if !ok {
-			return res, nil
-		}
-		if res, ok, err := r.viewableDashboard(ctx, id, "dashboard not found"); err != nil || !ok {
-			return res, err
-		}
-		dashboardID = id
+	dashboardID, folderID, res, ok, err := r.findingPlacement(ctx, in.DashboardID, in.FolderID)
+	if err != nil || !ok {
+		return res, err
 	}
 	title := findings.Title(in.Markdown)
 	if in.Title != nil {
@@ -169,12 +184,14 @@ func (r *Registry) createFinding(ctx context.Context, input json.RawMessage) (Re
 	if err != nil || !ok {
 		return res, err
 	}
-	save.DashboardID = dashboardID
+	save.DashboardID, save.FolderID = dashboardID, folderID
 	f, _, err := r.deps.Findings.Save(ctx, principal, save)
-	if errors.Is(err, findings.ErrNotFound) {
+	switch {
+	case errors.Is(err, findings.ErrNotFound):
 		return toolError(codeNotFound, "dashboard not found"), nil
-	}
-	if err != nil {
+	case errors.Is(err, findings.ErrFolderNotFound):
+		return toolError(codeNotFound, "folder not found"), nil
+	case err != nil:
 		return Result{}, err
 	}
 	return success("Saved finding "+f.ID, findings.JSONOf(f, links.Finding(r.deps.PublicURL, f.ID))), nil
@@ -186,20 +203,26 @@ func (r *Registry) listFindings(ctx context.Context, input json.RawMessage) (Res
 	}
 	var in struct {
 		DashboardID string `json:"dashboard_id"`
+		FolderID    string `json:"folder_id"`
 		Limit       *int   `json:"limit"`
 		Cursor      string `json:"cursor"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	var dashboardID pgtype.UUID
+	var filter findings.ListFilter
 	if in.DashboardID != "" {
 		id, res, ok := parseDashboardID(in.DashboardID)
 		if !ok {
 			return res, nil
 		}
-		dashboardID = id
+		filter.DashboardID = id
 	}
+	folderID, res, ok := parseFolderID(in.FolderID)
+	if !ok {
+		return res, nil
+	}
+	filter.FolderID = folderID
 	limit, res, ok := boundedInt(in.Limit, defaultListFindings, 1, maxListFindings, "limit")
 	if !ok {
 		return res, nil
@@ -209,12 +232,14 @@ func (r *Registry) listFindings(ctx context.Context, input json.RawMessage) (Res
 	}
 	principal, _ := auth.FromContext(ctx)
 	for {
-		list, next, err := r.deps.Findings.List(ctx, principal, dashboardID, limit, in.Cursor)
+		list, next, err := r.deps.Findings.List(ctx, principal, filter, limit, in.Cursor)
 		switch {
 		case errors.Is(err, findings.ErrInvalidCursor):
 			return invalid("cursor is not valid"), nil
+		case errors.Is(err, findings.ErrPlacement):
+			return invalid("dashboard_id and folder_id cannot go together"), nil
 		case errors.Is(err, findings.ErrNotFound):
-			return toolError(codeNotFound, "dashboard not found"), nil
+			return toolError(codeNotFound, notFoundMessage(filter)), nil
 		case err != nil:
 			return Result{}, err
 		}
@@ -224,6 +249,13 @@ func (r *Registry) listFindings(ctx context.Context, input json.RawMessage) (Res
 		}
 		limit = max(kept, 1)
 	}
+}
+
+func notFoundMessage(filter findings.ListFilter) string {
+	if filter.FolderID.Valid {
+		return "folder not found"
+	}
+	return "dashboard not found"
 }
 
 func (r *Registry) findingPage(list []findings.Finding, next string) (findingListOut, int, bool) {
@@ -260,6 +292,9 @@ func (r *Registry) findingItem(f findings.Finding) findingItemOut {
 	}
 	if f.DashboardID != "" {
 		out.DashboardID = &f.DashboardID
+	}
+	if f.FolderID != "" {
+		out.FolderID = &f.FolderID
 	}
 	return out
 }

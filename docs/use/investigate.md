@@ -15,8 +15,10 @@ A plain question sent without the command, such as "how many pods are up?", is a
 A finding is the agent's answer, written as Markdown of at most 400 words.
 It carries up to four evidence panels, each a panel whose query the server ran and checked before the finding was saved.
 It covers one window of time, shown under the answer with when it was found.
-Every finding is saved with its own address, `/findings/<id>`, which you can share with anyone who can view its dashboard.
-A finding that is not about a dashboard is visible only to the person who asked and to Admins.
+Every finding is saved with its own address, `/findings/<id>`, which you can share with anyone who can read the finding.
+A finding on a dashboard follows that dashboard, so anyone who can view the dashboard can read it.
+A finding that is not about a dashboard is filed in a folder, by default your My Dashboards, so only you can read it until it is moved to a shared folder.
+A finding that is in no folder, such as one a service account saved before findings had folders, is readable by that account and by Admins.
 
 ## Start an investigation
 
@@ -57,7 +59,7 @@ Mention people and the agent the way you do on a dashboard; see [Edit a comment 
 A mention is recorded in the [activity log](activity.md) and starts no agent run.
 
 Commenting follows who can see the finding.
-A finding on a dashboard follows that dashboard's folder, so you need Comment on it; a finding without a dashboard can be seen and commented on by the person who saved it, and by Admins.
+A finding on a dashboard follows that dashboard's folder, and a finding without a dashboard follows the folder it is filed in, so you need Comment on that folder; a finding in no folder can be seen and commented on by the account that saved it, and by Admins.
 Anyone else who can read the finding sees its threads but no box and no buttons.
 
 ## Pin it to the dashboard
