@@ -22,7 +22,12 @@ func describe(err error) string {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
 	var invalid *dashboards.InvalidSpecError
+	var badInput *InvalidError
 	switch {
+	case errors.As(err, &badInput):
+		return badInput.Message
+	case errors.Is(err, ErrNoSecretKey), errors.Is(err, ErrUnreadableToken):
+		return err.Error()
 	case errors.As(err, &input):
 		return input.Message
 	case errors.As(err, &unresolved):

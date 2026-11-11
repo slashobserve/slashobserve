@@ -121,23 +121,6 @@ func (q *Queries) ListGrafanaConnections(ctx context.Context) ([]GrafanaConnecti
 	return items, nil
 }
 
-const setGrafanaConnectionSync = `-- name: SetGrafanaConnectionSync :execrows
-UPDATE grafana_connections SET last_sync = $1 WHERE id = $2
-`
-
-type SetGrafanaConnectionSyncParams struct {
-	LastSync []byte
-	ID       pgtype.UUID
-}
-
-func (q *Queries) SetGrafanaConnectionSync(ctx context.Context, arg SetGrafanaConnectionSyncParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setGrafanaConnectionSync, arg.LastSync, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const setGrafanaConnectionTest = `-- name: SetGrafanaConnectionTest :one
 UPDATE grafana_connections
 SET last_test_at = now(), last_test_ok = $1, last_test_message = $2

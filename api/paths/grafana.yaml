@@ -327,6 +327,8 @@ grafana-id-imports:
       A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped.
       One dashboard failing never stops the run.
       A connection runs one import at a time.
+      A server that stops hands the running import to another server, or picks it up again after its restart, skipping the dashboards it already handled.
+      An import whose server crashes twice ends `failed`.
     requestBody:
       required: true
       content:
@@ -385,7 +387,8 @@ grafana-id-imports-syncid:
     summary: Read the progress of an import.
     description: >-
       Only Admins can call this endpoint.
-      The server keeps the last 20 imports in memory until it restarts; the connection's `last_sync` keeps the summary of the last finished one.
+      Any server answers it, during the import and after it.
+      Each connection keeps its last 20 imports; the connection's `last_sync` is the newest finished one.
     responses:
       "200":
         description: The import and every dashboard handled so far.
@@ -401,6 +404,51 @@ grafana-id-imports-syncid:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-id-imports-syncid-cancel:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: sync_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+  post:
+    operationId: cancelGrafanaImport
+    summary: Stop a running import.
+    description: >-
+      Only Admins can call this endpoint.
+      The import ends `canceled` at once; the dashboards it already imported stay, and one being saved at that moment may still be saved.
+      Starting the import again skips what it already imported.
+    responses:
+      "200":
+        description: The canceled import and every dashboard handled before it stopped.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaImport"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The import is not running (`invalid_transition`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 grafana-resolve-uid:

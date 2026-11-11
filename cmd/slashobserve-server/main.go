@@ -404,8 +404,10 @@ func run() error {
 
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
-		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess, SecretKey: cfg.SecretKey, Logger: logger,
+		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
+		Principals: authService, InstanceID: serverID, SecretKey: cfg.SecretKey, Logger: logger,
 	})
+	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
 

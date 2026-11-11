@@ -17,16 +17,10 @@ import (
 )
 
 const (
-	keptSyncs      = 20
-	fetchWorkers   = 4
-	busyFirstWait  = 100 * time.Millisecond
-	busyMaxWait    = 2 * time.Second
-	persistTimeout = 5 * time.Second
-
-	StatusRunning  = "running"
-	StatusFinished = "finished"
-	StatusFailed   = "failed"
-	StatusCanceled = "canceled"
+	keptSyncs     = 20
+	fetchWorkers  = 4
+	busyFirstWait = 100 * time.Millisecond
+	busyMaxWait   = 2 * time.Second
 
 	OutcomeImported = "imported"
 	OutcomeUpdated  = "updated"
@@ -46,15 +40,15 @@ type SyncRequest struct {
 }
 
 type SyncSummary struct {
-	ID         string     `json:"id"`
-	Status     string     `json:"status"`
-	Total      int        `json:"total"`
-	Done       int        `json:"done"`
-	Failed     int        `json:"failed"`
-	Skipped    int        `json:"skipped"`
-	Error      string     `json:"error,omitempty"`
-	StartedAt  time.Time  `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	ID         string
+	State      SyncState
+	Total      int
+	Done       int
+	Failed     int
+	Skipped    int
+	Error      string
+	StartedAt  time.Time
+	FinishedAt *time.Time
 }
 
 type SyncResult struct {
@@ -73,95 +67,6 @@ type Sync struct {
 	Results      []SyncResult
 }
 
-type run struct {
-	mu    sync.Mutex
-	state Sync
-}
-
-func (r *run) snapshot() Sync {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := r.state
-	out.Results = slices.Clone(r.state.Results)
-	return out
-}
-
-func (r *run) update(change func(*Sync)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	change(&r.state)
-}
-
-func (r *run) record(res SyncResult) {
-	r.update(func(s *Sync) {
-		s.Done++
-		switch res.Outcome {
-		case OutcomeFailed:
-			s.Failed++
-		case OutcomeSkipped:
-			s.Skipped++
-		}
-		s.Results = append(s.Results, res)
-	})
-}
-
-type syncs struct {
-	mu      sync.Mutex
-	kept    []*run
-	running map[string]*run
-}
-
-func newSyncs() *syncs {
-	return &syncs{running: map[string]*run{}}
-}
-
-func (s *syncs) start(connectionID string) (*run, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, busy := s.running[connectionID]; busy {
-		return nil, false
-	}
-	r := &run{state: Sync{
-		SyncSummary:  SyncSummary{ID: newID().String(), Status: StatusRunning, StartedAt: time.Now().UTC()},
-		ConnectionID: connectionID,
-		Results:      []SyncResult{},
-	}}
-	s.running[connectionID] = r
-	s.kept = append(s.kept, r)
-	if len(s.kept) > keptSyncs {
-		s.kept = slices.Delete(s.kept, 0, len(s.kept)-keptSyncs)
-	}
-	return r, true
-}
-
-func (s *syncs) done(connectionID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.running, connectionID)
-}
-
-func (s *syncs) find(connectionID, syncID string) (*run, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, r := range s.kept {
-		r.mu.Lock()
-		match := r.state.ID == syncID && r.state.ConnectionID == connectionID
-		r.mu.Unlock()
-		if match {
-			return r, true
-		}
-	}
-	return nil, false
-}
-
-func (s *Service) SyncStatus(connectionID pgtype.UUID, syncID string) (Sync, error) {
-	r, ok := s.syncs.find(connectionID.String(), syncID)
-	if !ok {
-		return Sync{}, ErrSyncNotFound
-	}
-	return r.snapshot(), nil
-}
-
 func (s *Service) checkMapping(mapping map[string]string) error {
 	known := map[string]bool{}
 	for _, d := range s.imports.Datasources() {
@@ -173,29 +78,6 @@ func (s *Service) checkMapping(mapping map[string]string) error {
 		}
 	}
 	return nil
-}
-
-func (s *Service) StartSync(ctx context.Context, by auth.Principal, id pgtype.UUID, req SyncRequest) (Sync, error) {
-	if err := s.checkMapping(req.Mapping); err != nil {
-		return Sync{}, err
-	}
-	_, client, err := s.client(ctx, id)
-	if err != nil {
-		return Sync{}, err
-	}
-	r, ok := s.syncs.start(id.String())
-	if !ok {
-		return Sync{}, ErrSyncRunning
-	}
-	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	stop := context.AfterFunc(s.life, cancel)
-	s.wg.Go(func() {
-		defer cancel()
-		defer stop()
-		defer s.syncs.done(id.String())
-		s.run(runCtx, by, id, client, req, r)
-	})
-	return r.snapshot(), nil
 }
 
 type syncPlan struct {
@@ -285,39 +167,6 @@ type fetched struct {
 	raw     []byte
 	version int
 	err     error
-}
-
-func (s *Service) run(ctx context.Context, by auth.Principal, id pgtype.UUID, client grafanaClient, req SyncRequest, r *run) {
-	p, err := s.plan(ctx, by, client, req)
-	if err == nil {
-		r.update(func(st *Sync) { st.Total = len(p.hits) })
-		for f := range fetchAll(ctx, client, p.hits) {
-			r.record(s.importOne(ctx, by, p, f))
-		}
-	}
-	status := StatusFinished
-	switch {
-	case ctx.Err() != nil:
-		status = StatusCanceled
-	case err != nil:
-		status = StatusFailed
-	}
-	finished := time.Now().UTC()
-	r.update(func(st *Sync) {
-		st.Status, st.FinishedAt = status, &finished
-		if err != nil && status == StatusFailed {
-			st.Error = describe(err)
-		}
-	})
-	summary := r.snapshot().SyncSummary
-	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), persistTimeout)
-	defer cancel()
-	if err := s.store.setSync(persistCtx, id, summary); err != nil {
-		s.logger.ErrorContext(persistCtx, "record grafana sync", logattrs.Failure("internal", err, slog.String("connection_id", id.String()), slog.String("sync_id", summary.ID))...)
-	}
-	s.logger.InfoContext(persistCtx, "grafana sync finished",
-		slog.String("connection_id", id.String()), slog.String("sync_id", summary.ID), slog.String("actor_id", by.ID),
-		slog.String("status", status), slog.Int("total", summary.Total), slog.Int("failed", summary.Failed), slog.Int("skipped", summary.Skipped))
 }
 
 func fetchAll(ctx context.Context, client grafanaClient, hits []apiHit) <-chan fetched {

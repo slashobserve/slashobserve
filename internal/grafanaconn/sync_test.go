@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 var corpusFiles = []string{
@@ -95,7 +96,7 @@ func TestSyncImportsEveryDashboardIntoItsFolder(t *testing.T) {
 	conn := r.connect(t)
 
 	done := r.finish(t, conn, grafanaconn.SyncRequest{All: true})
-	if done.Status != grafanaconn.StatusFinished || done.Total != 32 || done.Done != 32 || done.Failed != 1 || done.Skipped != 0 || done.FinishedAt == nil {
+	if done.State != grafanaconn.SyncFinished || done.Total != 32 || done.Done != 32 || done.Failed != 1 || done.Skipped != 0 || done.FinishedAt == nil {
 		t.Fatalf("summary %+v", done.SyncSummary)
 	}
 	byUID := outcomes(done)
@@ -131,7 +132,7 @@ func TestSyncImportsEveryDashboardIntoItsFolder(t *testing.T) {
 	}
 
 	stored, err := r.svc.Get(t.Context(), uuidOf(t, conn.ID))
-	if err != nil || stored.LastSync == nil || stored.LastSync.ID != done.ID || stored.LastSync.Status != grafanaconn.StatusFinished || stored.LastSync.Failed != 1 {
+	if err != nil || stored.LastSync == nil || stored.LastSync.ID != done.ID || stored.LastSync.State != grafanaconn.SyncFinished || stored.LastSync.Failed != 1 {
 		t.Fatalf("last sync %+v, err %v", stored.LastSync, err)
 	}
 }
@@ -148,7 +149,7 @@ func TestSyncSkipsUnchangedDashboardsAndUpdatesNewerOnes(t *testing.T) {
 	}
 
 	again := r.finish(t, conn, grafanaconn.SyncRequest{All: true})
-	if again.Status != grafanaconn.StatusFinished || again.Skipped != 3 || again.Failed != 0 {
+	if again.State != grafanaconn.SyncFinished || again.Skipped != 3 || again.Failed != 0 {
 		t.Fatalf("second run %+v", again.SyncSummary)
 	}
 
@@ -202,24 +203,32 @@ func TestSyncRunsOneAtATimePerConnection(t *testing.T) {
 	conn := r.connect(t)
 
 	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
-	if err != nil || started.Status != grafanaconn.StatusRunning {
+	if err != nil || started.State != grafanaconn.SyncRunning {
 		t.Fatalf("started %+v, err %v", started.SyncSummary, err)
 	}
 	if _, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true}); !errors.Is(err, grafanaconn.ErrSyncRunning) {
 		t.Fatalf("second start: %v, want ErrSyncRunning", err)
 	}
+	peer := r.peer(t)
+	seen, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	if err != nil || seen.ID != started.ID || seen.State != grafanaconn.SyncRunning {
+		t.Fatalf("another server sees %+v, err %v", seen.SyncSummary, err)
+	}
+	if _, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+		t.Fatalf("unknown sync: %v", err)
+	}
 	close(hold)
 	r.svc.Wait()
-	done, err := r.svc.SyncStatus(uuidOf(t, conn.ID), started.ID)
-	if err != nil || done.Status != grafanaconn.StatusFinished || done.Done != 1 {
+	done, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	if err != nil || done.State != grafanaconn.SyncFinished || done.Done != 1 {
 		t.Fatalf("done %+v, err %v", done.SyncSummary, err)
 	}
-	if _, err := r.svc.SyncStatus(uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+	if _, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
 		t.Fatalf("unknown sync: %v", err)
 	}
 }
 
-func TestSyncStopsWhenTheServerShutsDown(t *testing.T) {
+func TestSyncIsHandedOnWhenTheServerStops(t *testing.T) {
 	hold := make(chan struct{})
 	r := newRigWith(t, rigOptions{secretKey: secretKey, hold: hold})
 	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
@@ -231,16 +240,136 @@ func TestSyncStopsWhenTheServerShutsDown(t *testing.T) {
 	}
 	r.stop()
 	r.svc.Wait()
-	done, err := r.svc.SyncStatus(uuidOf(t, conn.ID), started.ID)
-	if err != nil || done.Status != grafanaconn.StatusCanceled {
+	if n := r.count(t, "SELECT count(*) FROM grafana_syncs WHERE id = $1 AND state = 'running' AND lease_id IS NULL AND lease_losses = 0 AND finished_at IS NULL", started.ID); n != 1 {
+		t.Fatal("the stopped server did not release the running import untouched")
+	}
+	if n := r.count(t, "SELECT count(*) FROM grafana_sync_items"); n != 0 {
+		t.Fatalf("%d results after the stop", n)
+	}
+
+	close(hold)
+	peer := r.peer(t)
+	peer.ResumeOnce(t.Context())
+	peer.Wait()
+	done, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	if err != nil || done.State != grafanaconn.SyncFinished || done.Done != 1 {
 		t.Fatalf("done %+v, err %v", done.SyncSummary, err)
 	}
+	if n := r.count(t, "SELECT count(*) FROM imports"); n != 1 {
+		t.Fatalf("%d imports, want 1", n)
+	}
+	if n := r.count(t, "SELECT count(*) FROM grafana_sync_items"); n != 1 {
+		t.Fatalf("%d results, want 1", n)
+	}
+}
+
+func TestSyncFailsAfterItsLeaseExpiresTwice(t *testing.T) {
+	r := newRig(t)
+	first, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "First", URL: grafanaURL, Token: grafanaToken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Second", URL: grafanaURL, Token: grafanaToken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	crashedTwice := r.insertRunning(t, first.ID, r.admin.ID, 1)
+	crashedOnce := r.insertRunning(t, second.ID, r.admin.ID, 0)
+
+	r.svc.ResumeOnce(t.Context())
+	r.svc.Wait()
+
+	failed, err := r.svc.SyncStatus(t.Context(), uuidOf(t, first.ID), crashedTwice)
+	if err != nil || failed.State != grafanaconn.SyncFailed || failed.Error != grafanaconn.ExhaustedMessage {
+		t.Fatalf("first %+v, err %v", failed.SyncSummary, err)
+	}
+	if n := r.count(t, "SELECT lease_losses FROM grafana_syncs WHERE id = $1", crashedTwice); n != 2 {
+		t.Fatalf("first has %d lease losses, want 2", n)
+	}
+	resumed, err := r.svc.SyncStatus(t.Context(), uuidOf(t, second.ID), crashedOnce)
+	if err != nil || resumed.State != grafanaconn.SyncFinished {
+		t.Fatalf("second %+v, err %v", resumed.SyncSummary, err)
+	}
+	if n := r.count(t, "SELECT lease_losses FROM grafana_syncs WHERE id = $1", crashedOnce); n != 1 {
+		t.Fatalf("second has %d lease losses, want 1", n)
+	}
+}
+
+func TestSyncFailsWhenItsStarterIsNoLongerAnAdmin(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	id := r.insertRunning(t, conn.ID, r.viewer.ID, 0)
+
+	r.svc.ResumeOnce(t.Context())
+	r.svc.Wait()
+
+	got, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), id)
+	if err != nil || got.State != grafanaconn.SyncFailed || got.Error != grafanaconn.StarterGoneMessage {
+		t.Fatalf("got %+v, err %v", got.SyncSummary, err)
+	}
+}
+
+func TestCancelSync(t *testing.T) {
+	hold := make(chan struct{})
+	r := newRigWith(t, rigOptions{secretKey: secretKey, hold: hold})
+	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	conn := r.connect(t)
+	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	canceled, err := r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), started.ID)
+	if err != nil || canceled.State != grafanaconn.SyncCanceled || canceled.FinishedAt == nil {
+		t.Fatalf("canceled %+v, err %v", canceled.SyncSummary, err)
+	}
+	_, err = r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), started.ID)
+	var refusal *lifecycle.Refusal
+	if !errors.Is(err, lifecycle.ErrInvalidTransition) || !errors.As(err, &refusal) || refusal.State != "canceled" || len(refusal.Allowed) != 0 {
+		t.Fatalf("second cancel: %v", err)
+	}
+	if _, err := r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+		t.Fatalf("unknown sync: %v", err)
+	}
+
+	close(hold)
+	r.svc.Wait()
+	after, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	if err != nil || after.State != grafanaconn.SyncCanceled {
+		t.Fatalf("after %+v, err %v", after.SyncSummary, err)
+	}
+	if n := r.count(t, "SELECT count(*) FROM grafana_sync_items"); n != 0 {
+		t.Fatalf("%d results after the cancel", n)
+	}
+}
+
+func TestConnectionKeepsTwentySyncs(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	var ids []string
+	for range 21 {
+		ids = append(ids, r.finish(t, conn, grafanaconn.SyncRequest{All: true}).ID)
+	}
+	if n := r.count(t, "SELECT count(*) FROM grafana_syncs"); n != 20 {
+		t.Fatalf("%d syncs kept, want 20", n)
+	}
+	if _, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), ids[0]); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+		t.Fatalf("the oldest sync: %v, want ErrSyncNotFound", err)
+	}
 	stored, err := r.svc.Get(t.Context(), uuidOf(t, conn.ID))
-	if err != nil || stored.LastSync == nil || stored.LastSync.Status != grafanaconn.StatusCanceled {
+	if err != nil || stored.LastSync == nil || stored.LastSync.ID != ids[20] {
 		t.Fatalf("last sync %+v, err %v", stored.LastSync, err)
 	}
-	if n := r.count(t, "SELECT count(*) FROM imports"); n != 0 {
-		t.Fatalf("%d imports after shutdown", n)
+}
+
+func TestSyncImportsAGrafanaUIDListedTwiceOnce(t *testing.T) {
+	r := newRig(t)
+	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	conn := r.connect(t)
+	done := r.finish(t, conn, grafanaconn.SyncRequest{All: true})
+	if done.State != grafanaconn.SyncFinished || done.Total != 1 || done.Done != 1 || len(done.Results) != 1 {
+		t.Fatalf("done %+v, results %+v", done.SyncSummary, done.Results)
 	}
 }
 
@@ -249,7 +378,7 @@ func TestSyncFailsWhenGrafanaCannotBeListed(t *testing.T) {
 	r.grafana.token = "glsa_rotated"
 	conn := r.connect(t)
 	done := r.finish(t, conn, grafanaconn.SyncRequest{All: true})
-	if done.Status != grafanaconn.StatusFailed || done.Error != "Grafana refused the token (status 401)." || done.Total != 0 {
+	if done.State != grafanaconn.SyncFailed || done.Error != "Grafana refused the token (status 401)." || done.Total != 0 {
 		t.Fatalf("summary %+v", done.SyncSummary)
 	}
 }

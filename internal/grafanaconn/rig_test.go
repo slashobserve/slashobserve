@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/egress/egresstest"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -226,16 +227,41 @@ func simpleModel(datasourceUID, pluginID string) map[string]any {
 	}
 }
 
+type principals struct {
+	mu   sync.Mutex
+	byID map[string]auth.Principal
+}
+
+func (p *principals) set(pr auth.Principal) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.byID[pr.ID] = pr
+}
+
+func (p *principals) Principal(_ context.Context, _ auth.PrincipalKind, id string) (auth.Principal, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	pr, ok := p.byID[id]
+	if !ok {
+		return auth.Principal{}, auth.ErrPrincipalGone
+	}
+	return pr, nil
+}
+
 type rig struct {
-	db        *dbtest.Database
-	grafana   *fakeGrafana
-	domains   *allowlist.Store
-	imports   *imports.Service
-	dashboard *dashboards.Service
-	svc       *grafanaconn.Service
-	admin     auth.Principal
-	viewer    auth.Principal
-	stop      context.CancelFunc
+	db         *dbtest.Database
+	grafana    *fakeGrafana
+	domains    *allowlist.Store
+	access     *folders.Access
+	egress     *egress.Client
+	imports    *imports.Service
+	dashboard  *dashboards.Service
+	principals *principals
+	svc        *grafanaconn.Service
+	secretKey  []byte
+	admin      auth.Principal
+	viewer     auth.Principal
+	stop       context.CancelFunc
 }
 
 type rigOptions struct {
@@ -266,26 +292,68 @@ func newRigWith(t *testing.T, opts rigOptions) *rig {
 	domains := allowlist.New(database.DB, opts.lock, logger)
 	fake := newFakeGrafana()
 	fake.hold = opts.hold
+	egressClient := egresstest.NewClient(t, domains, fake, grafanaHost)
+	known := &principals{byID: map[string]auth.Principal{}}
 	life, cancel := context.WithCancel(context.Background())
 	svc := grafanaconn.New(life, grafanaconn.Deps{
-		DB:        database.DB,
-		Egress:    egresstest.NewClient(t, domains, fake, grafanaHost),
-		Domains:   domains,
-		Imports:   importsService,
-		Access:    access,
-		SecretKey: opts.secretKey,
-		Logger:    logger,
+		DB:         database.DB,
+		Egress:     egressClient,
+		Domains:    domains,
+		Imports:    importsService,
+		Access:     access,
+		Principals: known,
+		InstanceID: "server-1",
+		SecretKey:  opts.secretKey,
+		Logger:     logger,
 	})
 	t.Cleanup(func() {
 		cancel()
 		svc.Wait()
 	})
-	return &rig{
-		db: database, grafana: fake, domains: domains, imports: importsService, dashboard: dash, svc: svc,
+	r := &rig{
+		db: database, grafana: fake, domains: domains, access: access, egress: egressClient, imports: importsService,
+		dashboard: dash, principals: known, svc: svc, secretKey: opts.secretKey,
 		admin:  user(t, database, "ada", auth.RoleAdmin),
 		viewer: user(t, database, "vic", auth.RoleViewer),
 		stop:   cancel,
 	}
+	known.set(r.admin)
+	known.set(r.viewer)
+	return r
+}
+
+func (r *rig) peer(t *testing.T) *grafanaconn.Service {
+	t.Helper()
+	life, cancel := context.WithCancel(context.Background())
+	svc := grafanaconn.New(life, grafanaconn.Deps{
+		DB:         r.db.DB,
+		Egress:     r.egress,
+		Domains:    r.domains,
+		Imports:    r.imports,
+		Access:     r.access,
+		Principals: r.principals,
+		InstanceID: "server-2",
+		SecretKey:  r.secretKey,
+		Logger:     discard(),
+	})
+	t.Cleanup(func() {
+		cancel()
+		svc.Wait()
+	})
+	return svc
+}
+
+func (r *rig) insertRunning(t *testing.T, connectionID, starterID string, leaseLosses int) string {
+	t.Helper()
+	var id string
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
+		INSERT INTO grafana_syncs (connection_id, state, request, started_by_kind, started_by_id, lease_id, leased_by, lease_until, lease_losses)
+		VALUES ($1, 'running', '{"all":true,"folders":[],"mapping":{}}', 'user', $2, gen_random_uuid(), 'gone', now() - interval '1 second', $3)
+		RETURNING id`, connectionID, starterID, leaseLosses).Scan(&id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
 }
 
 func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) auth.Principal {
@@ -345,7 +413,7 @@ func (r *rig) finish(t *testing.T, conn grafanaconn.Connection, req grafanaconn.
 		t.Fatal(err)
 	}
 	r.svc.Wait()
-	done, err := r.svc.SyncStatus(uuidOf(t, conn.ID), started.ID)
+	done, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -210,6 +210,8 @@ paths:
     $ref: "./paths/grafana.yaml#/grafana-id-imports"
   /grafana/{id}/imports/{sync_id}:
     $ref: "./paths/grafana.yaml#/grafana-id-imports-syncid"
+  /grafana/{id}/imports/{sync_id}/cancel:
+    $ref: "./paths/grafana.yaml#/grafana-id-imports-syncid-cancel"
   /grafana/resolve/{uid}:
     $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
   /webhooks:
@@ -3945,7 +3947,7 @@ components:
     GrafanaImportSummary:
       type: object
       additionalProperties: false
-      required: [id, status, total, done, failed, skipped, error, started_at, finished_at]
+      required: [id, status, total, done, failed, skipped, error, started_at, finished_at, state, allowed_actions]
       properties:
         id:
           type: string
@@ -3975,6 +3977,17 @@ components:
           type: string
           format: date-time
           nullable: true
+        state:
+          type: string
+          enum: [running, finished, failed, canceled]
+          description: The same value as `status`, from the state table in docs/reference/states.md.
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel]
+          description: "What the caller may do now: `cancel` while the import runs."
     GrafanaImportResult:
       type: object
       additionalProperties: false
@@ -4003,7 +4016,7 @@ components:
     GrafanaImport:
       type: object
       additionalProperties: false
-      required: [id, connection_id, status, total, done, failed, skipped, error, started_at, finished_at, results]
+      required: [id, connection_id, status, total, done, failed, skipped, error, started_at, finished_at, state, allowed_actions, results]
       properties:
         id:
           type: string
@@ -4032,6 +4045,17 @@ components:
           type: string
           format: date-time
           nullable: true
+        state:
+          type: string
+          enum: [running, finished, failed, canceled]
+          description: The same value as `status`, from the state table in docs/reference/states.md.
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel]
+          description: "What the caller may do now: `cancel` while the import runs."
         results:
           type: array
           description: One entry per dashboard handled so far, in the order they finished.
