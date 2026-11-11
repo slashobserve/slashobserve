@@ -37,6 +37,8 @@ const (
 	maxIndexBytes     = 1024
 	maxFieldNameBytes = 256
 	allIndices        = "_all"
+
+	maxConcurrentQueries = 1024
 )
 
 var queryLanguages = []string{"kql", "lucene"}
@@ -51,6 +53,8 @@ type Datasource struct {
 	Elasticsearch   *SearchDatasource
 	OpenSearch      *SearchDatasource
 	Limits          datasource.Limits
+
+	MaxConcurrentQueries int
 }
 
 type PrometheusDatasource struct {
@@ -194,10 +198,11 @@ type fileClickHouse struct {
 }
 
 type fileLimits struct {
-	Timeout   string      `yaml:"timeout"`
-	MaxSeries wholeNumber `yaml:"maxSeries"`
-	MaxPoints wholeNumber `yaml:"maxPoints"`
-	MaxRows   wholeNumber `yaml:"maxRows"`
+	Timeout              string      `yaml:"timeout"`
+	MaxSeries            wholeNumber `yaml:"maxSeries"`
+	MaxPoints            wholeNumber `yaml:"maxPoints"`
+	MaxRows              wholeNumber `yaml:"maxRows"`
+	MaxConcurrentQueries wholeNumber `yaml:"maxConcurrentQueries"`
 }
 
 var errNotInteger = errors.New("a limits value must be an integer")
@@ -342,6 +347,9 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
 	errs = append(errs, limitErrs...)
 	ds.Limits = limits
+	concurrent, concurrentErrs := convertMaxConcurrentQueries(path+".limits", raw.Limits.MaxConcurrentQueries)
+	errs = append(errs, concurrentErrs...)
+	ds.MaxConcurrentQueries = concurrent
 
 	present := map[string]bool{
 		typePrometheus:    raw.Prometheus != nil,
@@ -522,6 +530,16 @@ func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
 		errs = append(errs, fmt.Errorf("%s.timeout: %w", path, err))
 	}
 	return datasource.Limits{Timeout: timeout, MaxSeries: int(raw.MaxSeries), MaxPoints: int(raw.MaxPoints), MaxRows: int(raw.MaxRows)}, errs
+}
+
+func convertMaxConcurrentQueries(path string, raw wholeNumber) (int, []error) {
+	switch {
+	case raw < 0:
+		return 0, []error{fmt.Errorf("%s.maxConcurrentQueries: must not be negative", path)}
+	case raw > maxConcurrentQueries:
+		return 0, []error{fmt.Errorf("%s.maxConcurrentQueries: must be at most %d", path, maxConcurrentQueries)}
+	}
+	return int(raw), nil
 }
 
 func convertPrometheus(path string, raw filePrometheus, lookup func(string) (string, bool)) (PrometheusDatasource, []error) {

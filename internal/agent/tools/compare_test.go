@@ -177,7 +177,7 @@ func TestCompareTracesRefusesBadInputAndOtherDatasources(t *testing.T) {
 func TestCompareTracesAnswersTooManyRequestsWhenUpstreamIsBusy(t *testing.T) {
 	r, ds := newCompareRig(t)
 	for range 32 {
-		release, err := r.deps.Runner.AcquireUpstream(context.Background())
+		release, err := r.deps.Runner.AcquireUpstream(context.Background(), "tempo")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -78,7 +78,7 @@ func (h *Handler) facets(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
-	releaseUpstream, ok := h.acquireUpstream(c)
+	releaseUpstream, ok := h.acquireUpstream(c, uid)
 	if !ok {
 		return
 	}

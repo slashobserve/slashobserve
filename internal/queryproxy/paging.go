@@ -62,7 +62,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	} else if req.Page > 1 && !source.PagesByOffset() {
 		return PageResult{}, invalidPage(PageNeedsCursor)
 	}
-	release, err := r.AcquireUpstream(ctx)
+	release, err := r.AcquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return PageResult{}, err
 	}

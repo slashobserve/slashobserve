@@ -63,7 +63,7 @@ func (r *Registry) logsForTrace(ctx context.Context, input json.RawMessage) (Res
 	step := "Read log lines of trace " + in.TraceID[:traceStepIDChars] + " on " + inst.UID
 	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
-	release, err := r.deps.Runner.AcquireUpstream(ctx)
+	release, err := r.deps.Runner.AcquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return datasourceFailure(step, err)
 	}

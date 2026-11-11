@@ -22,6 +22,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - `egress`: the only fetcher of user-supplied URLs; `egress/allowlist/` holds the outbound domain table, routes and the `SLASHOBSERVE_OUTBOUND_DOMAINS` lock.
 - `sealed`: encrypts stored secrets with `SLASHOBSERVE_SECRET_KEY`, one HKDF purpose label per kind of secret and the owning row's id as additional data; the only place a stored secret is sealed or opened.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
+  `queryproxy.Slots` is the one gate on datasource calls: a datasource's `maxConcurrentQueries` (default 32, fleet-wide) divided by `fleet.Membership.Share`, then 32 per process across all datasources; both runners share one `Slots`, and every `AcquireUpstream` names its datasource.
+  A limit is divided among servers with `Share` only when it caps a total over every caller of a resource all servers share that has no backpressure (datasource calls); a per-caller limit or a limit on the process's own capacity stays per process.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
   A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.

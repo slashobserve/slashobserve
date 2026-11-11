@@ -157,7 +157,7 @@ func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource
 	if !ok {
 		return
 	}
-	releaseUpstream, ok := h.acquireUpstream(c)
+	releaseUpstream, ok := h.acquireUpstream(c, uid)
 	if !ok {
 		return
 	}

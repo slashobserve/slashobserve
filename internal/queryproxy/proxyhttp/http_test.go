@@ -1169,7 +1169,7 @@ func TestLintMapsDatasourceFailuresToGatewayErrors(t *testing.T) {
 func holdUpstreamSlots(t *testing.T, hn *harness) {
 	t.Helper()
 	for range upstreamSlot {
-		release, err := hn.runner.AcquireUpstream(context.Background())
+		release, err := hn.runner.AcquireUpstream(context.Background(), "prom")
 		if err != nil {
 			t.Fatalf("AcquireUpstream: %v", err)
 		}
@@ -1183,7 +1183,7 @@ func TestLintTakesAProcessWideUpstreamSlot(t *testing.T) {
 
 	releases := make([]func(), upstreamSlot)
 	for i := range releases {
-		release, err := hn.runner.AcquireUpstream(context.Background())
+		release, err := hn.runner.AcquireUpstream(context.Background(), "prom")
 		if err != nil {
 			t.Fatalf("AcquireUpstream: %v", err)
 		}

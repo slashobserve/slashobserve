@@ -236,7 +236,7 @@ type pollResult struct {
 func (t *tail) poll() (pollResult, error) {
 	ctx, cancel := context.WithTimeout(t.c.Request.Context(), queryproxy.DraftLimits.Timeout)
 	defer cancel()
-	release, err := t.h.runner.AcquireUpstream(ctx)
+	release, err := t.h.runner.AcquireUpstream(ctx, t.req.uid)
 	if err != nil {
 		if t.c.Request.Context().Err() != nil {
 			return pollResult{}, context.Canceled

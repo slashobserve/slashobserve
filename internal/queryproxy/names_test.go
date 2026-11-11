@@ -10,25 +10,32 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang.org/x/sync/semaphore"
-
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 func namesRunner(t *testing.T, fake *fakeDatasource, opts ...RunnerOption) *Runner {
 	t.Helper()
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ds": fake})
-	runner.sem = semaphore.NewWeighted(1)
+	runner.slots = NewSlots(map[string]int{"ds": 1}, nil)
 	for _, opt := range opts {
 		opt(runner)
 	}
 	return runner
 }
 
+func slotsInUse(r *Runner, datasourceUID string) int {
+	for _, u := range r.slots.Usage() {
+		if u.Datasource == datasourceUID {
+			return u.InUse
+		}
+	}
+	return 0
+}
+
 func TestNamesReportsABusyUpstreamAfterTheWaitBound(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := namesRunner(t, fake, WithUpstreamWait(30*time.Millisecond))
-	release, err := runner.AcquireUpstream(context.Background())
+	release, err := runner.AcquireUpstream(context.Background(), "ds")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +64,7 @@ func TestNamesReportsABusyUpstreamAfterTheWaitBound(t *testing.T) {
 
 func TestNamesKeepsTheCallersCancellationApartFromABusyUpstream(t *testing.T) {
 	runner := namesRunner(t, newFake("prometheus"), WithUpstreamWait(time.Minute))
-	release, err := runner.AcquireUpstream(context.Background())
+	release, err := runner.AcquireUpstream(context.Background(), "ds")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,10 +145,9 @@ func TestNamesRunnerRules(t *testing.T) {
 			}
 			got, err := runner.Names(context.Background(), req)
 
-			if !runner.sem.TryAcquire(1) {
-				t.Fatal("the upstream slot was not released")
+			if got := slotsInUse(runner, "ds"); got != 0 {
+				t.Fatalf("%d upstream slots still held", got)
 			}
-			runner.sem.Release(1)
 
 			if tt.wantIs != nil {
 				if !errors.Is(err, tt.wantIs) {
@@ -258,8 +264,8 @@ func TestNamesReleasesTheSlotWhenDiscoveryIsCanceled(t *testing.T) {
 	if _, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}
-	if !runner.sem.TryAcquire(1) {
-		t.Fatal("the upstream slot was not released")
+	if got := slotsInUse(runner, "ds"); got != 0 {
+		t.Fatalf("%d upstream slots still held", got)
 	}
 }
 

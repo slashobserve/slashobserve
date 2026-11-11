@@ -97,7 +97,7 @@ func (h *Handler) traceCompare(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
-	releaseUpstream, ok := h.acquireUpstream(c)
+	releaseUpstream, ok := h.acquireUpstream(c, uid)
 	if !ok {
 		return
 	}

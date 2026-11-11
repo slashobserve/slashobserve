@@ -1453,17 +1453,15 @@ func TestRunPanelCapsExemplarsAtTheNewest2000(t *testing.T) {
 func TestRunPanelHoldsTheUpstreamSlotDuringTheExemplarCall(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-	var allFree bool
+	var held bool
 	fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
-		if allFree = runner.sem.TryAcquire(maxUpstreamCalls); allFree {
-			runner.sem.Release(maxUpstreamCalls)
-		}
+		held = slotsInUse(runner, "prom") == 1
 		return nil, nil
 	}
 	if _, err := runner.RunPanel(t.Context(), exemplarRequest(exemplarPanel(spec.Query{Query: "up", Exemplar: true}))); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
-	if allFree {
-		t.Fatal("every upstream slot was free during the exemplars call, want the query's slot held")
+	if !held {
+		t.Fatal("the datasource's slot was free during the exemplars call, want the query's slot held")
 	}
 }

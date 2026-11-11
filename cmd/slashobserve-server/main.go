@@ -298,9 +298,12 @@ func run() error {
 
 	folderAccess := folders.NewAccess(database)
 
-	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithMetrics(serverMetrics.Proxy()))
+	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
+	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
+
+	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
-	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
+	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
@@ -669,6 +672,23 @@ func startWebhooks(ctx context.Context, worker *webhooks.Worker, logger *slog.Lo
 			logger.Warn("webhook worker did not stop in time")
 		}
 	}
+}
+
+func maxConcurrentQueries(datasources []config.Datasource) map[string]int {
+	totals := make(map[string]int, len(datasources))
+	for _, ds := range datasources {
+		totals[ds.UID] = ds.MaxConcurrentQueries
+	}
+	return totals
+}
+
+func slotUsage(slots *queryproxy.Slots) []metrics.SlotUsage {
+	usage := slots.Usage()
+	out := make([]metrics.SlotUsage, len(usage))
+	for i, u := range usage {
+		out[i] = metrics.SlotUsage{Datasource: u.Datasource, InUse: u.InUse, Limit: u.Limit}
+	}
+	return out
 }
 
 func startFleet(ctx context.Context, membership *fleet.Membership, logger *slog.Logger) func() {

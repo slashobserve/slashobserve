@@ -119,7 +119,7 @@ func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	runner := queryproxy.NewRunner(reg, logger, queryproxy.WithUpstreamWait(30*time.Millisecond))
 	r := New(Deps{Datasources: reg, Runner: runner, Logger: logger})
 	for range 32 {
-		release, err := runner.AcquireUpstream(context.Background())
+		release, err := runner.AcquireUpstream(context.Background(), fakeUID)
 		if err != nil {
 			t.Fatal(err)
 		}

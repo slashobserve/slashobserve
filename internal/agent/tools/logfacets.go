@@ -69,7 +69,7 @@ func (r *Registry) logFacets(ctx context.Context, input json.RawMessage) (Result
 	}
 	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
-	release, err := r.deps.Runner.AcquireUpstream(ctx)
+	release, err := r.deps.Runner.AcquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return datasourceFailure("Counting facets on "+inst.UID, err)
 	}

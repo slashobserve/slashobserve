@@ -94,7 +94,7 @@ func (h *Handler) logContext(c *gin.Context) {
 	g, gctx := errgroup.WithContext(ctx)
 	for i := range sides {
 		g.Go(func() error {
-			side, err := h.readSide(gctx, source, sides[i])
+			side, err := h.readSide(gctx, uid, source, sides[i])
 			results[i] = side
 			return err
 		})
@@ -110,7 +110,7 @@ func (h *Handler) logContext(c *gin.Context) {
 	c.JSON(http.StatusOK, contextResponse{Anchor: *req.Anchor, Before: results[0], After: results[1]})
 }
 
-func (h *Handler) readSide(ctx context.Context, source datasource.LineSource, req datasource.LinesRequest) (contextSide, error) {
+func (h *Handler) readSide(ctx context.Context, datasourceUID string, source datasource.LineSource, req datasource.LinesRequest) (contextSide, error) {
 	empty := contextSide{Frames: json.RawMessage("[]")}
 	if req.Limit == 0 {
 		return empty, nil
@@ -118,7 +118,7 @@ func (h *Handler) readSide(ctx context.Context, source datasource.LineSource, re
 	if err := req.Range.Validate(); err != nil {
 		return empty, err
 	}
-	release, err := h.acquireUpstreamBounded(ctx)
+	release, err := h.acquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return empty, err
 	}
@@ -138,10 +138,10 @@ func (h *Handler) readSide(ctx context.Context, source datasource.LineSource, re
 	return contextSide{Frames: encoded, Truncated: datasource.MergeMeta(frames).Truncated}, nil
 }
 
-func (h *Handler) acquireUpstreamBounded(ctx context.Context) (release func(), err error) {
+func (h *Handler) acquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
 	waitCtx, cancel := context.WithTimeout(ctx, h.lintTimeout)
 	defer cancel()
-	release, err = h.runner.AcquireUpstream(waitCtx)
+	release, err = h.runner.AcquireUpstream(waitCtx, datasourceUID)
 	switch {
 	case err == nil:
 		return release, nil
