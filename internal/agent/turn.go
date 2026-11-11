@@ -21,16 +21,14 @@ const (
 	maxParallelTools = 4
 	maxIssueCodes    = 3
 
-	phaseDiscover = "discover"
-	phaseLint     = "lint"
-	phaseQuery    = "query"
-	phaseSave     = "save"
+	phaseDiscover = tools.PhaseDiscover
+	phaseQuery    = tools.PhaseQuery
+	phaseSave     = tools.PhaseSave
 	phaseRepair   = "repair"
 
 	statusOK    = "ok"
 	statusError = "error"
 
-	toolCreateDashboard = "create_dashboard"
 	toolUpdateDashboard = "update_dashboard"
 	toolUpdatePanels    = "update_panels"
 	toolImportGrafana   = "import_grafana_dashboard"
@@ -144,26 +142,14 @@ func (s *runState) label(name string) string {
 }
 
 func isSave(name string) bool {
-	switch name {
-	case toolCreateDashboard, toolUpdateDashboard, toolUpdatePanels, toolImportGrafana, toolSaveFinding:
-		return true
-	}
-	return false
+	return tools.Phase(name) == tools.PhaseSave
 }
 
 func phaseFor(name string, repairing bool) string {
-	switch {
-	case name == "lint_query":
-		return phaseLint
-	case name == "query_range" || name == "query_instant":
-		return phaseQuery
-	case isSave(name):
-		if repairing {
-			return phaseRepair
-		}
-		return phaseSave
+	if repairing && isSave(name) {
+		return phaseRepair
 	}
-	return phaseDiscover
+	return tools.Phase(name)
 }
 
 func containsSave(calls []llm.ToolCall) bool {
