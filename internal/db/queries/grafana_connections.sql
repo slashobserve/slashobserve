@@ -26,6 +26,3 @@ UPDATE grafana_connections
 SET last_test_at = now(), last_test_ok = @ok, last_test_message = @message
 WHERE id = @id
 RETURNING *;
-
--- name: SetGrafanaConnectionSync :execrows
-UPDATE grafana_connections SET last_sync = @last_sync WHERE id = @id;

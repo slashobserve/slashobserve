@@ -224,7 +224,7 @@ func TestGrafanaImportGoneWhilePollingExitsOne(t *testing.T) {
 	f := newGrafanaFake(t)
 	f.polls = nil
 	_, stderr, code := f.run("", "import", testConnection, "--all")
-	if code != 1 || !strings.Contains(stderr, "the server no longer has import "+testSync+"; it keeps imports only until it restarts") {
+	if code != 1 || !strings.Contains(stderr, "the server no longer has import "+testSync+"; a connection keeps only its last 20 imports") {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
 }

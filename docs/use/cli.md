@@ -391,7 +391,7 @@ bin/observe grafana import <connection id> --all
 Without either flag it prints the folders as a table of uid, title and dashboard count and exits 2.
 It then waits for the import, showing `Imported <done> of <total>` on a terminal, and prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
 It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
-The server keeps an import only until it restarts, and an interrupt stops the waiting while the import continues on the server.
+The server keeps a connection's last 20 imports, and an interrupt stops the waiting while the import continues on the server.
 
 ## Search
 

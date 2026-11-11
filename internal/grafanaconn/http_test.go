@@ -146,8 +146,14 @@ func TestHTTPConnectsTestsListsImportsAndResolves(t *testing.T) {
 	h.svc.Wait()
 	progress := h.call(t, http.MethodGet, base+"/imports/"+syncID, "")
 	expect(t, progress, http.StatusOK, "")
-	if !strings.Contains(progress.Body.String(), `"status":"finished"`) || !strings.Contains(progress.Body.String(), `"outcome":"failed"`) {
+	if !strings.Contains(progress.Body.String(), `"status":"finished"`) || !strings.Contains(progress.Body.String(), `"state":"finished"`) ||
+		!strings.Contains(progress.Body.String(), `"allowed_actions":[]`) || !strings.Contains(progress.Body.String(), `"outcome":"failed"`) {
 		t.Fatalf("progress %s", progress.Body)
+	}
+	listed := h.call(t, http.MethodGet, "/api/v1/grafana", "")
+	expect(t, listed, http.StatusOK, "")
+	if !strings.Contains(listed.Body.String(), `"last_sync":{"id":"`+syncID+`"`) || !strings.Contains(listed.Body.String(), `"state":"finished","allowed_actions":[]`) {
+		t.Fatalf("list %s", listed.Body)
 	}
 	expect(t, h.call(t, http.MethodGet, base+"/imports/"+id, ""), http.StatusNotFound, "not_found")
 	expect(t, h.call(t, http.MethodGet, base, ""), http.StatusOK, "")
@@ -185,6 +191,7 @@ func TestHTTPAdminRoutesRefuseLowerRoles(t *testing.T) {
 		{http.MethodGet, base + "/datasources", ""},
 		{http.MethodPost, base + "/imports", `{"folders":"all"}`},
 		{http.MethodGet, base + "/imports/x", ""},
+		{http.MethodPost, base + "/imports/x/cancel", ""},
 	}
 	for _, r := range routes {
 		expect(t, h.call(t, r.method, r.path, r.body), http.StatusForbidden, "forbidden_role")
@@ -258,8 +265,35 @@ func TestHTTPRefusesASecondImportWhileOneRuns(t *testing.T) {
 	h := newHTTPRig(t, newRigWith(t, rigOptions{secretKey: secretKey, hold: hold}))
 	h.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
 	base := "/api/v1/grafana/" + h.connect(t).ID
-	expect(t, h.call(t, http.MethodPost, base+"/imports", `{"folders":["general"]}`), http.StatusAccepted, "")
+	started := h.call(t, http.MethodPost, base+"/imports", `{"folders":["general"]}`)
+	expect(t, started, http.StatusAccepted, "")
+	if !strings.Contains(started.Body.String(), `"state":"running"`) || !strings.Contains(started.Body.String(), `"allowed_actions":["cancel"]`) {
+		t.Fatalf("started %s", started.Body)
+	}
 	expect(t, h.call(t, http.MethodPost, base+"/imports", `{"folders":"all"}`), http.StatusConflict, "import_running")
+	close(hold)
+	h.svc.Wait()
+}
+
+func TestHTTPCancelsARunningImportOnce(t *testing.T) {
+	hold := make(chan struct{})
+	h := newHTTPRig(t, newRigWith(t, rigOptions{secretKey: secretKey, hold: hold}))
+	h.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	base := "/api/v1/grafana/" + h.connect(t).ID
+	syncID := decode[idBody](t, h.call(t, http.MethodPost, base+"/imports", `{"folders":"all"}`)).ID
+
+	canceled := h.call(t, http.MethodPost, base+"/imports/"+syncID+"/cancel", "")
+	expect(t, canceled, http.StatusOK, "")
+	if !strings.Contains(canceled.Body.String(), `"state":"canceled"`) || !strings.Contains(canceled.Body.String(), `"allowed_actions":[]`) {
+		t.Fatalf("canceled %s", canceled.Body)
+	}
+	again := h.call(t, http.MethodPost, base+"/imports/"+syncID+"/cancel", "")
+	expect(t, again, http.StatusConflict, "invalid_transition")
+	if !strings.Contains(again.Body.String(), `"state":"canceled"`) || !strings.Contains(again.Body.String(), `"allowed_actions":[]`) {
+		t.Fatalf("second cancel %s", again.Body)
+	}
+	expect(t, h.call(t, http.MethodPost, base+"/imports/7d444840-9dc0-4f6c-8d5e-5d3a3f1d9a11/cancel", ""), http.StatusNotFound, "not_found")
+	expect(t, h.call(t, http.MethodPost, base+"/imports/unknown/cancel", ""), http.StatusNotFound, "not_found")
 	close(hold)
 	h.svc.Wait()
 }

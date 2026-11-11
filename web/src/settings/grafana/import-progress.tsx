@@ -1,21 +1,24 @@
 import type { ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
+import { LoaderCircleIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import { StatusLabel, type StatusTone } from "@/components/status-label"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { importedFilter } from "@/health/health-labels"
 import { dashboardLink } from "@/lib/links"
 import { SettingsCard, SettingsProblem } from "@/settings/settings-card"
 
 import { grafanaProblemText } from "./connection-problems"
-import { useImportSync, type GrafanaImport } from "./queries"
+import { useCancelImport, useImportSync, type GrafanaImport } from "./queries"
 import { groupResults, type GrafanaImportResult } from "./results"
 
 type Props = { connectionId: string; syncId: string }
 
 const title = "Import progress"
-const hint = "The server keeps the last 20 imports until it restarts."
+const hint = "Each connection keeps its last 20 imports."
 
 const statuses: Record<
   GrafanaImport["status"],
@@ -37,8 +40,8 @@ export function ImportProgress({ connectionId, syncId }: Props) {
       <SettingsCard title={title} hint={hint}>
         {forgotten ? (
           <p className="px-4 py-3 text-[13px] text-muted-foreground">
-            This import is no longer tracked, because the server restarted or
-            ran 20 newer imports. The connection shows the last finished one.
+            This import is no longer tracked, because 20 newer imports ran on
+            this connection. The connection shows the last finished one.
           </p>
         ) : (
           <SettingsProblem
@@ -63,14 +66,19 @@ export function ImportProgress({ connectionId, syncId }: Props) {
   }
   return (
     <SettingsCard title={title} hint={hint}>
-      <Progress sync={sync} />
+      <Progress connectionId={connectionId} syncId={syncId} sync={sync} />
       <Results results={sync.results} />
     </SettingsCard>
   )
 }
 
-function Progress({ sync }: { sync: GrafanaImport }) {
+function Progress({
+  connectionId,
+  syncId,
+  sync,
+}: Props & { sync: GrafanaImport }) {
   const status = statuses[sync.status]
+  const cancel = useCancelImport(connectionId, syncId)
   return (
     <div
       role="status"
@@ -88,6 +96,29 @@ function Progress({ sync }: { sync: GrafanaImport }) {
       {sync.error === null ? null : (
         <span className="text-destructive">{sync.error}</span>
       )}
+      {sync.allowed_actions.includes("cancel") ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          disabled={cancel.isPending}
+          focusableWhenDisabled
+          aria-busy={cancel.isPending}
+          onClick={() =>
+            cancel.mutate(undefined, {
+              onError: (error) => toast.error(grafanaProblemText(error)),
+            })
+          }
+        >
+          {cancel.isPending ? (
+            <LoaderCircleIcon
+              aria-hidden="true"
+              className="motion-safe:animate-spin"
+            />
+          ) : null}
+          Stop import
+        </Button>
+      ) : null}
     </div>
   )
 }

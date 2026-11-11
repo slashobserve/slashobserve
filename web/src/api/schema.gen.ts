@@ -2188,7 +2188,7 @@ export interface paths {
         put?: never;
         /**
          * Import every dashboard of the chosen folders.
-         * @description Only Admins can call this endpoint. The import runs in the background; read its progress from the `Location` header. Each dashboard becomes one import record holding its Grafana uid, in a folder named after its Grafana folder (`Parent / Child` for nested ones), or General for dashboards outside any folder. A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped. One dashboard failing never stops the run. A connection runs one import at a time.
+         * @description Only Admins can call this endpoint. The import runs in the background; read its progress from the `Location` header. Each dashboard becomes one import record holding its Grafana uid, in a folder named after its Grafana folder (`Parent / Child` for nested ones), or General for dashboards outside any folder. A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped. One dashboard failing never stops the run. A connection runs one import at a time. A server that stops hands the running import to another server, or picks it up again after its restart, skipping the dashboards it already handled. An import whose server crashes twice ends `failed`.
          */
         post: operations["startGrafanaImport"];
         delete?: never;
@@ -2209,11 +2209,34 @@ export interface paths {
         };
         /**
          * Read the progress of an import.
-         * @description Only Admins can call this endpoint. The server keeps the last 20 imports in memory until it restarts; the connection's `last_sync` keeps the summary of the last finished one.
+         * @description Only Admins can call this endpoint. Any server answers it, during the import and after it. Each connection keeps its last 20 imports; the connection's `last_sync` is the newest finished one.
          */
         get: operations["getGrafanaImport"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/imports/{sync_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a running import.
+         * @description Only Admins can call this endpoint. The import ends `canceled` at once; the dashboards it already imported stay, and one being saved at that moment may still be saved. Starting the import again skips what it already imported.
+         */
+        post: operations["cancelGrafanaImport"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4660,6 +4683,13 @@ export interface components {
             started_at: string;
             /** Format: date-time */
             finished_at: string | null;
+            /**
+             * @description The same value as `status`, from the state table in docs/reference/states.md.
+             * @enum {string}
+             */
+            state: "running" | "finished" | "failed" | "canceled";
+            /** @description What the caller may do now: `cancel` while the import runs. */
+            allowed_actions: "cancel"[];
         };
         GrafanaImportResult: {
             /** @description The Grafana dashboard uid. */
@@ -4690,6 +4720,13 @@ export interface components {
             started_at: string;
             /** Format: date-time */
             finished_at: string | null;
+            /**
+             * @description The same value as `status`, from the state table in docs/reference/states.md.
+             * @enum {string}
+             */
+            state: "running" | "finished" | "failed" | "canceled";
+            /** @description What the caller may do now: `cancel` while the import runs. */
+            allowed_actions: "cancel"[];
             /** @description One entry per dashboard handled so far, in the order they finished. */
             results: components["schemas"]["GrafanaImportResult"][];
         };
@@ -11124,6 +11161,43 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    cancelGrafanaImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The canceled import and every dashboard handled before it stopped. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The import is not running (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidTransition"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

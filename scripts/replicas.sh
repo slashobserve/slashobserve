@@ -736,6 +736,11 @@ check_c8() {
   pass "$total webhook attempts all failed as unreachable and no delivery was attempted twice at once"
 }
 
+import_ended() {
+  [[ "$(OUT="$TMP/c15-ended.json" api GET "$TWO" "/api/v1/grafana/$1/imports/$2")" == 200 ]] &&
+    [[ "$(json_field "$TMP/c15-ended.json" status)" != running ]]
+}
+
 check_c15() {
   local code gid sync
   code="$(OUT="$TMP/grafana.json" api POST "$ONE" /api/v1/grafana '{"name":"replicas-check","url":"https://grafana.invalid","token":"not-a-real-token"}')"
@@ -750,12 +755,19 @@ check_c15() {
     return 0
   fi
   sync="$(json_field "$TMP/import.json" id)"
-  [[ "$(api GET "$ONE" "/api/v1/grafana/$gid/imports/$sync")" == 200 ]] || fail "server 1 does not know the import it started"
-  if [[ "$(api GET "$TWO" "/api/v1/grafana/$gid/imports/$sync")" == 404 ]]; then
-    known "Grafana sync progress lives on the server that started it"
-    return 0
-  fi
-  fail "server 2 answers the import status; the known gap is fixed, so make this item a PASS and update the scaling page"
+  [[ "$(OUT="$TMP/c15-two.json" api GET "$TWO" "/api/v1/grafana/$gid/imports/$sync")" == 200 ]] ||
+    fail "server 2 does not answer the import server 1 started"
+  eventually 60 "the import to end" import_ended "$gid" "$sync"
+  local one two
+  [[ "$(OUT="$TMP/c15-one.json" api GET "$ONE" "/api/v1/grafana/$gid/imports/$sync")" == 200 ]] || fail "server 1 lost the import it started"
+  [[ "$(OUT="$TMP/c15-two.json" api GET "$TWO" "/api/v1/grafana/$gid/imports/$sync")" == 200 ]] || fail "server 2 lost the import"
+  one="$(json_field "$TMP/c15-one.json" status)"
+  two="$(json_field "$TMP/c15-two.json" status)"
+  [[ "$one" == "$two" && "$one" != running ]] || fail "the servers disagree on the import: $one and $two"
+  [[ "$(json_field "$TMP/c15-two.json" state)" == "$two" ]] || fail "the import's state differs from its status"
+  [[ "$(OUT="$TMP/c15-conn.json" api GET "$TWO" "/api/v1/grafana/$gid")" == 200 ]] || fail "server 2 does not answer the connection"
+  [[ "$(json_field "$TMP/c15-conn.json" last_sync.id)" == "$sync" ]] || fail "server 2 does not show the import as the connection's last one"
+  pass "server 2 answers the import server 1 started, both report it $two, and the connection's last import is it"
 }
 
 check_c12() {

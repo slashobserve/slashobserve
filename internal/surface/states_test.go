@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
@@ -33,6 +34,7 @@ func statesReference() string {
 		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
+		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 	)
 }
 
@@ -135,5 +137,29 @@ func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 	}
 	if got := enumOf(t, doc, "InvalidTransition", "code"); !slices.Equal(got, []string{"invalid_transition"}) {
 		t.Errorf("InvalidTransition.code enum = %v", got)
+	}
+}
+
+func TestGrafanaImportEnumsMatchTheMachine(t *testing.T) {
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states, offered []string
+	for _, s := range grafanaconn.SyncMachine.States {
+		states = append(states, string(s))
+	}
+	for _, a := range grafanaconn.SyncMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	for _, schema := range []string{"GrafanaImport", "GrafanaImportSummary"} {
+		for _, property := range []string{"state", "status"} {
+			if got := enumOf(t, doc, schema, property); !slices.Equal(got, states) {
+				t.Errorf("%s.%s enum = %v, want %v", schema, property, got, states)
+			}
+		}
+		if got := enumOf(t, doc, schema, "allowed_actions"); !slices.Equal(got, offered) {
+			t.Errorf("%s.allowed_actions items enum = %v, want %v", schema, got, offered)
+		}
 	}
 }

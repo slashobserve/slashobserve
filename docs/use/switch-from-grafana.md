@@ -72,8 +72,9 @@ When it ends, the results are grouped:
 
 The server fetches at most 4 dashboards from Grafana at a time and saves them one after another, and a dashboard that fails never stops the run.
 A connection runs one import at a time.
-The server keeps the last 20 runs in memory until it restarts, and the connection's last import keeps the summary of the last finished one.
-A restart stops a running import; start it again and it continues by skipping what it already imported.
+Any server answers the progress of an import, and each connection keeps its last 20 imports; the connection's last import is the newest finished one.
+A server that stops hands a running import on, and the next server continues it by skipping the dashboards already handled; an import whose server crashes twice ends failed, and starting it again skips what it already imported.
+An Admin can stop a running import with **Stop import** on its progress card; the dashboards it already imported stay.
 
 ## Repair
 

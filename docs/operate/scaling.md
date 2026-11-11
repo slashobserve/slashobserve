@@ -24,7 +24,7 @@ The ceiling of the agent is usually the rate limit of your model provider, not t
   It defaults to 32; see [the datasources file](../reference/datasources-file.md).
 - `SLASHOBSERVE_DATABASE_DIRECT_URL`, whenever `SLASHOBSERVE_DATABASE_URL` goes through a transaction pooler.
 - The same `SLASHOBSERVE_SECRET_KEY`, OIDC settings and `SLASHOBSERVE_PUBLIC_URL` on every server.
-- A load balancer with no session affinity, except for the Grafana sync status described under [Known limits](#known-limits).
+- A load balancer with no session affinity.
 
 ## Connections
 
@@ -114,9 +114,7 @@ datasources:
 
 ## Known limits
 
-- The progress of a Grafana sync is held by the server that started it, so its status answers 404 from any other server while it runs and after it.
-  The dashboards are written once, and the connection keeps its last-sync summary.
-  Route `/api/v1/grafana/` with session affinity, or run the sync with one replica.
+- A Grafana import on a server that stops is handed to another server, or continues after the restart, within about 10 seconds; one whose server is killed waits for its 60 second lease, and an import whose server dies twice ends failed.
 - After a crash, the other servers count the dead one for up to 30 seconds, so their shares are briefly smaller.
   A new server is counted within 10 seconds.
 - A killed server's running agent requests are retried by another server once their 60 second lease expires, up to 2 attempts in all.

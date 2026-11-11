@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -47,6 +48,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g.GET("/:id/datasources", auth.RoleAdmin, h.datasources)
 	g.POST("/:id/imports", auth.RoleAdmin, h.startImport)
 	g.GET("/:id/imports/:sync_id", auth.RoleAdmin, h.importStatus)
+	g.POST("/:id/imports/:sync_id/cancel", auth.RoleAdmin, h.cancelImport)
 }
 
 type testJSON struct {
@@ -56,15 +58,17 @@ type testJSON struct {
 }
 
 type summaryJSON struct {
-	ID         string  `json:"id"`
-	Status     string  `json:"status"`
-	Total      int     `json:"total"`
-	Done       int     `json:"done"`
-	Failed     int     `json:"failed"`
-	Skipped    int     `json:"skipped"`
-	Error      *string `json:"error"`
-	StartedAt  string  `json:"started_at"`
-	FinishedAt *string `json:"finished_at"`
+	ID             string   `json:"id"`
+	Status         string   `json:"status"`
+	Total          int      `json:"total"`
+	Done           int      `json:"done"`
+	Failed         int      `json:"failed"`
+	Skipped        int      `json:"skipped"`
+	Error          *string  `json:"error"`
+	StartedAt      string   `json:"started_at"`
+	FinishedAt     *string  `json:"finished_at"`
+	State          string   `json:"state"`
+	AllowedActions []string `json:"allowed_actions"`
 }
 
 type connectionJSON struct {
@@ -122,14 +126,15 @@ func optionalTime(t *time.Time) *string {
 	return &s
 }
 
-func newSummaryJSON(s SyncSummary) summaryJSON {
+func newSummaryJSON(s SyncSummary, caller auth.Principal) summaryJSON {
 	return summaryJSON{
-		ID: s.ID, Status: s.Status, Total: s.Total, Done: s.Done, Failed: s.Failed, Skipped: s.Skipped,
+		ID: s.ID, Status: string(s.State), Total: s.Total, Done: s.Done, Failed: s.Failed, Skipped: s.Skipped,
 		Error: httpapi.OptionalString(s.Error), StartedAt: httpapi.FormatTime(s.StartedAt), FinishedAt: optionalTime(s.FinishedAt),
+		State: string(s.State), AllowedActions: syncActions(s.State, caller),
 	}
 }
 
-func newConnectionJSON(c Connection) connectionJSON {
+func newConnectionJSON(c Connection, caller auth.Principal) connectionJSON {
 	out := connectionJSON{
 		ID: c.ID, Name: c.Name, URL: c.URL, CreatedBy: httpapi.OptionalString(c.CreatedBy),
 		CreatedAt: httpapi.FormatTime(c.CreatedAt), UpdatedAt: httpapi.FormatTime(c.UpdatedAt),
@@ -138,14 +143,14 @@ func newConnectionJSON(c Connection) connectionJSON {
 		out.LastTest = &testJSON{At: httpapi.FormatTime(c.LastTest.At), OK: c.LastTest.OK, Message: c.LastTest.Message}
 	}
 	if c.LastSync != nil {
-		summary := newSummaryJSON(*c.LastSync)
+		summary := newSummaryJSON(*c.LastSync, caller)
 		out.LastSync = &summary
 	}
 	return out
 }
 
-func newSyncJSON(s Sync) syncJSON {
-	out := syncJSON{summaryJSON: newSummaryJSON(s.SyncSummary), ConnectionID: s.ConnectionID, Results: make([]resultJSON, 0, len(s.Results))}
+func newSyncJSON(s Sync, caller auth.Principal) syncJSON {
+	out := syncJSON{summaryJSON: newSummaryJSON(s.SyncSummary, caller), ConnectionID: s.ConnectionID, Results: make([]resultJSON, 0, len(s.Results))}
 	for _, r := range s.Results {
 		out.Results = append(out.Results, resultJSON{
 			UID: r.UID, Title: r.Title, Outcome: r.Outcome, DashboardID: httpapi.OptionalString(r.DashboardID),
@@ -161,9 +166,10 @@ func (h *Handler) list(c *gin.Context) {
 		h.fail(c, "list grafana connections", err)
 		return
 	}
+	caller := httpapi.Caller(c)
 	out := make([]connectionJSON, 0, len(list))
 	for _, conn := range list {
-		out = append(out, newConnectionJSON(conn))
+		out = append(out, newConnectionJSON(conn, caller))
 	}
 	c.JSON(http.StatusOK, gin.H{"connections": out})
 }
@@ -187,7 +193,7 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/grafana/"+created.ID)
-	c.JSON(http.StatusCreated, newConnectionJSON(created))
+	c.JSON(http.StatusCreated, newConnectionJSON(created, httpapi.Caller(c)))
 }
 
 func (h *Handler) get(c *gin.Context) {
@@ -200,7 +206,7 @@ func (h *Handler) get(c *gin.Context) {
 		h.fail(c, "get grafana connection", err)
 		return
 	}
-	c.JSON(http.StatusOK, newConnectionJSON(conn))
+	c.JSON(http.StatusOK, newConnectionJSON(conn, httpapi.Caller(c)))
 }
 
 func (h *Handler) update(c *gin.Context) {
@@ -221,7 +227,7 @@ func (h *Handler) update(c *gin.Context) {
 		h.fail(c, "update grafana connection", err)
 		return
 	}
-	c.JSON(http.StatusOK, newConnectionJSON(updated))
+	c.JSON(http.StatusOK, newConnectionJSON(updated, httpapi.Caller(c)))
 }
 
 func (h *Handler) remove(c *gin.Context) {
@@ -246,7 +252,7 @@ func (h *Handler) test(c *gin.Context) {
 		h.fail(c, "test grafana connection", err)
 		return
 	}
-	c.JSON(http.StatusOK, newConnectionJSON(tested))
+	c.JSON(http.StatusOK, newConnectionJSON(tested, httpapi.Caller(c)))
 }
 
 func (h *Handler) folders(c *gin.Context) {
@@ -347,7 +353,7 @@ func (h *Handler) startImport(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/grafana/"+started.ConnectionID+"/imports/"+started.ID)
-	c.JSON(http.StatusAccepted, newSyncJSON(started))
+	c.JSON(http.StatusAccepted, newSyncJSON(started, httpapi.Caller(c)))
 }
 
 func (h *Handler) importStatus(c *gin.Context) {
@@ -355,12 +361,25 @@ func (h *Handler) importStatus(c *gin.Context) {
 	if !ok {
 		return
 	}
-	got, err := h.svc.SyncStatus(id, c.Param("sync_id"))
+	got, err := h.svc.SyncStatus(c.Request.Context(), id, c.Param("sync_id"))
 	if err != nil {
 		h.fail(c, "get grafana import", err)
 		return
 	}
-	c.JSON(http.StatusOK, newSyncJSON(got))
+	c.JSON(http.StatusOK, newSyncJSON(got, httpapi.Caller(c)))
+}
+
+func (h *Handler) cancelImport(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	got, err := h.svc.CancelSync(c.Request.Context(), httpapi.Caller(c), id, c.Param("sync_id"))
+	if err != nil {
+		h.fail(c, "cancel grafana import", err)
+		return
+	}
+	c.JSON(http.StatusOK, newSyncJSON(got, httpapi.Caller(c)))
 }
 
 func (h *Handler) resolve(c *gin.Context) {
@@ -379,10 +398,13 @@ func dashboardPath(id string) string {
 func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var invalid *InvalidError
 	var hostErr *egress.HostError
+	var refusal *lifecycle.Refusal
 	if clientgone.Handle(c, h.svc.logger, action, err) {
 		return
 	}
 	switch {
+	case errors.As(err, &refusal):
+		lifecycle.AbortRefusal(c, refusal)
 	case errors.As(err, &invalid):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
 	case errors.Is(err, ErrTokenRequired):

@@ -119,3 +119,24 @@ This state is computed from stored fields on every read; nothing stores it.
 | --- | --- |
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly. |
+
+## Grafana import
+
+A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `running` | A server holds its lease and imports the chosen dashboards. | `cancel` |
+| `finished` | Every chosen dashboard was handled, each imported, updated, skipped or failed on its own. Final. | - |
+| `failed` | It stopped early: Grafana could not be listed, the import could not continue as the person who started it, or its server stopped twice without handing it on. Final. | - |
+| `canceled` | An Admin stopped it; the dashboards it already imported stay. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `start` | - | `running` | `grafana sync started` | admin |
+| `claim` | `running` | `running` | `grafana sync resumed` | server |
+| `release` | `running` | `running` | `grafana sync released` | server |
+| `finish` | `running` | `finished` | `grafana sync finished` | server |
+| `fail` | `running` | `failed` | `grafana sync failed` | server |
+| `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
+| `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |

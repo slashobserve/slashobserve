@@ -310,7 +310,7 @@ func readGrafanaImport(ctx context.Context, c *client, connID, syncID string) ([
 	data, err := c.get(ctx, "grafana/"+connID+"/imports/"+syncID, nil)
 	var api *apiError
 	if errors.As(err, &api) && api.status == http.StatusNotFound {
-		return nil, grafanaImport{}, fmt.Errorf("the server no longer has import %s; it keeps imports only until it restarts", syncID)
+		return nil, grafanaImport{}, fmt.Errorf("the server no longer has import %s; a connection keeps only its last 20 imports", syncID)
 	}
 	if err != nil {
 		return nil, grafanaImport{}, err

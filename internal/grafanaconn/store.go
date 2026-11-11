@@ -2,7 +2,6 @@ package grafanaconn
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -57,13 +56,6 @@ func storedOf(row dbsqlc.GrafanaConnection) (stored, error) {
 	if row.LastTestAt.Valid {
 		c.LastTest = &TestResult{At: row.LastTestAt.Time.UTC(), OK: row.LastTestOk, Message: row.LastTestMessage}
 	}
-	if row.LastSync != nil {
-		var summary SyncSummary
-		if err := json.Unmarshal(row.LastSync, &summary); err != nil {
-			return stored{}, fmt.Errorf("decode last sync: %w", err)
-		}
-		c.LastSync = &summary
-	}
 	return stored{Connection: c, id: row.ID, sealed: row.TokenCiphertext}, nil
 }
 
@@ -75,6 +67,39 @@ func (s store) insert(ctx context.Context, params dbsqlc.InsertGrafanaConnection
 	return storedOf(row)
 }
 
+func (s store) withLastSyncs(ctx context.Context, list []stored) error {
+	ids := make([]pgtype.UUID, len(list))
+	for i, c := range list {
+		ids[i] = c.id
+	}
+	rows, err := s.db.Queries().LastGrafanaSyncs(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("list last grafana syncs: %w", err)
+	}
+	last := make(map[pgtype.UUID]SyncSummary, len(rows))
+	for _, row := range rows {
+		last[row.ConnectionID] = summaryOf(row)
+	}
+	for i := range list {
+		if summary, ok := last[list[i].id]; ok {
+			list[i].LastSync = &summary
+		}
+	}
+	return nil
+}
+
+func (s store) one(ctx context.Context, row dbsqlc.GrafanaConnection) (stored, error) {
+	c, err := storedOf(row)
+	if err != nil {
+		return stored{}, err
+	}
+	list := []stored{c}
+	if err := s.withLastSyncs(ctx, list); err != nil {
+		return stored{}, err
+	}
+	return list[0], nil
+}
+
 func (s store) get(ctx context.Context, id pgtype.UUID) (stored, error) {
 	row, err := s.db.Queries().GetGrafanaConnection(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -83,7 +108,7 @@ func (s store) get(ctx context.Context, id pgtype.UUID) (stored, error) {
 	if err != nil {
 		return stored{}, fmt.Errorf("get grafana connection: %w", err)
 	}
-	return storedOf(row)
+	return s.one(ctx, row)
 }
 
 func (s store) list(ctx context.Context) ([]Connection, error) {
@@ -91,12 +116,19 @@ func (s store) list(ctx context.Context) ([]Connection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list grafana connections: %w", err)
 	}
-	out := make([]Connection, 0, len(rows))
+	all := make([]stored, 0, len(rows))
 	for _, row := range rows {
 		c, err := storedOf(row)
 		if err != nil {
 			return nil, err
 		}
+		all = append(all, c)
+	}
+	if err := s.withLastSyncs(ctx, all); err != nil {
+		return nil, err
+	}
+	out := make([]Connection, 0, len(all))
+	for _, c := range all {
 		out = append(out, c.Connection)
 	}
 	return out, nil
@@ -110,7 +142,7 @@ func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnection
 	if err != nil {
 		return stored{}, fmt.Errorf("update grafana connection: %w", err)
 	}
-	return storedOf(row)
+	return s.one(ctx, row)
 }
 
 func (s store) delete(ctx context.Context, id pgtype.UUID) error {
@@ -132,16 +164,5 @@ func (s store) setTest(ctx context.Context, id pgtype.UUID, ok bool, message str
 	if err != nil {
 		return stored{}, fmt.Errorf("record grafana connection test: %w", err)
 	}
-	return storedOf(row)
-}
-
-func (s store) setSync(ctx context.Context, id pgtype.UUID, summary SyncSummary) error {
-	raw, err := json.Marshal(summary)
-	if err != nil {
-		return fmt.Errorf("encode last sync: %w", err)
-	}
-	if _, err := s.db.Queries().SetGrafanaConnectionSync(ctx, dbsqlc.SetGrafanaConnectionSyncParams{ID: id, LastSync: raw}); err != nil {
-		return fmt.Errorf("record grafana sync: %w", err)
-	}
-	return nil
+	return s.one(ctx, row)
 }

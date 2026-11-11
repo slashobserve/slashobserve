@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -30,6 +31,10 @@ import (
 )
 
 const (
+	syncLeaseTTL    = 60 * time.Second
+	syncRenewEvery  = 10 * time.Second
+	syncResumeEvery = 10 * time.Second
+
 	maxNameRunes   = 100
 	maxURLBytes    = 2048
 	maxTokenBytes  = 4096
@@ -52,34 +57,45 @@ type InvalidError struct {
 
 func (e *InvalidError) Error() string { return e.Message }
 
+type Principals interface {
+	Principal(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error)
+}
+
 type Deps struct {
-	DB        *db.DB
-	Egress    *egress.Client
-	Domains   *allowlist.Store
-	Imports   *imports.Service
-	Access    *folders.Access
-	SecretKey []byte
-	Logger    *slog.Logger
+	DB         *db.DB
+	Egress     *egress.Client
+	Domains    *allowlist.Store
+	Imports    *imports.Service
+	Access     *folders.Access
+	Principals Principals
+	InstanceID string
+	SecretKey  []byte
+	Logger     *slog.Logger
 }
 
 type Service struct {
-	store   store
-	egress  *egress.Client
-	domains *allowlist.Store
-	imports *imports.Service
-	access  *folders.Access
-	key     sealed.Key
-	logger  *slog.Logger
+	store      store
+	egress     *egress.Client
+	domains    *allowlist.Store
+	imports    *imports.Service
+	access     *folders.Access
+	principals Principals
+	instanceID string
+	key        sealed.Key
+	logger     *slog.Logger
 
-	life  context.Context
-	syncs *syncs
-	wg    sync.WaitGroup
+	life        context.Context
+	wg          sync.WaitGroup
+	leaseTTL    time.Duration
+	renewEvery  time.Duration
+	resumeEvery time.Duration
 }
 
 func New(life context.Context, d Deps) *Service {
 	return &Service{
 		store: store{db: d.DB}, egress: d.Egress, domains: d.Domains, imports: d.Imports, access: d.Access,
-		key: d.SecretKey, logger: d.Logger, life: life, syncs: newSyncs(),
+		principals: d.Principals, instanceID: d.InstanceID, key: d.SecretKey, logger: d.Logger, life: life,
+		leaseTTL: syncLeaseTTL, renewEvery: syncRenewEvery, resumeEvery: syncResumeEvery,
 	}
 }
 

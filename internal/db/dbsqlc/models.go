@@ -262,6 +262,38 @@ type GrafanaConnection struct {
 	LastSync        []byte
 }
 
+type GrafanaSync struct {
+	ID            pgtype.UUID
+	ConnectionID  pgtype.UUID
+	State         string
+	Request       []byte
+	StartedByKind pgtype.Text
+	StartedByID   pgtype.UUID
+	Total         int32
+	Done          int32
+	Failed        int32
+	Skipped       int32
+	Error         pgtype.Text
+	StartedAt     pgtype.Timestamptz
+	FinishedAt    pgtype.Timestamptz
+	LeaseID       pgtype.UUID
+	LeasedBy      pgtype.Text
+	LeaseUntil    pgtype.Timestamptz
+	LeaseLosses   int32
+}
+
+type GrafanaSyncItem struct {
+	ID                int64
+	SyncID            pgtype.UUID
+	Uid               string
+	Title             string
+	Outcome           string
+	DashboardID       pgtype.UUID
+	UnverifiedPanels  int32
+	PlaceholderPanels int32
+	Error             pgtype.Text
+}
+
 type Import struct {
 	ID              pgtype.UUID
 	DashboardID     pgtype.UUID
