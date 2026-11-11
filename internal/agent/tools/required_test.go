@@ -47,7 +47,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
-	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observations.New(database.DB, access, nil, nil, logger))
+	observationService := observations.New(database.DB, access, nil, nil, logger)
+	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observationService)
 	registry := New(Deps{
 		Datasources:   datasources,
 		Runner:        runner,
@@ -56,6 +57,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Imports:       imports.New(database.DB, service, access, datasources, logger),
 		Folders:       access,
 		Findings:      findings.New(database.DB, access, notes, service, logger),
+		Observations:  observationService,
 		SavedSearches: savedsearches.New(database.DB, access, datasources, nil, logger),
 		Health:        health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
 		Annotations:   notes,
@@ -94,6 +96,9 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"target":         json.RawMessage(`"dashboard:` + dash.ID + `"`),
 		"comment_id":     json.RawMessage(`"` + comment.ID + `"`),
 		"finding_id":     json.RawMessage(`"` + dash.ID + `"`),
+		"observation_id": json.RawMessage(`"` + dash.ID + `"`),
+		"block_id":       json.RawMessage(`"` + dash.ID + `"`),
+		"version":        json.RawMessage(`1`),
 		"folder_id":      json.RawMessage(`"` + dash.ID + `"`),
 		"parent_version": json.RawMessage(`1`),
 		"run_id":         json.RawMessage(`"` + runID + `"`),
@@ -112,7 +117,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
-	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}}
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "position"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {

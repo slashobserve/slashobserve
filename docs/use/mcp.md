@@ -18,22 +18,27 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 
 | Tool | Lowest role |
 | ---- | ----------- |
+| `add_block` | Viewer |
 | `claim_run` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
 | `create_dashboard` | Viewer |
 | `create_finding` | Editor |
+| `create_observation` | Viewer |
+| `discard_block` | Viewer |
 | `draft_query` | Viewer |
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
+| `get_observation` | Viewer |
 | `get_panels` | Viewer |
 | `get_run` | Viewer |
 | `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
 | `get_trace` | Viewer |
 | `import_grafana_dashboard` | Viewer |
+| `keep_block` | Viewer |
 | `lint_query` | Viewer |
 | `list_activity` | Viewer |
 | `list_annotations` | Viewer |
@@ -46,6 +51,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
 | `list_metrics` | Viewer |
+| `list_observations` | Viewer |
 | `list_saved_searches` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
@@ -58,10 +64,12 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `reply_to_comment` | Viewer |
 | `report_run` | Viewer |
 | `resolve_comment` | Viewer |
+| `resolve_observation` | Viewer |
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `trace_stats` | Viewer |
+| `update_block` | Viewer |
 | `update_dashboard` | Viewer |
 | `update_panels` | Viewer |
 
@@ -170,6 +178,21 @@ Check the query with `lint_query` or `draft_query` first, because saving runs no
 `list_saved_searches` lists the saved searches in the folders the key can see, most recently changed first, optionally of one `kind` or in one `folder_id`, with each one's datasource, query, filters, range, folder and `url`.
 No tool renames, moves or deletes a saved search: people do that on the web or with `observe saved-searches`.
 
+An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
+`create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the blocks are added in order after the observation exists, and the first refused one stops the rest and answers `block_refused` with its `block_index` and the `observation_id` that was created.
+`get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel's `title`, `type` and datasources, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit.
+`list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id` or one `state` (`open` or `resolved`), and pages with `next_cursor`.
+`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel` and optionally its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+`update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
+`resolve_observation` closes an observation with a one-line `summary`.
+Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
+
+A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
+A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.
+A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
+Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked as `create_finding` checks its evidence: a panel whose query fails or returns no data in its range is refused with its issues.
+No tool removes a block, or moves, renames or reopens an observation: people do that in the web app or through the HTTP API.
+
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer with `create_finding`.
 
 `list_dashboard_health` is available over MCP only.
@@ -202,7 +225,7 @@ It lists only the events of folders the key may see, and it is over MCP only, so
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 
-`search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `finding`, `annotation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
+`search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `finding`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.
 It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
 
