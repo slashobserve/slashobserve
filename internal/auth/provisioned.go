@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 const fileKeyName = "From file"
@@ -103,7 +104,7 @@ func (s *Service) ensureProvisioned(ctx context.Context, a config.ServiceAccount
 		return &ProvisionRefusedError{Name: a.Name, Reason: reasonUnknownRole}
 	}
 	token := a.Key.Reveal()
-	want := provisionTarget{Role: role, Description: a.Description, KeyHash: hashToken(token)}
+	want := provisionTarget{Role: role, Description: a.Description, KeyHash: opaquetoken.Hash(token)}
 	current, accountID, err := s.provisionedState(ctx, a.Name)
 	if err != nil {
 		return fmt.Errorf("read service account: %w", err)

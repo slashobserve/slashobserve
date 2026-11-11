@@ -92,8 +92,9 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
             </AlertDialogTitle>
             <AlertDialogDescription>
               This ends every session of{" "}
-              <span className="wrap-anywhere">{user.email}</span> on this
-              server. They can sign in again.
+              <span className="wrap-anywhere">{user.email}</span> on this server
+              and disconnects every agent they connected. They can sign in
+              again.
               {isMe ? " This includes this browser." : null}
             </AlertDialogDescription>
           </AlertDialogHeader>

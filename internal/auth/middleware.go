@@ -15,11 +15,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 const (
 	keyPrefix        = "sok_"
-	keyLength        = 47
 	keyTouchInterval = 5 * time.Minute
 	keyTouchTimeout  = 2 * time.Second
 	userSeenInterval = time.Minute
@@ -103,7 +103,7 @@ func (s *Service) sessionRow(r *http.Request) (dbsqlc.GetSessionUserRow, bool, e
 	if err != nil || cookie.Value == "" {
 		return dbsqlc.GetSessionUserRow{}, false, nil
 	}
-	row, err := s.queries.GetSessionUser(r.Context(), hashToken(cookie.Value))
+	row, err := s.queries.GetSessionUser(r.Context(), opaquetoken.Hash(cookie.Value))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbsqlc.GetSessionUserRow{}, false, nil
 	}
@@ -140,10 +140,10 @@ func (s *Service) storedRole(ctx context.Context, idAttr, id, stored string) Rol
 
 func (s *Service) lookupKey(ctx context.Context, header string) (dbsqlc.GetKeyPrincipalRow, bool, error) {
 	scheme, token, found := strings.Cut(header, " ")
-	if !found || !strings.EqualFold(scheme, "Bearer") || len(token) != keyLength || !strings.HasPrefix(token, keyPrefix) {
+	if !found || !strings.EqualFold(scheme, "Bearer") || !opaquetoken.Shaped(token, keyPrefix) {
 		return dbsqlc.GetKeyPrincipalRow{}, false, nil
 	}
-	row, err := s.queries.GetKeyPrincipal(ctx, hashToken(token))
+	row, err := s.queries.GetKeyPrincipal(ctx, opaquetoken.Hash(token))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbsqlc.GetKeyPrincipalRow{}, false, nil
 	}

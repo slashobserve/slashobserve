@@ -240,8 +240,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete every session of a person.
-         * @description Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
+         * Delete every session of a person and disconnect their MCP clients.
+         * @description Admin only. Deletes every session of the person and disconnects every MCP client they connected; the person can sign in and connect again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
          */
         delete: operations["signOutUserEverywhere"];
         options?: never;
@@ -2494,6 +2494,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a pending request from an MCP client to act as the signed-in person.
+         * @description The consent page reads this to show what the person approves. A request lives 10 minutes and is answered once. `client.name` is the name the client registered under and is not verified; `redirect_host` is where the browser returns after the answer, and `local` is true when that is this computer. `replaces_grant` is true when the person already connected this client. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        get: operations["getConnectionRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve an MCP client so it acts as the signed-in person.
+         * @description Answers once and consumes the request. `redirect_to` is the client's redirect URI with a one-time `code` (valid 60 seconds), the client's `state` and the issuer; the browser follows it. A person has at most 20 connected agents: approving a 21st client answers 409 `too_many_grants` and keeps the request, while approving a client the person already connected replaces that connection. Only signed-in people may call it, and a cookie session passes the cross-origin check: a service-account key gets 403 `forbidden`.
+         */
+        post: operations["approveConnectionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deny an MCP client's request to act as the signed-in person.
+         * @description Answers once and consumes the request. `redirect_to` is the client's redirect URI with `error=access_denied`, the client's `state` and the issuer. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        post: operations["denyConnectionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the MCP clients the signed-in person has connected.
+         * @description Newest first, live connections only: a disconnected or expired one is not listed. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        get: operations["listMyGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/grants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect one of the signed-in person's MCP clients.
+         * @description The client's access and refresh tokens stop working at once and the client must be approved again. Another person's connection, a connection already disconnected and one that does not exist all answer 404 `not_found`. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        delete: operations["disconnectMyGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List every person's connected MCP clients.
+         * @description Admin only. Same shape and order as the signed-in person's own list, with every person's live connections. Service accounts cannot call it.
+         */
+        get: operations["listGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect any person's MCP client.
+         * @description Admin only. The connection's tokens stop working at once, and the person can connect the client again. A connection already disconnected or that does not exist answers 404 `not_found`. Service accounts cannot call it.
+         */
+        delete: operations["disconnectGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2633,6 +2783,41 @@ export interface components {
             role_set_by: string | null;
             /** @description True when the role cannot be changed through the API. */
             role_locked: boolean;
+        };
+        ConnectedAgent: {
+            /** Format: uuid */
+            id: string;
+            client: {
+                id: string;
+                /** @description The name the client registered under, not verified; null when it registered none. */
+                name: string | null;
+                /** @description The host of the client's first registered redirect URI. */
+                redirect_host: string;
+                /** @description True when that redirect URI points at the computer the browser runs on. */
+                local: boolean;
+            };
+            person: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                email: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Null until the client first uses an access token.
+             */
+            last_used_at: string | null;
+            /**
+             * Format: date-time
+             * @description When the connection ends and the person must approve it again.
+             */
+            expires_at: string;
+        };
+        ConnectedAgentList: {
+            grants: components["schemas"]["ConnectedAgent"][];
+            next_cursor: string | null;
         };
         UpdatePersonRequest: {
             /** @description The role to set, or null to clear the chosen role and fall back to the computed one. */
@@ -5138,7 +5323,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every session of the person is deleted. */
+            /** @description Every session of the person is deleted and their MCP clients are disconnected. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -11216,6 +11401,222 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pending connection request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        client: {
+                            id: string;
+                            name: string | null;
+                            /** Format: date-time */
+                            registered_at: string;
+                            redirect_host: string;
+                            local: boolean;
+                        };
+                        person: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            email: string;
+                            role: components["schemas"]["Role"];
+                        };
+                        replaces_grant: boolean;
+                        /** Format: date-time */
+                        expires_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    approveConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirect_to: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The person already has 20 connected agents (`too_many_grants`). The request stays pending. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    denyConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is denied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirect_to: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listMyGrants: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of connected agents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectedAgentList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    disconnectMyGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection is disconnected. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listGrants: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of connected agents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectedAgentList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    disconnectGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection is disconnected. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
 }

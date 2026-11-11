@@ -34,12 +34,12 @@ func init() { registerEntries((*Registry).commentEntries) }
 
 func (r *Registry) commentEntries() []entry {
 	return []entry{
-		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.createComment},
-		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.editComment},
+		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.createComment},
+		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.editComment},
 		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listComments},
-		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.reopenComment},
-		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.replyToComment},
-		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MCPOnly: true, MinRole: auth.RoleCommenter}, r.resolveComment},
+		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.reopenComment},
+		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.replyToComment},
+		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.resolveComment},
 	}
 }
 

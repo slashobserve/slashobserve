@@ -5,6 +5,7 @@ export type SettingsSectionId =
   | "server"
   | "sign-in"
   | "outbound-access"
+  | "connected-agents"
   | "grafana"
   | "webhooks"
   | "appearance"
@@ -18,6 +19,7 @@ const serverSections: readonly SettingsSection[] = [
   { id: "server", label: "This server" },
   { id: "sign-in", label: "Sign-in" },
   { id: "outbound-access", label: "Outbound access" },
+  { id: "connected-agents", label: "Connected agents" },
 ]
 
 const grafanaSection: SettingsSection = {

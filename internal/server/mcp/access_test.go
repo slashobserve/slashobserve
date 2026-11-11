@@ -54,11 +54,11 @@ var (
 	creatorKey   = auth.Principal{Kind: auth.KindServiceAccount, ID: "a0000000-0000-4000-8000-000000000005", Name: "creator-key", Role: auth.RoleEditor}
 )
 
-type keyAuth map[string]auth.Principal
+type keyAuth map[string]Credential
 
-func (k keyAuth) BearerPrincipal(_ context.Context, header string) (auth.Principal, bool, error) {
-	p, ok := k[header]
-	return p, ok, nil
+func (k keyAuth) Authenticate(_ context.Context, header string) (Credential, bool, error) {
+	c, ok := k[header]
+	return c, ok, nil
 }
 
 func bearer(p auth.Principal) string { return "Bearer " + p.Name }
@@ -100,6 +100,7 @@ type accessFixture struct {
 	db      *dbtest.Database
 	service *dashboards.Service
 	threads *threads.Service
+	authn   keyAuth
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
@@ -119,13 +120,34 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, PublicURL: base, Logger: logger})
+	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, Annotations: notes, PublicURL: base, Logger: logger})
 	authn := keyAuth{}
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
-		authn[bearer(p)] = p
+		authn[bearer(p)] = Credential{Principal: p}
 	}
 	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
-	return &accessFixture{fixture: f, db: database, service: service, threads: commentThreads}
+	return &accessFixture{fixture: f, db: database, service: service, threads: commentThreads, authn: authn}
+}
+
+func (f *accessFixture) writtenRows(t *testing.T) int {
+	t.Helper()
+	var n int
+	err := f.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT (SELECT count(*) FROM dashboards) + (SELECT count(*) FROM dashboard_versions) + (SELECT count(*) FROM annotations)").Scan(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func (f *accessFixture) person(t *testing.T, name string, role auth.Role) auth.Principal {
+	t.Helper()
+	u, err := f.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: name, Email: name + "@example.com", Name: name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := auth.Principal{Kind: auth.KindUser, ID: u.ID.String(), Name: name, Role: role}
+	f.authn[bearer(p)] = Credential{Principal: p, OAuth: true, Client: "Claude Code"}
+	return p
 }
 
 func boardSpec(title string, tags ...string) string {
@@ -263,7 +285,7 @@ func TestAKeySeesARestrictedFolderItCreated(t *testing.T) {
 	}
 }
 
-func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
+func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 	f := newAccessFixture(t)
 	id := f.seed(t, adminKey, pgtype.UUID{}, openTitle)
 	dashID := mustUUID(t, id)
@@ -272,11 +294,19 @@ func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	reads := map[string]map[string]any{
-		"list_dashboards": {},
-		"get_dashboard":   {"dashboard_id": id},
-		"get_spec_guide":  {},
-		"list_folders":    {},
-		"list_comments":   {"dashboard_id": id},
+		"list_dashboards":  {},
+		"get_dashboard":    {"dashboard_id": id},
+		"get_spec_guide":   {},
+		"list_folders":     {},
+		"list_comments":    {"dashboard_id": id},
+		"list_datasources": {},
+		"query_instant":    {"datasource": "prom", "query": "up"},
+	}
+	panel := json.RawMessage(`{"id":"p","type":"timeseries","title":"changed","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`)
+	writes := map[string]map[string]any{
+		"create_dashboard":  {"spec": json.RawMessage(boardSpec("Mine"))},
+		"update_panels":     {"dashboard_id": id, "parent_version": 1, "summary": "change", "upsert": []json.RawMessage{panel}},
+		"create_annotation": {"text": "x"},
 	}
 
 	for _, by := range []auth.Principal{commenterKey, viewerKey} {
@@ -294,6 +324,15 @@ func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
 				if res := f.as(t, by, name, args); res.IsError {
 					t.Errorf("%s = %s, want it to work", name, text(res))
 				}
+			}
+			before := f.writtenRows(t)
+			for name, args := range writes {
+				if res := f.as(t, by, name, args); !res.IsError || res.StructuredContent["code"] != forbidden {
+					t.Errorf("%s = %s, want %s", name, text(res), forbidden)
+				}
+			}
+			if after := f.writtenRows(t); after != before {
+				t.Errorf("refused writes changed the rows: %d before, %d after", before, after)
 			}
 		})
 	}
@@ -370,4 +409,63 @@ func (f *accessFixture) folderID(t *testing.T, title string) string {
 	}
 	t.Fatalf("no folder %q", title)
 	return ""
+}
+
+func TestAViewerOverOAuthDoesWhatTheWebAllows(t *testing.T) {
+	f := newAccessFixture(t)
+	vera := f.person(t, "vera", auth.RoleViewer)
+	general := f.seed(t, adminKey, pgtype.UUID{}, openTitle)
+	panel := json.RawMessage(`{"id":"p","type":"timeseries","title":"changed","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`)
+	patch := func(id string) map[string]any {
+		return map[string]any{"dashboard_id": id, "parent_version": 1, "summary": "change", "upsert": []json.RawMessage{panel}}
+	}
+	refused := func(t *testing.T, res toolResult) {
+		t.Helper()
+		if !res.IsError || res.StructuredContent["code"] != forbidden {
+			t.Errorf("got %s, want %s", text(res), forbidden)
+		}
+	}
+
+	if res := f.as(t, vera, "query_instant", map[string]any{"datasource": "prom", "query": "up"}); res.IsError {
+		t.Fatalf("query_instant = %s", text(res))
+	}
+	created := f.as(t, vera, "create_dashboard", map[string]any{"spec": json.RawMessage(boardSpec("Mine"))})
+	if created.IsError {
+		t.Fatalf("create_dashboard = %s", text(created))
+	}
+	var made struct {
+		DashboardID string `json:"dashboard_id"`
+	}
+	if err := json.Unmarshal([]byte(text(created)), &made); err != nil {
+		t.Fatal(err)
+	}
+	dash, _, err := f.service.Get(t.Context(), mustUUID(t, made.DashboardID))
+	if err != nil || dash.Folder.Title != "My Dashboards" {
+		t.Fatalf("the dashboard landed in %q, %v; want My Dashboards", dash.Folder.Title, err)
+	}
+
+	if res := f.as(t, vera, "update_panels", patch(made.DashboardID)); res.IsError {
+		t.Errorf("update_panels on her own dashboard = %s", text(res))
+	}
+	if res := f.as(t, vera, "create_comment", map[string]any{"target": "dashboard:" + made.DashboardID, "body": "note"}); res.IsError {
+		t.Errorf("create_comment on her own dashboard = %s", text(res))
+	}
+	refused(t, f.as(t, vera, "update_panels", patch(general)))
+	refused(t, f.as(t, vera, "create_comment", map[string]any{"target": "dashboard:" + general, "body": "note"}))
+
+	finding := f.as(t, vera, "create_finding", map[string]any{"markdown": "x"})
+	refused(t, finding)
+	if want := "your role (viewer) cannot use create_finding; an admin can change your role"; !strings.Contains(text(finding), want) {
+		t.Errorf("create_finding refusal = %s, want %q", text(finding), want)
+	}
+
+	versions, _, err := f.service.ListVersions(t.Context(), mustUUID(t, made.DashboardID), 10, "")
+	if err != nil || len(versions) == 0 {
+		t.Fatalf("versions = %v, %v", versions, err)
+	}
+	for _, v := range versions {
+		if v.Origin != "mcp" || v.OriginClient != "Claude Code" {
+			t.Errorf("version %d origin = %q client %q, want mcp and Claude Code", v.Number, v.Origin, v.OriginClient)
+		}
+	}
 }

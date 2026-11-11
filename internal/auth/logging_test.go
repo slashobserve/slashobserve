@@ -71,7 +71,7 @@ func TestSessionLookupFailureLogsOnlyCodeAndType(t *testing.T) {
 
 func TestBearerKeyLookupFailureLogsOnlyCodeAndType(t *testing.T) {
 	engine, _, logs, _ := newLoggingService(t, "http://issuer.invalid")
-	token := keyPrefix + strings.Repeat("a", keyLength-len(keyPrefix))
+	token := keyPrefix + strings.Repeat("a", 43)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()

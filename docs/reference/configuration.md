@@ -22,7 +22,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable                                  | Default | Notes                                                                                                                            |
 | ----------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_PUBLIC_URL`                 | none    | Required. An `http` or `https` origin with no path, query or user info. See [Put TLS in front](../operate/production.md#put-tls-in-front).               |
+| `SLASHOBSERVE_PUBLIC_URL`                 | none    | Required. An `http` or `https` origin with no path, query or user info. See [Put TLS in front](../operate/production.md#put-tls-in-front). It is also the OAuth issuer for MCP clients and the base of the MCP resource URL; changing it disconnects every connected agent, and clients outside this machine need it to be `https`. |
 | `SLASHOBSERVE_OIDC_ISSUER_URL`            | none    | Required. An absolute `http` or `https` URL, used exactly as written because the identity provider's issuer is compared exactly. |
 | `SLASHOBSERVE_OIDC_INTERNAL_URL`          | unset   | Optional origin (no path) that the server uses instead of the issuer's scheme and host when it calls the identity provider.      |
 | `SLASHOBSERVE_OIDC_CLIENT_ID`             | none    | Required.                                                                                                                        |

@@ -15,6 +15,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/traces` | The trace search; `ds`, `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
+| `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
@@ -115,6 +116,14 @@ Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
+
+## Connected agents
+
+Open Settings and choose **Connected agents** in its section list to see the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
+**Disconnect** asks first and then ends the connection at once; the client has to be connected again from the agent to work.
+The section also shows the command that adds this server to Claude Code.
+An Admin sees a second card, **Everyone's connected agents**, with the person each belongs to, and can disconnect any of them.
+[Connect your own agent](mcp.md#connect-your-own-agent) describes how a client is approved.
 
 ## Theme
 

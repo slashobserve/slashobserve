@@ -32,7 +32,7 @@ func init() { registerEntries((*Registry).traceLogEntries) }
 
 func (r *Registry) traceLogEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLogsForTrace, Description: descLogsForTrace, InputSchema: json.RawMessage(schemaLogsForTrace), ReadOnly: true, MinRole: auth.RoleEditor}, r.logsForTrace},
+		{Tool{Name: nameLogsForTrace, Description: descLogsForTrace, InputSchema: json.RawMessage(schemaLogsForTrace), ReadOnly: true, MinRole: auth.RoleViewer}, r.logsForTrace},
 	}
 }
 

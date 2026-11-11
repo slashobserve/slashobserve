@@ -146,15 +146,45 @@ func TestListAnnotationsIsRefusedOutsideInvestigateRuns(t *testing.T) {
 	}
 }
 
-func TestCreateAnnotationRefusesAViewerKeyBeforeAnyWrite(t *testing.T) {
-	r := New(Deps{})
-	viewer := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindServiceAccount, ID: "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61", Role: auth.RoleViewer})
-	res, err := r.Call(viewer, nameCreateAnnotation, []byte(`{"text":"deploy v2"}`))
-	if err != nil {
+func annotationRows(t *testing.T, r *accessRig) int {
+	t.Helper()
+	var n int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM annotations").Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeForbiddenRole {
-		t.Errorf("viewer key: %#v", res.Content)
+	return n
+}
+
+func TestCreateAnnotationRefusesAGlobalAnnotationBelowEditor(t *testing.T) {
+	r := newAccessRig(t)
+	viewerKey := auth.Principal{Kind: auth.KindServiceAccount, ID: "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61", Name: "viewer-key", Role: auth.RoleViewer}
+	vera := r.person(t, "vera", auth.RoleViewer)
+	for _, by := range []auth.Principal{viewerKey, vera} {
+		res := r.call(t, by, nameCreateAnnotation, `{"text":"deploy v2"}`)
+		if code := errorCode(t, res); code != codeForbiddenRole {
+			t.Errorf("%s (%s): %s", by.Name, by.Kind, textOf(t, res))
+		}
+	}
+	if n := annotationRows(t, r); n != 0 {
+		t.Fatalf("%d annotations written, want 0", n)
+	}
+}
+
+func TestCreateAnnotationOnADashboardFollowsFolderAccess(t *testing.T) {
+	r := newAccessRig(t)
+	vera := r.person(t, "vera", auth.RoleViewer)
+	mine := r.createdSaved(t, r.create(t, vera, "Mine", pgtype.UUID{}))
+	shared := r.seed(t, "Shared").String()
+
+	if res := r.call(t, vera, nameCreateAnnotation, `{"text":"mine","dashboard_id":"`+mine+`"}`); res.IsError {
+		t.Fatalf("annotating her own dashboard: %s", textOf(t, res))
+	}
+	res := r.call(t, vera, nameCreateAnnotation, `{"text":"shared","dashboard_id":"`+shared+`"}`)
+	if code := errorCode(t, res); code != codeForbiddenRole {
+		t.Fatalf("annotating a General dashboard: %s", textOf(t, res))
+	}
+	if n := annotationRows(t, r); n != 1 {
+		t.Fatalf("%d annotations written, want 1", n)
 	}
 }
 

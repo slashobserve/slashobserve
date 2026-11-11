@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 
 import { instanceQuery } from "@/api/instance"
+import { ConnectedAgentsSection } from "@/connected-agents/connected-agents-card"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -86,6 +87,8 @@ function SelectedSection({ id }: { id: SettingsSectionId }) {
       return <SignInCard />
     case "outbound-access":
       return <OutboundAccessCard />
+    case "connected-agents":
+      return <ConnectedAgentsSection />
     case "grafana":
       return <GrafanaSection />
     case "webhooks":

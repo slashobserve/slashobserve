@@ -103,3 +103,31 @@ ClickHouse is queried only as a read-only user.
   `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` lets the server create service accounts and their keys at boot from files on its own disk (see [Service-account keys](service-account-keys.md#declare-service-accounts-in-a-file)).
   Anyone who can write those files or the server's environment can mint a key with the listed role, so protect them like the database URL.
   The server stores only the key's hash, never logs it, never takes over an account that was created in the web app, and refuses role changes and revocation of a file key through the API, so the file stays the one place that decides them.
+
+## Connected agents (OAuth)
+
+People connect their own MCP clients, such as Claude Code, VS Code and Cursor, to `<public url>/mcp`, and each client then acts as the person who approved it.
+
+- **SlashObserve is its own authorization server.**
+  It uses the person's web session, which the identity provider created, for the approval page, and issues its own tokens; it never hands the identity provider's tokens to a client.
+- **Clients register themselves.**
+  Dynamic client registration is open, and a registered redirect URI must be `https` or `http` on `localhost`, `127.0.0.1` or `[::1]`, with no fragment.
+  A redirect must match a registered one exactly, except that a loopback address may use any port, and an unknown client or an unregistered redirect never receives a redirect.
+- **PKCE with S256 is required.**
+  Codes last 60 seconds and work once, and a code used twice disconnects the connection it produced.
+  Clients are public, so no client secret exists.
+- **Codes and tokens are stored only as SHA-256 hashes.**
+  The server never logs a code, a token, the `state`, a redirect URI or a client name.
+- **Access tokens last 1 hour and refresh tokens 30 days, replaced on every use.**
+  Using an already replaced refresh token more than 10 seconds later disconnects the connection, and inside 10 seconds it only fails, so a client with two processes does not lose its connection.
+  A connection ends at 90 days whatever its use, and the person then approves again, which passes through the identity provider's sign-in.
+- **Tokens are bound to `<public url>/mcp` and accepted nowhere else.**
+  Changing `SLASHOBSERVE_PUBLIC_URL` therefore disconnects every connected agent.
+- **A connected agent has exactly the person's role and folder access, read again on every request.**
+  Deleting a person disconnects their agents.
+  To cut someone off, remove them at the identity provider and use Sign out everywhere on the People page; a removed person's agents otherwise keep working until their refresh token lapses (30 days unused) or the grant's 90 days end.
+- **The client's name is a self-chosen label.**
+  It is frozen when the client registers, shown on the approval page with the host the browser returns to, and never part of an access decision; a client can claim any name, and can only mislabel writes made as the person who approved it.
+- **Abuse limits.**
+  Registration, authorization, token and revocation requests are rate limited per server process, and the database caps unused clients at 1000, pending approvals at 10000 and connected agents per person at 20.
+  Several replicas each keep their own rate limits.

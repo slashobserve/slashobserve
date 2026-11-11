@@ -48,7 +48,7 @@ func init() { registerEntries((*Registry).annotationEntries) }
 func (r *Registry) annotationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},
-		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MCPOnly: true, MinRole: auth.RoleEditor}, r.createAnnotation},
+		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createAnnotation},
 	}
 }
 

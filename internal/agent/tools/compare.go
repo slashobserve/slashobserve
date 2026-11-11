@@ -32,7 +32,7 @@ func init() { registerEntries((*Registry).compareEntries) }
 
 func (r *Registry) compareEntries() []entry {
 	return []entry{
-		{Tool{Name: nameCompareTraces, Description: descCompareTraces, InputSchema: json.RawMessage(schemaCompareTraces), ReadOnly: true, MinRole: auth.RoleEditor}, r.compareTraces},
+		{Tool{Name: nameCompareTraces, Description: descCompareTraces, InputSchema: json.RawMessage(schemaCompareTraces), ReadOnly: true, MinRole: auth.RoleViewer}, r.compareTraces},
 	}
 }
 

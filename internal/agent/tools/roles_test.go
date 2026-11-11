@@ -2,24 +2,21 @@ package tools
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
+var investigateRoleTools = map[string]auth.Role{nameCreateFinding: auth.RoleEditor, nameSaveFinding: auth.RoleEditor}
+
 func TestToolRoles(t *testing.T) {
 	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {
-		switch tool.MinRole {
-		case auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor:
-		default:
-			t.Errorf("%s MinRole = %q, want Viewer, Commenter or Editor", tool.Name, tool.MinRole)
+		want := auth.RoleViewer
+		if role, ok := investigateRoleTools[tool.Name]; ok {
+			want = role
 		}
-		if !tool.ReadOnly && tool.MinRole == auth.RoleViewer {
-			t.Errorf("%s writes but stops at Viewer; writes need at least Commenter", tool.Name)
-		}
-		if tool.MinRole == auth.RoleCommenter && !strings.HasSuffix(tool.Name, "_comment") {
-			t.Errorf("%s stops at Commenter; only comment tools stop at Commenter", tool.Name)
+		if tool.MinRole != want {
+			t.Errorf("%s MinRole = %s, want %s: a tool needs the role the web app needs for the same work, and folder access decides the rest", tool.Name, tool.MinRole, want)
 		}
 	}
 }
@@ -47,17 +44,32 @@ func TestAllowed(t *testing.T) {
 func TestCallRefusesAToolBelowTheKeysRole(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
-	res, err := r.Call(ctx, nameCreateDashboard, []byte(`{}`))
+	res, err := r.Call(ctx, nameCreateFinding, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if errorCode(t, res) != "forbidden_role" {
 		t.Fatalf("res = %#v", res)
 	}
-	if want := "this key's role (viewer) cannot use create_dashboard; an admin can change the service account's role"; res.Content.(errorBody).Message != want {
+	if want := "this key's role (viewer) cannot use create_finding; an admin can change the service account's role"; res.Content.(errorBody).Message != want {
 		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
-	if want := "Refused create_dashboard: forbidden_role"; res.Step != want {
+	if want := "Refused create_finding: forbidden_role"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+}
+
+func TestCallRefusesAPersonBelowTheToolsRole(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer})
+	res, err := r.Call(ctx, nameCreateFinding, []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if errorCode(t, res) != "forbidden_role" {
+		t.Fatalf("res = %#v", res)
+	}
+	if want := "your role (viewer) cannot use create_finding; an admin can change your role"; res.Content.(errorBody).Message != want {
+		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
 }

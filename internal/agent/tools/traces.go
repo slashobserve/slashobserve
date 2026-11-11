@@ -37,8 +37,8 @@ func init() { registerEntries((*Registry).traceEntries) }
 
 func (r *Registry) traceEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetTrace, Description: descGetTrace, InputSchema: json.RawMessage(schemaGetTrace), ReadOnly: true, MinRole: auth.RoleEditor}, r.getTrace},
-		{Tool{Name: nameTraceStats, Description: descTraceStats, InputSchema: json.RawMessage(schemaTraceStats), ReadOnly: true, MinRole: auth.RoleEditor}, r.traceStats},
+		{Tool{Name: nameGetTrace, Description: descGetTrace, InputSchema: json.RawMessage(schemaGetTrace), ReadOnly: true, MinRole: auth.RoleViewer}, r.getTrace},
+		{Tool{Name: nameTraceStats, Description: descTraceStats, InputSchema: json.RawMessage(schemaTraceStats), ReadOnly: true, MinRole: auth.RoleViewer}, r.traceStats},
 	}
 }
 

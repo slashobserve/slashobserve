@@ -1,0 +1,151 @@
+oauth-requests-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getConnectionRequest
+    summary: Read a pending request from an MCP client to act as the signed-in person.
+    description: >-
+      The consent page reads this to show what the person approves.
+      A request lives 10 minutes and is answered once.
+      `client.name` is the name the client registered under and is not verified; `redirect_host` is where the browser returns after the answer, and `local` is true when that is this computer.
+      `replaces_grant` is true when the person already connected this client.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+    responses:
+      "200":
+        description: The pending connection request.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id, client, person, replaces_grant, expires_at]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                client:
+                  type: object
+                  additionalProperties: false
+                  required: [id, name, registered_at, redirect_host, local]
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                      nullable: true
+                    registered_at:
+                      type: string
+                      format: date-time
+                    redirect_host:
+                      type: string
+                    local:
+                      type: boolean
+                person:
+                  type: object
+                  additionalProperties: false
+                  required: [id, name, email, role]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    email:
+                      type: string
+                    role:
+                      $ref: "../openapi.yaml#/components/schemas/Role"
+                replaces_grant:
+                  type: boolean
+                expires_at:
+                  type: string
+                  format: date-time
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+oauth-requests-id-approve:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: approveConnectionRequest
+    summary: Approve an MCP client so it acts as the signed-in person.
+    description: >-
+      Answers once and consumes the request.
+      `redirect_to` is the client's redirect URI with a one-time `code` (valid 60 seconds), the client's `state` and the issuer; the browser follows it.
+      A person has at most 20 connected agents: approving a 21st client answers 409 `too_many_grants` and keeps the request, while approving a client the person already connected replaces that connection.
+      Only signed-in people may call it, and a cookie session passes the cross-origin check: a service-account key gets 403 `forbidden`.
+    responses:
+      "200":
+        description: The request is approved.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [redirect_to]
+              properties:
+                redirect_to:
+                  type: string
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The person already has 20 connected agents (`too_many_grants`). The request stays pending.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+oauth-requests-id-deny:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: denyConnectionRequest
+    summary: Deny an MCP client's request to act as the signed-in person.
+    description: >-
+      Answers once and consumes the request.
+      `redirect_to` is the client's redirect URI with `error=access_denied`, the client's `state` and the issuer.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+    responses:
+      "200":
+        description: The request is denied.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [redirect_to]
+              properties:
+                redirect_to:
+                  type: string
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

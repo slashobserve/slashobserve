@@ -18,10 +18,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 func TestPlanProvision(t *testing.T) {
-	oldHash, newHash := hashToken("old"), hashToken("new")
+	oldHash, newHash := opaquetoken.Hash("old"), opaquetoken.Hash("new")
 	want := provisionTarget{Role: RoleEditor, Description: "Posts markers", KeyHash: newHash}
 	cases := []struct {
 		name    string
@@ -75,7 +76,7 @@ func newProvisionRig(t *testing.T) *provisionRig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, hash, err := newToken("sos_")
+	token, hash, err := opaquetoken.New("sos_")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +150,7 @@ func (r *provisionRig) fileKeys(accountID string) (active, revoked int) {
 
 func fileAccount(t *testing.T, role string) (config.ServiceAccount, string) {
 	t.Helper()
-	key, _, err := newToken(keyPrefix)
+	key, _, err := opaquetoken.New(keyPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}

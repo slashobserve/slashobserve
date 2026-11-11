@@ -198,6 +198,11 @@ export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }
 
+export const grantKeys = {
+  all: ["grants"] as const,
+  list: (scope: "mine" | "all") => ["grants", scope] as const,
+}
+
 export const assetKeys = {
   geojson: (url: string) => ["assets", "geojson", url] as const,
 }
@@ -319,6 +324,10 @@ export const homeKeys = {
   firstDashboards: () => ["dashboards", "list", "home-first"] as const,
   search: (search: HomeSearch) =>
     ["dashboards", "list", "home-search", search] as const,
+}
+
+export const connectKeys = {
+  request: (id: string) => ["connect", "requests", id] as const,
 }
 
 export const publicKeys = {

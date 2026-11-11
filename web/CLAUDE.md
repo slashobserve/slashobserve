@@ -69,6 +69,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `_authed` only checks the session.
   Every page except the dashboard and the build renders inside the pathless `_authed/_shell` layout, and the dashboard routes under `_authed/d/$dashboardId` and the build route `_authed/b/$requestId` have no shell.
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
+- `/connect/$requestId` is the OAuth consent page, under `_authed` without the shell; it navigates to the server's `redirect_to` and never stores it.
 - `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.
   It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
   Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).

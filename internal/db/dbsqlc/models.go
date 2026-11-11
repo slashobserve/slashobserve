@@ -295,6 +295,56 @@ type Job struct {
 	LastError      string
 }
 
+type OauthClient struct {
+	ID           string
+	Name         pgtype.Text
+	RedirectUris []string
+	RegisteredAt pgtype.Timestamptz
+}
+
+type OauthCode struct {
+	CodeHash      []byte
+	ClientID      string
+	UserID        pgtype.UUID
+	RedirectUri   string
+	CodeChallenge string
+	Resource      string
+	ExpiresAt     pgtype.Timestamptz
+	UsedAt        pgtype.Timestamptz
+	GrantID       pgtype.UUID
+}
+
+type OauthGrant struct {
+	ID            pgtype.UUID
+	ClientID      string
+	UserID        pgtype.UUID
+	Resource      string
+	CreatedAt     pgtype.Timestamptz
+	ExpiresAt     pgtype.Timestamptz
+	LastUsedAt    pgtype.Timestamptz
+	RevokedAt     pgtype.Timestamptz
+	RevokedReason pgtype.Text
+	RevokedBy     pgtype.UUID
+}
+
+type OauthRequest struct {
+	ID            pgtype.UUID
+	ClientID      string
+	RedirectUri   string
+	State         pgtype.Text
+	CodeChallenge string
+	Resource      string
+	ExpiresAt     pgtype.Timestamptz
+}
+
+type OauthToken struct {
+	TokenHash []byte
+	GrantID   pgtype.UUID
+	Kind      string
+	ExpiresAt pgtype.Timestamptz
+	RotatedAt pgtype.Timestamptz
+}
+
 type OidcLoginState struct {
 	StateHash    []byte
 	Nonce        string

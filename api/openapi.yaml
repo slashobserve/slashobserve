@@ -234,6 +234,20 @@ paths:
     $ref: "./paths/health.yaml#/health-repairs"
   /health/run:
     $ref: "./paths/health.yaml#/health-run"
+  /oauth/requests/{id}:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id"
+  /oauth/requests/{id}/approve:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id-approve"
+  /oauth/requests/{id}/deny:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id-deny"
+  /me/grants:
+    $ref: "./paths/grants.yaml#/me-grants"
+  /me/grants/{id}:
+    $ref: "./paths/grants.yaml#/me-grants-id"
+  /grants:
+    $ref: "./paths/grants.yaml#/grants"
+  /grants/{id}:
+    $ref: "./paths/grants.yaml#/grants-id"
 components:
   securitySchemes:
     sessionCookie:
@@ -554,6 +568,67 @@ components:
         role_locked:
           type: boolean
           description: True when the role cannot be changed through the API.
+    ConnectedAgent:
+      type: object
+      additionalProperties: false
+      required: [id, client, person, created_at, last_used_at, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        client:
+          type: object
+          additionalProperties: false
+          required: [id, name, redirect_host, local]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+              nullable: true
+              description: The name the client registered under, not verified; null when it registered none.
+            redirect_host:
+              type: string
+              description: The host of the client's first registered redirect URI.
+            local:
+              type: boolean
+              description: True when that redirect URI points at the computer the browser runs on.
+        person:
+          type: object
+          additionalProperties: false
+          required: [id, name, email]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null until the client first uses an access token.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the connection ends and the person must approve it again.
+    ConnectedAgentList:
+      type: object
+      additionalProperties: false
+      required: [grants, next_cursor]
+      properties:
+        grants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectedAgent"
+        next_cursor:
+          type: string
+          nullable: true
     UpdatePersonRequest:
       type: object
       additionalProperties: false

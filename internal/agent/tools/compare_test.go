@@ -202,7 +202,7 @@ func TestCompareTracesIsOfferedToMCPAndEveryRunMode(t *testing.T) {
 		t.Fatal("compare_traces is not listed")
 	}
 	tool := tools[i]
-	if !tool.ReadOnly || tool.MinRole != auth.RoleEditor || tool.MCPOnly || tool.AgentOnly {
+	if !tool.ReadOnly || tool.MinRole != auth.RoleViewer || tool.MCPOnly || tool.AgentOnly {
 		t.Errorf("tool = %+v", tool)
 	}
 	for _, mode := range []Mode{ModeCreate, ModeInvestigate} {

@@ -43,7 +43,7 @@ func init() { registerEntries((*Registry).panelEntries) }
 func (r *Registry) panelEntries() []entry {
 	return []entry{
 		{Tool{Name: nameGetPanels, Description: descGetPanels, InputSchema: json.RawMessage(schemaGetPanels), ReadOnly: true, MinRole: auth.RoleViewer}, r.getPanels},
-		{Tool{Name: nameUpdatePanels, Description: descUpdatePanels, InputSchema: json.RawMessage(schemaUpdatePanels), MinRole: auth.RoleEditor}, r.updatePanels},
+		{Tool{Name: nameUpdatePanels, Description: descUpdatePanels, InputSchema: json.RawMessage(schemaUpdatePanels), MinRole: auth.RoleViewer}, r.updatePanels},
 	}
 }
 
