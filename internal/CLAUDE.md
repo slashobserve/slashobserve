@@ -128,6 +128,7 @@ This lists only the packages whose purpose the name does not make obvious.
 
 ## Database and dashboards
 
+- `DB.WithSessionLock` is the session advisory lock on the direct connection; dashboard provisioning (`Provisioner.Run`) and `EnsureProvisioned` at boot run under it, so servers booting together create each provisioned dashboard and key once.
 - Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql`, numbered sequentially; never edit a merged migration.
 - Migration 10 is a Go migration (`internal/db/specupgrade.go`, registered in `newMigrator`) with no file, so SQL numbering skips `00010`.
   A new SQL file takes the next number above both the highest file and every Go migration version, because a file reusing a Go migration's version stops the server at boot.

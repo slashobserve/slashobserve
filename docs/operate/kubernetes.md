@@ -181,6 +181,7 @@ The server runs migrations forward only, so a rollback across a release that ran
 One replica is the tested setup.
 More replicas share the work that runs through Postgres: migrations take a Postgres lock, so one pod migrates while the others wait, and the scheduler and the agent workers lease their jobs through the database.
 Each server heartbeats into the `server_instances` table every 10 seconds and counts the live servers; a datasource's `maxConcurrentQueries` and the OAuth endpoint totals are divided among them.
+Provisioning and the service-account file are applied by one pod at a time.
 The limits per person, per key and per process (concurrent MCP requests, event streams, query requests, drafts and live tails) stay per server, so each replica allows its own.
 
 ## Try it on kind

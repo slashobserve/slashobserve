@@ -292,7 +292,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err := authService.EnsureProvisioned(ctx, cfg.ServiceAccounts); err != nil {
+	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
+		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+	}); err != nil {
 		return serviceAccountsExit(err)
 	}
 
