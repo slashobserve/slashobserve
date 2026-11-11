@@ -21,6 +21,7 @@ function grant(name: string | null): ConnectedAgent {
     created_at: "2026-11-11T10:00:00Z",
     last_used_at: null,
     expires_at: "2027-02-09T10:00:00Z",
+    state: "active",
   }
 }
 
