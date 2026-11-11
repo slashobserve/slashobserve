@@ -1574,6 +1574,7 @@ components:
         - panel_id
         - body
         - status
+        - allowed_actions
         - author
         - actor
         - created_at
@@ -1612,6 +1613,13 @@ components:
           type: string
           enum: [open, resolved]
           description: For a reply, the status of its thread.
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [open, reply, resolve, reopen]
+          description: What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md.
         author:
           $ref: "#/components/schemas/Author"
         actor:

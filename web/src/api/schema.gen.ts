@@ -817,7 +817,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List the comments of a dashboard across all versions, oldest first. */
+        /**
+         * List the comments of a dashboard across all versions, oldest first.
+         * @description Each thread's first comment carries `allowed_actions`, what the caller may do with the thread now, and a reply carries none.
+         */
         get: operations["listDashboardComments"];
         put?: never;
         /**
@@ -3867,6 +3870,8 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "resolved";
+            /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
+            allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
             author: components["schemas"]["Author"];
             actor: components["schemas"]["Actor"];
             /** Format: date-time */

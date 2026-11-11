@@ -107,6 +107,7 @@ dashboards-id-comments:
       mcp: [list_comments]
       cli: [observe comments list]
     summary: List the comments of a dashboard across all versions, oldest first.
+    description: Each thread's first comment carries `allowed_actions`, what the caller may do with the thread now, and a reply carries none.
     parameters:
       - name: status
         in: query
