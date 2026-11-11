@@ -21,11 +21,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/prompts/skill"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -35,6 +40,8 @@ const (
 	otherKey     = "Bearer other"
 	namedOAuth   = "Bearer oauth-named"
 	unnamedOAuth = "Bearer oauth-unnamed"
+	takesRuns    = "Bearer takes-runs"
+	oauthTakes   = "Bearer oauth-takes-runs"
 	publicURL    = "http://observe.test:8080"
 	metadataURL  = publicURL + "/.well-known/oauth-protected-resource/mcp"
 )
@@ -59,6 +66,10 @@ func (f *fakeAuth) Authenticate(_ context.Context, header string) (Credential, b
 		return Credential{Principal: oauthPerson, OAuth: true, Client: "Claude Code"}, true, nil
 	case unnamedOAuth:
 		return Credential{Principal: oauthPerson, OAuth: true}, true, nil
+	case takesRuns:
+		return Credential{Principal: auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-bot", Name: "bot", Role: auth.RoleViewer}, Claimer: &claims.Claimer{Kind: revisions.AssignServiceAccount, ID: "sa-bot"}}, true, nil
+	case oauthTakes:
+		return Credential{Principal: oauthPerson, OAuth: true, Client: "Claude Code", Claimer: &claims.Claimer{Kind: revisions.AssignGrant, ID: "grant-1", Person: oauthPerson.ID, Client: "Claude Code"}}, true, nil
 	case errorKey:
 		return Credential{}, false, errors.New("database exploded with secret-detail")
 	case goneKey:
@@ -81,7 +92,11 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(&syncWriter{w: logs}, nil))
-	reg := tools.New(tools.Deps{Logger: logger})
+	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: "logs", Name: "Logs", Datasource: fakeLoki{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := tools.New(tools.Deps{Datasources: datasources, Logger: logger})
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +109,10 @@ func newFixture(t *testing.T) *fixture {
 		tools:   offeredOverMCP(reg),
 	}
 }
+
+type fakeLoki struct{ datasource.Datasource }
+
+func (fakeLoki) Type() string { return "loki" }
 
 func offeredOverMCP(reg *tools.Registry) []tools.Tool {
 	var out []tools.Tool
@@ -421,7 +440,7 @@ type promptDescriptor struct {
 	} `json:"arguments"`
 }
 
-func TestObservePromptIsListedWithItsAskArgument(t *testing.T) {
+func TestObservePromptIsListedWithItsAskAndKindArguments(t *testing.T) {
 	f := newFixture(t)
 	rec := f.post(rpc(1, "prompts/list", nil), nil)
 	if rec.Code != http.StatusOK {
@@ -440,8 +459,8 @@ func TestObservePromptIsListedWithItsAskArgument(t *testing.T) {
 	if got.Name != "observe" || got.Title != "Observe" || got.Description == "" {
 		t.Errorf("prompt %+v", got)
 	}
-	if len(got.Arguments) != 1 || got.Arguments[0].Name != "ask" || got.Arguments[0].Required {
-		t.Errorf("arguments %+v, want one optional ask", got.Arguments)
+	if len(got.Arguments) != 2 || got.Arguments[0].Name != "ask" || got.Arguments[0].Required || got.Arguments[1].Name != "kind" || got.Arguments[1].Required {
+		t.Errorf("arguments %+v, want an optional ask and an optional kind", got.Arguments)
 	}
 }
 
@@ -487,6 +506,57 @@ func TestObservePromptServesTheSkillBody(t *testing.T) {
 				t.Errorf("log must hold the prompt event and never the ask: %s", f.logs.String())
 			}
 		})
+	}
+}
+
+func TestObservePromptServesTheRunSystemTextOfItsKind(t *testing.T) {
+	cases := []struct {
+		name string
+		kind string
+		want string
+	}{
+		{"build", "build", prompts.Build([]spec.DatasourceType{spec.Loki})},
+		{"build with surrounding space", " build ", prompts.Build([]spec.DatasourceType{spec.Loki})},
+		{"investigate", "investigate", prompts.Investigate()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			rec := f.post(rpc(1, "prompts/get", map[string]any{"name": "observe", "arguments": map[string]any{"kind": tc.kind, "ask": "checkout p99"}}), nil)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			var result struct {
+				Messages []struct {
+					Content struct {
+						Text string `json:"text"`
+					} `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Messages) != 1 || result.Messages[0].Content.Text != tc.want {
+				t.Errorf("the prompt text is not the run system text of kind %q", tc.kind)
+			}
+			if !strings.Contains(f.logs.String(), "kind="+strings.TrimSpace(tc.kind)) {
+				t.Errorf("log lacks the kind: %s", f.logs.String())
+			}
+		})
+	}
+}
+
+func TestObservePromptRefusesAnUnknownKindWithoutLoggingIt(t *testing.T) {
+	f := newFixture(t)
+	rec := f.post(rpc(1, "prompts/get", map[string]any{"name": "observe", "arguments": map[string]any{"kind": "secret-kind"}}), nil)
+	if rpcResponse := decodeRPC(t, rec); rpcResponse.Error == nil {
+		t.Fatalf("want a JSON-RPC error, got %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "kind must be build or investigate") {
+		t.Errorf("error does not name the accepted kinds: %s", rec.Body.String())
+	}
+	if strings.Contains(f.logs.String(), "secret-kind") {
+		t.Errorf("log holds the unknown kind: %s", f.logs.String())
 	}
 }
 
@@ -1266,4 +1336,115 @@ func TestInitializeLabelIsOnlyOnASuccessfulInitialize(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestClaimerReachesTheToolContext(t *testing.T) {
+	label := clientLabel("Codex")
+	cases := map[string]struct {
+		token   string
+		session string
+		want    *claims.Claimer
+	}{
+		"a service account names its labelled client": {takesRuns, label, &claims.Claimer{Kind: revisions.AssignServiceAccount, ID: "sa-bot", Client: "Codex"}},
+		"a service account without a label":           {takesRuns, "", &claims.Claimer{Kind: revisions.AssignServiceAccount, ID: "sa-bot"}},
+		"a connected agent keeps its registered name": {oauthTakes, label, &claims.Claimer{Kind: revisions.AssignGrant, ID: "grant-1", Person: oauthPerson.ID, Client: "Claude Code"}},
+		"a key that cannot take runs":                 {goodKey, label, nil},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			var got claims.Claimer
+			var found bool
+			f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got, found = claims.ClaimerFrom(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			rec := f.post(rpc(1, "tools/call", map[string]any{"name": "claim_run", "arguments": map[string]any{}}), map[string]string{"Authorization": tc.token, "Mcp-Session-Id": tc.session})
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			switch {
+			case tc.want == nil && found:
+				t.Errorf("claimer = %+v, want none", got)
+			case tc.want != nil && (!found || got != *tc.want):
+				t.Errorf("claimer = %+v (found %v), want %+v", got, found, *tc.want)
+			}
+		})
+	}
+}
+
+func TestClaimRunAnswersTheClaimerPathNotTheRefusal(t *testing.T) {
+	f := newFixture(t)
+	refused := f.post(rpc(1, "tools/call", map[string]any{"name": "claim_run", "arguments": map[string]any{}}), nil)
+	var res toolResult
+	if err := json.Unmarshal(decodeRPC(t, refused).Result, &res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError || res.StructuredContent["code"] != "not_a_worker" {
+		t.Fatalf("a key that is no claimer got %+v", res)
+	}
+	claimer := f.post(rpc(2, "tools/call", map[string]any{"name": "claim_run", "arguments": map[string]any{}}), map[string]string{"Authorization": takesRuns})
+	var answered toolResult
+	if err := json.Unmarshal(decodeRPC(t, claimer).Result, &answered); err != nil {
+		t.Fatal(err)
+	}
+	if answered.StructuredContent["code"] == "not_a_worker" {
+		t.Fatalf("a claimer was refused as not a worker: %+v", answered)
+	}
+}
+
+func TestClaimPollIsServedWhenEveryGlobalSlotIsTaken(t *testing.T) {
+	f := newFixture(t)
+	h := f.handler.(*handler)
+	release := make(chan struct{})
+	entered := make(chan struct{}, maxTotalInFlight)
+	h.call = func(_ context.Context, name string, _ json.RawMessage) (tools.Result, error) {
+		if name != "claim_run" {
+			entered <- struct{}{}
+			<-release
+		}
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	post := func(key, tool string) int {
+		req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader(rpc(1, "tools/call", map[string]any{"name": tool})))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set("Authorization", key)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode
+	}
+	var running sync.WaitGroup
+	for p := range maxTotalInFlight / maxInFlight {
+		for range maxInFlight {
+			running.Add(1)
+			go func() {
+				defer running.Done()
+				post("Bearer pool-"+strconv.Itoa(p), "get_spec_guide")
+			}()
+		}
+	}
+	for range maxTotalInFlight {
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("running requests never reached the tool")
+		}
+	}
+	if status := post("Bearer pool-other", "get_spec_guide"); status != http.StatusServiceUnavailable {
+		t.Errorf("another tool call with every slot taken: %d", status)
+	}
+	if status := post("Bearer pool-other", "claim_run"); status != http.StatusOK {
+		t.Errorf("a claim poll with every slot taken: %d", status)
+	}
+	close(release)
+	running.Wait()
 }

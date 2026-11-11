@@ -542,36 +542,23 @@ type claimResult struct {
 	firstClaim bool
 }
 
-func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
+func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, error) {
+	assignedID, err := c.assignedID()
+	if err != nil {
+		return claimResult{}, false, err
+	}
 	var claimed claimResult
 	found := false
-	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
+	err = s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
-		exhausted, err := q.FailExhaustedAgentRequests(ctx, dbsqlc.FailExhaustedAgentRequestsParams{FromStates: RunMachine.From(ActionExhaust), MaxAttempts: MaxAttempts})
-		if err != nil {
-			return fmt.Errorf("fail exhausted agent requests: %w", err)
+		if err := s.sweep(ctx, q, savepoint); err != nil {
+			return err
 		}
-		settled, err := q.SettleCanceledAgentRequests(ctx, dbsqlc.SettleCanceledAgentRequestsParams{FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage})
-		if err != nil {
-			return fmt.Errorf("settle canceled agent requests: %w", err)
-		}
-		s.deleteExpiredBuilds(ctx, savepoint)
-		for _, group := range []struct {
-			rows   []dbsqlc.AgentRequest
-			action Action
-		}{{exhausted, ActionExhaust}, {settled, ActionSettle}} {
-			for _, row := range group.rows {
-				if err := recordRun(ctx, q, row, group.action); err != nil {
-					return err
-				}
-				if State(row.State) == StateSucceeded {
-					s.resolveThread(ctx, savepoint, row)
-				}
-			}
-		}
-		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
+		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts,
+			AssignedKind: string(c.Kind), AssignedID: assignedID, ClaimedBy: c.Key(),
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -597,19 +584,6 @@ func (s *Service) deleteExpiredBuilds(ctx context.Context, savepoint db.Savepoin
 	if err != nil {
 		s.logger.WarnContext(ctx, "delete expired agent request builds", logattrs.Failure("agent_request_build_cleanup_failed", err)...)
 	}
-}
-
-func (s *Service) renewLease(ctx context.Context, claimed dbsqlc.AgentRequest) (canceled bool, err error) {
-	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
-		LeaseSeconds: s.leaseTTL.Seconds(), ID: claimed.ID, Attempts: claimed.Attempts,
-	})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return false, ErrLeaseLost
-	case err != nil:
-		return false, fmt.Errorf("renew agent request lease: %w", err)
-	}
-	return cancelRequestedAt.Valid, nil
 }
 
 type outcome struct {
@@ -768,6 +742,8 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		CreatedAt:    row.CreatedAt.Time.UTC(),
 		Origin:       row.Origin.String,
 		OriginClient: row.OriginClient.String,
+		AssignedKind: AssigneeKind(row.AssignedKind),
+		AssignedID:   row.AssignedID.String(),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

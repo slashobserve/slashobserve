@@ -42,6 +42,7 @@ const (
 	ActionFail      Action = "fail"
 	ActionSettle    Action = "settle"
 	ActionExhaust   Action = "exhaust"
+	ActionExpire    Action = "expire"
 	ActionKeepBuild Action = "keep_build"
 	ActionContinue  Action = "continue"
 	ActionRetry     Action = "retry"
@@ -80,6 +81,7 @@ var RunMachine = lifecycle.Machine[State, Action]{
 		{Action: ActionFail, From: []State{StateRunning}, To: []State{StateFailed}, Who: []lifecycle.Who{lifecycle.System}},
 		{Action: ActionSettle, From: []State{StateQueued, StateCanceling}, To: []State{StateCanceled, StateSucceeded}, Who: []lifecycle.Who{lifecycle.System}},
 		{Action: ActionExhaust, From: []State{StateRunning}, To: []State{StateFailed, StateSucceeded}, Who: []lifecycle.Who{lifecycle.System}},
+		{Action: ActionExpire, From: []State{StateQueued, StateRunning}, To: []State{StateFailed, StateSucceeded}, Who: []lifecycle.Who{lifecycle.System}},
 		{Action: ActionKeepBuild, From: []State{StateFailed, StateCanceled}, Event: activity.TypeRunKept, Who: []lifecycle.Who{lifecycle.Requester}},
 		{Action: ActionContinue, From: []State{StateFailed, StateCanceled}, Who: []lifecycle.Who{lifecycle.Requester}},
 		{Action: ActionRetry, From: []State{StateSucceeded, StateFailed, StateCanceled}, Who: []lifecycle.Who{lifecycle.Starter}},

@@ -105,6 +105,7 @@ type agentRequestJSON struct {
 	Build          *buildProgressJSON `json:"build"`
 	BuildSavedAt   *string            `json:"build_saved_at"`
 	RequestedBy    authorJSON         `json:"requested_by"`
+	AssignedTo     *assigneeJSON      `json:"assigned_to"`
 	Origin         *string            `json:"origin"`
 	OriginClient   *string            `json:"origin_client"`
 	CreatedAt      string             `json:"created_at"`
@@ -125,6 +126,12 @@ type agentRequestJSON struct {
 	From       *string         `json:"from"`
 	To         *string         `json:"to"`
 	Finding    json.RawMessage `json:"finding"`
+}
+
+type assigneeJSON struct {
+	Kind AssigneeKind `json:"kind"`
+	ID   string       `json:"id"`
+	Name *string      `json:"name"`
 }
 
 type requestSummaryJSON struct {
@@ -209,9 +216,9 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		return
 	}
 	switch {
-	case req.Kind == nil || *req.Kind == kindBuild:
+	case req.Kind == nil || *req.Kind == KindBuild:
 		h.createBuild(c, req, prompt)
-	case *req.Kind == kindInvestigate:
+	case *req.Kind == KindInvestigate:
 		h.createInvestigation(c, req, prompt)
 	default:
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be build or investigate")
@@ -464,7 +471,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		id := row.DashboardID.String()
 		out.DashboardID = &id
 		out.DashboardTitle = optionalText(row.DashboardTitle)
-		if out.Status == StatusSucceeded && out.Kind == kindBuild && h.opts.DashboardURL != nil {
+		if out.Status == StatusSucceeded && out.Kind == KindBuild && h.opts.DashboardURL != nil {
 			url := h.opts.DashboardURL(id, row.DashboardTitle.String)
 			out.URL = &url
 		}

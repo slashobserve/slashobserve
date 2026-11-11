@@ -20,6 +20,9 @@ func TestRunMachineQueriesAndEvents(t *testing.T) {
 	if got := RunMachine.From(ActionClaim); !slices.Equal(got, []string{"queued", "running"}) {
 		t.Errorf("From(claim) = %v", got)
 	}
+	if got := RunMachine.From(ActionExpire); !slices.Equal(got, []string{"queued", "running"}) {
+		t.Errorf("From(expire) = %v", got)
+	}
 	events := []struct {
 		a    Action
 		to   State
@@ -33,6 +36,8 @@ func TestRunMachineQueriesAndEvents(t *testing.T) {
 		{ActionCancel, StateCanceled, "run.canceled"},
 		{ActionCancel, StateSucceeded, "run.succeeded"},
 		{ActionExhaust, StateFailed, "run.failed"},
+		{ActionExpire, StateFailed, "run.failed"},
+		{ActionExpire, StateSucceeded, "run.succeeded"},
 		{ActionEnqueue, StateQueued, "run.queued"},
 	}
 	for _, e := range events {
@@ -109,6 +114,15 @@ func TestAllowedActions(t *testing.T) {
 				t.Errorf("allowedActions = %#v, want %#v", got, c.want)
 			}
 		})
+	}
+}
+
+func TestNoOneAsksToExpireARun(t *testing.T) {
+	for _, state := range allStates {
+		f := runFacts{state: state, source: SourceObserve, requester: true, mayStart: true, buildPanels: 1}
+		if slices.Contains(allowedActions(f), ActionExpire) {
+			t.Errorf("allowedActions of a %s run contains expire", state)
+		}
 	}
 }
 

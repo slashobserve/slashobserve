@@ -54,8 +54,15 @@ func (s *Service) SetManualRole(ctx context.Context, q *dbsqlc.Queries, by Princ
 	return q.SetUserRole(ctx, setUserRoleParams(userID, decision))
 }
 
-func (s *Service) SetServiceAccountRole(ctx context.Context, id pgtype.UUID, role Role) (dbsqlc.ServiceAccount, error) {
-	return s.queries.SetServiceAccountRole(ctx, dbsqlc.SetServiceAccountRoleParams{ID: id, Role: string(role)})
+func (s *Service) UpdateServiceAccount(ctx context.Context, id pgtype.UUID, role *Role, takesRuns *bool) (dbsqlc.ServiceAccount, error) {
+	params := dbsqlc.UpdateServiceAccountParams{ID: id}
+	if role != nil {
+		params.Role = pgtype.Text{String: string(*role), Valid: true}
+	}
+	if takesRuns != nil {
+		params.TakesRuns = pgtype.Bool{Bool: *takesRuns, Valid: true}
+	}
+	return s.queries.UpdateServiceAccount(ctx, params)
 }
 
 func leavesNoAdmin(admins []pgtype.UUID, target pgtype.UUID, next Role) bool {

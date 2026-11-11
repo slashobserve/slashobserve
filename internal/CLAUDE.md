@@ -76,6 +76,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts `Authorization: Bearer` service-account keys and OAuth access tokens (a session cookie is ignored); OAuth tokens are accepted nowhere else, and for them the registered client name is the origin client and `clientInfo` is ignored.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
+  `/mcp` tries keys, then run tokens, then OAuth; a run token is valid only while its attempt holds the lease and the run is `running`; `claim_run` long polls skip the global MCP slot because `internal/claims` caps them.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
 - `observe skill install` writes the skill embedded in the CLI binary and never one fetched from a server, because a skill instructs the person's own agents and the CLI talks to any `--server` it is given.
@@ -123,6 +124,7 @@ This lists only the packages whose purpose the name does not make obvious.
   List queries filter by `Levels.Visible()` and fail closed, services check writes themselves, and every count (lists, tag counts, `dashboard_count`) covers only folders the caller can see.
 - An agent run is checked when it is enqueued and again when a worker claims it, after reloading the requester.
   The event stream re-reads the caller's access at every ping.
+  Every claim names a `revisions.Claimant` and takes only rows of its assignee under the claim lock; admission (`Service.admit`) is the one place a claimed run is checked; outside runs no agent held for `revisions.UnclaimedFor` expire as `agent_unavailable` in `Service.sweep`, which the claim transaction and the `agent_requests_sweep` job both run.
 - An activity row's folder follows its owner (`activity.Owner`, built by `OnDashboard`, `OnFinding`, `OnSavedSearch` or `General`): `InsertActivity` reads the owner's current folder, a global annotation takes General, and any other row has no folder and is visible only to its actor and to Admins.
   `Append` takes a shared advisory lock on the row's owner (dashboard, finding or saved search) and never locks the owner's row, because a delete holds that row and then cascades into child rows the appender may hold; a move of any of them updates the row, then runs `activity.Move` (the lock taken exclusively, then the rows rewritten), then appends the `*.moved` row, so a concurrent append either is moved with the owner or reads the new folder.
   A transaction writes or locks the owner's row before it appends, never after; a deleted owner's rows keep their folder.

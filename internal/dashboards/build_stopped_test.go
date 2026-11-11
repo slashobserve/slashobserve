@@ -25,7 +25,7 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 		}
 		id = row.ID
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != id || claimed.Attempts != buildAttempt {
 		t.Fatalf("claimed %v attempt %d, want %v attempt %d, err %v", claimed.ID, claimed.Attempts, id, buildAttempt, err)
@@ -140,7 +140,7 @@ func TestAViewersStoppedBuildIsSavedIntoTheirMyDashboards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != row.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.ID, row.ID, err)

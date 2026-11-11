@@ -23,6 +23,9 @@ const grant: ConnectedAgent = {
   last_used_at: null,
   expires_at: "2027-02-09T10:00:00Z",
   state: "active",
+  mode: "direct",
+  presence: "offline",
+  last_seen_at: null,
 }
 
 function mockServer(status: number) {

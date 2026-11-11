@@ -20,9 +20,12 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -37,10 +40,16 @@ type Credential struct {
 	Principal auth.Principal
 	OAuth     bool
 	Client    string
+	Claimer   *claims.Claimer
+	Run       *revisions.Request
 }
 
 type Authenticator interface {
 	Authenticate(ctx context.Context, header string) (Credential, bool, error)
+}
+
+type StepRecorder interface {
+	RecordStep(ctx context.Context, req revisions.Request, st revisions.Step)
 }
 
 type Options struct {
@@ -48,6 +57,8 @@ type Options struct {
 	ResourceMetadataURL string
 	Version             string
 	Logger              *slog.Logger
+	Steps               StepRecorder
+	Scope               func(ctx context.Context, req revisions.Request) (tools.Run, error)
 }
 
 type registeredClientKey struct{}
@@ -69,6 +80,11 @@ type handler struct {
 	metadataURL string
 	transport   http.Handler
 	slots       slots
+	types       func() []spec.DatasourceType
+
+	steps         StepRecorder
+	scope         func(ctx context.Context, req revisions.Request) (tools.Run, error)
+	runTransports map[tools.Mode]http.Handler
 }
 
 func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Handler {
@@ -76,7 +92,10 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}}
+	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, steps: opts.Steps, scope: opts.Scope}
+	if h.scope == nil {
+		h.scope = reg.RunFor
+	}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithPromptCapabilities(false),
@@ -89,24 +108,49 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		srv.AddTool(toolFor(t), h.callTool(t.Name))
 	}
 	srv.AddPrompt(observePrompt(), h.observePromptHandler())
+	h.transport = h.newTransport(srv)
+	h.runTransports = map[tools.Mode]http.Handler{}
+	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate} {
+		run := mcpserver.NewMCPServer(serverName, opts.Version,
+			mcpserver.WithToolCapabilities(false),
+			mcpserver.WithRecovery())
+		for _, t := range reg.List() {
+			if t.OfferedIn(mode) {
+				run.AddTool(toolFor(t.ForAgent()), h.callRunTool(t.Name))
+			}
+		}
+		h.runTransports[mode] = h.newTransport(run)
+	}
+	return h
+}
+
+func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 	// The library rejects loopback connections whose Host is not loopback, which breaks a same-host reverse proxy;
 	// the origin check and bearer authentication cover DNS rebinding here.
-	h.transport = mcpserver.NewStreamableHTTPServer(srv,
+	return mcpserver.NewStreamableHTTPServer(srv,
 		mcpserver.WithStateLess(true),
 		mcpserver.WithDisableStreaming(true),
 		mcpserver.WithDisableLocalhostProtection(true),
-		mcpserver.WithStreamableHTTPLogger(logger),
+		mcpserver.WithStreamableHTTPLogger(h.logger),
 		mcpserver.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = origin.With(ctx, origin.From(r.Context()))
 			if hasRegisteredClient(r.Context()) {
 				ctx = withRegisteredClient(ctx)
+			}
+			if c, ok := claims.ClaimerFrom(r.Context()); ok {
+				ctx = claims.WithClaimer(ctx, c)
+			}
+			if run, ok := tools.RunFrom(r.Context()); ok {
+				ctx = tools.WithRun(ctx, run)
+			}
+			if req, ok := runRequestFrom(r.Context()); ok {
+				ctx = withRunRequest(ctx, req)
 			}
 			if p, ok := auth.FromContext(r.Context()); ok {
 				return auth.WithPrincipal(ctx, p)
 			}
 			return ctx
 		}))
-	return h
 }
 
 func toolFor(t tools.Tool) mcplib.Tool {
@@ -119,6 +163,10 @@ func toolFor(t tools.Tool) mcplib.Tool {
 }
 
 func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
+	return h.invoke(name, false)
+}
+
+func (h *handler) invoke(name string, inRun bool) mcpserver.ToolHandlerFunc {
 	return func(ctx context.Context, req mcplib.CallToolRequest) (result *mcplib.CallToolResult, _ error) {
 		defer func() {
 			if p := recover(); p != nil {
@@ -134,9 +182,13 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 			h.logger.ErrorContext(ctx, "mcp tool call without principal", slog.String("tool", name))
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
+		if _, scoped := tools.RunFrom(ctx); inRun && !scoped {
+			h.logger.ErrorContext(ctx, "mcp run tool call without run scope", slog.String("tool", name))
+			return mcplib.NewToolResultError(internalErrorMsg), nil
+		}
 		input, err := rawInput(req.GetRawArguments())
 		if err != nil {
-			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(name, principal, "invalid_arguments", err)...)
+			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(ctx, name, principal, "invalid_arguments", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		o := origin.Origin{Kind: origin.MCP, Client: origin.From(ctx).Client}
@@ -147,25 +199,28 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 		}
 		ctx = origin.With(ctx, o)
 		res, err := h.call(ctx, name, input)
+		if inRun {
+			h.recordStep(ctx, name, start, res, err)
+		}
 		if err != nil {
 			if ctx.Err() != nil {
-				h.logger.InfoContext(ctx, "mcp tool call canceled by client", h.failureAttrs(name, principal, "canceled", err)...)
+				h.logger.InfoContext(ctx, "mcp tool call canceled by client", h.failureAttrs(ctx, name, principal, "canceled", err)...)
 				return mcplib.NewToolResultError(internalErrorMsg), nil
 			}
-			h.logger.ErrorContext(ctx, "mcp tool call failed", h.failureAttrs(name, principal, tools.FailureCode(err), err)...)
+			h.logger.ErrorContext(ctx, "mcp tool call failed", h.failureAttrs(ctx, name, principal, tools.FailureCode(err), err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		body, err := json.Marshal(res.Content)
 		if err != nil {
-			h.logger.ErrorContext(ctx, "mcp tool result not encodable", h.failureAttrs(name, principal, "result_not_encodable", err)...)
+			h.logger.ErrorContext(ctx, "mcp tool result not encodable", h.failureAttrs(ctx, name, principal, "result_not_encodable", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
-		h.logger.InfoContext(ctx, "mcp tool call",
+		h.logger.InfoContext(ctx, "mcp tool call", append([]any{
 			slog.String("tool", name),
 			slog.String("principal_kind", string(principal.Kind)),
 			slog.String("principal_id", principal.ID),
 			slog.Bool("is_error", res.IsError),
-			slog.Duration("duration", time.Since(start)))
+			slog.Duration("duration", time.Since(start))}, runAttrs(ctx)...)...)
 		out := mcplib.NewToolResultStructured(json.RawMessage(body), string(body))
 		out.IsError = res.IsError
 		return out, nil
@@ -173,13 +228,14 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 }
 
 // Error text can echo tool input, query text or credentials, so a failure is logged by its code and type only.
-func (h *handler) failureAttrs(tool string, principal auth.Principal, code string, err error) []any {
-	return append([]any{
+func (h *handler) failureAttrs(ctx context.Context, tool string, principal auth.Principal, code string, err error) []any {
+	attrs := append([]any{
 		slog.String("tool", tool),
 		slog.String("principal_kind", string(principal.Kind)),
 		slog.String("principal_id", principal.ID),
 		slog.String("error_code", code),
-	}, logattrs.Safe(err)...)
+	}, runAttrs(ctx)...)
+	return append(attrs, logattrs.Safe(err)...)
 }
 
 func rawInput(args any) (json.RawMessage, error) {
@@ -218,47 +274,83 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
+	if cred.Run != nil {
+		h.serveRun(w, r, cred)
+		return
+	}
 	principal := cred.Principal
-	key := principalKey(principal)
-	if !h.slots.acquire(key) {
+	client := cred.Client
+	if !cred.OAuth {
+		client = labelClient(r.Header.Get(mcpserver.HeaderKeySessionID))
+	}
+	h.serve(w, r, serving{
+		key: principalKey(principal),
+		prepare: func(ctx context.Context) (context.Context, http.Handler, error) {
+			ctx = auth.WithPrincipal(ctx, principal)
+			ctx = origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: client})
+			if cred.OAuth {
+				ctx = withRegisteredClient(ctx)
+			}
+			if cred.Claimer != nil {
+				claimer := *cred.Claimer
+				if !cred.OAuth {
+					claimer.Client = client
+				}
+				ctx = claims.WithClaimer(ctx, claimer)
+			}
+			return ctx, h.transport, nil
+		},
+		labelsClient: !cred.OAuth,
+	})
+}
+
+type serving struct {
+	key          string
+	prepare      func(ctx context.Context) (context.Context, http.Handler, error)
+	labelsClient bool
+}
+
+func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
+	if !h.slots.acquire(s.key) {
 		w.Header().Set("Retry-After", "1")
 		writeError(w, http.StatusTooManyRequests, "too_many_requests", "too many concurrent requests")
 		return
 	}
-	defer h.slots.release(key)
-	ctx := auth.WithPrincipal(r.Context(), principal)
-	if cred.OAuth {
-		ctx = withRegisteredClient(origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: cred.Client}))
-	} else {
-		ctx = origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: labelClient(r.Header.Get(mcpserver.HeaderKeySessionID))})
+	defer h.slots.release(s.key)
+	ctx, transport, err := s.prepare(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", internalErrorMsg)
+		return
 	}
 	r = r.Clone(ctx)
 	r.Header.Del(mcpserver.HeaderKeySessionID)
 	var body []byte
 	if r.Body != nil {
-		var err error
-		body, err = io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+		var readErr error
+		body, readErr = io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
+		if errors.As(readErr, &tooLarge) {
 			writeError(w, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
 			return
 		}
-		if err != nil {
+		if readErr != nil {
 			writeError(w, http.StatusBadRequest, "invalid_request", "could not read request body")
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	if !h.slots.acquireGlobal() {
-		w.Header().Set("Retry-After", "1")
-		writeError(w, http.StatusServiceUnavailable, "busy", "server is busy")
-		return
+	if !isClaimPoll(body) {
+		if !h.slots.acquireGlobal() {
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusServiceUnavailable, "busy", "server is busy")
+			return
+		}
+		defer h.slots.releaseGlobal()
 	}
-	defer h.slots.releaseGlobal()
-	if client := initializeClient(body); client != "" && !cred.OAuth {
+	if client := initializeClient(body); client != "" && s.labelsClient {
 		w = &labelWriter{ResponseWriter: w, label: clientLabel(client)}
 	}
-	h.transport.ServeHTTP(w, r)
+	transport.ServeHTTP(w, r)
 }
 
 type labelWriter struct {

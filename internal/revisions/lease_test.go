@@ -26,7 +26,7 @@ func leaseUntil(t *testing.T, d *dbtest.Database, id string) time.Time {
 
 func claimOne(t *testing.T, svc *revisions.Service) (dbsqlc.AgentRequest, bool) {
 	t.Helper()
-	row, found, err := svc.Claim(context.Background())
+	row, found, err := svc.ClaimRow(context.Background())
 	if err != nil {
 		t.Fatalf("claim: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestRenewingExtendsTheLease(t *testing.T) {
 	d.Exec(t, "UPDATE agent_requests SET lease_until = clock_timestamp() + interval '2 seconds' WHERE id = $1", claimed.ID)
 
 	before := time.Now()
-	if err := svc.RenewLease(context.Background(), claimed); err != nil {
+	if _, err := svc.RenewLease(context.Background(), claimed); err != nil {
 		t.Fatalf("renew: %v", err)
 	}
 	if got := leaseUntil(t, d, rev.ID).Sub(before); got < revisions.LeaseTTL-5*time.Second {
@@ -75,10 +75,10 @@ func TestRenewingAfterTheAttemptChangedLosesTheLease(t *testing.T) {
 		t.Fatalf("reclaim = %+v, found %v", second, found)
 	}
 
-	if err := svc.RenewLease(context.Background(), first); !errors.Is(err, revisions.ErrLeaseLost) {
+	if _, err := svc.RenewLease(context.Background(), first); !errors.Is(err, revisions.ErrLeaseLost) {
 		t.Fatalf("renew by the first attempt = %v, want ErrLeaseLost", err)
 	}
-	if err := svc.RenewLease(context.Background(), second); err != nil {
+	if _, err := svc.RenewLease(context.Background(), second); err != nil {
 		t.Fatalf("renew by the second attempt: %v", err)
 	}
 	if got := leaseUntil(t, d, rev.ID); !got.After(time.Now()) {
@@ -93,7 +93,7 @@ func TestRenewingAFinishedRequestLosesTheLease(t *testing.T) {
 	claimed, _ := claimOne(t, svc)
 	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed' WHERE id = $1", claimed.ID)
 
-	if err := svc.RenewLease(context.Background(), claimed); !errors.Is(err, revisions.ErrLeaseLost) {
+	if _, err := svc.RenewLease(context.Background(), claimed); !errors.Is(err, revisions.ErrLeaseLost) {
 		t.Fatalf("renew = %v, want ErrLeaseLost", err)
 	}
 }
@@ -107,7 +107,7 @@ func TestRunningRequestIsReclaimedOnlyAfterItsLeaseExpires(t *testing.T) {
 	if _, found := claimOne(t, svc); found {
 		t.Fatal("a request with a live lease was claimed again")
 	}
-	if err := svc.RenewLease(context.Background(), claimed); err != nil {
+	if _, err := svc.RenewLease(context.Background(), claimed); err != nil {
 		t.Fatal(err)
 	}
 	if _, found := claimOne(t, svc); found {

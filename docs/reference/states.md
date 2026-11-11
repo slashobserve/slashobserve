@@ -29,6 +29,7 @@ A run is one agent request, started by `POST /observe`, a comment, a prompt, an 
 | `fail` | `running` | `failed` | `run.failed` | server |
 | `settle` | `queued`, `canceling` | `canceled`, `succeeded` | `run.canceled` or `run.succeeded` | server |
 | `exhaust` | `running` | `failed`, `succeeded` | `run.failed` or `run.succeeded` | server |
+| `expire` | `queued`, `running` | `failed`, `succeeded` | `run.failed` or `run.succeeded` | server |
 | `keep_build` | `failed`, `canceled` | - | `run.kept` | requester |
 | `continue` | `failed`, `canceled` | - | - | requester |
 | `retry` | `succeeded`, `failed`, `canceled` | - | - | anyone who may start one |
@@ -140,3 +141,14 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `fail` | `running` | `failed` | `grafana sync failed` | server |
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
+
+## Agent presence
+
+Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `working` | It holds the lease of a run it claimed. |
+| `listening` | It asked for work in the last 40 seconds. |
+| `offline` | It has not asked for work in 40 seconds and holds no run. |

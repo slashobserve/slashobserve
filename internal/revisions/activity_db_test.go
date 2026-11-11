@@ -218,7 +218,7 @@ func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {
 	}
 	done := make(chan claimed, 1)
 	go func() {
-		_, found, err := svc.Claim(t.Context())
+		_, found, err := svc.ClaimRow(t.Context())
 		done <- claimed{found, err}
 	}()
 	select {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -193,7 +194,7 @@ func New(c Config) *Agent {
 		datasources:       c.Datasources,
 		imports:           c.Imports,
 		logger:            c.Logger,
-		investigateSystem: buildInvestigateSystem(),
+		investigateSystem: prompts.Investigate(),
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
 		logToolInputs:     c.LogToolInputs,

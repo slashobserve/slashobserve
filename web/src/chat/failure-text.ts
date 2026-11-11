@@ -72,6 +72,14 @@ const texts: Record<string, FailureText> = {
     meaning: "The server stopped while it ran this request.",
     next: "Try again.",
   },
+  agent_unavailable: {
+    meaning: "No outside agent took this run within 10 minutes.",
+    next: "Check that the agent is connected and asking for work, then try again.",
+  },
+  agent_failed: {
+    meaning: "The outside agent said it could not finish the run.",
+    next: "Read its message, then try again.",
+  },
   no_finding: {
     meaning: "The agent ended without writing a finding.",
     next: "Ask a narrower question, with the service and the time range.",

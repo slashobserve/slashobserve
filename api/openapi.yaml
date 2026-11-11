@@ -390,7 +390,7 @@ components:
     ServiceAccount:
       type: object
       additionalProperties: false
-      required: [id, name, description, created_by, created_at, role, provisioned]
+      required: [id, name, description, created_by, created_at, role, provisioned, takes_runs, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -410,7 +410,19 @@ components:
           $ref: "#/components/schemas/Role"
         provisioned:
           type: boolean
-          description: The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there.
+          description: The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description, `takes_runs` and file key change only there.
+        takes_runs:
+          type: boolean
+          description: It may claim runs assigned to it with claim_run. Admins turn it on; an account from the service-accounts file takes it from `takesRuns`.
+        presence:
+          type: string
+          enum: [working, listening, offline]
+          description: working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it last asked for work or reported on a run; null when it never did.
     ServiceAccountList:
       type: object
       additionalProperties: false
@@ -438,10 +450,12 @@ components:
     UpdateServiceAccountRequest:
       type: object
       additionalProperties: false
-      required: [role]
+      minProperties: 1
       properties:
         role:
           $ref: "#/components/schemas/Role"
+        takes_runs:
+          type: boolean
     ServiceAccountKey:
       type: object
       additionalProperties: false
@@ -588,7 +602,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -638,6 +652,19 @@ components:
           type: string
           enum: [revoked, active]
           description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+        mode:
+          type: string
+          enum: [direct, propose]
+          description: How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+        presence:
+          type: string
+          enum: [working, listening, offline]
+          description: working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it last asked for work or reported on a run; null when it never did.
     ConnectedAgentList:
       type: object
       additionalProperties: false
@@ -2561,7 +2588,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know."
+          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know."
         usage:
           nullable: true
           allOf:
@@ -2861,6 +2888,7 @@ components:
         - continue_note
         - continued_by
         - requested_by
+        - assigned_to
         - origin
         - origin_client
         - created_at
@@ -2951,7 +2979,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know."
+          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know."
         steps:
           type: array
           maxItems: 2000
@@ -3006,6 +3034,23 @@ components:
           description: The request that continues this one; its build moved there.
         requested_by:
           $ref: "#/components/schemas/Author"
+        assigned_to:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [kind, id, name]
+          description: The outside agent this run waits for or runs on; null when the server's own agent runs it.
+          properties:
+            kind:
+              type: string
+              enum: [grant, service_account]
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              nullable: true
+              description: The client name of the connected agent, or the service account's name; null when the client registered none or the assignee is gone.
         origin:
           type: string
           enum: [web, cli, mcp, api]

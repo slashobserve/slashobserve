@@ -1,16 +1,30 @@
 -- name: CreateServiceAccount :one
 INSERT INTO service_accounts (name, description, created_by, role) VALUES (@name, @description, @created_by, @role)
-RETURNING id, name, description, created_by, created_at, role, provisioned;
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs;
 
 -- name: ListServiceAccounts :many
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts ORDER BY name;
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts ORDER BY name;
 
 -- name: GetServiceAccount :one
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE id = $1;
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts WHERE id = $1;
 
--- name: SetServiceAccountRole :one
-UPDATE service_accounts SET role = @role WHERE id = @id
-RETURNING id, name, description, created_by, created_at, role, provisioned;
+-- name: UpdateServiceAccount :one
+UPDATE service_accounts
+SET role = COALESCE(sqlc.narg('role')::text, role),
+    takes_runs = COALESCE(sqlc.narg('takes_runs')::boolean, takes_runs)
+WHERE id = @id
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs;
+
+-- name: ListServiceAccountPresence :many
+SELECT s.id, w.seen_at AS worker_seen_at,
+       EXISTS (
+         SELECT 1 FROM agent_requests r
+         WHERE r.status = 'running' AND r.claimed_by = 'service_account:' || s.id::text AND r.lease_until > clock_timestamp()
+       ) AS worker_working,
+       clock_timestamp()::timestamptz AS checked_at
+FROM service_accounts s
+LEFT JOIN agent_workers w ON w.id = 'service_account:' || s.id::text
+WHERE s.id = ANY(@ids::uuid[]);
 
 -- name: CreateServiceAccountKey :one
 INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash, created_by, expires_at)
@@ -38,13 +52,13 @@ WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '5 mi
 SELECT id, name, role FROM service_accounts WHERE id = $1;
 
 -- name: GetServiceAccountByName :one
-SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE name = $1;
+SELECT id, name, description, created_by, created_at, role, provisioned, takes_runs FROM service_accounts WHERE name = $1;
 
 -- name: UpsertProvisionedServiceAccount :one
-INSERT INTO service_accounts (name, description, role, provisioned) VALUES (@name, @description, @role, true)
-ON CONFLICT (name) DO UPDATE SET role = EXCLUDED.role, description = EXCLUDED.description
+INSERT INTO service_accounts (name, description, role, takes_runs, provisioned) VALUES (@name, @description, @role, @takes_runs, true)
+ON CONFLICT (name) DO UPDATE SET role = EXCLUDED.role, description = EXCLUDED.description, takes_runs = EXCLUDED.takes_runs
 WHERE service_accounts.provisioned
-RETURNING id, name, description, created_by, created_at, role, provisioned;
+RETURNING id, name, description, created_by, created_at, role, provisioned, takes_runs;
 
 -- name: ActiveKeyByName :one
 SELECT id, token_hash FROM service_account_keys

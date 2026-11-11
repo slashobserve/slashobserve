@@ -45,6 +45,10 @@ func (r *Registry) getSpecGuide(ctx context.Context, input json.RawMessage) (Res
 	}), nil
 }
 
+func (r *Registry) DatasourceTypes() []spec.DatasourceType {
+	return configuredTypes(r.deps.Datasources)
+}
+
 func configuredTypes(reg *datasource.Registry) []spec.DatasourceType {
 	if reg == nil {
 		return nil

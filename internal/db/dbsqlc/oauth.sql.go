@@ -426,10 +426,18 @@ func (q *Queries) HoldsOAuthSlot(ctx context.Context, arg HoldsOAuthSlotParams) 
 const listOAuthGrants = `-- name: ListOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
-       g.created_at, g.last_used_at, g.expires_at
+       g.created_at, g.last_used_at, g.expires_at,
+       g.mode,
+       w.seen_at AS worker_seen_at,
+       EXISTS (
+         SELECT 1 FROM agent_requests r
+         WHERE r.status = 'running' AND r.claimed_by = 'grant:' || g.id::text AND r.lease_until > clock_timestamp()
+       ) AS worker_working,
+       clock_timestamp()::timestamptz AS checked_at
 FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
+LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.revoked_at IS NULL
   AND g.expires_at > now()
   AND ($1::timestamptz IS NULL
@@ -455,6 +463,10 @@ type ListOAuthGrantsRow struct {
 	CreatedAt          pgtype.Timestamptz
 	LastUsedAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
+	Mode               string
+	WorkerSeenAt       pgtype.Timestamptz
+	WorkerWorking      bool
+	CheckedAt          pgtype.Timestamptz
 }
 
 func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams) ([]ListOAuthGrantsRow, error) {
@@ -477,6 +489,10 @@ func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams
 			&i.CreatedAt,
 			&i.LastUsedAt,
 			&i.ExpiresAt,
+			&i.Mode,
+			&i.WorkerSeenAt,
+			&i.WorkerWorking,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -491,10 +507,18 @@ func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams
 const listUserOAuthGrants = `-- name: ListUserOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
-       g.created_at, g.last_used_at, g.expires_at
+       g.created_at, g.last_used_at, g.expires_at,
+       g.mode,
+       w.seen_at AS worker_seen_at,
+       EXISTS (
+         SELECT 1 FROM agent_requests r
+         WHERE r.status = 'running' AND r.claimed_by = 'grant:' || g.id::text AND r.lease_until > clock_timestamp()
+       ) AS worker_working,
+       clock_timestamp()::timestamptz AS checked_at
 FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
+LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = $1
   AND g.revoked_at IS NULL
   AND g.expires_at > now()
@@ -522,6 +546,10 @@ type ListUserOAuthGrantsRow struct {
 	CreatedAt          pgtype.Timestamptz
 	LastUsedAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
+	Mode               string
+	WorkerSeenAt       pgtype.Timestamptz
+	WorkerWorking      bool
+	CheckedAt          pgtype.Timestamptz
 }
 
 func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGrantsParams) ([]ListUserOAuthGrantsRow, error) {
@@ -549,6 +577,10 @@ func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGran
 			&i.CreatedAt,
 			&i.LastUsedAt,
 			&i.ExpiresAt,
+			&i.Mode,
+			&i.WorkerSeenAt,
+			&i.WorkerWorking,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}

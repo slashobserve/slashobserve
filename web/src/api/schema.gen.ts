@@ -136,8 +136,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the role a service account's keys act with.
-         * @description Service accounts cannot call this endpoint. An account from the service-accounts file answers 409 `provisioned`, because its role comes from the file.
+         * Change a service account's role or whether it takes runs.
+         * @description Service accounts cannot call this endpoint. Send `role`, `takes_runs` or both. An account from the service-accounts file answers 409 `provisioned` for either field, because both come from the file.
          */
         patch: operations["updateServiceAccountRole"];
         trace?: never;
@@ -2846,8 +2846,20 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             role: components["schemas"]["Role"];
-            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there. */
+            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description, `takes_runs` and file key change only there. */
             provisioned: boolean;
+            /** @description It may claim runs assigned to it with claim_run. Admins turn it on; an account from the service-accounts file takes it from `takesRuns`. */
+            takes_runs: boolean;
+            /**
+             * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            presence: "working" | "listening" | "offline";
+            /**
+             * Format: date-time
+             * @description When it last asked for work or reported on a run; null when it never did.
+             */
+            last_seen_at: string | null;
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -2859,7 +2871,8 @@ export interface components {
             role?: components["schemas"]["Role"];
         };
         UpdateServiceAccountRequest: {
-            role: components["schemas"]["Role"];
+            role?: components["schemas"]["Role"];
+            takes_runs?: boolean;
         };
         ServiceAccountKey: {
             /** Format: uuid */
@@ -2961,6 +2974,21 @@ export interface components {
              * @enum {string}
              */
             state: "revoked" | "active";
+            /**
+             * @description How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+             * @enum {string}
+             */
+            mode: "direct" | "propose";
+            /**
+             * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            presence: "working" | "listening" | "offline";
+            /**
+             * Format: date-time
+             * @description When it last asked for work or reported on a run; null when it never did.
+             */
+            last_seen_at: string | null;
         };
         ConnectedAgentList: {
             grants: components["schemas"]["ConnectedAgent"][];
@@ -3969,7 +3997,7 @@ export interface components {
             } | null;
             /** @description Why the suggestion failed, set only when the status is `failed`. */
             error: string | null;
-            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know. */
+            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             /** @description Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
@@ -4149,7 +4177,7 @@ export interface components {
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
-            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know. */
+            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
             /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
@@ -4185,6 +4213,15 @@ export interface components {
              */
             continued_by: string | null;
             requested_by: components["schemas"]["Author"];
+            /** @description The outside agent this run waits for or runs on; null when the server's own agent runs it. */
+            assigned_to: {
+                /** @enum {string} */
+                kind: "grant" | "service_account";
+                /** Format: uuid */
+                id: string;
+                /** @description The client name of the connected agent, or the service account's name; null when the client registered none or the assignee is gone. */
+                name: string | null;
+            } | null;
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
              * @enum {string|null}
@@ -5495,7 +5532,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The service account with its new role. */
+            /** @description The service account with its new role and `takes_runs`. */
             200: {
                 headers: {
                     [name: string]: unknown;

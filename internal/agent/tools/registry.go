@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -146,6 +147,7 @@ type Deps struct {
 	Annotations   *annotations.Service
 	Activity      *activity.Store
 	Runs          RunReader
+	Claims        *claims.Service
 	Search        *search.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL
@@ -432,6 +434,7 @@ var runEnding = []error{
 	errSavedSearchesNotConfigured,
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
+	errClaimsNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {

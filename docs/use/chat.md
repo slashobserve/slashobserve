@@ -196,6 +196,8 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 | `crashed`, `lease_expired`               | The server stopped while it ran this request.              | Try again.                                                             |
 | `no_finding`                             | The agent ended without writing a finding.                 | Ask a narrower question, with the service and the time range.          |
 | `budget_exhausted`                       | The run reached the server's cost limit.                   | Save what was built or continue it, or ask an admin about the limit.   |
+| `agent_unavailable`                      | No outside agent took this run within 10 minutes.          | Check that the agent is connected and asking for work, then try again. |
+| `agent_failed`                           | The outside agent said it could not finish the run.        | Read its message, then try again.                                      |
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.

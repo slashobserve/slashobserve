@@ -43,12 +43,14 @@ type provisionedState struct {
 	Provisioned bool
 	Role        Role
 	Description string
+	TakesRuns   bool
 	KeyHash     []byte
 }
 
 type provisionTarget struct {
 	Role        Role
 	Description string
+	TakesRuns   bool
 	KeyHash     []byte
 }
 
@@ -77,7 +79,7 @@ func planProvision(current provisionedState, want provisionTarget) (provisionPla
 		return provisionPlan{}, errNotProvisioned
 	}
 	plan := provisionPlan{Account: accountKeep, Key: keyKeep}
-	if current.Role != want.Role || current.Description != want.Description {
+	if current.Role != want.Role || current.Description != want.Description || current.TakesRuns != want.TakesRuns {
 		plan.Account = accountUpdate
 	}
 	switch {
@@ -104,7 +106,7 @@ func (s *Service) ensureProvisioned(ctx context.Context, a config.ServiceAccount
 		return &ProvisionRefusedError{Name: a.Name, Reason: reasonUnknownRole}
 	}
 	token := a.Key.Reveal()
-	want := provisionTarget{Role: role, Description: a.Description, KeyHash: opaquetoken.Hash(token)}
+	want := provisionTarget{Role: role, Description: a.Description, TakesRuns: a.TakesRuns, KeyHash: opaquetoken.Hash(token)}
 	current, accountID, err := s.provisionedState(ctx, a.Name)
 	if err != nil {
 		return fmt.Errorf("read service account: %w", err)
@@ -115,7 +117,7 @@ func (s *Service) ensureProvisioned(ctx context.Context, a config.ServiceAccount
 	}
 	if plan.Account != accountKeep {
 		row, err := s.queries.UpsertProvisionedServiceAccount(ctx, dbsqlc.UpsertProvisionedServiceAccountParams{
-			Name: a.Name, Description: a.Description, Role: string(role),
+			Name: a.Name, Description: a.Description, Role: string(role), TakesRuns: a.TakesRuns,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return &ProvisionRefusedError{Name: a.Name, Reason: reasonNotProvisioned}
@@ -140,7 +142,7 @@ func (s *Service) ensureProvisioned(ctx context.Context, a config.ServiceAccount
 		}
 	}
 	s.logger.InfoContext(ctx, "service account provisioned", slog.String("service_account", a.Name),
-		slog.String("account", string(plan.Account)), slog.String("key", string(plan.Key)), slog.String("role", string(role)))
+		slog.String("account", string(plan.Account)), slog.String("key", string(plan.Key)), slog.String("role", string(role)), slog.Bool("takes_runs", a.TakesRuns))
 	return nil
 }
 
@@ -152,7 +154,7 @@ func (s *Service) provisionedState(ctx context.Context, name string) (provisione
 	if err != nil {
 		return provisionedState{}, pgtype.UUID{}, err
 	}
-	state := provisionedState{Exists: true, Provisioned: account.Provisioned, Role: Role(account.Role), Description: account.Description}
+	state := provisionedState{Exists: true, Provisioned: account.Provisioned, Role: Role(account.Role), Description: account.Description, TakesRuns: account.TakesRuns}
 	key, err := s.queries.ActiveKeyByName(ctx, dbsqlc.ActiveKeyByNameParams{ServiceAccountID: account.ID, Name: fileKeyName})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):

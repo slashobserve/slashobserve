@@ -9,6 +9,9 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 type listedGrant struct {
@@ -28,6 +31,9 @@ type listedGrant struct {
 	LastUsedAt *string `json:"last_used_at"`
 	ExpiresAt  string  `json:"expires_at"`
 	State      string  `json:"state"`
+	Mode       string  `json:"mode"`
+	Presence   string  `json:"presence"`
+	LastSeenAt *string `json:"last_seen_at"`
 }
 
 type grantPageJSON struct {
@@ -81,7 +87,7 @@ func TestPersonListsOnlyTheirOwnGrants(t *testing.T) {
 		if g.Person.ID != ada.ID || g.Person.Name != "Ada" || g.Person.Email != "ada@example.com" {
 			t.Errorf("a grant of someone else is listed: %+v", g.Person)
 		}
-		if g.Client.RedirectHost != "127.0.0.1:33418" || !g.Client.Local || g.LastUsedAt != nil || g.CreatedAt == "" || g.ExpiresAt == "" || g.State != "active" {
+		if g.Client.RedirectHost != "127.0.0.1:33418" || !g.Client.Local || g.LastUsedAt != nil || g.CreatedAt == "" || g.ExpiresAt == "" || g.State != "active" || g.Mode != "direct" || g.Presence != "offline" || g.LastSeenAt != nil {
 			t.Errorf("grant fields %+v", g)
 		}
 	}
@@ -109,6 +115,67 @@ func TestGrantListShowsLastUseAfterTheClientCallsMCP(t *testing.T) {
 	}
 	if g := r.grants(t, ada, "/me/grants").Grants[0]; g.LastUsedAt == nil {
 		t.Fatalf("last_used_at is null after use: %+v", g)
+	}
+}
+
+func TestGrantListShowsPresenceFromTheAgentWorkerAndHeldRuns(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	r.connect(t, ada, clientID)
+	grantID := r.grantOf(t, ada, clientID)
+	key := revisions.Claimant{Kind: revisions.AssignGrant, ID: grantID}.Key()
+	presenceOf := func() listedGrant { return r.grants(t, ada, "/me/grants").Grants[0] }
+
+	if g := presenceOf(); g.Presence != "offline" || g.LastSeenAt != nil || g.Mode != "direct" {
+		t.Fatalf("a fresh grant = %+v, want direct, offline and never seen", g)
+	}
+
+	r.db.Exec(t, `INSERT INTO agent_workers (id, principal_kind, principal_id, seen_at) VALUES ($1, 'grant', $2::uuid, now())`, key, grantID)
+	if g := presenceOf(); g.Presence != "listening" || g.LastSeenAt == nil {
+		t.Fatalf("after it asked for work = %+v, want listening with last_seen_at", g)
+	}
+	if g := r.grants(t, root, "/grants").Grants[0]; g.Presence != "listening" {
+		t.Fatalf("the admin list = %+v, want listening too", g)
+	}
+
+	r.db.Exec(t, `UPDATE agent_workers SET seen_at = now() - interval '5 minutes' WHERE id = $1`, key)
+	if g := presenceOf(); g.Presence != "offline" || g.LastSeenAt == nil {
+		t.Fatalf("after five quiet minutes = %+v, want offline with last_seen_at kept", g)
+	}
+
+	holdRun(t, r, grantID, key)
+	if g := presenceOf(); g.Presence != "working" {
+		t.Fatalf("while it holds a run = %+v, want working", g)
+	}
+}
+
+func holdRun(t *testing.T, r *rig, grantID, claimedBy string) {
+	t.Helper()
+	author, err := db.ParseUUID(ada.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dash, err := r.db.Queries().CreateDashboard(t.Context(), dbsqlc.CreateDashboardParams{
+		Title: "t", Tags: []string{}, CreatedByKind: "user", CreatedByID: author, CreatedByName: "Ada", CreatedVia: "direct",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, status, state, lease_until, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, claimed_by)
+		VALUES ($1, 'prompt', 'p', 1, 'running', 'running', now() + interval '1 minute', 'user', $2, 'Ada', 'grant', $3::uuid, $4)`, dash.ID, ada.ID, grantID, claimedBy)
+}
+
+func TestGrantClaimKeyInSQLMatchesTheClaimantKey(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	r.connect(t, ada, clientID)
+	grantID := r.grantOf(t, ada, clientID)
+	var sqlKey string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT 'grant:' || id::text FROM oauth_grants WHERE id = $1::uuid`, grantID).Scan(&sqlKey); err != nil {
+		t.Fatal(err)
+	}
+	if want := (revisions.Claimant{Kind: revisions.AssignGrant, ID: grantID}).Key(); sqlKey != want {
+		t.Fatalf("the query builds %q, the claimant key is %q", sqlKey, want)
 	}
 }
 

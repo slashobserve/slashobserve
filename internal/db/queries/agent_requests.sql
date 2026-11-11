@@ -29,6 +29,8 @@ WITH picked AS (
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
     AND r.cancel_requested_at IS NULL
     AND r.attempts < @max_attempts::integer
+    AND r.assigned_kind = @assigned_kind::text
+    AND r.assigned_id IS NOT DISTINCT FROM sqlc.narg('assigned_id')::uuid
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
       WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source NOT IN ('suggest', 'investigate') AND o.id <> r.id
@@ -42,7 +44,8 @@ SET state = 'running',
   status = 'running',
   attempts = attempts + 1,
   lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
+  started_at = coalesce(started_at, clock_timestamp()),
+  claimed_by = @claimed_by::text
 FROM picked
 WHERE agent_requests.id = picked.id
 RETURNING sqlc.embed(agent_requests), picked.first_claim::boolean AS first_claim;
@@ -342,3 +345,33 @@ RETURNING *;
 
 -- name: ArchiveAgentRequest :execrows
 UPDATE agent_requests SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE id = @id;
+
+-- name: GetAssigneeName :one
+SELECT coalesce(
+  (SELECT c.name FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id WHERE @kind::text = 'grant' AND g.id = @id::uuid),
+  (SELECT s.name FROM service_accounts s WHERE @kind::text = 'service_account' AND s.id = @id::uuid),
+  ''
+)::text AS name;
+
+-- name: ExpireUnclaimedAgentRequests :many
+UPDATE agent_requests r
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
+  result_version = saved.version,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
+  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE @message::text END,
+  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'agent_unavailable' END,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+FROM agent_requests e
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
+LEFT JOIN findings f ON f.agent_request_id = e.id
+WHERE r.id = e.id
+  AND r.status IN ('queued', 'running')
+  AND r.state = ANY(@from_states::text[])
+  AND r.assigned_kind <> 'builtin'
+  AND r.cancel_requested_at IS NULL
+  AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
+  AND greatest(r.created_at, coalesce(r.lease_until, r.created_at)) < clock_timestamp() - make_interval(secs => @unclaimed_seconds::double precision)
+RETURNING r.*;
