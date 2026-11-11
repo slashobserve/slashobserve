@@ -74,6 +74,18 @@ type rig struct {
 	revisions *revisions.Service
 }
 
+func (r *rig) saveRequest(t *testing.T, id pgtype.UUID, parent int, raw []byte, summary string, request pgtype.UUID) (Dashboard, Version, bool, error) {
+	t.Helper()
+	res, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: parent, Spec: raw, Summary: summary, RequestID: request})
+	return res.Dashboard, res.Version, res.Replayed, err
+}
+
+func (r *rig) saveChangedRequest(t *testing.T, id pgtype.UUID, parent int, raw []byte, summary string, request pgtype.UUID) (Dashboard, Version, bool, error) {
+	t.Helper()
+	res, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: parent, Spec: raw, Summary: summary, RequestID: request, Partial: true})
+	return res.Dashboard, res.Version, res.Replayed, err
+}
+
 func newRig(t *testing.T, agent bool) *rig {
 	t.Helper()
 	database := dbtest.New(t)
@@ -135,15 +147,15 @@ func TestRequestVersionIsSavedExactlyOnce(t *testing.T) {
 	dash := r.createDashboard(t)
 	request := r.queueRevision(t, dash)
 
-	_, first, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
+	_, first, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
 	if err != nil || replayed || first.Number != 2 {
 		t.Fatalf("first save: version %d, replayed %t, err %v", first.Number, replayed, err)
 	}
-	_, again, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
+	_, again, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
 	if err != nil || !replayed || again.Number != 2 {
 		t.Fatalf("repeat: version %d, replayed %t, err %v", again.Number, replayed, err)
 	}
-	_, different, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 2, panelsSpec("t", "rps", "other"), "second try", request)
+	_, different, replayed, err := r.saveRequest(t, dash, 2, panelsSpec("t", "rps", "other"), "second try", request)
 	if err != nil || !replayed || different.Number != 2 || len(different.Spec.Panels) != 2 || different.Spec.Panels[1].ID != "p99" {
 		t.Fatalf("second attempt with another spec: version %d, replayed %t, err %v", different.Number, replayed, err)
 	}
@@ -156,13 +168,13 @@ func TestRequestVersionReplaysEvenWhenTheDashboardMovedOn(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
 	request := r.queueRevision(t, dash)
-	if _, _, _, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request); err != nil {
+	if _, _, _, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 2, panelsSpec("t", "rps"), "someone else"); err != nil {
 		t.Fatal(err)
 	}
-	_, ver, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
+	_, ver, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
 	if err != nil || !replayed || ver.Number != 2 {
 		t.Fatalf("version %d, replayed %t, err %v", ver.Number, replayed, err)
 	}
@@ -179,7 +191,7 @@ func TestConcurrentSavesForOneRequestCreateOneVersion(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, ver, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
+			_, ver, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
 			switch {
 			case err != nil:
 				t.Errorf("save: %v", err)
@@ -205,10 +217,10 @@ func TestRequestIdOfAnotherDashboardIsAConflictNotAReplay(t *testing.T) {
 	r := newRig(t, true)
 	dash, other := r.createDashboard(t), r.createDashboard(t)
 	request := r.queueRevision(t, dash)
-	if _, _, _, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "first", request); err != nil {
+	if _, _, _, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request); err != nil {
 		t.Fatal(err)
 	}
-	_, _, _, err := r.service.AddRequestVersion(t.Context(), testUser, other, 1, panelsSpec("t", "rps", "p99"), "stolen", request)
+	_, _, _, err := r.saveRequest(t, other, 1, panelsSpec("t", "rps", "p99"), "stolen", request)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("err = %v, want a conflict", err)
@@ -225,7 +237,7 @@ func TestRequestSaveNeverReplaysAnIdenticalSaveMadeWithoutItsId(t *testing.T) {
 	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "same spec, no request id"); err != nil {
 		t.Fatal(err)
 	}
-	_, _, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "same spec", request)
+	_, _, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "same spec", request)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || replayed || conflict.Latest != 2 {
 		t.Fatalf("replayed %t, err %v, want a conflict at version 2", replayed, err)

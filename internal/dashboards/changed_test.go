@@ -194,7 +194,7 @@ func (r *rig) mergedPatch(t *testing.T, id pgtype.UUID, parent int, patch spec.P
 
 func (r *rig) saveChanged(t *testing.T, id pgtype.UUID, parent int, patch spec.PanelPatch) (Version, error) {
 	t.Helper()
-	_, ver, _, err := r.service.AddChangedVersion(t.Context(), testUser, id, parent, r.mergedPatch(t, id, parent, patch), "patch", pgtype.UUID{})
+	_, ver, _, err := r.saveChangedRequest(t, id, parent, r.mergedPatch(t, id, parent, patch), "patch", pgtype.UUID{})
 	return ver, err
 }
 
@@ -378,17 +378,17 @@ func TestChangedSaveAnswersConflictsAndReplaysRequests(t *testing.T) {
 	request := r.queueRevision(t, id)
 	raw := r.mergedPatch(t, id, 1, upsert(1, panelDef{id: "p1", query: "next1"}))
 
-	_, first, replayed, err := r.service.AddChangedVersion(t.Context(), testUser, id, 1, raw, "patch", request)
+	_, first, replayed, err := r.saveChangedRequest(t, id, 1, raw, "patch", request)
 	if err != nil || replayed || first.Number != 2 {
 		t.Fatalf("first: version %d replayed %t err %v", first.Number, replayed, err)
 	}
-	_, again, replayed, err := r.service.AddChangedVersion(t.Context(), testUser, id, 1, raw, "patch", request)
+	_, again, replayed, err := r.saveChangedRequest(t, id, 1, raw, "patch", request)
 	if err != nil || !replayed || again.Number != 2 {
 		t.Fatalf("repeat: version %d replayed %t err %v", again.Number, replayed, err)
 	}
 
 	other := r.mergedPatch(t, id, 1, upsert(0, panelDef{id: "p0", query: "next0"}))
-	_, _, _, err = r.service.AddChangedVersion(t.Context(), testUser, id, 1, other, "patch", pgtype.UUID{})
+	_, _, _, err = r.saveChangedRequest(t, id, 1, other, "patch", pgtype.UUID{})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || conflict.Latest != 2 {
 		t.Fatalf("stale parent: err %v, want a conflict at version 2", err)

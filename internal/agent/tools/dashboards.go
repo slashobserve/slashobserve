@@ -434,11 +434,17 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	} else if !ok {
 		return res, nil
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.AddRequestVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary), requestID)
+	saved, err := r.deps.Dashboards.Save(ctx, principal, dashboards.SaveInput{
+		DashboardID: target.id,
+		Parent:      target.parent,
+		Spec:        in.Spec,
+		Summary:     summaryOr(in.Summary, defaultUpdateSummary),
+		RequestID:   requestID,
+	})
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+	return success("Saved version "+strconv.Itoa(saved.Version.Number), withAdvice(ctx, r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed), saved.Version.Spec)), nil
 }
 
 func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
