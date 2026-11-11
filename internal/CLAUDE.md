@@ -218,6 +218,7 @@ This lists only the packages whose purpose the name does not make obvious.
 
 ## Query proxy and datasources
 
+- An HTTP datasource (Prometheus, Loki, Tempo, Elasticsearch) builds its client on `datasource.NewHTTPTransport`, never a bare clone of `http.DefaultTransport`: that keeps 2 idle connections per host, so a burst of concurrent calls redials and the closed sockets exhaust the ephemeral ports within a minute (`datasource_unavailable: connection failed`).
 - The proxy accepts no query text (403 `query_not_in_spec`).
   The one exception is `POST /api/v1/datasources/{uid}/preview`, which places a signed-in user's draft panel into a saved version with `spec.WithPanel`, runs it with `DraftLimits` (which apply to every query whose text did not come from a saved Spec), never caches or coalesces it and refuses a bearer key (403 `user_session_required`).
 - The proxy's caches are shared by everyone, so a version whose queries reference `${__user.*}` is cached per principal.
