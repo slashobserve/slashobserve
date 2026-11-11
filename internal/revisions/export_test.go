@@ -12,7 +12,7 @@ func (s *Service) SetLeaseTTL(d time.Duration) { s.leaseTTL = d }
 func (w *Worker) SetHeartbeat(d time.Duration) { w.heartbeat = d }
 
 func (s *Service) Claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
-	claimed, found, err := s.claim(ctx)
+	claimed, found, err := s.claim(ctx, Claimant{Kind: AssignBuiltin})
 	return claimed.request, found, err
 }
 

@@ -171,10 +171,12 @@ const claimAgentRequest = `-- name: ClaimAgentRequest :one
 WITH picked AS (
   SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
   WHERE r.status IN ('queued', 'running')
-    AND r.state = ANY($2::text[])
+    AND r.state = ANY($3::text[])
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
     AND r.cancel_requested_at IS NULL
-    AND r.attempts < $3::integer
+    AND r.attempts < $4::integer
+    AND r.assigned_kind = $5::text
+    AND r.assigned_id IS NOT DISTINCT FROM $6::uuid
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
       WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source NOT IN ('suggest', 'investigate') AND o.id <> r.id
@@ -188,7 +190,8 @@ SET state = 'running',
   status = 'running',
   attempts = attempts + 1,
   lease_until = clock_timestamp() + make_interval(secs => $1::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
+  started_at = coalesce(started_at, clock_timestamp()),
+  claimed_by = $2::text
 FROM picked
 WHERE agent_requests.id = picked.id
 RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, picked.first_claim::boolean AS first_claim
@@ -196,8 +199,11 @@ RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source,
 
 type ClaimAgentRequestParams struct {
 	LeaseSeconds float64
+	ClaimedBy    string
 	FromStates   []string
 	MaxAttempts  int32
+	AssignedKind string
+	AssignedID   pgtype.UUID
 }
 
 type ClaimAgentRequestRow struct {
@@ -206,7 +212,14 @@ type ClaimAgentRequestRow struct {
 }
 
 func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestParams) (ClaimAgentRequestRow, error) {
-	row := q.db.QueryRow(ctx, claimAgentRequest, arg.LeaseSeconds, arg.FromStates, arg.MaxAttempts)
+	row := q.db.QueryRow(ctx, claimAgentRequest,
+		arg.LeaseSeconds,
+		arg.ClaimedBy,
+		arg.FromStates,
+		arg.MaxAttempts,
+		arg.AssignedKind,
+		arg.AssignedID,
+	)
 	var i ClaimAgentRequestRow
 	err := row.Scan(
 		&i.AgentRequest.ID,
@@ -1033,6 +1046,26 @@ func (q *Queries) GetAgentRequestSavedVersion(ctx context.Context, arg GetAgentR
 	var i GetAgentRequestSavedVersionRow
 	err := row.Scan(&i.DashboardID, &i.Version)
 	return i, err
+}
+
+const getAssigneeName = `-- name: GetAssigneeName :one
+SELECT coalesce(
+  (SELECT c.name FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id WHERE $1::text = 'grant' AND g.id = $2::uuid),
+  (SELECT s.name FROM service_accounts s WHERE $1::text = 'service_account' AND s.id = $2::uuid),
+  ''
+)::text AS name
+`
+
+type GetAssigneeNameParams struct {
+	Kind string
+	ID   pgtype.UUID
+}
+
+func (q *Queries) GetAssigneeName(ctx context.Context, arg GetAssigneeNameParams) (string, error) {
+	row := q.db.QueryRow(ctx, getAssigneeName, arg.Kind, arg.ID)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const getSuggestRequest = `-- name: GetSuggestRequest :one

@@ -19,7 +19,7 @@ RETURNING id`
 
 type assignedRequest struct {
 	source, dashboardID, panelID, kind, assignedID string
-	baseVersion                                     int
+	baseVersion                                    int
 }
 
 type columnRef struct{ table, column string }

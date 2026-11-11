@@ -140,7 +140,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id
-		if out.Status == StatusSucceeded && out.Kind == kindBuild && r.opts.DashboardURL != nil {
+		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
 			url := r.opts.DashboardURL(id, "")
 			out.URL = &url
 		}

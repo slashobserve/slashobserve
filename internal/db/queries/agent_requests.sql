@@ -29,6 +29,8 @@ WITH picked AS (
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
     AND r.cancel_requested_at IS NULL
     AND r.attempts < @max_attempts::integer
+    AND r.assigned_kind = @assigned_kind::text
+    AND r.assigned_id IS NOT DISTINCT FROM sqlc.narg('assigned_id')::uuid
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
       WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source NOT IN ('suggest', 'investigate') AND o.id <> r.id
@@ -42,7 +44,8 @@ SET state = 'running',
   status = 'running',
   attempts = attempts + 1,
   lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
+  started_at = coalesce(started_at, clock_timestamp()),
+  claimed_by = @claimed_by::text
 FROM picked
 WHERE agent_requests.id = picked.id
 RETURNING sqlc.embed(agent_requests), picked.first_claim::boolean AS first_claim;
@@ -342,3 +345,10 @@ RETURNING *;
 
 -- name: ArchiveAgentRequest :execrows
 UPDATE agent_requests SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE id = @id;
+
+-- name: GetAssigneeName :one
+SELECT coalesce(
+  (SELECT c.name FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id WHERE @kind::text = 'grant' AND g.id = @id::uuid),
+  (SELECT s.name FROM service_accounts s WHERE @kind::text = 'service_account' AND s.id = @id::uuid),
+  ''
+)::text AS name;

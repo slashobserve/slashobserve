@@ -56,8 +56,8 @@ const (
 )
 
 const (
-	kindBuild       = "build"
-	kindInvestigate = "investigate"
+	KindBuild       = "build"
+	KindInvestigate = "investigate"
 )
 
 type Status string
@@ -267,6 +267,8 @@ type Revision struct {
 	BuildSavedAt *time.Time
 	ContinuesID  string
 	ContinueNote string
+	AssignedKind AssigneeKind
+	AssignedID   string
 }
 
 func CleanPrompt(s string) (string, bool) {
@@ -279,9 +281,9 @@ func CleanPrompt(s string) (string, bool) {
 
 func Kind(source Source) string {
 	if source == SourceInvestigate {
-		return kindInvestigate
+		return KindInvestigate
 	}
-	return kindBuild
+	return KindBuild
 }
 
 func DefaultTitle(prompt string) string {

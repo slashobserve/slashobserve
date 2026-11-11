@@ -542,10 +542,14 @@ type claimResult struct {
 	firstClaim bool
 }
 
-func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
+func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, error) {
+	assignedID, err := c.assignedID()
+	if err != nil {
+		return claimResult{}, false, err
+	}
 	var claimed claimResult
 	found := false
-	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
+	err = s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
@@ -571,7 +575,9 @@ func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
 				}
 			}
 		}
-		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
+		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts,
+			AssignedKind: string(c.Kind), AssignedID: assignedID, ClaimedBy: c.Key(),
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -768,6 +774,8 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		CreatedAt:    row.CreatedAt.Time.UTC(),
 		Origin:       row.Origin.String,
 		OriginClient: row.OriginClient.String,
+		AssignedKind: AssigneeKind(row.AssignedKind),
+		AssignedID:   row.AssignedID.String(),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

@@ -47,6 +47,7 @@ type noWorkerMetrics struct{}
 func (noWorkerMetrics) RequestClaimed(string, time.Duration) {}
 
 type WorkerOptions struct {
+	InstanceID string
 	Workers    int
 	Poll       time.Duration
 	RunTimeout time.Duration
@@ -54,10 +55,11 @@ type WorkerOptions struct {
 }
 
 type Worker struct {
-	service *Service
-	listen  events.Listener
-	logger  *slog.Logger
-	opts    WorkerOptions
+	service  *Service
+	listen   events.Listener
+	logger   *slog.Logger
+	opts     WorkerOptions
+	claimant Claimant
 
 	heartbeat time.Duration
 }
@@ -78,7 +80,7 @@ func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, op
 	if opts.Metrics == nil {
 		opts.Metrics = noWorkerMetrics{}
 	}
-	return &Worker{service: service, listen: listen, logger: logger, opts: opts, heartbeat: heartbeatEvery}
+	return &Worker{service: service, listen: listen, logger: logger, opts: opts, heartbeat: heartbeatEvery, claimant: Claimant{Kind: AssignBuiltin, ID: opts.InstanceID}}
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -157,7 +159,7 @@ func (w *Worker) loop(ctx context.Context, wake <-chan struct{}) {
 }
 
 func (w *Worker) step(ctx context.Context) (bool, error) {
-	result, found, err := w.service.claim(ctx)
+	result, found, err := w.service.claim(ctx, w.claimant)
 	if err != nil || !found {
 		return false, err
 	}
