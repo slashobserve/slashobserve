@@ -440,3 +440,37 @@ type User struct {
 	ManualRoleByName pgtype.Text
 	Groups           []string
 }
+
+type Webhook struct {
+	ID                  pgtype.UUID
+	Name                string
+	Url                 string
+	SecretCiphertext    []byte
+	EventTypes          []string
+	OwnerKind           string
+	OwnerID             pgtype.UUID
+	CursorXid           pgtype.Uint64
+	CursorSeq           int64
+	ConsecutiveFailures int32
+	NextAttemptAt       pgtype.Timestamptz
+	LeaseID             pgtype.UUID
+	LeasedBy            pgtype.Text
+	LeaseUntil          pgtype.Timestamptz
+	DisabledAt          pgtype.Timestamptz
+	DisabledReason      pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+}
+
+type WebhookDelivery struct {
+	ID          int64
+	WebhookID   pgtype.UUID
+	DeliveryID  string
+	EventType   string
+	ActivitySeq pgtype.Int8
+	AttemptedAt pgtype.Timestamptz
+	DurationMs  int32
+	StatusCode  pgtype.Int4
+	Outcome     string
+	ErrorCode   pgtype.Text
+}
