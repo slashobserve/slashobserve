@@ -84,17 +84,18 @@ type Version struct {
 }
 
 type newVersion struct {
-	dashboardID  pgtype.UUID
-	parent       int
-	restoredFrom *int
-	spec         *spec.Dashboard
-	canonical    []byte
-	summary      string
-	author       Author
-	requestID    pgtype.UUID
-	origin       origin.Origin
-	unverified   Unverified
-	folder       folders.Folder
+	dashboardID    pgtype.UUID
+	parent         int
+	restoredFrom   *int
+	spec           *spec.Dashboard
+	canonical      []byte
+	summary        string
+	author         Author
+	requestID      pgtype.UUID
+	origin         origin.Origin
+	unverified     Unverified
+	folder         folders.Folder
+	mergedProposal pgtype.UUID
 }
 
 type store struct {
@@ -292,17 +293,18 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	}
 	originKind, originClient := in.origin.Columns()
 	params := dbsqlc.InsertDashboardVersionParams{
-		DashboardID:    in.dashboardID,
-		Version:        httpapi.Int32(number),
-		Spec:           in.canonical,
-		Summary:        in.summary,
-		AuthorKind:     in.author.Kind,
-		AuthorID:       authorID,
-		AuthorName:     in.author.Name,
-		AuthorEmail:    pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
-		AgentRequestID: in.requestID,
-		Origin:         originKind,
-		OriginClient:   originClient,
+		DashboardID:      in.dashboardID,
+		Version:          httpapi.Int32(number),
+		Spec:             in.canonical,
+		Summary:          in.summary,
+		AuthorKind:       in.author.Kind,
+		AuthorID:         authorID,
+		AuthorName:       in.author.Name,
+		AuthorEmail:      pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		AgentRequestID:   in.requestID,
+		Origin:           originKind,
+		OriginClient:     originClient,
+		MergedProposalID: in.mergedProposal,
 	}
 	if !in.unverified.Empty() {
 		params.Unverified, err = json.Marshal(in.unverified)
