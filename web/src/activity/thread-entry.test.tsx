@@ -34,6 +34,7 @@ function comment(overrides: Partial<Comment>): Comment {
     panel_id: null,
     body: "Latency looks high",
     status: "open",
+    allowed_actions: ["reply", "resolve"],
     author: ada,
     actor,
     created_at: "2026-11-06T10:00:00Z",
@@ -58,6 +59,7 @@ function thread(
   const resolved = status === "resolved"
   const root = comment({
     status,
+    allowed_actions: resolved ? ["reply", "reopen"] : ["reply", "resolve"],
     resolved_at: resolved ? "2026-11-06T11:00:00Z" : null,
     resolved_by: resolved ? grace : null,
     resolved_actor: resolved
@@ -101,7 +103,6 @@ function threadView(
           panelTitle={null}
           onSelectPanel={() => {}}
           gate={{ kind: "hidden" }}
-          canComment
           latestVersion={1}
           clientName="Claude Code"
         />
@@ -128,6 +129,25 @@ describe("ThreadEntry", () => {
     expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument()
     expect(screen.getByText("Looking now")).toBeInTheDocument()
+  })
+
+  it("shows Reply and no Resolve when the server offers only reply", () => {
+    renderThread("open", { root: { allowed_actions: ["reply"] } })
+    expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Reopen" })).toBeNull()
+  })
+
+  it("shows nothing to do when the server offers no action", () => {
+    renderThread("open", { root: { allowed_actions: [] } })
+    expect(screen.queryByRole("button", { name: "Reply" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull()
+  })
+
+  it("shows Reopen on a resolved thread that the server lets the reader reopen", () => {
+    renderThread("resolved", { root: { allowed_actions: ["reply", "reopen"] } })
+    expect(screen.getByRole("button", { name: "Reopen" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull()
   })
 
   it("labels each comment with its actor", () => {

@@ -310,7 +310,6 @@ export function ActivityFeed({
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}
-            canComment={permissions.comment}
             latestVersion={latestVersion}
             clientName={clientName}
           />
