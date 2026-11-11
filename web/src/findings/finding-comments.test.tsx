@@ -177,7 +177,7 @@ describe("FindingComments", () => {
       name: "Comment on this finding",
     })
     await user.type(field, "Looks like the deploy")
-    await user.click(screen.getByRole("button", { name: "Comment" }))
+    await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(sent).toHaveLength(1))
     expect(sent[0]).toEqual({
       method: "POST",
@@ -200,7 +200,7 @@ describe("FindingComments", () => {
     await user.type(screen.getByRole("textbox", { name: "Reply" }), "Agreed")
     await user.click(
       within(screen.getByRole("form", { name: "Reply" })).getByRole("button", {
-        name: "Reply",
+        name: "Send",
       })
     )
     await waitFor(() => expect(sent).toHaveLength(1))
