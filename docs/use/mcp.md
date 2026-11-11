@@ -18,6 +18,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 
 | Tool | Lowest role |
 | ---- | ----------- |
+| `claim_run` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
@@ -25,6 +26,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `create_finding` | Editor |
 | `draft_query` | Viewer |
 | `edit_comment` | Viewer |
+| `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_panels` | Viewer |
 | `get_run` | Viewer |
@@ -54,6 +56,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `query_range` | Viewer |
 | `reopen_comment` | Viewer |
 | `reply_to_comment` | Viewer |
+| `report_run` | Viewer |
 | `resolve_comment` | Viewer |
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
