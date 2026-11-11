@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 const (
@@ -195,7 +196,7 @@ func (s *Service) createKey(c *gin.Context) {
 	if !s.serviceAccountExists(c, accountID) {
 		return
 	}
-	token, hash, err := newToken(keyPrefix)
+	token, hash, err := opaquetoken.New(keyPrefix)
 	if err != nil {
 		s.internalError(c, "generate key", err)
 		return

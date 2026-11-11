@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 func TestNewTokenShape(t *testing.T) {
-	plaintext, hash, err := newToken()
+	plaintext, hash, err := opaquetoken.New(tokenPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,13 +19,13 @@ func TestNewTokenShape(t *testing.T) {
 	if !validTokenShape(plaintext) {
 		t.Fatalf("a new token fails the shape check")
 	}
-	if !bytes.Equal(hash, hashToken(plaintext)) || len(hash) != 32 {
+	if !bytes.Equal(hash, opaquetoken.Hash(plaintext)) || len(hash) != 32 {
 		t.Fatalf("the stored hash is not the SHA-256 of the token")
 	}
 	if got := displayPrefix(plaintext); got != plaintext[:12] || len(got) != 12 {
 		t.Fatalf("display prefix %q", got)
 	}
-	other, _, err := newToken()
+	other, _, err := opaquetoken.New(tokenPrefix)
 	if err != nil || other == plaintext {
 		t.Fatalf("two tokens are equal or failed: %v", err)
 	}

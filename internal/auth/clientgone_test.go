@@ -62,7 +62,7 @@ func assertNoServerError(t *testing.T, logs *logtest.Capture, rec *httptest.Resp
 }
 
 func TestClientGoingAwayDuringAnAuthDatabaseCallIsNotAServerError(t *testing.T) {
-	bearer := "Bearer " + keyPrefix + strings.Repeat("a", keyLength-len(keyPrefix))
+	bearer := "Bearer " + keyPrefix + strings.Repeat("a", 43)
 	cases := []struct {
 		name   string
 		method string

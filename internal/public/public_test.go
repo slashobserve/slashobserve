@@ -1,7 +1,6 @@
 package public
 
 import (
-	"crypto/sha256"
 	"errors"
 	"log/slog"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -169,8 +169,7 @@ func TestCreatedLinkResolvesUntilRevoked(t *testing.T) {
 		t.Fatalf("prefix %q of %q", created.Link.Prefix, created.Token)
 	}
 	var stored int
-	sum := sha256.Sum256([]byte(created.Token))
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM public_links WHERE token_hash = $1 AND position($2 in display_prefix || selections::text || created_by_name) = 0`, sum[:], created.Token).Scan(&stored); err != nil || stored != 1 {
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM public_links WHERE token_hash = $1 AND position($2 in display_prefix || selections::text || created_by_name) = 0`, opaquetoken.Hash(created.Token), created.Token).Scan(&stored); err != nil || stored != 1 {
 		t.Fatalf("the row is not stored by hash alone: %d, %v", stored, err)
 	}
 	resolved, err := r.service.Resolve(t.Context(), created.Token)

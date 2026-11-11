@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 const (
@@ -90,11 +91,11 @@ func (s *Service) login(c *gin.Context) {
 }
 
 func newLoginSecrets() (state string, stateHash []byte, nonce, verifier string, err error) {
-	state, stateHash, err = newToken("")
+	state, stateHash, err = opaquetoken.New("")
 	if err != nil {
 		return "", nil, "", "", err
 	}
-	nonce, _, err = newToken("")
+	nonce, _, err = opaquetoken.New("")
 	if err != nil {
 		return "", nil, "", "", err
 	}
@@ -111,7 +112,7 @@ func (s *Service) callback(c *gin.Context) {
 		s.refuse(c, &loginFailure{code: "state_mismatch"})
 		return
 	}
-	stored, err := s.queries.ConsumeLoginState(ctx, hashToken(state))
+	stored, err := s.queries.ConsumeLoginState(ctx, opaquetoken.Hash(state))
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.refuse(c, &loginFailure{code: "state_mismatch"})
 		return
@@ -131,7 +132,7 @@ func (s *Service) callback(c *gin.Context) {
 		return
 	}
 	if old, err := c.Request.Cookie(s.sessionCookie); err == nil && old.Value != "" {
-		if err := s.queries.DeleteSession(ctx, hashToken(old.Value)); err != nil {
+		if err := s.queries.DeleteSession(ctx, opaquetoken.Hash(old.Value)); err != nil {
 			s.logger.WarnContext(ctx, "delete previous session", logattrs.Failure("session_cleanup_failed", err)...)
 		}
 	}
@@ -188,7 +189,7 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	if err := s.assignRole(ctx, user, groups); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
-	token, hash, err := newToken("")
+	token, hash, err := opaquetoken.New("")
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
@@ -269,7 +270,7 @@ func (s *Service) logout(c *gin.Context) {
 		return
 	}
 	if cookie, err := c.Request.Cookie(s.sessionCookie); err == nil && cookie.Value != "" {
-		if err := s.queries.DeleteSession(c.Request.Context(), hashToken(cookie.Value)); err != nil {
+		if err := s.queries.DeleteSession(c.Request.Context(), opaquetoken.Hash(cookie.Value)); err != nil {
 			if clientgone.Handle(c, s.logger, "delete session", err) {
 				return
 			}

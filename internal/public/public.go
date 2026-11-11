@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -181,7 +182,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	token, hash, err := newToken()
+	token, hash, err := opaquetoken.New(tokenPrefix)
 	if err != nil {
 		return Created{}, err
 	}
@@ -256,7 +257,7 @@ func (s *Service) Resolve(ctx context.Context, token string) (Resolved, error) {
 	if !validTokenShape(token) {
 		return Resolved{}, ErrNotFound
 	}
-	row, err := s.db.Queries().PublicLinkByTokenHash(ctx, hashToken(token))
+	row, err := s.db.Queries().PublicLinkByTokenHash(ctx, opaquetoken.Hash(token))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Resolved{}, ErrNotFound
 	}

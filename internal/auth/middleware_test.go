@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 func TestMain(m *testing.M) {
@@ -50,7 +51,7 @@ func newSessionRigWithIssuer(t *testing.T, logger *slog.Logger, issuer string) *
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, hash, err := newToken("sos_")
+	token, hash, err := opaquetoken.New("sos_")
 	if err != nil {
 		t.Fatal(err)
 	}
