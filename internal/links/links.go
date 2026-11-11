@@ -62,8 +62,23 @@ func Finding(base *url.URL, id string) string {
 	return join(base, "findings", id)
 }
 
+func Logs(base *url.URL, query url.Values) string {
+	return withQuery(join(base, "logs"), query)
+}
+
+func Traces(base *url.URL, query url.Values) string {
+	return withQuery(join(base, "traces"), query)
+}
+
 func Public(base *url.URL, token string) string {
 	return join(base, "p", token)
+}
+
+func withQuery(address string, query url.Values) string {
+	if len(query) == 0 {
+		return address
+	}
+	return address + "?" + query.Encode()
 }
 
 func join(base *url.URL, segments ...string) string {

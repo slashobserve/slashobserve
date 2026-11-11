@@ -15,7 +15,9 @@ import { sentence } from "@/observe/queries"
 
 import { FindingCard } from "./finding-card"
 import { FindingComments } from "./finding-comments"
-import { findingQuery, type Finding } from "./queries"
+import { FindingMoveMenu } from "./finding-move-menu"
+import { FindingPlace } from "./finding-place"
+import { findingQuery, type FindingEnvelope } from "./queries"
 
 const outlineLink = cn(buttonVariants({ variant: "outline", size: "sm" }))
 
@@ -45,7 +47,8 @@ function FindingNotFound() {
   )
 }
 
-function LoadedFinding({ finding }: { finding: Finding }) {
+function LoadedFinding({ envelope }: { envelope: FindingEnvelope }) {
+  const { finding } = envelope
   useDocumentTitle(`${finding.title} - SlashObserve`)
   const foundBy =
     finding.actor.run_id === null
@@ -57,11 +60,13 @@ function LoadedFinding({ finding }: { finding: Finding }) {
         title={finding.title}
         description={
           <>
-            {foundBy} <RelativeTime iso={finding.created_at} />
+            {foundBy} <RelativeTime iso={finding.created_at} />.{" "}
+            <FindingPlace envelope={envelope} />.
           </>
         }
         actions={
           <>
+            <FindingMoveMenu envelope={envelope} />
             {finding.dashboard_id !== null ? (
               <Link
                 {...dashboardLink(finding.dashboard_id)}
@@ -90,7 +95,7 @@ function LoadedFinding({ finding }: { finding: Finding }) {
 
 export function FindingPage({ findingId }: { findingId: string }) {
   const query = useQuery(findingQuery(findingId))
-  if (query.data !== undefined) return <LoadedFinding finding={query.data} />
+  if (query.data !== undefined) return <LoadedFinding envelope={query.data} />
   if (query.error instanceof ApiError && query.error.status === 404) {
     return <FindingNotFound />
   }

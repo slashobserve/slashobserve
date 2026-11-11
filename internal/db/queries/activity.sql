@@ -1,15 +1,18 @@
--- No row lock on dashboards: a delete holds that row and then cascades into child rows an appender may already hold.
+-- No row lock on the owner: a delete holds that row and then cascades into child rows an appender may already hold.
 -- name: InsertActivity :one
-INSERT INTO activity (type, target_kind, target_id, dashboard_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
+INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
 VALUES (
   @type::text,
   @target_kind::text,
   @target_id::uuid,
-  sqlc.narg('dashboard_id')::uuid,
-  CASE
-    WHEN sqlc.narg('dashboard_id')::uuid IS NOT NULL
-      THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = sqlc.narg('dashboard_id')::uuid)
-    WHEN @global::boolean THEN general_folder_id()
+  CASE WHEN @owner_kind::text = 'dashboard' THEN sqlc.narg('owner_id')::uuid END,
+  CASE WHEN @owner_kind::text = 'finding' THEN sqlc.narg('owner_id')::uuid END,
+  CASE WHEN @owner_kind::text = 'saved_search' THEN sqlc.narg('owner_id')::uuid END,
+  CASE @owner_kind::text
+    WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = sqlc.narg('owner_id')::uuid)
+    WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = sqlc.narg('owner_id')::uuid)
+    WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = sqlc.narg('owner_id')::uuid)
+    WHEN 'general' THEN general_folder_id()
   END,
   @actor_kind::text,
   @actor_id::uuid,
@@ -22,11 +25,11 @@ VALUES (
 RETURNING seq;
 
 -- Run alone before InsertActivity so the insert's snapshot sees a move that committed during the wait.
--- name: ShareDashboardActivity :exec
-SELECT pg_advisory_xact_lock_shared(hashtextextended('activity:dashboard:' || CAST(@dashboard_id::uuid AS text), 0));
+-- name: ShareActivityOwner :exec
+SELECT pg_advisory_xact_lock_shared(hashtextextended('activity:' || @owner_kind::text || ':' || CAST(@owner_id::uuid AS text), 0));
 
--- name: LockDashboardActivity :exec
-SELECT pg_advisory_xact_lock(hashtextextended('activity:dashboard:' || CAST(@dashboard_id::uuid AS text), 0));
+-- name: LockActivityOwner :exec
+SELECT pg_advisory_xact_lock(hashtextextended('activity:' || @owner_kind::text || ':' || CAST(@owner_id::uuid AS text), 0));
 
 -- The horizon and the scan must share this statement's snapshot; never move the horizon into a function or another query.
 -- name: ListActivity :many
@@ -74,6 +77,12 @@ SELECT EXISTS (SELECT 1 FROM activity WHERE xid >= pg_snapshot_xmin(pg_current_s
 
 -- name: MoveDashboardActivity :execrows
 UPDATE activity SET folder_id = @folder_id WHERE dashboard_id = @dashboard_id;
+
+-- name: MoveFindingActivity :execrows
+UPDATE activity SET folder_id = @folder_id WHERE finding_id = @finding_id;
+
+-- name: MoveSavedSearchActivity :execrows
+UPDATE activity SET folder_id = @folder_id WHERE saved_search_id = @saved_search_id;
 
 -- name: PruneActivity :execrows
 DELETE FROM activity

@@ -65,13 +65,25 @@ func newDocumented(t *testing.T) *documented {
 
 func (d *documented) call(t *testing.T, by auth.Principal, method, path string, want int) *httptest.ResponseRecorder {
 	t.Helper()
+	return d.send(t, by, method, path, "", want)
+}
+
+func (d *documented) send(t *testing.T, by auth.Principal, method, path, body string, want int) *httptest.ResponseRecorder {
+	t.Helper()
 	d.who = by
+	request := func() *http.Request {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		if body != "" {
+			r.Header.Set("Content-Type", "application/json")
+		}
+		return r
+	}
 	rec := httptest.NewRecorder()
-	d.engine.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
+	d.engine.ServeHTTP(rec, request())
 	if rec.Code != want {
 		t.Fatalf("%s %s answered %d, want %d: %s", method, path, rec.Code, want, rec.Body)
 	}
-	check := httptest.NewRequest(method, path, nil)
+	check := request()
 	route, params, err := d.router.FindRoute(check)
 	if err != nil {
 		t.Fatalf("%s %s is not documented: %v", method, path, err)

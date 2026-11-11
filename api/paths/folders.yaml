@@ -159,7 +159,7 @@ folders-id:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The folder still holds dashboards (`folder_not_empty`), or it is General (`general_folder`).
+        description: The folder still holds dashboards, findings or saved searches (`folder_not_empty`), or it is General (`general_folder`).
         content:
           application/json:
             schema:

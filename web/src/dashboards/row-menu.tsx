@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
+import { moveChoices, moveLabel } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
 import { roleAtLeast } from "@/lib/roles"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -73,10 +74,7 @@ export function DashboardRowMenu({
   const movedVerb = publishing ? "Published" : "Moved"
   const targets = duplicateTargets(folders, current)
   const canDuplicate = targets.choices.length > 0
-  const choices = folders.filter(
-    (folder) =>
-      (folder.permissions.edit && !folder.personal) || folder.id === current
-  )
+  const choices = moveChoices(folders, current)
 
   useEffect(() => {
     if (!refocus.current) return
@@ -170,9 +168,7 @@ export function DashboardRowMenu({
             <>
               {canDuplicate ? <DropdownMenuSeparator /> : null}
               <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  {publishing ? "Publish to folder" : "Move to folder"}
-                </DropdownMenuLabel>
+                <DropdownMenuLabel>{moveLabel(publishing)}</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={current}
                   onValueChange={(id) => {

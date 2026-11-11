@@ -25,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -88,6 +89,10 @@ func (promStub) QueryInstant(context.Context, datasource.Query, datasource.TimeR
 	return stubFrames(), nil
 }
 
+type lokiStub struct{ promStub }
+
+func (lokiStub) Type() string { return "loki" }
+
 func stubFrames() []datasource.Frame {
 	return []datasource.Frame{{Fields: []datasource.Field{
 		{Name: "time", Type: datasource.FieldTime, Values: []any{1.0}},
@@ -97,17 +102,18 @@ func stubFrames() []datasource.Frame {
 
 type accessFixture struct {
 	*fixture
-	db      *dbtest.Database
-	service *dashboards.Service
-	threads *threads.Service
-	authn   keyAuth
+	db       *dbtest.Database
+	service  *dashboards.Service
+	findings *findings.Service
+	threads  *threads.Service
+	authn    keyAuth
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
 	t.Helper()
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
-	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: promStub{}})
+	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: promStub{}}, datasource.Instance{UID: "loki", Datasource: lokiStub{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,24 +121,25 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
-	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes)
+	found := findings.New(database.DB, access, notes, service, logger)
+	commentThreads := threads.NewService(database.DB, access, service, found, notes)
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, Annotations: notes, PublicURL: base, Logger: logger})
+	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Findings: found, SavedSearches: savedsearches.New(database.DB, access, datasources, base, logger), Threads: commentThreads, Folders: access, Annotations: notes, PublicURL: base, Logger: logger})
 	authn := keyAuth{}
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
 		authn[bearer(p)] = Credential{Principal: p}
 	}
 	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
-	return &accessFixture{fixture: f, db: database, service: service, threads: commentThreads, authn: authn}
+	return &accessFixture{fixture: f, db: database, service: service, findings: found, threads: commentThreads, authn: authn}
 }
 
 func (f *accessFixture) writtenRows(t *testing.T) int {
 	t.Helper()
 	var n int
-	err := f.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT (SELECT count(*) FROM dashboards) + (SELECT count(*) FROM dashboard_versions) + (SELECT count(*) FROM annotations)").Scan(&n)
+	err := f.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT (SELECT count(*) FROM dashboards) + (SELECT count(*) FROM dashboard_versions) + (SELECT count(*) FROM annotations) + (SELECT count(*) FROM findings) + (SELECT count(*) FROM saved_searches) + (SELECT count(*) FROM activity)").Scan(&n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +310,17 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 		"query_instant":    {"datasource": "prom", "query": "up"},
 	}
 	panel := json.RawMessage(`{"id":"p","type":"timeseries","title":"changed","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`)
+	filed, _, err := f.findings.Save(t.Context(), adminKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	writes := map[string]map[string]any{
+		"move_finding":      {"finding_id": filed.ID, "folder_id": target.ID.String()},
+		"save_search":       {"kind": "logs", "title": "Errors", "datasource_uid": "loki", "query": "{a=\"b\"}"},
 		"create_dashboard":  {"spec": json.RawMessage(boardSpec("Mine"))},
 		"update_panels":     {"dashboard_id": id, "parent_version": 1, "summary": "change", "upsert": []json.RawMessage{panel}},
 		"create_annotation": {"text": "x"},
@@ -385,6 +402,52 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 			t.Errorf("Editor create_dashboard = %s", text(res))
 		}
 	})
+}
+
+func TestMoveFindingFollowsWhoMayReadAndEditTheFinding(t *testing.T) {
+	f := newAccessFixture(t)
+	saved, _, err := f.findings.Save(t.Context(), viewerKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	move := func(folder pgtype.UUID) map[string]any {
+		return map[string]any{"finding_id": saved.ID, "folder_id": folder.String()}
+	}
+
+	if res := f.as(t, editorKey, "move_finding", move(shared.ID)); !res.IsError || res.StructuredContent["code"] != "not_found" {
+		t.Errorf("an Editor key moving a finding in no folder that it did not save = %s, want not_found", text(res))
+	}
+	moved := f.as(t, adminKey, "move_finding", move(shared.ID))
+	if moved.IsError || moved.StructuredContent["folder"] != "Shared" || moved.StructuredContent["folder_id"] != shared.ID.String() {
+		t.Fatalf("an Admin key's move = %s", text(moved))
+	}
+	if res := f.as(t, editorKey, "move_finding", move(other.ID)); res.IsError || res.StructuredContent["folder"] != "Other" {
+		t.Errorf("an Editor key moving a finding filed in a folder it can edit = %s", text(res))
+	}
+}
+
+func TestSavedSearchToolsFollowTheKeysRole(t *testing.T) {
+	f := newAccessFixture(t)
+	input := map[string]any{"kind": "logs", "title": "Errors", "datasource_uid": "loki", "query": "{a=\"b\"}"}
+	onMetrics := map[string]any{"kind": "logs", "title": "Errors", "datasource_uid": "prom", "query": "{a=\"b\"}"}
+
+	if res := f.as(t, viewerKey, "save_search", input); !res.IsError || res.StructuredContent["code"] != forbidden {
+		t.Errorf("a Viewer key's save_search = %s, want %s", text(res), forbidden)
+	}
+	if res := f.as(t, editorKey, "save_search", onMetrics); !res.IsError || res.StructuredContent["code"] != "invalid_request" {
+		t.Errorf("an Editor key saving on a metrics datasource = %s, want invalid_request", text(res))
+	}
+	if res := f.as(t, viewerKey, "list_saved_searches", map[string]any{}); res.IsError {
+		t.Errorf("a Viewer key's list_saved_searches = %s", text(res))
+	}
 }
 
 func mustUUID(t *testing.T, raw string) pgtype.UUID {

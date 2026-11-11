@@ -299,11 +299,23 @@ export const findingKeys = {
   one: (id: string) => ["findings", id] as const,
   forDashboard: (dashboardId: string) =>
     ["findings", "dashboard", dashboardId] as const,
+  inFolder: (folderId: string) => ["findings", "folder", folderId] as const,
   panelData: (
     id: string,
     panelId: string,
     params: { from?: string; to?: string; maxDataPoints?: number }
   ) => ["findings", id, "panels", panelId, params] as const,
+}
+
+export type SavedSearchListParams = {
+  kind?: "logs" | "traces"
+  folderId?: string
+}
+
+export const savedSearchKeys = {
+  all: ["saved-searches"] as const,
+  list: (params: SavedSearchListParams) =>
+    ["saved-searches", "list", params] as const,
 }
 
 export const annotationKeys = {

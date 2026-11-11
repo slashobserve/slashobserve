@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -132,19 +133,20 @@ type Discovery struct {
 }
 
 type Deps struct {
-	Datasources *datasource.Registry
-	Runner      *queryproxy.Runner
-	Dashboards  *dashboards.Service
-	Threads     *threads.Service
-	Imports     *imports.Service
-	Folders     *folders.Access
-	Findings    *findings.Service
-	Health      *health.Service
-	Annotations *annotations.Service
-	Activity    *activity.Store
-	Provider    llm.Provider
-	PublicURL   *url.URL
-	Logger      *slog.Logger
+	Datasources   *datasource.Registry
+	Runner        *queryproxy.Runner
+	Dashboards    *dashboards.Service
+	Threads       *threads.Service
+	Imports       *imports.Service
+	Folders       *folders.Access
+	Findings      *findings.Service
+	SavedSearches *savedsearches.Service
+	Health        *health.Service
+	Annotations   *annotations.Service
+	Activity      *activity.Store
+	Provider      llm.Provider
+	PublicURL     *url.URL
+	Logger        *slog.Logger
 }
 
 type Mode string
@@ -424,6 +426,7 @@ var runEnding = []error{
 	errFoldersNotConfigured,
 	errImportsNotConfigured,
 	errFindingsNotConfigured,
+	errSavedSearchesNotConfigured,
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
 }

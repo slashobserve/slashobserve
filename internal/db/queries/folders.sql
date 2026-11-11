@@ -52,10 +52,15 @@ RETURNING *;
 
 -- name: DeleteFolderIfEmpty :execrows
 DELETE FROM folders
-WHERE folders.id = @id AND NOT folders.general AND NOT EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = folders.id);
+WHERE folders.id = @id AND NOT folders.general
+  AND NOT EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = folders.id)
+  AND NOT EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = folders.id)
+  AND NOT EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = folders.id);
 
--- name: CountFolderDashboards :one
-SELECT count(*)::integer FROM dashboards WHERE folder_id = @id;
+-- name: FolderHasContents :one
+SELECT (EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = @id)
+  OR EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = @id)
+  OR EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = @id))::boolean;
 
 -- name: ListFolderPermissions :many
 SELECT p.user_id, p.group_name, p.level,

@@ -172,15 +172,15 @@ func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Act
 		case err != nil:
 			return fmt.Errorf("move dashboard: %w", err)
 		}
-		if err := activity.MoveDashboard(ctx, q, id, to); err != nil {
+		if err := activity.Move(ctx, q, activity.OnDashboard(id), to); err != nil {
 			return err
 		}
 		entry := activity.Entry{
-			Type:        activity.TypeDashboardMoved,
-			TargetID:    id,
-			DashboardID: id,
-			Actor:       by,
-			Data:        movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
+			Type:     activity.TypeDashboardMoved,
+			TargetID: id,
+			Owner:    activity.OnDashboard(id),
+			Actor:    by,
+			Data:     movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
 		}
 		_, err = activity.Append(ctx, q, entry, nil)
 		return err
@@ -212,11 +212,11 @@ func (st store) delete(ctx context.Context, id pgtype.UUID, by actor.Actor) erro
 		}
 		ev := deletedEvent(id, Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name})
 		entry := activity.Entry{
-			Type:        activity.TypeDashboardDeleted,
-			TargetID:    id,
-			DashboardID: id,
-			Actor:       by,
-			Data:        deletedActivityFields{Title: title},
+			Type:     activity.TypeDashboardDeleted,
+			TargetID: id,
+			Owner:    activity.OnDashboard(id),
+			Actor:    by,
+			Data:     deletedActivityFields{Title: title},
 		}
 		if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 			return err
@@ -323,11 +323,11 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
 	ev := versionEvent(in.dashboardID, meta)
 	entry := activity.Entry{
-		Type:        versionActivityType(meta),
-		TargetID:    in.dashboardID,
-		DashboardID: in.dashboardID,
-		Actor:       versionActor(meta),
-		Data:        versionActivityData(in.spec.Title, meta),
+		Type:     versionActivityType(meta),
+		TargetID: in.dashboardID,
+		Owner:    activity.OnDashboard(in.dashboardID),
+		Actor:    versionActor(meta),
+		Data:     versionActivityData(in.spec.Title, meta),
 	}
 	if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 		return VersionMeta{}, err

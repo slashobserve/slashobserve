@@ -14,12 +14,11 @@ import (
 )
 
 type Entry struct {
-	Type        string
-	TargetID    pgtype.UUID
-	DashboardID pgtype.UUID
-	Global      bool
-	Actor       actor.Actor
-	Data        any
+	Type     string
+	TargetID pgtype.UUID
+	Owner    Owner
+	Actor    actor.Actor
+	Data     any
 }
 
 func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event) (int64, error) {
@@ -34,17 +33,17 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 	if err != nil {
 		return 0, err
 	}
-	if e.DashboardID.Valid {
-		if err := q.ShareDashboardActivity(ctx, e.DashboardID); err != nil {
-			return 0, fmt.Errorf("lock dashboard activity: %w", err)
+	if e.Owner.locks() {
+		if err := q.ShareActivityOwner(ctx, dbsqlc.ShareActivityOwnerParams{OwnerKind: string(e.Owner.kind), OwnerID: e.Owner.id}); err != nil {
+			return 0, fmt.Errorf("lock activity owner: %w", err)
 		}
 	}
 	seq, err := q.InsertActivity(ctx, dbsqlc.InsertActivityParams{
 		Type:         e.Type,
 		TargetKind:   targetKind(e.Type),
 		TargetID:     e.TargetID,
-		DashboardID:  e.DashboardID,
-		Global:       e.Global,
+		OwnerKind:    string(e.Owner.kind),
+		OwnerID:      e.Owner.id,
 		ActorKind:    columns.Kind,
 		ActorID:      columns.ID,
 		ActorName:    columns.Name,
@@ -62,12 +61,24 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 	return seq, nil
 }
 
-func MoveDashboard(ctx context.Context, q *dbsqlc.Queries, dashboardID, folderID pgtype.UUID) error {
-	if err := q.LockDashboardActivity(ctx, dashboardID); err != nil {
-		return fmt.Errorf("lock dashboard activity: %w", err)
+func Move(ctx context.Context, q *dbsqlc.Queries, owner Owner, folderID pgtype.UUID) error {
+	if !owner.locks() {
+		return fmt.Errorf("activity of a %q owner does not move", owner.kind)
 	}
-	if _, err := q.MoveDashboardActivity(ctx, dbsqlc.MoveDashboardActivityParams{FolderID: folderID, DashboardID: dashboardID}); err != nil {
-		return fmt.Errorf("move dashboard activity: %w", err)
+	if err := q.LockActivityOwner(ctx, dbsqlc.LockActivityOwnerParams{OwnerKind: string(owner.kind), OwnerID: owner.id}); err != nil {
+		return fmt.Errorf("lock activity owner: %w", err)
+	}
+	var err error
+	switch owner.kind {
+	case ownerDashboard:
+		_, err = q.MoveDashboardActivity(ctx, dbsqlc.MoveDashboardActivityParams{FolderID: folderID, DashboardID: owner.id})
+	case ownerFinding:
+		_, err = q.MoveFindingActivity(ctx, dbsqlc.MoveFindingActivityParams{FolderID: folderID, FindingID: owner.id})
+	case ownerSavedSearch:
+		_, err = q.MoveSavedSearchActivity(ctx, dbsqlc.MoveSavedSearchActivityParams{FolderID: folderID, SavedSearchID: owner.id})
+	}
+	if err != nil {
+		return fmt.Errorf("move %s activity: %w", owner.kind, err)
 	}
 	return nil
 }

@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -843,7 +843,7 @@ export interface paths {
         };
         /**
          * List the comment threads on a dashboard, a finding or an annotation.
-         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard is visible to its creator and to Admins. A target the caller cannot see answers 404, never 403.
+         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins. A target the caller cannot see answers 404, never 403.
          */
         get: operations["listThreads"];
         put?: never;
@@ -1657,7 +1657,7 @@ export interface paths {
         };
         /**
          * List the findings the caller can read, newest first.
-         * @description A finding on a dashboard is listed for anyone who can view that dashboard, and a finding without one only for the person who made it and Admins. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
+         * @description Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together.
          */
         get: operations["listFindings"];
         put?: never;
@@ -1679,7 +1679,7 @@ export interface paths {
         };
         /**
          * Read one finding.
-         * @description Anyone who can view the finding's dashboard may read it; a finding without a dashboard is readable by the person who made it and Admins. A finding the caller cannot read gives 404, never 403.
+         * @description A finding on a dashboard follows that dashboard, and a finding without one follows the folder it is filed in: anyone who can view that folder may read it. A finding in no folder is readable by the account that saved it and by Admins. `folder` is the folder that decides access and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403.
          */
         get: operations["getFinding"];
         put?: never;
@@ -1734,6 +1734,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/findings/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a finding without a dashboard into another folder.
+         * @description Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published. It needs Edit on the finding and on the target folder, so a finding in no folder can be moved by the account that saved it or by an Admin. A finding on a dashboard follows the dashboard and answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`. Moving a finding into the folder it is already in changes nothing. The move is recorded as `finding.moved`, and the finding's earlier activity moves to the target folder with it.
+         */
+        post: operations["moveFinding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/findings/{id}/panels/{panel_id}/data": {
         parameters: {
             query?: never;
@@ -1755,6 +1777,56 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/saved-searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the saved logs and trace searches the caller can view, most recently changed first.
+         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+         */
+        get: operations["listSavedSearches"];
+        put?: never;
+        /**
+         * Save a logs or trace search in a folder.
+         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         */
+        post: operations["createSavedSearch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/saved-searches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved search.
+         * @description Needs Edit on the saved search. The deletion is recorded as `saved_search.deleted`, which stays in the folder the search was in.
+         */
+        delete: operations["deleteSavedSearch"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a saved search or move it to another folder.
+         * @description Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead. A rename appends `saved_search.updated`, a move appends `saved_search.moved` and takes the earlier events of the search to the new folder, and a change to what the search already has appends nothing. A body with neither `title` nor `folder_id` answers 400.
+         */
+        patch: operations["updateSavedSearch"];
         trace?: never;
     };
     "/news": {
@@ -3044,7 +3116,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -3055,10 +3127,10 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "thread" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "thread" | "run";
                 /**
                  * Format: uuid
-                 * @description The id of the dashboard, annotation, finding, comment thread or agent request the event is about.
+                 * @description The id of the dashboard, annotation, finding, saved search, comment thread or agent request the event is about.
                  */
                 id: string;
             };
@@ -4084,6 +4156,11 @@ export interface components {
              * @description The dashboard the finding is about; null when it is about none.
              */
             dashboard_id: string | null;
+            /**
+             * Format: uuid
+             * @description The folder a finding without a dashboard is filed in; null when it is on a dashboard, which it follows, or in no folder.
+             */
+            folder_id: string | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;
@@ -4113,6 +4190,81 @@ export interface components {
         };
         FindingEnvelope: {
             finding: components["schemas"]["Finding"];
+            /** @description The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder. */
+            folder: components["schemas"]["DashboardFolder"] | null;
+            permissions: components["schemas"]["Permissions"];
+        };
+        /** @description The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others. */
+        SavedSearchFilters: {
+            /** @description The visible columns of a logs search, in order. */
+            columns?: string[];
+            service?: string;
+            span?: string;
+            /** @description The shortest duration, such as `250ms` or `2s`. */
+            min?: string;
+            /** @description The longest duration, such as `250ms` or `2s`. */
+            max?: string;
+            /** @description Only traces with an error. */
+            errors?: boolean;
+        };
+        SavedSearch: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "logs" | "traces";
+            title: string;
+            datasource_uid: string;
+            /** @description The query as it runs, with the filter pills folded in; null for a trace search made of filters only. */
+            query: string | null;
+            filters: components["schemas"]["SavedSearchFilters"];
+            /** @description The start of the range as written, such as `now-1h`. */
+            from: string;
+            /** @description The end of the range as written, such as `now`. */
+            to: string;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+            actor: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the search was saved, renamed or moved last.
+             */
+            updated_at: string;
+            /** @description The address of the logs or traces page that reopens the search, relative when the server has no public URL configured. */
+            url: string;
+        };
+        SavedSearchList: {
+            saved_searches: components["schemas"]["SavedSearch"][];
+            next_cursor: string | null;
+        };
+        CreateSavedSearchRequest: {
+            /** @enum {string} */
+            kind: "logs" | "traces";
+            /** @description 1 to 120 characters after trimming, without control characters. */
+            title: string;
+            /** @description The uid of a datasource that exists and fits the kind. */
+            datasource_uid: string;
+            /** @description 1 to 8000 characters; required for a logs search. */
+            query?: string | null;
+            filters?: components["schemas"]["SavedSearchFilters"];
+            /**
+             * @description A time expression the time range accepts.
+             * @default now-1h
+             */
+            from: string;
+            /** @default now */
+            to: string;
+            /**
+             * Format: uuid
+             * @description The folder to save in, which needs Create. Default the caller's My Dashboards, else General.
+             */
+            folder_id?: string;
+        };
+        UpdateSavedSearchRequest: {
+            title?: string;
+            /** Format: uuid */
+            folder_id?: string;
         };
         FindingList: {
             findings: components["schemas"]["Finding"][];
@@ -5990,7 +6142,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder still holds dashboards (`folder_not_empty`), or it is General (`general_folder`). */
+            /** @description The folder still holds dashboards, findings or saved searches (`folder_not_empty`), or it is General (`general_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -9461,6 +9613,7 @@ export interface operations {
         parameters: {
             query?: {
                 dashboard_id?: string;
+                folder_id?: string;
                 limit?: number;
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
@@ -9596,6 +9749,49 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    moveFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    folder_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The finding in its new folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The finding is on a dashboard (`finding_on_dashboard`) or the target is a personal folder (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     getFindingPanelData: {
         parameters: {
             query?: {
@@ -9687,6 +9883,150 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
+        };
+    };
+    listSavedSearches: {
+        parameters: {
+            query?: {
+                kind?: "logs" | "traces";
+                folder_id?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of saved searches. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createSavedSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSavedSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description The saved search. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteSavedSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The saved search is gone. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateSavedSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSavedSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description The saved search as it is now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The target is a personal folder (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The title is empty, too long or has control characters (`invalid_saved_search`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
         };
     };
     getNewsFeed: {

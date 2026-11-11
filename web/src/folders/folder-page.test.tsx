@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -83,12 +83,50 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function mockServer(shown: Folder | null, dashboards: DashboardSummary[]) {
+const slowCheckout = {
+  id: "6b1f8a52-0c1d-4e7a-9a43-2d5e8f0a1b3c",
+  title: "Slow checkout after the deploy",
+  created_at: "2026-11-06T09:00:00Z",
+  actor: { label: "Ana" },
+}
+
+const errorSearch = {
+  id: "7c2a9b63-1d2e-4f8b-8b54-3e6f9a1b2c4d",
+  kind: "logs",
+  title: "Checkout errors",
+  datasource_uid: "es",
+  query: "level:error",
+  filters: { columns: ["host"] },
+  from: "now-6h",
+  to: "now",
+  folder: { id: folderId, title: "Shop", general: false, personal: false },
+  permissions: { comment: true, edit: true, manage: true, create: true },
+  updated_at: "2026-11-06T09:30:00Z",
+}
+
+type Extras = { findings?: unknown[]; searches?: unknown[] }
+
+function mockServer(
+  shown: Folder | null,
+  dashboards: DashboardSummary[],
+  extras: Extras = {}
+) {
   const listed: URLSearchParams[] = []
+  const requested: URL[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const url = new URL(request.url)
+      requested.push(url)
+      if (url.pathname === "/api/v1/findings") {
+        return json({ findings: extras.findings ?? [], next_cursor: null })
+      }
+      if (url.pathname === "/api/v1/saved-searches") {
+        return json({
+          saved_searches: extras.searches ?? [],
+          next_cursor: null,
+        })
+      }
       if (url.pathname === `/api/v1/folders/${folderId}`) {
         return shown === null
           ? json({ error: { code: "not_found", message: "not found" } }, 404)
@@ -109,7 +147,7 @@ function mockServer(shown: Folder | null, dashboards: DashboardSummary[]) {
       return json({ error: { code: "not_found", message: "not found" } }, 404)
     })
   )
-  return listed
+  return Object.assign(listed, { requested })
 }
 
 function renderFolderPage(settingsOpen = false) {
@@ -186,6 +224,80 @@ describe("FolderPage", () => {
     expect(
       screen.queryByText("No dashboards match these filters.")
     ).not.toBeInTheDocument()
+  })
+
+  it("lists the folder's findings and saved searches below its dashboards", async () => {
+    const listed = mockServer(folder(), [checkout], {
+      findings: [slowCheckout],
+      searches: [errorSearch],
+    })
+    renderFolderPage()
+
+    const finding = await screen.findByRole("link", {
+      name: "Slow checkout after the deploy",
+    })
+    expect(finding).toHaveAttribute("href", `/findings/${slowCheckout.id}`)
+    const findings = screen.getByRole("region", { name: "Findings" })
+    expect(within(findings).getByText("Ana")).toBeInTheDocument()
+
+    const search = await screen.findByRole("link", { name: "Checkout errors" })
+    expect(search).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/logs\?.*ds=es.*q=level%3Aerror/)
+    )
+    const searches = screen.getByRole("region", { name: "Saved searches" })
+    expect(within(searches).getByText("Logs")).toBeInTheDocument()
+    expect(within(searches).getByText("es")).toBeInTheDocument()
+    expect(
+      within(searches).getByRole("button", {
+        name: "More for Checkout errors",
+      })
+    ).toBeInTheDocument()
+
+    const asked = (path: string) =>
+      listed.requested.find((url) => url.pathname === path)
+    expect(asked("/api/v1/findings")?.searchParams.get("folder_id")).toBe(
+      folderId
+    )
+    expect(asked("/api/v1/saved-searches")?.searchParams.get("folder_id")).toBe(
+      folderId
+    )
+  })
+
+  it("hides both sections while the folder has neither", async () => {
+    const listed = mockServer(folder(), [checkout])
+    renderFolderPage()
+
+    await screen.findByRole("link", { name: "Checkout service health" })
+    await waitFor(() =>
+      expect(listed.requested.map((url) => url.pathname)).toEqual(
+        expect.arrayContaining(["/api/v1/findings", "/api/v1/saved-searches"])
+      )
+    )
+    expect(screen.queryByRole("region", { name: "Findings" })).toBeNull()
+    expect(screen.queryByRole("region", { name: "Saved searches" })).toBeNull()
+  })
+
+  it("gives a reader no menu on a saved search", async () => {
+    mockServer(folder(), [checkout], {
+      searches: [
+        {
+          ...errorSearch,
+          permissions: {
+            comment: true,
+            edit: false,
+            manage: false,
+            create: false,
+          },
+        },
+      ],
+    })
+    renderFolderPage()
+
+    await screen.findByRole("link", { name: "Checkout errors" })
+    expect(
+      screen.queryByRole("button", { name: "More for Checkout errors" })
+    ).toBeNull()
   })
 
   it("asks to open settings from the header button", async () => {

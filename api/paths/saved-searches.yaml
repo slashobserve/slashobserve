@@ -1,0 +1,157 @@
+saved-searches:
+  get:
+    operationId: listSavedSearches
+    summary: List the saved logs and trace searches the caller can view, most recently changed first.
+    description: >-
+      Lists every saved search in the folders the caller can view, newest `updated_at` first.
+      `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404.
+      Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+    parameters:
+      - name: kind
+        in: query
+        schema:
+          type: string
+          enum: [logs, traces]
+      - name: folder_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of saved searches.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedSearchList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createSavedSearch
+    summary: Save a logs or trace search in a folder.
+    description: >-
+      Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written.
+      It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General.
+      Everyone who can view that folder can read it.
+      The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse.
+      A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none.
+      A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`.
+      The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateSavedSearchRequest"
+    responses:
+      "201":
+        description: The saved search.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedSearch"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+saved-searches-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  patch:
+    operationId: updateSavedSearch
+    summary: Rename a saved search or move it to another folder.
+    description: >-
+      Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead.
+      A rename appends `saved_search.updated`, a move appends `saved_search.moved` and takes the earlier events of the search to the new folder, and a change to what the search already has appends nothing.
+      A body with neither `title` nor `folder_id` answers 400.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateSavedSearchRequest"
+    responses:
+      "200":
+        description: The saved search as it is now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedSearch"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The target is a personal folder (`personal_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The title is empty, too long or has control characters (`invalid_saved_search`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteSavedSearch
+    summary: Delete a saved search.
+    description: Needs Edit on the saved search. The deletion is recorded as `saved_search.deleted`, which stays in the folder the search was in.
+    responses:
+      "204":
+        description: The saved search is gone.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

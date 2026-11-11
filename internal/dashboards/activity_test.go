@@ -223,10 +223,10 @@ func appendAnnotation(ctx context.Context, q *dbsqlc.Queries, dash pgtype.UUID) 
 		return err
 	}
 	entry := activity.Entry{
-		Type:        activity.TypeAnnotationCreated,
-		TargetID:    target,
-		DashboardID: dash,
-		Actor:       actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"},
+		Type:     activity.TypeAnnotationCreated,
+		TargetID: target,
+		Owner:    activity.OnDashboard(dash),
+		Actor:    actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"},
 	}
 	_, err = activity.Append(ctx, q, entry, nil)
 	return err

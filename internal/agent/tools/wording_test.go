@@ -176,7 +176,7 @@ func TestFolderVariant(t *testing.T) {
 		}
 		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
 		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
-		if mcp != (tool.Name == nameCreateDashboard) || agent {
+		if mcp != (tool.Name == nameCreateDashboard || tool.Name == nameListFindings) || agent {
 			t.Errorf("%s offers folder_id: MCP %t, agent %t", tool.Name, mcp, agent)
 		}
 	}
@@ -358,10 +358,12 @@ func TestNeighbourToolsNameEachOther(t *testing.T) {
 	}
 }
 
+var savedSearchTools = map[string]bool{nameSaveSearch: true, nameListSavedSearches: true}
+
 func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
 		for label, offered := range map[string]Tool{"MCP": tool, "agent": tool.ForAgent()} {
-			if !strings.Contains(offered.Description, "search") {
+			if !strings.Contains(offered.Description, "search") || savedSearchTools[tool.Name] {
 				continue
 			}
 			if _, ok := schemaProperties(t, offered.InputSchema)["search"]; !ok {

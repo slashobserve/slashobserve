@@ -6,6 +6,7 @@ import {
   editorKeys,
   findingKeys,
   observeKeys,
+  savedSearchKeys,
 } from "./keys"
 
 function isPrefix(prefix: readonly unknown[], key: readonly unknown[]) {
@@ -162,6 +163,7 @@ describe("findingKeys", () => {
     for (const key of [
       findingKeys.one("f1"),
       findingKeys.forDashboard("d1"),
+      findingKeys.inFolder("f1"),
       findingKeys.panelData("f1", "p1", { from: "now-1h", to: "now" }),
     ]) {
       expect(isPrefix(findingKeys.all, key)).toBe(true)
@@ -175,5 +177,22 @@ describe("findingKeys", () => {
     expect(
       isPrefix(findingKeys.one("f2"), findingKeys.panelData("f1", "p1", {}))
     ).toBe(false)
+  })
+})
+
+describe("savedSearchKeys", () => {
+  test("a list sits under the saved searches prefix", () => {
+    expect(
+      isPrefix(
+        savedSearchKeys.all,
+        savedSearchKeys.list({ kind: "logs", folderId: "f1" })
+      )
+    ).toBe(true)
+  })
+
+  test("lists with different params are different keys", () => {
+    expect(savedSearchKeys.list({ kind: "logs" })).not.toEqual(
+      savedSearchKeys.list({ kind: "traces" })
+    )
   })
 })

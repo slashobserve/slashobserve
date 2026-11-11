@@ -46,6 +46,7 @@ type activityData struct {
 	Version       int      `json:"version"`
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
+	Kind          string   `json:"kind"`
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
 	FailureCode   string   `json:"failure_code"`
@@ -250,6 +251,11 @@ func describe(e activityEvent) string {
 		return "saved the finding " + quotedTitle(d.Title)
 	case "finding.pinned":
 		return "pinned a finding"
+	case "finding.moved":
+		return "moved the finding " + quotedTitle(d.Title)
+	}
+	if phrase, ok := describeSavedSearch(e); ok {
+		return phrase
 	}
 	if phrase, ok := describeDashboard(e); ok {
 		return phrase
@@ -261,6 +267,25 @@ func describe(e activityEvent) string {
 		return phrase
 	}
 	return text(e.Type)
+}
+
+func describeSavedSearch(e activityEvent) (string, bool) {
+	d := e.Data
+	title := `"` + text(d.Title) + `"`
+	switch e.Type {
+	case "saved_search.created":
+		if d.Kind == "traces" {
+			return "saved the trace search " + title, true
+		}
+		return "saved the logs search " + title, true
+	case "saved_search.updated":
+		return "renamed the saved search to " + title, true
+	case "saved_search.moved":
+		return "moved the saved search " + title, true
+	case "saved_search.deleted":
+		return "deleted the saved search " + title, true
+	}
+	return "", false
 }
 
 func describeDashboard(e activityEvent) (string, bool) {

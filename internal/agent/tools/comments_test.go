@@ -66,7 +66,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "create_annotation,create_comment,create_finding,draft_query,edit_comment,list_activity,list_comments,list_dashboard_health,list_folders,reopen_comment,reply_to_comment,resolve_comment" {
+	if strings.Join(got, ",") != "create_annotation,create_comment,create_finding,draft_query,edit_comment,list_activity,list_comments,list_dashboard_health,list_folders,list_saved_searches,move_finding,reopen_comment,reply_to_comment,resolve_comment,save_search" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -498,11 +498,11 @@ func TestCommentToolsOnADashboardPanel(t *testing.T) {
 	}
 }
 
-func TestCommentToolsHideAFindingFromOthers(t *testing.T) {
+func TestCommentToolsHideAnUnfiledFindingFromOthers(t *testing.T) {
 	r := newAccessRig(t)
-	id := r.privateFinding(t, adminCaller)
+	id := r.privateFinding(t, commenterCaller)
 	target := "finding:" + id
-	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"`+target+`","body":"private note"}`))
+	opened := commentOutOf(t, r.call(t, commenterCaller, nameCreateComment, `{"target":"`+target+`","body":"private note"}`))
 	calls := map[string]string{
 		nameListComments:   `{"target":"` + target + `"}`,
 		nameCreateComment:  `{"target":"` + target + `","body":"hello"}`,
@@ -512,7 +512,7 @@ func TestCommentToolsHideAFindingFromOthers(t *testing.T) {
 		nameReopenComment:  `{"comment_id":"` + opened.ID + `"}`,
 	}
 	for tool, input := range calls {
-		res := r.call(t, commenterCaller, tool, input)
+		res := r.call(t, editorCaller, tool, input)
 		if errorCode(t, res) != codeNotFound || strings.Contains(textOf(t, res), "private note") || strings.Contains(textOf(t, res), id) {
 			t.Errorf("%s by someone else = %s", tool, textOf(t, res))
 		}

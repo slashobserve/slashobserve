@@ -16,6 +16,8 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
 | Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
+| Finding | `finding.moved` | A finding without a dashboard moves to another folder, which shares it with that folder's readers. |
+| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
 | Run | `run.queued`, `run.started` | An [agent request](chat.md) is queued, or a worker starts it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
@@ -28,6 +30,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 ## What data holds
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
+A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding or annotation the thread is on, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
@@ -43,7 +46,7 @@ You see an event when any of these holds:
 
 An event takes the folder of its dashboard.
 A global annotation takes General, which everyone with a role can view, so everyone who can read global annotations sees its events.
-A finding without a dashboard, and a run whose dashboard does not exist yet, belong to no folder.
+A finding without a dashboard and a saved search belong to their folder; an unfiled finding and a run whose dashboard does not exist yet belong to no folder.
 
 When a dashboard moves, its earlier events move with it, so only the viewers of the new folder see them.
 When a dashboard is deleted, its events stay in the folder it was in.

@@ -22,7 +22,7 @@ import { useDeleteFolder, type Folder } from "./queries"
 
 function problemText(error: unknown): string {
   if (error instanceof ApiError && error.code === "folder_not_empty") {
-    return "This folder still holds dashboards. Move them out first."
+    return "This folder still holds dashboards, findings or saved searches. Move or delete them first."
   }
   if (error instanceof ApiError && error.status === 404) {
     return "This folder no longer exists."

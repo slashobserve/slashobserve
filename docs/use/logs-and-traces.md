@@ -391,6 +391,29 @@ When the model cannot write a query for the question, or the fixed query still f
 Each person can have 3 questions in flight, and each question stops after 60 seconds.
 Without a model configured on the server, Ask is off.
 
+## Save a search
+
+A saved search keeps what the logs page or the trace view shows so that anyone with access can open it again: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written, such as `now-1h`.
+A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
+A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
+A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
+
+On the logs page and the trace search, **Save search** asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
+The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
+A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+The folder list offers only the folders where you can create, and a refused save shows the server's message.
+
+A search is saved in a folder, which needs the Create permission there.
+Without a folder it goes to your My Dashboards, and a service account saves it in General.
+Everyone who can view the folder can open the search, and the folder's permissions decide who may change it, as [Folders](../teams/folders.md) describes.
+Renaming, moving and deleting a saved search need Edit on it, and a move needs Edit on the target folder too.
+A search cannot move into a personal folder, because that would make it private without asking: save it there instead.
+The kind, datasource, query, filters and range never change, so save a new search to change one of them.
+
+`POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one and `DELETE` removes it.
+Each saved search carries the `url` of the page that reopens it, and each change is recorded in [Activity](activity.md).
+Deleting a folder that still holds a saved search is refused, and deleting a user deletes the searches in their personal folder.
+
 ## Who can use them and limits
 
 Every signed-in role from Viewer can use the logs page, the trace view, the trace search and Ask.

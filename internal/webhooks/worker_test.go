@@ -2,6 +2,7 @@ package webhooks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -262,6 +263,64 @@ func TestAnEventInAnotherPersonsPersonalFolderIsNeverSent(t *testing.T) {
 	if got, want := seqsSent(t, r.sender.all()), []int64{ownSeq}; !slices.Equal(got, want) {
 		t.Fatalf("sent %v, want only the owner's own personal folder event %v", got, want)
 	}
+}
+
+func TestAnEventOfAFiledFindingOrSavedSearchFollowsItsFolder(t *testing.T) {
+	r := newRig(t)
+	for _, u := range []auth.Principal{adminOne, adminTwo} {
+		r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $1::uuid::text, $1::uuid::text || '@example.com', 'u')`, u.ID)
+	}
+	r.create(t, activity.TypeFindingCreated, activity.TypeSavedSearchCreated)
+	ownFinding, ownFolder := r.findingInPersonalFolder(t, adminOne.ID)
+	othersFinding, _ := r.findingInPersonalFolder(t, adminTwo.ID)
+	ownSearch := r.savedSearchInPersonalFolder(t, adminOne.ID)
+	othersSearch := r.savedSearchInPersonalFolder(t, adminTwo.ID)
+	wantFinding := r.appendOwned(t, activity.TypeFindingCreated, activity.OnFinding(ownFinding))
+	r.appendOwned(t, activity.TypeFindingCreated, activity.OnFinding(othersFinding))
+	wantSearch := r.appendOwned(t, activity.TypeSavedSearchCreated, activity.OnSavedSearch(ownSearch))
+	r.appendOwned(t, activity.TypeSavedSearchCreated, activity.OnSavedSearch(othersSearch))
+
+	r.pass(t)
+
+	sent := r.sender.all()
+	if got, want := seqsSent(t, sent), []int64{wantFinding, wantSearch}; !slices.Equal(got, want) {
+		t.Fatalf("sent %v, want only the owner's own %v", got, want)
+	}
+	var payload struct {
+		Event activity.EventJSON `json:"event"`
+	}
+	if err := json.Unmarshal(sent[0].Body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Event.DashboardID != nil || payload.Event.FolderID == nil || *payload.Event.FolderID != ownFolder {
+		t.Fatalf("payload dashboard_id %v and folder_id %v, want no dashboard and folder %s", payload.Event.DashboardID, payload.Event.FolderID, ownFolder)
+	}
+}
+
+func (r *rig) findingInPersonalFolder(t *testing.T, owner string) (id pgtype.UUID, folder string) {
+	t.Helper()
+	var raw string
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
+		INSERT INTO findings (title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, folder_id)
+		VALUES ('F', 'm', now() - interval '1 hour', now(), 'user', $1::uuid, 'Seed', (SELECT id FROM folders WHERE owner_id = $1::uuid))
+		RETURNING id::text, folder_id::text`, owner).Scan(&raw, &folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r.uuid(t, raw), folder
+}
+
+func (r *rig) savedSearchInPersonalFolder(t *testing.T, owner string) pgtype.UUID {
+	t.Helper()
+	var raw string
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
+		INSERT INTO saved_searches (kind, title, datasource_uid, query, time_from, time_to, folder_id, created_by_kind, created_by_id, created_by_name)
+		VALUES ('logs', 'S', 'loki', '{app="x"}', 'now-1h', 'now', (SELECT id FROM folders WHERE owner_id = $1::uuid), 'user', $1::uuid, 'Seed')
+		RETURNING id::text`, owner).Scan(&raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r.uuid(t, raw)
 }
 
 func (r *rig) dashboardInPersonalFolder(t *testing.T, owner string) pgtype.UUID {
