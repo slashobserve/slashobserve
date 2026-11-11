@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -175,6 +175,33 @@ It exits 1 when the investigation fails or ends without a finding.
 `bin/observe findings move <finding-id> --folder <folder-id>` moves a finding without a dashboard into another folder and prints `Moved <title> to <folder title>`.
 It needs Edit on the finding and on the folder, and a finding on a dashboard or a move into My Dashboards is refused with a 409.
 `--json` prints the response of `GET /api/v1/findings` or `POST /api/v1/findings/{id}/move` unchanged.
+
+## Observations
+
+`bin/observe o` works with observations, the pages of Markdown, panel and snapshot blocks that people and agents build about one question.
+The group is named `o`, so a prompt that starts with the single word `o` must be quoted.
+
+`bin/observe o new <title...>` starts an observation and prints `Created <title> <address>`, even with `-q`.
+It files the observation in `--folder <id>`, by default your My Dashboards, and `--from` and `--to`, RFC 3339 times that go together, set the range its panels show.
+`--text <markdown>` or `--text-file <path>`, never both, also adds a first text block.
+
+`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width and, for a text block, its first line, or for a panel block its title.
+A block that someone who can only comment added shows the state `requested`.
+
+`bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.
+Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
+`--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
+
+`bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
+
+`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
+
+`bin/observe o keep <block-id> --version <n>` makes a requested block live and needs the block's version from `o show`, and `bin/observe o discard <block-id>` deletes a requested block.
+Keeping needs Edit on the observation's folder, and discarding is open to an editor and to whoever asked for the block.
+
+Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
+The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
+Renaming, moving or reopening an observation, and changing or removing a live block, are done in the web app or through the HTTP API.
 
 ## Saved searches
 
@@ -395,7 +422,7 @@ The server keeps a connection's last 20 imports, and an interrupt stops the wait
 
 ## Search
 
-`bin/observe search` finds dashboards, findings, annotations, comments and saved searches by words, ranked by relevance, as the [search](search.md) of the web app does:
+`bin/observe search` finds dashboards, findings, annotations, observations, comments and saved searches by words, ranked by relevance, as the [search](search.md) of the web app does:
 
 ```sh
 bin/observe search checkout latency
@@ -411,7 +438,7 @@ Every word must match, and the page explains the rest of the syntax: quoted phra
 Write words that start with `-` after `--`, so the command does not read them as flags.
 A line holds the kind, the title, the folder and the address of the page that opens the result, with `no folder` or `no page` when it has none, and the snippet is indented on the line below.
 A comment shows the title of what it is on.
-`--kind` takes `dashboard`, `finding`, `annotation`, `comment` or `saved_search` and repeats, `--limit` prints 1 to 50 results (20 by default) and `--cursor` continues from the cursor a full page prints.
+`--kind` takes `dashboard`, `finding`, `annotation`, `observation`, `comment` or `saved_search` and repeats, `--limit` prints 1 to 50 results (20 by default) and `--cursor` continues from the cursor a full page prints.
 `--json` prints the response of `GET /api/v1/search` unchanged, and no match prints `No results.`
 You find only what the key can read.
 
