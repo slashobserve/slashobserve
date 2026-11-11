@@ -1,7 +1,7 @@
 # SlashObserve
 
-SlashObserve is an agentic Grafana replacement: an engineer types `/observe checkout health by pod, last 6h` and gets a live dashboard, then refines it in plain language.
-Every change is a saved version.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+`/observe` asks the built-in agent for a verified dashboard or an investigation, and outside agents connect over MCP and act as the person who connected them; every change is a saved version recorded in one activity log.
 This repository is the Community Edition monorepo (Apache-2.0), Go module `github.com/slashobserve/slashobserve`.
 The product brief lives outside this repository, at `../docs/BRIEF.md` in the SlashObserve workspace; read it for background, but this file and the area files below carry every convention needed to work here.
 

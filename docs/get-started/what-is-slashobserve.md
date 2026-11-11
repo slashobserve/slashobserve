@@ -3,14 +3,15 @@ title: What is SlashObserve
 description: What SlashObserve does and what you run to host it.
 ---
 
-SlashObserve turns a prompt into a live dashboard.
-Type `checkout health by pod, last 6h`, get a dashboard backed by your Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch data, and refine it in plain language.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+Type `/observe checkout health by pod, last 6h` and the built-in agent builds a verified dashboard that you refine in plain language.
+Outside agents such as Claude Code connect over MCP and act as the person who connected them.
 
 ## What you run
 
 SlashObserve is one container plus one Postgres database.
 The container is a single Go binary with the web UI embedded; it has no other runtime dependencies.
-Postgres holds everything the server owns: dashboards and their versions, folders and their access lists, comments, users and sessions, service accounts and key hashes, and the agent request queue.
+Postgres holds everything the server owns: dashboards and their versions, findings, comment threads, the activity log, saved searches, folders and their access lists, users and sessions, service accounts and key hashes, connected agents, webhooks, and the agent request queue.
 Your Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers stay where they are; SlashObserve only reads from them.
 
 You also need:
