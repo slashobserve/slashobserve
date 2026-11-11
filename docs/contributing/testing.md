@@ -48,6 +48,18 @@ A trace is recorded on the retry.
 When a shard fails, its HTML report and test results are uploaded as the `playwright-shard-N` artifact; when the API suite fails, the compose logs are uploaded as `e2e-logs`.
 Locally the suite runs with one worker, no retries and the list reporter.
 
+## Two servers and the load test
+
+`make replicas-up` builds this checkout and boots the isolated `slashobserve-replicas` compose stack: two servers behind HAProxy and PgBouncer in transaction mode, with `SLASHOBSERVE_DATABASE_DIRECT_URL` pointing straight at Postgres, the replay model provider, and the shop's Prometheus.
+HAProxy answers on http://localhost:48080 and spreads requests over both servers.
+Server 1 alone answers on http://localhost:48081 and server 2 alone on http://localhost:48082, so a check can write on one server and read on the other.
+The stack's project name, ports and volumes differ from the demo, the e2e stack and the evals stack, so it runs beside them and never stops, resets or reads them.
+`make replicas-down` removes only its containers and volumes.
+Nothing here runs in CI.
+
+`scripts/replicas.sh` also has `stop`, `kill` and `start` for one server, `workers` to recreate the servers with another `SLASHOBSERVE_AGENT_WORKERS`, `status` and `logs`.
+Its keys, the service accounts the load test signs in with, are written under `/tmp/slashobserve-replicas` and never printed.
+
 ## Coverage
 
 `COVER=1 make test` also measures coverage.
