@@ -8,6 +8,9 @@ dashboards-id-comments:
         format: uuid
   post:
     operationId: createDashboardComment
+    x-surfaces:
+      mcp: [create_comment, reply_to_comment]
+      cli: [observe comments reply]
     summary: Comment on a panel or the whole dashboard, or reply to a thread.
     description: >-
       A comment starts a thread or replies to one.
@@ -100,6 +103,9 @@ dashboards-id-comments:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listDashboardComments
+    x-surfaces:
+      mcp: [list_comments]
+      cli: [observe comments list]
     summary: List the comments of a dashboard across all versions, oldest first.
     parameters:
       - name: status
@@ -168,6 +174,9 @@ dashboards-id-comments-commentid:
         format: uuid
   patch:
     operationId: setDashboardCommentStatus
+    x-surfaces:
+      mcp: [resolve_comment, reopen_comment]
+      cli: [observe comments resolve]
     summary: Resolve or reopen a comment.
     description: >-
       Setting the status a comment already has answers 200 with the comment unchanged and sends no event.

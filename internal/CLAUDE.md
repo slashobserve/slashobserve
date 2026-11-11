@@ -28,6 +28,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
   A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.
   `docs/use/mcp.md` has one row per MCP tool with its lowest role, and `docs_test.go` fails when a tool has no row or the wrong role.
+- `agent/prompts/skill`: the `/observe` skill file and its body, a leaf package so the CLI can embed it without the Spec; the MCP prompt `observe` serves its body.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
 - `tailhttp`: `GET /datasources/{uid}/tail`, the SSE live tail; one poller per stream, 5 per person, no query slot.
 - `tracecompare`: the pure ranking of attribute values that set selected traces apart from a baseline, shared by `POST /datasources/{uid}/trace-compare` and the `compare_traces` tool; the adapters read the pairs through `datasource.TraceAttributeSource` (Tempo at 4 traces at a time, ClickHouse in one query).
@@ -52,6 +53,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `duplicate_title` and `unopened` are computed on read, never stored, and a repair's prompt starts with `repairPromptPrefix`, which the per-requester cap matches.
 - `specfiles`: the dashboard file layout shared by the provisioner and the CLI; a folder directory name escapes only `%` and `/` (`DirName`, `FolderTitle`), so any title round-trips.
 - `taste`: the layout and field rules shared by the reference dashboards' test and the evals quality score; scoring weights stay in `evals/runner`.
+- `surface`: tests only; the `/observe` guide checks and the parity test that every API operation names its MCP tools and CLI commands or carries a reason.
 
 ## Secrets and configuration
 
@@ -75,6 +77,7 @@ This lists only the packages whose purpose the name does not make obvious.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
+- `observe skill install` writes the skill embedded in the CLI binary and never one fetched from a server, because a skill instructs the person's own agents and the CLI talks to any `--server` it is given.
 - A tool's `MinRole` is the lowest role the web app needs for the same work: Viewer for every tool except `create_finding` and `save_finding`, which need Editor like Investigate (`revisions.runAllowed`).
   The services' folder checks decide the rest.
   `MinRole` is checked when the tool is called, not when tools are listed, and not inside agent runs.

@@ -1,6 +1,8 @@
 prompts:
   get:
     operationId: listSavedPrompts
+    x-surfaces:
+      cli: [observe run]
     summary: List the saved prompts the caller may run.
     description: >-
       Lists the prompts the caller may run: the caller's own prompts first, then prompts other people shared, each group by name ignoring case, at most 500.

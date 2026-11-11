@@ -14,6 +14,9 @@ datasources-uid-traces-trace-id:
         pattern: "^[0-9a-fA-F]{16}$|^[0-9a-fA-F]{32}$"
   get:
     operationId: getTrace
+    x-surfaces:
+      mcp: [get_trace]
+      cli: [observe traces]
     summary: Read one trace whole from a Tempo or ClickHouse datasource.
     description: >-
       Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`.
@@ -103,6 +106,8 @@ datasources-uid-trace-stats:
         type: string
   post:
     operationId: traceStats
+    x-surfaces:
+      mcp: [trace_stats]
     summary: Count spans and errors per bucket and give the duration distribution of the spans a filter matches.
     description: >-
       On Tempo `query` is a TraceQL spanset filter such as `{ resource.service.name = "checkout" }`, and `{}` matches every span; on ClickHouse it is a SQL boolean expression over `otel_traces` such as `ServiceName = 'checkout'`, and an empty string matches every span.

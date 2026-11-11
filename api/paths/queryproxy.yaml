@@ -219,6 +219,8 @@ datasources-uid-lint:
         type: string
   post:
     operationId: lintDatasourceQuery
+    x-surfaces:
+      mcp: [lint_query]
     summary: Parse a query for a datasource and return diagnostics, without executing it or returning data.
     description: >-
       Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`.

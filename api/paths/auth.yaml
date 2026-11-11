@@ -81,6 +81,8 @@ auth-session:
 me:
   get:
     operationId: getMe
+    x-surfaces:
+      cli: [observe login, observe doctor]
     summary: Return the authenticated caller.
     responses:
       "200":
@@ -96,6 +98,8 @@ me:
 instance:
   get:
     operationId: getInstance
+    x-surfaces:
+      cli: [observe doctor]
     summary: Return the server's public and MCP URLs and its sign-in settings; never a secret.
     responses:
       "200":

@@ -1,7 +1,8 @@
 # SlashObserve
 
-SlashObserve is an open-source, agentic Grafana replacement.
-Type `/observe checkout health by pod, last 6h`, get a live dashboard on your Prometheus and ClickHouse data, and refine it in plain language.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+Type `/observe checkout health by pod, last 6h` and the built-in agent builds a verified dashboard that you refine in plain language.
+Outside agents such as Claude Code connect over MCP and act as the person who connected them.
 
 Website and docs: https://slashobserve.com.
 
@@ -30,16 +31,24 @@ Contributors build the demo from source with `make demo-build`.
 
 ## What works today
 
-- Prompt to dashboard from the web chat, from the `observe` CLI, and from MCP clients such as Claude Code, OpenCode and Cursor.
+- Verified dashboards with versions: prompt to dashboard from the web chat, from the `observe` CLI, and from MCP clients such as Claude Code, OpenCode and Cursor.
   A save runs every panel query and rejects a panel whose query fails or returns no data.
 - Follow-up prompts revise the same dashboard.
   Every change is a saved version that you can compare and restore.
-- Comments on panels, which you can send to the agent as a revision request.
+- Findings, the saved answers of an investigation, which live in folders and follow the folder's access.
+- Comment threads on dashboards, findings and annotations, with edits, and `@observe` mentions that are recorded in the activity log.
+  A comment on a panel can also go to the agent as a revision request.
+- One activity log of who changed what, in the web app, the CLI, MCP and signed webhooks that an Admin configures.
+- One search across dashboards, findings, annotations, comments and saved searches, from the command palette, the CLI and MCP.
+- A logs page and a trace view, and saved logs and trace searches that the team can reuse.
 - A panel editor for queries, settings and JSON, for changes that do not need the agent.
 - 21 data panel types, among them time series, stat, table, heatmap, logs, traces, geomap and canvas, plus text, dashboard list, news and rows.
 - Dashboard variables, including ad hoc filters and group-by.
 - Import of Grafana dashboard JSON, with a report of what carried over and what did not.
-- Sign-in through your OIDC provider, four roles, folders with access lists, and service-account keys for the CLI and MCP.
+- Sign-in through your OIDC provider, four roles, and folders with access lists.
+- MCP over OAuth, where the client acts as the person who approved it, or over a service-account key for bots.
+  The `/observe` guide for outside agents is served as an MCP prompt and ships as an agent skill that the CLI installs.
+- The estimated cost of each agent run, and an optional spend limit.
 
 The [known limitations](docs/get-started/known-limitations.md) list what is missing.
 
@@ -47,14 +56,14 @@ The [known limitations](docs/get-started/known-limitations.md) list what is miss
 
 From Grafana.
 You describe a dashboard instead of assembling it panel by panel, and the result is one JSON document that the server validates against a schema before it saves it.
-SlashObserve is not a Grafana fork or plugin, and it reads Prometheus and ClickHouse only.
-Grafana supports many more datasources and has alerting, which SlashObserve does not.
-If you already have Grafana dashboards, import them as JSON.
+SlashObserve is not a Grafana fork or plugin.
+It reads six datasource types and imports Grafana dashboards, from JSON or from a running Grafana.
+Grafana supports many more datasources and has alerting, which SlashObserve does not have yet.
 
 From chat-with-your-metrics tools.
-The answer is a saved dashboard and not a chat reply: it has an address, versions, comments and folder access, and it keeps refreshing from your datasources after the conversation ends.
+The answer is a saved dashboard or finding and not a chat reply: it has an address, comment threads and folder access, and a dashboard keeps refreshing from your datasources after the conversation ends.
 The agent can only save a dashboard definition, which the server checks before it keeps it.
-You can also bring your own agent: MCP clients use the same tools and the same checks.
+You can also bring your own agent: MCP clients use the same tools and the same checks, and what they change is recorded under the name of the person they act for.
 
 ## LLM providers
 
@@ -81,6 +90,8 @@ An Admin creates a service-account key on the **API keys** page; then:
 
     observe login --server http://localhost:8080
     observe "checkout p99 latency, last 6h"
+
+To give your coding agents the `/observe` guide, run `observe skill install`.
 
 See [CLI](docs/use/cli.md) and [MCP](docs/use/mcp.md).
 

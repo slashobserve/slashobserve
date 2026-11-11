@@ -7,6 +7,9 @@ datasources-uid-draft-query:
         type: string
   post:
     operationId: draftQuery
+    x-surfaces:
+      mcp: [draft_query]
+      cli: [observe logs, observe traces]
     summary: Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
     description: >-
       The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB.

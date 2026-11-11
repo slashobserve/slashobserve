@@ -356,3 +356,11 @@ How Cursor expands environment variables inside `headers` is defined by Cursor, 
 ```
 
 If your Cursor version cannot expand variables there, put the key in the file only for a user-level `~/.cursor/mcp.json` that is never committed.
+
+## The /observe prompt
+
+The server offers one MCP prompt, `observe`, with an optional `ask`.
+It returns the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces and answer comments, and appends the `ask` as its last section.
+Any key that can call `/mcp` can list and get it, and the text holds nothing secret.
+How a client shows a prompt is up to the client; in Claude Code it appears as an `mcp__` command under the server's name.
+To get the same guide as `/observe` in Claude Code and other agents that read Agent Skills, run `observe skill install` (see [CLI](cli.md#agent-skill)).

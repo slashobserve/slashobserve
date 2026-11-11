@@ -1,6 +1,8 @@
 dashboards:
   post:
     operationId: createDashboard
+    x-surfaces:
+      mcp: [create_dashboard]
     summary: Create a dashboard from a Spec, validating it and running every panel query.
     requestBody:
       required: true
@@ -54,6 +56,9 @@ dashboards:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listDashboards
+    x-surfaces:
+      mcp: [list_dashboards]
+      cli: [observe dashboards list]
     summary: List the dashboards the caller can see, most recently updated first or grouped by folder.
     description: >-
       Filters combine with AND; `total_count` counts all matches regardless of the cursor.
@@ -198,6 +203,9 @@ dashboards-id:
         format: uuid
   get:
     operationId: getDashboard
+    x-surfaces:
+      mcp: [get_dashboard, get_panels]
+      cli: [observe dashboards show]
     summary: Get a dashboard with its latest version.
     responses:
       "200":
@@ -257,6 +265,8 @@ dashboards-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteDashboard
+    x-surfaces:
+      cli: [observe dashboards delete]
     summary: Delete a dashboard with every version, comment, agent request and import record.
     description: >-
       Needs Edit on the dashboard. The delete cannot be undone.
@@ -291,6 +301,8 @@ dashboards-id-versions:
         format: uuid
   get:
     operationId: listDashboardVersions
+    x-surfaces:
+      cli: [observe dashboards versions]
     summary: List the versions of a dashboard without their Specs, newest first.
     parameters:
       - name: limit
@@ -333,6 +345,8 @@ dashboards-id-versions:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createDashboardVersion
+    x-surfaces:
+      mcp: [update_dashboard, update_panels]
     summary: Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
     description: >-
       A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly
@@ -419,6 +433,9 @@ dashboards-id-versions-version:
         maximum: 2147483647
   get:
     operationId: getDashboardVersion
+    x-surfaces:
+      mcp: [get_dashboard]
+      cli: [observe dashboards show]
     summary: Get one version of a dashboard with its Spec.
     responses:
       "200":

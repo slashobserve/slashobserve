@@ -1,6 +1,9 @@
 saved-searches:
   get:
     operationId: listSavedSearches
+    x-surfaces:
+      mcp: [list_saved_searches]
+      cli: [observe saved-searches list]
     summary: List the saved logs and trace searches the caller can view, most recently changed first.
     description: >-
       Lists every saved search in the folders the caller can view, newest `updated_at` first.
@@ -46,6 +49,9 @@ saved-searches:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createSavedSearch
+    x-surfaces:
+      mcp: [save_search]
+      cli: [observe saved-searches save]
     summary: Save a logs or trace search in a folder.
     description: >-
       Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written.
@@ -96,6 +102,8 @@ saved-searches-id:
         format: uuid
   patch:
     operationId: updateSavedSearch
+    x-surfaces:
+      cli: [observe saved-searches rename, observe saved-searches move]
     summary: Rename a saved search or move it to another folder.
     description: >-
       Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead.
@@ -140,6 +148,8 @@ saved-searches-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteSavedSearch
+    x-surfaces:
+      cli: [observe saved-searches delete]
     summary: Delete a saved search.
     description: Needs Edit on the saved search. The deletion is recorded as `saved_search.deleted`, which stays in the folder the search was in.
     responses:

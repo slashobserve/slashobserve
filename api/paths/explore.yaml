@@ -7,6 +7,9 @@ datasources-uid-query:
         type: string
   post:
     operationId: exploreQuery
+    x-surfaces:
+      mcp: [query_instant, query_range]
+      cli: [observe logs, observe traces]
     summary: Run one query against a datasource and return its frames.
     description: >-
       The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables.

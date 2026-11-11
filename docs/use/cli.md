@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `run`, `saved-searches`, `search`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -458,6 +458,16 @@ bin/observe webhooks test <webhook id>
 
 `--json` prints the response body of each request unchanged.
 `update`, `enable`, `disable` and `rotate-secret` make the caller the webhook's owner, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+
+## Agent skill
+
+`bin/observe skill install` writes the `/observe` skill, the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces and answer comments, to `~/.agents/skills/observe/SKILL.md` and `~/.claude/skills/observe/SKILL.md`.
+Claude Code and other agents that read Agent Skills then offer it as `/observe`.
+It replaces an earlier copy, prints one `Installed <path>` line per file and needs no server, sign-in or network.
+`--dir <path>` writes only `<path>/observe/SKILL.md`.
+
+The skill is part of the CLI program and is never fetched from a server, so the text always comes from the release you installed; run `bin/observe skill install` again after you upgrade the CLI.
+The same guide reaches MCP clients as the [`observe` prompt](mcp.md#the-observe-prompt).
 
 ## Shell completion
 

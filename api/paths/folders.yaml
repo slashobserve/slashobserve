@@ -1,6 +1,8 @@
 folders:
   get:
     operationId: listFolders
+    x-surfaces:
+      mcp: [list_folders]
     summary: List the folders the caller can see.
     description: >-
       A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone.

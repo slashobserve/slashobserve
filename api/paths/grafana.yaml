@@ -20,6 +20,8 @@ grafana:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createGrafanaConnection
+    x-surfaces:
+      cli: [observe grafana connect]
     summary: Store a Grafana URL and service-account token.
     description: >-
       Only Admins can call this endpoint.
@@ -174,6 +176,8 @@ grafana-id-test:
         format: uuid
   post:
     operationId: testGrafanaConnection
+    x-surfaces:
+      cli: [observe grafana connect]
     summary: Check that Grafana answers with the stored token.
     description: >-
       Only Admins can call this endpoint.
@@ -212,6 +216,8 @@ grafana-id-folders:
         format: uuid
   get:
     operationId: listGrafanaFolders
+    x-surfaces:
+      cli: [observe grafana import]
     summary: List the Grafana folders and how many dashboards each holds.
     description: >-
       Only Admins can call this endpoint.
@@ -311,6 +317,8 @@ grafana-id-imports:
         format: uuid
   post:
     operationId: startGrafanaImport
+    x-surfaces:
+      cli: [observe grafana import]
     summary: Import every dashboard of the chosen folders.
     description: >-
       Only Admins can call this endpoint.
@@ -372,6 +380,8 @@ grafana-id-imports-syncid:
         maxLength: 64
   get:
     operationId: getGrafanaImport
+    x-surfaces:
+      cli: [observe grafana import]
     summary: Read the progress of an import.
     description: >-
       Only Admins can call this endpoint.
@@ -404,6 +414,8 @@ grafana-resolve-uid:
         maxLength: 256
   get:
     operationId: resolveGrafanaUID
+    x-surfaces:
+      cli: [observe open]
     summary: Find the dashboard imported from a Grafana uid.
     description: >-
       Any signed-in caller can resolve a uid, so links to the old Grafana dashboard keep working.

@@ -1,7 +1,7 @@
 # SlashObserve
 
-SlashObserve is an agentic Grafana replacement: an engineer types `/observe checkout health by pod, last 6h` and gets a live dashboard, then refines it in plain language.
-Every change is a saved version.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+`/observe` asks the built-in agent for a verified dashboard or an investigation, and outside agents connect over MCP and act as the person who connected them; every change is a saved version recorded in one activity log.
 This repository is the Community Edition monorepo (Apache-2.0), Go module `github.com/slashobserve/slashobserve`.
 The product brief lives outside this repository, at `../docs/BRIEF.md` in the SlashObserve workspace; read it for background, but this file and the area files below carry every convention needed to work here.
 
@@ -136,6 +136,9 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - Tools are defined once in `internal/agent/tools`, with one description per tool and per parameter; MCP and the built-in agent read the same text except the four named variants in `wording.go` (`guide`, `folder`, `run target`, `build`), and `TestSurfacesDifferOnlyByNamedVariants` fails on any other difference; the comment tools, `list_folders`, `create_finding`, `move_finding`, `save_search`, `list_saved_searches`, `list_dashboard_health`, `create_annotation`, `list_activity`, `search_workspace` and `draft_query` are MCP-only, `list_annotations` reaches the agent only in investigate runs, and `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.
   No tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API, and delete also with the CLI.
   `move_finding` is the one move tool, and only for a finding without a dashboard.
+- The `/observe` guide for outside agents is `internal/agent/prompts/skill/observe/SKILL.md`, a complete Agent Skill: the MCP prompt `observe` serves its body, so the guide is one text; `internal/surface` fails when it names a tool MCP does not offer or an `observe` command the CLI lacks.
+- Every `/api/v1` operation names the MCP tools and `observe` commands that reach it under `x-surfaces` in `api/paths/`, or has a reason in `internal/surface/exceptions_test.go`; `TestEveryOperationReachesMCPAndTheCLI` fails otherwise.
+  A reason quotes a rule the product already has; an operation with none takes `notBuilt`.
 - The authoring guide is `internal/agent/prompts/spec_guide.md` plus one `guide/<type>.md` section per datasource type; `prompts.GuideFor` is the only place that picks sections, and a run's system text and `get_spec_guide` carry only the sections of the configured types.
 - Imports are the one tolerant first save: `POST /api/v1/imports` saves version 1 even when queries fail and records those panels and variables in `version.unverified` and the import report.
   Later saves run every query, and a failing panel or variable is kept only while the parent version lists it as unverified and it is unchanged.

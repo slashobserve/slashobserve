@@ -7,6 +7,8 @@ datasources-uid-trace-compare:
         type: string
   post:
     operationId: compareTraces
+    x-surfaces:
+      mcp: [compare_traces]
     summary: Rank the attribute values that set a set of traces apart from a baseline.
     description: >-
       Reads every span of the `selected` traces and of the `baseline` traces from a Tempo or ClickHouse datasource and counts, once per trace, each attribute value any of its spans carries:

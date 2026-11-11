@@ -1,6 +1,9 @@
 datasources:
   get:
     operationId: listDatasources
+    x-surfaces:
+      mcp: [list_datasources]
+      cli: [observe doctor]
     summary: Report the health and dashboard usage of every configured datasource, never its connection details.
     responses:
       "200":

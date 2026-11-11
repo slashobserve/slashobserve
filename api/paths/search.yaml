@@ -1,6 +1,9 @@
 search:
   get:
     operationId: searchWorkspace
+    x-surfaces:
+      mcp: [search_workspace]
+      cli: [observe search]
     summary: Search dashboards, findings, annotations, comments and saved searches by words.
     description: >-
       Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals.

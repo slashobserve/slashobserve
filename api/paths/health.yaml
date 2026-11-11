@@ -1,6 +1,9 @@
 health:
   get:
     operationId: listDashboardHealth
+    x-surfaces:
+      mcp: [list_dashboard_health]
+      cli: [observe health]
     summary: List dashboards with health problems.
     description: >-
       Anyone with a role can call this endpoint.
@@ -57,6 +60,8 @@ health:
 health-repairs:
   post:
     operationId: requestHealthRepairs
+    x-surfaces:
+      cli: [observe health repair]
     summary: Queue the agent to repair the failing panels and variables the health check found.
     description: >-
       Editors and Admins can call this endpoint.
@@ -105,6 +110,8 @@ health-repairs:
 health-run:
   post:
     operationId: runDashboardHealth
+    x-surfaces:
+      cli: [observe health run]
     summary: Start a health run now.
     description: >-
       Admins only.

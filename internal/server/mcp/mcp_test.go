@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts/skill"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
@@ -395,7 +396,8 @@ func TestInitializeIsStatelessAndCarriesInstructions(t *testing.T) {
 		} `json:"serverInfo"`
 		Instructions string `json:"instructions"`
 		Capabilities struct {
-			Tools map[string]any `json:"tools"`
+			Tools   map[string]any `json:"tools"`
+			Prompts map[string]any `json:"prompts"`
 		} `json:"capabilities"`
 	}
 	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
@@ -404,8 +406,95 @@ func TestInitializeIsStatelessAndCarriesInstructions(t *testing.T) {
 	if result.ProtocolVersion != "2025-11-25" || result.ServerInfo.Name != "slashobserve" || result.ServerInfo.Version != "test" {
 		t.Errorf("initialize result %+v", result)
 	}
-	if !strings.Contains(result.Instructions, "get_spec_guide") || result.Capabilities.Tools == nil {
-		t.Errorf("instructions or tool capability missing: %+v", result)
+	if !strings.Contains(result.Instructions, "get_spec_guide") || result.Capabilities.Tools == nil || result.Capabilities.Prompts == nil {
+		t.Errorf("instructions, tool or prompt capability missing: %+v", result)
+	}
+}
+
+type promptDescriptor struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Arguments   []struct {
+		Name     string `json:"name"`
+		Required bool   `json:"required"`
+	} `json:"arguments"`
+}
+
+func TestObservePromptIsListedWithItsAskArgument(t *testing.T) {
+	f := newFixture(t)
+	rec := f.post(rpc(1, "prompts/list", nil), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Prompts []promptDescriptor `json:"prompts"`
+	}
+	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Prompts) != 1 {
+		t.Fatalf("prompts/list returned %d prompts, want 1: %s", len(result.Prompts), rec.Body.String())
+	}
+	got := result.Prompts[0]
+	if got.Name != "observe" || got.Title != "Observe" || got.Description == "" {
+		t.Errorf("prompt %+v", got)
+	}
+	if len(got.Arguments) != 1 || got.Arguments[0].Name != "ask" || got.Arguments[0].Required {
+		t.Errorf("arguments %+v, want one optional ask", got.Arguments)
+	}
+}
+
+func TestObservePromptServesTheSkillBody(t *testing.T) {
+	cases := []struct {
+		name string
+		args map[string]any
+		want string
+	}{
+		{"with an ask", map[string]any{"ask": "checkout p99"}, skill.Prompt("checkout p99")},
+		{"without an ask", nil, skill.Body()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			params := map[string]any{"name": "observe"}
+			if tc.args != nil {
+				params["arguments"] = tc.args
+			}
+			rec := f.post(rpc(1, "prompts/get", params), nil)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			var result struct {
+				Messages []struct {
+					Role    string `json:"role"`
+					Content struct {
+						Type string `json:"type"`
+						Text string `json:"text"`
+					} `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Messages) != 1 || result.Messages[0].Role != "user" || result.Messages[0].Content.Type != "text" {
+				t.Fatalf("messages %+v, want one user text message", result.Messages)
+			}
+			if result.Messages[0].Content.Text != tc.want {
+				t.Errorf("the prompt text is not the skill text")
+			}
+			if !strings.Contains(f.logs.String(), "mcp prompt") || strings.Contains(f.logs.String(), "checkout p99") {
+				t.Errorf("log must hold the prompt event and never the ask: %s", f.logs.String())
+			}
+		})
+	}
+}
+
+func TestPromptsNeedAuthentication(t *testing.T) {
+	f := newFixture(t)
+	for _, method := range []string{"prompts/list", "prompts/get"} {
+		rec := f.post(rpc(1, method, map[string]any{"name": "observe"}), map[string]string{"Authorization": ""})
+		assertErrorBody(t, rec, http.StatusUnauthorized, "unauthenticated")
 	}
 }
 
