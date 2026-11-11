@@ -547,3 +547,31 @@ func TestListPagesByMessageAndFilters(t *testing.T) {
 		t.Error("a malformed cursor was accepted")
 	}
 }
+
+func TestAThreadMessageOnAFindingWithNoDashboardIsOwnedByTheFinding(t *testing.T) {
+	r := newRig(t)
+	detached := r.createFinding(t, testUser, pgtype.UUID{})
+	onDashboard := r.createFinding(t, testUser, r.createDashboard(t, "rps"))
+	r.open(t, testUser, OpenInput{Target: target(KindFinding, detached), Body: "who owns this"})
+	r.open(t, testUser, OpenInput{Target: target(KindFinding, onDashboard), Body: "and this"})
+
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var findingIDs, dashboardIDs []string
+	for rows.Next() {
+		var finding, dashboard string
+		if err := rows.Scan(&finding, &dashboard); err != nil {
+			t.Fatal(err)
+		}
+		findingIDs, dashboardIDs = append(findingIDs, finding), append(dashboardIDs, dashboard)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(findingIDs) != 2 || findingIDs[0] != detached.String() || dashboardIDs[0] != "" || findingIDs[1] != "" || dashboardIDs[1] == "" {
+		t.Fatalf("finding ids %v and dashboard ids %v, want the detached finding owning its thread and the dashboard finding's thread owned by its dashboard", findingIDs, dashboardIDs)
+	}
+}

@@ -43,12 +43,11 @@ func (e emitter) data() eventData {
 
 func (e emitter) append(ctx context.Context, q *dbsqlc.Queries, typ string, data eventData, live *events.Event) error {
 	_, err := activity.Append(ctx, q, activity.Entry{
-		Type:        typ,
-		TargetID:    e.thread.ID,
-		DashboardID: e.scope.owner,
-		Global:      e.scope.global,
-		Actor:       e.actor,
-		Data:        data,
+		Type:     typ,
+		TargetID: e.thread.ID,
+		Owner:    e.scope.activity,
+		Actor:    e.actor,
+		Data:     data,
 	}, live)
 	return err
 }

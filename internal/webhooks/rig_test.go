@@ -234,10 +234,15 @@ func (r *rig) append(t *testing.T, typ string) int64 {
 
 func (r *rig) appendFor(t *testing.T, typ string, dashboard pgtype.UUID) int64 {
 	t.Helper()
+	return r.appendOwned(t, typ, activity.OnDashboard(dashboard))
+}
+
+func (r *rig) appendOwned(t *testing.T, typ string, owner activity.Owner) int64 {
+	t.Helper()
 	var seq int64
 	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
 		var err error
-		seq, err = activity.Append(t.Context(), q, activity.Entry{Type: typ, TargetID: targets(), DashboardID: dashboard, Actor: someone}, nil)
+		seq, err = activity.Append(t.Context(), q, activity.Entry{Type: typ, TargetID: targets(), Owner: owner, Actor: someone}, nil)
 		return err
 	})
 	if err != nil {

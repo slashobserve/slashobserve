@@ -88,8 +88,8 @@ func TestRunActivityNamesTheTransitionOfEveryStatusAndSource(t *testing.T) {
 			if !ok {
 				return
 			}
-			if entry.TargetID != runRequestID || entry.DashboardID != tc.row.DashboardID || entry.Global {
-				t.Errorf("entry targets %v in %v (global %v), want the request in its dashboard", entry.TargetID, entry.DashboardID, entry.Global)
+			if entry.TargetID != runRequestID || entry.Owner != activity.OnDashboard(tc.row.DashboardID) {
+				t.Errorf("entry targets %v owned by %+v, want the request in its dashboard", entry.TargetID, entry.Owner)
 			}
 			if !activity.Known(entry.Type) {
 				t.Errorf("%q is not a known activity type", entry.Type)

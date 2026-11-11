@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -17,24 +18,31 @@ import (
 
 type scope struct {
 	target    Target
-	owner     pgtype.UUID
-	global    bool
+	dashboard pgtype.UUID
+	activity  activity.Owner
 	abilities folders.Abilities
 }
 
 func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (scope, error) {
-	var owner pgtype.UUID
+	var dashboard pgtype.UUID
+	var owner activity.Owner
 	var abilities folders.Abilities
 	var err error
 	switch t.Kind {
 	case KindDashboard:
 		var found folders.DashboardAccess
 		found, err = s.access.Dashboard(ctx, by, t.ID)
-		owner, abilities = t.ID, found.Abilities
+		dashboard, owner, abilities = t.ID, activity.OnDashboard(t.ID), found.Abilities
 	case KindFinding:
-		owner, abilities, err = s.findings.Access(ctx, by, t.ID)
+		var placement findings.Placement
+		placement, err = s.findings.Access(ctx, by, t.ID)
+		dashboard, owner, abilities = placement.Dashboard, placement.Activity, placement.Abilities
 	case KindAnnotation:
-		owner, abilities, err = s.annotations.Access(ctx, by, t.ID)
+		dashboard, abilities, err = s.annotations.Access(ctx, by, t.ID)
+		owner = activity.General()
+		if dashboard.Valid {
+			owner = activity.OnDashboard(dashboard)
+		}
 	default:
 		return scope{}, invalidTarget("target kind must be dashboard, finding or annotation")
 	}
@@ -46,7 +54,7 @@ func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (sco
 	case !abilities.View:
 		return scope{}, ErrTargetNotFound
 	}
-	return scope{target: t, owner: owner, global: t.Kind == KindAnnotation && !owner.Valid, abilities: abilities}, nil
+	return scope{target: t, dashboard: dashboard, activity: owner, abilities: abilities}, nil
 }
 
 func isHidden(err error) bool {
@@ -73,8 +81,8 @@ func targetOf(row dbsqlc.Thread) Target {
 }
 
 func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope) error {
-	if sc.owner.Valid {
-		if _, err := q.LockDashboardKeyShare(ctx, sc.owner); err != nil {
+	if sc.dashboard.Valid {
+		if _, err := q.LockDashboardKeyShare(ctx, sc.dashboard); err != nil {
 			return lockFailure(err)
 		}
 	}

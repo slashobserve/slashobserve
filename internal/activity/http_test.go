@@ -49,9 +49,9 @@ func seqsInBody(t *testing.T, body map[string]any) []int64 {
 func TestListServesPagesWithACursor(t *testing.T) {
 	r := newRig(t)
 	d := r.dashboardIn(t, pgtype.UUID{})
-	first := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: d, Data: map[string]any{"title": "Checkout"}})
-	second := r.append(t, Entry{Type: TypeDashboardVersionCreated, DashboardID: d})
-	third := r.append(t, Entry{Type: TypeDashboardMoved, DashboardID: d})
+	first := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(d), Data: map[string]any{"title": "Checkout"}})
+	second := r.append(t, Entry{Type: TypeDashboardVersionCreated, Owner: OnDashboard(d)})
+	third := r.append(t, Entry{Type: TypeDashboardMoved, Owner: OnDashboard(d)})
 
 	code, page := r.get(t, plain, "limit=2")
 
@@ -82,7 +82,7 @@ func TestListServesPagesWithACursor(t *testing.T) {
 func TestListShapesAnEvent(t *testing.T) {
 	r := newRig(t)
 	d := r.dashboardIn(t, pgtype.UUID{})
-	r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: d, TargetID: d, Data: map[string]any{"version": 1}})
+	r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(d), TargetID: d, Data: map[string]any{"version": 1}})
 
 	code, body := r.get(t, plain, "")
 
@@ -138,9 +138,9 @@ func TestListFiltersByTypeAndDashboard(t *testing.T) {
 	r := newRig(t)
 	a := r.dashboardIn(t, pgtype.UUID{})
 	b := r.dashboardIn(t, pgtype.UUID{})
-	r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: a})
-	wanted := r.append(t, Entry{Type: TypeDashboardMoved, DashboardID: b})
-	r.append(t, Entry{Type: TypeDashboardMoved, DashboardID: a})
+	r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(a)})
+	wanted := r.append(t, Entry{Type: TypeDashboardMoved, Owner: OnDashboard(b)})
+	r.append(t, Entry{Type: TypeDashboardMoved, Owner: OnDashboard(a)})
 
 	code, body := r.get(t, plain, "dashboard_id="+b.String()+"&type=dashboard.moved&type=dashboard.deleted")
 
@@ -156,8 +156,8 @@ func TestListAppliesTheAudience(t *testing.T) {
 	r := newRig(t)
 	open := r.dashboardIn(t, r.openFolder(t, "Open"))
 	restricted := r.dashboardIn(t, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	inOpen := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: open})
-	inRestricted := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: restricted})
+	inOpen := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(open)})
+	inRestricted := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(restricted)})
 	readersOwn := r.append(t, Entry{Type: TypeFindingCreated, Actor: editorActor})
 	tests := []struct {
 		name string

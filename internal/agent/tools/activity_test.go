@@ -58,11 +58,11 @@ func (r activityRig) append(t *testing.T, eventType string, dashboard pgtype.UUI
 	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
 		var err error
 		seq, err = activity.Append(t.Context(), q, activity.Entry{
-			Type:        eventType,
-			TargetID:    dashboard,
-			DashboardID: dashboard,
-			Actor:       actor.Of(editorCaller, origin.Origin{Kind: origin.MCP, Client: "claude-code"}, ""),
-			Data:        map[string]any{"title": "Checkout"},
+			Type:     eventType,
+			TargetID: dashboard,
+			Owner:    activity.OnDashboard(dashboard),
+			Actor:    actor.Of(editorCaller, origin.Origin{Kind: origin.MCP, Client: "claude-code"}, ""),
+			Data:     map[string]any{"title": "Checkout"},
 		}, nil)
 		return err
 	})

@@ -55,16 +55,19 @@ func (q *Queries) ActivityXid(ctx context.Context, seq int64) (pgtype.Uint64, er
 }
 
 const insertActivity = `-- name: InsertActivity :one
-INSERT INTO activity (type, target_kind, target_id, dashboard_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
+INSERT INTO activity (type, target_kind, target_id, dashboard_id, finding_id, saved_search_id, folder_id, actor_kind, actor_id, actor_name, origin, origin_client, run_id, data)
 VALUES (
   $1::text,
   $2::text,
   $3::uuid,
-  $4::uuid,
-  CASE
-    WHEN $4::uuid IS NOT NULL
-      THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $4::uuid)
-    WHEN $5::boolean THEN general_folder_id()
+  CASE WHEN $4::text = 'dashboard' THEN $5::uuid END,
+  CASE WHEN $4::text = 'finding' THEN $5::uuid END,
+  CASE WHEN $4::text = 'saved_search' THEN $5::uuid END,
+  CASE $4::text
+    WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $5::uuid)
+    WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = $5::uuid)
+    WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = $5::uuid)
+    WHEN 'general' THEN general_folder_id()
   END,
   $6::text,
   $7::uuid,
@@ -81,8 +84,8 @@ type InsertActivityParams struct {
 	Type         string
 	TargetKind   string
 	TargetID     pgtype.UUID
-	DashboardID  pgtype.UUID
-	Global       bool
+	OwnerKind    string
+	OwnerID      pgtype.UUID
 	ActorKind    string
 	ActorID      pgtype.UUID
 	ActorName    string
@@ -92,14 +95,14 @@ type InsertActivityParams struct {
 	Data         []byte
 }
 
-// No row lock on dashboards: a delete holds that row and then cascades into child rows an appender may already hold.
+// No row lock on the owner: a delete holds that row and then cascades into child rows an appender may already hold.
 func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertActivity,
 		arg.Type,
 		arg.TargetKind,
 		arg.TargetID,
-		arg.DashboardID,
-		arg.Global,
+		arg.OwnerKind,
+		arg.OwnerID,
 		arg.ActorKind,
 		arg.ActorID,
 		arg.ActorName,
@@ -275,12 +278,17 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 	return items, nil
 }
 
-const lockDashboardActivity = `-- name: LockDashboardActivity :exec
-SELECT pg_advisory_xact_lock(hashtextextended('activity:dashboard:' || CAST($1::uuid AS text), 0))
+const lockActivityOwner = `-- name: LockActivityOwner :exec
+SELECT pg_advisory_xact_lock(hashtextextended('activity:' || $1::text || ':' || CAST($2::uuid AS text), 0))
 `
 
-func (q *Queries) LockDashboardActivity(ctx context.Context, dashboardID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, lockDashboardActivity, dashboardID)
+type LockActivityOwnerParams struct {
+	OwnerKind string
+	OwnerID   pgtype.UUID
+}
+
+func (q *Queries) LockActivityOwner(ctx context.Context, arg LockActivityOwnerParams) error {
+	_, err := q.db.Exec(ctx, lockActivityOwner, arg.OwnerKind, arg.OwnerID)
 	return err
 }
 
@@ -295,6 +303,40 @@ type MoveDashboardActivityParams struct {
 
 func (q *Queries) MoveDashboardActivity(ctx context.Context, arg MoveDashboardActivityParams) (int64, error) {
 	result, err := q.db.Exec(ctx, moveDashboardActivity, arg.FolderID, arg.DashboardID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const moveFindingActivity = `-- name: MoveFindingActivity :execrows
+UPDATE activity SET folder_id = $1 WHERE finding_id = $2
+`
+
+type MoveFindingActivityParams struct {
+	FolderID  pgtype.UUID
+	FindingID pgtype.UUID
+}
+
+func (q *Queries) MoveFindingActivity(ctx context.Context, arg MoveFindingActivityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, moveFindingActivity, arg.FolderID, arg.FindingID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const moveSavedSearchActivity = `-- name: MoveSavedSearchActivity :execrows
+UPDATE activity SET folder_id = $1 WHERE saved_search_id = $2
+`
+
+type MoveSavedSearchActivityParams struct {
+	FolderID      pgtype.UUID
+	SavedSearchID pgtype.UUID
+}
+
+func (q *Queries) MoveSavedSearchActivity(ctx context.Context, arg MoveSavedSearchActivityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, moveSavedSearchActivity, arg.FolderID, arg.SavedSearchID)
 	if err != nil {
 		return 0, err
 	}
@@ -319,12 +361,17 @@ func (q *Queries) PruneActivity(ctx context.Context, arg PruneActivityParams) (i
 	return result.RowsAffected(), nil
 }
 
-const shareDashboardActivity = `-- name: ShareDashboardActivity :exec
-SELECT pg_advisory_xact_lock_shared(hashtextextended('activity:dashboard:' || CAST($1::uuid AS text), 0))
+const shareActivityOwner = `-- name: ShareActivityOwner :exec
+SELECT pg_advisory_xact_lock_shared(hashtextextended('activity:' || $1::text || ':' || CAST($2::uuid AS text), 0))
 `
 
+type ShareActivityOwnerParams struct {
+	OwnerKind string
+	OwnerID   pgtype.UUID
+}
+
 // Run alone before InsertActivity so the insert's snapshot sees a move that committed during the wait.
-func (q *Queries) ShareDashboardActivity(ctx context.Context, dashboardID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, shareDashboardActivity, dashboardID)
+func (q *Queries) ShareActivityOwner(ctx context.Context, arg ShareActivityOwnerParams) error {
+	_, err := q.db.Exec(ctx, shareActivityOwner, arg.OwnerKind, arg.OwnerID)
 	return err
 }

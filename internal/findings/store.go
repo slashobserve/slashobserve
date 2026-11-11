@@ -56,11 +56,11 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 			data["agent_request_id"] = row.AgentRequestID.String()
 		}
 		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:        activity.TypeFindingCreated,
-			TargetID:    row.ID,
-			DashboardID: row.DashboardID,
-			Actor:       by,
-			Data:        data,
+			Type:     activity.TypeFindingCreated,
+			TargetID: row.ID,
+			Owner:    activityOwner(row.DashboardID, row.ID),
+			Actor:    by,
+			Data:     data,
 		}, nil)
 		return err
 	})
@@ -138,6 +138,13 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	return findingsOf(found)
 }
 
+func activityOwner(dashboardID, findingID pgtype.UUID) activity.Owner {
+	if dashboardID.Valid {
+		return activity.OnDashboard(dashboardID)
+	}
+	return activity.OnFinding(findingID)
+}
+
 func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, annotationID pgtype.UUID) (bool, error) {
 	won := false
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
@@ -147,11 +154,11 @@ func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboard
 		}
 		won = true
 		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:        activity.TypeFindingPinned,
-			TargetID:    id,
-			DashboardID: dashboardID,
-			Actor:       by,
-			Data:        map[string]string{"annotation_id": annotationID.String()},
+			Type:     activity.TypeFindingPinned,
+			TargetID: id,
+			Owner:    activityOwner(dashboardID, id),
+			Actor:    by,
+			Data:     map[string]string{"annotation_id": annotationID.String()},
 		}, nil)
 		return err
 	})

@@ -82,11 +82,11 @@ func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
 		}
 	}
 	return activity.Entry{
-		Type:        typ,
-		TargetID:    row.ID,
-		DashboardID: row.DashboardID,
-		Actor:       actor.FromColumns(columns),
-		Data:        data,
+		Type:     typ,
+		TargetID: row.ID,
+		Owner:    activity.OnDashboard(row.DashboardID),
+		Actor:    actor.FromColumns(columns),
+		Data:     data,
 	}, true
 }
 

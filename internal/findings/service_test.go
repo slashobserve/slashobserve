@@ -295,12 +295,12 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 		{"another editor of a finding without a dashboard", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
 	}
 	for _, c := range cases {
-		dashboard, abilities, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))
-		if !errors.Is(err, c.err) || dashboard != c.dashboard || abilities != c.want {
-			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, dashboard, abilities, err, c.dashboard, c.want, c.err)
+		placement, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))
+		if !errors.Is(err, c.err) || placement.Dashboard != c.dashboard || placement.Abilities != c.want {
+			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, placement.Dashboard, placement.Abilities, err, c.dashboard, c.want, c.err)
 		}
 	}
-	if _, _, err := r.service.Access(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
+	if _, err := r.service.Access(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a missing finding: %v", err)
 	}
 }

@@ -44,12 +44,11 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 		}
 		created = annotationOf(row)
 		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:        activity.TypeAnnotationCreated,
-			TargetID:    row.ID,
-			DashboardID: row.DashboardID,
-			Global:      !row.DashboardID.Valid,
-			Actor:       by,
-			Data:        newCreatedData(created),
+			Type:     activity.TypeAnnotationCreated,
+			TargetID: row.ID,
+			Owner:    activityOwner(row.DashboardID),
+			Actor:    by,
+			Data:     newCreatedData(created),
 		}, nil)
 		return err
 	})
@@ -88,6 +87,13 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Annotation, error) {
 	return annotationOf(row), nil
 }
 
+func activityOwner(dashboardID pgtype.UUID) activity.Owner {
+	if dashboardID.Valid {
+		return activity.OnDashboard(dashboardID)
+	}
+	return activity.General()
+}
+
 func (s *store) remove(ctx context.Context, id pgtype.UUID, by actor.Actor) error {
 	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		row, err := q.GetAnnotation(ctx, id)
@@ -98,11 +104,10 @@ func (s *store) remove(ctx context.Context, id pgtype.UUID, by actor.Actor) erro
 			return err
 		}
 		if _, err := activity.Append(ctx, q, activity.Entry{
-			Type:        activity.TypeAnnotationDeleted,
-			TargetID:    id,
-			DashboardID: row.DashboardID,
-			Global:      !row.DashboardID.Valid,
-			Actor:       by,
+			Type:     activity.TypeAnnotationDeleted,
+			TargetID: id,
+			Owner:    activityOwner(row.DashboardID),
+			Actor:    by,
 		}, nil); err != nil {
 			return err
 		}

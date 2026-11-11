@@ -345,11 +345,11 @@ func TestAudience(t *testing.T) {
 	}
 	personal := r.dashboardIn(t, personalFolder)
 
-	inGeneral := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: general})
-	inOpen := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: open})
-	inRestricted := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: restricted})
-	inPersonal := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: personal})
-	globalAnnotation := r.append(t, Entry{Type: TypeAnnotationCreated, Global: true})
+	inGeneral := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(general)})
+	inOpen := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(open)})
+	inRestricted := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(restricted)})
+	inPersonal := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(personal)})
+	globalAnnotation := r.append(t, Entry{Type: TypeAnnotationCreated, Owner: General()})
 	readersOwn := r.append(t, Entry{Type: TypeFindingCreated, Actor: actor.Of(reader, origin.Origin{}, "")})
 	someoneElses := r.append(t, Entry{Type: TypeFindingCreated})
 
@@ -382,7 +382,7 @@ func TestAppendTakesTheDashboardsFolder(t *testing.T) {
 	folder := r.openFolder(t, "Open")
 	dashboard := r.dashboardIn(t, folder)
 
-	seq := r.append(t, Entry{Type: TypeDashboardVersionCreated, DashboardID: dashboard})
+	seq := r.append(t, Entry{Type: TypeDashboardVersionCreated, Owner: OnDashboard(dashboard)})
 
 	var got string
 	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id::text FROM activity WHERE seq = $1`, seq).Scan(&got); err != nil {
@@ -441,7 +441,7 @@ func TestAnAppendTakesNoDashboardRowLock(t *testing.T) {
 			}
 			done := make(chan appended, 1)
 			go func() {
-				seq, err := r.tryAppend(t.Context(), Entry{Type: TypeDashboardVersionCreated, DashboardID: dashboard})
+				seq, err := r.tryAppend(t.Context(), Entry{Type: TypeDashboardVersionCreated, Owner: OnDashboard(dashboard)})
 				done <- appended{seq, err}
 			}()
 			got := finished(t, done, "the append")
@@ -469,7 +469,7 @@ func TestAnAppendDuringAMoveReadsTheNewFolder(t *testing.T) {
 		if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
 			return err
 		}
-		if err := MoveDashboard(ctx, q, dashboard, to); err != nil {
+		if err := Move(ctx, q, OnDashboard(dashboard), to); err != nil {
 			return err
 		}
 		close(moved)
@@ -484,7 +484,7 @@ func TestAnAppendDuringAMoveReadsTheNewFolder(t *testing.T) {
 	}
 	done := make(chan appended, 1)
 	go func() {
-		seq, err := r.tryAppend(ctx, Entry{Type: TypeDashboardVersionCreated, DashboardID: dashboard})
+		seq, err := r.tryAppend(ctx, Entry{Type: TypeDashboardVersionCreated, Owner: OnDashboard(dashboard)})
 		done <- appended{seq, err}
 	}()
 	r.waitForAdvisoryLockWait(t)
@@ -510,7 +510,7 @@ func TestAMoveWaitsForAnOpenAppend(t *testing.T) {
 	appended := make(chan struct{})
 	appender := r.hold(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		heldSeq, err = Append(ctx, q, Entry{Type: TypeDashboardVersionCreated, TargetID: newTarget(), DashboardID: dashboard, Actor: editorActor}, nil)
+		heldSeq, err = Append(ctx, q, Entry{Type: TypeDashboardVersionCreated, TargetID: newTarget(), Owner: OnDashboard(dashboard), Actor: editorActor}, nil)
 		close(appended)
 		return err
 	}, nil)
@@ -523,7 +523,7 @@ func TestAMoveWaitsForAnOpenAppend(t *testing.T) {
 			if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
 				return err
 			}
-			return MoveDashboard(ctx, q, dashboard, to)
+			return Move(ctx, q, OnDashboard(dashboard), to)
 		})
 	}()
 	r.waitForAdvisoryLockWait(t)
@@ -540,7 +540,7 @@ func TestAMoveWaitsForAnOpenAppend(t *testing.T) {
 func TestAppendForAMissingDashboardHasNoFolder(t *testing.T) {
 	r := newRig(t)
 
-	seq := r.append(t, Entry{Type: TypeDashboardDeleted, DashboardID: newTarget()})
+	seq := r.append(t, Entry{Type: TypeDashboardDeleted, Owner: OnDashboard(newTarget())})
 
 	var folder pgtype.UUID
 	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id FROM activity WHERE seq = $1`, seq).Scan(&folder); err != nil {
@@ -620,8 +620,8 @@ func TestListAppliesTheFilter(t *testing.T) {
 	ctx := t.Context()
 	all := r.audience(t, admin)
 	dashboard := r.dashboardIn(t, pgtype.UUID{})
-	created := r.append(t, Entry{Type: TypeDashboardCreated, DashboardID: dashboard})
-	moved := r.append(t, Entry{Type: TypeDashboardMoved, DashboardID: dashboard})
+	created := r.append(t, Entry{Type: TypeDashboardCreated, Owner: OnDashboard(dashboard)})
+	moved := r.append(t, Entry{Type: TypeDashboardMoved, Owner: OnDashboard(dashboard)})
 	other := r.append(t, Entry{Type: TypeFindingCreated})
 
 	tests := []struct {

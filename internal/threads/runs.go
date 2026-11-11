@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -66,6 +67,6 @@ func (r *Runs) ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.
 	if err != nil {
 		return fmt.Errorf("resolve comment thread: %w", err)
 	}
-	sc := scope{target: Target{Kind: KindDashboard, ID: run.DashboardID}, owner: run.DashboardID}
+	sc := scope{target: Target{Kind: KindDashboard, ID: run.DashboardID}, dashboard: run.DashboardID, activity: activity.OnDashboard(run.DashboardID)}
 	return emitter{scope: sc, thread: thread, actor: resolver}.statusChanged(ctx, q)
 }

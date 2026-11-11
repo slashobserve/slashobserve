@@ -150,7 +150,7 @@ func nextTarget() pgtype.UUID {
 }
 
 func visibleToEveryone() activity.Entry {
-	return activity.Entry{Type: activity.TypeAnnotationCreated, Global: true}
+	return activity.Entry{Type: activity.TypeAnnotationCreated, Owner: activity.General()}
 }
 
 func visibleToActorAndAdmins() activity.Entry {

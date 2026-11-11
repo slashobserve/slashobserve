@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -189,22 +190,28 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
 }
 
-func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (pgtype.UUID, folders.Abilities, error) {
+type Placement struct {
+	Dashboard pgtype.UUID
+	Activity  activity.Owner
+	Abilities folders.Abilities
+}
+
+func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (Placement, error) {
 	f, err := s.store.get(ctx, id)
 	if err != nil {
-		return pgtype.UUID{}, folders.Abilities{}, err
+		return Placement{}, err
 	}
 	abilities, err := s.abilities(ctx, by, f)
 	if err != nil {
-		return pgtype.UUID{}, folders.Abilities{}, err
+		return Placement{}, err
 	}
 	var dashboardID pgtype.UUID
 	if f.DashboardID != "" {
 		if dashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
-			return pgtype.UUID{}, folders.Abilities{}, err
+			return Placement{}, err
 		}
 	}
-	return dashboardID, abilities, nil
+	return Placement{Dashboard: dashboardID, Activity: activityOwner(dashboardID, id), Abilities: abilities}, nil
 }
 
 func (s *Service) visible(ctx context.Context, by auth.Principal, f Finding) error {
