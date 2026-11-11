@@ -54,8 +54,10 @@ func TestHubWakeReleasesEveryWaiter(t *testing.T) {
 
 func TestHubRefusesWaitersPastTheLimits(t *testing.T) {
 	h := newHub()
-	if !h.acquire("grant:a") || !h.acquire("grant:a") {
-		t.Fatal("the first two waiters of one claimer were refused")
+	for i := range maxWaitersPerClaimer {
+		if !h.acquire("grant:a") {
+			t.Fatalf("waiter %d of one claimer was refused below the per-claimer limit", i+1)
+		}
 	}
 	if h.acquire("grant:a") {
 		t.Fatal("a third waiter of one claimer was accepted")

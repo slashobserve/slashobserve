@@ -63,7 +63,7 @@ func newFixture(t *testing.T) *fixture {
 	people := &principals{}
 	runs := revisions.NewService(d.DB, noReviser{}, logger,
 		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
-	svc := New(Config{DB: d.DB, Runs: runs, Listen: d.DB.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
+	svc := New(Config{DB: d.DB, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
 	return &fixture{svc: svc, runs: runs, d: d, principals: people, dashboard: seedDashboard(t, d)}
 }
 
