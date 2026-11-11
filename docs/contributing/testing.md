@@ -60,6 +60,12 @@ Nothing here runs in CI.
 `scripts/replicas.sh` also has `stop`, `kill` and `start` for one server, `workers` to recreate the servers with another `SLASHOBSERVE_AGENT_WORKERS`, `status` and `logs`.
 Its keys, the service accounts the load test signs in with, are written under `/tmp/slashobserve-replicas` and never printed.
 
+`make replicas-check` recreates the stack and runs `scripts/replicas.sh check`, which prints one `PASS`, `FAIL` or `KNOWN` line per item and takes about 15 minutes.
+It checks that migrations, provisioning and scheduled jobs run once across both servers, that the fleet count and the divided limits are right, that events, agent runs, webhook leases, logins and OAuth tokens cross servers, and that a server stopped gracefully, killed and restarted leaves no request lost.
+A `KNOWN` line is a gap the page for operators documents; whoever fixes it sees the line change.
+`scripts/replicas.sh check C5` reruns one item on a running stack, except C1 to C3, which need a fresh boot.
+Run it before a release that changes the scheduler, the agent queue, events, OAuth, webhooks, the fleet or provisioning, and paste its output into the pull request.
+
 ## Coverage
 
 `COVER=1 make test` also measures coverage.

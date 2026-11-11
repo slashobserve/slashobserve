@@ -30,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -141,6 +141,11 @@ replicas-up:
 
 replicas-down:
 	scripts/replicas.sh down
+
+replicas-check:
+	scripts/replicas.sh down
+	scripts/replicas.sh up
+	scripts/replicas.sh check
 
 e2e:
 	scripts/e2e.sh
