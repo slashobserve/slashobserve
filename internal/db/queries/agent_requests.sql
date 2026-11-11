@@ -22,13 +22,8 @@ INSERT INTO agent_requests (
 RETURNING *;
 
 -- name: ClaimAgentRequest :one
-UPDATE agent_requests
-SET status = 'running',
-  attempts = attempts + 1,
-  lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
-WHERE id = (
-  SELECT r.id FROM agent_requests r
+WITH picked AS (
+  SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < @max_attempts::integer
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
@@ -39,7 +34,14 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING sqlc.embed(agent_requests), (old.started_at IS NULL)::boolean AS first_claim;
+UPDATE agent_requests
+SET status = 'running',
+  attempts = attempts + 1,
+  lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
+  started_at = coalesce(started_at, clock_timestamp())
+FROM picked
+WHERE agent_requests.id = picked.id
+RETURNING sqlc.embed(agent_requests), picked.first_claim::boolean AS first_claim;
 
 -- name: RenewAgentRequestLease :one
 UPDATE agent_requests

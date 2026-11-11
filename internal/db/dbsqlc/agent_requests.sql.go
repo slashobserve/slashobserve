@@ -152,13 +152,8 @@ func (q *Queries) CancelAgentRequest(ctx context.Context, arg CancelAgentRequest
 }
 
 const claimAgentRequest = `-- name: ClaimAgentRequest :one
-UPDATE agent_requests
-SET status = 'running',
-  attempts = attempts + 1,
-  lease_until = clock_timestamp() + make_interval(secs => $1::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
-WHERE id = (
-  SELECT r.id FROM agent_requests r
+WITH picked AS (
+  SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < $2::integer
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
@@ -169,7 +164,14 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, (old.started_at IS NULL)::boolean AS first_claim
+UPDATE agent_requests
+SET status = 'running',
+  attempts = attempts + 1,
+  lease_until = clock_timestamp() + make_interval(secs => $1::double precision),
+  started_at = coalesce(started_at, clock_timestamp())
+FROM picked
+WHERE agent_requests.id = picked.id
+RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, picked.first_claim::boolean AS first_claim
 `
 
 type ClaimAgentRequestParams struct {
