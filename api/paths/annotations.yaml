@@ -1,6 +1,8 @@
 annotations:
   get:
     operationId: listAnnotations
+    x-surfaces:
+      mcp: [list_annotations]
     summary: List annotations, newest first.
     description: >-
       Lists annotations ordered by `time_from` then `id`, newest first.
@@ -66,6 +68,9 @@ annotations:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createAnnotation
+    x-surfaces:
+      mcp: [create_annotation]
+      cli: [observe annotate]
     summary: Add an annotation.
     description: >-
       Adds an annotation to one dashboard, or a global one shown on every dashboard when `dashboard_id` is absent or null.

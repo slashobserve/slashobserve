@@ -54,6 +54,8 @@ provision-run:
 provision-apply:
   post:
     operationId: applyDashboardFile
+    x-surfaces:
+      cli: [observe dashboards apply]
     summary: Save one dashboard file from a dashboards-as-code directory.
     description: >-
       Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file.
@@ -106,6 +108,8 @@ provision-apply:
 provision-applied:
   get:
     operationId: listAppliedDashboards
+    x-surfaces:
+      cli: [observe dashboards export]
     summary: List the file paths bound to the dashboards of a folder.
     description: >-
       Anyone with a role can call this endpoint for a folder they can see; `observe dashboards export` reads it to keep the file names a folder was applied from.

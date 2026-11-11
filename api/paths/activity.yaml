@@ -1,6 +1,9 @@
 activity:
   get:
     operationId: listActivity
+    x-surfaces:
+      mcp: [list_activity]
+      cli: [observe activity]
     summary: List workspace activity, newest first.
     description: >-
       Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled.
@@ -80,6 +83,9 @@ activity:
 activity-stream:
   get:
     operationId: streamActivity
+    x-surfaces:
+      mcp: [list_activity]
+      cli: [observe activity]
     summary: Follow workspace activity as Server-Sent Events.
     description: >-
       The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`.

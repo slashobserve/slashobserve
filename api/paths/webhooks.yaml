@@ -1,6 +1,8 @@
 webhooks-list:
   get:
     operationId: listWebhooks
+    x-surfaces:
+      cli: [observe webhooks list]
     summary: List the webhooks.
     description: >-
       Only Admins can call this endpoint, and an Admin service-account key can too.
@@ -20,6 +22,8 @@ webhooks-list:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createWebhook
+    x-surfaces:
+      cli: [observe webhooks add]
     summary: Send workspace activity to an https address.
     description: >-
       Only Admins can call this endpoint.
@@ -78,6 +82,8 @@ webhooks-id:
         format: uuid
   patch:
     operationId: updateWebhook
+    x-surfaces:
+      cli: [observe webhooks update, observe webhooks enable, observe webhooks disable]
     summary: Change a webhook's name, address, event types or state.
     description: >-
       Only Admins can call this endpoint.
@@ -115,6 +121,8 @@ webhooks-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteWebhook
+    x-surfaces:
+      cli: [observe webhooks delete]
     summary: Delete a webhook and its delivery attempts.
     description: Only Admins can call this endpoint. A delivery in flight may still reach the receiver once.
     responses:
@@ -140,6 +148,8 @@ webhooks-id-secret:
         format: uuid
   post:
     operationId: rotateWebhookSecret
+    x-surfaces:
+      cli: [observe webhooks rotate-secret]
     summary: Replace a webhook's signing secret.
     description: >-
       Only Admins can call this endpoint.
@@ -179,6 +189,8 @@ webhooks-id-test:
         format: uuid
   post:
     operationId: testWebhook
+    x-surfaces:
+      cli: [observe webhooks test]
     summary: Send one test event to a webhook.
     description: >-
       Only Admins can call this endpoint.
@@ -218,6 +230,8 @@ webhooks-id-deliveries:
         format: uuid
   get:
     operationId: listWebhookDeliveries
+    x-surfaces:
+      cli: [observe webhooks deliveries]
     summary: List a webhook's recent delivery attempts, newest first.
     description: >-
       Only Admins can call this endpoint.

@@ -7,6 +7,8 @@ datasources-uid-metrics:
         type: string
   get:
     operationId: listDatasourceMetrics
+    x-surfaces:
+      mcp: [list_metrics]
     summary: List the metric names of a datasource, up to a limit.
     description: >-
       The browser's only path to metric names; it never calls a datasource directly.
@@ -72,6 +74,8 @@ datasources-uid-labels:
         type: string
   get:
     operationId: listDatasourceLabels
+    x-surfaces:
+      mcp: [list_labels]
     summary: List the label names of a datasource, or its OpenTelemetry attribute keys on ClickHouse, up to a limit.
     description: >-
       The browser's only path to label names; it never calls a datasource directly.
@@ -180,6 +184,8 @@ datasources-uid-labels-name-values:
         maxLength: 256
   get:
     operationId: listDatasourceLabelValues
+    x-surfaces:
+      mcp: [list_label_values]
     summary: List the values of one label of a datasource, up to a limit.
     description: >-
       The browser's only path to label values; it never calls a datasource directly.

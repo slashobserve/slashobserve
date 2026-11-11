@@ -1,6 +1,9 @@
 threads:
   get:
     operationId: listThreads
+    x-surfaces:
+      mcp: [list_comments]
+      cli: [observe comments list]
     summary: List the comment threads on a dashboard, a finding or an annotation.
     description: >-
       Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to.
@@ -62,6 +65,9 @@ threads:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: openThread
+    x-surfaces:
+      mcp: [create_comment]
+      cli: [observe comments add]
     summary: Start a thread on a dashboard, a finding or an annotation.
     description: >-
       The first message of a thread has the id of the thread, so either id names it.
@@ -132,6 +138,9 @@ threads-threadid-messages:
         format: uuid
   post:
     operationId: replyToThread
+    x-surfaces:
+      mcp: [reply_to_comment]
+      cli: [observe comments reply]
     summary: Add a message to a thread.
     description: >-
       The path takes the thread's id or the id of any of its messages.
@@ -182,6 +191,9 @@ threads-threadid-resolve:
         format: uuid
   post:
     operationId: resolveThread
+    x-surfaces:
+      mcp: [resolve_comment]
+      cli: [observe comments resolve]
     summary: Resolve a thread.
     description: >-
       The path takes the thread's id or the id of any of its messages.
@@ -234,6 +246,9 @@ threads-threadid-reopen:
         format: uuid
   post:
     operationId: reopenThread
+    x-surfaces:
+      mcp: [reopen_comment]
+      cli: [observe comments reopen]
     summary: Reopen a resolved thread.
     description: >-
       The path takes the thread's id or the id of any of its messages, and the request has no body.
@@ -268,6 +283,9 @@ messages-messageid:
         format: uuid
   patch:
     operationId: editMessage
+    x-surfaces:
+      mcp: [edit_comment]
+      cli: [observe comments edit]
     summary: Edit the body of your own message.
     description: >-
       Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`.

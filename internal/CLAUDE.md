@@ -50,7 +50,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `duplicate_title` and `unopened` are computed on read, never stored, and a repair's prompt starts with `repairPromptPrefix`, which the per-requester cap matches.
 - `specfiles`: the dashboard file layout shared by the provisioner and the CLI; a folder directory name escapes only `%` and `/` (`DirName`, `FolderTitle`), so any title round-trips.
 - `taste`: the layout and field rules shared by the reference dashboards' test and the evals quality score; scoring weights stay in `evals/runner`.
-- `surface`: tests only; the `/observe` guide checks.
+- `surface`: tests only; the `/observe` guide checks and the parity test that every API operation names its MCP tools and CLI commands or carries a reason.
 
 ## Secrets and configuration
 

@@ -8,6 +8,8 @@ dashboards-id-revisions:
         format: uuid
   post:
     operationId: createDashboardRevision
+    x-surfaces:
+      cli: [observe]
     summary: Ask the agent to revise a dashboard with a follow-up prompt.
     description: >-
       The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard.

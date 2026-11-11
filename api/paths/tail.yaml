@@ -7,6 +7,8 @@ datasources-uid-tail:
         type: string
   get:
     operationId: tailLogs
+    x-surfaces:
+      cli: [observe logs]
     summary: Stream new log lines of a logs query as Server-Sent Events.
     description: >-
       The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own.

@@ -1,6 +1,9 @@
 findings:
   get:
     operationId: listFindings
+    x-surfaces:
+      mcp: [list_findings]
+      cli: [observe findings list]
     summary: List the findings the caller can read, newest first.
     description: >-
       Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder.
@@ -178,6 +181,9 @@ findings-id-move:
         format: uuid
   post:
     operationId: moveFinding
+    x-surfaces:
+      mcp: [move_finding]
+      cli: [observe findings move]
     summary: Move a finding without a dashboard into another folder.
     description: >-
       Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published.

@@ -1,6 +1,8 @@
 agent:
   get:
     operationId: getAgent
+    x-surfaces:
+      cli: [observe doctor]
     summary: Tell whether an agent is configured and which provider and model it uses.
     description: >-
       Clients check this before offering the chat composer.
@@ -84,6 +86,8 @@ observe:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createObserveRequest
+    x-surfaces:
+      cli: [observe, observe investigate, observe run]
     summary: Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
     description: >-
       The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`.
@@ -179,6 +183,8 @@ observe-id:
         format: uuid
   get:
     operationId: getObserveRequest
+    x-surfaces:
+      cli: [observe status]
     summary: Read one agent request with its progress steps and usage.
     description: >-
       Works for any agent request, including comment and prompt revisions.
@@ -271,6 +277,8 @@ observe-id-build:
         format: uuid
   get:
     operationId: getObserveRequestBuild
+    x-surfaces:
+      cli: [observe]
     summary: Read the dashboard an agent request has built so far, with its ObserveSpec.
     description: >-
       Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build.
@@ -357,6 +365,8 @@ observe-id-cancel:
         format: uuid
   post:
     operationId: cancelObserveRequest
+    x-surfaces:
+      cli: [observe cancel]
     summary: Cancel a queued or running agent request.
     description: >-
       Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request.
@@ -399,6 +409,8 @@ observe-id-continue:
         format: uuid
   post:
     operationId: continueObserveRequest
+    x-surfaces:
+      cli: [observe continue]
     summary: Continue a stopped agent request in a new request that takes over its build.
     description: >-
       The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget.

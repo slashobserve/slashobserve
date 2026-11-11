@@ -1,6 +1,8 @@
 imports-preview:
   post:
     operationId: previewImport
+    x-surfaces:
+      cli: [observe import]
     summary: Convert a Grafana dashboard without saving it or running any query.
     description: >-
       Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`.
@@ -48,6 +50,9 @@ imports-preview:
 imports:
   post:
     operationId: createImport
+    x-surfaces:
+      mcp: [import_grafana_dashboard]
+      cli: [observe import]
     summary: Import a Grafana dashboard as version 1 of a new dashboard.
     description: >-
       Takes the same body as the preview and saves the converted Spec even when some queries fail.
