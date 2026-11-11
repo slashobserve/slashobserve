@@ -69,8 +69,10 @@ This lists only the packages whose purpose the name does not make obvious.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
-- A tool's `MinRole` is checked when the tool is called, not when tools are listed, and only for keys outside agent runs.
-  Inside a run the requester's folder level decides.
+- A tool's `MinRole` is the lowest role the web app needs for the same work: Viewer for every tool except `create_finding` and `save_finding`, which need Editor like Investigate (`revisions.runAllowed`).
+  The services' folder checks decide the rest.
+  `MinRole` is checked when the tool is called, not when tools are listed, and not inside agent runs.
+  `TestToolRoles` enforces the rule.
 - Every `/api/v1` route except `/api/v1/auth/*` and `/api/v1/public/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
   Feature packages register through `Register(api auth.Routes)`; in `queryproxy/proxyhttp` each handler file registers its routes with `registerRoutes` in its own `init`, and `Register` only replays them.
   They never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.

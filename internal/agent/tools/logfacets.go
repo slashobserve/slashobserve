@@ -29,7 +29,7 @@ func init() { registerEntries((*Registry).facetEntries) }
 
 func (r *Registry) facetEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLogFacets, Description: descLogFacets, InputSchema: json.RawMessage(schemaLogFacetsBody), ReadOnly: true, MinRole: auth.RoleEditor}, r.logFacets},
+		{Tool{Name: nameLogFacets, Description: descLogFacets, InputSchema: json.RawMessage(schemaLogFacetsBody), ReadOnly: true, MinRole: auth.RoleViewer}, r.logFacets},
 	}
 }
 

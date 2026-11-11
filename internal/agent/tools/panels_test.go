@@ -660,7 +660,7 @@ func TestUpdatePanelsInputRules(t *testing.T) {
 	}
 }
 
-func TestPanelToolRoleFloors(t *testing.T) {
+func TestPanelToolsFollowFolderAccess(t *testing.T) {
 	rig := newPanelsRig(t)
 	id := rig.seedStats(t)
 	viewer := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindServiceAccount, ID: dashB, Name: "viewer-key", Role: auth.RoleViewer})

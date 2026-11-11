@@ -18,47 +18,51 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 
 | Tool | Lowest role |
 | ---- | ----------- |
-| `compare_traces` | Editor |
-| `create_annotation` | Editor |
-| `create_comment` | Commenter |
-| `create_dashboard` | Editor |
+| `compare_traces` | Viewer |
+| `create_annotation` | Viewer |
+| `create_comment` | Viewer |
+| `create_dashboard` | Viewer |
 | `create_finding` | Editor |
 | `draft_query` | Viewer |
-| `edit_comment` | Commenter |
+| `edit_comment` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_panels` | Viewer |
-| `get_schema` | Editor |
+| `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
-| `get_trace` | Editor |
-| `import_grafana_dashboard` | Editor |
-| `lint_query` | Editor |
+| `get_trace` | Viewer |
+| `import_grafana_dashboard` | Viewer |
+| `lint_query` | Viewer |
 | `list_activity` | Viewer |
 | `list_annotations` | Viewer |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboards` | Viewer |
-| `list_datasources` | Editor |
+| `list_datasources` | Viewer |
 | `list_findings` | Viewer |
 | `list_folders` | Viewer |
-| `list_label_values` | Editor |
-| `list_labels` | Editor |
-| `list_metrics` | Editor |
-| `log_context` | Editor |
-| `log_facets` | Editor |
-| `log_patterns` | Editor |
-| `logs_for_trace` | Editor |
-| `query_instant` | Editor |
-| `query_range` | Editor |
-| `reopen_comment` | Commenter |
-| `reply_to_comment` | Commenter |
-| `resolve_comment` | Commenter |
-| `sample_rows` | Editor |
-| `trace_stats` | Editor |
-| `update_dashboard` | Editor |
-| `update_panels` | Editor |
+| `list_label_values` | Viewer |
+| `list_labels` | Viewer |
+| `list_metrics` | Viewer |
+| `log_context` | Viewer |
+| `log_facets` | Viewer |
+| `log_patterns` | Viewer |
+| `logs_for_trace` | Viewer |
+| `query_instant` | Viewer |
+| `query_range` | Viewer |
+| `reopen_comment` | Viewer |
+| `reply_to_comment` | Viewer |
+| `resolve_comment` | Viewer |
+| `sample_rows` | Viewer |
+| `trace_stats` | Viewer |
+| `update_dashboard` | Viewer |
+| `update_panels` | Viewer |
 
-A call below the key's role returns the tool error `forbidden_role`.
-Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
+The lowest role is the one the web app needs for the same work, and folder access decides the rest, as in the web app.
+A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
+A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save.
+`create_finding` needs Editor, like Investigate.
+
+A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.
 On `initialize` the server sends instructions with the order of work: read `get_spec_guide` once before the first save, find real names with the discovery tools, check each query with `lint_query` and `query_range` or `query_instant`, then save, sending changes with `update_panels`.
 Each tool's description and input schema are the text the built-in agent reads, except that MCP clients get the full guide from `get_spec_guide`, `folder_id` on `create_dashboard`, and `dashboard_id` and `parent_version` on `update_dashboard` and `update_panels`.
@@ -121,7 +125,7 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
-`create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to General.
+`create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
 No tool deletes, moves or duplicates a dashboard: people do that in the web app or through the HTTP API, and delete also with `observe dashboards delete`.
 
@@ -173,7 +177,7 @@ It lists only the events of folders the key may see, and it is over MCP only, so
 It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.
 `create_annotation` is available over MCP only and adds one, with the fields of `POST /api/v1/annotations`: `text`, `tags`, `time_from` and `time_to`, and `dashboard_id` and `panel_id` to place it on one dashboard or panel.
 Without `dashboard_id` the annotation shows on every dashboard.
-It needs an Editor key, because a key matches no folder grant, and a dashboard annotation also needs Edit on the dashboard's folder.
+It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id` needs the Editor role.
 No tool deletes an annotation; people do that in the web app or through the HTTP API.
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.

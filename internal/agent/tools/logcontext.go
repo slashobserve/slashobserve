@@ -55,7 +55,7 @@ func init() { registerEntries((*Registry).contextEntries) }
 
 func (r *Registry) contextEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLogContext, Description: descLogContext, InputSchema: json.RawMessage(schemaLogContext), ReadOnly: true, MinRole: auth.RoleEditor}, r.logContext},
+		{Tool{Name: nameLogContext, Description: descLogContext, InputSchema: json.RawMessage(schemaLogContext), ReadOnly: true, MinRole: auth.RoleViewer}, r.logContext},
 	}
 }
 

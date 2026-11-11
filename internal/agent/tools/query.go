@@ -58,9 +58,9 @@ func init() { registerEntries((*Registry).queryEntries) }
 
 func (r *Registry) queryEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLintQuery, Description: descLintQuery, InputSchema: json.RawMessage(schemaLintQuery), ReadOnly: true, MinRole: auth.RoleEditor}, r.lintQuery},
-		{Tool{Name: nameQueryRange, Description: descQueryRange, InputSchema: json.RawMessage(schemaQueryRange), ReadOnly: true, MinRole: auth.RoleEditor}, r.queryRange},
-		{Tool{Name: nameQueryInstant, Description: descQueryInstant, InputSchema: json.RawMessage(schemaQueryInstant), ReadOnly: true, MinRole: auth.RoleEditor}, r.queryInstant},
+		{Tool{Name: nameLintQuery, Description: descLintQuery, InputSchema: json.RawMessage(schemaLintQuery), ReadOnly: true, MinRole: auth.RoleViewer}, r.lintQuery},
+		{Tool{Name: nameQueryRange, Description: descQueryRange, InputSchema: json.RawMessage(schemaQueryRange), ReadOnly: true, MinRole: auth.RoleViewer}, r.queryRange},
+		{Tool{Name: nameQueryInstant, Description: descQueryInstant, InputSchema: json.RawMessage(schemaQueryInstant), ReadOnly: true, MinRole: auth.RoleViewer}, r.queryInstant},
 	}
 }
 

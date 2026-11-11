@@ -91,7 +91,7 @@ A pipeline that needs a key before anyone signs in can get one from the [service
 ## From MCP clients
 
 An MCP client such as Claude Code lists annotations with `list_annotations` and adds one with `create_annotation`, so the agent that just deployed can post the marker itself.
-`create_annotation` takes the fields of `POST /api/v1/annotations` and needs an Editor key.
+`create_annotation` takes the fields of `POST /api/v1/annotations` and needs Edit on the dashboard, or the Editor role for an annotation on every dashboard.
 The built-in agent reads annotations with `list_annotations` when it investigates, so it can see a deploy beside a spike, and it never adds one.
 No tool deletes an annotation.
 See [MCP](mcp.md).

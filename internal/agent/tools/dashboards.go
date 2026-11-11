@@ -49,8 +49,8 @@ func (r *Registry) dashboardEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDashboards, Description: descListDashboards, InputSchema: json.RawMessage(schemaListDashboards), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDashboards},
 		{Tool{Name: nameGetDashboard, Description: descGetDashboard, InputSchema: json.RawMessage(schemaGetDashboard), ReadOnly: true, MinRole: auth.RoleViewer}, r.getDashboard},
-		{Tool{Name: nameCreateDashboard, Description: descCreateDashboard, InputSchema: json.RawMessage(schemaCreateDashboard), MinRole: auth.RoleEditor}, r.createDashboard},
-		{Tool{Name: nameUpdateDashboard, Description: descUpdateDashboard, InputSchema: json.RawMessage(schemaUpdateDashboard), MinRole: auth.RoleEditor}, r.updateDashboard},
+		{Tool{Name: nameCreateDashboard, Description: descCreateDashboard, InputSchema: json.RawMessage(schemaCreateDashboard), MinRole: auth.RoleViewer}, r.createDashboard},
+		{Tool{Name: nameUpdateDashboard, Description: descUpdateDashboard, InputSchema: json.RawMessage(schemaUpdateDashboard), MinRole: auth.RoleViewer}, r.updateDashboard},
 	}
 }
 

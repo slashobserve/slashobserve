@@ -74,7 +74,7 @@ func newAccessRig(t *testing.T) *accessRig {
 	notes := annotations.New(database.DB, access)
 	found := findings.New(database.DB, access, notes, service, logger)
 	commentThreads := threads.NewService(database.DB, access, service, found, notes)
-	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, Logger: logger})
+	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, Annotations: notes, Logger: logger})
 	return &accessRig{registry: registry, service: service, threads: commentThreads, notes: notes, findings: found, db: database}
 }
 
@@ -241,6 +241,15 @@ func (r *accessRig) create(t *testing.T, by auth.Principal, title string, folder
 		input = `{"folder_id":"` + folder.String() + `","spec":` + boardSpec(title) + `}`
 	}
 	return r.call(t, by, nameCreateDashboard, input)
+}
+
+func (r *accessRig) createdSaved(t *testing.T, res Result) string {
+	t.Helper()
+	saved, ok := res.Content.(savedOut)
+	if res.IsError || !ok {
+		t.Fatalf("create_dashboard = %s", textOf(t, res))
+	}
+	return saved.DashboardID
 }
 
 func (r *accessRig) person(t *testing.T, subject string, role auth.Role) auth.Principal {

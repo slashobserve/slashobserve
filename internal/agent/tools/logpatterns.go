@@ -76,7 +76,7 @@ func init() { registerEntries((*Registry).patternEntries) }
 
 func (r *Registry) patternEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLogPatterns, Description: descLogPatterns, InputSchema: json.RawMessage(schemaLogPatterns), ReadOnly: true, MinRole: auth.RoleEditor}, r.logPatterns},
+		{Tool{Name: nameLogPatterns, Description: descLogPatterns, InputSchema: json.RawMessage(schemaLogPatterns), ReadOnly: true, MinRole: auth.RoleViewer}, r.logPatterns},
 	}
 }
 

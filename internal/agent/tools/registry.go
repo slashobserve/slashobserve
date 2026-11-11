@@ -297,6 +297,13 @@ func (r *Registry) List() []Tool {
 	return out
 }
 
+func roleRefusal(p auth.Principal, tool string) string {
+	if p.Kind == auth.KindUser {
+		return fmt.Sprintf("your role (%s) cannot use %s; an admin can change your role", p.Role, tool)
+	}
+	return fmt.Sprintf("this key's role (%s) cannot use %s; an admin can change the service account's role", p.Role, tool)
+}
+
 func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage) (Result, error) {
 	e, ok := r.entries[name]
 	if !ok {
@@ -310,7 +317,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
 	}
 	if !allowed(principal, inRun, e.tool.MinRole) {
-		res := toolError(codeForbiddenRole, fmt.Sprintf("this key's role (%s) cannot use %s; an admin can change the service account's role", principal.Role, name))
+		res := toolError(codeForbiddenRole, roleRefusal(principal, name))
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}

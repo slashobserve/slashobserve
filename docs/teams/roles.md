@@ -18,6 +18,7 @@ Every person and every service account has one of four instance roles, from the 
 A restricted folder's list can give a person more than their role on that folder, and never less: Edit lets them change, create and start dashboards there, and Admin lets them manage the folder (see [Folders and access](folders.md)).
 Every person also has a private My Dashboards folder where they always have Edit, so a Viewer or Commenter can ask the agent for dashboards there.
 Those runs spend model tokens and let the agent query every configured datasource for them.
+An MCP client a person connects has the same reach: it may do over MCP what the person may do in the web app.
 
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
