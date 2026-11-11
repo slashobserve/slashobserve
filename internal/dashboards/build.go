@@ -1,13 +1,11 @@
 package dashboards
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -261,10 +259,11 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 	if err != nil {
 		return 0, false, err
 	}
-	merged, ok, err := rebaseSpec(base, build.Spec, latest.Spec)
-	if err != nil || !ok {
+	merge, err := spec.Merge3(base, latest.Spec, build.Spec)
+	if err != nil || len(merge.Conflicts) > 0 {
 		return 0, false, err
 	}
+	merged := merge.Dashboard
 	carried, err := s.verify(ctx, by, latest.Spec, latest.Unverified, merged, true)
 	var invalid *InvalidSpecError
 	if errors.As(err, &invalid) {
@@ -278,155 +277,6 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 		return 0, false, err
 	}
 	return latest.Number, true, nil
-}
-
-func rebaseSpec(base, build, latest *spec.Dashboard) (*spec.Dashboard, bool, error) {
-	sameFields, err := sameDashboardFields(base, build)
-	if err != nil || !sameFields {
-		return nil, false, err
-	}
-	baseStates, err := panelStates(base)
-	if err != nil {
-		return nil, false, err
-	}
-	buildStates, err := panelStates(build)
-	if err != nil {
-		return nil, false, err
-	}
-	latestStates, err := panelStates(latest)
-	if err != nil {
-		return nil, false, err
-	}
-	ours := changedPanelIDs(baseStates, buildStates, panelState.samePlaced)
-	if len(ours) == 0 {
-		return latest, true, nil
-	}
-	theirs := changedPanelIDs(baseStates, latestStates, panelState.sameContent)
-	for id := range ours {
-		if theirs[id] {
-			return nil, false, nil
-		}
-	}
-	patch, err := replayPatch(build, baseStates, buildStates, ours)
-	if err != nil {
-		return nil, false, err
-	}
-	merged, err := spec.ApplyPanelPatch(latest, patch)
-	var conflicting *spec.PatchError
-	if errors.As(err, &conflicting) {
-		return nil, false, nil
-	}
-	return merged, err == nil, err
-}
-
-func sameDashboardFields(a, b *spec.Dashboard) (bool, error) {
-	withoutPanels := func(d *spec.Dashboard) ([]byte, error) {
-		fields := *d
-		fields.Panels = nil
-		return json.Marshal(fields)
-	}
-	left, err := withoutPanels(a)
-	if err != nil {
-		return false, err
-	}
-	right, err := withoutPanels(b)
-	return string(left) == string(right), err
-}
-
-type panelState struct {
-	content string
-	grid    spec.GridPos
-}
-
-func (p panelState) sameContent(other panelState) bool {
-	return p.content == other.content
-}
-
-func (p panelState) samePlaced(other panelState) bool {
-	return p == other
-}
-
-func panelStates(d *spec.Dashboard) (map[string]panelState, error) {
-	states := map[string]panelState{}
-	for _, e := range d.AllPanels() {
-		body, err := panelBody(*e.Panel)
-		if err != nil {
-			return nil, err
-		}
-		delete(body, "gridPos")
-		row := ""
-		if e.Row != nil {
-			row = e.Row.ID
-		}
-		content, err := json.Marshal(map[string]any{"row": row, "panel": body})
-		if err != nil {
-			return nil, err
-		}
-		states[e.Panel.ID] = panelState{content: string(content), grid: e.Panel.GridPos}
-	}
-	return states, nil
-}
-
-func panelBody(p spec.Panel) (map[string]any, error) {
-	p.Panels, p.Responsive = nil, nil
-	raw, err := json.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var body map[string]any
-	err = dec.Decode(&body)
-	return body, err
-}
-
-func changedPanelIDs(from, to map[string]panelState, same func(panelState, panelState) bool) map[string]bool {
-	changed := map[string]bool{}
-	for id, was := range from {
-		if now, ok := to[id]; !ok || !same(was, now) {
-			changed[id] = true
-		}
-	}
-	for id := range to {
-		if _, ok := from[id]; !ok {
-			changed[id] = true
-		}
-	}
-	return changed
-}
-
-func replayPatch(build *spec.Dashboard, baseStates, buildStates map[string]panelState, changed map[string]bool) (spec.PanelPatch, error) {
-	var patch spec.PanelPatch
-	for _, e := range build.AllPanels() {
-		id := e.Panel.ID
-		if !changed[id] {
-			continue
-		}
-		body, err := panelBody(*e.Panel)
-		if err != nil {
-			return spec.PanelPatch{}, err
-		}
-		if was, ok := baseStates[id]; ok && was.grid == buildStates[id].grid {
-			delete(body, "gridPos")
-		}
-		raw, err := json.Marshal(body)
-		if err != nil {
-			return spec.PanelPatch{}, err
-		}
-		row := ""
-		if e.Row != nil {
-			row = e.Row.ID
-		}
-		patch.Upsert = append(patch.Upsert, raw)
-		patch.Layout = append(patch.Layout, spec.PanelPlacement{ID: id, Row: &row})
-	}
-	for id := range baseStates {
-		if _, kept := buildStates[id]; !kept {
-			patch.Delete = append(patch.Delete, id)
-		}
-	}
-	slices.Sort(patch.Delete)
-	return patch, nil
 }
 
 func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
