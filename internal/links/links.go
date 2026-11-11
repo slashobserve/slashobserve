@@ -50,6 +50,10 @@ func Folder(base *url.URL, id string) string {
 	return join(base, "f", id)
 }
 
+func Observation(base *url.URL, id string) string {
+	return join(base, "o", id)
+}
+
 func Chat(base *url.URL, requestID string) string {
 	return join(base, "c", requestID)
 }

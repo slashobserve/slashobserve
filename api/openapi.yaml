@@ -174,6 +174,36 @@ paths:
     $ref: "./paths/findings.yaml#/findings-id-move"
   /findings/{id}/panels/{panel_id}/data:
     $ref: "./paths/findings.yaml#/findings-id-panels-panel-id-data"
+  /observations:
+    $ref: "./paths/observations.yaml#/observations"
+  /observations/{id}:
+    $ref: "./paths/observations.yaml#/observations-id"
+  /observations/{id}/move:
+    $ref: "./paths/observations.yaml#/observations-id-move"
+  /observations/{id}/resolve:
+    $ref: "./paths/observations.yaml#/observations-id-resolve"
+  /observations/{id}/reopen:
+    $ref: "./paths/observations.yaml#/observations-id-reopen"
+  /observations/{id}/blocks:
+    $ref: "./paths/observations.yaml#/observations-id-blocks"
+  /blocks/{id}:
+    $ref: "./paths/observations.yaml#/blocks-id"
+  /blocks/{id}/keep:
+    $ref: "./paths/observations.yaml#/blocks-id-keep"
+  /blocks/{id}/discard:
+    $ref: "./paths/observations.yaml#/blocks-id-discard"
+  /blocks/{id}/data:
+    $ref: "./paths/observations.yaml#/blocks-id-data"
+  /snapshots/{id}:
+    $ref: "./paths/observations.yaml#/snapshots-id"
+  /observations/{id}/rcas:
+    $ref: "./paths/rcas.yaml#/observations-id-rcas"
+  /observations/{id}/rcas/{revision}:
+    $ref: "./paths/rcas.yaml#/observations-id-rcas-revision"
+  /observations/{id}/rcas/{revision}/public-links:
+    $ref: "./paths/rcas.yaml#/observations-id-rcas-revision-public-links"
+  /observations/{id}/public-links/{link_id}:
+    $ref: "./paths/rcas.yaml#/observations-id-public-links-link-id"
   /saved-searches:
     $ref: "./paths/saved-searches.yaml#/saved-searches"
   /saved-searches/{id}:
@@ -240,6 +270,10 @@ paths:
     $ref: "./paths/public.yaml#/public-token-panels-panel-id-data"
   /public/{token}/variables/{name}/values:
     $ref: "./paths/public.yaml#/public-token-variables-name-values"
+  /public/{token}/rca:
+    $ref: "./paths/rcas.yaml#/public-token-rca"
+  /public/{token}/rca/snapshots/{snapshot_id}:
+    $ref: "./paths/rcas.yaml#/public-token-rca-snapshots-snapshot-id"
   /health:
     $ref: "./paths/health.yaml#/health"
   /health/repairs:
@@ -1104,7 +1138,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1125,11 +1159,11 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, thread, run]
             id:
               type: string
               format: uuid
-              description: The id of the dashboard, annotation, finding, saved search, comment thread or agent request the event is about.
+              description: The id of the dashboard, annotation, finding, saved search, observation, comment thread or agent request the event is about.
         dashboard_id:
           type: string
           format: uuid
@@ -1192,7 +1226,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [dashboard, finding, annotation]
+          enum: [dashboard, finding, annotation, observation]
         id:
           type: string
           format: uuid
@@ -1205,7 +1239,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [dashboard, finding, annotation, comment, saved_search]
+          enum: [dashboard, finding, annotation, observation, comment, saved_search]
         id:
           type: string
           format: uuid
@@ -1686,7 +1720,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, finding, annotation]
+              enum: [dashboard, finding, annotation, observation]
             id:
               type: string
               format: uuid
@@ -4159,7 +4193,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 28
+          maxItems: 39
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -4229,7 +4263,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 28
+          maxItems: 39
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4248,7 +4282,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 28
+          maxItems: 39
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4934,7 +4968,548 @@ components:
           enum: [cannot_translate]
         reason:
           type: string
+    ObservationState:
+      type: string
+      enum: [open, resolved]
+      description: See `docs/reference/states.md`.
+    ObservationAction:
+      type: string
+      enum: [update, move, resolve, reopen, publish]
+      description: An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
+    ObservationBlockKind:
+      type: string
+      enum: [text, panel, snapshot, run]
+    ObservationBlockState:
+      type: string
+      enum: [live, requested]
+      description: A block is deleted when it is removed or discarded, so `deleted` is never stored or returned. See `docs/reference/states.md`.
+    ObservationBlockAction:
+      type: string
+      enum: [update, keep, discard, remove]
+      description: An action the caller may take on the block in its state.
+    ObservationBlockWidth:
+      type: string
+      enum: [full, half]
+    Observation:
+      type: object
+      additionalProperties: false
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        folder_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        state:
+          $ref: "#/components/schemas/ObservationState"
+        summary:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve.
+        from:
+          type: string
+          format: date-time
+          nullable: true
+          description: The start of the time range the observation is about, with `to`; both or neither.
+        to:
+          type: string
+          format: date-time
+          nullable: true
+        thread_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation's one discussion thread, once someone has opened it.
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request that made the observation, when one did.
+        url:
+          type: string
+          description: "`<SLASHOBSERVE_PUBLIC_URL>/o/<id>`."
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: When the observation or any of its blocks last changed.
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObservationAction"
+        blocks:
+          type: array
+          description: The blocks in page order; present when one observation is read, absent from lists.
+          items:
+            $ref: "#/components/schemas/ObservationBlock"
+    ObservationBlock:
+      type: object
+      additionalProperties: false
+      required: [id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by, created_at, updated_at, allowed_actions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        observation_id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ObservationBlockKind"
+        state:
+          $ref: "#/components/schemas/ObservationBlockState"
+        position:
+          type: integer
+          minimum: 0
+          description: Zero-based and dense, so the blocks of an observation hold 0 to n-1.
+        width:
+          $ref: "#/components/schemas/ObservationBlockWidth"
+        version:
+          type: integer
+          minimum: 1
+          description: Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read.
+        body:
+          type: object
+          additionalProperties: true
+          description: >-
+            A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`;
+            a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`.
+        snapshot_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The frozen data of a `snapshot` block, read with `GET /snapshots/{id}`.
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObservationBlockAction"
+    ObservationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [observation, folder, permissions]
+      properties:
+        observation:
+          $ref: "#/components/schemas/Observation"
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+    ObservationList:
+      type: object
+      additionalProperties: false
+      required: [observations, next_cursor]
+      properties:
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Observation"
+        next_cursor:
+          type: string
+          nullable: true
+    BlockEnvelope:
+      type: object
+      additionalProperties: false
+      required: [block]
+      properties:
+        block:
+          $ref: "#/components/schemas/ObservationBlock"
+    BlockConflict:
+      type: object
+      additionalProperties: false
+      required: [error, code, current]
+      description: The answer to a write that names a block version other than the current one.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [version_conflict]
+        current:
+          $ref: "#/components/schemas/ObservationBlock"
+    CreateObservationRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          description: Trimmed, 1 to 200 characters.
+        folder_id:
+          type: string
+          format: uuid
+          description: The folder to file it in; absent means the caller's My Dashboards, then General. Needs Edit on the folder.
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        first_block:
+          type: object
+          additionalProperties: false
+          required: [kind]
+          description: A text or panel block written in the same transaction as the observation.
+          properties:
+            kind:
+              type: string
+              enum: [text, panel]
+            body:
+              type: object
+              additionalProperties: true
+            width:
+              $ref: "#/components/schemas/ObservationBlockWidth"
+    UpdateObservationRequest:
+      type: object
+      additionalProperties: false
+      description: At least one field. `from` and `to` are set together, or both null to clear the range.
+      properties:
+        title:
+          type: string
+        from:
+          type: string
+          format: date-time
+          nullable: true
+        to:
+          type: string
+          format: date-time
+          nullable: true
+    MoveObservationRequest:
+      type: object
+      additionalProperties: false
+      required: [folder_id]
+      properties:
+        folder_id:
+          type: string
+          format: uuid
+    ResolveObservationRequest:
+      type: object
+      additionalProperties: false
+      required: [summary]
+      properties:
+        summary:
+          type: string
+          description: Trimmed, one line of 1 to 500 characters.
+    AddObservationBlockRequest:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [text, panel, snapshot]
+          description: "`run` is never added through the API (`kind_not_addable`)."
+        body:
+          type: object
+          additionalProperties: true
+          description: Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+        width:
+          $ref: "#/components/schemas/ObservationBlockWidth"
+        position:
+          type: integer
+          minimum: 0
+          description: Where to insert it; clamped to the end, and the blocks after it shift. Absent means the end.
+        from_block_id:
+          type: string
+          format: uuid
+          description: A `snapshot` block freezes this panel block of the same observation now.
+    UpdateObservationBlockRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        body:
+          type: object
+          additionalProperties: true
+          description: Only for `text` and `panel` blocks (`body_not_editable` otherwise).
+        width:
+          $ref: "#/components/schemas/ObservationBlockWidth"
+        position:
+          type: integer
+          minimum: 0
+          description: Moves the block; clamped to the last position, and the blocks in between shift.
+    KeepObservationBlockRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+    Snapshot:
+      type: object
+      additionalProperties: false
+      required: [id, observation_id, panel, query, data, user_scoped, time_from, time_to, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        observation_id:
+          type: string
+          format: uuid
+        panel:
+          type: object
+          additionalProperties: true
+          description: The frozen panel without its `queries`, enough to draw `data`.
+        query:
+          type: array
+          description: The frozen panel's `queries`, kept for provenance inside the workspace; never part of an RCA.
+          items:
+            type: object
+            additionalProperties: true
+        data:
+          $ref: "#/components/schemas/PanelData"
+        user_scoped:
+          type: boolean
+          description: True when the queries read the viewer's identity, so the data is the freezing person's view.
+        time_from:
+          type: string
+          format: date-time
+        time_to:
+          type: string
+          format: date-time
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+    RCABlock:
+      description: One block of a published RCA, in page order.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, markdown, width]
+          properties:
+            kind:
+              type: string
+              enum: [text]
+            markdown:
+              type: string
+            width:
+              $ref: "#/components/schemas/ObservationBlockWidth"
+        - type: object
+          additionalProperties: false
+          required: [kind, snapshot_id, title, panel, width]
+          properties:
+            kind:
+              type: string
+              enum: [snapshot]
+            snapshot_id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            panel:
+              type: object
+              additionalProperties: true
+              description: The stored `panel` of the snapshot, which has no `queries`.
+            width:
+              $ref: "#/components/schemas/ObservationBlockWidth"
+    ObservationRCA:
+      type: object
+      additionalProperties: false
+      required: [id, observation_id, revision, title, summary, observation_state, from, to, blocks, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        observation_id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+          description: Numbered per observation from 1; a published revision never changes.
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        observation_state:
+          $ref: "#/components/schemas/ObservationState"
+        from:
+          type: string
+          format: date-time
+          nullable: true
+        to:
+          type: string
+          format: date-time
+          nullable: true
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCABlock"
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+    ObservationRCASummary:
+      type: object
+      additionalProperties: false
+      required: [id, revision, title, summary, observation_state, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        observation_state:
+          $ref: "#/components/schemas/ObservationState"
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+    RCAPublicLink:
+      type: object
+      additionalProperties: false
+      required: [id, revision, prefix, expires_at, created_by, created_at, last_viewed_at, expired, state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+          description: The RCA revision the link shows.
+        prefix:
+          type: string
+          description: The first 12 characters of the token; the token itself is never shown again.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        expired:
+          type: boolean
+        state:
+          type: string
+          enum: [expired, active]
+    CreateRCAPublicLinkRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the link stops working; null or absent for no expiry.
+    CreatedRCAPublicLink:
+      type: object
+      additionalProperties: false
+      required: [link, token, url]
+      properties:
+        link:
+          $ref: "#/components/schemas/RCAPublicLink"
+        token:
+          type: string
+          description: "`pub_` plus 43 base64url characters, returned only in this response."
+        url:
+          type: string
+          description: The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`.
+    PublicRCA:
+      type: object
+      additionalProperties: false
+      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at]
+      description: A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids.
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        observation_state:
+          $ref: "#/components/schemas/ObservationState"
+        from:
+          type: string
+          format: date-time
+          nullable: true
+        to:
+          type: string
+          format: date-time
+          nullable: true
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCABlock"
+        published_by:
+          type: string
+          description: The name of whoever published it.
+        created_at:
+          type: string
+          format: date-time
   responses:
+    ObservationInvalid:
+      description: >-
+        The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`):
+        `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation),
+        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
+        `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    ObservationConflict:
+      description: The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/Error"
+              - $ref: "#/components/schemas/InvalidTransition"
+    BlockWriteConflict:
+      description: The block's version is not the one named (`version_conflict`, with the current block), or the action is not allowed in the block's state (`invalid_transition`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/BlockConflict"
+              - $ref: "#/components/schemas/InvalidTransition"
     BadRequest:
       description: The request is malformed or fails validation.
       content:

@@ -52,6 +52,43 @@ A comment thread is a conversation on a dashboard, a finding or an annotation, r
 | `resolve` | `open` | `resolved` | `thread.resolved` | commenter, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
+## Observation
+
+An observation is a page of blocks in a folder, started by POST /observations or by an investigation.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `open` | Still being worked on: blocks are added and the discussion goes on. | `update`, `move`, `resolve`, `publish` |
+| `resolved` | Closed with a one-line summary of what was found; it can be reopened. | `update`, `move`, `reopen`, `publish` |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `create` | - | `open` | `observation.created` | editor |
+| `update` | `open`, `resolved` | - | `observation.updated` | editor |
+| `move` | `open`, `resolved` | - | `observation.moved` | editor |
+| `resolve` | `open` | `resolved` | `observation.resolved` | editor |
+| `reopen` | `resolved` | `open` | `observation.reopened` | editor |
+| `publish` | `open`, `resolved` | - | `observation.published` | editor |
+
+## Observation block
+
+A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `live` | On the page for everyone who can see the observation. | `update`, `remove` |
+| `requested` | Asked for by someone who can comment but not edit; an editor keeps it or discards it. | `update`, `keep`, `discard` |
+| `deleted` | Gone: the row is deleted, so this state is never stored. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `add` | - | `live` | `observation.block_added` | editor |
+| `add` | - | `requested` | `observation.block_added` | commenter |
+| `update` | `live`, `requested` | - | `observation.block_updated` | editor |
+| `keep` | `requested` | `live` | `observation.block_kept` | editor |
+| `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
+| `remove` | `live` | `deleted` | `observation.block_removed` | editor |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.

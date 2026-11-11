@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/presence"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -29,6 +30,8 @@ func statesReference() string {
 	return lifecycle.Render(
 		revisions.RunMachine.Doc("Run", "A run is one agent request, started by `POST /observe`, a comment, a prompt, an investigation or a suggestion."),
 		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, a finding or an annotation, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
+		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
+		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
@@ -162,6 +165,42 @@ func TestGrafanaImportEnumsMatchTheMachine(t *testing.T) {
 		}
 		if got := enumOf(t, doc, schema, "allowed_actions"); !slices.Equal(got, offered) {
 			t.Errorf("%s.allowed_actions items enum = %v, want %v", schema, got, offered)
+		}
+	}
+}
+
+func TestObservationEnumsMatchTheMachines(t *testing.T) {
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states, offered, blockStates, blockOffered []string
+	for _, s := range observations.Machine.States {
+		states = append(states, string(s))
+	}
+	for _, a := range observations.Machine.Offered() {
+		offered = append(offered, string(a))
+	}
+	for _, s := range observations.BlockMachine.States {
+		if !slices.Contains(observations.BlockMachine.Terminal, s) {
+			blockStates = append(blockStates, string(s))
+		}
+	}
+	for _, a := range observations.BlockMachine.Offered() {
+		blockOffered = append(blockOffered, string(a))
+	}
+	cases := []struct {
+		schema, property string
+		want             []string
+	}{
+		{"Observation", "state", states},
+		{"Observation", "allowed_actions", offered},
+		{"ObservationBlock", "state", blockStates},
+		{"ObservationBlock", "allowed_actions", blockOffered},
+	}
+	for _, c := range cases {
+		if got := enumOf(t, doc, c.schema, c.property); !slices.Equal(got, c.want) {
+			t.Errorf("%s.%s enum = %v, want %v", c.schema, c.property, got, c.want)
 		}
 	}
 }

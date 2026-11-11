@@ -28,6 +28,18 @@ const (
 	TypeSavedSearchMoved   = "saved_search.moved"
 	TypeSavedSearchDeleted = "saved_search.deleted"
 
+	TypeObservationCreated        = "observation.created"
+	TypeObservationUpdated        = "observation.updated"
+	TypeObservationMoved          = "observation.moved"
+	TypeObservationResolved       = "observation.resolved"
+	TypeObservationReopened       = "observation.reopened"
+	TypeObservationPublished      = "observation.published"
+	TypeObservationBlockAdded     = "observation.block_added"
+	TypeObservationBlockUpdated   = "observation.block_updated"
+	TypeObservationBlockKept      = "observation.block_kept"
+	TypeObservationBlockDiscarded = "observation.block_discarded"
+	TypeObservationBlockRemoved   = "observation.block_removed"
+
 	TypeThreadOpened    = "thread.opened"
 	TypeThreadReplied   = "thread.replied"
 	TypeThreadEdited    = "thread.edited"
@@ -61,6 +73,17 @@ var knownTypes = []string{
 	TypeSavedSearchUpdated,
 	TypeSavedSearchMoved,
 	TypeSavedSearchDeleted,
+	TypeObservationCreated,
+	TypeObservationUpdated,
+	TypeObservationMoved,
+	TypeObservationResolved,
+	TypeObservationReopened,
+	TypeObservationPublished,
+	TypeObservationBlockAdded,
+	TypeObservationBlockUpdated,
+	TypeObservationBlockKept,
+	TypeObservationBlockDiscarded,
+	TypeObservationBlockRemoved,
 	TypeThreadOpened,
 	TypeThreadReplied,
 	TypeThreadEdited,

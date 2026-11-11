@@ -65,6 +65,7 @@ const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
   finding: FileTextIcon,
   comment: MessageSquareIcon,
   annotation: FlagIcon,
+  observation: FileTextIcon,
   saved_search: BookmarkIcon,
 }
 

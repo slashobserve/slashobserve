@@ -233,7 +233,7 @@ func (h *Handler) remove(c *gin.Context) {
 	ctx := c.Request.Context()
 	n, err := h.db.Queries().DeleteFolderIfEmpty(ctx, current.Folder.ID)
 	if isPgError(err, foreignKeyViolation) {
-		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings and saved searches in this folder first")
+		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings, saved searches and observations in this folder first")
 		return
 	}
 	if err != nil {
@@ -255,7 +255,7 @@ func (h *Handler) refuseUndeleted(c *gin.Context, id pgtype.UUID) {
 		return
 	}
 	if holds {
-		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings and saved searches in this folder first")
+		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings, saved searches and observations in this folder first")
 		return
 	}
 	httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")

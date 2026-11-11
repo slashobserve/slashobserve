@@ -76,6 +76,8 @@ func Move(ctx context.Context, q *dbsqlc.Queries, owner Owner, folderID pgtype.U
 		_, err = q.MoveFindingActivity(ctx, dbsqlc.MoveFindingActivityParams{FolderID: folderID, FindingID: owner.id})
 	case ownerSavedSearch:
 		_, err = q.MoveSavedSearchActivity(ctx, dbsqlc.MoveSavedSearchActivityParams{FolderID: folderID, SavedSearchID: owner.id})
+	case ownerObservation:
+		_, err = q.MoveObservationActivity(ctx, dbsqlc.MoveObservationActivityParams{FolderID: folderID, ObservationID: owner.id})
 	}
 	if err != nil {
 		return fmt.Errorf("move %s activity: %w", owner.kind, err)

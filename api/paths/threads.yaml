@@ -4,18 +4,18 @@ threads:
     x-surfaces:
       mcp: [list_comments]
       cli: [observe comments list]
-    summary: List the comment threads on a dashboard, a finding or an annotation.
+    summary: List the comment threads on a dashboard, a finding, an annotation or an observation.
     description: >-
       Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to.
       `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page.
       `can_comment` says whether the caller may start threads and write messages on the target.
-      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins.
+      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, and an observation follows the folder it is in.
       A target the caller cannot see answers 404, never 403.
     parameters:
       - name: target
         in: query
         required: true
-        description: "The object to read, as `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`."
+        description: "The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`."
         schema:
           type: string
       - name: status
@@ -68,11 +68,12 @@ threads:
     x-surfaces:
       mcp: [create_comment]
       cli: [observe comments add]
-    summary: Start a thread on a dashboard, a finding or an annotation.
+    summary: Start a thread on a dashboard, a finding, an annotation or an observation.
     description: >-
       The first message of a thread has the id of the thread, so either id names it.
       A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves.
-      `version` and `panel_id` are refused on a finding or an annotation.
+      `version` and `panel_id` are refused on a finding, an annotation or an observation.
+      An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`.
       The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
       Mention a person with `@[Name](user:<id>)` and the built-in agent with `@observe`, at most 20 mentions in a message.
@@ -91,7 +92,7 @@ threads:
             properties:
               target:
                 type: string
-                description: "The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`."
+                description: "The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`."
               version:
                 type: integer
                 nullable: true
@@ -121,6 +122,24 @@ threads:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation already has its discussion (`observation_thread_exists`).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [error, code, thread_id]
+              properties:
+                error:
+                  type: string
+                code:
+                  type: string
+                  enum: [observation_thread_exists]
+                thread_id:
+                  type: string
+                  format: uuid
+                  description: The existing thread of the observation.
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
