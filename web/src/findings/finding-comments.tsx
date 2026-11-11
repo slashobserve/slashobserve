@@ -34,12 +34,10 @@ function avatarOf(message: Message) {
 function ThreadView({
   entry,
   target,
-  canComment,
   people,
 }: {
   entry: ThreadWithMessages
   target: string
-  canComment: boolean
   people: readonly MentionPerson[]
 }) {
   const { thread, messages } = entry
@@ -47,6 +45,9 @@ function ThreadView({
   const reply = useReplyToThread(target)
   const setStatus = useSetThreadStatus(target)
   const resolved = thread.status === "resolved"
+  const { allowed_actions: allowed } = thread
+  const canReply = allowed.includes("reply")
+  const canToggle = allowed.includes(resolved ? "reopen" : "resolve")
   const queryKey = threadKeys.list(target)
 
   return (
@@ -70,7 +71,7 @@ function ThreadView({
           </EntryFrame>
         ))}
       </ol>
-      {canComment && replying ? (
+      {canReply && replying ? (
         <div className="pb-2">
           <MessageForm
             label="Reply"
@@ -93,8 +94,8 @@ function ThreadView({
         ) : (
           <span>Open</span>
         )}
-        {canComment ? (
-          <span className="flex flex-wrap items-center gap-0.5">
+        <span className="flex flex-wrap items-center gap-0.5">
+          {canReply ? (
             <EntryAction
               icon={<ReplyIcon aria-hidden="true" />}
               aria-expanded={replying}
@@ -102,6 +103,8 @@ function ThreadView({
             >
               Reply
             </EntryAction>
+          ) : null}
+          {canToggle ? (
             <EntryAction
               icon={
                 resolved ? (
@@ -122,8 +125,8 @@ function ThreadView({
             >
               {resolved ? "Reopen" : "Resolve"}
             </EntryAction>
-          </span>
-        ) : null}
+          ) : null}
+        </span>
       </div>
     </li>
   )
@@ -176,7 +179,6 @@ export function FindingComments({ findingId }: { findingId: string }) {
                   key={entry.thread.id}
                   entry={entry}
                   target={target}
-                  canComment={canComment}
                   people={people}
                 />
               ))}

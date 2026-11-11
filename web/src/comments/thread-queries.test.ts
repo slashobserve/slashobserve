@@ -21,6 +21,7 @@ function thread(id: string, createdAt: string): Thread {
     panel_id: null,
     panel_present: true,
     status: "open",
+    allowed_actions: ["reply", "resolve"],
     created_at: createdAt,
     updated_at: createdAt,
     resolved_at: null,
