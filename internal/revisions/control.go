@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,7 +13,9 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 const continuesKeyIndex = "agent_requests_continues_key"
@@ -66,13 +69,74 @@ func (s *Service) buildStates(ctx context.Context, ids []pgtype.UUID) (map[pgtyp
 	return states, nil
 }
 
-func canCancel(row dbsqlc.AgentRequest, by auth.Principal) bool {
-	active := row.Status == string(StatusQueued) || row.Status == string(StatusRunning)
-	return active && isRequester(row, by)
+func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart bool) runFacts {
+	f := runFacts{
+		state:       state,
+		source:      source,
+		onDashboard: dashboardID.Valid,
+		requester:   requester,
+		mayStart:    mayStart,
+		buildSaved:  buildSaved,
+		continued:   build.continuedBy != nil,
+	}
+	if build.build != nil {
+		f.buildPanels = build.build.Panels
+	}
+	return f
 }
 
-func continueBlocker(row dbsqlc.AgentRequest) error {
-	if row.Source == string(SourceInvestigate) || row.Status != string(StatusFailed) || row.BuildSavedAt.Valid {
+func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart bool) runFacts {
+	return newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart)
+}
+
+type startChecks struct {
+	service *Service
+	by      auth.Principal
+	seen    map[startKey]bool
+}
+
+type startKey struct {
+	source    Source
+	dashboard pgtype.UUID
+}
+
+func (s *Service) newStartChecks(by auth.Principal) *startChecks {
+	return &startChecks{service: s, by: by, seen: map[startKey]bool{}}
+}
+
+func (c *startChecks) may(ctx context.Context, state State, source Source, dashboardID pgtype.UUID) (bool, error) {
+	if !state.Terminal() || !(runFacts{source: source, onDashboard: dashboardID.Valid}).retryable() {
+		return false, nil
+	}
+	if source == SourceObserve {
+		dashboardID = pgtype.UUID{}
+	}
+	key := startKey{source: source, dashboard: dashboardID}
+	if may, ok := c.seen[key]; ok {
+		return may, nil
+	}
+	err := c.service.checkRun(ctx, source, dashboardID, c.by)
+	may := err == nil
+	switch {
+	case err == nil,
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound),
+		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
+		c.seen[key] = may
+		return may, nil
+	}
+	return false, err
+}
+
+func (s *Service) mayStart(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) (bool, error) {
+	return s.newStartChecks(by).may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+}
+
+func (s *Service) continueBlocker(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) error {
+	states, err := s.buildStates(ctx, []pgtype.UUID{row.ID})
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(allowedActions(factsOf(row, states[row.ID], by, false)), ActionContinue) {
 		return ErrNotContinuable
 	}
 	return nil
@@ -93,7 +157,7 @@ func (s *Service) requesterRow(ctx context.Context, id pgtype.UUID, by auth.Prin
 }
 
 func canceledOrFinished(row dbsqlc.AgentRequest) (dbsqlc.AgentRequest, error) {
-	if row.Status == string(StatusFailed) && row.FailureCode.String == string(FailureCanceled) {
+	if State(row.State) == StateCanceled || State(row.State) == StateCanceling {
 		return row, nil
 	}
 	return dbsqlc.AgentRequest{}, ErrRequestFinished
@@ -104,7 +168,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !canCancel(row, by) {
+	if !slices.Contains(allowedActions(factsOf(row, buildState{}, by, false)), ActionCancel) {
 		return canceledOrFinished(row)
 	}
 	requesterID, err := db.ParseUUID(by.ID)
@@ -118,6 +182,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 			CanceledByID:   requesterID,
 			CanceledByName: pgtype.Text{String: by.Name, Valid: true},
 			Message:        CanceledMessage,
+			FromStates:     RunMachine.From(ActionCancel),
 			ID:             row.ID,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -131,15 +196,15 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		if err != nil {
 			return fmt.Errorf("cancel agent request: %w", err)
 		}
-		out = updated
-		if updated.Status == string(StatusRunning) {
+		out = updated.AgentRequest
+		if updated.AgentRequest.State == updated.PriorState {
 			return nil
 		}
-		if err := recordRun(ctx, q, updated); err != nil {
+		if err := recordRun(ctx, q, updated.AgentRequest, ActionCancel); err != nil {
 			return err
 		}
-		if updated.Status == string(StatusSucceeded) {
-			s.resolveThread(ctx, savepoint, updated)
+		if State(updated.AgentRequest.State) == StateSucceeded {
+			s.resolveThread(ctx, savepoint, updated.AgentRequest)
 		}
 		return nil
 	})
@@ -157,7 +222,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if err := continueBlocker(row); err != nil {
+	if err := s.continueBlocker(ctx, row, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := s.checkRun(ctx, Source(row.Source), row.DashboardID, by); err != nil {
@@ -187,7 +252,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		if err != nil {
 			return err
 		}
-		moved, err := q.MoveAgentRequestBuild(ctx, dbsqlc.MoveAgentRequestBuildParams{FromID: row.ID, ToID: next.ID})
+		moved, err := q.MoveAgentRequestBuild(ctx, dbsqlc.MoveAgentRequestBuildParams{FromStates: RunMachine.From(ActionContinue), FromID: row.ID, ToID: next.ID})
 		if err != nil {
 			return fmt.Errorf("move agent request build: %w", err)
 		}
@@ -206,6 +271,51 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		return dbsqlc.AgentRequest{}, err
 	}
 	return next, nil
+}
+
+func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	if !s.Available() {
+		return dbsqlc.AgentRequest{}, ErrUnavailable
+	}
+	row, err := s.GetObserve(ctx, id, by)
+	if err == nil {
+		err = s.checkVisible(ctx, row.DashboardID, by)
+	}
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	states, err := s.buildStates(ctx, []pgtype.UUID{row.ID})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	build := states[row.ID]
+	if !slices.Contains(allowedActions(factsOf(row, build, by, true)), ActionRetry) {
+		mayStart, err := s.mayStart(ctx, row, by)
+		if err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
+		return dbsqlc.AgentRequest{}, &lifecycle.Refusal{
+			Machine: RunMachine.Name,
+			State:   row.State,
+			Action:  string(ActionRetry),
+			Allowed: actionStrings(allowedActions(factsOf(row, build, by, mayStart))),
+		}
+	}
+	switch Source(row.Source) {
+	case SourceObserve:
+		return s.SubmitObserve(ctx, by, row.Prompt)
+	case SourceInvestigate:
+		return s.SubmitInvestigate(ctx, InvestigateParams{
+			Prompt:      row.Prompt,
+			By:          by,
+			DashboardID: row.DashboardID,
+			PanelID:     row.PanelID.String,
+			From:        optionalTime(row.ContextFrom),
+			To:          optionalTime(row.ContextTo),
+		})
+	default:
+		return s.SubmitFollowUp(ctx, row.DashboardID, nil, "", row.Prompt, by)
+	}
 }
 
 func checkContinuable(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
@@ -232,7 +342,7 @@ func checkContinuable(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRe
 }
 
 func (s *Service) queuePosition(ctx context.Context, row dbsqlc.AgentRequest) (*int, error) {
-	if row.Status != string(StatusQueued) {
+	if State(row.State) != StateQueued {
 		return nil, nil
 	}
 	before, err := s.db.Queries().CountQueuedAgentRequestsBefore(ctx, dbsqlc.CountQueuedAgentRequestsBeforeParams{CreatedAt: row.CreatedAt, ID: row.ID})

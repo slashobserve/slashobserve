@@ -14,21 +14,21 @@ func strPtr(s string) *string { return &s }
 func TestHealthRowsListOneRowPerProblem(t *testing.T) {
 	rows := healthRows([]healthDashboard{
 		{
-			ID: "d1", Title: "Checkout", Folder: healthFolder{Title: "Shop"}, CheckedAt: strPtr("2026-11-06T03:00:12Z"),
+			ID: "d1", Title: "Checkout", Folder: healthFolder{Title: "Shop"}, State: "failing", CheckedAt: strPtr("2026-11-06T03:00:12Z"),
 			Problems: []healthProblem{
 				{Kind: "no_data", PanelID: strPtr("p_rps"), PanelTitle: strPtr("Requests")},
 				{Kind: "variable_failed", Variable: strPtr("pod")},
 				{Kind: "query_failed", PanelID: strPtr("p_err")},
 			},
-			Repair: &healthRepair{State: "running"},
+			Repair: &healthRepair{Outcome: "running"},
 		},
-		{ID: "d2", Title: "Old\x1b[31m", Folder: healthFolder{Title: "General"}, Problems: []healthProblem{{Kind: "unopened"}}},
+		{ID: "d2", Title: "Old\x1b[31m", Folder: healthFolder{Title: "General"}, State: "unchecked", Problems: []healthProblem{{Kind: "unopened"}}},
 	})
 	want := [][]string{
-		{"d1", "Checkout", "Shop", "no_data", "Requests (p_rps)", "2026-11-06T03:00Z", "repair running"},
-		{"d1", "Checkout", "Shop", "variable_failed", "$pod", "2026-11-06T03:00Z", "repair running"},
-		{"d1", "Checkout", "Shop", "query_failed", "p_err", "2026-11-06T03:00Z", "repair running"},
-		{"d2", "Old [31m", "General", "unopened", "-", "-", "-"},
+		{"d1", "Checkout", "Shop", "failing", "no_data", "Requests (p_rps)", "2026-11-06T03:00Z", "repair running"},
+		{"d1", "Checkout", "Shop", "failing", "variable_failed", "$pod", "2026-11-06T03:00Z", "repair running"},
+		{"d1", "Checkout", "Shop", "failing", "query_failed", "p_err", "2026-11-06T03:00Z", "repair running"},
+		{"d2", "Old [31m", "General", "unchecked", "unopened", "-", "-", "-"},
 	}
 	if !slices.EqualFunc(rows, want, slices.Equal[[]string]) {
 		t.Errorf("rows = %q\nwant %q", rows, want)
@@ -42,11 +42,12 @@ func TestRepairStateSaysWhereTheLatestRepairIs(t *testing.T) {
 		want   string
 	}{
 		{nil, "-"},
-		{&healthRepair{State: "queued"}, "repair queued"},
-		{&healthRepair{State: "running"}, "repair running"},
-		{&healthRepair{State: "succeeded", Version: &seven}, "repaired in version 7"},
-		{&healthRepair{State: "failed", Error: strPtr("the agent could not\x1b[31m fix it")}, "repair failed: the agent could not [31m fix it"},
-		{&healthRepair{State: "failed"}, "repair failed"},
+		{&healthRepair{Outcome: "queued"}, "repair queued"},
+		{&healthRepair{Outcome: "running"}, "repair running"},
+		{&healthRepair{Outcome: "repaired", Version: &seven}, "repaired in version 7"},
+		{&healthRepair{Outcome: "still_failing", Version: &seven}, "repair saved version 7, still failing"},
+		{&healthRepair{Outcome: "failed", Error: strPtr("the agent could not\x1b[31m fix it")}, "repair failed: the agent could not [31m fix it"},
+		{&healthRepair{Outcome: "failed"}, "repair failed"},
 	}
 	for _, c := range cases {
 		if got := repairState(c.repair); got != c.want {

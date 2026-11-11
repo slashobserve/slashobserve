@@ -69,6 +69,8 @@ type AgentRequest struct {
 	PinnedAt          pgtype.Timestamptz
 	ArchivedAt        pgtype.Timestamptz
 	Trigger           string
+	State             string
+	ResultKind        string
 }
 
 type AgentRequestBuild struct {

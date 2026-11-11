@@ -129,7 +129,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
 	}
-	if err := recordRun(ctx, q, row); err != nil {
+	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
@@ -255,7 +255,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
 	}
-	if err := recordRun(ctx, q, row); err != nil {
+	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
@@ -319,7 +319,7 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		if err != nil {
 			return fmt.Errorf("enqueue investigate request: %w", err)
 		}
-		if err := recordRun(ctx, q, row); err != nil {
+		if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 			return err
 		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
@@ -549,20 +549,29 @@ func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
-		exhausted, err := q.FailExhaustedAgentRequests(ctx, MaxAttempts)
+		exhausted, err := q.FailExhaustedAgentRequests(ctx, dbsqlc.FailExhaustedAgentRequestsParams{FromStates: RunMachine.From(ActionExhaust), MaxAttempts: MaxAttempts})
 		if err != nil {
 			return fmt.Errorf("fail exhausted agent requests: %w", err)
 		}
+		settled, err := q.SettleCanceledAgentRequests(ctx, dbsqlc.SettleCanceledAgentRequestsParams{FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage})
+		if err != nil {
+			return fmt.Errorf("settle canceled agent requests: %w", err)
+		}
 		s.deleteExpiredBuilds(ctx, savepoint)
-		for _, row := range exhausted {
-			if err := recordRun(ctx, q, row); err != nil {
-				return err
-			}
-			if row.Status == string(StatusSucceeded) {
-				s.resolveThread(ctx, savepoint, row)
+		for _, group := range []struct {
+			rows   []dbsqlc.AgentRequest
+			action Action
+		}{{exhausted, ActionExhaust}, {settled, ActionSettle}} {
+			for _, row := range group.rows {
+				if err := recordRun(ctx, q, row, group.action); err != nil {
+					return err
+				}
+				if State(row.State) == StateSucceeded {
+					s.resolveThread(ctx, savepoint, row)
+				}
 			}
 		}
-		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
+		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{FromStates: RunMachine.From(ActionClaim), LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -570,7 +579,7 @@ func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
 			return fmt.Errorf("claim agent request: %w", err)
 		}
 		claimed, found = claimResult{request: row.AgentRequest, firstClaim: row.FirstClaim}, true
-		return recordRun(ctx, q, row.AgentRequest)
+		return recordRun(ctx, q, row.AgentRequest, ActionClaim)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {
@@ -627,23 +636,36 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		var row dbsqlc.AgentRequest
 		var err error
+		action := ActionSucceed
+		settle := func() (dbsqlc.AgentRequest, error) {
+			action = ActionSettle
+			return q.SettleAgentRequest(ctx, dbsqlc.SettleAgentRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage, RunUsage: usage,
+			})
+		}
 		switch {
 		case o.suggestion != nil:
 			row, err = q.SucceedSuggestRequest(ctx, dbsqlc.SucceedSuggestRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, Suggestion: o.suggestion, RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), Suggestion: o.suggestion, RunUsage: usage,
 			})
 		case o.finding:
 			row, err = q.SucceedFindingRequest(ctx, dbsqlc.SucceedFindingRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
 			})
 		case o.version != nil:
 			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
 			})
+		case o.failure == FailureCanceled:
+			row, err = settle()
 		default:
+			action = ActionFail
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionFail), Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
 			})
+			if errors.Is(err, pgx.ErrNoRows) {
+				row, err = settle()
+			}
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -652,10 +674,10 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return fmt.Errorf("finish agent request: %w", err)
 		}
 		finished = true
-		if err := recordRun(ctx, q, row); err != nil {
+		if err := recordRun(ctx, q, row, action); err != nil {
 			return err
 		}
-		if o.version != nil {
+		if State(row.State) == StateSucceeded {
 			s.resolveThread(ctx, savepoint, row)
 		}
 		return nil
@@ -669,16 +691,32 @@ func failureText(code FailureCode) pgtype.Text {
 
 func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
 	released := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.ReleaseAgentRequest(ctx, dbsqlc.ReleaseAgentRequestParams{ID: claimed.ID, Attempts: claimed.Attempts, CheckFailed: checkFailed})
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
+		row, err := q.ReleaseAgentRequest(ctx, dbsqlc.ReleaseAgentRequestParams{ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionRelease), CheckFailed: checkFailed})
+		if err == nil {
+			released = true
+			return recordRun(ctx, q, row, ActionRelease)
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("release agent request: %w", err)
+		}
+		row, err = q.SettleAgentRequest(ctx, dbsqlc.SettleAgentRequestParams{
+			ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("release agent request: %w", err)
+			return fmt.Errorf("settle released agent request: %w", err)
 		}
 		released = true
-		return notifyRevision(ctx, q, row)
+		if err := recordRun(ctx, q, row, ActionSettle); err != nil {
+			return err
+		}
+		if State(row.State) == StateSucceeded {
+			s.resolveThread(ctx, savepoint, row)
+		}
+		return nil
 	})
 	return released, err
 }
@@ -722,6 +760,8 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		Source:       Source(row.Source),
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
+		State:        State(row.State),
+		ResultKind:   ResultKind(row.ResultKind),
 		Attempts:     int(row.Attempts),
 		Error:        row.Error.String,
 		RequestedBy:  requesterOf(row),
@@ -769,4 +809,23 @@ func optionalTime(t pgtype.Timestamptz) *time.Time {
 	}
 	v := t.Time.UTC()
 	return &v
+}
+
+func KeepBuild(ctx context.Context, q *dbsqlc.Queries, id, dashboardID pgtype.UUID, version int) (bool, error) {
+	row, err := q.MarkAgentRequestBuildSaved(ctx, dbsqlc.MarkAgentRequestBuildSavedParams{
+		FromStates:    RunMachine.From(ActionKeepBuild),
+		ResultVersion: httpapi.Int32(version),
+		DashboardID:   dashboardID,
+		ID:            id,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("mark agent request build saved: %w", err)
+	}
+	if err := recordRun(ctx, q, row, ActionKeepBuild); err != nil {
+		return false, err
+	}
+	return true, nil
 }

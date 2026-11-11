@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
-import {
-  canContinueBuild,
-  cancelErrorText,
-  continueErrorText,
-  continueNoteError,
-} from "./build"
+import { cancelErrorText, continueErrorText, continueNoteError } from "./build"
 import {
   observeRequestQuery,
   useCancelRequest,
@@ -43,11 +38,11 @@ function useCancelRun(id: string) {
 export function CancelRequestButton({
   request,
 }: {
-  request: Pick<ObserveRequest, "id" | "can_cancel" | "cancel_requested_at">
+  request: Pick<ObserveRequest, "id" | "can_cancel" | "state">
 }) {
   const cancel = useCancelRun(request.id)
   if (!request.can_cancel) return null
-  const canceling = request.cancel_requested_at !== null || cancel.pending
+  const canceling = request.state === "canceling" || cancel.pending
   return (
     <Button
       variant="outline"
@@ -65,7 +60,7 @@ export function StopRequestButton({ requestId }: { requestId: string }) {
   const request = useQuery(observeRequestQuery(requestId)).data
   const cancel = useCancelRun(requestId)
   if (request === undefined || !request.can_cancel) return null
-  const stopping = request.cancel_requested_at !== null || cancel.pending
+  const stopping = request.state === "canceling" || cancel.pending
   return (
     <Button
       type="button"
@@ -84,14 +79,9 @@ export function StopRequestButton({ requestId }: { requestId: string }) {
 
 export function ContinueBuildButton({
   request,
-  isRequester,
   onContinued,
 }: {
-  request: Pick<
-    ObserveRequest,
-    "id" | "status" | "build" | "build_saved_at" | "continued_by"
-  >
-  isRequester: boolean
+  request: Pick<ObserveRequest, "id" | "allowed_actions">
   onContinued: (next: ObserveRequest) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -99,13 +89,7 @@ export function ContinueBuildButton({
   const noteId = useId()
   const errorId = useId()
   const proceed = useContinueRequest(request.id)
-  const allowed = canContinueBuild({
-    status: request.status,
-    build: request.build,
-    buildSavedAt: request.build_saved_at,
-    continuedBy: request.continued_by,
-    isRequester,
-  })
+  const allowed = request.allowed_actions.includes("continue")
   if (!allowed) return null
   const noteError = continueNoteError(note)
   const busy = proceed.isPending

@@ -84,6 +84,19 @@ describe("describeSubmitError", () => {
     })
   })
 
+  it("says a request that left its state can no longer be tried again", () => {
+    const error = new ApiError(
+      409,
+      "invalid_transition",
+      "retry is not allowed while the run is queued"
+    )
+    expect(describeSubmitError(error)).toEqual({
+      message: "This request can no longer be tried again.",
+      inline: false,
+      invalid: false,
+    })
+  })
+
   it("sends other API errors to a toast", () => {
     const error = new ApiError(500, "internal", "internal error")
     expect(describeSubmitError(error)).toEqual({

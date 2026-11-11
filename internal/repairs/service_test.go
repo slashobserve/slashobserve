@@ -114,7 +114,7 @@ func TestListShowsTheLatestRepair(t *testing.T) {
 	if len(out.Queued) != 1 {
 		t.Fatalf("outcome %+v", out)
 	}
-	r.db.Exec(t, "UPDATE agent_requests SET status = 'failed', finished_at = now() WHERE id = $1", out.Queued[0].RequestID)
+	r.db.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', finished_at = now() WHERE id = $1", out.Queued[0].RequestID)
 	if _, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{DashboardID: id, Source: revisions.SourcePrompt, Prompt: "add a panel", BaseVersion: 1, By: r.editor}); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestRequestSkipsADashboardWithAQueuedOrRunningRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.db.Exec(t, "UPDATE agent_requests SET status = 'running', started_at = now() WHERE id = $1", rev.ID)
+	r.db.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', started_at = now() WHERE id = $1", rev.ID)
 
 	out := r.request(t, repairs.Target{DashboardIDs: []pgtype.UUID{queued, running}})
 	if len(out.Queued) != 0 {

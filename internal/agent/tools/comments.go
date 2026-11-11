@@ -57,6 +57,7 @@ type commentOut struct {
 	PanelPresent      bool         `json:"panel_present"`
 	Version           *int         `json:"version"`
 	Status            string       `json:"status"`
+	AllowedActions    []string     `json:"allowed_actions"`
 	Author            string       `json:"author"`
 	CreatedAt         string       `json:"created_at"`
 	EditedAt          *string      `json:"edited_at"`
@@ -90,14 +91,15 @@ type commentRef struct {
 func commentItem(ref commentRef) commentOut {
 	t, m := ref.thread, ref.message
 	out := commentOut{
-		ID:           m.ID,
-		PanelPresent: t.PanelPresent,
-		Version:      t.Version,
-		Status:       t.Status,
-		Author:       authorLabel(m),
-		CreatedAt:    formatCommentTime(m.CreatedAt),
-		Body:         clip(m.Body, maxCommentOutBytes),
-		Mentions:     mentionItems(m.Mentions),
+		ID:             m.ID,
+		PanelPresent:   t.PanelPresent,
+		Version:        t.Version,
+		Status:         t.Status,
+		AllowedActions: t.AllowedActions,
+		Author:         authorLabel(m),
+		CreatedAt:      formatCommentTime(m.CreatedAt),
+		Body:           clip(m.Body, maxCommentOutBytes),
+		Mentions:       mentionItems(m.Mentions),
 	}
 	out.BodyTruncated = len(m.Body) > maxCommentOutBytes
 	if m.EditedAt != nil {

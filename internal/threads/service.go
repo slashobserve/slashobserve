@@ -168,7 +168,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		thread = threadOf(threadRow, at.latestPanels)
+		thread = threadOf(threadRow, at.latestPanels, sc.abilities.Comment)
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
 		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
 			return err
@@ -218,7 +218,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	if err != nil {
 		return Thread{}, Message{}, threadGone(err)
 	}
-	thread, err := s.present(ctx, current)
+	thread, err := s.present(ctx, current, sc.abilities.Comment)
 	return thread, message, err
 }
 
@@ -271,7 +271,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, threadGone(err)
 	}
-	thread, err := s.present(ctx, row)
+	thread, err := s.present(ctx, row, sc.abilities.Comment)
 	return thread, messageOf(messageRow, recorded, by, sc.abilities.Comment), changed, err
 }
 
@@ -324,7 +324,7 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	if err != nil {
 		return Thread{}, false, threadGone(err)
 	}
-	thread, err := s.present(ctx, updated)
+	thread, err := s.present(ctx, updated, sc.abilities.Comment)
 	return thread, changed, err
 }
 
@@ -400,7 +400,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
 			seen[r.Thread.ID] = true
-			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels))
+			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.abilities.Comment))
 		}
 		page.Messages = append(page.Messages, messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment))
 	}
@@ -513,9 +513,9 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 	return params
 }
 
-func (s *Service) present(ctx context.Context, row dbsqlc.Thread) (Thread, error) {
+func (s *Service) present(ctx context.Context, row dbsqlc.Thread, canComment bool) (Thread, error) {
 	if !row.PanelID.Valid {
-		return threadOf(row, nil), nil
+		return threadOf(row, nil, canComment), nil
 	}
 	latest, err := s.dashboards.LatestVersion(ctx, row.DashboardID)
 	if err != nil {
@@ -525,7 +525,7 @@ func (s *Service) present(ctx context.Context, row dbsqlc.Thread) (Thread, error
 	if err != nil {
 		return Thread{}, err
 	}
-	return threadOf(row, panels), nil
+	return threadOf(row, panels, canComment), nil
 }
 
 func (s *Service) latestPanels(ctx context.Context, sc scope) (map[string]struct{}, error) {

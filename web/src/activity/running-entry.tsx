@@ -51,7 +51,7 @@ export function RunningEntry({ entry }: Props) {
   const steps = data?.steps ?? []
   const last = steps.at(-1)
   const status = data?.status ?? request.status
-  const canceling = data?.cancel_requested_at != null
+  const canceling = data?.state === "canceling"
   useSettledRefresh({
     active: !isTerminal(data),
     status,

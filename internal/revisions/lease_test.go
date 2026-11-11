@@ -91,7 +91,7 @@ func TestRenewingAFinishedRequestLosesTheLease(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	submit(t, svc, dash, "add a panel")
 	claimed, _ := claimOne(t, svc)
-	d.Exec(t, "UPDATE agent_requests SET status = 'failed' WHERE id = $1", claimed.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed' WHERE id = $1", claimed.ID)
 
 	if err := svc.RenewLease(context.Background(), claimed); !errors.Is(err, revisions.ErrLeaseLost) {
 		t.Fatalf("renew = %v, want ErrLeaseLost", err)

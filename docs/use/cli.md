@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `open`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -101,11 +101,17 @@ The CLI exits with these codes:
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
 A queued request stops at once, and a running one within a few seconds, once the call it is in returns.
+A running request shows the state `canceling` until its worker stops, and one whose worker is gone ends at once.
 The request ends `failed` with the code `canceled`, and what it built so far is kept.
 
 `bin/observe continue <request-id>` starts a new request that takes over the kept build of a stopped one, waits the way a prompt does and prints the dashboard address.
 It accepts `--no-wait` and `--timeout` like a prompt, and `--note <text>` gives the continued run an instruction; the note follows the same rule as a prompt (1 to 4000 characters, no control characters) and the server's `400` message is printed as it is.
 A stopped request with a build prints `Save it in the browser, or continue it: observe continue <request-id>` in `observe status`, and one that was already continued prints `Continued by <request-id>`.
+
+`bin/observe retry <request-id>` starts a finished request again as a new request with the same prompt, waits the way a prompt does and prints the result.
+It accepts `--no-wait` and `--timeout` like a prompt.
+Anyone who can see the request and may start that kind of request can retry it, and the new request is theirs and counts against their limits; a request that has not finished fails with `request <request-id> is <state> and cannot be retried`.
+`observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`.
 
 Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
@@ -444,7 +450,7 @@ bin/observe webhooks list
 bin/observe webhooks test <webhook id>
 ```
 
-- `list` prints each webhook's id, name, address, number of event types and status, which is `enabled` or `disabled (<reason>)`.
+- `list` prints each webhook's id, name, address, number of event types and status, which is `sending`, `retrying` or `disabled (<reason>)`.
 - `add --name <name> --url <https address> --event <type>` creates a webhook, and `--event` repeats for several types.
   It prints the webhook and its signing secret once, and a notice on standard error says the secret is not shown again, so copy it then; `-q` hides the notice but not the secret.
   An address whose domain is not on the [outbound allowlist](../operate/outbound-access.md) fails with `outbound_domain_not_allowed`.

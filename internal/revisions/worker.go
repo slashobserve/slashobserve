@@ -176,11 +176,6 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		}
 	}
 
-	if claimed.CancelRequestedAt.Valid {
-		w.finish(ctx, claimed, canceledOutcome(nil, nil))
-		return true
-	}
-
 	req := requestFrom(claimed)
 	requester, err := w.service.principals.Principal(ctx, auth.PrincipalKind(claimed.RequestedByKind), claimed.RequestedByID.String())
 	switch {

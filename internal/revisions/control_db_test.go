@@ -41,7 +41,7 @@ func TestCancelOfARunningRequestWithALiveLeaseOnlyFlagsIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cancel: %v", err)
 	}
-	if got.Status != string(revisions.StatusRunning) || !got.CancelRequestedAt.Valid || got.FailureCode.Valid || !got.LeaseUntil.Valid || got.FinishedAt.Valid {
+	if got.State != string(revisions.StateCanceling) || got.Status != string(revisions.StatusRunning) || !got.CancelRequestedAt.Valid || got.FailureCode.Valid || !got.LeaseUntil.Valid || got.FinishedAt.Valid {
 		t.Fatalf("canceled live run = %+v, want running with only cancel_requested_at set", got)
 	}
 }
@@ -59,7 +59,7 @@ func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cancel: %v", err)
 	}
-	if got.Status != string(revisions.StatusFailed) || got.FailureCode.String != string(revisions.FailureCanceled) || got.Error.String != revisions.CanceledMessage || got.LeaseUntil.Valid || !got.FinishedAt.Valid || !got.CancelRequestedAt.Valid {
+	if got.State != string(revisions.StateCanceled) || got.Status != string(revisions.StatusFailed) || got.FailureCode.String != string(revisions.FailureCanceled) || got.Error.String != revisions.CanceledMessage || got.LeaseUntil.Valid || !got.FinishedAt.Valid || !got.CancelRequestedAt.Valid {
 		t.Fatalf("canceled crashed run = %+v, want failed with code canceled, no lease and finished", got)
 	}
 	stored, err := svc.GetByID(context.Background(), row.ID)
@@ -136,11 +136,11 @@ func TestContinueRefusesWithVersionConflictWhenTheDashboardMovedOnAndEnqueuesNot
 	id := mustUUID(t, rev.ID)
 	claimed, _ := claimOne(t, svc)
 	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Attempt: claimed.Attempts,
+		AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	d.Exec(t, "UPDATE agent_requests SET status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", id)
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", id)
 	saveVersionUnder(t, d, dash, pgtype.UUID{}, 2)
 
 	_, err := svc.Continue(ctx, id, user, "")

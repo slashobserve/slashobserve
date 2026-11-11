@@ -54,13 +54,13 @@ describe("expiryFor", () => {
 
 describe("linkStatus", () => {
   it.each([
-    [{ expired: true, usable: false }, "Expired"],
+    [{ state: "expired", usable: false }, "Expired"],
     [
-      { expired: false, usable: false },
+      { state: "active", usable: false },
       "Not usable: uses the viewer's identity",
     ],
-    [{ expired: false, usable: true }, null],
-  ])("%o reads %j", (link, expected) => {
+    [{ state: "active", usable: true }, null],
+  ] as const)("%o reads %j", (link, expected) => {
     expect(linkStatus(link)).toBe(expected)
   })
 })

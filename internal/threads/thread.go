@@ -24,6 +24,7 @@ type Thread struct {
 	PanelID           string
 	PanelPresent      bool
 	Status            string
+	AllowedActions    []string
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	ResolvedAt        *time.Time
@@ -44,16 +45,17 @@ type Message struct {
 	CanEdit     bool
 }
 
-func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}) Thread {
+func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, canComment bool) Thread {
 	_, present := latestPanels[row.PanelID.String]
 	t := Thread{
-		ID:           row.ID.String(),
-		Target:       targetOf(row),
-		PanelID:      row.PanelID.String,
-		PanelPresent: !row.PanelID.Valid || present,
-		Status:       row.Status,
-		CreatedAt:    row.CreatedAt.Time.UTC(),
-		UpdatedAt:    row.UpdatedAt.Time.UTC(),
+		ID:             row.ID.String(),
+		Target:         targetOf(row),
+		PanelID:        row.PanelID.String,
+		PanelPresent:   !row.PanelID.Valid || present,
+		Status:         row.Status,
+		AllowedActions: allowedActions(row.Status, canComment),
+		CreatedAt:      row.CreatedAt.Time.UTC(),
+		UpdatedAt:      row.UpdatedAt.Time.UTC(),
 	}
 	if row.DashboardID.Valid {
 		t.DashboardID = row.DashboardID.String()

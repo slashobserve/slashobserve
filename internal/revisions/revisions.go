@@ -251,6 +251,8 @@ type Revision struct {
 	Prompt        string
 	BaseVersion   *int
 	Status        Status
+	State         State
+	ResultKind    ResultKind
 	Attempts      int
 	ResultVersion *int
 	Error         string

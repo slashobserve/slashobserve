@@ -154,6 +154,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-cancel"
   /observe/{id}/continue:
     $ref: "./paths/observe.yaml#/observe-id-continue"
+  /observe/{id}/retry:
+    $ref: "./paths/observe.yaml#/observe-id-retry"
   /observe/{id}/build/save:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
   /observe/{id}/build/panels/{panel_id}/data:
@@ -451,6 +453,7 @@ components:
         - expires_at
         - last_used_at
         - revoked_at
+        - state
       properties:
         id:
           type: string
@@ -481,6 +484,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        state:
+          type: string
+          enum: [revoked, expired, expiring, active]
+          description: The key's state computed on the server clock when the response is made; `expiring` starts 7 days before `expires_at`. See `docs/reference/states.md`.
     ServiceAccountKeyList:
       type: object
       additionalProperties: false
@@ -579,7 +586,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state]
       properties:
         id:
           type: string
@@ -625,6 +632,10 @@ components:
           type: string
           format: date-time
           description: When the connection ends and the person must approve it again.
+        state:
+          type: string
+          enum: [revoked, active]
+          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
     ConnectedAgentList:
       type: object
       additionalProperties: false
@@ -1064,7 +1075,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1627,6 +1638,7 @@ components:
         - panel_id
         - panel_present
         - status
+        - allowed_actions
         - created_at
         - updated_at
         - resolved_at
@@ -1669,6 +1681,13 @@ components:
         status:
           type: string
           enum: [open, resolved]
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [reply, resolve, reopen]
+          description: What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`.
         created_at:
           type: string
           format: date-time
@@ -2337,7 +2356,10 @@ components:
         - prompt
         - base_version
         - status
+        - state
+        - result_kind
         - attempts
+        - allowed_actions
         - result_version
         - error
         - failure_code
@@ -2383,10 +2405,25 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
           maximum: 2
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller may do with the revision now, in display order and by the same rule as `AgentRequest.allowed_actions`. `retry` is offered to anyone who can see a finished revision and may start that kind of request, not only the requester; every other action is the requester's.
         result_version:
           type: integer
           minimum: 1
@@ -2801,7 +2838,11 @@ components:
         - panel_id
         - comment_id
         - status
+        - state
+        - result_kind
         - attempts
+        - attempt
+        - allowed_actions
         - result_version
         - url
         - error
@@ -2868,10 +2909,29 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
           maximum: 2
+        attempt:
+          type: integer
+          minimum: 0
+          description: The attempt number of the worker that holds or last held the request; equal to `attempts`.
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller may do with the request now, in display order. `retry` is offered to anyone who can see a finished request and may start that kind of request, not only the requester; every other action is the requester's. The list comes from the same table as `docs/reference/states.md`.
         result_version:
           type: integer
           minimum: 1
@@ -2927,7 +2987,7 @@ components:
           description: Who asked to cancel the request; the email is never set.
         can_cancel:
           type: boolean
-          description: Whether the caller may cancel this request now. Only the requester may, while it is queued or running.
+          description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
         continues_id:
           type: string
           format: uuid
@@ -3002,6 +3062,9 @@ components:
         - trigger
         - prompt
         - status
+        - state
+        - result_kind
+        - allowed_actions
         - dashboard_id
         - dashboard_title
         - panel_id
@@ -3035,6 +3098,21 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller, who is always the requester in this list, may do with the request now.
         dashboard_id:
           type: string
           format: uuid
@@ -3124,6 +3202,25 @@ components:
           nullable: true
           maxLength: 4000
           description: An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt.
+    InvalidTransition:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to an action the object's state does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_transition]
+        state:
+          type: string
+          description: The state the object is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false
@@ -3977,7 +4074,7 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, name, url, event_types, owner, enabled, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      required: [id, name, url, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
       properties:
         id:
           type: string
@@ -3993,13 +4090,17 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
           $ref: "#/components/schemas/Actor"
         enabled:
           type: boolean
+        state:
+          type: string
+          enum: [disabled, retrying, sending]
+          description: Computed from `enabled` and `consecutive_failures`. See `docs/reference/states.md`.
         disabled_reason:
           type: string
           nullable: true
@@ -4059,7 +4160,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4078,7 +4179,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4380,7 +4481,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable]
+      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -4423,6 +4524,10 @@ components:
         usable:
           type: boolean
           description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+        state:
+          type: string
+          enum: [expired, active]
+          description: Computed from `expired`. See `docs/reference/states.md`.
     CreatePublicLinkRequest:
       type: object
       additionalProperties: false
@@ -4519,7 +4624,7 @@ components:
     HealthItem:
       type: object
       additionalProperties: false
-      required: [id, title, url, folder, can_edit, checked_version, checked_at, last_viewed_at, skipped, problems, repair]
+      required: [id, title, url, folder, can_edit, state, checked_version, checked_at, last_viewed_at, skipped, problems, repair]
       properties:
         id:
           type: string
@@ -4534,6 +4639,10 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit the dashboard, and so ask for a repair.
+        state:
+          type: string
+          enum: [unchecked, outdated, skipped, failing, healthy]
+          description: The dashboard's health computed from the last check, whatever the `kind` filter. See `docs/reference/states.md`.
         checked_version:
           type: integer
           nullable: true
@@ -4564,11 +4673,16 @@ components:
     HealthRepair:
       type: object
       additionalProperties: false
-      required: [state, request_id, version, error, updated_at]
+      required: [state, outcome, request_id, version, error, updated_at]
       properties:
         state:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: The status of the repair's run, kept for compatibility; read `outcome` instead.
+        outcome:
+          type: string
+          enum: [queued, running, repaired, still_failing, failed]
+          description: What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
         request_id:
           type: string
           format: uuid

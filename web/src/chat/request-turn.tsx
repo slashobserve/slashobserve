@@ -43,6 +43,9 @@ export type TurnSummary = {
   source: "observe" | "prompt" | "comment" | "investigate"
   prompt: string
   status: "queued" | "running" | "succeeded" | "failed"
+  state: ObserveRequest["state"]
+  result_kind: ObserveRequest["result_kind"]
+  allowed_actions: ObserveRequest["allowed_actions"]
   dashboard_id: string | null
   result_version: number | null
   error: string | null
@@ -139,8 +142,7 @@ export function RequestTurn({
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
   const steps = live?.steps ?? []
-  const savedBuild =
-    request.status === "failed" && request.build_saved_at !== null
+  const savedBuild = request.result_kind === "partial_version"
   const inPane = opensRunsIn === "build"
 
   useSettledRefresh({
@@ -181,13 +183,13 @@ export function RequestTurn({
                   <StatusIcon tone="running" />
                   {detail !== undefined &&
                   (detail.queue_position !== null ||
-                    detail.cancel_requested_at !== null)
+                    detail.state === "canceling")
                     ? buildStatusText({
                         status: detail.status,
                         build: null,
                         failureCode: detail.failure_code,
                         queuePosition: detail.queue_position,
-                        canceling: detail.cancel_requested_at !== null,
+                        canceling: detail.state === "canceling",
                       })
                     : investigates
                       ? "Investigating"

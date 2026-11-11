@@ -145,6 +145,7 @@ type Deps struct {
 	Health        *health.Service
 	Annotations   *annotations.Service
 	Activity      *activity.Store
+	Runs          RunReader
 	Search        *search.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL

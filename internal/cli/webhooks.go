@@ -27,7 +27,7 @@ type webhookView struct {
 	Name           string   `json:"name"`
 	URL            string   `json:"url"`
 	EventTypes     []string `json:"event_types"`
-	Enabled        bool     `json:"enabled"`
+	State          string   `json:"state"`
 	DisabledReason *string  `json:"disabled_reason"`
 	Owner          struct {
 		Label string `json:"label"`
@@ -407,10 +407,10 @@ func printWebhook(out *output, w webhookView) {
 }
 
 func webhookStatus(w webhookView) string {
-	if w.Enabled {
-		return "enabled"
+	if w.State == "disabled" {
+		return "disabled (" + orDash(w.DisabledReason) + ")"
 	}
-	return "disabled (" + orDash(w.DisabledReason) + ")"
+	return text(w.State)
 }
 
 func statusCell(status *int) string {

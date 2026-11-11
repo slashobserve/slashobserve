@@ -160,7 +160,7 @@ func TestBuildTitleIsHiddenFromEveryoneButTheRequester(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			rev := newRevisionJSON(Revision{RequestedBy: requester}, state, tc.caller)
+			rev := newRevisionJSON(Revision{RequestedBy: requester}, state, nil, tc.caller)
 			got, err := json.Marshal(rev.Build)
 			if err != nil {
 				t.Fatal(err)

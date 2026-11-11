@@ -40,6 +40,10 @@ const (
 	TypeRunSucceeded = "run.succeeded"
 	TypeRunFailed    = "run.failed"
 	TypeRunCanceled  = "run.canceled"
+
+	TypeRunCanceling = "run.canceling"
+	TypeRunReleased  = "run.released"
+	TypeRunKept      = "run.kept"
 )
 
 var knownTypes = []string{
@@ -68,6 +72,9 @@ var knownTypes = []string{
 	TypeRunSucceeded,
 	TypeRunFailed,
 	TypeRunCanceled,
+	TypeRunCanceling,
+	TypeRunReleased,
+	TypeRunKept,
 }
 
 func Types() []string { return slices.Clone(knownTypes) }

@@ -27,6 +27,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `edit_comment` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_panels` | Viewer |
+| `get_run` | Viewer |
 | `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
 | `get_trace` | Viewer |
@@ -194,6 +195,10 @@ The built-in agent has the same tool.
 Narrow it with `dashboard_id`, `folder_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
 It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
 
+`get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
+The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
+It is over MCP only, and a run is visible to the same people as through the API.
+
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `finding`, `annotation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.
 It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
@@ -226,6 +231,7 @@ A connection lasts at most 90 days, after which you approve it again.
 You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
 An approval the client has not yet finished, which lasts 60 seconds, counts toward the 20.
 You can list and disconnect your connected agents over the API with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}` (any signed-in person), and an Admin can list and disconnect everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
+Each connected agent in the list has a `state`, always `active` there because the list leaves out revoked and expired connections; see [States](../reference/states.md).
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's there too.

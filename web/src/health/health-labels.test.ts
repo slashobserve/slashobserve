@@ -210,13 +210,19 @@ describe("repairAction", () => {
     ],
     [
       "a queued repair",
-      item({ problems: failing, repair: { ...repair, state: "queued" } }),
+      item({
+        problems: failing,
+        repair: { ...repair, state: "queued", outcome: "queued" },
+      }),
       true,
       { kind: "queued" },
     ],
     [
       "a running repair",
-      item({ problems: failing, repair: { ...repair, state: "running" } }),
+      item({
+        problems: failing,
+        repair: { ...repair, state: "running", outcome: "running" },
+      }),
       true,
       { kind: "running" },
     ],
@@ -225,17 +231,36 @@ describe("repairAction", () => {
       item({
         problems: failing,
         checked_version: 3,
-        repair: { ...repair, state: "succeeded", version: 4 },
+        repair: {
+          ...repair,
+          state: "succeeded",
+          outcome: "repaired",
+          version: 4,
+        },
       }),
       true,
       { kind: "repaired", version: 4 },
+    ],
+    [
+      "a repaired outcome without a saved version",
+      item({
+        problems: failing,
+        repair: { ...repair, state: "succeeded", outcome: "repaired" },
+      }),
+      true,
+      { kind: "repair", disabledReason: null },
     ],
     [
       "a repair the check already covered",
       item({
         problems: failing,
         checked_version: 4,
-        repair: { ...repair, state: "succeeded", version: 4 },
+        repair: {
+          ...repair,
+          state: "succeeded",
+          outcome: "still_failing",
+          version: 4,
+        },
       }),
       true,
       { kind: "repair", disabledReason: null },
@@ -246,7 +271,12 @@ describe("repairAction", () => {
         can_edit: false,
         problems: failing,
         checked_version: 5,
-        repair: { ...repair, state: "succeeded", version: 4 },
+        repair: {
+          ...repair,
+          state: "succeeded",
+          outcome: "still_failing",
+          version: 4,
+        },
       }),
       true,
       { kind: "open" },
@@ -255,7 +285,12 @@ describe("repairAction", () => {
       "a failed repair",
       item({
         problems: failing,
-        repair: { ...repair, state: "failed", error: "the model gave up" },
+        repair: {
+          ...repair,
+          state: "failed",
+          outcome: "failed",
+          error: "the model gave up",
+        },
       }),
       false,
       {
@@ -270,7 +305,7 @@ describe("repairAction", () => {
       item({
         can_edit: false,
         problems: failing,
-        repair: { ...repair, state: "failed" },
+        repair: { ...repair, state: "failed", outcome: "failed" },
       }),
       true,
       { kind: "failed", error: null, canRetry: false, disabledReason: null },
@@ -418,7 +453,7 @@ describe("pollHealth", () => {
     [
       "a queued repair",
       idle,
-      [item({ repair: { ...repair, state: "queued" } })],
+      [item({ repair: { ...repair, state: "queued", outcome: "queued" } })],
       null,
       at,
       true,
@@ -426,7 +461,7 @@ describe("pollHealth", () => {
     [
       "a running repair",
       idle,
-      [item({ repair: { ...repair, state: "running" } })],
+      [item({ repair: { ...repair, state: "running", outcome: "running" } })],
       null,
       at,
       true,
@@ -435,8 +470,15 @@ describe("pollHealth", () => {
       "only finished repairs",
       idle,
       [
-        item({ repair: { ...repair, state: "succeeded", version: 2 } }),
-        item({ repair: { ...repair, state: "failed" } }),
+        item({
+          repair: {
+            ...repair,
+            state: "succeeded",
+            outcome: "repaired",
+            version: 2,
+          },
+        }),
+        item({ repair: { ...repair, state: "failed", outcome: "failed" } }),
       ],
       null,
       at,

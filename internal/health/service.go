@@ -60,6 +60,7 @@ type Item struct {
 	ID, Title, URL string
 	Folder         folders.Folder
 	CanEdit        bool
+	State          string
 	CheckedVersion *int
 	CheckedAt      *time.Time
 	LastViewedAt   *time.Time
@@ -70,6 +71,7 @@ type Item struct {
 
 type Repair struct {
 	RequestID, State string
+	Outcome          string
 	Version          *int
 	Error            *string
 	UpdatedAt        time.Time
@@ -184,27 +186,29 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 	if unopened(lastView, row.CreatedAt.Time, now) && (kind == "" || kind == KindUnopened) {
 		problems = append(problems, Problem{Kind: KindUnopened})
 	}
-	id := row.ID.String()
-	it := Item{
-		ID:           id,
-		Title:        row.Title,
-		URL:          links.Dashboard(s.publicURL, id, row.Title),
-		Folder:       folders.Folder{ID: row.FolderID, Title: row.FolderTitle, General: row.FolderGeneral, Personal: row.FolderPersonal},
-		CanEdit:      levels.Of(row.FolderID).Edit,
-		CheckedAt:    timeOf(row.CheckedAt),
-		LastViewedAt: lastView,
-		Skipped:      row.Skipped,
-		Problems:     problems,
-	}
+	var checkedVersion *int
 	if row.CheckedVersion.Valid {
 		v := int(row.CheckedVersion.Int32)
-		it.CheckedVersion = &v
+		checkedVersion = &v
 	}
-	it.Repair = repairOf(row)
-	return it, nil
+	id := row.ID.String()
+	return Item{
+		ID:             id,
+		Title:          row.Title,
+		URL:            links.Dashboard(s.publicURL, id, row.Title),
+		Folder:         folders.Folder{ID: row.FolderID, Title: row.FolderTitle, General: row.FolderGeneral, Personal: row.FolderPersonal},
+		CanEdit:        levels.Of(row.FolderID).Edit,
+		State:          itemState(checkedVersion, int(row.LatestVersion), row.Skipped, checked),
+		CheckedVersion: checkedVersion,
+		CheckedAt:      timeOf(row.CheckedAt),
+		LastViewedAt:   lastView,
+		Skipped:        row.Skipped,
+		Problems:       problems,
+		Repair:         repairOf(row, checkedVersion),
+	}, nil
 }
 
-func repairOf(row dbsqlc.ListHealthRow) *Repair {
+func repairOf(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {
 	if !row.RepairID.Valid {
 		return nil
 	}
@@ -216,6 +220,7 @@ func repairOf(row dbsqlc.ListHealthRow) *Repair {
 	if r.State == repairFailed && row.RepairError != "" {
 		r.Error = &row.RepairError
 	}
+	r.Outcome = repairOutcome(row.RepairState, r.Version, checkedVersion)
 	return r
 }
 

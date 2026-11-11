@@ -28,7 +28,7 @@ func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.database.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
+	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
 	return r.as(WithRun(r.ctx, Run{Mode: ModeCreate, Build: true, RequestID: request.ID.String(), Attempt: 1}))
 }
 

@@ -185,6 +185,7 @@ observe-id:
     operationId: getObserveRequest
     x-surfaces:
       cli: [observe status]
+      mcp: [get_run]
     summary: Read one agent request with its progress steps and usage.
     description: >-
       Works for any agent request, including comment and prompt revisions.
@@ -193,6 +194,7 @@ observe-id:
       After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone.
       `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build.
       A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
+      `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
     responses:
       "200":
         description: The agent request with its current status.
@@ -371,8 +373,9 @@ observe-id-cancel:
     description: >-
       Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request.
       Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request.
-      A queued request becomes `failed` with the failure code `canceled` at once.
-      A running request keeps running until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `failed` with the failure code `canceled`.
+      A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`.
+      A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`.
+      A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again.
       The build is kept, so the requester can still save it or continue it.
       A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins.
       Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
@@ -461,6 +464,74 @@ observe-id-continue:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+      "429":
+        description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+observe-id-retry:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: retryObserveRequest
+    x-surfaces:
+      cli: [observe retry]
+    summary: Start a finished agent request again as a new request.
+    description: >-
+      Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse.
+      The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`.
+      The original request is left as it was.
+      An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version.
+      A comment or suggestion request cannot be retried, and neither can a request that something continues.
+      A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has.
+      A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`.
+      A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`.
+      Retry is not idempotent: each call queues a new request.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    responses:
+      "202":
+        description: The queued request.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRequestEnvelope"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The request cannot be retried now (`invalid_transition`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+      "422":
+        description: The panel an investigation was about no longer exists (`unknown_panel`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "429":
         description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
         content:

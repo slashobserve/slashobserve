@@ -1,7 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query"
 
-import { useNow } from "@/components/relative-time"
-
 import { sortKeys } from "./key-status"
 import {
   serviceAccountKeysQuery,
@@ -24,7 +22,6 @@ type AllKeys = {
 }
 
 export function useAllKeys(): AllKeys {
-  const now = useNow()
   const accountsQuery = useQuery(serviceAccountsQuery())
   const accounts = accountsQuery.data ?? []
   const keyQueries = useQueries({
@@ -72,7 +69,7 @@ export function useAllKeys(): AllKeys {
   for (const account of accounts) owner.set(account.id, account)
   const keys = keyQueries.flatMap((query) => query.data ?? [])
   const rows: KeyRow[] = []
-  for (const key of sortKeys(keys, now)) {
+  for (const key of sortKeys(keys)) {
     const account = owner.get(key.service_account_id)
     if (account !== undefined) rows.push({ key, account })
   }

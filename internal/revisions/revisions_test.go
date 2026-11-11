@@ -723,7 +723,7 @@ func TestExpiredLeaseIsRetriedOnce(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 
 	crashed := submit(t, svc, dash, "crashed once")
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() + interval '1 hour' WHERE id = $1", mustUUID(t, crashed.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() + interval '1 hour' WHERE id = $1", mustUUID(t, crashed.ID))
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	time.Sleep(300 * time.Millisecond)
 	if got := get(t, svc, dash, crashed.ID); got.Status != revisions.StatusRunning || calls.Load() != 0 {
@@ -745,7 +745,7 @@ func TestSecondExpiredLeaseFailsWithoutAnotherRun(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "crashed twice")
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
@@ -764,7 +764,7 @@ func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
 	dash := seedDashboard(t, d, 2)
 	rev := submit(t, svc, dash, "saved by attempt 2, then the process died")
 	saveVersionFor(t, d, dash, rev.ID)
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	done := waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
@@ -784,7 +784,7 @@ func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) 
 		t.Fatal(err)
 	}
 	saveVersionFor(t, d, dash, row.ID.String())
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
@@ -877,7 +877,7 @@ func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaime
 		t.Fatal(err)
 	}
 	saveVersionFor(t, d, swept, row.ID.String())
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
 	queued := submit(t, svc, other, "later")
 	blockThreadResolution(t, d)
 
@@ -928,7 +928,7 @@ func TestExpiredRunningRequestIsRetriedBeforeANewerOneOfItsDashboard(t *testing.
 	dash := seedDashboard(t, d, 1)
 	older := submit(t, svc, dash, "older, still queued")
 	crashed := submit(t, svc, dash, "newer, crashed once")
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, crashed.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, crashed.ID))
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, crashed.ID, revisions.StatusSucceeded)
@@ -945,7 +945,7 @@ func TestExhaustedRequestDoesNotBlockItsDashboard(t *testing.T) {
 	dash := seedDashboard(t, d, 2)
 	stuck := submit(t, svc, dash, "stuck")
 	next := submit(t, svc, dash, "next")
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, stuck.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, stuck.ID))
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, stuck.ID, revisions.StatusFailed)
 	waitForStatus(t, svc, dash, next.ID, revisions.StatusSucceeded)
@@ -1128,7 +1128,7 @@ func TestActiveRequestsPerDashboardAreCapped(t *testing.T) {
 	}
 	submit(t, svc, other, "another dashboard is unaffected")
 
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 1 WHERE id = $1", mustUUID(t, first.ID))
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 1 WHERE id = $1", mustUUID(t, first.ID))
 	submit(t, svc, dash, "room again")
 }
 
@@ -1405,7 +1405,7 @@ func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 2)
 	okID := observeFor(t, svc, user, "fine")
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
 	failedID := observeFor(t, svc, user, "limited")
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 	waitFor(t, "the limited observe request to fail", func() bool {
@@ -1443,7 +1443,7 @@ func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
 func TestStoredUsageWithoutTheNewFieldsStillDecodesWithZeros(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	id := observeFor(t, svc, user, "old row")
-	d.Exec(t, `UPDATE agent_requests SET status = 'failed', error = 'x', run_usage = '{"provider":"p","model":"m","input_tokens":1,"output_tokens":2,"cache_read_tokens":0,"cache_write_tokens":0,"model_calls":1,"repair_rounds":0}'::jsonb WHERE id = $1`, mustUUID(t, id))
+	d.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'x', run_usage = '{"provider":"p","model":"m","input_tokens":1,"output_tokens":2,"cache_read_tokens":0,"cache_write_tokens":0,"model_calls":1,"repair_rounds":0}'::jsonb WHERE id = $1`, mustUUID(t, id))
 	rec := call(observeRouterFor(svc, user), http.MethodGet, "/api/v1/observe/"+id, "")
 	var body struct {
 		Request struct {

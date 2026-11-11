@@ -20,7 +20,8 @@ ON CONFLICT (dashboard_id) DO UPDATE SET
 SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_general, r.folder_personal,
   r.checked_version, r.checked_at, r.skipped, r.issues, r.last_viewed_at, r.duplicate_title,
   r.rank::integer AS rank, r.seen_at::timestamptz AS seen_at,
-  rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status,
+  dd.latest_version AS latest_version,
+  rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status, coalesce(rep.state, '')::text AS repair_state,
   rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
   rep.updated_at AS repair_updated_at
 FROM (
@@ -41,8 +42,9 @@ FROM (
       WHEN 'unopened' THEN coalesce(s.last_viewed_at, s.created_at) < @unopened_before::timestamptz
       ELSE false END
 ) r
+JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
-  SELECT a.id, a.status, a.result_version, a.error,
+  SELECT a.id, a.status, a.state, a.result_version, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
   WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text)

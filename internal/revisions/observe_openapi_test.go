@@ -197,7 +197,7 @@ func TestAFinishedRequestReportsItsCostAsTheDocumentSays(t *testing.T) {
 func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (string, func(context.Context, pgtype.UUID) (json.RawMessage, bool, error)) {
 	t.Helper()
 	insertFindingFor(t, d, row.ID)
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
 	var findingID string
 	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID); err != nil {
 		t.Fatal(err)
@@ -312,3 +312,54 @@ func mustMarshal(t *testing.T, v any) json.RawMessage {
 	}
 	return raw
 }
+
+func TestRetryAndTheRunStateFieldsMatchTheDocument(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	h := newDocumentedObserve(t, svc, user, nil)
+
+	build := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+
+	queued := h.call(t, http.MethodGet, "/api/v1/observe/"+build, "", http.StatusOK)
+	var shown struct {
+		Request struct {
+			State          string   `json:"state"`
+			ResultKind     string   `json:"result_kind"`
+			AllowedActions []string `json:"allowed_actions"`
+			Attempt        int      `json:"attempt"`
+		} `json:"request"`
+	}
+	if err := json.Unmarshal(queued.Body.Bytes(), &shown); err != nil || shown.Request.State != "queued" || shown.Request.ResultKind != "none" || shown.Request.Attempt != 0 {
+		t.Fatalf("queued request %v: %s", err, queued.Body)
+	}
+	if got := strings.Join(shown.Request.AllowedActions, ","); got != "cancel,pin,archive" {
+		t.Fatalf("queued allowed_actions = %s", got)
+	}
+
+	refused := h.call(t, http.MethodPost, "/api/v1/observe/"+build+"/retry", "", http.StatusConflict)
+	var refusal struct {
+		Code, State string
+		Allowed     []string `json:"allowed_actions"`
+	}
+	if err := json.Unmarshal(refused.Body.Bytes(), &refusal); err != nil || refusal.Code != "invalid_transition" || refusal.State != "queued" || len(refusal.Allowed) == 0 {
+		t.Fatalf("refusal %v: %s", err, refused.Body)
+	}
+
+	h.call(t, http.MethodPost, "/api/v1/observe/"+build+"/cancel", "", http.StatusOK)
+	h.call(t, http.MethodPost, "/api/v1/observe/"+revision+"/cancel", "", http.StatusOK)
+	retried := h.call(t, http.MethodPost, "/api/v1/observe/"+build+"/retry", "", http.StatusAccepted)
+	if next := requestIDOf(t, retried); next == build || retried.Header().Get("Location") == "" {
+		t.Fatalf("retry answered %s with location %q", retried.Body, retried.Header().Get("Location"))
+	}
+	h.call(t, http.MethodPost, "/api/v1/observe/"+revision+"/retry", "", http.StatusAccepted)
+
+	canceled := h.call(t, http.MethodGet, "/api/v1/observe/"+build, "", http.StatusOK)
+	if err := json.Unmarshal(canceled.Body.Bytes(), &shown); err != nil || shown.Request.State != "canceled" {
+		t.Fatalf("canceled request %v: %s", err, canceled.Body)
+	}
+	h.call(t, http.MethodGet, "/api/v1/observe", "", http.StatusOK)
+	h.call(t, http.MethodPost, "/api/v1/observe/"+uuidNobodyOwns+"/retry", "", http.StatusNotFound)
+}
+
+const uuidNobodyOwns = "99999999-9999-4999-8999-999999999999"

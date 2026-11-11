@@ -58,6 +58,7 @@ type keyJSON struct {
 	ExpiresAt        *string `json:"expires_at"`
 	LastUsedAt       *string `json:"last_used_at"`
 	RevokedAt        *string `json:"revoked_at"`
+	State            string  `json:"state"`
 }
 
 func (s *Service) mountServiceAccounts(authenticated Routes) {
@@ -213,7 +214,7 @@ func (s *Service) createKey(c *gin.Context) {
 		s.internalError(c, "create key", err)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"key": newKeyJSON(row), "token": token})
+	c.JSON(http.StatusCreated, gin.H{"key": newKeyJSON(row, time.Now()), "token": token})
 }
 
 func (s *Service) listKeys(c *gin.Context) {
@@ -229,9 +230,10 @@ func (s *Service) listKeys(c *gin.Context) {
 		s.internalError(c, "list keys", err)
 		return
 	}
+	now := time.Now()
 	items := make([]keyJSON, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, newKeyJSON(dbsqlc.CreateServiceAccountKeyRow(r)))
+		items = append(items, newKeyJSON(dbsqlc.CreateServiceAccountKeyRow(r), now))
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
@@ -362,7 +364,7 @@ func newServiceAccountJSON(a dbsqlc.ServiceAccount) serviceAccountJSON {
 	}
 }
 
-func newKeyJSON(k dbsqlc.CreateServiceAccountKeyRow) keyJSON {
+func newKeyJSON(k dbsqlc.CreateServiceAccountKeyRow, now time.Time) keyJSON {
 	return keyJSON{
 		ID:               k.ID.String(),
 		ServiceAccountID: k.ServiceAccountID.String(),
@@ -373,6 +375,7 @@ func newKeyJSON(k dbsqlc.CreateServiceAccountKeyRow) keyJSON {
 		ExpiresAt:        optionalTime(k.ExpiresAt),
 		LastUsedAt:       optionalTime(k.LastUsedAt),
 		RevokedAt:        optionalTime(k.RevokedAt),
+		State:            keyState(k.RevokedAt, k.ExpiresAt, now),
 	}
 }
 

@@ -26,6 +26,7 @@ function thread(overrides: Partial<Thread> = {}): Thread {
     panel_id: null,
     panel_present: true,
     status: "open",
+    allowed_actions: ["reply", "resolve"],
     created_at: "2026-11-06T10:00:00Z",
     updated_at: "2026-11-06T10:00:00Z",
     resolved_at: null,
@@ -124,6 +125,7 @@ describe("FindingComments", () => {
       threads: [
         thread({
           status: "resolved",
+          allowed_actions: ["reply", "reopen"],
           resolved_at: "2026-11-06T12:00:00Z",
           resolved_actor: { ...ada, label: "Grace" },
         }),
@@ -138,7 +140,7 @@ describe("FindingComments", () => {
 
   it("hides the composer and every action when the reader cannot comment", async () => {
     stubServer({
-      threads: [thread()],
+      threads: [thread({ allowed_actions: [] })],
       messages: [message({ can_edit: false })],
       can_comment: false,
     })
@@ -150,6 +152,20 @@ describe("FindingComments", () => {
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
+  })
+
+  it("offers only the actions the server lists for the thread", async () => {
+    stubServer({
+      threads: [thread({ allowed_actions: ["reply"] })],
+      messages: [message()],
+      can_comment: true,
+    })
+    renderWithProviders(<FindingComments findingId={findingId} />)
+    expect(
+      await screen.findByRole("button", { name: "Reply" })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Reopen" })).toBeNull()
   })
 
   it("starts a thread on the finding from the composer", async () => {

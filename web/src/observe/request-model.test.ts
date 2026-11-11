@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { retryAction, timelinePhases, type Step } from "./request-model"
+import { timelinePhases, type Step } from "./request-model"
 
 function step(overrides: Partial<Step>): Step {
   return {
@@ -81,69 +81,5 @@ describe("timelinePhases", () => {
       ["repair", 1],
       ["query", 1],
     ])
-  })
-})
-
-describe("retryAction", () => {
-  const id = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
-
-  it("builds a new dashboard again for observe requests", () => {
-    expect(retryAction({ source: "observe", dashboard_id: null })).toEqual({
-      kind: "create",
-    })
-    expect(retryAction({ source: "observe", dashboard_id: id })).toEqual({
-      kind: "create",
-    })
-  })
-
-  it("revises the same dashboard again for prompt follow-ups", () => {
-    expect(retryAction({ source: "prompt", dashboard_id: id })).toEqual({
-      kind: "revise",
-      dashboardId: id,
-    })
-  })
-
-  it("offers no retry for a prompt request without a dashboard", () => {
-    expect(retryAction({ source: "prompt", dashboard_id: null })).toEqual({
-      kind: "none",
-      dashboardId: null,
-    })
-  })
-
-  it("investigates again with the same dashboard, panel and window", () => {
-    expect(
-      retryAction({
-        source: "investigate",
-        dashboard_id: id,
-        panel_id: "latency",
-        from: "2026-11-04T10:00:00Z",
-        to: "2026-11-04T11:00:00Z",
-      })
-    ).toEqual({
-      kind: "investigate",
-      dashboardId: id,
-      panelId: "latency",
-      from: "2026-11-04T10:00:00Z",
-      to: "2026-11-04T11:00:00Z",
-    })
-  })
-
-  it("investigates again without context it does not have", () => {
-    expect(
-      retryAction({
-        source: "investigate",
-        dashboard_id: null,
-        panel_id: null,
-        from: "2026-11-04T10:00:00Z",
-        to: null,
-      })
-    ).toEqual({ kind: "investigate" })
-  })
-
-  it("offers no retry for comment revisions", () => {
-    expect(retryAction({ source: "comment", dashboard_id: id })).toEqual({
-      kind: "none",
-      dashboardId: id,
-    })
   })
 })

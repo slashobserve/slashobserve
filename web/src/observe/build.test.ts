@@ -8,8 +8,6 @@ import {
   buildGone,
   buildStatusText,
   cancelErrorText,
-  canContinueBuild,
-  canSaveBuild,
   continueErrorText,
   continueNoteError,
   newPanelIds,
@@ -184,30 +182,6 @@ describe("newPanelIds", () => {
   })
 })
 
-describe("canSaveBuild", () => {
-  const ok = {
-    status: "failed" as const,
-    build: progress(),
-    buildSavedAt: null,
-    isRequester: true,
-  }
-
-  it("allows a failed request with panels for its requester", () => {
-    expect(canSaveBuild(ok)).toBe(true)
-  })
-
-  it.each([
-    ["the request is running", { status: "running" as const }],
-    ["the request succeeded", { status: "succeeded" as const }],
-    ["there is no build", { build: null }],
-    ["the build has no panels", { build: progress({ panels: 0 }) }],
-    ["the build was already saved", { buildSavedAt: "2026-11-03T10:00:00Z" }],
-    ["the caller is not the requester", { isRequester: false }],
-  ])("refuses when %s", (_name, change) => {
-    expect(canSaveBuild({ ...ok, ...change })).toBe(false)
-  })
-})
-
 describe("saveBuildErrorText", () => {
   it.each([
     [
@@ -225,32 +199,6 @@ describe("saveBuildErrorText", () => {
 
   it("falls back when there is no message", () => {
     expect(saveBuildErrorText("internal")).toBe("The build could not be saved.")
-  })
-})
-
-describe("canContinueBuild", () => {
-  const ok = {
-    status: "failed" as const,
-    build: progress(),
-    buildSavedAt: null,
-    continuedBy: null,
-    isRequester: true,
-  }
-
-  it("allows a stopped build with panels for its requester", () => {
-    expect(canContinueBuild(ok)).toBe(true)
-  })
-
-  it.each([
-    ["the request is running", { status: "running" as const }],
-    ["the request succeeded", { status: "succeeded" as const }],
-    ["there is no build", { build: null }],
-    ["the build has no panels", { build: progress({ panels: 0 }) }],
-    ["the build was already saved", { buildSavedAt: "2026-11-03T10:00:00Z" }],
-    ["the build was continued", { continuedBy: "0b7a3c1e" }],
-    ["the caller is not the requester", { isRequester: false }],
-  ])("refuses when %s", (_name, change) => {
-    expect(canContinueBuild({ ...ok, ...change })).toBe(false)
   })
 })
 

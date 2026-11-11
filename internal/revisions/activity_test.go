@@ -3,6 +3,7 @@ package revisions
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -26,6 +27,7 @@ func runRow(status Status, source Source) dbsqlc.AgentRequest {
 		DashboardID:     runDashboardID,
 		Source:          string(source),
 		Status:          string(status),
+		State:           string(status),
 		RequestedByKind: string(auth.KindUser),
 		RequestedByID:   runRequesterID,
 		RequestedByName: "Ada",
@@ -46,50 +48,64 @@ func dataOf(t *testing.T, e activity.Entry) map[string]any {
 	return out
 }
 
-func TestRunActivityNamesTheTransitionOfEveryStatusAndSource(t *testing.T) {
-	canceled := func(r dbsqlc.AgentRequest) dbsqlc.AgentRequest {
+func inState(r dbsqlc.AgentRequest, state State) dbsqlc.AgentRequest {
+	r.State = string(state)
+	switch state {
+	case StateCanceled:
+		r.Status = string(StatusFailed)
 		r.FailureCode = pgtype.Text{String: string(FailureCanceled), Valid: true}
-		return r
+	case StateCanceling:
+		r.Status = string(StatusRunning)
+		r.CancelRequestedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 	}
+	return r
+}
+
+func TestRunEventNamesTheMoveOfEveryStateAndSource(t *testing.T) {
 	cases := []struct {
 		name   string
 		row    dbsqlc.AgentRequest
+		action Action
 		want   string
 		wanted bool
 	}{
-		{"queued prompt", runRow(StatusQueued, SourcePrompt), activity.TypeRunQueued, true},
-		{"queued comment", runRow(StatusQueued, SourceComment), activity.TypeRunQueued, true},
-		{"queued observe", runRow(StatusQueued, SourceObserve), activity.TypeRunQueued, true},
-		{"queued investigate", runRow(StatusQueued, SourceInvestigate), activity.TypeRunQueued, true},
-		{"running prompt", runRow(StatusRunning, SourcePrompt), activity.TypeRunStarted, true},
-		{"running investigate", runRow(StatusRunning, SourceInvestigate), activity.TypeRunStarted, true},
-		{"succeeded comment", runRow(StatusSucceeded, SourceComment), activity.TypeRunSucceeded, true},
-		{"succeeded observe", runRow(StatusSucceeded, SourceObserve), activity.TypeRunSucceeded, true},
-		{"failed prompt", runRow(StatusFailed, SourcePrompt), activity.TypeRunFailed, true},
-		{"failed with a code", func() dbsqlc.AgentRequest {
-			r := runRow(StatusFailed, SourcePrompt)
-			r.FailureCode = pgtype.Text{String: string(FailureNoProgress), Valid: true}
-			return r
-		}(), activity.TypeRunFailed, true},
-		{"failed canceled", canceled(runRow(StatusFailed, SourcePrompt)), activity.TypeRunCanceled, true},
-		{"failed canceled investigate", canceled(runRow(StatusFailed, SourceInvestigate)), activity.TypeRunCanceled, true},
-		{"queued suggest", runRow(StatusQueued, SourceSuggest), "", false},
-		{"running suggest", runRow(StatusRunning, SourceSuggest), "", false},
-		{"succeeded suggest", runRow(StatusSucceeded, SourceSuggest), "", false},
-		{"failed suggest", runRow(StatusFailed, SourceSuggest), "", false},
-		{"unknown status", runRow(Status("archived"), SourcePrompt), "", false},
+		{"queued prompt", runRow(StatusQueued, SourcePrompt), ActionEnqueue, activity.TypeRunQueued, true},
+		{"queued comment", runRow(StatusQueued, SourceComment), ActionEnqueue, activity.TypeRunQueued, true},
+		{"queued observe", runRow(StatusQueued, SourceObserve), ActionEnqueue, activity.TypeRunQueued, true},
+		{"queued investigate", runRow(StatusQueued, SourceInvestigate), ActionEnqueue, activity.TypeRunQueued, true},
+		{"running prompt", runRow(StatusRunning, SourcePrompt), ActionClaim, activity.TypeRunStarted, true},
+		{"running investigate", runRow(StatusRunning, SourceInvestigate), ActionClaim, activity.TypeRunStarted, true},
+		{"succeeded comment", runRow(StatusSucceeded, SourceComment), ActionSucceed, activity.TypeRunSucceeded, true},
+		{"succeeded observe by exhaustion", runRow(StatusSucceeded, SourceObserve), ActionExhaust, activity.TypeRunSucceeded, true},
+		{"failed prompt", runRow(StatusFailed, SourcePrompt), ActionFail, activity.TypeRunFailed, true},
+		{"failed investigate by exhaustion", runRow(StatusFailed, SourceInvestigate), ActionExhaust, activity.TypeRunFailed, true},
+		{"canceled prompt settled", inState(runRow(StatusFailed, SourcePrompt), StateCanceled), ActionSettle, activity.TypeRunCanceled, true},
+		{"canceled investigate by cancel", inState(runRow(StatusFailed, SourceInvestigate), StateCanceled), ActionCancel, activity.TypeRunCanceled, true},
+		{"succeeded by cancel with a saved version", runRow(StatusSucceeded, SourcePrompt), ActionCancel, activity.TypeRunSucceeded, true},
+		{"canceling prompt", inState(runRow(StatusRunning, SourcePrompt), StateCanceling), ActionCancel, activity.TypeRunCanceling, true},
+		{"released prompt", runRow(StatusQueued, SourcePrompt), ActionRelease, activity.TypeRunReleased, true},
+		{"kept build of a failed run", runRow(StatusFailed, SourcePrompt), ActionKeepBuild, activity.TypeRunKept, true},
+		{"kept build of a canceled run", inState(runRow(StatusFailed, SourceObserve), StateCanceled), ActionKeepBuild, activity.TypeRunKept, true},
+		{"continue records nothing on the stopped run", runRow(StatusFailed, SourcePrompt), ActionContinue, "", false},
+		{"retry records nothing on the finished run", runRow(StatusFailed, SourcePrompt), ActionRetry, "", false},
+		{"pin records nothing", runRow(StatusSucceeded, SourcePrompt), ActionPin, "", false},
+		{"queued suggest", runRow(StatusQueued, SourceSuggest), ActionEnqueue, "", false},
+		{"running suggest", runRow(StatusRunning, SourceSuggest), ActionClaim, "", false},
+		{"succeeded suggest", runRow(StatusSucceeded, SourceSuggest), ActionSucceed, "", false},
+		{"failed suggest", runRow(StatusFailed, SourceSuggest), ActionFail, "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			entry, ok := runActivity(tc.row)
-			if ok != tc.wanted || entry.Type != tc.want {
-				t.Fatalf("runActivity = %q, %v; want %q, %v", entry.Type, ok, tc.want, tc.wanted)
+			typ, ok := runEventFor(tc.row, tc.action)
+			if ok != tc.wanted || typ != tc.want {
+				t.Fatalf("runEventFor = %q, %v; want %q, %v", typ, ok, tc.want, tc.wanted)
 			}
 			if !ok {
 				return
 			}
-			if entry.TargetID != runRequestID || entry.Owner != activity.OnDashboard(tc.row.DashboardID) {
-				t.Errorf("entry targets %v owned by %+v, want the request in its dashboard", entry.TargetID, entry.Owner)
+			entry := runActivity(tc.row, typ)
+			if entry.Type != typ || entry.TargetID != runRequestID || entry.Owner != activity.OnDashboard(tc.row.DashboardID) {
+				t.Errorf("entry %q targets %v owned by %+v, want the request in its dashboard", entry.Type, entry.TargetID, entry.Owner)
 			}
 			if !activity.Known(entry.Type) {
 				t.Errorf("%q is not a known activity type", entry.Type)
@@ -103,21 +119,26 @@ func TestRunActivityNamesTheTransitionOfEveryStatusAndSource(t *testing.T) {
 
 func TestRunActivityActsAsTheRequesterAndOnlyCarriesTheRunIdOnceItRuns(t *testing.T) {
 	cases := []struct {
+		typ       string
 		status    Status
 		wantRunID string
 	}{
-		{StatusQueued, ""},
-		{StatusRunning, runRequestID.String()},
-		{StatusSucceeded, runRequestID.String()},
-		{StatusFailed, runRequestID.String()},
+		{activity.TypeRunQueued, StatusQueued, ""},
+		{activity.TypeRunStarted, StatusRunning, runRequestID.String()},
+		{activity.TypeRunSucceeded, StatusSucceeded, runRequestID.String()},
+		{activity.TypeRunFailed, StatusFailed, runRequestID.String()},
+		{activity.TypeRunCanceled, StatusFailed, runRequestID.String()},
+		{activity.TypeRunCanceling, StatusRunning, ""},
+		{activity.TypeRunReleased, StatusQueued, runRequestID.String()},
+		{activity.TypeRunKept, StatusFailed, ""},
 	}
 	for _, tc := range cases {
-		t.Run(string(tc.status), func(t *testing.T) {
+		t.Run(tc.typ, func(t *testing.T) {
 			row := runRow(tc.status, SourcePrompt)
 			row.RequestedByKind = string(auth.KindServiceAccount)
 			row.Origin = pgtype.Text{String: string(origin.MCP), Valid: true}
 			row.OriginClient = pgtype.Text{String: "claude-code", Valid: true}
-			entry, _ := runActivity(row)
+			entry := runActivity(row, tc.typ)
 			got := entry.Actor
 			if got.Kind != auth.KindServiceAccount || got.ID != runRequesterID.String() || got.Name != "Ada" {
 				t.Errorf("actor = %+v, want the requesting service account", got)
@@ -136,12 +157,12 @@ func TestRunActivityNamesTheRequesterByEmailWhenTheNameIsEmpty(t *testing.T) {
 	row := runRow(StatusQueued, SourcePrompt)
 	row.RequestedByName = ""
 	row.RequestedByEmail = pgtype.Text{String: "ada@example.com", Valid: true}
-	entry, _ := runActivity(row)
+	entry := runActivity(row, activity.TypeRunQueued)
 	if entry.Actor.Name != "ada@example.com" {
 		t.Fatalf("actor name = %q, want the email", entry.Actor.Name)
 	}
 	row.RequestedByName = "Ada"
-	entry, _ = runActivity(row)
+	entry = runActivity(row, activity.TypeRunQueued)
 	if entry.Actor.Name != "Ada" {
 		t.Fatalf("actor name = %q, want the name when there is one", entry.Actor.Name)
 	}
@@ -163,8 +184,13 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	failed.FailureCode = pgtype.Text{String: string(FailureNoProgress), Valid: true}
 	failed.Error = pgtype.Text{String: "secret error text", Valid: true}
 
-	canceled := runRow(StatusFailed, SourcePrompt)
-	canceled.FailureCode = pgtype.Text{String: string(FailureCanceled), Valid: true}
+	canceled := inState(runRow(StatusFailed, SourcePrompt), StateCanceled)
+
+	released := runRow(StatusQueued, SourcePrompt)
+	released.Attempts = 1
+
+	kept := runRow(StatusFailed, SourcePrompt)
+	kept.ResultVersion = pgtype.Int4{Int32: 4, Valid: true}
 
 	withUsage := func(row dbsqlc.AgentRequest, usage string) dbsqlc.AgentRequest {
 		row.RunUsage = []byte(usage)
@@ -175,33 +201,34 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	cases := []struct {
 		name string
 		row  dbsqlc.AgentRequest
+		typ  string
 		want map[string]any
 	}{
-		{"succeeded with a cost", withUsage(succeeded, priced), map[string]any{"source": "prompt", "result_version": float64(7), "cost_usd": 0.125}},
-		{"failed with a cost", withUsage(failed, priced), map[string]any{"source": "prompt", "failure_code": "no_progress", "cost_usd": 0.125}},
-		{"canceled with a cost", withUsage(canceled, priced), map[string]any{"source": "prompt", "cost_usd": 0.125}},
-		{"free run", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"cost_usd":0}`), map[string]any{"source": "prompt", "cost_usd": float64(0)}},
-		{"succeeded with an unpriced model", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","cost_usd":null}`), map[string]any{"source": "prompt"}},
-		{"succeeded with usage from before costs", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","model_calls":3}`), map[string]any{"source": "prompt"}},
-		{"failed with no usage", failed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
-		{"succeeded with unreadable usage", withUsage(runRow(StatusSucceeded, SourcePrompt), `[1`), map[string]any{"source": "prompt"}},
-		{"started keeps no cost", withUsage(running, priced), map[string]any{"source": "prompt", "attempt": float64(2)}},
-		{"queued", runRow(StatusQueued, SourceComment), map[string]any{"source": "comment"}},
-		{"queued continuation", queuedContinuation, map[string]any{"source": "observe", "continues_id": runContinuesID.String()}},
-		{"started", running, map[string]any{"source": "prompt", "attempt": float64(2)}},
-		{"succeeded without a version", runRow(StatusSucceeded, SourceInvestigate), map[string]any{"source": "investigate"}},
-		{"succeeded", succeeded, map[string]any{"source": "prompt", "result_version": float64(7)}},
-		{"failed without a code", runRow(StatusFailed, SourcePrompt), map[string]any{"source": "prompt"}},
-		{"failed", failed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
-		{"canceled", canceled, map[string]any{"source": "prompt"}},
+		{"succeeded with a cost", withUsage(succeeded, priced), activity.TypeRunSucceeded, map[string]any{"source": "prompt", "result_version": float64(7), "cost_usd": 0.125}},
+		{"failed with a cost", withUsage(failed, priced), activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress", "cost_usd": 0.125}},
+		{"canceled with a cost", withUsage(canceled, priced), activity.TypeRunCanceled, map[string]any{"source": "prompt", "cost_usd": 0.125}},
+		{"free run", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"cost_usd":0}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt", "cost_usd": float64(0)}},
+		{"succeeded with an unpriced model", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","cost_usd":null}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
+		{"succeeded with usage from before costs", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","model_calls":3}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
+		{"failed with no usage", failed, activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
+		{"succeeded with unreadable usage", withUsage(runRow(StatusSucceeded, SourcePrompt), `[1`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
+		{"started keeps no cost", withUsage(running, priced), activity.TypeRunStarted, map[string]any{"source": "prompt", "attempt": float64(2)}},
+		{"queued", runRow(StatusQueued, SourceComment), activity.TypeRunQueued, map[string]any{"source": "comment"}},
+		{"queued continuation", queuedContinuation, activity.TypeRunQueued, map[string]any{"source": "observe", "continues_id": runContinuesID.String()}},
+		{"started", running, activity.TypeRunStarted, map[string]any{"source": "prompt", "attempt": float64(2)}},
+		{"succeeded without a version", runRow(StatusSucceeded, SourceInvestigate), activity.TypeRunSucceeded, map[string]any{"source": "investigate"}},
+		{"succeeded", succeeded, activity.TypeRunSucceeded, map[string]any{"source": "prompt", "result_version": float64(7)}},
+		{"failed without a code", runRow(StatusFailed, SourcePrompt), activity.TypeRunFailed, map[string]any{"source": "prompt"}},
+		{"failed", failed, activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
+		{"canceled", canceled, activity.TypeRunCanceled, map[string]any{"source": "prompt"}},
+		{"canceling", inState(running, StateCanceling), activity.TypeRunCanceling, map[string]any{"source": "prompt"}},
+		{"released names the attempt handed back", released, activity.TypeRunReleased, map[string]any{"source": "prompt", "attempt": float64(2)}},
+		{"kept names the saved version", kept, activity.TypeRunKept, map[string]any{"source": "prompt", "result_version": float64(4)}},
+		{"kept without a version", runRow(StatusFailed, SourcePrompt), activity.TypeRunKept, map[string]any{"source": "prompt"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			entry, ok := runActivity(tc.row)
-			if !ok {
-				t.Fatal("no activity")
-			}
-			got := dataOf(t, entry)
+			got := dataOf(t, runActivity(tc.row, tc.typ))
 			if len(got) != len(tc.want) {
 				t.Fatalf("data = %v, want %v", got, tc.want)
 			}

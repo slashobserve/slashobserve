@@ -92,6 +92,8 @@ Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
+**Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
+The new run is yours, whoever started the one you retry.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown, and for an investigation the finding the agent saved.
@@ -137,6 +139,7 @@ While a request is queued or running, **Cancel run** stops it.
 Only the person who asked sees it; an Editor or Admin cannot cancel someone else's request.
 A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
+If its worker is gone, the request ends canceled at once instead.
 The request ends as failed with "the run was canceled" and keeps what was built, so you can save or continue it.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
@@ -196,6 +199,8 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
+Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs.
+The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
 The page keeps polling the server.

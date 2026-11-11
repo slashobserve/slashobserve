@@ -20,3 +20,7 @@ func (s *Service) RenewLease(ctx context.Context, claimed dbsqlc.AgentRequest) e
 	_, err := s.renewLease(ctx, claimed)
 	return err
 }
+
+func (s *Service) Release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
+	return s.release(ctx, claimed, checkFailed)
+}

@@ -29,7 +29,11 @@ func webhookJSON(enabled bool, reason string) string {
 	if reason != "" {
 		disabled = fmt.Sprintf("%q", reason)
 	}
-	return fmt.Sprintf(`{"id":%q,"name":"Failed runs","url":"https://hooks.example.com/in","event_types":["run.failed","run.canceled"],"owner":{"kind":"user","id":"u","name":"Ada","origin":null,"client":null,"run_id":null,"label":"Ada"},"enabled":%t,"disabled_reason":%s,"disabled_at":null,"consecutive_failures":0,"next_attempt_at":"2026-11-11T09:00:00Z","created_at":"2026-11-11T09:00:00Z","updated_at":"2026-11-11T09:00:00Z"}`, testWebhook, enabled, disabled)
+	state := "sending"
+	if !enabled {
+		state = "disabled"
+	}
+	return fmt.Sprintf(`{"id":%q,"name":"Failed runs","url":"https://hooks.example.com/in","event_types":["run.failed","run.canceled"],"owner":{"kind":"user","id":"u","name":"Ada","origin":null,"client":null,"run_id":null,"label":"Ada"},"enabled":%t,"state":%q,"disabled_reason":%s,"disabled_at":null,"consecutive_failures":0,"next_attempt_at":"2026-11-11T09:00:00Z","created_at":"2026-11-11T09:00:00Z","updated_at":"2026-11-11T09:00:00Z"}`, testWebhook, enabled, state, disabled)
 }
 
 func newWebhooksFake(t *testing.T) *webhooksFake {
@@ -90,7 +94,7 @@ func TestWebhooksListPrintsATable(t *testing.T) {
 	}
 	got := spaces.ReplaceAllString(stdout, " ")
 	want := "ID NAME URL EVENTS STATUS\n" +
-		testWebhook + " Failed runs https://hooks.example.com/in 2 enabled\n" +
+		testWebhook + " Failed runs https://hooks.example.com/in 2 sending\n" +
 		testWebhook + " Failed runs https://hooks.example.com/in 2 disabled (gone)\n"
 	if got != want {
 		t.Fatalf("stdout %q", got)
@@ -305,6 +309,27 @@ func TestWebhooksRefuseABadID(t *testing.T) {
 		if code != 2 || stderr == "" || len(f.requests) != 0 {
 			t.Errorf("%s: exit %d, stderr %q, requests %d", verb, code, stderr, len(f.requests))
 		}
+	}
+}
+
+func TestWebhookStatusReadsTheServerState(t *testing.T) {
+	reason := "gone"
+	tests := []struct {
+		name string
+		view webhookView
+		want string
+	}{
+		{"sending", webhookView{State: "sending"}, "sending"},
+		{"retrying", webhookView{State: "retrying"}, "retrying"},
+		{"disabled with a reason", webhookView{State: "disabled", DisabledReason: &reason}, "disabled (gone)"},
+		{"disabled without a reason", webhookView{State: "disabled"}, "disabled (-)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := webhookStatus(tt.view); got != tt.want {
+				t.Errorf("webhookStatus = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

@@ -19,7 +19,7 @@ const (
 	maxListHealth       = 50
 	maxProblemTextBytes = 500
 
-	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its latest repair. Fix failing panels with get_panels and update_panels. Page with next_cursor."
+	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its state and its latest repair with its outcome. Fix failing panels with get_panels and update_panels. Page with next_cursor."
 )
 
 var schemaListDashboardHealth = `{"type":"object","properties":{` +
@@ -68,6 +68,7 @@ type healthItemOut struct {
 	URL               string             `json:"url"`
 	FolderID          string             `json:"folder_id"`
 	FolderTitle       string             `json:"folder_title"`
+	State             string             `json:"state"`
 	CheckedAt         string             `json:"checked_at,omitempty"`
 	CheckedVersion    *int               `json:"checked_version,omitempty"`
 	Skipped           string             `json:"skipped,omitempty"`
@@ -78,6 +79,7 @@ type healthItemOut struct {
 
 type healthRepairOut struct {
 	State   string `json:"state"`
+	Outcome string `json:"outcome"`
 	Version *int   `json:"version,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
@@ -207,6 +209,7 @@ func healthItemOf(it health.Item) healthItemOut {
 		URL:            it.URL,
 		FolderID:       it.Folder.ID.String(),
 		FolderTitle:    it.Folder.Title,
+		State:          it.State,
 		CheckedAt:      rfc3339(it.CheckedAt),
 		CheckedVersion: it.CheckedVersion,
 		Skipped:        it.Skipped,
@@ -223,7 +226,7 @@ func healthItemOf(it health.Item) healthItemOut {
 		})
 	}
 	if r := it.Repair; r != nil {
-		out.Repair = &healthRepairOut{State: r.State, Version: r.Version}
+		out.Repair = &healthRepairOut{State: r.State, Outcome: r.Outcome, Version: r.Version}
 		if r.Error != nil {
 			out.Repair.Error = clip(*r.Error, maxProblemTextBytes)
 		}

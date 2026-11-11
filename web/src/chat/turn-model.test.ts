@@ -14,22 +14,25 @@ const savedAt = "2026-11-04T10:00:23Z"
 
 describe("resultFinishedAt", () => {
   it.each([
-    ["a saved stopped build", "failed", failedAt, savedAt, savedAt],
-    ["a stopped build that was not saved", "failed", failedAt, null, failedAt],
-    ["a succeeded request", "succeeded", failedAt, null, failedAt],
+    ["a kept stopped build", "partial_version", failedAt, savedAt, savedAt],
+    ["a stopped build that was not kept", "none", failedAt, null, failedAt],
+    ["a request that saved a version", "version", failedAt, null, failedAt],
     [
-      "a succeeded request ignores build_saved_at",
-      "succeeded",
+      "a request that saved a version ignores build_saved_at",
+      "version",
       failedAt,
       savedAt,
       failedAt,
     ],
-    ["a request still running", "running", null, null, null],
-  ] as const)("%s", (_name, status, finished_at, build_saved_at, expected) => {
-    expect(resultFinishedAt({ status, finished_at, build_saved_at })).toBe(
-      expected
-    )
-  })
+    ["a request still running", "none", null, null, null],
+  ] as const)(
+    "%s",
+    (_name, result_kind, finished_at, build_saved_at, expected) => {
+      expect(
+        resultFinishedAt({ result_kind, finished_at, build_saved_at })
+      ).toBe(expected)
+    }
+  )
 })
 
 describe("showsWorkingRow", () => {
@@ -85,22 +88,23 @@ describe("tookText", () => {
 
 describe("mayHaveFinding", () => {
   it.each([
-    ["an investigation", "investigate", "running", null, true],
-    ["a new dashboard that answered", "observe", "succeeded", null, true],
-    ["a new dashboard that saved a version", "observe", "succeeded", 1, false],
-    ["a new dashboard still running", "observe", "running", null, false],
-    ["a failed new dashboard", "observe", "failed", null, false],
+    ["an investigation", "investigate", "none", true],
     [
-      "a dashboard chat prompt that answered",
-      "prompt",
-      "succeeded",
-      null,
+      "an investigation that saved a finding",
+      "investigate",
+      "observation",
       true,
     ],
-    ["a comment that answered", "comment", "succeeded", null, true],
-    ["a revision that saved a version", "prompt", "succeeded", 4, false],
-    ["a revision still running", "prompt", "running", null, false],
-  ] as const)("%s", (_name, source, status, result_version, expected) => {
-    expect(mayHaveFinding({ source, status, result_version })).toBe(expected)
+    ["a new dashboard that answered", "observe", "observation", true],
+    ["a new dashboard that saved a version", "observe", "version", false],
+    ["a new dashboard still running", "observe", "none", false],
+    ["a failed new dashboard", "observe", "none", false],
+    ["a stopped build that was kept", "observe", "partial_version", false],
+    ["a dashboard chat prompt that answered", "prompt", "observation", true],
+    ["a comment that answered", "comment", "observation", true],
+    ["a revision that saved a version", "prompt", "version", false],
+    ["a revision still running", "prompt", "none", false],
+  ] as const)("%s", (_name, source, result_kind, expected) => {
+    expect(mayHaveFinding({ source, result_kind })).toBe(expected)
   })
 })

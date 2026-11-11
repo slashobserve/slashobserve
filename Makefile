@@ -49,6 +49,7 @@ web: web-deps
 
 generate: web-deps
 	$(SQLC) generate
+	go test ./internal/surface -run TestStatesReferenceIsCurrent -update
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 

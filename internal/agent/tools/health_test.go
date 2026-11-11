@@ -67,12 +67,12 @@ func kindStrings(kinds []health.Kind) []string {
 
 func TestHealthItemOfLeavesOutEmptyFields(t *testing.T) {
 	folder := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
-	bare := healthItemOf(health.Item{ID: "d1", Title: "Shop", URL: "https://observe.example.com/d/d1", Folder: folders.Folder{ID: folder, Title: "General"}, Problems: []health.Problem{{Kind: health.KindUnopened}}})
+	bare := healthItemOf(health.Item{ID: "d1", Title: "Shop", URL: "https://observe.example.com/d/d1", Folder: folders.Folder{ID: folder, Title: "General"}, State: "healthy", Problems: []health.Problem{{Kind: health.KindUnopened}}})
 	raw, err := json.Marshal(bare)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"dashboard_id":"d1","title":"Shop","url":"https://observe.example.com/d/d1","folder_id":"` + folder.String() + `","folder_title":"General","problems":[{"kind":"unopened"}]}`
+	want := `{"dashboard_id":"d1","title":"Shop","url":"https://observe.example.com/d/d1","folder_id":"` + folder.String() + `","folder_title":"General","state":"healthy","problems":[{"kind":"unopened"}]}`
 	if string(raw) != want {
 		t.Errorf("bare item = %s\nwant %s", raw, want)
 	}
@@ -81,10 +81,14 @@ func TestHealthItemOfLeavesOutEmptyFields(t *testing.T) {
 	version := 3
 	full := healthItemOf(health.Item{
 		ID: "d2", Folder: folders.Folder{ID: folder}, CheckedAt: &checked, CheckedVersion: &version, Skipped: health.SkippedDependsOnViewer,
+		Repair:   &health.Repair{State: "succeeded", Outcome: "still_failing", Version: &version},
 		Problems: []health.Problem{{Kind: health.KindQueryFailed, PanelID: "p1", PanelTitle: "Errors", Code: "query_failed", Message: strings.Repeat("x", 2*maxProblemTextBytes)}},
 	})
 	if full.CheckedAt != "2026-11-06T04:00:00Z" || full.CheckedVersion == nil || *full.CheckedVersion != 3 || full.Skipped != health.SkippedDependsOnViewer {
 		t.Errorf("checked fields = %q %v %q", full.CheckedAt, full.CheckedVersion, full.Skipped)
+	}
+	if r := full.Repair; r == nil || r.State != "succeeded" || r.Outcome != "still_failing" || r.Version == nil || *r.Version != 3 {
+		t.Errorf("repair = %+v", r)
 	}
 	if p := full.Problems[0]; p.PanelID != "p1" || p.PanelTitle != "Errors" || p.Code != "query_failed" || len(p.Message) >= 2*maxProblemTextBytes {
 		t.Errorf("problem = %+v (message %d bytes)", p, len(p.Message))

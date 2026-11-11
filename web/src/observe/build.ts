@@ -172,39 +172,6 @@ export function newPanelIds(
   return added
 }
 
-export function canSaveBuild({
-  status,
-  build,
-  buildSavedAt,
-  isRequester,
-}: {
-  status: ObserveRequest["status"]
-  build: BuildProgress | null
-  buildSavedAt: string | null
-  isRequester: boolean
-}): boolean {
-  return (
-    status === "failed" &&
-    build !== null &&
-    build.panels > 0 &&
-    buildSavedAt === null &&
-    isRequester
-  )
-}
-
-export function canContinueBuild({
-  continuedBy,
-  ...save
-}: {
-  status: ObserveRequest["status"]
-  build: BuildProgress | null
-  buildSavedAt: string | null
-  continuedBy: string | null
-  isRequester: boolean
-}): boolean {
-  return canSaveBuild(save) && continuedBy === null
-}
-
 export function continueNoteError(raw: string): string | null {
   return [...raw.trim()].length > maxPromptLength
     ? `Use at most ${maxPromptLength} characters.`

@@ -321,6 +321,11 @@ func run() error {
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
+	observeOpts := revisions.ObserveOptions{
+		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
+		FindingURL:   findingURL,
+		Finding:      findingOfRequest(findingsService, findingURL),
+	}
 	toolRegistry := tools.New(tools.Deps{
 		Datasources:   registry,
 		Runner:        runner,
@@ -333,6 +338,7 @@ func run() error {
 		Health:        healthService,
 		Annotations:   annotationsService,
 		Activity:      activityStore,
+		Runs:          revisions.NewRunReader(revisions.NewService(database, nil, logger, revisions.WithAccess(folderAccess)), observeOpts),
 		Search:        searchService,
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
@@ -340,11 +346,6 @@ func run() error {
 	})
 
 	var reviser revisions.Reviser
-	observeOpts := revisions.ObserveOptions{
-		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
-		FindingURL:   findingURL,
-		Finding:      findingOfRequest(findingsService, findingURL),
-	}
 	if llmProvider != nil {
 		reviser = agent.NewReviser(agent.New(agent.Config{
 			Provider:    llmProvider,

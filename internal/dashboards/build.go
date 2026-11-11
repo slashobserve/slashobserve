@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -447,11 +448,11 @@ func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, reque
 		ctx = origin.With(ctx, build.origin)
 	}
 	return s.commitBuild(ctx, by, build, stoppedSummary(progress), func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error {
-		n, err := q.MarkAgentRequestBuildSaved(ctx, dbsqlc.MarkAgentRequestBuildSavedParams{ResultVersion: httpapi.Int32(version), DashboardID: dashboardID, ID: requestID})
+		kept, err := revisions.KeepBuild(ctx, q, requestID, dashboardID, version)
 		if err != nil {
-			return fmt.Errorf("mark agent request build saved: %w", err)
+			return err
 		}
-		if n == 0 {
+		if !kept {
 			return ErrBuildNotSavable
 		}
 		deleted, err := q.DeleteStoppedAgentRequestBuild(ctx, requestID)

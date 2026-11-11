@@ -29,6 +29,9 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"run.succeeded":             "run",
 		"run.failed":                "run",
 		"run.canceled":              "run",
+		"run.canceling":             "run",
+		"run.released":              "run",
+		"run.kept":                  "run",
 	}
 	for typ, kind := range tests {
 		if !Known(typ) {

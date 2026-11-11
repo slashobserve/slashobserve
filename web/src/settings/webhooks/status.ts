@@ -10,24 +10,26 @@ export type WebhookStatus = {
 }
 
 export function webhookStatus(
-  webhook: Pick<Webhook, "enabled" | "disabled_reason" | "consecutive_failures">
+  webhook: Pick<Webhook, "state" | "disabled_reason" | "consecutive_failures">
 ): WebhookStatus {
-  if (!webhook.enabled) {
-    return {
-      tone: "critical",
-      label: "Disabled",
-      detail: disabledReasonText(webhook.disabled_reason),
+  switch (webhook.state) {
+    case "disabled":
+      return {
+        tone: "critical",
+        label: "Disabled",
+        detail: disabledReasonText(webhook.disabled_reason),
+      }
+    case "retrying": {
+      const n = webhook.consecutive_failures
+      return {
+        tone: "warning",
+        label: "Retrying",
+        detail: `${n} ${n === 1 ? "attempt" : "attempts"} in a row failed`,
+      }
     }
+    case "sending":
+      return { tone: "ok", label: "Sending", detail: null }
   }
-  if (webhook.consecutive_failures > 0) {
-    const n = webhook.consecutive_failures
-    return {
-      tone: "warning",
-      label: "Retrying",
-      detail: `${n} ${n === 1 ? "attempt" : "attempts"} in a row failed`,
-    }
-  }
-  return { tone: "ok", label: "Sending", detail: null }
 }
 
 const errorTexts: Record<string, string> = {

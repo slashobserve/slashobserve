@@ -44,23 +44,26 @@ type authorJSON struct {
 }
 
 type revisionJSON struct {
-	ID            string     `json:"id"`
-	DashboardID   string     `json:"dashboard_id"`
-	Source        Source     `json:"source"`
-	CommentID     *string    `json:"comment_id"`
-	PanelID       *string    `json:"panel_id"`
-	Prompt        string     `json:"prompt"`
-	BaseVersion   *int       `json:"base_version"`
-	Status        Status     `json:"status"`
-	Attempts      int        `json:"attempts"`
-	ResultVersion *int       `json:"result_version"`
-	Error         *string    `json:"error"`
-	RequestedBy   authorJSON `json:"requested_by"`
-	Origin        *string    `json:"origin"`
-	OriginClient  *string    `json:"origin_client"`
-	CreatedAt     string     `json:"created_at"`
-	StartedAt     *string    `json:"started_at"`
-	FinishedAt    *string    `json:"finished_at"`
+	ID             string     `json:"id"`
+	DashboardID    string     `json:"dashboard_id"`
+	Source         Source     `json:"source"`
+	CommentID      *string    `json:"comment_id"`
+	PanelID        *string    `json:"panel_id"`
+	Prompt         string     `json:"prompt"`
+	BaseVersion    *int       `json:"base_version"`
+	Status         Status     `json:"status"`
+	State          State      `json:"state"`
+	ResultKind     ResultKind `json:"result_kind"`
+	Attempts       int        `json:"attempts"`
+	AllowedActions []string   `json:"allowed_actions"`
+	ResultVersion  *int       `json:"result_version"`
+	Error          *string    `json:"error"`
+	RequestedBy    authorJSON `json:"requested_by"`
+	Origin         *string    `json:"origin"`
+	OriginClient   *string    `json:"origin_client"`
+	CreatedAt      string     `json:"created_at"`
+	StartedAt      *string    `json:"started_at"`
+	FinishedAt     *string    `json:"finished_at"`
 
 	FailureCode  *string            `json:"failure_code"`
 	Build        *buildProgressJSON `json:"build"`
@@ -138,8 +141,13 @@ func (s *Service) createRevision(c *gin.Context) {
 		return
 	}
 	rev := revisionFromRow(row)
+	views, err := s.revisionViews(c.Request.Context(), dashboardID, []Revision{rev}, httpapi.Caller(c))
+	if err != nil {
+		s.fail(c, "render enqueued revision", err, dashboardAttr(dashboardID))
+		return
+	}
 	c.Header("Location", "/api/v1/dashboards/"+rev.DashboardID+"/revisions/"+rev.ID)
-	c.JSON(http.StatusAccepted, envelopeJSON{Revision: newRevisionJSON(rev, buildState{}, httpapi.Caller(c))})
+	c.JSON(http.StatusAccepted, envelopeJSON{Revision: views[0]})
 }
 
 func threadCommentID(c *gin.Context, req createRequest) (pgtype.UUID, bool) {
@@ -181,15 +189,12 @@ func (s *Service) listRevisions(c *gin.Context) {
 		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
 	}
-	states, err := s.revisionBuildStates(ctx, items)
+	views, err := s.revisionViews(ctx, dashboardID, items, httpapi.Caller(c))
 	if err != nil {
-		s.fail(c, "list revision build state", err, dashboardAttr(dashboardID))
+		s.fail(c, "list revision views", err, dashboardAttr(dashboardID))
 		return
 	}
-	body := listJSON{Revisions: make([]revisionJSON, len(items))}
-	for i, item := range items {
-		body.Revisions[i] = newRevisionJSON(item, states[i], httpapi.Caller(c))
-	}
+	body := listJSON{Revisions: views}
 	if next != "" {
 		body.NextCursor = &next
 	}
@@ -210,15 +215,15 @@ func (s *Service) getRevision(c *gin.Context) {
 		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
 	}
-	states, err := s.revisionBuildStates(c.Request.Context(), []Revision{rev})
+	views, err := s.revisionViews(c.Request.Context(), dashboardID, []Revision{rev}, httpapi.Caller(c))
 	if err != nil {
-		s.fail(c, "get revision build state", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
+		s.fail(c, "get revision views", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
 	}
-	c.JSON(http.StatusOK, envelopeJSON{Revision: newRevisionJSON(rev, states[0], httpapi.Caller(c))})
+	c.JSON(http.StatusOK, envelopeJSON{Revision: views[0]})
 }
 
-func (s *Service) revisionBuildStates(ctx context.Context, revs []Revision) ([]buildState, error) {
+func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, revs []Revision, caller auth.Principal) ([]revisionJSON, error) {
 	ids := make([]pgtype.UUID, len(revs))
 	for i, rev := range revs {
 		id, err := db.ParseUUID(rev.ID)
@@ -227,15 +232,22 @@ func (s *Service) revisionBuildStates(ctx context.Context, revs []Revision) ([]b
 		}
 		ids[i] = id
 	}
-	byID, err := s.buildStates(ctx, ids)
+	states, err := s.buildStates(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	states := make([]buildState, len(revs))
-	for i, id := range ids {
-		states[i] = byID[id]
+	starts := s.newStartChecks(caller)
+	views := make([]revisionJSON, len(revs))
+	for i, rev := range revs {
+		state := states[ids[i]]
+		mayStart, err := starts.may(ctx, rev.State, rev.Source, dashboardID)
+		if err != nil {
+			return nil, fmt.Errorf("check who may start a revision again: %w", err)
+		}
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart)
+		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 	}
-	return states, nil
+	return views, nil
 }
 
 func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any) {
@@ -277,25 +289,28 @@ func dashboardAttr(id pgtype.UUID) any {
 	return slog.String("dashboard_id", id.String())
 }
 
-func newRevisionJSON(r Revision, state buildState, caller auth.Principal) revisionJSON {
+func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth.Principal) revisionJSON {
 	out := revisionJSON{
-		ID:            r.ID,
-		DashboardID:   r.DashboardID,
-		Source:        r.Source,
-		CommentID:     httpapi.OptionalString(r.CommentID),
-		PanelID:       httpapi.OptionalString(r.PanelID),
-		Prompt:        r.Prompt,
-		BaseVersion:   r.BaseVersion,
-		Status:        r.Status,
-		Attempts:      r.Attempts,
-		ResultVersion: r.ResultVersion,
-		Error:         httpapi.OptionalString(r.Error),
-		RequestedBy:   authorJSON{Kind: string(r.RequestedBy.Kind), ID: r.RequestedBy.ID, Name: r.RequestedBy.Name, Email: r.RequestedBy.Email},
-		Origin:        httpapi.OptionalString(r.Origin),
-		OriginClient:  httpapi.OptionalString(r.OriginClient),
-		CreatedAt:     httpapi.FormatTime(r.CreatedAt),
-		StartedAt:     formatOptionalTime(r.StartedAt),
-		FinishedAt:    formatOptionalTime(r.FinishedAt),
+		ID:             r.ID,
+		DashboardID:    r.DashboardID,
+		Source:         r.Source,
+		CommentID:      httpapi.OptionalString(r.CommentID),
+		PanelID:        httpapi.OptionalString(r.PanelID),
+		Prompt:         r.Prompt,
+		BaseVersion:    r.BaseVersion,
+		Status:         r.Status,
+		State:          r.State,
+		ResultKind:     r.ResultKind,
+		Attempts:       r.Attempts,
+		AllowedActions: actionStrings(allowed),
+		ResultVersion:  r.ResultVersion,
+		Error:          httpapi.OptionalString(r.Error),
+		RequestedBy:    authorJSON{Kind: string(r.RequestedBy.Kind), ID: r.RequestedBy.ID, Name: r.RequestedBy.Name, Email: r.RequestedBy.Email},
+		Origin:         httpapi.OptionalString(r.Origin),
+		OriginClient:   httpapi.OptionalString(r.OriginClient),
+		CreatedAt:      httpapi.FormatTime(r.CreatedAt),
+		StartedAt:      formatOptionalTime(r.StartedAt),
+		FinishedAt:     formatOptionalTime(r.FinishedAt),
 
 		FailureCode:  httpapi.OptionalString(r.FailureCode),
 		Build:        state.progressFor(r.RequestedBy, caller),

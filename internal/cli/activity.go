@@ -324,6 +324,15 @@ func describeRun(e activityEvent) (string, bool) {
 		return "run failed", true
 	case "run.canceled":
 		return "run canceled", true
+	case "run.canceling":
+		return "run canceling", true
+	case "run.released":
+		return "run released back to the queue", true
+	case "run.kept":
+		if d.ResultVersion > 0 {
+			return fmt.Sprintf("kept the build of a stopped run as version %d", d.ResultVersion), true
+		}
+		return "kept the build of a stopped run", true
 	}
 	return "", false
 }

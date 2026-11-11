@@ -50,6 +50,7 @@ type linkJSON struct {
 	LastViewedAt *string             `json:"last_viewed_at"`
 	Expired      bool                `json:"expired"`
 	Usable       bool                `json:"usable"`
+	State        string              `json:"state"`
 }
 
 type listJSON struct {
@@ -204,6 +205,7 @@ func linkJSONOf(link Link) linkJSON {
 		LastViewedAt: optionalTime(link.LastViewedAt),
 		Expired:      link.Expired,
 		Usable:       link.Usable,
+		State:        linkState(link.Expired),
 	}
 }
 

@@ -11,24 +11,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 )
 
-func runType(row dbsqlc.AgentRequest) (string, bool) {
+func runEventFor(row dbsqlc.AgentRequest, a Action) (string, bool) {
 	if row.Source == string(SourceSuggest) {
 		return "", false
 	}
-	switch Status(row.Status) {
-	case StatusQueued:
-		return activity.TypeRunQueued, true
-	case StatusRunning:
-		return activity.TypeRunStarted, true
-	case StatusSucceeded:
-		return activity.TypeRunSucceeded, true
-	case StatusFailed:
-		if row.FailureCode.String == string(FailureCanceled) {
-			return activity.TypeRunCanceled, true
-		}
-		return activity.TypeRunFailed, true
-	}
-	return "", false
+	typ := RunMachine.EventFor(a, State(row.State))
+	return typ, typ != ""
 }
 
 func requesterColumns(row dbsqlc.AgentRequest) actor.Columns {
@@ -47,11 +35,7 @@ func RunActor(row dbsqlc.AgentRequest) actor.Actor {
 	return actor.FromColumns(columns)
 }
 
-func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
-	typ, ok := runType(row)
-	if !ok {
-		return activity.Entry{}, false
-	}
+func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
 	columns := requesterColumns(row)
 	data := map[string]any{"source": row.Source}
 	switch typ {
@@ -74,6 +58,13 @@ func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
 		}
 	case activity.TypeRunCanceled:
 		columns.RunID = row.ID
+	case activity.TypeRunReleased:
+		columns.RunID = row.ID
+		data["attempt"] = row.Attempts + 1
+	case activity.TypeRunKept:
+		if row.ResultVersion.Valid {
+			data["result_version"] = row.ResultVersion.Int32
+		}
 	}
 	switch typ {
 	case activity.TypeRunSucceeded, activity.TypeRunFailed, activity.TypeRunCanceled:
@@ -87,7 +78,7 @@ func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
 		Owner:    activity.OnDashboard(row.DashboardID),
 		Actor:    actor.FromColumns(columns),
 		Data:     data,
-	}, true
+	}
 }
 
 func storedCost(runUsage []byte) (float64, bool) {
@@ -127,11 +118,12 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 	return events.Notify(ctx, q, 0, &ev)
 }
 
-func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	entry, ok := runActivity(row)
+func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, a Action) error {
+	typ, ok := runEventFor(row, a)
 	if !ok {
 		return notifyRevision(ctx, q, row)
 	}
+	entry := runActivity(row, typ)
 	var live *events.Event
 	if ev, ok := revisionEvent(row); ok {
 		live = &ev

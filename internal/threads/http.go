@@ -33,6 +33,7 @@ type threadJSON struct {
 	PanelID           *string              `json:"panel_id"`
 	PanelPresent      bool                 `json:"panel_present"`
 	Status            string               `json:"status"`
+	AllowedActions    []string             `json:"allowed_actions"`
 	CreatedAt         string               `json:"created_at"`
 	UpdatedAt         string               `json:"updated_at"`
 	ResolvedAt        *string              `json:"resolved_at"`
@@ -292,6 +293,7 @@ func newThreadJSON(t Thread) threadJSON {
 		PanelID:           httpapi.OptionalString(t.PanelID),
 		PanelPresent:      t.PanelPresent,
 		Status:            t.Status,
+		AllowedActions:    t.AllowedActions,
 		CreatedAt:         httpapi.FormatTime(t.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(t.UpdatedAt),
 		ResolvedByVersion: t.ResolvedByVersion,

@@ -80,7 +80,7 @@ func waitForSuggestion(t *testing.T, svc *revisions.Service, dash, id pgtype.UUI
 
 func markRunning(t *testing.T, d *dbtest.Database, id pgtype.UUID) {
 	t.Helper()
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() + interval '1 hour' WHERE id = $1", id)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() + interval '1 hour' WHERE id = $1", id)
 }
 
 func sameJSON(t *testing.T, got []byte, want string) bool {
@@ -199,7 +199,7 @@ func TestExhaustedLeaseFailsASuggestionWithoutRunningItAgain(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 1)
 	sug := suggestFor(t, svc, dash, user)
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", sug.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", sug.ID)
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	failed := waitForSuggestion(t, svc, dash, sug.ID, user, revisions.StatusFailed)
@@ -227,14 +227,14 @@ func TestSuggestionRowsMustHoldAnObjectWhenTheyHaveSucceeded(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			sug := suggestFor(t, svc, dash, principalN(len(tc.name)))
-			_, err := sqlDB.Exec("UPDATE agent_requests SET status = 'succeeded', suggestion = $2::jsonb WHERE id = $1", sug.ID.String(), tc.suggestion)
+			_, err := sqlDB.Exec("UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', suggestion = $2::jsonb WHERE id = $1", sug.ID.String(), tc.suggestion)
 			if err == nil || !strings.Contains(err.Error(), tc.constraint) {
 				t.Fatalf("err = %v, want a %s violation", err, tc.constraint)
 			}
 		})
 	}
 	sug := suggestFor(t, svc, dash, principalN(100))
-	if _, err := sqlDB.Exec("UPDATE agent_requests SET status = 'succeeded', suggestion = $2::jsonb WHERE id = $1", sug.ID.String(), `{}`); err != nil {
+	if _, err := sqlDB.Exec("UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', suggestion = $2::jsonb WHERE id = $1", sug.ID.String(), `{}`); err != nil {
 		t.Fatalf("a succeeded suggestion with an object: %v", err)
 	}
 }

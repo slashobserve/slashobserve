@@ -1,10 +1,12 @@
 package revisions_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -22,10 +25,14 @@ func withRole(p auth.Principal) auth.Principal {
 }
 
 func newRouter(svc *revisions.Service) *gin.Engine {
+	return newRouterAs(svc, user)
+}
+
+func newRouterAs(svc *revisions.Service, caller auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	svc.Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(user)))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(caller)))
 	})))
 	return r
 }
@@ -265,5 +272,86 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutEdit(t *testing.T) {
 				t.Fatalf("code %q, want forbidden_role", errorCode(t, rec))
 			}
 		})
+	}
+}
+
+func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	stopped := submit(t, svc, dash, "fails with a build")
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(context.Background(), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	failed := submit(t, svc, dash, "fails without a build")
+	queued := submit(t, svc, dash, "still waiting")
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = ANY($1::uuid[])", []string{failed.ID, stopped.ID})
+
+	cases := []struct {
+		name   string
+		caller auth.Principal
+		want   map[string][]string
+	}{
+		{"requester", user, map[string][]string{
+			failed.ID:  {"retry", "pin", "archive"},
+			stopped.ID: {"keep_build", "continue", "retry", "pin", "archive"},
+			queued.ID:  {"cancel", "pin", "archive"},
+		}},
+		{"another editor", otherUser, map[string][]string{
+			failed.ID:  {"retry"},
+			stopped.ID: {"retry"},
+			queued.ID:  {},
+		}},
+	}
+	for _, c := range cases {
+		r := newRouterAs(svc, c.caller)
+		var page struct {
+			Revisions []struct {
+				ID             string   `json:"id"`
+				AllowedActions []string `json:"allowed_actions"`
+			} `json:"revisions"`
+		}
+		rec := call(r, http.MethodGet, revisionsPath(dash), "")
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || rec.Code != http.StatusOK || len(page.Revisions) != 3 {
+			t.Fatalf("%s list: %d %s", c.name, rec.Code, rec.Body)
+		}
+		for _, rev := range page.Revisions {
+			if !slices.Equal(rev.AllowedActions, c.want[rev.ID]) || rev.AllowedActions == nil {
+				t.Errorf("%s list: %s allowed_actions = %v, want %v", c.name, rev.ID, rev.AllowedActions, c.want[rev.ID])
+			}
+		}
+		for id, want := range c.want {
+			var one struct {
+				Revision struct {
+					AllowedActions []string `json:"allowed_actions"`
+				} `json:"revision"`
+			}
+			rec := call(r, http.MethodGet, revisionsPath(dash)+"/"+id, "")
+			if err := json.Unmarshal(rec.Body.Bytes(), &one); err != nil || rec.Code != http.StatusOK {
+				t.Fatalf("%s get %s: %d %s", c.name, id, rec.Code, rec.Body)
+			}
+			if !slices.Equal(one.Revision.AllowedActions, want) || one.Revision.AllowedActions == nil {
+				t.Errorf("%s get: %s allowed_actions = %v, want %v", c.name, id, one.Revision.AllowedActions, want)
+			}
+		}
+	}
+}
+
+func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	rec := call(newRouter(svc), http.MethodPost, revisionsPath(dash), `{"prompt":"add a panel","base_version":1}`)
+	var body struct {
+		Revision struct {
+			AllowedActions []string `json:"allowed_actions"`
+		} `json:"revision"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusAccepted {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body)
+	}
+	if want := []string{"cancel", "pin", "archive"}; !slices.Equal(body.Revision.AllowedActions, want) {
+		t.Errorf("allowed_actions = %v, want %v", body.Revision.AllowedActions, want)
 	}
 }

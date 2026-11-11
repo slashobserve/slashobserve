@@ -57,12 +57,15 @@ function comment(overrides: Partial<Comment> & { id: string }): Comment {
 function request(overrides: Partial<Revision> & { id: string }): Revision {
   return {
     dashboard_id: "d1",
+    allowed_actions: [],
     source: "prompt",
     comment_id: null,
     panel_id: null,
     prompt: "do it",
     base_version: 1,
     status: "succeeded",
+    state: "succeeded",
+    result_kind: "none",
     attempts: 1,
     result_version: null,
     error: null,

@@ -44,6 +44,12 @@ So you can upgrade from any 0.x release directly to a later one without stopping
 Going backward is the one jump that is not supported.
 The [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md) names a release whose migration rewrites existing data.
 
+### Upgrading to the run states release
+
+Migration 35 adds a `state` column to agent requests and checks it against `status`.
+A server older than this release fails its queue writes against it, so stop every old server, or at least its agent workers, before the first new server starts.
+To go back, run `goose down-to 34` against the database before starting an older binary.
+
 ### Upgrading from an early release
 
 Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
