@@ -60,6 +60,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/runsession"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/sealed"
@@ -340,6 +341,11 @@ func run() error {
 	}
 	queue := revisions.NewService(database, nil, logger, revisionOpts...)
 	claimsService := claims.New(claims.Config{DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, RunTimeout: cfg.Agent.RunTimeout, Logger: logger})
+	runSessions := runsession.New(runsession.Config{
+		DB: database, Runs: queue, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
+		Imports: importsService, Statuses: registry, Steps: claimsService,
+		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
+	})
 	toolRegistry := tools.New(tools.Deps{
 		Datasources:   registry,
 		Runner:        runner,
@@ -355,6 +361,7 @@ func run() error {
 		Activity:      activityStore,
 		Runs:          revisions.NewRunReader(queue, observeOpts),
 		Claims:        claimsService,
+		RunSessions:   runSessions,
 		Search:        searchService,
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
@@ -488,7 +495,7 @@ func run() error {
 		Mounts: slices.Concat([]server.Mount{{
 			Path: "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, runs: claimsService, oauth: oauthServer}, mcp.Options{
-				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Steps: claimsService,
+				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Runs: runSessions,
 			}),
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},

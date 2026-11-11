@@ -150,6 +150,7 @@ type Deps struct {
 	Activity      *activity.Store
 	Runs          RunReader
 	Claims        *claims.Service
+	RunSessions   RunSessions
 	Search        *search.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL

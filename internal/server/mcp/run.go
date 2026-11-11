@@ -7,8 +7,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
+	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -16,11 +16,20 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/runsession"
 )
 
-const claimRunTool = "claim_run"
+const (
+	claimRunTool = "claim_run"
+	turnMetaKey  = "slashobserve.com/turn"
+	runMetaKey   = "slashobserve.com/run"
+)
 
-var errNoRunTransport = errors.New("no run tools for this run mode")
+var (
+	errNoRunTransport     = errors.New("no run tools for this run mode")
+	errNoRunSessions      = errors.New("run sessions are not configured")
+	errResultNotEncodable = errors.New("tool result not encodable")
+)
 
 type runRequestKey struct{}
 
@@ -52,7 +61,11 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 		prepare: func(ctx context.Context) (context.Context, http.Handler, error) {
 			ctx = auth.WithPrincipal(ctx, cred.Principal)
 			ctx = withRegisteredClient(origin.With(ctx, origin.Origin{Kind: req.Origin.Kind, Client: req.Origin.Client}))
-			scope, err := h.scope(ctx, req)
+			if h.runs == nil {
+				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", errNoRunSessions, slog.String("agent_request_id", req.ID))...)
+				return nil, nil, errNoRunSessions
+			}
+			scope, err := h.runs.Scope(ctx, req)
 			if err != nil {
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", err, slog.String("agent_request_id", req.ID))...)
 				return nil, nil, err
@@ -67,18 +80,31 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 	})
 }
 
-func (h *handler) recordStep(ctx context.Context, name string, start time.Time, res tools.Result, callErr error) {
-	req, ok := runRequestFrom(ctx)
-	if h.steps == nil || !ok {
-		return
+func (h *handler) callInRun(ctx context.Context, name string, input json.RawMessage, req mcplib.CallToolRequest, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
+	run, ok := runRequestFrom(ctx)
+	if !ok || h.runs == nil {
+		return runsession.Answer{}, errNoRunSessions
 	}
-	step := revisions.Step{At: start, Phase: tools.Phase(name), Tool: name, Status: "ok", Message: res.Step, DurationMS: time.Since(start).Milliseconds()}
-	if callErr != nil {
-		step.Status, step.Message = "error", internalErrorMsg
-	} else if res.IsError {
-		step.Status = "error"
+	return h.runs.Call(ctx, run, runsession.Call{Name: name, Input: input, Turn: turnOf(req)}, dispatch)
+}
+
+func turnOf(req mcplib.CallToolRequest) *runsession.Turn {
+	if req.Params.Meta == nil {
+		return nil
 	}
-	h.steps.RecordStep(context.WithoutCancel(ctx), req, step)
+	raw, ok := req.Params.Meta.AdditionalFields[turnMetaKey]
+	if !ok {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var turn runsession.Turn
+	if err := json.Unmarshal(encoded, &turn); err != nil {
+		return nil
+	}
+	return &turn
 }
 
 func isClaimPoll(body []byte) bool {
