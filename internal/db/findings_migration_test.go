@@ -15,15 +15,29 @@ type requestRow struct {
 	windowed                                    bool
 }
 
+const insertRequestSQL = `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name,
+  source, status, dashboard_id, base_version, panel_id, title, context_from, context_to)
+VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
+  CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
+
+const insertRequestWithStateSQL = `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name,
+  source, status, state, dashboard_id, base_version, panel_id, title, context_from, context_to)
+VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
+  CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
+
 func insertRequest(sqlDB *sql.DB, r requestRow) error {
+	return execRequest(sqlDB, insertRequestSQL, r)
+}
+
+func insertRequestWithState(sqlDB *sql.DB, r requestRow) error {
+	return execRequest(sqlDB, insertRequestWithStateSQL, r)
+}
+
+func execRequest(sqlDB *sql.DB, query string, r requestRow) error {
 	if r.status == "" {
 		r.status = "queued"
 	}
-	_, err := sqlDB.Exec(`INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name,
-  source, status, dashboard_id, base_version, panel_id, title, context_from, context_to)
-VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
-  CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`,
-		r.source, r.status, r.dashboardID, r.baseVersion, r.panelID, r.title, r.windowed)
+	_, err := sqlDB.Exec(query, r.source, r.status, r.dashboardID, r.baseVersion, r.panelID, r.title, r.windowed)
 	return err
 }
 
@@ -57,7 +71,7 @@ func TestInvestigateRowsFollowTheirShape(t *testing.T) {
 		{"a second running prompt on a dashboard", requestRow{source: "prompt", status: "running", dashboardID: findingsDashboard, baseVersion: 1}, "agent_requests_running_dashboard_idx"},
 	}
 	for _, c := range cases {
-		err := insertRequest(sqlDB, c.row)
+		err := insertRequestWithState(sqlDB, c.row)
 		if got := constraintOf(err); got != c.want || (c.want == "" && err != nil) {
 			t.Errorf("%s: error = %v, want violation %q", c.name, err, c.want)
 		}

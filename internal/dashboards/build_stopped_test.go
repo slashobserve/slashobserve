@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const buildAttempt = 1
@@ -24,7 +25,7 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 		}
 		id = row.ID
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != id || claimed.Attempts != buildAttempt {
 		t.Fatalf("claimed %v attempt %d, want %v attempt %d, err %v", claimed.ID, claimed.Attempts, id, buildAttempt, err)
@@ -35,7 +36,7 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 func (r *rig) failRequest(t *testing.T, id pgtype.UUID) {
 	t.Helper()
 	_, err := r.db.Queries().FailAgentRequest(t.Context(), dbsqlc.FailAgentRequestParams{
-		Error: "stopped", FailureCode: pgtype.Text{String: "no_progress", Valid: true}, ID: id, Attempts: buildAttempt,
+		Error: "stopped", FailureCode: pgtype.Text{String: "no_progress", Valid: true}, ID: id, Attempts: buildAttempt, FromStates: revisions.RunMachine.From(revisions.ActionFail),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +140,7 @@ func TestAViewersStoppedBuildIsSavedIntoTheirMyDashboards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != row.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.ID, row.ID, err)

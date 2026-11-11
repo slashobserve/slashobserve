@@ -180,26 +180,76 @@ func (q *Queries) ListAgentRequestBuildState(ctx context.Context, ids []pgtype.U
 	return items, nil
 }
 
-const markAgentRequestBuildSaved = `-- name: MarkAgentRequestBuildSaved :execrows
+const markAgentRequestBuildSaved = `-- name: MarkAgentRequestBuildSaved :one
 UPDATE agent_requests
 SET result_version = $1::integer,
   dashboard_id = $2::uuid,
-  build_saved_at = clock_timestamp()
-WHERE id = $3 AND status = 'failed' AND build_saved_at IS NULL
+  build_saved_at = clock_timestamp(),
+  result_kind = 'partial_version'
+WHERE id = $3 AND state = ANY($4::text[]) AND build_saved_at IS NULL
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind
 `
 
 type MarkAgentRequestBuildSavedParams struct {
 	ResultVersion int32
 	DashboardID   pgtype.UUID
 	ID            pgtype.UUID
+	FromStates    []string
 }
 
-func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentRequestBuildSavedParams) (int64, error) {
-	result, err := q.db.Exec(ctx, markAgentRequestBuildSaved, arg.ResultVersion, arg.DashboardID, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentRequestBuildSavedParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, markAgentRequestBuildSaved,
+		arg.ResultVersion,
+		arg.DashboardID,
+		arg.ID,
+		arg.FromStates,
+	)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+		&i.FailureCode,
+		&i.BuildSavedAt,
+		&i.CancelRequestedAt,
+		&i.CanceledByKind,
+		&i.CanceledByID,
+		&i.CanceledByName,
+		&i.ContinuesID,
+		&i.ContinueNote,
+		&i.ContextFrom,
+		&i.ContextTo,
+		&i.Title,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.Trigger,
+		&i.State,
+		&i.ResultKind,
+	)
+	return i, err
 }
 
 const moveAgentRequestBuild = `-- name: MoveAgentRequestBuild :execrows
@@ -207,16 +257,17 @@ UPDATE agent_request_builds b
 SET agent_request_id = $1::uuid
 FROM agent_requests r
 WHERE b.agent_request_id = $2::uuid
-  AND r.id = b.agent_request_id AND r.status = 'failed' AND r.build_saved_at IS NULL
+  AND r.id = b.agent_request_id AND r.state = ANY($3::text[]) AND r.build_saved_at IS NULL
 `
 
 type MoveAgentRequestBuildParams struct {
-	ToID   pgtype.UUID
-	FromID pgtype.UUID
+	ToID       pgtype.UUID
+	FromID     pgtype.UUID
+	FromStates []string
 }
 
 func (q *Queries) MoveAgentRequestBuild(ctx context.Context, arg MoveAgentRequestBuildParams) (int64, error) {
-	result, err := q.db.Exec(ctx, moveAgentRequestBuild, arg.ToID, arg.FromID)
+	result, err := q.db.Exec(ctx, moveAgentRequestBuild, arg.ToID, arg.FromID, arg.FromStates)
 	if err != nil {
 		return 0, err
 	}

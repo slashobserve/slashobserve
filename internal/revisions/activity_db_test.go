@@ -174,7 +174,7 @@ func TestASuggestionRecordsNoActivity(t *testing.T) {
 	}
 }
 
-func TestAReleaseRecordsNoActivity(t *testing.T) {
+func TestAReleaseRecordsTheRunReleased(t *testing.T) {
 	started := make(chan struct{})
 	svc, d := newService(t, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
 		close(started)
@@ -190,7 +190,7 @@ func TestAReleaseRecordsNoActivity(t *testing.T) {
 	if got := get(t, svc, dash, rev.ID); got.Status != revisions.StatusQueued {
 		t.Fatalf("after shutdown the request is %s, want it released to queued", got.Status)
 	}
-	assertTypes(t, runRecords(t, d, mustUUID(t, rev.ID)), "run.queued", "run.started")
+	assertTypes(t, runRecords(t, d, mustUUID(t, rev.ID)), "run.queued", "run.started", "run.released")
 }
 
 func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {

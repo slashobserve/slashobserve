@@ -20,7 +20,7 @@ func TestAnAttemptKeepsItsMostRecentSteps(t *testing.T) {
 	}
 	steps := revisions.NewSteps(d.DB, quietLogger())
 	record := func(attempt, n int) {
-		d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = $2 WHERE id = $1", row.ID, attempt)
+		d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = $2 WHERE id = $1", row.ID, attempt)
 		for i := range n {
 			steps.RecordStep(ctx, revisions.Request{ID: row.ID.String(), Attempt: attempt}, revisions.Step{
 				At: time.Now(), Phase: "query", Tool: "query_range", Status: "ok", Message: "step " + strconv.Itoa(attempt) + "." + strconv.Itoa(i+1),

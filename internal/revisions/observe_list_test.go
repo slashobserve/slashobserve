@@ -199,8 +199,8 @@ func TestListObserveNamesTheDashboardOfASucceededRequest(t *testing.T) {
 	dash := seedDashboard(t, d, 2)
 	done := observeFor(t, svc, user, "done")
 	failed := observeFor(t, svc, user, "failed")
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
-	d.Exec(t, "UPDATE agent_requests SET status = 'failed', error = 'nope' WHERE id = $1", mustUUID(t, failed))
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'nope' WHERE id = $1", mustUUID(t, failed))
 
 	for _, row := range listObserve(t, observeRouterFor(svc, user), "").Requests {
 		switch row.ID {
@@ -223,8 +223,8 @@ func TestListObserveHidesTheTitleOfADashboardInAFolderTheCallerCannotSee(t *test
 	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "platform"))
 	onVisible := observeFor(t, svc, account, "visible")
 	onHidden := observeFor(t, svc, account, "hidden")
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
 
 	rows := listObserve(t, observeRouterAs(svc, account), "").Requests
 	if len(rows) != 2 {
@@ -248,7 +248,7 @@ func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 2)
 	id := observeFor(t, svc, user, "build it")
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, id), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, id), dash)
 
 	rev := get(t, svc, dash, id)
 	if rev.Source != revisions.SourceObserve || rev.BaseVersion != nil || rev.ResultVersion == nil || *rev.ResultVersion != 2 {
@@ -380,7 +380,7 @@ func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.
 	dash := seedDashboard(t, d, 2)
 	private := observeFor(t, svc, user, "private prompt")
 	shared := observeFor(t, svc, user, "shared prompt")
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
 
 	for name, c := range map[string]struct {
 		id   string

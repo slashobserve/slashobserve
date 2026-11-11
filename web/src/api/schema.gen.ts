@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -1515,7 +1515,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
+         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -1569,7 +1569,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel a queued or running agent request.
-         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `failed` with the failure code `canceled` at once. A running request keeps running until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `failed` with the failure code `canceled`. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
          */
         post: operations["cancelObserveRequest"];
         delete?: never;
@@ -1594,6 +1594,28 @@ export interface paths {
          * @description The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a finished agent request again as a new request.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. Retry is not idempotent: each call queues a new request. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["retryObserveRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3136,7 +3158,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -3834,6 +3856,16 @@ export interface components {
             base_version: number | null;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /**
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @enum {string}
+             */
+            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
             attempts: number;
             /** @description The version the revision saved, set when the status is `succeeded` unless the agent answered with a finding. */
             result_version: number | null;
@@ -4059,7 +4091,21 @@ export interface components {
             comment_id: string | null;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /**
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @enum {string}
+             */
+            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
             attempts: number;
+            /** @description The attempt number of the worker that holds or last held the request; equal to `attempts`. */
+            attempt: number;
+            /** @description What the caller may do with the request now, in display order. `retry` is offered to anyone who can see a finished request and may start that kind of request, not only the requester; every other action is the requester's. The list comes from the same table as `docs/reference/states.md`. */
+            allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** @description The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
             /** @description The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`. */
@@ -4087,7 +4133,7 @@ export interface components {
             cancel_requested_at: string | null;
             /** @description Who asked to cancel the request; the email is never set. */
             canceled_by: components["schemas"]["Author"] | null;
-            /** @description Whether the caller may cancel this request now. Only the requester may, while it is queued or running. */
+            /** @description Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion. */
             can_cancel: boolean;
             /**
              * Format: uuid
@@ -4151,6 +4197,18 @@ export interface components {
             prompt: string;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /**
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @enum {string}
+             */
+            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
+            /** @description What the caller, who is always the requester in this list, may do with the request now. */
+            allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** Format: uuid */
             dashboard_id: string | null;
             /** @description The dashboard's current title; null when the request has no dashboard or the dashboard is in a folder you cannot see. */
@@ -4202,6 +4260,16 @@ export interface components {
         ContinueObserveRequest: {
             /** @description An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt. */
             note?: string | null;
+        };
+        /** @description The answer to an action the object's state does not allow. */
+        InvalidTransition: {
+            error: string;
+            /** @enum {string} */
+            code: "invalid_transition";
+            /** @description The state the object is in. */
+            state: string;
+            /** @description The actions the caller may take in that state, as in the object's own `allowed_actions`. */
+            allowed_actions: string[];
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
@@ -9474,6 +9542,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                };
+            };
+            /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    retryObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The queued request. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request cannot be retried now (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidTransition"];
+                };
+            };
+            /** @description The panel an investigation was about no longer exists (`unknown_panel`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */

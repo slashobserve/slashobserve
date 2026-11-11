@@ -137,6 +137,7 @@ While a request is queued or running, **Cancel run** stops it.
 Only the person who asked sees it; an Editor or Admin cannot cancel someone else's request.
 A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
+If its worker is gone, the request ends canceled at once instead.
 The request ends as failed with "the run was canceled" and keeps what was built, so you can save or continue it.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
@@ -196,6 +197,8 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
+Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs.
+The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
 The page keeps polling the server.

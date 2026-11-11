@@ -59,12 +59,14 @@ USING agent_requests r
 WHERE r.id = b.agent_request_id
   AND r.finished_at < clock_timestamp() - make_interval(days => @days::integer);
 
--- name: MarkAgentRequestBuildSaved :execrows
+-- name: MarkAgentRequestBuildSaved :one
 UPDATE agent_requests
 SET result_version = @result_version::integer,
   dashboard_id = @dashboard_id::uuid,
-  build_saved_at = clock_timestamp()
-WHERE id = @id AND status = 'failed' AND build_saved_at IS NULL;
+  build_saved_at = clock_timestamp(),
+  result_kind = 'partial_version'
+WHERE id = @id AND state = ANY(@from_states::text[]) AND build_saved_at IS NULL
+RETURNING *;
 
 -- name: DeleteStoppedAgentRequestBuild :execrows
 DELETE FROM agent_request_builds b
@@ -77,4 +79,4 @@ UPDATE agent_request_builds b
 SET agent_request_id = @to_id::uuid
 FROM agent_requests r
 WHERE b.agent_request_id = @from_id::uuid
-  AND r.id = b.agent_request_id AND r.status = 'failed' AND r.build_saved_at IS NULL;
+  AND r.id = b.agent_request_id AND r.state = ANY(@from_states::text[]) AND r.build_saved_at IS NULL;

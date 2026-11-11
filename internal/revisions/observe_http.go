@@ -50,10 +50,11 @@ type ObserveOptions struct {
 type ObserveHandler struct {
 	service *Service
 	opts    ObserveOptions
+	runs    *RunReader
 }
 
 func NewObserveHandler(service *Service, opts ObserveOptions) *ObserveHandler {
-	return &ObserveHandler{service: service, opts: opts}
+	return &ObserveHandler{service: service, opts: opts, runs: NewRunReader(service, opts)}
 }
 
 type observeRequest struct {
@@ -79,37 +80,42 @@ type agentInfoJSON struct {
 }
 
 type agentRequestJSON struct {
-	ID            string             `json:"id"`
-	Kind          string             `json:"kind"`
-	Source        Source             `json:"source"`
-	Trigger       string             `json:"trigger"`
-	Title         string             `json:"title"`
-	Prompt        string             `json:"prompt"`
-	DashboardID   *string            `json:"dashboard_id"`
-	BaseVersion   *int               `json:"base_version"`
-	PanelID       *string            `json:"panel_id"`
-	CommentID     *string            `json:"comment_id"`
-	Status        Status             `json:"status"`
-	Attempts      int                `json:"attempts"`
-	ResultVersion *int               `json:"result_version"`
-	URL           *string            `json:"url"`
-	Error         *string            `json:"error"`
-	FailureCode   *string            `json:"failure_code"`
-	Steps         []Step             `json:"steps"`
-	Usage         *Usage             `json:"usage"`
-	Build         *buildProgressJSON `json:"build"`
-	BuildSavedAt  *string            `json:"build_saved_at"`
-	RequestedBy   authorJSON         `json:"requested_by"`
-	Origin        *string            `json:"origin"`
-	OriginClient  *string            `json:"origin_client"`
-	CreatedAt     string             `json:"created_at"`
-	StartedAt     *string            `json:"started_at"`
-	FinishedAt    *string            `json:"finished_at"`
+	ID             string             `json:"id"`
+	Kind           string             `json:"kind"`
+	Source         Source             `json:"source"`
+	Trigger        string             `json:"trigger"`
+	Title          string             `json:"title"`
+	Prompt         string             `json:"prompt"`
+	DashboardID    *string            `json:"dashboard_id"`
+	BaseVersion    *int               `json:"base_version"`
+	PanelID        *string            `json:"panel_id"`
+	CommentID      *string            `json:"comment_id"`
+	Status         Status             `json:"status"`
+	State          State              `json:"state"`
+	ResultKind     ResultKind         `json:"result_kind"`
+	Attempts       int                `json:"attempts"`
+	Attempt        int                `json:"attempt"`
+	ResultVersion  *int               `json:"result_version"`
+	URL            *string            `json:"url"`
+	Error          *string            `json:"error"`
+	FailureCode    *string            `json:"failure_code"`
+	Steps          []Step             `json:"steps"`
+	StepsTruncated bool               `json:"steps_truncated,omitempty"`
+	Usage          *Usage             `json:"usage"`
+	Build          *buildProgressJSON `json:"build"`
+	BuildSavedAt   *string            `json:"build_saved_at"`
+	RequestedBy    authorJSON         `json:"requested_by"`
+	Origin         *string            `json:"origin"`
+	OriginClient   *string            `json:"origin_client"`
+	CreatedAt      string             `json:"created_at"`
+	StartedAt      *string            `json:"started_at"`
+	FinishedAt     *string            `json:"finished_at"`
 
 	QueuePosition     *int        `json:"queue_position"`
 	CancelRequestedAt *string     `json:"cancel_requested_at"`
 	CanceledBy        *authorJSON `json:"canceled_by"`
 	CanCancel         bool        `json:"can_cancel"`
+	AllowedActions    []string    `json:"allowed_actions"`
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
@@ -122,25 +128,27 @@ type agentRequestJSON struct {
 }
 
 type requestSummaryJSON struct {
-	ID             string  `json:"id"`
-	Kind           string  `json:"kind"`
-	Source         Source  `json:"source"`
-	Trigger        string  `json:"trigger"`
-	Title          string  `json:"title"`
-	PinnedAt       *string `json:"pinned_at"`
-	Prompt         string  `json:"prompt"`
-	Status         Status  `json:"status"`
-	DashboardID    *string `json:"dashboard_id"`
-	DashboardTitle *string `json:"dashboard_title"`
-	PanelID        *string `json:"panel_id"`
-	ResultVersion  *int    `json:"result_version"`
-	URL            *string `json:"url"`
-	Error          *string `json:"error"`
-	Origin         *string `json:"origin"`
-	OriginClient   *string `json:"origin_client"`
-	CreatedAt      string  `json:"created_at"`
-	StartedAt      *string `json:"started_at"`
-	FinishedAt     *string `json:"finished_at"`
+	ID             string     `json:"id"`
+	Kind           string     `json:"kind"`
+	Source         Source     `json:"source"`
+	Trigger        string     `json:"trigger"`
+	Title          string     `json:"title"`
+	PinnedAt       *string    `json:"pinned_at"`
+	Prompt         string     `json:"prompt"`
+	Status         Status     `json:"status"`
+	State          State      `json:"state"`
+	ResultKind     ResultKind `json:"result_kind"`
+	DashboardID    *string    `json:"dashboard_id"`
+	DashboardTitle *string    `json:"dashboard_title"`
+	PanelID        *string    `json:"panel_id"`
+	ResultVersion  *int       `json:"result_version"`
+	URL            *string    `json:"url"`
+	Error          *string    `json:"error"`
+	Origin         *string    `json:"origin"`
+	OriginClient   *string    `json:"origin_client"`
+	CreatedAt      string     `json:"created_at"`
+	StartedAt      *string    `json:"started_at"`
+	FinishedAt     *string    `json:"finished_at"`
 
 	FailureCode  *string            `json:"failure_code"`
 	Build        *buildProgressJSON `json:"build"`
@@ -148,6 +156,8 @@ type requestSummaryJSON struct {
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
 	ContinueNote *string            `json:"continue_note"`
+
+	AllowedActions []string `json:"allowed_actions"`
 }
 
 type requestListJSON struct {
@@ -170,6 +180,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
+	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
 }
 
 func (h *ObserveHandler) getAgent(c *gin.Context) {
@@ -355,9 +366,17 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 		h.service.fail(c, "list agent request build state", err, principalAttrs(c)...)
 		return
 	}
+	caller := httpapi.Caller(c)
+	starts := h.service.newStartChecks(caller)
 	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
 	for i, row := range rows {
-		body.Requests[i] = h.summary(row, states[row.ID])
+		mayStart, err := starts.may(c.Request.Context(), State(row.State), Source(row.Source), row.DashboardID)
+		if err != nil {
+			h.service.fail(c, "check who may start a listed agent request again", err, principalAttrs(c)...)
+			return
+		}
+		facts := newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], true, mayStart)
+		body.Requests[i] = h.summary(row, states[row.ID], allowedActions(facts))
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -412,7 +431,7 @@ func requestTitle(title pgtype.Text, prompt string) string {
 	return DefaultTitle(prompt)
 }
 
-func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildState) requestSummaryJSON {
+func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:           row.ID.String(),
 		Kind:         Kind(Source(row.Source)),
@@ -422,6 +441,8 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
+		State:        State(row.State),
+		ResultKind:   ResultKind(row.ResultKind),
 		PanelID:      optionalText(row.PanelID),
 		Error:        httpapi.OptionalString(row.Error.String),
 		Origin:       httpapi.OptionalString(row.Origin.String),
@@ -436,6 +457,8 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
+
+		AllowedActions: actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
@@ -533,121 +556,6 @@ func (h *ObserveHandler) archiveObserve(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-func (h *ObserveHandler) render(c *gin.Context, row dbsqlc.AgentRequest) (agentRequestJSON, error) {
-	ctx := c.Request.Context()
-	states, err := h.service.buildStates(ctx, []pgtype.UUID{row.ID})
-	if err != nil {
-		return agentRequestJSON{}, err
-	}
-	position, err := h.service.queuePosition(ctx, row)
-	if err != nil {
-		return agentRequestJSON{}, err
-	}
-	out := h.view(c, row, states[row.ID], position)
-	if mayHaveFinding(row) && h.opts.Finding != nil {
-		if err := h.attachFinding(ctx, row, &out); err != nil {
-			return agentRequestJSON{}, err
-		}
-	}
-	return out, nil
-}
-
-func mayHaveFinding(row dbsqlc.AgentRequest) bool {
-	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
-}
-
-func (h *ObserveHandler) attachFinding(ctx context.Context, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
-	raw, found, err := h.opts.Finding(ctx, row.ID)
-	if err != nil || !found {
-		return err
-	}
-	out.Finding = raw
-	if out.Status != StatusSucceeded || h.opts.FindingURL == nil {
-		return nil
-	}
-	var finding struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(raw, &finding); err != nil {
-		return fmt.Errorf("read finding id: %w", err)
-	}
-	url := h.opts.FindingURL(finding.ID)
-	out.URL = &url
-	return nil
-}
-
-func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state buildState, position *int) agentRequestJSON {
-	out := agentRequestJSON{
-		ID:          row.ID.String(),
-		Kind:        Kind(Source(row.Source)),
-		Source:      Source(row.Source),
-		Trigger:     row.Trigger,
-		Title:       requestTitle(row.Title, row.Prompt),
-		Prompt:      row.Prompt,
-		Status:      Status(row.Status),
-		Attempts:    int(row.Attempts),
-		Error:       httpapi.OptionalString(row.Error.String),
-		FailureCode: httpapi.OptionalString(row.FailureCode.String),
-		Steps:       []Step{},
-		RequestedBy: authorJSON{
-			Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String,
-		},
-		Origin:       httpapi.OptionalString(row.Origin.String),
-		OriginClient: httpapi.OptionalString(row.OriginClient.String),
-		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
-		Build:        state.progressFor(requesterOf(row), httpapi.Caller(c)),
-		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
-
-		QueuePosition:     position,
-		CancelRequestedAt: formatOptionalTime(optionalTime(row.CancelRequestedAt)),
-		CanCancel:         canCancel(row, httpapi.Caller(c)),
-		ContinuesID:       optionalUUID(row.ContinuesID),
-		ContinueNote:      httpapi.OptionalString(row.ContinueNote.String),
-		ContinuedBy:       state.continuedBy,
-
-		PinnedAt:   formatOptionalTime(optionalTime(row.PinnedAt)),
-		ArchivedAt: formatOptionalTime(optionalTime(row.ArchivedAt)),
-		From:       formatOptionalTime(optionalTime(row.ContextFrom)),
-		To:         formatOptionalTime(optionalTime(row.ContextTo)),
-	}
-	if row.CanceledByKind.Valid {
-		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
-	}
-	if row.DashboardID.Valid {
-		id := row.DashboardID.String()
-		out.DashboardID = &id
-		if out.Status == StatusSucceeded && out.Kind == kindBuild && h.opts.DashboardURL != nil {
-			url := h.opts.DashboardURL(id, "")
-			out.URL = &url
-		}
-	}
-	if row.BaseVersion.Valid {
-		n := int(row.BaseVersion.Int32)
-		out.BaseVersion = &n
-	}
-	if row.PanelID.Valid {
-		out.PanelID = &row.PanelID.String
-	}
-	if row.CommentID.Valid {
-		id := row.CommentID.String()
-		out.CommentID = &id
-	}
-	if row.ResultVersion.Valid {
-		n := int(row.ResultVersion.Int32)
-		out.ResultVersion = &n
-	}
-	if err := json.Unmarshal(row.Steps, &out.Steps); err != nil || out.Steps == nil {
-		if err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request steps", logattrs.Failure("agent_request_steps_decode_failed", err, slog.String("agent_request_id", out.ID))...)
-		}
-		out.Steps = []Step{}
-	}
-	out.Usage = h.service.decodeUsage(c.Request.Context(), out.ID, row.RunUsage)
-	return out
 }
 
 func (s *Service) decodeUsage(ctx context.Context, requestID string, raw []byte) *Usage {

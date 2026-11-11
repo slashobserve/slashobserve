@@ -154,6 +154,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-cancel"
   /observe/{id}/continue:
     $ref: "./paths/observe.yaml#/observe-id-continue"
+  /observe/{id}/retry:
+    $ref: "./paths/observe.yaml#/observe-id-retry"
   /observe/{id}/build/save:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
   /observe/{id}/build/panels/{panel_id}/data:
@@ -1064,7 +1066,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -2337,6 +2339,8 @@ components:
         - prompt
         - base_version
         - status
+        - state
+        - result_kind
         - attempts
         - result_version
         - error
@@ -2383,6 +2387,14 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -2801,7 +2813,11 @@ components:
         - panel_id
         - comment_id
         - status
+        - state
+        - result_kind
         - attempts
+        - attempt
+        - allowed_actions
         - result_version
         - url
         - error
@@ -2868,10 +2884,29 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
           maximum: 2
+        attempt:
+          type: integer
+          minimum: 0
+          description: The attempt number of the worker that holds or last held the request; equal to `attempts`.
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller may do with the request now, in display order. `retry` is offered to anyone who can see a finished request and may start that kind of request, not only the requester; every other action is the requester's. The list comes from the same table as `docs/reference/states.md`.
         result_version:
           type: integer
           minimum: 1
@@ -2927,7 +2962,7 @@ components:
           description: Who asked to cancel the request; the email is never set.
         can_cancel:
           type: boolean
-          description: Whether the caller may cancel this request now. Only the requester may, while it is queued or running.
+          description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
         continues_id:
           type: string
           format: uuid
@@ -3002,6 +3037,9 @@ components:
         - trigger
         - prompt
         - status
+        - state
+        - result_kind
+        - allowed_actions
         - dashboard_id
         - dashboard_title
         - panel_id
@@ -3035,6 +3073,21 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller, who is always the requester in this list, may do with the request now.
         dashboard_id:
           type: string
           format: uuid
@@ -3124,6 +3177,25 @@ components:
           nullable: true
           maxLength: 4000
           description: An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt.
+    InvalidTransition:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to an action the object's state does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_transition]
+        state:
+          type: string
+          description: The state the object is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false
@@ -3993,7 +4065,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -4059,7 +4131,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4078,7 +4150,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 25
+          maxItems: 28
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

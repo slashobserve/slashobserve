@@ -28,6 +28,9 @@ export const eventTypeLabels = {
   "run.succeeded": "Run succeeded",
   "run.failed": "Run failed",
   "run.canceled": "Run canceled",
+  "run.canceling": "Run canceling",
+  "run.released": "Run released",
+  "run.kept": "Build kept",
 } satisfies Record<ActivityType, string>
 
 const groupLabels: Record<string, string> = {

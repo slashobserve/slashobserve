@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ type agentRequest struct {
 	Trigger     string        `json:"trigger"`
 	DashboardID *string       `json:"dashboard_id"`
 	Status      string        `json:"status"`
+	State       string        `json:"state"`
 	ResultVer   *int          `json:"result_version"`
 	URL         *string       `json:"url"`
 	Error       *string       `json:"error"`
@@ -37,6 +39,8 @@ type agentRequest struct {
 	BuildSavedAt  *string         `json:"build_saved_at"`
 	ContinuedBy   *string         `json:"continued_by"`
 	Finding       *findingSummary `json:"finding"`
+
+	AllowedActions []string `json:"allowed_actions"`
 }
 
 type requestUsage struct {
@@ -198,6 +202,7 @@ func printRequest(out *output, req agentRequest) {
 	fields := [][2]string{
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
+		{"State", text(req.State)},
 		{"Source", text(req.Source)},
 		{"Trigger", text(req.Trigger)},
 		{"Cost", costText(req.Usage)},
@@ -215,8 +220,10 @@ func printRequest(out *output, req agentRequest) {
 		out.line("Queued, position %d", *req.QueuePosition)
 	case req.Status == "failed" && req.ContinuedBy != nil:
 		out.line("Continued by %s", text(*req.ContinuedBy))
-	case req.Status == "failed" && req.Build != nil && req.Build.Panels >= 1 && req.BuildSavedAt == nil:
+	case slices.Contains(req.AllowedActions, "continue"):
 		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
+	case slices.Contains(req.AllowedActions, "retry") && req.State != "succeeded":
+		out.line("Run it again: observe retry %s", text(req.ID))
 	}
 	if len(req.Steps) > 0 {
 		out.line("")

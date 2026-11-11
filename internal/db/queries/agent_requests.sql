@@ -24,7 +24,10 @@ RETURNING *;
 -- name: ClaimAgentRequest :one
 WITH picked AS (
   SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
-  WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
+  WHERE r.status IN ('queued', 'running')
+    AND r.state = ANY(@from_states::text[])
+    AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
+    AND r.cancel_requested_at IS NULL
     AND r.attempts < @max_attempts::integer
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
@@ -35,7 +38,8 @@ WITH picked AS (
   LIMIT 1
 )
 UPDATE agent_requests
-SET status = 'running',
+SET state = 'running',
+  status = 'running',
   attempts = attempts + 1,
   lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
   started_at = coalesce(started_at, clock_timestamp())
@@ -51,44 +55,92 @@ RETURNING cancel_requested_at;
 
 -- name: FailExhaustedAgentRequests :many
 UPDATE agent_requests r
-SET status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
   result_version = saved.version,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL WHEN r.cancel_requested_at IS NOT NULL THEN 'the run was canceled' ELSE 'agent run did not finish' END,
-  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL WHEN r.cancel_requested_at IS NOT NULL THEN 'canceled' ELSE 'lease_expired' END,
+  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'agent run did not finish' END,
+  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'lease_expired' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 LEFT JOIN findings f ON f.agent_request_id = e.id
-WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= @max_attempts::integer
+WHERE r.id = e.id AND r.status = 'running' AND r.state = ANY(@from_states::text[])
+  AND r.lease_until < clock_timestamp() AND r.attempts >= @max_attempts::integer
 RETURNING r.*;
 
--- name: CancelAgentRequest :one
+-- name: SettleCanceledAgentRequests :many
+UPDATE agent_requests r
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
+  result_version = saved.version,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
+  error = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN @message::text END,
+  failure_code = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'canceled' END,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+FROM agent_requests e
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
+LEFT JOIN findings f ON f.agent_request_id = e.id
+WHERE r.id = e.id AND r.status IN ('queued', 'running') AND r.state = ANY(@from_states::text[])
+  AND r.cancel_requested_at IS NOT NULL
+  AND (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp())
+RETURNING r.*;
+
+-- name: SettleAgentRequest :one
 WITH target AS (
-  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id,
-    (r.status = 'queued' OR r.lease_until < clock_timestamp()) AS finishes
+  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id
   FROM agent_requests r
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
-  WHERE r.id = @id AND r.status IN ('queued', 'running') AND r.source <> 'suggest'
+  WHERE r.id = @id AND r.attempts = @attempts AND r.state = ANY(@from_states::text[]) AND r.cancel_requested_at IS NOT NULL
   FOR UPDATE OF r
 )
-UPDATE agent_requests r
-SET cancel_requested_at = coalesce(r.cancel_requested_at, clock_timestamp()),
-  canceled_by_kind = coalesce(r.canceled_by_kind, @canceled_by_kind),
-  canceled_by_id = coalesce(r.canceled_by_id, @canceled_by_id),
-  canceled_by_name = coalesce(r.canceled_by_name, @canceled_by_name),
-  status = CASE WHEN NOT t.finishes THEN r.status WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE r.result_version END,
-  dashboard_id = CASE WHEN t.finishes THEN coalesce(r.dashboard_id, t.saved_dashboard_id) ELSE r.dashboard_id END,
-  error = CASE WHEN NOT t.finishes THEN r.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN @message::text END,
-  failure_code = CASE WHEN NOT t.finishes THEN r.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' END,
-  lease_until = CASE WHEN t.finishes THEN NULL ELSE r.lease_until END,
-  finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE r.finished_at END
+UPDATE agent_requests
+SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' ELSE agent_requests.result_kind END,
+  result_version = t.saved_version,
+  dashboard_id = coalesce(agent_requests.dashboard_id, t.saved_dashboard_id),
+  error = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN @message::text END,
+  failure_code = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' END,
+  run_usage = coalesce(sqlc.narg('run_usage')::jsonb, agent_requests.run_usage),
+  lease_until = NULL,
+  finished_at = clock_timestamp()
 FROM target t
-WHERE r.id = t.id
-RETURNING r.*;
+WHERE agent_requests.id = t.id
+RETURNING agent_requests.*;
+
+-- name: CancelAgentRequest :one
+WITH target AS (
+  SELECT r.id, r.state AS prior_state, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id,
+    (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp()) AS finishes
+  FROM agent_requests r
+  LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
+  LEFT JOIN findings f ON f.agent_request_id = r.id
+  WHERE r.id = @id AND r.state = ANY(@from_states::text[]) AND r.source <> 'suggest'
+  FOR UPDATE OF r
+)
+UPDATE agent_requests
+SET cancel_requested_at = coalesce(agent_requests.cancel_requested_at, clock_timestamp()),
+  canceled_by_kind = coalesce(agent_requests.canceled_by_kind, @canceled_by_kind),
+  canceled_by_id = coalesce(agent_requests.canceled_by_id, @canceled_by_id),
+  canceled_by_name = coalesce(agent_requests.canceled_by_name, @canceled_by_name),
+  state = CASE WHEN NOT t.finishes THEN 'canceling' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN NOT t.finishes THEN 'running' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN NOT t.finishes THEN agent_requests.result_kind WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' ELSE agent_requests.result_kind END,
+  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE agent_requests.result_version END,
+  dashboard_id = CASE WHEN t.finishes THEN coalesce(agent_requests.dashboard_id, t.saved_dashboard_id) ELSE agent_requests.dashboard_id END,
+  error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN @message::text END,
+  failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' END,
+  lease_until = CASE WHEN t.finishes THEN NULL ELSE agent_requests.lease_until END,
+  finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE agent_requests.finished_at END
+FROM target t
+WHERE agent_requests.id = t.id
+RETURNING sqlc.embed(agent_requests), t.prior_state::text AS prior_state;
 
 -- name: CountQueuedAgentRequestsBefore :one
 SELECT count(*) FROM agent_requests
@@ -96,31 +148,34 @@ WHERE status = 'queued' AND (created_at, id) < (@created_at::timestamptz, @id::u
 
 -- name: SucceedAgentRequest :one
 UPDATE agent_requests
-SET status = 'succeeded',
+SET state = 'succeeded',
+  status = 'succeeded',
+  result_kind = CASE WHEN EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = @id) THEN 'observation' ELSE 'version' END,
   result_version = @result_version::integer,
   run_usage = sqlc.narg('run_usage')::jsonb,
   dashboard_id = coalesce(dashboard_id, (SELECT v.dashboard_id FROM dashboard_versions v WHERE v.agent_request_id = @id)),
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND status = 'running' AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: FailAgentRequest :one
 UPDATE agent_requests
-SET status = 'failed',
+SET state = 'failed',
+  status = 'failed',
   error = @error::text,
   failure_code = sqlc.narg('failure_code')::text,
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND status = 'running' AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: ReleaseAgentRequest :one
 UPDATE agent_requests
-SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
+SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL,
   check_failures = check_failures + CASE WHEN @check_failed::boolean THEN 1 ELSE 0 END
-WHERE id = @id AND status = 'running' AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: GetAgentRequest :one
@@ -184,7 +239,7 @@ SET steps = (
 WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 
 -- name: ListAgentRequestsBy :many
-SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
+SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at,
@@ -229,12 +284,14 @@ RETURNING *;
 
 -- name: SucceedSuggestRequest :one
 UPDATE agent_requests
-SET status = 'succeeded',
+SET state = 'succeeded',
+  status = 'succeeded',
+  result_kind = 'suggestion',
   suggestion = @suggestion::jsonb,
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND status = 'running' AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: GetSuggestRequest :one
@@ -261,11 +318,13 @@ SELECT count(*) FROM agent_requests WHERE source = 'investigate' AND status IN (
 
 -- name: SucceedFindingRequest :one
 UPDATE agent_requests
-SET status = 'succeeded',
+SET state = 'succeeded',
+  status = 'succeeded',
+  result_kind = 'observation',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE agent_requests.id = @id AND agent_requests.status = 'running' AND agent_requests.attempts = @attempts
+WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.attempts = @attempts
   AND (agent_requests.source = 'investigate'
     OR (agent_requests.source = 'observe' AND agent_requests.dashboard_id IS NULL)
     OR (agent_requests.source IN ('prompt', 'comment') AND agent_requests.dashboard_id IS NOT NULL))

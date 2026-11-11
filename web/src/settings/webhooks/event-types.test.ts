@@ -40,7 +40,7 @@ describe("eventTypeGroups", () => {
   })
 
   test("has a label for every type", () => {
-    expect(allEventTypes).toHaveLength(25)
+    expect(allEventTypes).toHaveLength(28)
     for (const type of allEventTypes) expect(eventTypeLabels[type]).not.toBe("")
   })
 })

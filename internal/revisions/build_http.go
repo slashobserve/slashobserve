@@ -18,7 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 var (
@@ -201,7 +201,7 @@ func (h *ObserveHandler) saveBuild(c *gin.Context) {
 	switch {
 	case err == nil && !isRequester(row, caller):
 		err = ErrRequestNotFound
-	case err == nil && (row.Status == string(StatusQueued) || row.Status == string(StatusRunning)):
+	case err == nil && !State(row.State).Terminal():
 		err = ErrBuildRunning
 	}
 	if err != nil {
@@ -212,9 +212,6 @@ func (h *ObserveHandler) saveBuild(c *gin.Context) {
 	if err != nil {
 		h.failBuild(c, "save stopped agent request build", err, idAttr)
 		return
-	}
-	if !saved.Replayed {
-		h.notifyBuildSaved(ctx, row.ID)
 	}
 	status := http.StatusCreated
 	if saved.Replayed {
@@ -241,7 +238,7 @@ func decodeOptionalBody(c *gin.Context, dst any, limit int64) bool {
 }
 
 func (h *ObserveHandler) replyRequest(c *gin.Context, status int, row dbsqlc.AgentRequest) {
-	view, err := h.render(c, row)
+	view, err := h.runs.render(c.Request.Context(), row, httpapi.Caller(c))
 	if err != nil {
 		h.service.fail(c, "render agent request", err, slog.String("agent_request_id", row.ID.String()))
 		return
@@ -260,6 +257,25 @@ func (h *ObserveHandler) cancelObserve(c *gin.Context) {
 		return
 	}
 	h.replyRequest(c, http.StatusOK, row)
+}
+
+func (h *ObserveHandler) retryObserve(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	row, err := h.service.Retry(c.Request.Context(), id, httpapi.Caller(c))
+	var refusal *lifecycle.Refusal
+	switch {
+	case errors.As(err, &refusal):
+		lifecycle.AbortRefusal(c, refusal)
+		return
+	case err != nil:
+		h.failBuild(c, "retry agent request", err, slog.String("agent_request_id", id.String()))
+		return
+	}
+	c.Header("Location", "/api/v1/observe/"+row.ID.String())
+	h.replyRequest(c, http.StatusAccepted, row)
 }
 
 func (h *ObserveHandler) continueObserve(c *gin.Context) {
@@ -283,14 +299,4 @@ func (h *ObserveHandler) continueObserve(c *gin.Context) {
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
 	h.replyRequest(c, http.StatusCreated, row)
-}
-
-func (h *ObserveHandler) notifyBuildSaved(ctx context.Context, id pgtype.UUID) {
-	row, err := h.service.GetByID(ctx, id)
-	if err == nil {
-		err = notifyRevision(ctx, h.service.db.Queries(), row)
-	}
-	if err != nil {
-		h.service.logger.WarnContext(ctx, "notify saved agent request build", logattrs.Failure("agent_request_build_notify_failed", err, slog.String("agent_request_id", id.String()))...)
-	}
 }

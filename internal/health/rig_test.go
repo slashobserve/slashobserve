@@ -224,9 +224,9 @@ type request struct {
 
 func (r *rig) request(t *testing.T, dashboard pgtype.UUID, req request) string {
 	t.Helper()
-	const insert = `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, status, result_version, error,
+	const insert = `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, status, state, result_version, error,
 		requested_by_kind, requested_by_id, requested_by_name, created_at, started_at, finished_at)
-	SELECT $1, 'prompt', $2, 1, $3, $4, $5, 'user', $6, 'eda', at,
+	SELECT $1, 'prompt', $2, 1, $3, $3, $4, $5, 'user', $6, 'eda', at,
 		CASE WHEN $3 <> 'queued' THEN at + interval '1 second' END,
 		CASE WHEN $3 IN ('succeeded', 'failed') THEN at + interval '2 seconds' END
 	FROM (SELECT now() - make_interval(secs => $7) AS at) t

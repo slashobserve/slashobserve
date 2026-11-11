@@ -52,6 +52,8 @@ type revisionJSON struct {
 	Prompt        string     `json:"prompt"`
 	BaseVersion   *int       `json:"base_version"`
 	Status        Status     `json:"status"`
+	State         State      `json:"state"`
+	ResultKind    ResultKind `json:"result_kind"`
 	Attempts      int        `json:"attempts"`
 	ResultVersion *int       `json:"result_version"`
 	Error         *string    `json:"error"`
@@ -287,6 +289,8 @@ func newRevisionJSON(r Revision, state buildState, caller auth.Principal) revisi
 		Prompt:        r.Prompt,
 		BaseVersion:   r.BaseVersion,
 		Status:        r.Status,
+		State:         r.State,
+		ResultKind:    r.ResultKind,
 		Attempts:      r.Attempts,
 		ResultVersion: r.ResultVersion,
 		Error:         httpapi.OptionalString(r.Error),

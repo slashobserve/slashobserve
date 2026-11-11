@@ -63,6 +63,8 @@ function request(overrides: Partial<Revision> = {}): Revision {
     prompt: "do it",
     base_version: 1,
     status: "queued",
+    state: "queued",
+    result_kind: "none",
     attempts: 0,
     result_version: null,
     error: null,

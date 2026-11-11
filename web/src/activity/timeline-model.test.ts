@@ -63,6 +63,8 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     prompt: "do it",
     base_version: 1,
     status: "succeeded",
+    state: "succeeded",
+    result_kind: "none",
     attempts: 1,
     result_version: null,
     error: null,

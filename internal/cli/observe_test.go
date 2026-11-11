@@ -289,8 +289,46 @@ func TestContinueSendsTheNoteOnlyWhenGiven(t *testing.T) {
 	}
 }
 
+func TestRetryPostsAndPrintsTheNewRequest(t *testing.T) {
+	const newID = "99999999-2222-3333-4444-555555555555"
+	const created = `{"request":{"id":"` + newID + `","status":"queued","state":"queued","steps":[]}}`
+	call, stdout, stderr, code := runAgainst(t, http.StatusAccepted, created, "retry", stoppedID, "--no-wait")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if call.method != http.MethodPost || call.path != "/api/v1/observe/"+stoppedID+"/retry" || call.body != "" {
+		t.Fatalf("got %+v", call)
+	}
+	if strings.TrimSpace(stdout) != newID {
+		t.Fatalf("stdout %q", stdout)
+	}
+}
+
+func TestRetryErrorLines(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		reply  string
+		want   string
+	}{
+		{"forbidden", 403, `{"error":"your role does not allow this","code":"forbidden_role"}`, "you may not start this kind of request on the dashboard of " + stoppedID},
+		{"not finished", 409, `{"error":"retry is not allowed while the run is running","code":"invalid_transition","state":"running","allowed_actions":["cancel","pin","archive"]}`, "request " + stoppedID + " is running and cannot be retried"},
+		{"conflict without a state", 409, `{"error":"x","code":"invalid_transition"}`, "x"},
+		{"hidden", 404, `{"error":"agent request not found","code":"not_found"}`, "agent request not found"},
+		{"agent unavailable", 503, `{"error":"no agent is configured","code":"agent_unavailable"}`, "no agent is configured"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, stderr, code := runAgainst(t, tc.status, tc.reply, "retry", stoppedID)
+			if code != 1 || !strings.Contains(stderr, tc.want) {
+				t.Fatalf("exit %d, stderr %q, want %q", code, stderr, tc.want)
+			}
+		})
+	}
+}
+
 func TestControlCommandsRejectABadID(t *testing.T) {
-	for _, name := range []string{"cancel", "continue"} {
+	for _, name := range []string{"cancel", "continue", "retry"} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, name, "nope")
 		if code != 2 || !strings.Contains(stderr, "not a valid id") {
 			t.Fatalf("%s: exit %d, stderr %q", name, code, stderr)
@@ -309,11 +347,14 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 	}{
 		{"queued with a position", agentRequest{ID: stoppedID, Status: "queued", QueuePosition: &position}, "Queued, position 3", ""},
 		{"queued without a position", agentRequest{ID: stoppedID, Status: "queued"}, "", "Queued, position"},
-		{"failed with a build", agentRequest{ID: stoppedID, Status: "failed", Build: build}, "Save it in the browser, or continue it: observe continue " + stoppedID, ""},
-		{"failed with an empty build", agentRequest{ID: stoppedID, Status: "failed", Build: &buildSummary{}}, "", "continue"},
-		{"failed with a saved build", agentRequest{ID: stoppedID, Status: "failed", Build: build, BuildSavedAt: &saved}, "", "continue"},
-		{"failed and continued", agentRequest{ID: stoppedID, Status: "failed", Build: build, ContinuedBy: &continuedBy}, "Continued by " + continuedBy, "Save it in the browser"},
-		{"running with a build", agentRequest{ID: stoppedID, Status: "running", Build: build}, "", "Save it in the browser"},
+		{"failed with a build", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "Save it in the browser, or continue it: observe continue " + stoppedID, "observe retry"},
+		{"failed with an empty build", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: &buildSummary{}, AllowedActions: []string{"retry", "pin", "archive"}}, "Run it again: observe retry " + stoppedID, "continue"},
+		{"failed with a saved build", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, BuildSavedAt: &saved, AllowedActions: []string{"retry", "pin", "archive"}}, "Run it again: observe retry " + stoppedID, "continue"},
+		{"failed and continued", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, ContinuedBy: &continuedBy, AllowedActions: []string{"pin", "archive"}}, "Continued by " + continuedBy, "Save it in the browser"},
+		{"running with a build", agentRequest{ID: stoppedID, Status: "running", State: "running", Build: build, AllowedActions: []string{"cancel", "pin", "archive"}}, "State", "Save it in the browser"},
+		{"canceled with a build", agentRequest{ID: stoppedID, Status: "failed", State: "canceled", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "State      canceled", "observe retry"},
+		{"succeeded and retryable", agentRequest{ID: stoppedID, Status: "succeeded", State: "succeeded", AllowedActions: []string{"retry", "pin", "archive"}}, "", "Run it again"},
+		{"an older server sends no actions", agentRequest{ID: stoppedID, Status: "failed", Build: build}, "", "Save it in the browser"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -334,7 +375,7 @@ func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
 	var stdout bytes.Buffer
 	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Source: "prompt", Trigger: "person"})
 	lines := strings.Split(stdout.String(), "\n")
-	if len(lines) < 4 || strings.Fields(lines[2])[0] != "Source" || strings.Fields(lines[3])[0] != "Trigger" || strings.Fields(lines[3])[1] != "person" {
+	if len(lines) < 5 || strings.Fields(lines[3])[0] != "Source" || strings.Fields(lines[4])[0] != "Trigger" || strings.Fields(lines[4])[1] != "person" {
 		t.Fatalf("output lacks the trigger after the source:\n%s", stdout.String())
 	}
 }
@@ -359,9 +400,9 @@ func TestPrintRequestShowsTheRunCost(t *testing.T) {
 			var stdout bytes.Buffer
 			printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Trigger: "person", Usage: tc.usage})
 			lines := strings.Split(stdout.String(), "\n")
-			fields := strings.Fields(lines[4])
+			fields := strings.Fields(lines[5])
 			if len(fields) < 2 || fields[0] != "Cost" || strings.Join(fields[1:], " ") != tc.want {
-				t.Fatalf("Cost line = %q, want %q after the trigger:\n%s", lines[4], tc.want, stdout.String())
+				t.Fatalf("Cost line = %q, want %q after the trigger:\n%s", lines[5], tc.want, stdout.String())
 			}
 		})
 	}

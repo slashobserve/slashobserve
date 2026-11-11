@@ -18,8 +18,10 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
 | Finding | `finding.moved` | A finding without a dashboard moves to another folder, which shares it with that folder's readers. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
-| Run | `run.queued`, `run.started` | An [agent request](chat.md) is queued, or a worker starts it. |
+| Run | `run.queued`, `run.started`, `run.released` | An [agent request](chat.md) is queued, a worker starts it, or a stopping server hands it back to the queue. |
+| Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
+| Run | `run.kept` | The requester kept the build of a stopped run as a version. |
 | Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |

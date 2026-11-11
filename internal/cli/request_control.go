@@ -16,6 +16,11 @@ type continueOptions struct {
 	timeout time.Duration
 }
 
+type retryOptions struct {
+	noWait  bool
+	timeout time.Duration
+}
+
 func (a *app) cancelCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "cancel <request-id>",
@@ -91,6 +96,59 @@ func (a *app) runContinue(cmd *cobra.Command, args []string) error {
 		return requestControlError(err, id)
 	}
 	return a.reportQueued(ctx, c, data, a.continuing.noWait, a.continuing.timeout)
+}
+
+func (a *app) retryCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "retry <request-id>",
+		Short: "Start a finished agent request again as a new run",
+		Long:  "retry starts a new request with the same prompt as a finished one, waits like a prompt does and prints the result.\nAnyone who can see the request and may start that kind of request can retry it; the new request is yours.\nComment and suggestion requests cannot be retried.",
+		Args:  exactArgs(1, "one request id"),
+		RunE:  a.runRetry,
+	}
+	cmd.Flags().BoolVar(&a.retrying.noWait, "no-wait", false, "print the new request id and exit without waiting")
+	cmd.Flags().DurationVar(&a.retrying.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
+	a.addOpenFlag(cmd)
+	return cmd
+}
+
+func (a *app) runRetry(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	if a.retrying.timeout <= 0 {
+		return usagef("--timeout must be positive")
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	ctx := cmd.Context()
+	data, err := c.do(ctx, http.MethodPost, "observe/"+id+"/retry", nil, nil)
+	if err != nil {
+		return retryError(err, id)
+	}
+	return a.reportQueued(ctx, c, data, a.retrying.noWait, a.retrying.timeout)
+}
+
+func retryError(err error, id string) error {
+	var api *apiError
+	if !errors.As(err, &api) {
+		return err
+	}
+	switch {
+	case api.status == http.StatusForbidden:
+		return fmt.Errorf("you may not start this kind of request on the dashboard of %s", id)
+	case api.status == http.StatusConflict && api.code == "invalid_transition":
+		var body struct {
+			State string `json:"state"`
+		}
+		if json.Unmarshal(api.raw, &body) == nil && body.State != "" {
+			return fmt.Errorf("request %s is %s and cannot be retried", id, text(body.State))
+		}
+	}
+	return err
 }
 
 func requestControlError(err error, id string) error {

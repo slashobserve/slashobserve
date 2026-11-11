@@ -101,7 +101,7 @@ func TestInvestigationsNeverHoldTheDashboard(t *testing.T) {
 func TestInvestigationsCannotBeContinued(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	row := investigate(t, svc, revisions.InvestigateParams{})
-	d.Exec(t, "UPDATE agent_requests SET status = 'failed', failure_code = 'no_finding' WHERE id = $1", row.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_finding' WHERE id = $1", row.ID)
 	if _, err := svc.Continue(context.Background(), row.ID, user, ""); !errors.Is(err, revisions.ErrNotContinuable) {
 		t.Fatalf("continue: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestAnExhaustedInvestigationWithAFindingSucceeds(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	row := investigate(t, svc, revisions.InvestigateParams{})
 	insertFindingFor(t, d, row.ID)
-	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = $2, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID, revisions.MaxAttempts)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = $2, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID, revisions.MaxAttempts)
 	claimOne(t, svc)
 	got, err := svc.GetByID(context.Background(), row.ID)
 	if err != nil || got.Status != string(revisions.StatusSucceeded) || got.FailureCode.Valid {
