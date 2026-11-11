@@ -3,6 +3,7 @@ package revisions
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -74,6 +75,12 @@ func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
 	case activity.TypeRunCanceled:
 		columns.RunID = row.ID
 	}
+	switch typ {
+	case activity.TypeRunSucceeded, activity.TypeRunFailed, activity.TypeRunCanceled:
+		if cost, ok := storedCost(row.RunUsage); ok {
+			data["cost_usd"] = cost
+		}
+	}
 	return activity.Entry{
 		Type:        typ,
 		TargetID:    row.ID,
@@ -81,6 +88,16 @@ func runActivity(row dbsqlc.AgentRequest) (activity.Entry, bool) {
 		Actor:       actor.FromColumns(columns),
 		Data:        data,
 	}, true
+}
+
+func storedCost(runUsage []byte) (float64, bool) {
+	var usage struct {
+		CostUSD *float64 `json:"cost_usd"`
+	}
+	if err := json.Unmarshal(runUsage, &usage); err != nil || usage.CostUSD == nil {
+		return 0, false
+	}
+	return *usage.CostUSD, true
 }
 
 func revisionEvent(row dbsqlc.AgentRequest) (events.Event, bool) {

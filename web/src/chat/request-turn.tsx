@@ -5,7 +5,7 @@ import { useState } from "react"
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
 import { buildStatusText, type BuildProgress } from "@/observe/build"
-import { shortRequestId, stepSummary } from "@/observe/conversation"
+import { costText, shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
   observeRequestQuery,
@@ -230,7 +230,8 @@ export function RequestTurn({
                   ? "Show steps"
                   : stepSummary(
                       live.steps,
-                      tookText(request.started_at, request.finished_at)
+                      tookText(request.started_at, request.finished_at),
+                      costText(live.usage?.cost_usd)
                     )}
               </summary>
               <div className="flex flex-col gap-2.5 pt-2.5 pl-0.5">

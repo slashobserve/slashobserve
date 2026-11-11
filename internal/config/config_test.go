@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -46,6 +48,63 @@ func TestLLMIdleTimeoutSetting(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLLMPricesFileSetting(t *testing.T) {
+	writePrices := func(t *testing.T, body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "prices.yaml")
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	sonnet := func(cfg Config) bool {
+		_, ok := cfg.LLM.Prices.Lookup("claude-sonnet-5-5")
+		return ok
+	}
+
+	t.Run("unset uses the built-in table", func(t *testing.T) {
+		cfg, err := Load(envOf(llmEnv(nil)))
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !sonnet(cfg) {
+			t.Fatal("the built-in table must price claude-sonnet-5-5")
+		}
+	})
+	t.Run("a file replaces the table", func(t *testing.T) {
+		path := writePrices(t, "models:\n  mine: { input: 1, output: 2, cache_read: 0, cache_write: 0, match: [mine-] }\n")
+		cfg, err := Load(envOf(llmEnv(map[string]string{envLLMPricesFile: path})))
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if sonnet(cfg) {
+			t.Fatal("the file must replace the built-in table, not extend it")
+		}
+		if got, ok := cfg.LLM.Prices.Lookup("mine-2026"); !ok || !got.Complete() {
+			t.Fatalf("the file's model must be priced, got %+v, %t", got, ok)
+		}
+	})
+	for name, body := range map[string]string{
+		"a malformed file":  "models: [",
+		"a negative rate":   "models:\n  mine: { input: -1 }\n",
+		"an unknown field":  "models:\n  mine: { input: 1, cost: 2 }\n",
+		"an empty document": "",
+	} {
+		t.Run(name+" is an error", func(t *testing.T) {
+			_, err := Load(envOf(llmEnv(map[string]string{envLLMPricesFile: writePrices(t, body)})))
+			if err == nil || !strings.Contains(err.Error(), envLLMPricesFile+": ") {
+				t.Fatalf("Load error = %v, want it to name %s", err, envLLMPricesFile)
+			}
+		})
+	}
+	t.Run("a missing file is an error", func(t *testing.T) {
+		_, err := Load(envOf(llmEnv(map[string]string{envLLMPricesFile: filepath.Join(t.TempDir(), "none.yaml")})))
+		if err == nil || !strings.Contains(err.Error(), envLLMPricesFile+": ") {
+			t.Fatalf("Load error = %v, want it to name %s", err, envLLMPricesFile)
+		}
+	})
 }
 
 func TestAdminEmailsSetting(t *testing.T) {

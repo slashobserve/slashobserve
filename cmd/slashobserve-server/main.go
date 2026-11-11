@@ -341,6 +341,7 @@ func run() error {
 
 			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
 			LogToolInputs:     cfg.Agent.LogToolInputs,
+			Prices:            cfg.LLM.Prices,
 		}), revisions.NewSteps(database, logger))
 		reviser = agent.WithMetrics(reviser, serverMetrics.AgentRuns())
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()

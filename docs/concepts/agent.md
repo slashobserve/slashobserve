@@ -221,6 +221,7 @@ The request's `usage` also reports:
 - `save_now_refusals` (reads refused for lack of a save)
 - `stalled_turns` (turns in which every call was refused)
 - `one_panel_refusals` (saves refused for changing more than one panel)
+- `cost_usd` (the estimated cost in US dollars of the attempt that finished the request, from the server's price table; `null` when the model has no price, see [Run cost](../connect/llm-providers.md#run-cost))
 
 A run that fails on its first model call has `usage` with `model_calls` 0 and `failed_calls` 1.
 

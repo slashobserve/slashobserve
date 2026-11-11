@@ -154,6 +154,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `activity.Append` is the only writer of the `activity` table and runs inside the transaction of the change it records; the dashboard stream's frames never carry `seq`, because the broker strips it.
 - Every activity read is `WHERE xid < pg_snapshot_xmin(pg_current_snapshot())` ordered and cursored by `(xid, seq)`, never by `seq` alone, with the horizon and the scan in one statement, because a transaction that took its xid first can append a lower `seq` after a later one committed; `seq` is only the public id of an event (`id:` in SSE and `Last-Event-ID`).
 - An activity `data` object carries ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON.
+- A run's cost is computed once, by `agent.Agent.cost` from the configured model and `llm/pricing`, and stored as `cost_usd` inside `run_usage`; there is no cost column, and runs from before it show none.
 - `dashboard_versions.agent_request_id` stays unique: an agent request commits at most one version, so a retried run or a second commit returns the version it already created.
   The agent's `create_dashboard`, `update_dashboard` and `update_panels` change the build, never the history.
 - A saved version always wins: before a failure is recorded, and when the lease sweep exhausts a request, the request counts as succeeded with the version saved under its id.

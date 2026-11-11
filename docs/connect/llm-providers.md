@@ -66,3 +66,34 @@ The project does not vouch for any particular local model, and dashboard quality
 Unset, nothing is sent and the server uses its own default.
 A reasoning model spends output tokens on reasoning before it answers, so a lower effort such as `low` can shorten each call on some gateways.
 A gateway that does not accept the parameter answers every call with a provider error; unset the variable if that happens.
+
+## Run cost
+
+Every finished request reports `usage.cost_usd`, an estimate in US dollars of what the attempt that finished it cost.
+It comes from the token counts of the attempt's model calls and the server's price table, so it is not an invoice.
+A request that is retried after a lost lease reports the attempt that finished, not the sum of its attempts.
+The cost shows in the web app, in `observe status`, in the request's `usage` and on the `run.succeeded`, `run.failed` and `run.canceled` events of the [activity log](../use/activity.md).
+
+The built-in table lists these models, in US dollars per million tokens:
+
+| Model               | Input | Output | Cache read | Cache write |
+| ------------------- | ----- | ------ | ---------- | ----------- |
+| `claude-opus-5-5`   | 4.00  | 20.00  | 0.20       | 5.00        |
+| `claude-sonnet-5-5` | 2.00  | 10.00  | 0.20       | 2.50        |
+| `claude-haiku-5-5`  | 0.10  | 0.50   | 0.01       | 0.125       |
+
+A model is priced by its exact name, and otherwise by the longest listed prefix, so a dated id such as `claude-haiku-5-5-20261001` is priced too.
+A token class the model used that has no rate leaves the cost empty, never zero, and a model that is not in the table has no cost.
+Haiku's long-prompt pricing tier is not modelled, so its cost is underestimated for prompts above that tier's threshold.
+
+`SLASHOBSERVE_LLM_PRICES_FILE` replaces the whole table with a file of the same shape, so an OpenAI-compatible model can be priced.
+The file is not merged with the built-in table; list every model you use.
+Each entry gives `input`, `output`, `cache_read` and `cache_write` rates, and an optional `match` list of name prefixes:
+
+```yaml
+models:
+  llama3.1:
+    { input: 0.2, output: 0.6, cache_read: 0, cache_write: 0, match: [llama3.1] }
+```
+
+The server refuses to start when the file is unreadable, malformed, has a negative rate or lists a prefix twice.

@@ -2444,6 +2444,7 @@ components:
         - save_now_refusals
         - stalled_turns
         - one_panel_refusals
+        - cost_usd
       properties:
         provider:
           type: string
@@ -2519,6 +2520,12 @@ components:
           type: integer
           minimum: 0
           description: Saves refused for adding or changing more than one panel.
+        cost_usd:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          description: Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
     AgentBuildProgress:
       type: object
       additionalProperties: false

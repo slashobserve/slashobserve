@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -241,6 +242,28 @@ func TestReviserLeavesTheFailureCodeEmptyOnSuccess(t *testing.T) {
 	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
 	if err != nil || result.FailureCode != "" || result.Usage == nil || result.Usage.ToolCalls != 1 || result.Usage.MaxSaveOutputTokens != 10 {
 		t.Fatalf("result = %+v (usage %+v), err %v", result, result.Usage, err)
+	}
+}
+
+func TestReviserReportsTheRunCostInTheUsage(t *testing.T) {
+	run := func(t *testing.T, configure func(*agent.Config)) *revisions.Usage {
+		t.Helper()
+		r := newRigWithConfig(t, configure, session(toolTurn(call("c1", "update_dashboard", `{"spec":{}}`))))
+		r.tools.onSave("update_dashboard", savedResult(dashID, 4))
+		result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
+		if err != nil || result.Usage == nil {
+			t.Fatalf("result = %+v, err %v", result, err)
+		}
+		return result.Usage
+	}
+
+	priced := run(t, func(c *agent.Config) { c.Prices = fakeModelPrices(t) })
+	const want = (100*2.00 + 10*10.00 + 5*0.20 + 2*2.50) / 1e6
+	if priced.CostUSD == nil || math.Abs(*priced.CostUSD-want) > 1e-12 {
+		t.Fatalf("cost = %v, want %v", priced.CostUSD, want)
+	}
+	if unpriced := run(t, func(*agent.Config) {}); unpriced.CostUSD != nil {
+		t.Fatalf("cost = %v, want none for a model with no price", *unpriced.CostUSD)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -339,6 +341,11 @@ func newRig(t *testing.T, sessions ...*scriptedSession) *rig {
 
 func newRigWithRenewBytes(t *testing.T, renewBytes int, sessions ...*scriptedSession) *rig {
 	t.Helper()
+	return newRigWithConfig(t, func(c *agent.Config) { c.SessionRenewBytes = renewBytes }, sessions...)
+}
+
+func newRigWithConfig(t *testing.T, configure func(*agent.Config), sessions ...*scriptedSession) *rig {
+	t.Helper()
 	parsed, err := spec.Parse(examples.CheckoutServiceHealth)
 	if err != nil {
 		t.Fatal(err)
@@ -351,15 +358,16 @@ func newRigWithRenewBytes(t *testing.T, renewBytes int, sessions ...*scriptedSes
 		builds:   &fakeBuilds{},
 		logs:     &bytes.Buffer{},
 	}
-	r.agent = agent.New(agent.Config{
-		Provider:          r.provider,
-		Tools:             r.tools,
-		Dashboards:        r.dash,
-		Builds:            r.builds,
-		Datasources:       fakeHealth{},
-		Logger:            slog.New(slog.NewJSONHandler(r.logs, nil)),
-		SessionRenewBytes: renewBytes,
-	})
+	config := agent.Config{
+		Provider:    r.provider,
+		Tools:       r.tools,
+		Dashboards:  r.dash,
+		Builds:      r.builds,
+		Datasources: fakeHealth{},
+		Logger:      slog.New(slog.NewJSONHandler(r.logs, nil)),
+	}
+	configure(&config)
+	r.agent = agent.New(config)
 	return r
 }
 
@@ -481,6 +489,46 @@ func TestCreateHappyPath(t *testing.T) {
 	if _, ok := fin["error_code"]; ok {
 		t.Fatal("successful run logged an error")
 	}
+}
+
+func fakeModelPrices(t *testing.T) pricing.Table {
+	t.Helper()
+	table, err := pricing.Parse([]byte("models:\n  fake-model: { input: 2.00, output: 10.00, cache_read: 0.20, cache_write: 2.50 }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return table
+}
+
+func TestOutcomeCarriesTheEstimatedCostOfTheRun(t *testing.T) {
+	run := func(t *testing.T, prices pricing.Table) agent.Outcome {
+		t.Helper()
+		s := session(
+			toolTurn(call("c1", "list_datasources", `{}`)),
+			toolTurn(call("c2", "lint_query", `{"n":1}`)),
+			toolTurn(call("c3", "create_dashboard", `{"spec":{}}`)),
+		)
+		r := newRigWithConfig(t, func(c *agent.Config) { c.Prices = prices }, s)
+		r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+		out, err := r.agent.Run(context.Background(), r.task())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	t.Run("a priced model", func(t *testing.T) {
+		out := run(t, fakeModelPrices(t))
+		const want = (300*2.00 + 30*10.00 + 15*0.20 + 6*2.50) / 1e6
+		if out.CostUSD == nil || math.Abs(*out.CostUSD-want) > 1e-12 {
+			t.Fatalf("cost = %v, want %v", out.CostUSD, want)
+		}
+	})
+	t.Run("a model with no price", func(t *testing.T) {
+		if out := run(t, pricing.Table{}); out.CostUSD != nil {
+			t.Fatalf("cost = %v, want none", *out.CostUSD)
+		}
+	})
 }
 
 func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {

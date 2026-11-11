@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 )
 
 type LogFormat string
@@ -125,6 +126,7 @@ const (
 	envLLMReplayDir      = "SLASHOBSERVE_LLM_REPLAY_DIR"
 
 	envLLMLogProviderErrors = "SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS"
+	envLLMPricesFile        = "SLASHOBSERVE_LLM_PRICES_FILE"
 
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
@@ -144,7 +146,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -163,6 +165,7 @@ type LLM struct {
 	RequestTimeout time.Duration
 	IdleTimeout    time.Duration
 	ReplayDir      string
+	Prices         pricing.Table
 
 	LogProviderErrors bool
 }
@@ -574,9 +577,27 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 	}
 	llm.IdleTimeout = idle
 
+	prices, err := loadPrices(lookup)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	llm.Prices = prices
+
 	errs = append(errs, requireLLMSettings(&llm)...)
 	cfg.LLM = llm
 	return errs
+}
+
+func loadPrices(lookup func(string) (string, bool)) (pricing.Table, error) {
+	path := get(lookup, envLLMPricesFile)
+	if path == "" {
+		return pricing.Default(), nil
+	}
+	table, err := pricing.Load(path)
+	if err != nil {
+		return pricing.Default(), fmt.Errorf("%s: %w", envLLMPricesFile, err)
+	}
+	return table, nil
 }
 
 func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {

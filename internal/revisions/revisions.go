@@ -220,6 +220,8 @@ type Usage struct {
 	SaveNowRefusals     int   `json:"save_now_refusals"`
 	StalledTurns        int   `json:"stalled_turns"`
 	OnePanelRefusals    int   `json:"one_panel_refusals"`
+
+	CostUSD *float64 `json:"cost_usd"`
 }
 
 type Step struct {

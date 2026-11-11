@@ -61,6 +61,7 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 			ModelMS:             out.ModelTime.Milliseconds(),
 			ToolMS:              out.ToolTime.Milliseconds(),
 			MaxSaveOutputTokens: out.MaxSaveOutputTokens,
+			CostUSD:             out.CostUSD,
 		}
 	}
 	if err != nil {
