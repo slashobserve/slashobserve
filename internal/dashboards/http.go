@@ -160,15 +160,15 @@ func (s *Service) listTags(c *gin.Context) {
 
 func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 	var params ListParams
-	madeBy, ok := nonEmptyQuery(c, "made_by")
+	madeBy, ok := httpapi.NonEmptyQuery(c, "made_by")
 	if !ok {
 		return params, false
 	}
-	datasource, ok := nonEmptyQuery(c, "datasource")
+	datasource, ok := httpapi.NonEmptyQuery(c, "datasource")
 	if !ok {
 		return params, false
 	}
-	query, ok := nonEmptyQuery(c, "q")
+	query, ok := httpapi.NonEmptyQuery(c, "q")
 	if !ok {
 		return params, false
 	}
@@ -406,6 +406,10 @@ func (s *Service) diff(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, diffJSON{From: fromN, To: toN, Changes: changes})
+}
+
+func (s *Service) Fail(c *gin.Context, action string, err error) {
+	s.fail(c, action, err)
 }
 
 func (s *Service) fail(c *gin.Context, action string, err error) {

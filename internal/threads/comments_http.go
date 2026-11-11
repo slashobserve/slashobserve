@@ -1,4 +1,4 @@
-package dashboards
+package threads
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -32,6 +33,13 @@ type setCommentStatusRequest struct {
 	ResolvedByVersion *int    `json:"resolved_by_version"`
 }
 
+type authorJSON struct {
+	Kind  string `json:"kind"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email,omitempty"`
+}
+
 type commentRevisionJSON struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -46,12 +54,17 @@ type commentJSON struct {
 	Body              string               `json:"body"`
 	Status            string               `json:"status"`
 	Author            authorJSON           `json:"author"`
+	Actor             actor.JSON           `json:"actor"`
 	CreatedAt         string               `json:"created_at"`
 	UpdatedAt         string               `json:"updated_at"`
+	EditedAt          *string              `json:"edited_at"`
 	ResolvedAt        *string              `json:"resolved_at"`
 	ResolvedBy        *authorJSON          `json:"resolved_by"`
+	ResolvedActor     *actor.JSON          `json:"resolved_actor"`
 	ResolvedByVersion *int                 `json:"resolved_by_version"`
 	PanelPresent      bool                 `json:"panel_present"`
+	Mentions          []mentionJSON        `json:"mentions"`
+	CanEdit           bool                 `json:"can_edit"`
 	Revision          *commentRevisionJSON `json:"revision"`
 }
 
@@ -66,7 +79,7 @@ type commentListJSON struct {
 
 func (cm *Comments) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/comments")
-	access := cm.dashboards.access
+	access := cm.service.access
 	g.POST("", auth.RoleViewer, access.RequireDashboard(folders.NeedComment), cm.createComment)
 	g.GET("", auth.RoleViewer, access.RequireDashboard(folders.NeedView), cm.listComments)
 	g.PATCH("/:comment_id", auth.RoleViewer, access.RequireDashboard(folders.NeedComment), cm.patchComment)
@@ -124,15 +137,15 @@ func (cm *Comments) listComments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	status, ok := nonEmptyQuery(c, "status")
+	status, ok := httpapi.NonEmptyQuery(c, "status")
 	if !ok {
 		return
 	}
-	panelID, ok := nonEmptyQuery(c, "panel_id")
+	panelID, ok := httpapi.NonEmptyQuery(c, "panel_id")
 	if !ok {
 		return
 	}
-	items, next, err := cm.List(c.Request.Context(), id, status, panelID, limit, c.Query("cursor"))
+	items, next, err := cm.List(c.Request.Context(), httpapi.Caller(c), id, status, panelID, limit, c.Query("cursor"))
 	if err != nil {
 		cm.fail(c, "list comments", err)
 		return
@@ -170,30 +183,22 @@ func (cm *Comments) patchComment(c *gin.Context) {
 }
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
+	if abortKnown(c, err) {
+		return
+	}
 	var invalid *InvalidInputError
 	switch {
-	case errors.Is(err, ErrCommentNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrUnknownPanel):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
-	case errors.Is(err, ErrUnknownVersion):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_version", err.Error())
 	case errors.Is(err, revisions.ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
 	default:
-		cm.dashboards.fail(c, action, err)
+		cm.service.dashboards.Fail(c, action, err)
 	}
 }
 
-func nonEmptyQuery(c *gin.Context, name string) (string, bool) {
-	value, present := c.GetQuery(name)
-	if present && value == "" {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must not be empty")
-		return "", false
-	}
-	return value, true
+func newAuthorJSON(a Author) authorJSON {
+	return authorJSON(a)
 }
 
 func newCommentJSON(c Comment) commentJSON {
@@ -206,10 +211,17 @@ func newCommentJSON(c Comment) commentJSON {
 		Body:              c.Body,
 		Status:            c.Status,
 		Author:            newAuthorJSON(c.Author),
+		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(c.UpdatedAt),
 		ResolvedByVersion: c.ResolvedByVersion,
 		PanelPresent:      c.PanelPresent,
+		Mentions:          newMentionsJSON(c.Mentions),
+		CanEdit:           c.CanEdit,
+	}
+	if c.EditedAt != nil {
+		at := httpapi.FormatTime(*c.EditedAt)
+		out.EditedAt = &at
 	}
 	if c.ResolvedAt != nil {
 		at := httpapi.FormatTime(*c.ResolvedAt)
@@ -219,8 +231,20 @@ func newCommentJSON(c Comment) commentJSON {
 		by := newAuthorJSON(*c.ResolvedBy)
 		out.ResolvedBy = &by
 	}
+	if c.ResolvedActor != nil {
+		resolver := c.ResolvedActor.JSON()
+		out.ResolvedActor = &resolver
+	}
 	if c.Revision != nil {
 		out.Revision = &commentRevisionJSON{ID: c.Revision.ID, Status: c.Revision.Status}
+	}
+	return out
+}
+
+func newMentionsJSON(mentions []Mention) []mentionJSON {
+	out := make([]mentionJSON, 0, len(mentions))
+	for _, m := range mentions {
+		out = append(out, mentionJSON{Kind: m.Kind(), ID: m.RefID(), Name: m.Name})
 	}
 	return out
 }

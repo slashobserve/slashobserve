@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -79,6 +80,7 @@ var (
 	ErrRequestNotFound  = errors.New("agent request not found")
 	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
 	ErrCommentNotFound  = errors.New("comment not found")
+	errNoThreads        = errors.New("comment threads are not configured")
 	ErrRequestFinished  = errors.New("the request already finished")
 	ErrNotContinuable   = errors.New("the request has no stopped build to continue")
 
@@ -134,6 +136,11 @@ func (draftBodyTooLargeError) Error() string {
 
 func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
+type Threads interface {
+	ForRun(ctx context.Context, dashboardID, commentID pgtype.UUID) (threadID pgtype.UUID, panelID string, err error)
+	ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
+}
+
 type Principals interface {
 	Principal(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error)
 }
@@ -158,6 +165,10 @@ func WithSpecs(r SpecReader) Option {
 
 func WithBuilds(b Builds) Option {
 	return func(s *Service) { s.builds = b }
+}
+
+func WithThreads(t Threads) Option {
+	return func(s *Service) { s.threads = t }
 }
 
 type Request struct {

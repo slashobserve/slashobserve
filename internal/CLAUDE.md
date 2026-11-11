@@ -28,6 +28,12 @@ This lists only the packages whose purpose the name does not make obvious.
 - `tracecompare`: the pure ranking of attribute values that set selected traces apart from a baseline, shared by `POST /datasources/{uid}/trace-compare` and the `compare_traces` tool; the adapters read the pairs through `datasource.TraceAttributeSource` (Tempo at 4 traces at a time, ClickHouse in one query).
 - `activity`: the persisted activity log: `Append` is the only writer, `Store` reads it per audience (`List`, and `Start` and `Next` for followers), `Handler` serves `GET /activity`, and `events/stream` serves `GET /activity/stream`.
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
+- `threads`: comment threads on a dashboard, a finding or an annotation: `Service` is the one writer of `threads`, `thread_messages` and `thread_mentions`, takes access from `dashboards`, `findings` and `annotations` through their `Access` methods, and appends the `thread.*` activity events; message bodies never enter an event's `data`.
+  `Threads` serves `/threads` and `/messages` over `Service` for every target; a thread id route also takes any message id of the thread, and only the legacy adapter can queue a revision.
+  The legacy dashboard comment routes and the agent comment tools are the `Comments` adapter over `Service`, and `Runs` is the revision queue's view of threads (`ForRun`, `ResolveForRun`), so `internal/revisions` never imports `threads`.
+  Every thread write locks the owning dashboard row `FOR KEY SHARE`, then the finding or annotation row the same way, before it writes or appends, so a delete (which holds `FOR UPDATE` and cascades into threads) never deadlocks with a thread write and a late writer finds the target gone.
+  `Runs.ResolveForRun` takes that lock `SKIP LOCKED`, because the finishing run already holds its own agent request row: a dashboard being deleted skips the resolution instead of waiting for it.
+  `dashboard_comments` is frozen after migration 00028: nothing reads or writes it, and the migration's Down rebuilds it from threads.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
 - `health`: the `dashboard_health` job, registered hourly in `cmd/slashobserve-server/main.go`, the `/health` routes and dashboard opens (`dashboard_views`, written by `POST /dashboards/{id}/views` for people only).
@@ -104,7 +110,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `Append` takes a shared per-dashboard advisory lock and never locks the dashboards row, because a delete holds that row and then cascades into child rows the appender may hold; a move runs `MoveDashboard`, then `activity.MoveDashboard` (the lock taken exclusively, then the rows rewritten), then the `dashboard.moved` append, so a concurrent append either is moved with the dashboard or reads the new folder.
   A transaction writes or locks the dashboards row before it appends, never after; a deleted dashboard's rows keep their folder.
   Activity reads filter by `Levels.Visible()` in SQL through `activity.AudienceOf`, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
-- Deleting a dashboard is permanent: foreign keys cascade its versions, comments, agent requests and import record.
+- Deleting a dashboard is permanent: foreign keys cascade its versions, threads, agent requests and import record.
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.
 
 ## Database and dashboards

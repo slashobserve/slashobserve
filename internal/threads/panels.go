@@ -1,4 +1,4 @@
-package dashboards
+package threads
 
 import (
 	"container/list"

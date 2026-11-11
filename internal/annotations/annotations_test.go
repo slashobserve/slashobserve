@@ -396,3 +396,38 @@ func TestDeletingTheDashboardDeletesItsAnnotations(t *testing.T) {
 		t.Errorf("create on a deleted dashboard: %v, want ErrNotFound", err)
 	}
 }
+
+func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
+	r := newRig(t)
+	global := r.create(t, editor, CreateInput{Text: "global deploy"})
+	onOpen := r.create(t, editor, CreateInput{DashboardID: r.open, Text: "checkout note"})
+	onHidden := r.create(t, admin, CreateInput{DashboardID: r.hidden, Text: "payroll run"})
+	cases := []struct {
+		name       string
+		by         auth.Principal
+		annotation Annotation
+		dashboard  pgtype.UUID
+		want       folders.Abilities
+		err        error
+	}{
+		{"a viewer of a global annotation", viewer, global, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelView), nil},
+		{"an editor of a global annotation", editor, global, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"a viewer of a dashboard annotation", viewer, onOpen, r.open, folders.AbilitiesFor(folders.LevelView), nil},
+		{"an editor of a dashboard annotation", otherEditor, onOpen, r.open, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"a viewer without access to the dashboard", viewer, onHidden, pgtype.UUID{}, folders.Abilities{}, ErrNotFound},
+		{"the payroll group", payroll, onHidden, r.hidden, folders.AbilitiesFor(folders.LevelView), nil},
+	}
+	for _, c := range cases {
+		id, err := db.ParseUUID(c.annotation.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dashboard, abilities, err := r.service.Access(t.Context(), c.by, id)
+		if !errors.Is(err, c.err) || dashboard != c.dashboard || abilities != c.want {
+			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, dashboard, abilities, err, c.dashboard, c.want, c.err)
+		}
+	}
+	if _, _, err := r.service.Access(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a missing annotation: %v", err)
+	}
+}

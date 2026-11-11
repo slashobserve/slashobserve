@@ -92,6 +92,15 @@ func LimitParam(c *gin.Context, fallback, ceiling int) (int, bool) {
 	return n, true
 }
 
+func NonEmptyQuery(c *gin.Context, name string) (string, bool) {
+	value, present := c.GetQuery(name)
+	if present && value == "" {
+		AbortError(c, http.StatusBadRequest, "invalid_request", name+" must not be empty")
+		return "", false
+	}
+	return value, true
+}
+
 func OffsetParam(c *gin.Context, ceiling int) (int, bool) {
 	raw, present := c.GetQuery("offset")
 	if !present {

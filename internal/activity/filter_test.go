@@ -44,9 +44,9 @@ func TestParseFilterAcceptsNoParameters(t *testing.T) {
 }
 
 func TestParseFilterRefusesBadParametersAndNamesThem(t *testing.T) {
-	fifteen := make([]string, 15)
-	for i := range fifteen {
-		fifteen[i] = TypeRunQueued
+	tooMany := make([]string, len(Types())+1)
+	for i := range tooMany {
+		tooMany[i] = TypeRunQueued
 	}
 	tests := []struct {
 		name  string
@@ -56,7 +56,7 @@ func TestParseFilterRefusesBadParametersAndNamesThem(t *testing.T) {
 		{"dashboard id", url.Values{"dashboard_id": {"nope"}}, "dashboard_id"},
 		{"folder id", url.Values{"folder_id": {"11111111111141118111111111111111"}}, "folder_id"},
 		{"unknown type", url.Values{"type": {"dashboard.moved", "comment.created"}}, "comment.created"},
-		{"too many types", url.Values{"type": fifteen}, "type"},
+		{"too many types", url.Values{"type": tooMany}, "type"},
 		{"since", url.Values{"since": {"yesterday"}}, "since"},
 		{"since without a zone", url.Values{"since": {"2026-11-01T10:00:00"}}, "since"},
 	}
@@ -70,13 +70,13 @@ func TestParseFilterRefusesBadParametersAndNamesThem(t *testing.T) {
 	}
 }
 
-func TestParseFilterAcceptsAllFourteenTypes(t *testing.T) {
+func TestParseFilterAcceptsEveryKnownType(t *testing.T) {
 	f, err := ParseFilter(url.Values{"type": Types()})
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(f.Types) != 14 {
+	if len(f.Types) != len(Types()) {
 		t.Fatalf("types = %d", len(f.Types))
 	}
 }

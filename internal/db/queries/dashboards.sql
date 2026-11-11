@@ -61,8 +61,8 @@ SELECT sqlc.embed(d),
   v.author_name AS updated_by_name, v.author_email AS updated_by_email,
   v.datasource_uids,
   coalesce(v.spec ->> 'description', '')::text AS description,
-  (SELECT count(*) FROM dashboard_comments c
-    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
+  (SELECT count(*) FROM threads t
+    WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
@@ -90,8 +90,8 @@ SELECT sqlc.embed(d),
   v.author_name AS updated_by_name, v.author_email AS updated_by_email,
   v.datasource_uids,
   coalesce(v.spec ->> 'description', '')::text AS description,
-  (SELECT count(*) FROM dashboard_comments c
-    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
+  (SELECT count(*) FROM threads t
+    WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version

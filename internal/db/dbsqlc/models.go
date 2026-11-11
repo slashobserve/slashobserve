@@ -380,6 +380,48 @@ type Session struct {
 	ExpiresAt pgtype.Timestamptz
 }
 
+type Thread struct {
+	ID                   pgtype.UUID
+	DashboardID          pgtype.UUID
+	DashboardVersion     pgtype.Int4
+	PanelID              pgtype.Text
+	FindingID            pgtype.UUID
+	AnnotationID         pgtype.UUID
+	Status               string
+	ResolvedAt           pgtype.Timestamptz
+	ResolvedByKind       pgtype.Text
+	ResolvedByID         pgtype.UUID
+	ResolvedByName       pgtype.Text
+	ResolvedOrigin       pgtype.Text
+	ResolvedOriginClient pgtype.Text
+	ResolvedRunID        pgtype.UUID
+	ResolvedByVersion    pgtype.Int4
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
+type ThreadMention struct {
+	MessageID pgtype.UUID
+	UserID    pgtype.UUID
+	Agent     pgtype.Text
+	Name      string
+}
+
+type ThreadMessage struct {
+	ID           pgtype.UUID
+	ThreadID     pgtype.UUID
+	Body         string
+	AuthorKind   string
+	AuthorID     pgtype.UUID
+	AuthorName   string
+	AuthorEmail  pgtype.Text
+	Origin       pgtype.Text
+	OriginClient pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+}
+
 type User struct {
 	ID               pgtype.UUID
 	OidcIssuer       string

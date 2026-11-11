@@ -3,7 +3,7 @@ activity:
     operationId: listActivity
     summary: List workspace activity, newest first.
     description: >-
-      Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, and every agent run that is queued, started or settled.
+      Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation and finding created, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled.
       Events are ordered by their position in the log, newest first, and `seq` is the id of an event.
       A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin.
       A global annotation belongs to General, so everyone who can read global annotations sees its events.
@@ -17,7 +17,8 @@ activity:
       `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing;
       `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`;
       `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`.
-      Comments, suggestions and build progress are not recorded.
+      `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`).
+      Suggestions and build progress are not recorded.
       The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
     parameters:
       - name: dashboard_id
@@ -39,7 +40,7 @@ activity:
         explode: true
         schema:
           type: array
-          maxItems: 14
+          maxItems: 20
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
@@ -106,7 +107,7 @@ activity-stream:
         explode: true
         schema:
           type: array
-          maxItems: 14
+          maxItems: 20
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since

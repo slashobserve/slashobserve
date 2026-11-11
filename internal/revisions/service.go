@@ -16,7 +16,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
-	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -24,11 +23,10 @@ import (
 )
 
 const (
-	uniqueViolationCode     = "23505"
-	runningDashboardIndex   = "agent_requests_running_dashboard_idx"
-	maxEventAuthorNameRunes = 256
-	pinnedCursorPrefix      = "p."
-	unpinnedCursorPrefix    = "u."
+	uniqueViolationCode   = "23505"
+	runningDashboardIndex = "agent_requests_running_dashboard_idx"
+	pinnedCursorPrefix    = "p."
+	unpinnedCursorPrefix  = "u."
 )
 
 type Service struct {
@@ -38,6 +36,7 @@ type Service struct {
 	panels  PanelChecker
 	specs   SpecReader
 	builds  Builds
+	threads Threads
 
 	principals Principals
 	access     *folders.Access
@@ -185,19 +184,19 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	root, err := s.db.Queries().GetCommentThreadRoot(ctx, dbsqlc.GetCommentThreadRootParams{ID: commentID, DashboardID: dashboardID})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbsqlc.AgentRequest{}, ErrCommentNotFound
+	if s.threads == nil {
+		return dbsqlc.AgentRequest{}, errNoThreads
 	}
+	threadID, panelID, err := s.threads.ForRun(ctx, dashboardID, commentID)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("read comment thread: %w", err)
+		return dbsqlc.AgentRequest{}, err
 	}
 	return s.Submit(ctx, EnqueueParams{
 		DashboardID: dashboardID,
 		Source:      SourceComment,
-		CommentID:   root.ID,
+		CommentID:   threadID,
 		Prompt:      prompt,
-		PanelID:     root.PanelID.String,
+		PanelID:     panelID,
 		BaseVersion: base,
 		By:          by,
 	})
@@ -702,46 +701,13 @@ func (s *Service) hasFinding(ctx context.Context, claimed dbsqlc.AgentRequest) (
 }
 
 func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
-	err := savepoint(func(q *dbsqlc.Queries) error { return resolveThreadOf(ctx, q, row) })
+	if s.threads == nil {
+		return
+	}
+	err := savepoint(func(q *dbsqlc.Queries) error { return s.threads.ResolveForRun(ctx, q, row) })
 	if err != nil {
 		s.logger.WarnContext(ctx, "resolve comment thread of a succeeded agent request", logattrs.Failure("agent_request_thread_resolve_failed", err, slog.String("agent_request_id", row.ID.String()))...)
 	}
-}
-
-func resolveThreadOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	if !row.CommentID.Valid || !row.DashboardID.Valid || !row.ResultVersion.Valid {
-		return nil
-	}
-	root, err := q.ResolveThreadForAgentRequest(ctx, dbsqlc.ResolveThreadForAgentRequestParams{
-		ID:                row.CommentID,
-		DashboardID:       row.DashboardID,
-		ResolvedByKind:    row.RequestedByKind,
-		ResolvedByID:      row.RequestedByID,
-		ResolvedByName:    row.RequestedByName,
-		ResolvedByVersion: row.ResultVersion.Int32,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("resolve comment thread: %w", err)
-	}
-	ev := events.Event{
-		Type:        events.TypeCommentUpdated,
-		DashboardID: root.DashboardID.String(),
-		CommentID:   root.ID.String(),
-		PanelID:     root.PanelID.String,
-		Status:      root.Status,
-		Author:      &events.Author{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: capEventAuthorName(row.RequestedByName)},
-	}
-	return events.Notify(ctx, q, 0, &ev)
-}
-
-func capEventAuthorName(name string) string {
-	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
-		return string(r[:maxEventAuthorNameRunes])
-	}
-	return name
 }
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {

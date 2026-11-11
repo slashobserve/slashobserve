@@ -7,7 +7,21 @@ import type { AgentGate } from "./agent-gate"
 import { canResolveThread, threadState, threadVerbText } from "./thread-view"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
+const actor = {
+  ...author,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
 const other = { kind: "user", id: "u2", name: "Grace" } as const
+const otherActor = {
+  ...other,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Grace",
+}
 
 function at(seconds: number): string {
   return new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)).toISOString()
@@ -23,10 +37,15 @@ function root(overrides: Partial<Comment> = {}): Comment {
     body: "text",
     status: "open",
     author,
+    actor,
     created_at: at(0),
     updated_at: at(0),
     resolved_at: null,
     resolved_by: null,
+    resolved_actor: null,
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -132,9 +151,21 @@ describe("threadState", () => {
   })
 
   it("names the resolver when no version fixed the thread", () => {
-    expect(state({ root: { status: "resolved", resolved_by: other } })).toEqual(
-      { kind: "resolved", text: "Resolved by Grace" }
-    )
+    expect(
+      state({ root: { status: "resolved", resolved_actor: otherActor } })
+    ).toEqual({ kind: "resolved", text: "Resolved by Grace" })
+    expect(
+      state({
+        root: {
+          status: "resolved",
+          resolved_actor: {
+            ...otherActor,
+            run_id: "r1",
+            label: "/observe for Grace",
+          },
+        },
+      })
+    ).toEqual({ kind: "resolved", text: "Resolved by /observe for Grace" })
     expect(state({ root: { status: "resolved" } })).toEqual({
       kind: "resolved",
       text: "Resolved by someone",

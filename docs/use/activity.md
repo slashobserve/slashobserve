@@ -18,6 +18,9 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
 | Run | `run.queued`, `run.started` | An [agent request](chat.md) is queued, or a worker starts it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
+| Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
+| Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
+| Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
 
 Every event has a `seq`, a `type`, a `target` (its `kind` and `id`), the `dashboard_id` and `folder_id` it belongs to, an `actor`, a `data` object and `created_at`.
 The `actor` is the same object the rest of the API uses, with a `label` that is the one text to show for who made the change.
@@ -26,6 +29,8 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
+A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding or annotation the thread is on, as `{"kind": "dashboard", "id": "..."}`.
+It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 
 ## Who sees an event
@@ -98,5 +103,5 @@ The tool has no stream; an agent calls it again with `since` to see what changed
 
 ## Not recorded
 
-Comments and their replies, suggestions, the progress of an agent's build, and a run going back to the queue after a restart are not events.
+Suggestions, the progress of an agent's build, and a run going back to the queue after a restart are not events.
 The dashboard stream behind the web app is a separate stream and still carries comment and revision updates for the dashboard you have open.

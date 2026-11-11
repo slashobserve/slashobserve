@@ -19,6 +19,7 @@ Without a model on the server it reads "Comments and saved versions."
 Entries are sorted by time and come in four kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
+  The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by /observe for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
@@ -54,6 +55,21 @@ Commenting needs the Comment level on the dashboard's folder: the Commenter role
 Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
 With Comment but not Edit you see "You can view and comment in `<folder>`. Someone with Edit on this folder can send your comment to the agent or change the panels."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
+
+## Edit a comment and mention people
+
+Your own comments and replies have an **Edit** button while you can still comment on the dashboard.
+It opens the text in place; **Save** or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, and **Cancel** or Escape drops it.
+An edited comment shows "edited" beside its time.
+Saving the text unchanged does nothing.
+Editing never reopens a resolved thread and never changes who wrote the comment.
+
+The **Mention** box under a reply or an edit lists the people who already wrote in the thread and the built-in agent, `@observe`.
+Choosing one inserts it at the cursor.
+The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only `@observe`.
+A person is stored as `@[Name](user:<id>)` and shows as "@Name" once the comment is saved, using the name the server has for that person.
+A comment can mention at most 20 people and agents.
+A mention is recorded and appears in the [activity log](activity.md); it does not start an agent run and does not notify anyone, so use **Send to agent** to ask the agent for work.
 
 ## Send a comment to the agent
 

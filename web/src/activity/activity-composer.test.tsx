@@ -69,13 +69,14 @@ function renderComposer({
 }
 
 describe("ActivityComposer", () => {
-  it("holds exactly one combobox, the target, starting with the whole dashboard", async () => {
+  it("holds the target combobox, starting with the whole dashboard, and the mention picker", async () => {
     const user = userEvent.setup()
     const { form } = renderComposer()
     const comboboxes = within(form).getAllByRole("combobox")
-    expect(comboboxes).toHaveLength(1)
+    expect(comboboxes).toHaveLength(2)
     expect(comboboxes[0]).toHaveAccessibleName("On")
     expect(comboboxes[0]).toHaveTextContent("The whole dashboard")
+    expect(comboboxes[1]).toHaveAccessibleName("Mention")
     await user.click(comboboxes[0])
     const options = await screen.findAllByRole("option")
     expect(options.map((option) => option.textContent)).toEqual([

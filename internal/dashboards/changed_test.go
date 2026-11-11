@@ -109,7 +109,7 @@ func newProbeRig(t *testing.T) (*rig, *probe) {
 	access := folders.NewAccess(database.DB)
 	service := New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	queue := revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access))
-	return &rig{db: database, service: service, comments: NewComments(database.DB, service, queue), revisions: queue}, p
+	return &rig{db: database, service: service, revisions: queue}, p
 }
 
 type panelDef struct {

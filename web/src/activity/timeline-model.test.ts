@@ -17,6 +17,13 @@ import {
 } from "./timeline-model"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
+const actor = {
+  ...author,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
 
 function at(minutes: number, ms = 0): string {
   return new Date(Date.UTC(2026, 0, 1, 0, minutes, 0, ms)).toISOString()
@@ -31,10 +38,15 @@ function comment(overrides: Partial<Comment> & { id: string }): Comment {
     body: "text",
     status: "open",
     author,
+    actor,
     created_at: at(0),
     updated_at: at(0),
     resolved_at: null,
     resolved_by: null,
+    resolved_actor: null,
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,

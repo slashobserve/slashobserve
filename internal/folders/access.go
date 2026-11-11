@@ -53,6 +53,15 @@ func (l Levels) Of(folderID pgtype.UUID) Abilities {
 	return e.Abilities
 }
 
+func (l Levels) General() Abilities {
+	for _, e := range l.entries {
+		if e.Folder.General {
+			return e.Abilities
+		}
+	}
+	return Abilities{}
+}
+
 func (l Levels) CanCreate() bool {
 	for _, e := range l.entries {
 		if e.Abilities.Create {

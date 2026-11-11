@@ -14,16 +14,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
-	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 func TestMain(m *testing.M) {
@@ -95,9 +97,9 @@ func stubFrames() []datasource.Frame {
 
 type accessFixture struct {
 	*fixture
-	db       *dbtest.Database
-	service  *dashboards.Service
-	comments *dashboards.Comments
+	db      *dbtest.Database
+	service *dashboards.Service
+	threads *threads.Service
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
@@ -111,19 +113,19 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	runner := queryproxy.NewRunner(datasources, logger)
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
-	queue := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
-	comments := dashboards.NewComments(database.DB, service, queue)
+	notes := annotations.New(database.DB, access)
+	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes)
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Comments: comments, Folders: access, PublicURL: base, Logger: logger})
+	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, PublicURL: base, Logger: logger})
 	authn := keyAuth{}
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
 		authn[bearer(p)] = p
 	}
 	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
-	return &accessFixture{fixture: f, db: database, service: service, comments: comments}
+	return &accessFixture{fixture: f, db: database, service: service, threads: commentThreads}
 }
 
 func boardSpec(title string, tags ...string) string {
@@ -175,7 +177,7 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 		t.Fatal(err)
 	}
 	foldertest.Move(t, f.db, hiddenID, foldertest.Restricted(t, f.db, hiddenFolder, privateGroup))
-	comment, err := f.comments.Create(t.Context(), adminKey, hiddenID, dashboards.NewComment{Version: 1, Body: commentText})
+	_, comment, err := f.threads.Open(t.Context(), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: hiddenID}, Body: commentText}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,6 +201,10 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 				"get version":     f.as(t, by, "get_dashboard", map[string]any{"dashboard_id": hidden, "version": 1}),
 				"reply":           f.as(t, by, "reply_to_comment", map[string]any{"comment_id": comment.ID, "body": "hello"}),
 				"resolve":         f.as(t, by, "resolve_comment", map[string]any{"comment_id": comment.ID}),
+				"reopen":          f.as(t, by, "reopen_comment", map[string]any{"comment_id": comment.ID}),
+				"edit":            f.as(t, by, "edit_comment", map[string]any{"comment_id": comment.ID, "body": "changed"}),
+				"create":          f.as(t, by, "create_comment", map[string]any{"target": "dashboard:" + hidden, "body": "hello"}),
+				"list by target":  f.as(t, by, "list_comments", map[string]any{"target": "dashboard:" + hidden}),
 				"update":          f.as(t, by, "update_dashboard", map[string]any{"dashboard_id": hidden, "parent_version": 1, "spec": json.RawMessage(boardSpec("Sneaky"))}),
 				"create in there": f.as(t, by, "create_dashboard", map[string]any{"folder_id": f.folderID(t, hiddenFolder), "spec": json.RawMessage(boardSpec("Sneaky"))}),
 			}
@@ -212,7 +218,7 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 					}
 				}
 			}
-			for _, name := range []string{"get_dashboard", "get version", "list_comments"} {
+			for _, name := range []string{"get_dashboard", "get version", "list_comments", "list by target"} {
 				if code := refusals[name].StructuredContent["code"]; code != "not_found" {
 					t.Errorf("%s code = %v, want not_found", name, code)
 				}
@@ -261,7 +267,7 @@ func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
 	f := newAccessFixture(t)
 	id := f.seed(t, adminKey, pgtype.UUID{}, openTitle)
 	dashID := mustUUID(t, id)
-	comment, err := f.comments.Create(t.Context(), adminKey, dashID, dashboards.NewComment{Version: 1, Body: commentText})
+	_, comment, err := f.threads.Open(t.Context(), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: dashID}, Body: commentText}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,6 +311,33 @@ func TestKeysBelowTheEditorRoleCannotWriteAndStillRead(t *testing.T) {
 		}
 		if res := f.as(t, commenterKey, "resolve_comment", map[string]any{"comment_id": comment.ID}); res.IsError {
 			t.Errorf("Commenter resolve = %s", text(res))
+		}
+		if res := f.as(t, viewerKey, "reopen_comment", map[string]any{"comment_id": comment.ID}); !res.IsError || res.StructuredContent["code"] != forbidden {
+			t.Errorf("Viewer reopen = %s, want %s", text(res), forbidden)
+		}
+		if res := f.as(t, commenterKey, "reopen_comment", map[string]any{"comment_id": comment.ID}); res.IsError {
+			t.Errorf("Commenter reopen = %s", text(res))
+		}
+		if res := f.as(t, viewerKey, "create_comment", map[string]any{"target": "dashboard:" + id, "body": "hi"}); !res.IsError || res.StructuredContent["code"] != forbidden {
+			t.Errorf("Viewer create_comment = %s, want %s", text(res), forbidden)
+		}
+		created := f.as(t, commenterKey, "create_comment", map[string]any{"target": "dashboard:" + id, "body": "my own"})
+		if created.IsError {
+			t.Fatalf("Commenter create_comment = %s", text(created))
+		}
+		var made struct {
+			Comment struct {
+				ID string `json:"id"`
+			} `json:"comment"`
+		}
+		if err := json.Unmarshal([]byte(text(created)), &made); err != nil {
+			t.Fatal(err)
+		}
+		if res := f.as(t, commenterKey, "edit_comment", map[string]any{"comment_id": made.Comment.ID, "body": "my own, edited"}); res.IsError {
+			t.Errorf("Commenter edit_comment = %s", text(res))
+		}
+		if res := f.as(t, editorKey, "edit_comment", map[string]any{"comment_id": made.Comment.ID, "body": "not mine"}); !res.IsError || res.StructuredContent["code"] != "not_author" {
+			t.Errorf("another key's edit_comment = %s, want not_author", text(res))
 		}
 	})
 

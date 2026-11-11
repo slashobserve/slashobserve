@@ -6,6 +6,8 @@ import { AgentMark } from "@/components/agent-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
+import type { Comment } from "@/comments/queries"
+import { isAgentActor } from "@/lib/origin"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
@@ -26,12 +28,19 @@ export function avatarFor(author: {
     : { kind: "person", name: author.name }
 }
 
+export function commentAvatar(comment: Pick<Comment, "actor" | "author">) {
+  return isAgentActor(comment.actor)
+    ? { kind: "agent" as const }
+    : avatarFor(comment.author)
+}
+
 type Props = {
   avatar: EntryAvatar
   who: string
   verb: string
   panel?: { title: string; onSelect: () => void }
   at: string
+  edited?: boolean
   nested?: boolean
   children?: ReactNode
 }
@@ -53,6 +62,7 @@ export function EntryFrame({
   verb,
   panel,
   at,
+  edited,
   nested,
   children,
 }: Props) {
@@ -101,6 +111,7 @@ export function EntryFrame({
             )}
           </p>
           <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground tabular-nums">
+            {edited ? "edited · " : null}
             <RelativeTime iso={at} />
           </span>
         </div>

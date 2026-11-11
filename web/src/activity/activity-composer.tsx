@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { MentionButton } from "@/comments/mention-button"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
@@ -451,11 +452,20 @@ export function ActivityComposer({
               ))}
             </SelectContent>
           </Select>
-          {model !== null ? (
-            <span className="ml-auto truncate text-xs text-muted-foreground">
-              {model}
-            </span>
-          ) : null}
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <MentionButton
+              people={[]}
+              field={field}
+              value={draft}
+              onChange={onDraftChange}
+              disabled={pending}
+            />
+            {model !== null ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {model}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
       {showCounter ? (

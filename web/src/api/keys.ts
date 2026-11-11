@@ -278,6 +278,11 @@ export const exploreKeys = {
   targets: (search: string) => ["explore", "targets", search] as const,
 }
 
+export const threadKeys = {
+  all: ["threads"] as const,
+  list: (target: string) => ["threads", target] as const,
+}
+
 export const findingKeys = {
   all: ["findings"] as const,
   one: (id: string) => ["findings", id] as const,

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { MentionButton } from "@/comments/mention-button"
+import type { MentionPerson } from "@/comments/mentions"
 import { useAddComment } from "@/comments/queries"
 import { isModEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
@@ -18,6 +20,7 @@ import { closeUnlessBusy, dismissLabel, runReply } from "./reply-flow"
 type Props = {
   dashboardId: string
   rootId: string
+  people: readonly MentionPerson[]
   gate: AgentGate
   latestVersion: number
   onClose: () => void
@@ -33,6 +36,7 @@ function describeReplyError(error: unknown): string {
 export function ReplyForm({
   dashboardId,
   rootId,
+  people,
   gate,
   latestVersion,
   onClose,
@@ -140,6 +144,14 @@ export function ReplyForm({
         <p className="text-xs text-muted-foreground">{gate.reason}</p>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
+        <MentionButton
+          people={people}
+          field={textarea}
+          value={body}
+          onChange={setBody}
+          disabled={busy || replySaved}
+          className="mr-auto"
+        />
         {replySaved && !canSend ? (
           <Button type="button" size="sm" onClick={dismiss}>
             Done

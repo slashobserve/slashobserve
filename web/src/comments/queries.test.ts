@@ -3,6 +3,13 @@ import { describe, expect, it } from "vitest"
 import { isPanelThread, withStatus, type Comment } from "./queries"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
+const actor = {
+  ...author,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
 
 function comment(overrides: Partial<Comment> = {}): Comment {
   return {
@@ -14,10 +21,15 @@ function comment(overrides: Partial<Comment> = {}): Comment {
     body: "note",
     status: "open",
     author,
+    actor,
     created_at: "2026-10-19T00:00:00Z",
     updated_at: "2026-10-19T00:00:00Z",
     resolved_at: null,
     resolved_by: null,
+    resolved_actor: null,
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -50,12 +62,14 @@ describe("withStatus", () => {
       status: "resolved",
       resolved_at: now,
       resolved_by: author,
+      resolved_actor: actor,
       resolved_by_version: 2,
     })
     expect(withStatus(resolved, "open", now)).toMatchObject({
       status: "open",
       resolved_at: null,
       resolved_by: null,
+      resolved_actor: null,
       resolved_by_version: null,
     })
   })

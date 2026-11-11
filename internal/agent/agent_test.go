@@ -1946,12 +1946,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: offered in create = %v, offered to the model = %v", tool.Name, tool.OfferedIn(tools.ModeCreate), offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity"} {
+	for _, name := range []string{"list_comments", "list_folders", "create_comment", "edit_comment", "reopen_comment", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 9 || len(offered) != len(registry.List())-10 {
+	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 12 || len(offered) != len(registry.List())-13 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }

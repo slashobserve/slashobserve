@@ -18,9 +18,11 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | ---- | ----------- |
 | `compare_traces` | Editor |
 | `create_annotation` | Editor |
+| `create_comment` | Commenter |
 | `create_dashboard` | Editor |
 | `create_finding` | Editor |
 | `draft_query` | Viewer |
+| `edit_comment` | Commenter |
 | `get_dashboard` | Viewer |
 | `get_panels` | Viewer |
 | `get_schema` | Editor |
@@ -45,6 +47,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `logs_for_trace` | Editor |
 | `query_instant` | Editor |
 | `query_range` | Editor |
+| `reopen_comment` | Commenter |
 | `reply_to_comment` | Commenter |
 | `resolve_comment` | Commenter |
 | `sample_rows` | Editor |
@@ -122,6 +125,17 @@ No tool deletes, moves or duplicates a dashboard: people do that in the web app 
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
+
+Comments can sit on a dashboard, a finding or an annotation.
+`list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `finding:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
+Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
+`create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
+`edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
+A comment id is the id of any message of the thread, and the first message's id is the thread's.
+
+Write `@observe` to address the built-in agent: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run.
+Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
+A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
 `create_finding` saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
 `list_findings` lists findings newest first, those on one dashboard with `dashboard_id`, else the key's own.

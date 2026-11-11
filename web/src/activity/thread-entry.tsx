@@ -7,14 +7,15 @@ import {
   RotateCcwIcon,
 } from "lucide-react"
 
+import { dashboardKeys } from "@/api/keys"
+import { MessageText } from "@/comments/message-text"
+import { threadParticipants } from "@/comments/mentions"
 import { useSetCommentStatus } from "@/comments/queries"
-import { cn } from "@/lib/utils"
 
 import type { AgentGate } from "./agent-gate"
 import {
-  avatarFor,
+  commentAvatar,
   EntryAction,
-  EntryBody,
   EntryFrame,
   EntryMeta,
   MetaState,
@@ -59,6 +60,10 @@ export function ThreadEntry({
   const statusButton = useRef<HTMLButtonElement | null>(null)
   const toggleButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
+  const commentsKey = dashboardKeys.comments(dashboardId)
+  const people = threadParticipants(
+    [root, ...replies].map((comment) => comment.author)
+  )
   const resolved = root.status === "resolved"
   const folded = resolved && !expanded
   const verb = threadVerbText(askedAgent, panelId, panelTitle)
@@ -127,27 +132,36 @@ export function ThreadEntry({
 
   return (
     <EntryFrame
-      avatar={avatarFor(root.author)}
-      who={root.author.name}
+      avatar={commentAvatar(root)}
+      who={root.actor.label}
       verb={verb}
       panel={panel}
       at={root.created_at}
+      edited={root.edited_at !== null}
     >
-      <EntryBody className={cn(folded && "line-clamp-1 text-muted-foreground")}>
-        {root.body}
-      </EntryBody>
+      <MessageText
+        message={root}
+        people={people}
+        queryKey={commentsKey}
+        folded={folded}
+      />
       {folded || replies.length === 0 ? null : (
         <ol className="mt-1 flex flex-col">
           {replies.map((reply) => (
             <EntryFrame
               key={reply.id}
               nested
-              avatar={avatarFor(reply.author)}
-              who={reply.author.name}
+              avatar={commentAvatar(reply)}
+              who={reply.actor.label}
               verb="replied"
               at={reply.created_at}
+              edited={reply.edited_at !== null}
             >
-              <EntryBody>{reply.body}</EntryBody>
+              <MessageText
+                message={reply}
+                people={people}
+                queryKey={commentsKey}
+              />
             </EntryFrame>
           ))}
         </ol>
@@ -156,6 +170,7 @@ export function ThreadEntry({
         <ReplyForm
           dashboardId={dashboardId}
           rootId={root.id}
+          people={people}
           gate={gate}
           latestVersion={latestVersion}
           onClose={closeReply}

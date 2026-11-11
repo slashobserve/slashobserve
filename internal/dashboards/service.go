@@ -59,6 +59,14 @@ func (e *InvalidSpecError) Error() string {
 	return fmt.Sprintf("spec is invalid: %d issue(s)", len(e.Issues))
 }
 
+type InvalidInputError struct {
+	Message string
+}
+
+func (e *InvalidInputError) Error() string {
+	return e.Message
+}
+
 type Service struct {
 	store  store
 	runner *queryproxy.Runner
@@ -312,8 +320,12 @@ func (s *Service) HasPanel(ctx context.Context, id pgtype.UUID, version int, pan
 	if err != nil {
 		return false, err
 	}
-	_, ok := panelSet(d)[panelID]
-	return ok, nil
+	for _, entry := range d.AllPanels() {
+		if entry.Panel.ID == panelID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *Service) LatestVersion(ctx context.Context, id pgtype.UUID) (int, error) {

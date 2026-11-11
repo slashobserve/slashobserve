@@ -161,15 +161,29 @@ It exits 1 when the investigation fails or ends without a finding.
 
 ## Comments
 
-Comments on a dashboard can be worked from the terminal:
+Comments on a dashboard, a finding or an annotation can be worked from the terminal.
+A target is written `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`, for example `finding:0a1b2c3d-0000-4000-8000-000000000001`.
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
-- `bin/observe comments reply <dashboard-id> <comment-id> <text...>` adds a reply to a thread.
-  Everything after the two ids is the reply text, so flags such as `--json` or `-q` must come before the ids.
+  `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
+- `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
+  On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on a finding or an annotation.
+  Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--json` and `-q` must come before it.
+  A thread started this way never queues an agent revision.
+- `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
+  `bin/observe comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint; when the first two arguments are both ids, the first is the dashboard id.
+  Everything after the ids is the reply text, so flags such as `--json` or `-q` must come before the ids.
   Without `--json` it always prints the thread and the new reply id, even with `-q`.
-- `bin/observe comments resolve <dashboard-id> <comment-id>` resolves a thread, and `--version N` records the version that fixed it.
+- `bin/observe comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target; everyone else gets 403 `not_author`.
+  `-q` hides its confirmation.
+- `bin/observe comments resolve <comment-id>` resolves a thread, and `bin/observe comments resolve <dashboard-id> <comment-id>` does the same through the dashboard endpoint.
+  `--version N` records the version that fixed a dashboard thread.
   `-q` hides its confirmation.
   If the thread was already resolved, `--version` is not applied and the command exits 1.
+- `bin/observe comments reopen <comment-id>` reopens a resolved thread, and `-q` hides its confirmation.
+
+Mention a person in the text as `@[Name](user:<id>)` and the built-in agent as `@observe`, at most 20 mentions in a comment.
+A mention shows in the [activity log](activity.md) and starts no agent run.
 
 Add `--json` to any of them to print the API response unchanged.
 
@@ -345,7 +359,7 @@ The server keeps an import only until it restarts, and an interrupt stops the wa
 
 ## Activity
 
-`bin/observe activity` prints the newest events of the [activity log](activity.md), oldest first, one line each with the time, who did it and what happened:
+`bin/observe activity` prints the newest events of the [activity log](activity.md), oldest first, one line each with the time, who did it and what happened, comment threads included:
 
 ```sh
 bin/observe activity
