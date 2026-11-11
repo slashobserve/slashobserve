@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countObservationPublicLinks = `-- name: CountObservationPublicLinks :one
+SELECT count(*)::int
+FROM public_links p
+JOIN observation_rcas r ON r.id = p.rca_id
+WHERE r.observation_id = $1
+`
+
+func (q *Queries) CountObservationPublicLinks(ctx context.Context, observationID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countObservationPublicLinks, observationID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countPublicLinks = `-- name: CountPublicLinks :one
 SELECT count(*)::int FROM public_links WHERE dashboard_id = $1
 `
@@ -83,6 +97,59 @@ func (q *Queries) CreatePublicLink(ctx context.Context, arg CreatePublicLinkPara
 	return i, err
 }
 
+const createRCAPublicLink = `-- name: CreateRCAPublicLink :one
+INSERT INTO public_links (rca_id, token_hash, display_prefix, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name)
+VALUES ($1, $2, $3, 'frozen', '{}', $4::timestamptz, $5, $6, $7)
+RETURNING id, rca_id, display_prefix, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
+`
+
+type CreateRCAPublicLinkParams struct {
+	RcaID         pgtype.UUID
+	TokenHash     []byte
+	DisplayPrefix string
+	ExpiresAt     pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+}
+
+type CreateRCAPublicLinkRow struct {
+	ID            pgtype.UUID
+	RcaID         pgtype.UUID
+	DisplayPrefix string
+	ExpiresAt     pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	LastViewedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) CreateRCAPublicLink(ctx context.Context, arg CreateRCAPublicLinkParams) (CreateRCAPublicLinkRow, error) {
+	row := q.db.QueryRow(ctx, createRCAPublicLink,
+		arg.RcaID,
+		arg.TokenHash,
+		arg.DisplayPrefix,
+		arg.ExpiresAt,
+		arg.CreatedByKind,
+		arg.CreatedByID,
+		arg.CreatedByName,
+	)
+	var i CreateRCAPublicLinkRow
+	err := row.Scan(
+		&i.ID,
+		&i.RcaID,
+		&i.DisplayPrefix,
+		&i.ExpiresAt,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.CreatedAt,
+		&i.LastViewedAt,
+	)
+	return i, err
+}
+
 const deletePublicLink = `-- name: DeletePublicLink :execrows
 DELETE FROM public_links WHERE id = $1 AND dashboard_id = $2
 `
@@ -94,6 +161,24 @@ type DeletePublicLinkParams struct {
 
 func (q *Queries) DeletePublicLink(ctx context.Context, arg DeletePublicLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePublicLink, arg.ID, arg.DashboardID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRCAPublicLink = `-- name: DeleteRCAPublicLink :execrows
+DELETE FROM public_links p
+WHERE p.id = $1 AND p.rca_id IN (SELECT r.id FROM observation_rcas r WHERE r.observation_id = $2)
+`
+
+type DeleteRCAPublicLinkParams struct {
+	LinkID        pgtype.UUID
+	ObservationID pgtype.UUID
+}
+
+func (q *Queries) DeleteRCAPublicLink(ctx context.Context, arg DeleteRCAPublicLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRCAPublicLink, arg.LinkID, arg.ObservationID)
 	if err != nil {
 		return 0, err
 	}
@@ -154,6 +239,55 @@ func (q *Queries) ListPublicLinks(ctx context.Context, dashboardID pgtype.UUID) 
 	return items, nil
 }
 
+const listRCAPublicLinks = `-- name: ListRCAPublicLinks :many
+SELECT id, rca_id, display_prefix, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
+FROM public_links
+WHERE rca_id = $1
+ORDER BY created_at DESC, id DESC
+`
+
+type ListRCAPublicLinksRow struct {
+	ID            pgtype.UUID
+	RcaID         pgtype.UUID
+	DisplayPrefix string
+	ExpiresAt     pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	LastViewedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) ListRCAPublicLinks(ctx context.Context, rcaID pgtype.UUID) ([]ListRCAPublicLinksRow, error) {
+	rows, err := q.db.Query(ctx, listRCAPublicLinks, rcaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRCAPublicLinksRow
+	for rows.Next() {
+		var i ListRCAPublicLinksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RcaID,
+			&i.DisplayPrefix,
+			&i.ExpiresAt,
+			&i.CreatedByKind,
+			&i.CreatedByID,
+			&i.CreatedByName,
+			&i.CreatedAt,
+			&i.LastViewedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const publicLinkByTokenHash = `-- name: PublicLinkByTokenHash :one
 SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version
 FROM public_links p
@@ -180,6 +314,55 @@ func (q *Queries) PublicLinkByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.Selections,
 		&i.ExpiresAt,
 		&i.LatestVersion,
+	)
+	return i, err
+}
+
+const rCAPublicLinkByTokenHash = `-- name: RCAPublicLinkByTokenHash :one
+SELECT p.id AS link_id, p.expires_at, r.id AS rca_id, r.observation_id, r.revision, r.title, r.summary, r.observation_state,
+  r.time_from, r.time_to, r.content, r.created_by_name, r.created_at, f.personal
+FROM public_links p
+JOIN observation_rcas r ON r.id = p.rca_id
+JOIN observations o ON o.id = r.observation_id
+JOIN folders f ON f.id = o.folder_id
+WHERE p.token_hash = $1
+`
+
+type RCAPublicLinkByTokenHashRow struct {
+	LinkID           pgtype.UUID
+	ExpiresAt        pgtype.Timestamptz
+	RcaID            pgtype.UUID
+	ObservationID    pgtype.UUID
+	Revision         int32
+	Title            string
+	Summary          pgtype.Text
+	ObservationState string
+	TimeFrom         pgtype.Timestamptz
+	TimeTo           pgtype.Timestamptz
+	Content          []byte
+	CreatedByName    string
+	CreatedAt        pgtype.Timestamptz
+	Personal         bool
+}
+
+func (q *Queries) RCAPublicLinkByTokenHash(ctx context.Context, tokenHash []byte) (RCAPublicLinkByTokenHashRow, error) {
+	row := q.db.QueryRow(ctx, rCAPublicLinkByTokenHash, tokenHash)
+	var i RCAPublicLinkByTokenHashRow
+	err := row.Scan(
+		&i.LinkID,
+		&i.ExpiresAt,
+		&i.RcaID,
+		&i.ObservationID,
+		&i.Revision,
+		&i.Title,
+		&i.Summary,
+		&i.ObservationState,
+		&i.TimeFrom,
+		&i.TimeTo,
+		&i.Content,
+		&i.CreatedByName,
+		&i.CreatedAt,
+		&i.Personal,
 	)
 	return i, err
 }
