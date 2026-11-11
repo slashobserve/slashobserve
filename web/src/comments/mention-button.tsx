@@ -1,5 +1,7 @@
-import { useRef, useState, type KeyboardEvent, type RefObject } from "react"
+import { useState, type KeyboardEvent, type RefObject } from "react"
+import { AtSignIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import {
   Combobox,
   ComboboxContent,
@@ -7,54 +9,44 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxTrigger,
 } from "@/components/ui/combobox"
 import { cn } from "@/lib/utils"
 
-import { insertMention, mentionToken, type MentionPerson } from "./mentions"
+import { insertMention, type MentionOption } from "./mentions"
 
-type Option = { value: string; label: string; token: string; agent: boolean }
-
-const observeOption: Option = {
-  value: "agent:observe",
-  label: "@observe",
-  token: "@observe",
-  agent: true,
-}
-
-function optionsFor(people: readonly MentionPerson[]): Option[] {
-  return [
-    observeOption,
-    ...people.map((person) => ({
-      value: `user:${person.id}`,
-      label: person.name === "" ? "Unnamed" : person.name,
-      token: mentionToken(person),
-      agent: false,
-    })),
-  ]
-}
-
-export function MentionButton({
-  people,
-  field,
-  value,
-  onChange,
-  disabled,
-  className,
-}: {
-  people: readonly MentionPerson[]
+type MentionButtonProps = {
+  options: readonly MentionOption[]
   field: RefObject<HTMLTextAreaElement | null>
   value: string
   onChange: (next: string) => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  replaceFrom: number | null
   disabled?: boolean
   className?: string
-}) {
-  const [query, setQuery] = useState("")
-  const open = useRef(false)
+}
 
-  function insert(option: Option) {
+export function MentionButton({
+  options,
+  field,
+  value,
+  onChange,
+  open,
+  onOpenChange,
+  replaceFrom,
+  disabled,
+  className,
+}: MentionButtonProps) {
+  const [query, setQuery] = useState("")
+
+  function insert(option: MentionOption) {
     const element = field.current
-    const start = element?.selectionStart ?? value.length
-    const end = element?.selectionEnd ?? value.length
+    const start = replaceFrom ?? element?.selectionStart ?? value.length
+    const end =
+      replaceFrom === null
+        ? (element?.selectionEnd ?? value.length)
+        : replaceFrom + 1
     const next = insertMention(value, start, end, option.token)
     onChange(next.value)
     requestAnimationFrame(() => {
@@ -65,50 +57,62 @@ export function MentionButton({
     })
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape" && open.current) event.stopPropagation()
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape" && open) event.stopPropagation()
   }
 
   return (
-    <div className={cn("w-32", className)} onKeyDown={onKeyDown}>
-      <Combobox<Option>
-        items={optionsFor(people)}
-        value={null}
-        inputValue={query}
+    <Combobox<MentionOption>
+      items={options}
+      value={null}
+      open={open}
+      inputValue={query}
+      disabled={disabled}
+      itemToStringLabel={(option) => option.label}
+      onOpenChange={(next) => {
+        if (!next) setQuery("")
+        onOpenChange(next)
+      }}
+      onInputValueChange={(text, details) =>
+        setQuery(details.reason === "item-press" ? "" : text)
+      }
+      onValueChange={(next) => {
+        if (next !== null) insert(next)
+      }}
+    >
+      <ComboboxTrigger
+        aria-label="Mention a person or an agent"
         disabled={disabled}
-        itemToStringLabel={(option) => option.label}
-        onOpenChange={(next) => {
-          open.current = next
-        }}
-        onInputValueChange={(text, details) =>
-          setQuery(details.reason === "item-press" ? "" : text)
-        }
-        onValueChange={(next) => {
-          if (next !== null) insert(next)
-        }}
+        className={cn("[&>svg:last-child]:hidden", className)}
+        onKeyDown={onKeyDown}
+        render={<Button variant="ghost" size="icon-sm" />}
+      >
+        <AtSignIcon aria-hidden="true" />
+      </ComboboxTrigger>
+      <ComboboxContent
+        className="min-w-56"
+        finalFocus={field}
+        onKeyDown={onKeyDown}
       >
         <ComboboxInput
-          aria-label="Mention"
-          placeholder="Mention"
-          disabled={disabled}
-          className="h-7 w-full"
+          aria-label="Search people and agents"
+          placeholder="Search people and agents"
+          showTrigger={false}
         />
-        <ComboboxContent className="min-w-56">
-          <ComboboxEmpty>No one found</ComboboxEmpty>
-          <ComboboxList>
-            {(option: Option) => (
-              <ComboboxItem key={option.value} value={option}>
-                <span className="truncate">{option.label}</span>
-                {option.agent ? (
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    Agent
-                  </span>
-                ) : null}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
-    </div>
+        <ComboboxEmpty>No one found</ComboboxEmpty>
+        <ComboboxList>
+          {(option: MentionOption) => (
+            <ComboboxItem key={option.value} value={option}>
+              <span className="truncate">{option.label}</span>
+              {option.hint === null ? null : (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {option.hint}
+                </span>
+              )}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   )
 }

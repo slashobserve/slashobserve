@@ -9,7 +9,7 @@ import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
-import type { MentionPerson } from "./mentions"
+import { mentionOptions, type MentionPerson } from "./mentions"
 import { useEditMessage } from "./queries"
 
 function describeEditError(error: unknown): string {
@@ -32,6 +32,7 @@ export function EditMessageForm({
 }) {
   const [body, setBody] = useState(message.body)
   const [error, setError] = useState<string | null>(null)
+  const [mentioning, setMentioning] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const edit = useEditMessage(queryKey)
   const text = body.trim()
@@ -102,10 +103,13 @@ export function EditMessageForm({
       )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <MentionButton
-          people={people}
+          options={mentionOptions(people, [])}
           field={textarea}
           value={body}
           onChange={setBody}
+          open={mentioning}
+          onOpenChange={setMentioning}
+          replaceFrom={null}
           disabled={busy}
           className="mr-auto"
         />
