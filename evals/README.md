@@ -13,7 +13,6 @@ This file is the contributor's guide: read it before adding a scenario or changi
 | `evals/fixtures/llm/*.json` | Replay fixtures written by hand for the scenarios in the replay suite; `e2e/fixtures/llm/` adds the ones the e2e suite shares. |
 | `evals/corpus-sample.yaml` | The corpus dashboards the live suite builds tasks from, and the Kubernetes dashboards of `--profile k8s`. |
 | `evals/k8s-gaps.yaml` | The Kubernetes corpus panels known to have no data on the demo cluster. |
-| `evals/pricing.yaml` | Model prices, used for the cost of each run. |
 | `evals/matrix.example.yaml` | The shape of the git-ignored `evals/matrix.yaml` that `make evals-live` reads. |
 | `evals/runner/` | The runner. |
 | `internal/taste/` | The layout and field rules the quality score applies, shared with the reference dashboards' test. |
@@ -262,9 +261,11 @@ The pass rate, latency, cost, token and done-when figures count every run, and t
 
 ## Pricing
 
-`evals/pricing.yaml` gives USD prices per million tokens for input, output, cache reads and cache writes.
+The runner prices runs from the server's built-in table, `internal/llm/pricing/prices.yaml`, unless `--pricing <file>` names a file in the same format.
+Prices are USD per million tokens for input, output, cache reads and cache writes.
 A run's model is priced by its exact key first, then by the longest `match` prefix any entry lists, so a dated id is priced too.
 A model with no entry, or a run that used a token class whose rate is `null`, has no cost rather than a zero one; the report names such a model once.
+Haiku's long-prompt pricing tier is not modelled, so its cost is underestimated for prompts above that tier's threshold.
 A matrix entry's `pricing` replaces the lookup for every run of that entry.
 
 ## Comparing reports

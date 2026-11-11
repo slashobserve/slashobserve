@@ -103,7 +103,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.server, "server", os.Getenv("OBSERVE_SERVER"), "base URL of the SlashObserve server (env OBSERVE_SERVER)")
 	fs.StringVar(&o.token, "token", os.Getenv("OBSERVE_TOKEN"), "service-account key (env OBSERVE_TOKEN)")
 	fs.StringVar(&o.scenarios, "scenarios", "evals/scenarios", "directory of scenario files")
-	fs.StringVar(&o.pricing, "pricing", "evals/pricing.yaml", "model pricing file")
+	fs.StringVar(&o.pricing, "pricing", "", "model pricing file (default: the server's built-in price table)")
 	fs.StringVar(&o.prometheus, "prometheus", defaultPrometheus, "Prometheus that the expect.scope selectors of the coverage check read their series from")
 	fs.Var(&o.ids, "id", "run only this scenario id (repeatable)")
 	fs.Var(&o.tags, "tag", "run only scenarios with this tag (repeatable)")

@@ -3,23 +3,17 @@ package main
 import (
 	"context"
 	"io"
-	"math"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 )
 
 func rate(v float64) *float64 { return &v }
 
-func pricingFixture(t *testing.T, body string) (Pricing, error) {
-	t.Helper()
-	return loadPricing(writeFile(t, "pricing.yaml", body, 0o600))
-}
-
 const anthropicPricing = `models:
   claude-haiku-5-5: { input: 0.10, output: 0.50, cache_read: 0.01, cache_write: 0.125, match: [claude-haiku-5] }
-  claude-sonnet-5-5: { input: 2.00, output: 10.00, cache_read: 0.20, cache_write: 2.50, match: [claude-sonnet-5, claude-sonnet-5-5] }
-  partial: { input: 1.00, output: null, match: [partial-] }
 `
 
 func costOf(t *testing.T, p Pricing, model string, input, output, cacheRead, cacheWrite int64) *float64 {
@@ -27,80 +21,46 @@ func costOf(t *testing.T, p Pricing, model string, input, output, cacheRead, cac
 	return p.cost(&Usage{Model: model, InputTokens: input, OutputTokens: output, CacheReadTokens: cacheRead, CacheWriteTokens: cacheWrite})
 }
 
-func TestPricingLooksUpExactThenLongestPrefix(t *testing.T) {
-	p, err := pricingFixture(t, anthropicPricing)
+func TestPricingDefaultsToTheServerTable(t *testing.T) {
+	p, err := loadPricing("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := map[string]float64{
-		"claude-haiku-5-5":          0.10 + 0.50 + 0.01 + 0.125,
-		"claude-haiku-5-5-20261001": 0.10 + 0.50 + 0.01 + 0.125,
-		"claude-sonnet-5-5-latest":  2 + 10 + 0.20 + 2.50,
+	if got := costOf(t, p, "claude-haiku-5-5-20261001", 1e6, 0, 0, 0); got == nil || *got != 0.10 {
+		t.Fatalf("the built-in table prices dated Haiku ids, got %v", got)
 	}
-	for model, want := range cases {
-		got := costOf(t, p, model, 1e6, 1e6, 1e6, 1e6)
-		if got == nil || math.Abs(*got-want) > 1e-9 {
-			t.Errorf("%s: cost %v, want %v", model, got, want)
-		}
-	}
-	if _, ok := p.lookup("claude-opus-5-5"); ok {
-		t.Error("an unlisted model must stay unknown")
-	}
-	if got := costOf(t, p, "claude-opus-5-5", 10, 10, 0, 0); got != nil {
-		t.Errorf("an unknown model costs nothing known, got %v", *got)
+	if got := p.cost(nil); got != nil {
+		t.Fatalf("no usage has no cost, got %v", *got)
 	}
 }
 
-func TestPricingLeavesTheCostBlankWhenAUsedRateIsNull(t *testing.T) {
-	p, err := pricingFixture(t, anthropicPricing)
+func TestPricingFileReplacesTheServerTable(t *testing.T) {
+	p, err := loadPricing(writeFile(t, "prices.yaml", anthropicPricing, 0o600))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := costOf(t, p, "partial-1", 1e6, 0, 0, 0); got == nil || *got != 1 {
-		t.Fatalf("only priced token classes were used: %v", got)
+	if got := costOf(t, p, "claude-haiku-5-5", 1e6, 0, 0, 0); got == nil || *got != 0.10 {
+		t.Fatalf("file cost = %v", got)
 	}
-	if got := costOf(t, p, "partial-1", 1e6, 1, 0, 0); got != nil {
-		t.Fatalf("output tokens at a null rate must leave the cost blank, got %v", *got)
+	if got := costOf(t, p, "claude-opus-5-5", 10, 10, 0, 0); got != nil {
+		t.Fatalf("a model missing from the file must stay unpriced, got %v", *got)
+	}
+	if _, err := loadPricing(writeFile(t, "bad.yaml", "models:\n  a: { input: -1 }\n", 0o600)); err == nil {
+		t.Fatal("an invalid file must fail")
 	}
 }
 
 func TestPricingOverrideReplacesTheLookup(t *testing.T) {
-	p, err := pricingFixture(t, anthropicPricing)
+	p, err := loadPricing(writeFile(t, "prices.yaml", anthropicPricing, 0o600))
 	if err != nil {
 		t.Fatal(err)
 	}
-	override := p.with(&Price{Input: rate(1), Output: rate(2), CacheRead: rate(0), CacheWrite: rate(0)})
+	override := p.with(&pricing.Price{Input: rate(1), Output: rate(2), CacheRead: rate(0), CacheWrite: rate(0)})
 	if got := costOf(t, override, "claude-opus-5-5", 1e6, 1e6, 0, 0); got == nil || *got != 3 {
 		t.Fatalf("override cost = %v, want 3", got)
 	}
 	if got := costOf(t, p, "claude-haiku-5-5", 1e6, 0, 0, 0); got == nil || *got != 0.10 {
 		t.Fatalf("with must not change the shared pricing, got %v", got)
-	}
-}
-
-func TestPricingRejectsAmbiguousOrNegativeEntries(t *testing.T) {
-	cases := map[string]string{
-		"is also listed by":           "models:\n  a: { input: 1, match: [claude-] }\n  b: { input: 1, match: [claude-] }\n",
-		"must not contain an empty":   "models:\n  a: { input: 1, match: [''] }\n",
-		"prices must not be negative": "models:\n  a: { input: -1 }\n",
-		"unknown field":               "models:\n  a: { input: 1, matches: [a] }\n",
-	}
-	for want, body := range cases {
-		if _, err := pricingFixture(t, body); err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("error %v, want %q", err, want)
-		}
-	}
-}
-
-func TestPricingShippedFilePricesTheAnthropicModelsByPrefix(t *testing.T) {
-	p, err := loadPricing(filepath.Join("..", "pricing.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, model := range []string{"claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5-20261001", "claude-opus-5-5-latest", "replay"} {
-		if got := costOf(t, p, model, 1000, 1000, 1000, 1000); got == nil {
-			t.Errorf("%s has no price", model)
-		}
 	}
 }
 
@@ -138,7 +98,7 @@ func TestPricingMatrixEntryOverridesTheLookup(t *testing.T) {
 		t.Fatalf("error %v", err)
 	}
 
-	var priced []*Price
+	var priced []*pricing.Price
 	step := matrixStep{
 		switchTo: func(context.Context, string) error { return nil },
 		saveLogs: func(context.Context, string) error { return nil },

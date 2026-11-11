@@ -506,7 +506,7 @@ func TestDrainIsAnnounced(t *testing.T) {
 func TestMinDoneWhenDefaultFollowsCustomFolder(t *testing.T) {
 	dir := writeScenario(t, strings.Replace(scenarioHeader, "done_when: false", "done_when: true", 1)+"expect:\n  datasources: [prometheus]\n")
 	url := newFakeURL(t, 0)
-	args := []string{"--scenarios", dir, "--server", url, "--token", "key", "--pricing", filepath.Join("..", "pricing.yaml")}
+	args := []string{"--scenarios", dir, "--server", url, "--token", "key"}
 
 	var stdout, stderr strings.Builder
 	if rc := run(args, &stdout, &stderr); rc != 1 || !strings.Contains(stdout.String(), "# Eval report") {

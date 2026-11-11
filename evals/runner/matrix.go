@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 )
 
 const (
@@ -28,9 +30,9 @@ const (
 var matrixNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
 type matrixEntry struct {
-	Name    string `yaml:"name"`
-	EnvFile string `yaml:"env_file"`
-	Pricing *Price `yaml:"pricing"`
+	Name    string         `yaml:"name"`
+	EnvFile string         `yaml:"env_file"`
+	Pricing *pricing.Price `yaml:"pricing"`
 }
 
 type matrixFile struct {
@@ -58,8 +60,8 @@ func loadMatrix(path string) ([]matrixEntry, error) {
 			return nil, fmt.Errorf("%s: models[%d].env_file is required", path, i)
 		case seen[m.Name]:
 			return nil, fmt.Errorf("%s: models[%d].name %q is used twice", path, i, m.Name)
-		case m.Pricing != nil && m.Pricing.validate() != nil:
-			return nil, fmt.Errorf("%s: models[%d].pricing: %w", path, i, m.Pricing.validate())
+		case m.Pricing != nil && m.Pricing.Validate() != nil:
+			return nil, fmt.Errorf("%s: models[%d].pricing: %w", path, i, m.Pricing.Validate())
 		}
 		seen[m.Name] = true
 	}

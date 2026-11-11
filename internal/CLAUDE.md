@@ -10,6 +10,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `actor`: who made a write and how it is shown: `Actor` (principal kind, id, name, origin and client, and the agent request id), its column mapping, and `Label` and `ClientName`, the only place an actor or an MCP client name becomes display text for the web, the CLI and MCP.
 - `logattrs`: turns an error into log attributes that are safe to write.
+- `llm/pricing`: the one model price table (embedded `prices.yaml`, replaced whole by `SLASHOBSERVE_LLM_PRICES_FILE`), read by run costs, the run cost limit and the evals runner; a model without a complete price is never priced as zero.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
 - `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.

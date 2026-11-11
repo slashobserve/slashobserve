@@ -67,7 +67,7 @@ Each run prints a Markdown report and, with `--out`, writes a JSON report.
 A scenario passes when all its checks pass; the report lists the failed checks and the failure code of every run.
 Every saved dashboard also gets a quality score from 0 to 1 from the rules in `internal/taste`, the same rules the shipped reference dashboards pass: titles, units, legends, descriptions, thresholds, full lines, a headline of stats, rows that ask questions and lone panels that stand alone.
 `--min-quality` fails the run when a kind's median score falls below it.
-Costs come from `evals/pricing.yaml`; a model it does not price shows no cost rather than zero.
+Costs come from the server's built-in price table (`internal/llm/pricing/prices.yaml`), or from the file `--pricing` names in the same format; a model the table does not price shows no cost rather than zero.
 
 ## Comparing two runs
 
