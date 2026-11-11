@@ -154,6 +154,11 @@ This lists only the packages whose purpose the name does not make obvious.
   Restore and duplicate copy the source version's list and run no query.
 - `dashboard_versions.datasource_uids` is a generated column from the SQL function `observespec_datasource_uids(spec)`.
   Whenever the Spec moves datasources, change that function with `CREATE OR REPLACE` in a new migration that then runs `UPDATE dashboard_versions SET spec = spec`.
+- Full-text search reads GIN expression indexes over `dashboard_search_vector(spec)`, `finding_search_vector`, `annotation_search_vector`, `message_search_vector` and `saved_search_search_vector`; a query uses an index only when it calls the same function on the same columns.
+  Functions an index expression reaches either call only built-ins or declare `SET search_path FROM CURRENT`, because Postgres runs index maintenance and `pg_restore` with a `pg_catalog`-only search path.
+  Changing one is a new migration with `CREATE OR REPLACE FUNCTION` and `REINDEX INDEX` of every index that reaches it; `observespec_search_text` and `observespec_search_code` follow the Spec shape like `observespec_datasource_uids`, and `message_search_text` follows `threads.userToken`.
+  The five per-kind functions declare `COST 1000`, because the planner otherwise evaluates them on every version of every dashboard before joining to the latest one.
+  `search_vector` joins its six parts (title and tags, body and query text, each in the `simple` and the `english` configuration) with a one-lexeme gap, because concatenated tsvectors continue each other's positions and a phrase would otherwise match the last word of one part followed by the first of the next.
 - `SLASHOBSERVE_DATABASE_DIRECT_URL` is the session connection: `DB.Listen`, the migrator and its goose session lock use `db.DB.direct`, which is the main pool when the setting is empty; `Open` refuses a direct URL that reaches another database (`ErrDirectURLMismatch`, checked with an advisory lock before migrating). `NOTIFY` stays on the pooled transaction.
 
 ## Events, revisions and comments
