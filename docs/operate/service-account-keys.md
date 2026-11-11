@@ -14,6 +14,7 @@ The CLI, MCP clients and scripts authenticate with a service-account key, not a 
 Keys start with `sok_`.
 Add more keys to an account, and revoke a key, from the same page.
 A revoked or expired key is refused immediately.
+Each key listed over the API has a `state`: `active`, `expiring` within 7 days of its expiry, `expired` or `revoked`; see [States](../reference/states.md).
 The page also shows ready-made client setup snippets for your server's address; they refer to `OBSERVE_TOKEN` and never contain the key.
 
 Only a signed-in Admin can create service accounts and keys, and only an Admin sees the API keys page; a service-account key cannot create more keys, whatever its role.

@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 const (
@@ -40,7 +41,15 @@ type grantJSON struct {
 	CreatedAt  string          `json:"created_at"`
 	LastUsedAt *string         `json:"last_used_at"`
 	ExpiresAt  string          `json:"expires_at"`
+	State      string          `json:"state"`
 }
+
+const GrantStateActive = "active"
+
+var GrantStates = lifecycle.Derived{Name: "connected agent", States: []lifecycle.DerivedState{
+	{Name: "revoked", When: "The person or an admin revoked it; it leaves the list."},
+	{Name: GrantStateActive, When: "It may call /mcp as its person until expires_at."},
+}}
 
 type grantListJSON struct {
 	Grants     []grantJSON `json:"grants"`
@@ -71,6 +80,7 @@ func newGrantJSON(row dbsqlc.ListOAuthGrantsRow) grantJSON {
 		Person:    grantPersonJSON{ID: row.UserID.String(), Name: row.UserName, Email: row.UserEmail},
 		CreatedAt: httpapi.FormatTime(row.CreatedAt.Time),
 		ExpiresAt: httpapi.FormatTime(row.ExpiresAt.Time),
+		State:     GrantStateActive,
 	}
 	if row.LastUsedAt.Valid {
 		used := httpapi.FormatTime(row.LastUsedAt.Time)

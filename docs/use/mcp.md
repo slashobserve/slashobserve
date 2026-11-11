@@ -231,6 +231,7 @@ A connection lasts at most 90 days, after which you approve it again.
 You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
 An approval the client has not yet finished, which lasts 60 seconds, counts toward the 20.
 You can list and disconnect your connected agents over the API with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}` (any signed-in person), and an Admin can list and disconnect everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
+Each connected agent in the list has a `state`, always `active` there because the list leaves out revoked and expired connections; see [States](../reference/states.md).
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's there too.

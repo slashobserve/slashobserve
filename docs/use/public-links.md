@@ -85,7 +85,7 @@ Every route except the public ones needs a session or a service-account key with
 
 | Route | Does |
 | --- | --- |
-| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, variables mode, expiry, creator, last view, and whether they are expired or usable. |
+| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
 | `POST /api/v1/dashboards/{id}/public-links` | Creates a link and returns its token and `url` once. |
 | `DELETE /api/v1/dashboards/{id}/public-links/{link_id}` | Revokes a link. |
 | `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text left out, and the datasources it uses; the token is the only credential. |

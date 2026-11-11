@@ -2855,6 +2855,11 @@ export interface components {
             last_used_at: string | null;
             /** Format: date-time */
             revoked_at: string | null;
+            /**
+             * @description The key's state computed on the server clock when the response is made; `expiring` starts 7 days before `expires_at`. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "revoked" | "expired" | "expiring" | "active";
         };
         ServiceAccountKeyList: {
             items: components["schemas"]["ServiceAccountKey"][];
@@ -2928,6 +2933,11 @@ export interface components {
              * @description When the connection ends and the person must approve it again.
              */
             expires_at: string;
+            /**
+             * @description Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "revoked" | "active";
         };
         ConnectedAgentList: {
             grants: components["schemas"]["ConnectedAgent"][];
@@ -3476,6 +3486,8 @@ export interface components {
             panel_present: boolean;
             /** @enum {string} */
             status: "open" | "resolved";
+            /** @description What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`. */
+            allowed_actions: ("reply" | "resolve" | "reopen")[];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -4709,6 +4721,11 @@ export interface components {
             owner: components["schemas"]["Actor"];
             enabled: boolean;
             /**
+             * @description Computed from `enabled` and `consecutive_failures`. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "disabled" | "retrying" | "sending";
+            /**
              * @description `manual` an Admin disabled it; `gone` the receiver answered 410; `failing` 50 attempts in a row failed; `owner` the owner is gone or no longer an Admin; `secret_unreadable` `SLASHOBSERVE_SECRET_KEY` is unset or changed.
              * @enum {string|null}
              */
@@ -4912,6 +4929,11 @@ export interface components {
             expired: boolean;
             /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
             usable: boolean;
+            /**
+             * @description Computed from `expired`. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "expired" | "active";
         };
         CreatePublicLinkRequest: {
             /** @enum {string} */
@@ -4971,6 +4993,11 @@ export interface components {
             folder: components["schemas"]["DashboardFolder"];
             /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
             can_edit: boolean;
+            /**
+             * @description The dashboard's health computed from the last check, whatever the `kind` filter. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "unchecked" | "outdated" | "skipped" | "failing" | "healthy";
             /** @description The version the last health check ran on; null before the first check. */
             checked_version: number | null;
             /** Format: date-time */
@@ -4990,8 +5017,16 @@ export interface components {
             repair: components["schemas"]["HealthRepair"] | null;
         };
         HealthRepair: {
-            /** @enum {string} */
+            /**
+             * @description The status of the repair's run, kept for compatibility; read `outcome` instead.
+             * @enum {string}
+             */
             state: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            outcome: "queued" | "running" | "repaired" | "still_failing" | "failed";
             /**
              * Format: uuid
              * @description The revision request of the repair.

@@ -27,6 +27,7 @@ type listedGrant struct {
 	CreatedAt  string  `json:"created_at"`
 	LastUsedAt *string `json:"last_used_at"`
 	ExpiresAt  string  `json:"expires_at"`
+	State      string  `json:"state"`
 }
 
 type grantPageJSON struct {
@@ -80,7 +81,7 @@ func TestPersonListsOnlyTheirOwnGrants(t *testing.T) {
 		if g.Person.ID != ada.ID || g.Person.Name != "Ada" || g.Person.Email != "ada@example.com" {
 			t.Errorf("a grant of someone else is listed: %+v", g.Person)
 		}
-		if g.Client.RedirectHost != "127.0.0.1:33418" || !g.Client.Local || g.LastUsedAt != nil || g.CreatedAt == "" || g.ExpiresAt == "" {
+		if g.Client.RedirectHost != "127.0.0.1:33418" || !g.Client.Local || g.LastUsedAt != nil || g.CreatedAt == "" || g.ExpiresAt == "" || g.State != "active" {
 			t.Errorf("grant fields %+v", g)
 		}
 	}

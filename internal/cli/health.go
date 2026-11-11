@@ -34,7 +34,7 @@ type healthProblem struct {
 }
 
 type healthRepair struct {
-	State   string  `json:"state"`
+	Outcome string  `json:"outcome"`
 	Version *int    `json:"version"`
 	Error   *string `json:"error"`
 }
@@ -43,6 +43,7 @@ type healthDashboard struct {
 	ID        string          `json:"id"`
 	Title     string          `json:"title"`
 	Folder    healthFolder    `json:"folder"`
+	State     string          `json:"state"`
 	CheckedAt *string         `json:"checked_at"`
 	Problems  []healthProblem `json:"problems"`
 	Repair    *healthRepair   `json:"repair"`
@@ -132,7 +133,7 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 	if len(list.Dashboards) == 0 {
 		out.line("No dashboard has a health problem.")
 	} else {
-		out.table([]string{"ID", "DASHBOARD", "FOLDER", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
+		out.table([]string{"ID", "DASHBOARD", "FOLDER", "STATE", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
 	}
 	out.line("%s", jobLine(list.Job))
 	if list.NextCursor != nil {
@@ -150,7 +151,7 @@ func healthRows(dashboards []healthDashboard) [][]string {
 		}
 		repair := repairState(d.Repair)
 		for _, p := range d.Problems {
-			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(p.Kind), problemTarget(p), checked, repair})
+			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(d.State), text(p.Kind), problemTarget(p), checked, repair})
 		}
 	}
 	return rows
@@ -160,12 +161,14 @@ func repairState(r *healthRepair) string {
 	switch {
 	case r == nil:
 		return "-"
-	case r.State == "succeeded" && r.Version != nil:
+	case r.Outcome == "repaired" && r.Version != nil:
 		return "repaired in version " + strconv.Itoa(*r.Version)
-	case r.State == "failed" && r.Error != nil:
+	case r.Outcome == "still_failing" && r.Version != nil:
+		return "repair saved version " + strconv.Itoa(*r.Version) + ", still failing"
+	case r.Outcome == "failed" && r.Error != nil:
 		return "repair failed: " + text(*r.Error)
 	}
-	return "repair " + text(r.State)
+	return "repair " + text(r.Outcome)
 }
 
 func problemTarget(p healthProblem) string {

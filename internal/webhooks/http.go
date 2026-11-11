@@ -49,6 +49,7 @@ type webhookJSON struct {
 	EventTypes          []string   `json:"event_types"`
 	Owner               actor.JSON `json:"owner"`
 	Enabled             bool       `json:"enabled"`
+	State               string     `json:"state"`
 	DisabledReason      *string    `json:"disabled_reason"`
 	DisabledAt          *string    `json:"disabled_at"`
 	ConsecutiveFailures int        `json:"consecutive_failures"`
@@ -76,7 +77,7 @@ type deliveryJSON struct {
 
 func newWebhookJSON(w Webhook) webhookJSON {
 	out := webhookJSON{
-		ID: w.ID, Name: w.Name, URL: w.URL, EventTypes: w.EventTypes, Owner: w.Owner.JSON(), Enabled: w.Enabled,
+		ID: w.ID, Name: w.Name, URL: w.URL, EventTypes: w.EventTypes, Owner: w.Owner.JSON(), Enabled: w.Enabled, State: stateOf(w.Enabled, w.ConsecutiveFailures),
 		DisabledReason: httpapi.OptionalString(w.DisabledReason), ConsecutiveFailures: w.ConsecutiveFailures,
 		NextAttemptAt: httpapi.FormatTime(w.NextAttemptAt), CreatedAt: httpapi.FormatTime(w.CreatedAt), UpdatedAt: httpapi.FormatTime(w.UpdatedAt),
 	}

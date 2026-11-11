@@ -81,6 +81,7 @@ type itemJSON struct {
 	URL            string        `json:"url"`
 	Folder         folderJSON    `json:"folder"`
 	CanEdit        bool          `json:"can_edit"`
+	State          string        `json:"state"`
 	CheckedVersion *int          `json:"checked_version"`
 	CheckedAt      *string       `json:"checked_at"`
 	LastViewedAt   *string       `json:"last_viewed_at"`
@@ -91,6 +92,7 @@ type itemJSON struct {
 
 type repairJSON struct {
 	State     string  `json:"state"`
+	Outcome   string  `json:"outcome"`
 	RequestID string  `json:"request_id"`
 	Version   *int    `json:"version"`
 	Error     *string `json:"error"`
@@ -149,6 +151,7 @@ func newItemJSON(it Item) itemJSON {
 		ID: it.ID, Title: it.Title, URL: it.URL,
 		Folder:         folderJSON{ID: it.Folder.ID.String(), Title: it.Folder.Title, General: it.Folder.General, Personal: it.Folder.Personal},
 		CanEdit:        it.CanEdit,
+		State:          it.State,
 		CheckedVersion: it.CheckedVersion,
 		CheckedAt:      formatTime(it.CheckedAt),
 		LastViewedAt:   formatTime(it.LastViewedAt),
@@ -156,7 +159,7 @@ func newItemJSON(it Item) itemJSON {
 		Problems:       make([]problemJSON, 0, len(it.Problems)),
 	}
 	if r := it.Repair; r != nil {
-		out.Repair = &repairJSON{State: r.State, RequestID: r.RequestID, Version: r.Version, Error: r.Error, UpdatedAt: httpapi.FormatTime(r.UpdatedAt)}
+		out.Repair = &repairJSON{State: r.State, Outcome: r.Outcome, RequestID: r.RequestID, Version: r.Version, Error: r.Error, UpdatedAt: httpapi.FormatTime(r.UpdatedAt)}
 	}
 	for _, p := range it.Problems {
 		out.Problems = append(out.Problems, problemJSON{

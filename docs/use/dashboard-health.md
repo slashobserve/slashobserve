@@ -96,8 +96,12 @@ Each count in it is of dashboards, not problems, over every dashboard in the fol
 | `duplicate_titles` | with a `duplicate_title` problem |
 | `unopened` | with an `unopened` problem |
 
+Each dashboard carries a `state`: `unchecked`, `outdated`, `skipped`, `failing` or `healthy`, computed on the server from its last check.
+`no_data`, `duplicate_title` and `unopened` stay problems in the list but do not make a dashboard `failing`; see [States](../reference/states.md).
+
 Each dashboard carries `repair`, its latest health repair whatever its age, or null when it never had one.
-Its `state` is `queued`, `running`, `succeeded` or `failed`.
+Its `state` is the status of the repair's run: `queued`, `running`, `succeeded` or `failed`.
+Its `outcome` is what the repair came to: `queued`, `running`, `repaired`, `still_failing` or `failed`, where `still_failing` means the repaired version was checked and still fails.
 `version` is the version a succeeded repair saved, `error` is the sentence a failed repair ended with, and both are null in the other states.
 `updated_at` is when the repair finished, else when it started, else when it was queued.
 `request_id` is the revision request, which `GET /api/v1/dashboards/{id}/revisions/{revision_id}` reads.
@@ -111,6 +115,7 @@ Its `state` is `queued`, `running`, `succeeded` or `failed`.
       "url": "https://observe.example.com/d/0a1b2c3d-0000-4000-8000-000000000001/checkout",
       "folder": { "id": "0a1b2c3d-0000-4000-8000-0000000000f1", "title": "Shop", "general": false, "personal": false },
       "can_edit": true,
+      "state": "healthy",
       "checked_version": 4,
       "checked_at": "2026-11-06T03:00:12Z",
       "last_viewed_at": "2026-11-05T17:41:00Z",
@@ -127,6 +132,7 @@ Its `state` is `queued`, `running`, `succeeded` or `failed`.
       ],
       "repair": {
         "state": "succeeded",
+        "outcome": "repaired",
         "request_id": "0a1b2c3d-0000-4000-8000-0000000000a1",
         "version": 5,
         "error": null,
@@ -161,11 +167,11 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 ## From the CLI
 
 `observe health` lists the same problems in a terminal, in the same ranked order, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
-Its `REPAIR` column shows each dashboard's latest health repair: `repair queued`, `repair running`, `repaired in version N`, `repair failed: <error>`, `repair failed` when the failure has no sentence, or `-` when it never had one.
+Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows the outcome of the latest health repair: `repair queued`, `repair running`, `repaired in version N`, `repair saved version N, still failing`, `repair failed: <error>`, `repair failed` when the failure has no sentence, or `-` when it never had one.
 
 ## From MCP clients
 
 MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
-The first page also carries the same `summary` counts, and each dashboard with a health repair carries its `state`, with `version` when it succeeded and `error` when it failed.
+The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).

@@ -453,6 +453,7 @@ components:
         - expires_at
         - last_used_at
         - revoked_at
+        - state
       properties:
         id:
           type: string
@@ -483,6 +484,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        state:
+          type: string
+          enum: [revoked, expired, expiring, active]
+          description: The key's state computed on the server clock when the response is made; `expiring` starts 7 days before `expires_at`. See `docs/reference/states.md`.
     ServiceAccountKeyList:
       type: object
       additionalProperties: false
@@ -581,7 +586,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state]
       properties:
         id:
           type: string
@@ -627,6 +632,10 @@ components:
           type: string
           format: date-time
           description: When the connection ends and the person must approve it again.
+        state:
+          type: string
+          enum: [revoked, active]
+          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
     ConnectedAgentList:
       type: object
       additionalProperties: false
@@ -1629,6 +1638,7 @@ components:
         - panel_id
         - panel_present
         - status
+        - allowed_actions
         - created_at
         - updated_at
         - resolved_at
@@ -1671,6 +1681,13 @@ components:
         status:
           type: string
           enum: [open, resolved]
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [reply, resolve, reopen]
+          description: What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`.
         created_at:
           type: string
           format: date-time
@@ -4049,7 +4066,7 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, name, url, event_types, owner, enabled, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      required: [id, name, url, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
       properties:
         id:
           type: string
@@ -4072,6 +4089,10 @@ components:
           $ref: "#/components/schemas/Actor"
         enabled:
           type: boolean
+        state:
+          type: string
+          enum: [disabled, retrying, sending]
+          description: Computed from `enabled` and `consecutive_failures`. See `docs/reference/states.md`.
         disabled_reason:
           type: string
           nullable: true
@@ -4452,7 +4473,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable]
+      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -4495,6 +4516,10 @@ components:
         usable:
           type: boolean
           description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+        state:
+          type: string
+          enum: [expired, active]
+          description: Computed from `expired`. See `docs/reference/states.md`.
     CreatePublicLinkRequest:
       type: object
       additionalProperties: false
@@ -4591,7 +4616,7 @@ components:
     HealthItem:
       type: object
       additionalProperties: false
-      required: [id, title, url, folder, can_edit, checked_version, checked_at, last_viewed_at, skipped, problems, repair]
+      required: [id, title, url, folder, can_edit, state, checked_version, checked_at, last_viewed_at, skipped, problems, repair]
       properties:
         id:
           type: string
@@ -4606,6 +4631,10 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit the dashboard, and so ask for a repair.
+        state:
+          type: string
+          enum: [unchecked, outdated, skipped, failing, healthy]
+          description: The dashboard's health computed from the last check, whatever the `kind` filter. See `docs/reference/states.md`.
         checked_version:
           type: integer
           nullable: true
@@ -4636,11 +4665,16 @@ components:
     HealthRepair:
       type: object
       additionalProperties: false
-      required: [state, request_id, version, error, updated_at]
+      required: [state, outcome, request_id, version, error, updated_at]
       properties:
         state:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: The status of the repair's run, kept for compatibility; read `outcome` instead.
+        outcome:
+          type: string
+          enum: [queued, running, repaired, still_failing, failed]
+          description: What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
         request_id:
           type: string
           format: uuid

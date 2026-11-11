@@ -9,8 +9,14 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
+	"github.com/slashobserve/slashobserve/internal/mcpauth"
+	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
 var updateStates = flag.Bool("update", false, "rewrite docs/reference/states.md")
@@ -20,6 +26,13 @@ const statesDocPath = "../../docs/reference/states.md"
 func statesReference() string {
 	return lifecycle.Render(
 		revisions.RunMachine.Doc("Run", "A run is one agent request, started by `POST /observe`, a comment, a prompt, an investigation or a suggestion."),
+		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, a finding or an annotation, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
+		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
+		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
+		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
+		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
+		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
+		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
 	)
 }
 
@@ -59,6 +72,37 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 		out[i], _ = v.(string)
 	}
 	return out
+}
+
+func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		schema, property string
+		want             []string
+	}{
+		{"HealthItem", "state", health.ItemStates.Names()},
+		{"HealthRepair", "outcome", health.RepairOutcomes.Names()},
+		{"Webhook", "state", webhooks.States.Names()},
+		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
+		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
+		{"PublicLink", "state", public.LinkStates.Names()},
+	}
+	var offered []string
+	for _, a := range threads.ThreadMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	cases = append(cases, struct {
+		schema, property string
+		want             []string
+	}{"Thread", "allowed_actions", offered})
+	for _, c := range cases {
+		if got := enumOf(t, doc, c.schema, c.property); !slices.Equal(got, c.want) {
+			t.Errorf("%s.%s enum = %v, want %v", c.schema, c.property, got, c.want)
+		}
+	}
 }
 
 func TestRunStateEnumsMatchTheMachine(t *testing.T) {

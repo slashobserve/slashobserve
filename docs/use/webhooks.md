@@ -50,6 +50,7 @@ Admins see a Webhooks section in Settings; nobody else does.
    The page keeps the secret only until then, and the server cannot show it again.
 
 Each webhook in the table shows its owner, address, events and status: `Sending`, `Retrying` after failed attempts, or `Disabled` with the reason.
+Over HTTP the same answer is the webhook's `state`, `sending`, `retrying` or `disabled`; see [States](../reference/states.md).
 Test sends a `webhook.test` event and reports the outcome, status and duration.
 Attempts lists the recent attempts of that webhook.
 The menu next to them edits the webhook, enables or disables it, rotates its secret and deletes it, and rotating and deleting ask for confirmation first.
