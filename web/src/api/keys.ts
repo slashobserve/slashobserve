@@ -327,6 +327,11 @@ export const annotationKeys = {
 
 export type HomeSearch = { q?: string; tag: string[] }
 
+export const searchKeys = {
+  all: ["search"] as const,
+  results: (q: string) => ["search", "results", q] as const,
+}
+
 export const starKeys = {
   all: ["stars"] as const,
   list: () => ["stars", "list"] as const,

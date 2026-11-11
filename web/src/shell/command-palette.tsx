@@ -8,17 +8,21 @@ import {
 import { Autocomplete } from "@base-ui/react/autocomplete"
 import { Dialog } from "@base-ui/react/dialog"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useNavigate, useRouteContext, useRouter } from "@tanstack/react-router"
 import {
   ArrowUpRightIcon,
+  BookmarkIcon,
   ChartGanttIcon,
   DatabaseIcon,
+  FileTextIcon,
+  FlagIcon,
   HeartPulseIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
   Loader2Icon,
   LogOutIcon,
+  MessageSquareIcon,
   SearchIcon,
   SettingsIcon,
   SunMoonIcon,
@@ -28,16 +32,18 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { dashboardLink, dashboardPath } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 import type { NavPath } from "./nav"
 import {
-  filterPalette,
-  type DashboardEntry,
+  minSearchLength,
+  paletteGroups,
+  type MatchSegment,
   type PaletteEntry,
+  type ResultEntry,
 } from "./palette-items"
-import { dashboardTitlesQuery } from "./palette-queries"
+import { dashboardTitlesQuery, workspaceSearchQuery } from "./palette-queries"
 import { usePaletteStore } from "./palette-store"
 import { useToggleTheme } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
@@ -54,7 +60,16 @@ const pageIcons: Record<NavPath, LucideIcon> = {
   "/settings": SettingsIcon,
 }
 
+const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
+  dashboard: LayoutDashboardIcon,
+  finding: FileTextIcon,
+  comment: MessageSquareIcon,
+  annotation: FlagIcon,
+  saved_search: BookmarkIcon,
+}
+
 const iconClass = "size-4 flex-none text-muted-foreground"
+const searchDebounceMs = 150
 
 function EntryIcon({ entry }: { entry: PaletteEntry }) {
   if (entry.kind === "page") {
@@ -65,41 +80,74 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
     const Icon = entry.id === "action:theme" ? SunMoonIcon : LogOutIcon
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
+  const Icon = resultIcons[entry.kind]
+  return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
+}
+
+function isResult(entry: PaletteEntry | undefined): entry is ResultEntry {
+  return entry !== undefined && entry.kind !== "page" && entry.kind !== "action"
+}
+
+function Segments({ segments }: { segments: MatchSegment[] }) {
   return (
-    <LayoutDashboardIcon
-      aria-hidden="true"
-      className={iconClass}
-      strokeWidth={1.8}
-    />
+    <>
+      {segments.map((segment, index) =>
+        segment.match ? (
+          <mark
+            key={index}
+            className="bg-transparent font-medium text-foreground"
+          >
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        )
+      )}
+    </>
   )
 }
 
 function PaletteBody({ close }: { close: () => void }) {
   const navigate = useNavigate()
+  const router = useRouter()
   const { principal } = useRouteContext({ from: "/_authed" })
   const [query, setQuery] = useState("")
   const { signOut } = useSignOut()
   const toggleTheme = useToggleTheme()
   const titles = useQuery(dashboardTitlesQuery())
-  const groups = filterPalette(query, titles.data ?? [], principal.role)
+  const needle = query.trim()
+  const settled = useDebouncedValue(needle, needle, searchDebounceMs)
+  const searching = needle.length >= minSearchLength
+  const search = useQuery({
+    ...workspaceSearchQuery(settled),
+    enabled: settled.length >= minSearchLength,
+  })
+  const searchPending =
+    searching && !search.isError && (settled !== needle || search.isFetching)
+  const groups = paletteGroups(
+    query,
+    titles.data ?? [],
+    search.data ?? [],
+    principal.role
+  )
 
   const highlighted = useRef<PaletteEntry | undefined>(undefined)
 
-  function openInNewTab(entry: DashboardEntry) {
+  function openInNewTab(entry: ResultEntry) {
     close()
-    window.open(dashboardPath(entry.id, entry.label), "_blank", "noopener")
+    window.open(entry.path, "_blank", "noopener")
   }
 
   function select(entry: PaletteEntry, event: ReactMouseEvent) {
-    if (entry.kind === "dashboard" && (event.metaKey || event.ctrlKey)) {
+    if (isResult(entry) && (event.metaKey || event.ctrlKey)) {
       openInNewTab(entry)
       return
     }
     close()
     if (entry.kind === "page") {
       void navigate({ to: entry.to })
-    } else if (entry.kind === "dashboard") {
-      void navigate(dashboardLink(entry.id, entry.label))
+    } else if (isResult(entry)) {
+      router.history.push(entry.path)
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {
@@ -112,7 +160,7 @@ function PaletteBody({ close }: { close: () => void }) {
     if (
       event.key !== "Enter" ||
       !(event.metaKey || event.ctrlKey) ||
-      entry?.kind !== "dashboard"
+      !isResult(entry)
     ) {
       return
     }
@@ -142,8 +190,8 @@ function PaletteBody({ close }: { close: () => void }) {
             strokeWidth={1.8}
           />
           <Autocomplete.Input
-            aria-label="Search dashboards and pages"
-            placeholder="Search dashboards or jump to a page"
+            aria-label="Search the workspace or jump to a page"
+            placeholder="Search the workspace or jump to a page"
             onKeyDown={openHighlightedInNewTab}
             className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
@@ -163,8 +211,15 @@ function PaletteBody({ close }: { close: () => void }) {
                     className="group/item flex h-9 cursor-default items-center gap-2.5 rounded-control px-2.5 text-[13px] data-highlighted:bg-selection"
                   >
                     <EntryIcon entry={entry} />
-                    <span className="truncate">{entry.label}</span>
-                    {entry.kind === "dashboard" ? (
+                    <span className="max-w-[60%] flex-none truncate">
+                      {entry.label}
+                    </span>
+                    {isResult(entry) && entry.secondary.length > 0 ? (
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        <Segments segments={entry.secondary} />
+                      </span>
+                    ) : null}
+                    {isResult(entry) ? (
                       <button
                         type="button"
                         tabIndex={-1}
@@ -189,7 +244,7 @@ function PaletteBody({ close }: { close: () => void }) {
           )}
         </Autocomplete.List>
         <Autocomplete.Empty className="px-2.5 py-6 text-center text-[13px] text-muted-foreground empty:hidden">
-          No pages or dashboards match &quot;{query.trim()}&quot;.
+          {searchPending ? null : <>Nothing matches &quot;{needle}&quot;.</>}
         </Autocomplete.Empty>
       </Autocomplete.Root>
       {titles.isPending ? (
@@ -202,6 +257,30 @@ function PaletteBody({ close }: { close: () => void }) {
             className="size-3.5 motion-safe:animate-spin"
           />
           Loading dashboards
+        </div>
+      ) : null}
+      {searchPending ? (
+        <div
+          role="status"
+          className="flex items-center gap-2 border-t px-2.5 py-2 text-[13px] text-muted-foreground"
+        >
+          <Loader2Icon
+            aria-hidden="true"
+            className="size-3.5 motion-safe:animate-spin"
+          />
+          Searching
+        </div>
+      ) : null}
+      {search.isError ? (
+        <div className="flex items-center justify-between gap-2 border-t px-2.5 py-2 text-[13px] text-muted-foreground">
+          <span>Could not search.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void search.refetch()}
+          >
+            Retry
+          </Button>
         </div>
       ) : null}
       {titles.isError ? (

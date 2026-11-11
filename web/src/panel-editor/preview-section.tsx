@@ -31,7 +31,7 @@ import {
   type PreviewStatus,
 } from "./preview-status"
 import { previewQuery } from "./queries"
-import { useDebouncedValue } from "./use-debounced-value"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 export type PreviewSectionProps = {
   dashboardId: string
