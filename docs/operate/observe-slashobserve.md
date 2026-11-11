@@ -3,7 +3,7 @@ title: Observe SlashObserve
 description: The internals dashboard that watches the server itself, what each row answers, and how compose and the Helm chart provision it.
 ---
 
-The internals dashboard shows the server's own [metrics](metrics.md): its API, the agent and the model provider, the query proxy, the database pool and the scheduler.
+The internals dashboard shows the server's own [metrics](metrics.md): its API, the agent and the model provider, the query proxy, the database pool, the scheduler and the fleet.
 It is an ordinary provisioned dashboard titled SlashObserve internals, in the folder SlashObserve.
 
 ## What it needs
@@ -24,6 +24,7 @@ The top line holds six stats: API requests per second, the share of API requests
 | Are datasource queries fast? | The 95th percentile datasource query time by datasource type, queries per second by outcome, and result cache lookups by hit or miss. |
 | Is the database pool keeping up? | Pool connections by state, acquires per second, and the average wait for a connection. |
 | Is the scheduler running its jobs? | Scheduled job runs in the range by job and outcome, and the jobs running now. |
+| Are the servers sharing the work? | The number of live servers, datasource slots in use against their limit by datasource, and the 95th percentile time agent requests wait for a worker. |
 
 A server with no model configured shows zero agent runs and model calls rather than empty panels.
 
