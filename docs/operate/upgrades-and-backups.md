@@ -50,6 +50,12 @@ Migration 35 adds a `state` column to agent requests and checks it against `stat
 A server older than this release fails its queue writes against it, so stop every old server, or at least its agent workers, before the first new server starts.
 To go back, run `goose down-to 34` against the database before starting an older binary.
 
+### Upgrading to the persisted Grafana imports release
+
+Migration 36 moves Grafana imports into the database and copies each connection's last import into it.
+An import that an older server runs during the upgrade stays on that server and is not shown by the new ones, so finish or avoid imports while servers of both versions run.
+To go back, run `goose down-to 35` before starting an older binary; it writes each connection's newest finished import back to the connection.
+
 ### Upgrading from an early release
 
 Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
