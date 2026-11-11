@@ -311,9 +311,10 @@ func (q *Queries) InsertWebhook(ctx context.Context, arg InsertWebhookParams) (W
 	return i, err
 }
 
-const insertWebhookDelivery = `-- name: InsertWebhookDelivery :exec
+const insertWebhookDelivery = `-- name: InsertWebhookDelivery :one
 INSERT INTO webhook_deliveries (webhook_id, delivery_id, event_type, activity_seq, duration_ms, status_code, outcome, error_code)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, webhook_id, delivery_id, event_type, activity_seq, attempted_at, duration_ms, status_code, outcome, error_code
 `
 
 type InsertWebhookDeliveryParams struct {
@@ -327,8 +328,8 @@ type InsertWebhookDeliveryParams struct {
 	ErrorCode   pgtype.Text
 }
 
-func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) error {
-	_, err := q.db.Exec(ctx, insertWebhookDelivery,
+func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) (WebhookDelivery, error) {
+	row := q.db.QueryRow(ctx, insertWebhookDelivery,
 		arg.WebhookID,
 		arg.DeliveryID,
 		arg.EventType,
@@ -338,7 +339,20 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 		arg.Outcome,
 		arg.ErrorCode,
 	)
-	return err
+	var i WebhookDelivery
+	err := row.Scan(
+		&i.ID,
+		&i.WebhookID,
+		&i.DeliveryID,
+		&i.EventType,
+		&i.ActivitySeq,
+		&i.AttemptedAt,
+		&i.DurationMs,
+		&i.StatusCode,
+		&i.Outcome,
+		&i.ErrorCode,
+	)
+	return i, err
 }
 
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many

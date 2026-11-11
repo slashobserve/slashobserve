@@ -179,6 +179,7 @@ func eventsOf(rows []dbsqlc.Activity) []Event {
 			}),
 			Data:      r.Data,
 			CreatedAt: r.CreatedAt.Time,
+			Position:  positionOf(r),
 		})
 	}
 	return out

@@ -106,9 +106,10 @@ UPDATE webhooks
 SET lease_id = NULL, leased_by = NULL, lease_until = NULL
 WHERE id = @id AND lease_id = @lease_id;
 
--- name: InsertWebhookDelivery :exec
+-- name: InsertWebhookDelivery :one
 INSERT INTO webhook_deliveries (webhook_id, delivery_id, event_type, activity_seq, duration_ms, status_code, outcome, error_code)
-VALUES (@webhook_id, @delivery_id, @event_type, sqlc.narg('activity_seq'), @duration_ms, sqlc.narg('status_code'), @outcome, sqlc.narg('error_code'));
+VALUES (@webhook_id, @delivery_id, @event_type, sqlc.narg('activity_seq'), @duration_ms, sqlc.narg('status_code'), @outcome, sqlc.narg('error_code'))
+RETURNING *;
 
 -- name: ListWebhookDeliveries :many
 SELECT * FROM webhook_deliveries

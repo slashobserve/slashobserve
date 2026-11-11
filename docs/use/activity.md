@@ -101,6 +101,10 @@ The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
 
+## Send it to another system
+
+An Admin can have the server post events to an address of their choice as signed requests; see [Webhooks](webhooks.md).
+
 ## Not recorded
 
 Suggestions, the progress of an agent's build, and a run going back to the queue after a restart are not events.

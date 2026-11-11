@@ -99,7 +99,7 @@
     },
     "secretKey": {
       "allOf": [{ "$ref": "#/definitions/secretRef" }],
-      "description": "Secret holding SLASHOBSERVE_SECRET_KEY, which encrypts stored Grafana connection tokens. Empty leaves it unset."
+      "description": "Secret holding SLASHOBSERVE_SECRET_KEY, which encrypts stored Grafana connection tokens and webhook signing secrets. Empty leaves it unset."
     },
     "logLevel": { "enum": ["debug", "info", "warn", "error"], "description": "SLASHOBSERVE_LOG_LEVEL." },
     "logFormat": { "enum": ["json", "text"], "description": "SLASHOBSERVE_LOG_FORMAT." },

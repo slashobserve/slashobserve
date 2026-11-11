@@ -78,12 +78,19 @@ type Event struct {
 	Actor       actor.Actor
 	Data        json.RawMessage
 	CreatedAt   time.Time
+	Position    Position
 }
 
 type Position struct {
 	xid uint64
 	seq int64
 }
+
+func At(xid uint64, seq int64) Position { return Position{xid: xid, seq: seq} }
+
+func (p Position) Xid() uint64 { return p.xid }
+
+func (p Position) Seq() int64 { return p.seq }
 
 func later(a, b Position) Position {
 	if b.xid > a.xid || (b.xid == a.xid && b.seq > a.seq) {

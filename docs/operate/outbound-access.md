@@ -33,6 +33,13 @@ A comma-separated list such as `example.com,*.example.org` allows exactly those 
 The list is then read-only: Settings shows it, the API answers changes with `409 managed_by_config`, and the database table is neither read nor written.
 The setting never seeds the Settings list; to switch back, unset it and restart, and the Settings list is what it was before.
 
+## Webhooks
+
+A [webhook](../use/webhooks.md) an Admin sets up sends workspace activity to an address of their choice, and it follows the same rules: `https` on port 443, a public address, and a domain on the allowlist.
+A webhook never adds its domain to the allowlist, and an Admin who cannot allow it first gets `403 outbound_domain_not_allowed`.
+When a domain is removed, the webhooks that post to it fail their attempts with `domain_not_allowed` and retry until it is allowed again.
+Webhook requests send a signature header and the event, but no cookies or other credentials, and the server never logs the address, a header, the body or the receiver's answer.
+
 ## News feeds
 
 News panels read their feed through the server, never from the browser, with `GET /api/v1/news?url=<feed address>`; only signed-in people can call it, not service-account keys.

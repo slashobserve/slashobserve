@@ -80,6 +80,10 @@ ClickHouse is queried only as a read-only user.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
   A canvas or field action also needs Edit on the dashboard and a confirmation in the browser, and the server never follows a redirect for it.
   See [Outbound access](outbound-access.md).
+- **Webhooks are an Admin's decision.**
+  Only an Admin, or a key with the Admin role, can send workspace activity to an outside address, and no agent or MCP tool can.
+  A webhook sends only what its owner could read when it sends, signs each request with an HMAC and a timestamp, keeps its secret sealed with `SLASHOBSERVE_SECRET_KEY`, and goes through the same outbound rules, so it cannot reach a private address or an unlisted domain.
+  See [Webhooks](../use/webhooks.md).
 - **The browser loads nothing from other sites.**
   Every response carries a strict `Content-Security-Policy`: scripts, stylesheets, images, fonts and connections come only from the server's own origin (images may also be `data:` or `blob:` URLs, and inline styles are allowed), and plugins, frames, media and `<base>` are refused.
   So even if a sanitizer were ever bypassed, injected script could not run or send data to another site.

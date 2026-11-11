@@ -1,0 +1,255 @@
+webhooks-list:
+  get:
+    operationId: listWebhooks
+    summary: List the webhooks.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      Webhooks are sorted by creation time; a response never carries a signing secret.
+    responses:
+      "200":
+        description: The webhooks.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createWebhook
+    summary: Send workspace activity to an https address.
+    description: >-
+      Only Admins can call this endpoint.
+      The server then POSTs every activity event of the chosen types that the caller can read to the address, signed and retried in order; see the webhooks page of the guide for the payload and the signature.
+      Only events that happen after the webhook is created are sent.
+      The caller becomes the webhook's owner, and the webhook delivers only what its owner can read at the time of sending.
+      The address must be https on port 443 with a domain name on the outbound allowlist; a webhook never adds its domain to the allowlist.
+      The signing secret is returned once, here, and is stored encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY`.
+      At most 20 webhooks can exist.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateWebhookRequest"
+    responses:
+      "201":
+        description: The webhook is created.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookWithSecret"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the address's host is not on the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: 20 webhooks already exist (`too_many_webhooks`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+webhooks-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  patch:
+    operationId: updateWebhook
+    summary: Change a webhook's name, address, event types or state.
+    description: >-
+      Only Admins can call this endpoint.
+      The caller becomes the webhook's owner, so it delivers only what the caller can read from now on.
+      A new address is checked against the outbound allowlist and resets the failure count.
+      `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateWebhookRequest"
+    responses:
+      "200":
+        description: The changed webhook.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Webhook"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the new address's host is not on the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteWebhook
+    summary: Delete a webhook and its delivery attempts.
+    description: Only Admins can call this endpoint. A delivery in flight may still reach the receiver once.
+    responses:
+      "204":
+        description: The webhook is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+webhooks-id-secret:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: rotateWebhookSecret
+    summary: Replace a webhook's signing secret.
+    description: >-
+      Only Admins can call this endpoint.
+      The old secret stops working at once and the new one is returned once.
+      The caller becomes the webhook's owner.
+      A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
+    responses:
+      "200":
+        description: The webhook and its new secret.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookWithSecret"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+webhooks-id-test:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: testWebhook
+    summary: Send one test event to a webhook.
+    description: >-
+      Only Admins can call this endpoint.
+      The server sends a signed `webhook.test` event with no `event` and waits for the answer, up to 10 seconds.
+      It works on a disabled webhook, records the attempt in the delivery history and changes nothing else.
+      A receiver that cannot be reached or answers with an error still gives 200, with `outcome` `failed` and its `error_code`.
+    responses:
+      "200":
+        description: The recorded attempt.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookTestResult"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored secret cannot be read with it (`secret_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+webhooks-id-deliveries:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listWebhookDeliveries
+    summary: List a webhook's recent delivery attempts, newest first.
+    description: >-
+      Only Admins can call this endpoint.
+      Attempts are kept for 7 days.
+      A row records the outcome, the receiver's status code, an error code and the duration, never a response body, a header or the address.
+    parameters:
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+    responses:
+      "200":
+        description: One page of attempts.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookDeliveryList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

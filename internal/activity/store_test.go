@@ -742,3 +742,30 @@ func TestAFilteredNextFromTheStartAdvancesToTheHead(t *testing.T) {
 		t.Fatalf("after the head: %v, want [%d], err %v", seqsOf(got), moved, err)
 	}
 }
+
+func TestNextReturnsEachEventsPosition(t *testing.T) {
+	r := newRig(t)
+	all := r.audience(t, admin)
+	seqs := []int64{
+		r.append(t, Entry{Type: TypeFindingCreated}),
+		r.append(t, Entry{Type: TypeFindingCreated}),
+		r.append(t, Entry{Type: TypeFindingCreated}),
+	}
+
+	got, _, _ := r.next(t, all, Position{}, 10)
+
+	if !slices.Equal(seqsOf(got), seqs) {
+		t.Fatalf("got %v, want %v", seqsOf(got), seqs)
+	}
+	from := Position{}
+	for _, e := range got {
+		page, to, _ := r.next(t, all, from, 1)
+		if len(page) != 1 || e.Position != to || e.Position.Seq() != e.Seq || e.Position.Xid() == 0 {
+			t.Fatalf("event %d has position %+v, a one-row page ends at %+v", e.Seq, e.Position, to)
+		}
+		if At(e.Position.Xid(), e.Position.Seq()) != e.Position {
+			t.Fatalf("At does not rebuild position %+v", e.Position)
+		}
+		from = to
+	}
+}
