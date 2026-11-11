@@ -45,6 +45,7 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_db_pool_acquires_total`             | counter   |                                | Connections taken from the database pool.                                                                |
 | `slashobserve_db_pool_empty_acquires_total`       | counter   |                                | Acquires that waited because the pool had no idle connection.                                            |
 | `slashobserve_db_pool_acquire_wait_seconds_total` | counter   |                                | Time spent waiting to acquire a pool connection.                                                         |
+| `slashobserve_fleet_servers`                      | gauge     |                                | Servers that heartbeat into this database in the last 30 seconds, this one included.                     |
 
 The Go runtime series (`go_*`) and the process series (`process_*`) come from the Prometheus client library.
 

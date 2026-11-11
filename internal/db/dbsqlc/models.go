@@ -422,6 +422,13 @@ type SavedSearch struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type ServerInstance struct {
+	ID        string
+	Version   string
+	StartedAt pgtype.Timestamptz
+	SeenAt    pgtype.Timestamptz
+}
+
 type ServiceAccount struct {
 	ID          pgtype.UUID
 	Name        string

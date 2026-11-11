@@ -38,6 +38,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/findings"
+	"github.com/slashobserve/slashobserve/internal/fleet"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
@@ -281,6 +282,12 @@ func run() error {
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
+	serverID := instanceID()
+	membership := fleet.New(database, serverID, version, logger)
+	serverMetrics.Fleet(membership.Live)
+	stopFleet := startFleet(ctx, membership, logger)
+	defer stopFleet()
+
 	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
 		return err
@@ -359,7 +366,7 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
 	defer stopWorkers()
-	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
+	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
@@ -401,7 +408,7 @@ func run() error {
 	})
 	stopWebhooks := startWebhooks(ctx, webhooks.NewWorker(webhooks.WorkerDeps{
 		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
-		Followers: broker, InstanceID: instanceID(), Logger: logger,
+		Followers: broker, InstanceID: serverID, Logger: logger,
 	}), logger)
 	defer stopWebhooks()
 
@@ -660,6 +667,23 @@ func startWebhooks(ctx context.Context, worker *webhooks.Worker, logger *slog.Lo
 		case <-done:
 		case <-time.After(shutdownTimeout):
 			logger.Warn("webhook worker did not stop in time")
+		}
+	}
+}
+
+func startFleet(ctx context.Context, membership *fleet.Membership, logger *slog.Logger) func() {
+	fleetCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		membership.Run(fleetCtx)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			logger.Warn("server heartbeat did not stop in time")
 		}
 	}
 }

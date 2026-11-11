@@ -15,6 +15,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
   `dbtest` gives each test its own migrated database from one Postgres testcontainer per test binary (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
+- `fleet`: each server's heartbeat into `server_instances` (10 s, stale after 30 s, times from Postgres only) and `Share(total)`, the one rule for dividing a fleet-wide total among live servers.
 - `tctest`: retry for testcontainers starts that fail on testcontainers-go v0.44.0 reaper (ryuk) start errors; every container start in tests goes through it.
 - `folders`: folders, permissions and the one place that decides who sees and changes a dashboard.
 - `forbidden`: the `forbidden_role` code and its 403 texts, a leaf package so the CLI can compare against them without the server.

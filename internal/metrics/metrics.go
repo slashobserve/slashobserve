@@ -189,6 +189,13 @@ func (s schedulerMetrics) JobFinished(job, outcome string) {
 	s.jobs.WithLabelValues(job, outcome).Inc()
 }
 
+func (r *Registry) Fleet(live func() int) {
+	r.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "slashobserve_fleet_servers",
+		Help: "Servers that heartbeat into this database in the last 30 seconds, this one included.",
+	}, func() float64 { return float64(live()) }))
+}
+
 func (r *Registry) Pool(stat func() *pgxpool.Stat) {
 	r.registry.MustRegister(poolCollector{stat: stat})
 }
