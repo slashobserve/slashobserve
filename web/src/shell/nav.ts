@@ -2,6 +2,7 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type NavPath =
   | "/"
+  | "/observations"
   | "/dashboards"
   | "/health"
   | "/logs"
@@ -20,6 +21,12 @@ export type NavItem = {
 
 const navItems: readonly NavItem[] = [
   { to: "/", label: "Observe", group: "main", minRole: "viewer" },
+  {
+    to: "/observations",
+    label: "Observations",
+    group: "main",
+    minRole: "viewer",
+  },
   { to: "/dashboards", label: "Dashboards", group: "main", minRole: "viewer" },
   { to: "/health", label: "Health", group: "main", minRole: "viewer" },
   { to: "/logs", label: "Logs", group: "main", minRole: "viewer" },
@@ -46,5 +53,6 @@ export function isNavItemActive(to: NavPath, pathname: string): boolean {
     )
   }
   if (to === "/traces" && pathname.startsWith("/t/")) return true
+  if (to === "/observations" && pathname.startsWith("/o/")) return true
   return pathname === to || pathname.startsWith(`${to}/`)
 }

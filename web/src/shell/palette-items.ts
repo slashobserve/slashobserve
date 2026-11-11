@@ -20,9 +20,15 @@ export type ResultEntry = {
   secondary: MatchSegment[]
   path: string
 }
+type ActionId =
+  | "action:new-observation"
+  | "action:ask"
+  | "action:import"
+  | "action:sign-out"
+  | "action:theme"
 type ActionEntry = {
   kind: "action"
-  id: "action:sign-out" | "action:theme"
+  id: ActionId
   label: string
 }
 export type PaletteEntry = PageEntry | ResultEntry | ActionEntry
@@ -34,6 +40,7 @@ export type PaletteGroup = {
     | "Comments"
     | "Annotations"
     | "Saved searches"
+    | "Actions"
     | "Account"
   items: PaletteEntry[]
 }
@@ -46,6 +53,12 @@ function pageEntries(role: Role): PageEntry[] {
     to: item.to,
   }))
 }
+
+const newActionEntries: ActionEntry[] = [
+  { kind: "action", id: "action:new-observation", label: "New observation" },
+  { kind: "action", id: "action:ask", label: "Ask Observe Agent" },
+  { kind: "action", id: "action:import", label: "Import a dashboard" },
+]
 
 const themeEntry: ActionEntry = {
   kind: "action",
@@ -160,6 +173,10 @@ export function paletteGroups(
       value,
       items: found.filter((entry) => entry.kind === kind),
     })),
+    {
+      value: "Actions",
+      items: newActionEntries.filter((e) => matches(e.label)),
+    },
     {
       value: "Account",
       items: [themeEntry, signOutEntry].filter((e) => matches(e.label)),

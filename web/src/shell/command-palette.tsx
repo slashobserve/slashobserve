@@ -23,15 +23,19 @@ import {
   Loader2Icon,
   LogOutIcon,
   MessageSquareIcon,
+  NotebookTextIcon,
+  PlusIcon,
   SearchIcon,
   SettingsIcon,
   SunMoonIcon,
   TerminalIcon,
+  UploadIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { observationsLink } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -50,6 +54,7 @@ import { useSignOut } from "./use-sign-out"
 
 const pageIcons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
+  "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/health": HeartPulseIcon,
   "/logs": LogsIcon,
@@ -69,6 +74,17 @@ const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
   saved_search: BookmarkIcon,
 }
 
+const actionIcons: Record<
+  Extract<PaletteEntry, { kind: "action" }>["id"],
+  LucideIcon
+> = {
+  "action:new-observation": PlusIcon,
+  "action:ask": TerminalIcon,
+  "action:import": UploadIcon,
+  "action:theme": SunMoonIcon,
+  "action:sign-out": LogOutIcon,
+}
+
 const iconClass = "size-4 flex-none text-muted-foreground"
 const searchDebounceMs = 150
 
@@ -78,7 +94,7 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   if (entry.kind === "action") {
-    const Icon = entry.id === "action:theme" ? SunMoonIcon : LogOutIcon
+    const Icon = actionIcons[entry.id]
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   const Icon = resultIcons[entry.kind]
@@ -149,6 +165,12 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: entry.to })
     } else if (isResult(entry)) {
       router.history.push(entry.path)
+    } else if (entry.id === "action:new-observation") {
+      void navigate(observationsLink({ new: "1" }))
+    } else if (entry.id === "action:ask") {
+      void navigate({ to: "/" })
+    } else if (entry.id === "action:import") {
+      void navigate({ to: "/import" })
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {
