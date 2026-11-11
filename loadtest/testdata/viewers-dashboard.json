@@ -1,0 +1,238 @@
+{
+  "specVersion": "0",
+  "title": "Load test viewers",
+  "description": "Twelve Prometheus panels the load test's viewers open.",
+  "tags": [
+    "loadtest"
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "s_requests",
+      "type": "stat",
+      "title": "Requests per second",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum(rate(http_requests_total[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": "s_errors",
+      "type": "stat",
+      "title": "Server errors",
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "percentunit",
+      "queries": [
+        {
+          "query": "(sum(rate(http_requests_total{status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_requests_total[$__rate_interval]))"
+        }
+      ],
+      "decimals": 2
+    },
+    {
+      "id": "s_p50",
+      "type": "stat",
+      "title": "p50 latency",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": "s_p95",
+      "type": "stat",
+      "title": "p95 latency",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": "s_p99",
+      "type": "stat",
+      "title": "p99 latency",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": "s_routes",
+      "type": "stat",
+      "title": "Routes serving traffic",
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "count(count by (route) (http_requests_total))"
+        }
+      ],
+      "decimals": 0
+    },
+    {
+      "id": "t_requests_by_route",
+      "type": "timeseries",
+      "title": "Requests per second by route",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+          "legend": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": "t_requests_by_status",
+      "type": "timeseries",
+      "title": "Requests per second by status",
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+          "legend": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": "t_requests_by_pod",
+      "type": "timeseries",
+      "title": "Requests per second by pod",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": "t_p95_by_route",
+      "type": "timeseries",
+      "title": "p95 latency by route",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.95, sum by (route, le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "legend": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": "t_p99_by_pod",
+      "type": "timeseries",
+      "title": "p99 latency by pod",
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.99, sum by (pod, le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "legend": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": "t_errors_by_route",
+      "type": "timeseries",
+      "title": "Server errors per second by route",
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (route) (rate(http_requests_total{status=~\"5..\"}[$__rate_interval])) or sum by (route) (rate(http_requests_total[$__rate_interval])) * 0",
+          "legend": "{{route}}"
+        }
+      ]
+    }
+  ]
+}

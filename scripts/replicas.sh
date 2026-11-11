@@ -72,6 +72,11 @@ Usage: scripts/replicas.sh <command>
                run the two-server checklist on the running stack and print one PASS, FAIL or
                KNOWN line per item; named items (for example C5 C13) rerun alone, and C1 to C3
                need a fresh boot, so use make replicas-check for the whole list
+  load [--only viewers|streams|mcp|agent] [label]
+               run the load test (go run ./loadtest) against the load balancer with the running
+               servers as replicas, sample container, Postgres and PgBouncer use every 5 s, and write
+               loadtest/reports/<time>-<label>/ with report.md, report.json, slow-queries.txt and the
+               samples; it never targets anything but this stack; use make loadtest for the full series
   help         print this text
 
 Ports (all on 127.0.0.1, all overridable):
@@ -99,6 +104,7 @@ say() {
 
 TMP=""
 SSE_PIDS=""
+SAMPLER_PID=""
 scratch() {
   [[ -n "$TMP" ]] || TMP="$(mktemp -d)"
 }
@@ -108,6 +114,7 @@ cleanup() {
   for pid in $SSE_PIDS; do
     kill "$pid" 2>/dev/null || true
   done
+  [[ -z "$SAMPLER_PID" ]] || kill "$SAMPLER_PID" 2>/dev/null || true
   [[ -z "$TMP" ]] || rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -958,6 +965,181 @@ check() {
   done
 }
 
+LOAD_SAMPLE_SECONDS=5
+LOAD_REPORTS="$ROOT/loadtest/reports"
+
+running_servers() {
+  local n out=""
+  for n in 1 2; do
+    if [[ "$(docker inspect -f '{{.State.Running}}' "${PROJECT}-server-$n" 2>/dev/null || true)" == true ]]; then
+      out="$out $n"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+pgbouncer_pools() {
+  "${COMPOSE_CMD[@]}" exec -T -e PGPASSWORD=slashobserve postgres psql -U slashobserve -h pgbouncer -p 6432 -d pgbouncer -qA -c "SHOW POOLS" | sed '/^(/d'
+}
+
+sample_once() {
+  local dir="$1" stamp
+  stamp="$(date -u +%H:%M:%S)"
+  docker stats --no-stream --format '{{.Name}},{{.CPUPerc}},{{.MemUsage}}' | { grep "^${PROJECT}-" || true; } | sed "s/^/${stamp},/" >>"$dir/docker-stats.csv"
+  psql_app "SELECT state, count(*) FROM pg_stat_activity WHERE datname = 'slashobserve' GROUP BY 1" | sed "s/^/${stamp}|/" >>"$dir/pg-activity.txt"
+  pgbouncer_pools | awk -v stamp="$stamp" -v dir="$dir" 'NR == 1 { print > (dir "/pgbouncer-pools.header"); next } { print stamp "|" $0 }' >>"$dir/pgbouncer-pools.txt"
+}
+
+sample_loop() {
+  local dir="$1"
+  while :; do
+    sample_once "$dir" 2>/dev/null || true
+    sleep "$LOAD_SAMPLE_SECONDS"
+  done
+}
+
+resource_peaks() {
+  awk -F, '
+    function mib(s,   parts, unit, val) {
+      split(s, parts, " / ")
+      s = parts[1]
+      match(s, /[A-Za-z]+$/)
+      unit = substr(s, RSTART)
+      val = substr(s, 1, RSTART - 1) + 0
+      if (unit == "GiB") return val * 1024
+      if (unit == "KiB" || unit == "kB") return val / 1024
+      if (unit == "B") return val / 1048576
+      return val
+    }
+    {
+      cpu = $3
+      sub(/%/, "", cpu)
+      cpu += 0
+      m = mib($4)
+      if (!($2 in pc) || cpu > pc[$2]) pc[$2] = cpu
+      if (!($2 in pm) || m > pm[$2]) pm[$2] = m
+    }
+    END { for (n in pc) printf "| %s | %.0f%% | %.0f MiB |\n", n, pc[n], pm[n] }
+  ' "$1" | sort
+}
+
+pg_peaks() {
+  awk -F'|' '
+    { n = $3 + 0; total[$1] += n; if (n > st[$2]) st[$2] = n }
+    END {
+      for (s in st) printf "| %s | %d |\n", (s == "" ? "background" : s), st[s]
+      for (t in total) if (total[t] > peak) peak = total[t]
+      printf "| all states together | %d |\n", peak
+    }
+  ' "$1" | sort
+}
+
+pool_peaks() {
+  awk -F'|' -v header="$(cat "$2")" '
+    BEGIN {
+      n = split(header, h, "|")
+      for (i = 1; i <= n; i++) idx[h[i]] = i + 1
+      split("cl_active cl_waiting sv_active sv_idle sv_used maxwait", cols, " ")
+    }
+    $2 == "slashobserve" {
+      for (c = 1; c <= 6; c++) {
+        v = $(idx[cols[c]]) + 0
+        if (v > peak[cols[c]]) peak[cols[c]] = v
+      }
+    }
+    END { for (c = 1; c <= 6; c++) printf "| %s | %d |\n", cols[c], peak[cols[c]] }
+  ' "$1"
+}
+
+restarted_containers() {
+  local id state out=""
+  for id in $(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT"); do
+    state="$(docker inspect -f '{{.Name}} restarts={{.RestartCount}} oom={{.State.OOMKilled}}' "$id")"
+    case "$state" in
+      *"restarts=0 oom=false") ;;
+      *) out="$out ${state#/}" ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
+slow_queries() {
+  psql_app "SELECT round(mean_exec_time::numeric, 2) AS mean_ms, calls, round(total_exec_time::numeric, 0) AS total_ms, left(regexp_replace(query, '\\s+', ' ', 'g'), 160) AS query FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = 'slashobserve') ORDER BY mean_exec_time DESC LIMIT 10" | redact
+}
+
+finish_load() {
+  local dir="$1" samples="$2" bad="$3" word="pass" detail="no container restarted or was OOM killed"
+  mv "$samples"/* "$dir"/ 2>/dev/null || true
+  slow_queries >"$dir/slow-queries.txt" 2>&1 || true
+  if [[ -n "$bad" ]]; then
+    word="FAIL"
+    detail="$bad"
+  fi
+  printf '%s\n' "$detail" >"$dir/containers.txt"
+  {
+    printf '| no container restarted or was OOM killed | %s | %s |\n' "$word" "$detail"
+    printf '\n## Resource use\n\nPeak over the run, sampled every %s s.\n\n' "$LOAD_SAMPLE_SECONDS"
+    printf '| Container | Peak CPU | Peak memory |\n| --- | --- | --- |\n'
+    resource_peaks "$dir/docker-stats.csv"
+    printf '\n## Postgres connections\n\n| State | Peak |\n| --- | --- |\n'
+    pg_peaks "$dir/pg-activity.txt"
+    printf '\n## PgBouncer pool slashobserve\n\n| Column | Peak |\n| --- | --- |\n'
+    pool_peaks "$dir/pgbouncer-pools.txt" "$dir/pgbouncer-pools.header"
+    printf '\nThe ten slowest statements by mean time are in slow-queries.txt.\n'
+  } >>"$dir/report.md"
+}
+
+load() {
+  local only="all" label="" n servers code=0 dir bad
+  local replicas=()
+  while (($# > 0)); do
+    case "$1" in
+      --only)
+        only="${2:-}"
+        shift 2 || die "--only needs viewers, streams, mcp or agent"
+        ;;
+      -*) die "unknown option $1" ;;
+      *)
+        label="$1"
+        shift
+        ;;
+    esac
+  done
+  [[ "$only" =~ ^(all|viewers|streams|mcp|agent)$ ]] || die "--only is viewers, streams, mcp or agent"
+  [[ "$label" =~ ^[a-z0-9-]+$ ]] || die "give the run a label of lowercase letters, digits and dashes, for example servers2-workers8"
+  [[ -s "$RUNTIME/viewer.keys" && -s "$EDITOR_KEYS_FILE" ]] || die "no keys in $RUNTIME; run scripts/replicas.sh keys"
+  servers="$(running_servers)"
+  [[ -n "$servers" ]] || die "no server of $PROJECT is running; run scripts/replicas.sh up"
+  for n in $servers; do
+    wait_ready "http://localhost:$(server_port "$n")" 60
+    replicas+=(--replica "http://localhost:$(server_port "$n")")
+  done
+  scratch
+  mkdir -p "$TMP/samples"
+  (cd "$ROOT" && go build -o "$TMP/loadtest" ./loadtest)
+  psql_app "CREATE EXTENSION IF NOT EXISTS pg_stat_statements" >/dev/null
+  psql_app "SELECT pg_stat_statements_reset()" >/dev/null
+  sample_loop "$TMP/samples" &
+  SAMPLER_PID=$!
+  { "$TMP/loadtest" --target "$LB" "${replicas[@]}" \
+    --viewer-keys "$RUNTIME/viewer.keys" --editor-keys "$EDITOR_KEYS_FILE" \
+    --label "$label" --out "$LOAD_REPORTS" --commit "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || true)" \
+    "$only" 2>&1 && echo 0 >"$TMP/load.code" || echo "$?" >"$TMP/load.code"; } | tee "$TMP/load.out"
+  code="$(cat "$TMP/load.code")"
+  kill "$SAMPLER_PID" 2>/dev/null || true
+  wait "$SAMPLER_PID" 2>/dev/null || true
+  SAMPLER_PID=""
+  dir="$({ grep '^report directory: ' "$TMP/load.out" || true; } | tail -1 | sed 's/^report directory: //')"
+  bad="$(restarted_containers)"
+  if [[ -n "$dir" && -d "$dir" ]]; then
+    finish_load "$dir" "$TMP/samples" "$bad"
+    say "report: $dir/report.md"
+  fi
+  ((code == 0)) || die "the load test gate failed or the tool stopped with status $code"
+  [[ -z "$bad" ]] || die "containers restarted or were OOM killed:$bad"
+  say "load test passed every gate"
+}
+
 main() {
   local cmd="${1:-help}"
   shift || true
@@ -972,6 +1154,7 @@ main() {
     start) start_server "${1:-}" ;;
     workers) set_workers "${1:-}" ;;
     check) check "$@" ;;
+    load) load "$@" ;;
     help | -h | --help) usage ;;
     *)
       usage >&2

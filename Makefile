@@ -30,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -146,6 +146,20 @@ replicas-check:
 	scripts/replicas.sh down
 	scripts/replicas.sh up
 	scripts/replicas.sh check
+
+loadtest:
+	scripts/replicas.sh down
+	scripts/replicas.sh up
+	scripts/replicas.sh stop 2
+	@failed=0; set -e; \
+	scripts/replicas.sh load servers1-workers8 || failed=1; \
+	scripts/replicas.sh start 2; \
+	scripts/replicas.sh load servers2-workers8 || failed=1; \
+	scripts/replicas.sh workers 2; \
+	scripts/replicas.sh load --only agent servers2-workers2 || failed=1; \
+	scripts/replicas.sh workers 16; \
+	scripts/replicas.sh load --only agent servers2-workers16 || failed=1; \
+	exit $$failed
 
 e2e:
 	scripts/e2e.sh
