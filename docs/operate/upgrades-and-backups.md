@@ -34,6 +34,7 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 ### Migrations
 
 Migrations run under a Postgres lock, so starting several servers at once is safe: one migrates and the others wait.
+With `SLASHOBSERVE_DATABASE_DIRECT_URL` set, migrations and their lock run on that connection.
 
 The server runs migrations forward only; it never runs a migration's down section.
 To go back to an older version, restore the backup you took before upgrading rather than running the older image against a migrated database.

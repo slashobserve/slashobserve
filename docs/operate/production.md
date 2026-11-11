@@ -1,6 +1,6 @@
 ---
 title: Run in production
-description: Put TLS in front of the server and use its health endpoints.
+description: Put TLS in front of the server, use its health endpoints and run it behind a connection pooler.
 ---
 
 Everything on this page applies to every install; [Run on Kubernetes](kubernetes.md) covers the Helm chart, and [Observe SlashObserve](observe-slashobserve.md) the dashboard that watches the server.
@@ -37,3 +37,19 @@ The image's Docker health check runs `slashobserve-server healthcheck`, which re
 
 Datasources never affect `/readyz`.
 An unreachable Prometheus shows up as a datasource health problem, not as a server that is down.
+
+## Behind a connection pooler
+
+A transaction-mode pooler such as PgBouncer breaks the two things that need one Postgres session for a long time: `LISTEN`, which carries live dashboard updates and wakes the agent workers, and the lock that makes concurrent migrations safe.
+Point `SLASHOBSERVE_DATABASE_URL` at the pooler and `SLASHOBSERVE_DATABASE_DIRECT_URL` straight at Postgres.
+Live updates and migrations with their lock use the direct URL, and every other query uses the pooled one.
+
+Each server keeps 2 connections open on the direct URL, and one more while it migrates, so count them in Postgres' `max_connections`.
+The direct URL must reach the same database as the pooled one.
+If it reaches another database, the server stops before it migrates and logs `database_direct_url_mismatch`.
+An unreadable direct URL logs `invalid_database_direct_url`, and one that does not connect logs `database_unavailable` with `connection` set to `direct`.
+
+With PgBouncer 1.21 or newer, set `max_prepared_statements` above `0` so the server's prepared statements work in transaction mode.
+With an older PgBouncer, add `default_query_exec_mode=exec` to `SLASHOBSERVE_DATABASE_URL`.
+
+Without the direct URL behind a transaction pooler, live updates and the migration lock do not work.

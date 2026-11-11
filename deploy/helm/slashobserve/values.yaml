@@ -12,6 +12,7 @@ publicURL: ""
 database:
   existingSecret: ""
   urlKey: url
+  directUrlKey: ""
 
 oidc:
   issuerURL: ""

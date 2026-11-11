@@ -128,6 +128,10 @@ func create(t testing.TB, logger *slog.Logger, options string) *Database {
 	return &Database{DB: d, name: name}
 }
 
+func (d *Database) URL() string {
+	return urlFor(d.name)
+}
+
 func (d *Database) Exec(t testing.TB, sql string, args ...any) {
 	t.Helper()
 	conn, err := pgx.Connect(context.Background(), urlFor(d.name))

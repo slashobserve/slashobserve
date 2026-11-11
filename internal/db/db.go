@@ -29,15 +29,21 @@ const (
 	poolMaxConnsKey = "pool_max_conns"
 )
 
-var ErrMigrationsPending = errors.New("database migrations are pending")
+var (
+	ErrMigrationsPending = errors.New("database migrations are pending")
+	ErrDirectURL         = errors.New("direct database connection failed")
+	ErrDirectURLMismatch = errors.New("the direct database URL reaches another database")
+)
 
 type Config struct {
 	URL           string
+	DirectURL     string
 	MaxConnsFloor int
 }
 
 type DB struct {
 	pool     *pgxpool.Pool
+	direct   *pgxpool.Pool
 	sqlDB    *sql.DB
 	migrator *goose.Provider
 	queries  *dbsqlc.Queries
@@ -59,14 +65,19 @@ func Open(ctx context.Context, dbCfg Config, logger *slog.Logger) (*DB, error) {
 		pool.Close()
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}
-	sqlDB := stdlib.OpenDBFromPool(pool)
-	migrator, err := newMigrator(sqlDB, logger)
+	direct, err := openDirect(ctx, pool, dbCfg.DirectURL)
 	if err != nil {
-		_ = sqlDB.Close()
 		pool.Close()
 		return nil, err
 	}
-	return &DB{pool: pool, sqlDB: sqlDB, migrator: migrator, queries: dbsqlc.New(pool), logger: logger}, nil
+	sqlDB := stdlib.OpenDBFromPool(direct)
+	migrator, err := newMigrator(sqlDB, logger)
+	if err != nil {
+		_ = sqlDB.Close()
+		closePools(pool, direct)
+		return nil, err
+	}
+	return &DB{pool: pool, direct: direct, sqlDB: sqlDB, migrator: migrator, queries: dbsqlc.New(pool), logger: logger}, nil
 }
 
 func poolConfig(databaseURL string, floor int) (*pgxpool.Config, error) {
@@ -160,5 +171,5 @@ func (d *DB) Close() {
 	if err := d.sqlDB.Close(); err != nil {
 		d.logger.Warn("close database handle", logattrs.Failure("close_failed", err)...)
 	}
-	d.pool.Close()
+	closePools(d.pool, d.direct)
 }

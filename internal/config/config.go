@@ -86,10 +86,11 @@ var llmEfforts = map[string][]string{
 var emailDomainPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
 const (
-	envHTTPAddr    = "SLASHOBSERVE_HTTP_ADDR"
-	envDatabaseURL = "SLASHOBSERVE_DATABASE_URL"
-	envLogLevel    = "SLASHOBSERVE_LOG_LEVEL"
-	envLogFormat   = "SLASHOBSERVE_LOG_FORMAT"
+	envHTTPAddr          = "SLASHOBSERVE_HTTP_ADDR"
+	envDatabaseURL       = "SLASHOBSERVE_DATABASE_URL"
+	envDatabaseDirectURL = "SLASHOBSERVE_DATABASE_DIRECT_URL"
+	envLogLevel          = "SLASHOBSERVE_LOG_LEVEL"
+	envLogFormat         = "SLASHOBSERVE_LOG_FORMAT"
 
 	envPublicURL          = "SLASHOBSERVE_PUBLIC_URL"
 	envOIDCIssuerURL      = "SLASHOBSERVE_OIDC_ISSUER_URL"
@@ -137,7 +138,7 @@ const (
 )
 
 var serverEnvNames = []string{
-	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
+	envHTTPAddr, envDatabaseURL, envDatabaseDirectURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
 	envSessionTTL, envActivityRetention, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
@@ -174,10 +175,11 @@ type Agent struct {
 }
 
 type Config struct {
-	HTTPAddr    string
-	DatabaseURL string
-	LogLevel    slog.Level
-	LogFormat   LogFormat
+	HTTPAddr          string
+	DatabaseURL       string
+	DatabaseDirectURL string
+	LogLevel          slog.Level
+	LogFormat         LogFormat
 
 	PublicURL           *url.URL
 	OIDCIssuerURL       string
@@ -221,6 +223,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	cfg.HTTPAddr = httpAddr
 
 	cfg.DatabaseURL = get(lookup, envDatabaseURL)
+	cfg.DatabaseDirectURL = get(lookup, envDatabaseDirectURL)
 	if cfg.DatabaseURL == "" {
 		errs = append(errs, fmt.Errorf("%s is required", envDatabaseURL))
 	}

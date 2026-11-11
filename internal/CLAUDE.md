@@ -145,6 +145,7 @@ This lists only the packages whose purpose the name does not make obvious.
   Restore and duplicate copy the source version's list and run no query.
 - `dashboard_versions.datasource_uids` is a generated column from the SQL function `observespec_datasource_uids(spec)`.
   Whenever the Spec moves datasources, change that function with `CREATE OR REPLACE` in a new migration that then runs `UPDATE dashboard_versions SET spec = spec`.
+- `SLASHOBSERVE_DATABASE_DIRECT_URL` is the session connection: `DB.Listen`, the migrator and its goose session lock use `db.DB.direct`, which is the main pool when the setting is empty; `Open` refuses a direct URL that reaches another database (`ErrDirectURLMismatch`, checked with an advisory lock before migrating). `NOTIFY` stays on the pooled transaction.
 
 ## Events, revisions and comments
 

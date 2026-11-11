@@ -21,7 +21,7 @@ type notificationConn interface {
 }
 
 func (d *DB) Listen(ctx context.Context, channel string, onListening func(), handle func(payload string)) error {
-	pooled, err := d.pool.Acquire(ctx)
+	pooled, err := d.direct.Acquire(ctx)
 	if err != nil {
 		return failOrCancel(ctx, "acquire listen connection", err)
 	}
