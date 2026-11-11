@@ -55,6 +55,30 @@ func TestPlanProvision(t *testing.T) {
 	}
 }
 
+func TestPlanProvisionTreatsTakesRunsAsAnAccountChange(t *testing.T) {
+	hash := opaquetoken.Hash("key")
+	cases := []struct {
+		name    string
+		current bool
+		want    bool
+		plan    accountAction
+	}{
+		{"turned on in the file", false, true, accountUpdate},
+		{"turned off in the file", true, false, accountUpdate},
+		{"on and unchanged", true, true, accountKeep},
+		{"off and unchanged", false, false, accountKeep},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			current := provisionedState{Exists: true, Provisioned: true, Role: RoleEditor, TakesRuns: tc.current, KeyHash: hash}
+			got, err := planProvision(current, provisionTarget{Role: RoleEditor, TakesRuns: tc.want, KeyHash: hash})
+			if err != nil || got.Account != tc.plan {
+				t.Fatalf("got %+v, %v, want account %s", got, err, tc.plan)
+			}
+		})
+	}
+}
+
 type provisionRig struct {
 	t       *testing.T
 	db      *dbtest.Database
@@ -205,6 +229,30 @@ func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 	}
 }
 
+func TestEnsureProvisionedAppliesTakesRunsFromTheFile(t *testing.T) {
+	r := newProvisionRig(t)
+	account, _ := fileAccount(t, "viewer")
+	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+		t.Fatal(err)
+	}
+	if listed := r.accounts(); listed[0].TakesRuns {
+		t.Fatalf("accounts = %+v, want takes_runs false by default", listed)
+	}
+	account.TakesRuns = true
+	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+		t.Fatal(err)
+	}
+	if listed := r.accounts(); !listed[0].TakesRuns {
+		t.Fatalf("accounts = %+v, want takes_runs true after the file turned it on", listed)
+	}
+	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+		t.Fatal(err)
+	}
+	if listed := r.accounts(); !listed[0].TakesRuns {
+		t.Fatalf("accounts = %+v, want takes_runs kept on an unchanged boot", listed)
+	}
+}
+
 func TestEnsureProvisionedNeverAdoptsAnAccountMadeThroughTheAPI(t *testing.T) {
 	r := newProvisionRig(t)
 	if rec := r.request(http.MethodPost, "/api/v1/service-accounts", `{"name":"demo-loadgen","role":"viewer"}`, nil); rec.Code != http.StatusCreated {
@@ -241,6 +289,7 @@ func TestProvisionedAccountsRefuseRoleChangesAndRevocation(t *testing.T) {
 
 	for _, call := range []struct{ method, path, body string }{
 		{http.MethodPatch, "/api/v1/service-accounts/" + id, `{"role":"admin"}`},
+		{http.MethodPatch, "/api/v1/service-accounts/" + id, `{"takes_runs":true}`},
 		{http.MethodDelete, "/api/v1/service-accounts/" + id + "/keys/" + keyID, ""},
 	} {
 		rec := r.request(call.method, call.path, call.body, nil)
@@ -264,5 +313,75 @@ func TestProvisionedAccountsRefuseRoleChangesAndRevocation(t *testing.T) {
 	}
 	if rec := r.request(http.MethodPatch, "/api/v1/service-accounts/"+other.ID, `{"role":"editor"}`, nil); rec.Code != http.StatusOK {
 		t.Fatalf("role change of an API account = %d %s, want 200", rec.Code, rec.Body)
+	}
+}
+
+func TestPatchingAServiceAccountChangesRoleAndTakesRuns(t *testing.T) {
+	r := newProvisionRig(t)
+	if rec := r.request(http.MethodPost, "/api/v1/service-accounts", `{"name":"ci","role":"viewer"}`, nil); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", rec.Code, rec.Body)
+	}
+	id := r.accounts()[0].ID
+	if got := r.accounts()[0]; got.TakesRuns || got.Presence != "offline" || got.LastSeenAt != nil {
+		t.Fatalf("a fresh account = %+v, want takes_runs false, offline and never seen", got)
+	}
+	patch := func(body string) (int, serviceAccountJSON) {
+		rec := r.request(http.MethodPatch, "/api/v1/service-accounts/"+id, body, nil)
+		var out serviceAccountJSON
+		if rec.Code == http.StatusOK {
+			if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return rec.Code, out
+	}
+
+	if code, got := patch(`{"takes_runs":true}`); code != http.StatusOK || !got.TakesRuns || got.Role != RoleViewer {
+		t.Fatalf("takes_runs alone = %d %+v, want 200, takes_runs true and the role kept", code, got)
+	}
+	if code, got := patch(`{"role":"editor"}`); code != http.StatusOK || !got.TakesRuns || got.Role != RoleEditor {
+		t.Fatalf("role alone = %d %+v, want 200, the role changed and takes_runs kept", code, got)
+	}
+	if code, got := patch(`{"role":"admin","takes_runs":false}`); code != http.StatusOK || got.TakesRuns || got.Role != RoleAdmin {
+		t.Fatalf("both = %d %+v, want 200 with both changed", code, got)
+	}
+	for _, body := range []string{`{}`, `{"role":"owner"}`, `{"takes_runs":"yes"}`, `{"unknown":true}`} {
+		if code, _ := patch(body); code != http.StatusBadRequest {
+			t.Errorf("PATCH %s = %d, want 400", body, code)
+		}
+	}
+	if got := r.accounts()[0]; got.TakesRuns || got.Role != RoleAdmin {
+		t.Fatalf("after the refused bodies = %+v, want the last good change kept", got)
+	}
+}
+
+func TestServiceAccountListShowsPresence(t *testing.T) {
+	r := newProvisionRig(t)
+	for _, name := range []string{"quiet", "listener"} {
+		if rec := r.request(http.MethodPost, "/api/v1/service-accounts", `{"name":"`+name+`"}`, nil); rec.Code != http.StatusCreated {
+			t.Fatalf("create = %d %s", rec.Code, rec.Body)
+		}
+	}
+	byName := func() map[string]serviceAccountJSON {
+		out := map[string]serviceAccountJSON{}
+		for _, a := range r.accounts() {
+			out[a.Name] = a
+		}
+		return out
+	}
+	listener := byName()["listener"]
+	r.db.Exec(t, `INSERT INTO agent_workers (id, principal_kind, principal_id, seen_at) VALUES ('service_account:' || $1::text, 'service_account', $1::uuid, now())`, listener.ID)
+
+	got := byName()
+	if got["listener"].Presence != "listening" || got["listener"].LastSeenAt == nil {
+		t.Errorf("listener = %+v, want listening with a last_seen_at", got["listener"])
+	}
+	if got["quiet"].Presence != "offline" || got["quiet"].LastSeenAt != nil {
+		t.Errorf("quiet = %+v, want offline and never seen", got["quiet"])
+	}
+
+	r.db.Exec(t, `UPDATE agent_workers SET seen_at = now() - interval '5 minutes'`)
+	if got := byName()["listener"]; got.Presence != "offline" || got.LastSeenAt == nil {
+		t.Errorf("listener after five quiet minutes = %+v, want offline with its last_seen_at kept", got)
 	}
 }

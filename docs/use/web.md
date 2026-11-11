@@ -129,6 +129,7 @@ The activity card and the Inspect pane show below the panels, and opening Inspec
 
 Open Settings and choose **Connected agents** in its section list to see the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
 **Disconnect** asks first and then ends the connection at once; the client has to be connected again from the agent to work.
+The API behind it also returns each connection's presence (working, listening or offline) and when it last asked for work; this section does not show them yet.
 The section also shows the command that adds this server to Claude Code.
 An Admin sees a second card, **Everyone's connected agents**, with the person each belongs to, and can disconnect any of them.
 [Connect your own agent](mcp.md#connect-your-own-agent) describes how a client is approved.

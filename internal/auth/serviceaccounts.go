@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
+	"github.com/slashobserve/slashobserve/internal/presence"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 	uniqueViolation      = "23505"
 
 	InvalidRoleMessage = "role must be admin, editor, commenter or viewer"
-	provisionedMessage = "this service account comes from the service-accounts file; change its role or key in the file and restart the server"
+	provisionedMessage = "this service account comes from the service-accounts file; change its role, takesRuns or key in the file and restart the server"
 )
 
 var serviceAccountName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -46,6 +47,9 @@ type serviceAccountJSON struct {
 	CreatedAt   string  `json:"created_at"`
 	Role        Role    `json:"role"`
 	Provisioned bool    `json:"provisioned"`
+	TakesRuns   bool    `json:"takes_runs"`
+	Presence    string  `json:"presence"`
+	LastSeenAt  *string `json:"last_seen_at"`
 }
 
 type keyJSON struct {
@@ -119,7 +123,7 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		s.internalError(c, "create service account", err)
 		return
 	}
-	c.JSON(http.StatusCreated, newServiceAccountJSON(account))
+	c.JSON(http.StatusCreated, newServiceAccountJSON(account, dbsqlc.ListServiceAccountPresenceRow{}))
 }
 
 func (s *Service) updateServiceAccount(c *gin.Context) {
@@ -128,32 +132,50 @@ func (s *Service) updateServiceAccount(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Role *string `json:"role"`
+		Role      *string `json:"role"`
+		TakesRuns *bool   `json:"takes_runs"`
 	}
 	if !decodeBody(c, &req) {
 		return
 	}
-	role, ok := parseRoleField(req.Role)
-	if !ok {
-		abortError(c, http.StatusBadRequest, "invalid_request", InvalidRoleMessage)
+	if req.Role == nil && req.TakesRuns == nil {
+		abortError(c, http.StatusBadRequest, "invalid_request", "send role, takes_runs or both")
 		return
+	}
+	var role *Role
+	if req.Role != nil {
+		parsed, ok := ParseRole(*req.Role)
+		if !ok {
+			abortError(c, http.StatusBadRequest, "invalid_request", InvalidRoleMessage)
+			return
+		}
+		role = &parsed
 	}
 	if !s.changeableServiceAccount(c, id) {
 		return
 	}
 	ctx := c.Request.Context()
-	account, err := s.SetServiceAccountRole(ctx, id, role)
+	account, err := s.UpdateServiceAccount(ctx, id, role, req.TakesRuns)
 	if errors.Is(err, pgx.ErrNoRows) {
 		abortError(c, http.StatusNotFound, "not_found", "service account not found")
 		return
 	}
 	if err != nil {
-		s.internalError(c, "set service account role", err)
+		s.internalError(c, "update service account", err)
 		return
 	}
 	caller, _ := FromContext(ctx)
-	s.logger.InfoContext(ctx, "role changed", slog.String("actor_id", caller.ID), slog.String("target_kind", string(KindServiceAccount)), slog.String("target_id", account.ID.String()), slog.String("role", account.Role))
-	c.JSON(http.StatusOK, newServiceAccountJSON(account))
+	target := []any{slog.String("actor_id", caller.ID), slog.String("target_kind", string(KindServiceAccount)), slog.String("target_id", account.ID.String())}
+	if role != nil {
+		s.logger.InfoContext(ctx, "role changed", append(target, slog.String("role", account.Role))...)
+	}
+	s.logger.InfoContext(ctx, "service account changed", append(target, slog.String("role", account.Role), slog.Bool("takes_runs", account.TakesRuns))...)
+	rows, err := s.queries.ListServiceAccountPresence(ctx, []pgtype.UUID{account.ID})
+	if err != nil {
+		s.internalError(c, "read service account presence", err)
+		return
+	}
+	c.JSON(http.StatusOK, newServiceAccountJSON(account, presenceByAccount(rows)[account.ID]))
 }
 
 func (s *Service) listServiceAccounts(c *gin.Context) {
@@ -162,9 +184,19 @@ func (s *Service) listServiceAccounts(c *gin.Context) {
 		s.internalError(c, "list service accounts", err)
 		return
 	}
+	ids := make([]pgtype.UUID, len(accounts))
+	for i, a := range accounts {
+		ids[i] = a.ID
+	}
+	rows, err := s.queries.ListServiceAccountPresence(c.Request.Context(), ids)
+	if err != nil {
+		s.internalError(c, "list service account presence", err)
+		return
+	}
+	seen := presenceByAccount(rows)
 	items := make([]serviceAccountJSON, 0, len(accounts))
 	for _, a := range accounts {
-		items = append(items, newServiceAccountJSON(a))
+		items = append(items, newServiceAccountJSON(a, seen[a.ID]))
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
@@ -352,7 +384,15 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
 }
 
-func newServiceAccountJSON(a dbsqlc.ServiceAccount) serviceAccountJSON {
+func presenceByAccount(rows []dbsqlc.ListServiceAccountPresenceRow) map[pgtype.UUID]dbsqlc.ListServiceAccountPresenceRow {
+	out := make(map[pgtype.UUID]dbsqlc.ListServiceAccountPresenceRow, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r
+	}
+	return out
+}
+
+func newServiceAccountJSON(a dbsqlc.ServiceAccount, seen dbsqlc.ListServiceAccountPresenceRow) serviceAccountJSON {
 	return serviceAccountJSON{
 		ID:          a.ID.String(),
 		Name:        a.Name,
@@ -361,6 +401,9 @@ func newServiceAccountJSON(a dbsqlc.ServiceAccount) serviceAccountJSON {
 		CreatedAt:   formatTime(a.CreatedAt.Time),
 		Role:        Role(a.Role),
 		Provisioned: a.Provisioned,
+		TakesRuns:   a.TakesRuns,
+		Presence:    string(presence.Of(seen.WorkerSeenAt.Time, seen.WorkerSeenAt.Valid, seen.WorkerWorking, seen.CheckedAt.Time)),
+		LastSeenAt:  optionalTime(seen.WorkerSeenAt),
 	}
 }
 

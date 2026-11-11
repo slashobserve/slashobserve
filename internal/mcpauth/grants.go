@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
+	"github.com/slashobserve/slashobserve/internal/presence"
 )
 
 const (
@@ -42,6 +43,9 @@ type grantJSON struct {
 	LastUsedAt *string         `json:"last_used_at"`
 	ExpiresAt  string          `json:"expires_at"`
 	State      string          `json:"state"`
+	Mode       string          `json:"mode"`
+	Presence   string          `json:"presence"`
+	LastSeenAt *string         `json:"last_seen_at"`
 }
 
 const GrantStateActive = "active"
@@ -81,6 +85,12 @@ func newGrantJSON(row dbsqlc.ListOAuthGrantsRow) grantJSON {
 		CreatedAt: httpapi.FormatTime(row.CreatedAt.Time),
 		ExpiresAt: httpapi.FormatTime(row.ExpiresAt.Time),
 		State:     GrantStateActive,
+		Mode:      row.Mode,
+		Presence:  string(presence.Of(row.WorkerSeenAt.Time, row.WorkerSeenAt.Valid, row.WorkerWorking, row.CheckedAt.Time)),
+	}
+	if row.WorkerSeenAt.Valid {
+		seen := httpapi.FormatTime(row.WorkerSeenAt.Time)
+		out.LastSeenAt = &seen
 	}
 	if row.LastUsedAt.Valid {
 		used := httpapi.FormatTime(row.LastUsedAt.Time)

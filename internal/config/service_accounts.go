@@ -29,6 +29,7 @@ type ServiceAccount struct {
 	Name        string
 	Role        string
 	Description string
+	TakesRuns   bool
 	Key         datasource.Secret
 }
 
@@ -40,6 +41,7 @@ type fileServiceAccount struct {
 	Name        string `yaml:"name"`
 	Role        string `yaml:"role"`
 	Description string `yaml:"description"`
+	TakesRuns   bool   `yaml:"takesRuns"`
 	KeyFile     string `yaml:"keyFile"`
 }
 
@@ -93,7 +95,7 @@ func convertServiceAccount(path string, raw fileServiceAccount) (ServiceAccount,
 	fail := func(field, format string, args ...any) {
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
-	account := ServiceAccount{Name: raw.Name, Role: raw.Role, Description: raw.Description}
+	account := ServiceAccount{Name: raw.Name, Role: raw.Role, Description: raw.Description, TakesRuns: raw.TakesRuns}
 	if !serviceAccountNamePattern.MatchString(raw.Name) {
 		fail("name", "must match %s", serviceAccountNamePattern)
 	}

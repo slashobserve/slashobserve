@@ -53,6 +53,21 @@ func TestServiceAccountsFileReadsEveryAccount(t *testing.T) {
 	}
 }
 
+func TestServiceAccountsFileReadsTakesRunsAndDefaultsToFalse(t *testing.T) {
+	botKey, plainKey := newServiceAccountKey(t), newServiceAccountKey(t)
+	path := accountsFile(t,
+		accountEntry("bot", "viewer", "", writeFile(t, "bot.key", botKey))+"    takesRuns: true\n",
+		accountEntry("plain", "viewer", "", writeFile(t, "plain.key", plainKey)),
+	)
+	accounts, err := loadServiceAccounts(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accounts) != 2 || !accounts[0].TakesRuns || accounts[1].TakesRuns {
+		t.Fatalf("takes runs = %+v, want true for bot and false for plain", accounts)
+	}
+}
+
 func TestServiceAccountsFileAcceptsAnEmptyList(t *testing.T) {
 	accounts, err := loadServiceAccounts(writeFile(t, "service-accounts.yaml", "serviceAccounts: []\n"))
 	if err != nil || len(accounts) != 0 {

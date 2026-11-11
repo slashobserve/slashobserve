@@ -390,7 +390,7 @@ components:
     ServiceAccount:
       type: object
       additionalProperties: false
-      required: [id, name, description, created_by, created_at, role, provisioned]
+      required: [id, name, description, created_by, created_at, role, provisioned, takes_runs, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -410,7 +410,19 @@ components:
           $ref: "#/components/schemas/Role"
         provisioned:
           type: boolean
-          description: The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there.
+          description: The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description, `takes_runs` and file key change only there.
+        takes_runs:
+          type: boolean
+          description: It may claim runs assigned to it with claim_run. Admins turn it on; an account from the service-accounts file takes it from `takesRuns`.
+        presence:
+          type: string
+          enum: [working, listening, offline]
+          description: working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it last asked for work or reported on a run; null when it never did.
     ServiceAccountList:
       type: object
       additionalProperties: false
@@ -438,10 +450,12 @@ components:
     UpdateServiceAccountRequest:
       type: object
       additionalProperties: false
-      required: [role]
+      minProperties: 1
       properties:
         role:
           $ref: "#/components/schemas/Role"
+        takes_runs:
+          type: boolean
     ServiceAccountKey:
       type: object
       additionalProperties: false
@@ -588,7 +602,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -638,6 +652,19 @@ components:
           type: string
           enum: [revoked, active]
           description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+        mode:
+          type: string
+          enum: [direct, propose]
+          description: How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+        presence:
+          type: string
+          enum: [working, listening, offline]
+          description: working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it last asked for work or reported on a run; null when it never did.
     ConnectedAgentList:
       type: object
       additionalProperties: false

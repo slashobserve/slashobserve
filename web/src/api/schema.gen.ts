@@ -136,8 +136,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the role a service account's keys act with.
-         * @description Service accounts cannot call this endpoint. An account from the service-accounts file answers 409 `provisioned`, because its role comes from the file.
+         * Change a service account's role or whether it takes runs.
+         * @description Service accounts cannot call this endpoint. Send `role`, `takes_runs` or both. An account from the service-accounts file answers 409 `provisioned` for either field, because both come from the file.
          */
         patch: operations["updateServiceAccountRole"];
         trace?: never;
@@ -2846,8 +2846,20 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             role: components["schemas"]["Role"];
-            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there. */
+            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description, `takes_runs` and file key change only there. */
             provisioned: boolean;
+            /** @description It may claim runs assigned to it with claim_run. Admins turn it on; an account from the service-accounts file takes it from `takesRuns`. */
+            takes_runs: boolean;
+            /**
+             * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            presence: "working" | "listening" | "offline";
+            /**
+             * Format: date-time
+             * @description When it last asked for work or reported on a run; null when it never did.
+             */
+            last_seen_at: string | null;
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -2859,7 +2871,8 @@ export interface components {
             role?: components["schemas"]["Role"];
         };
         UpdateServiceAccountRequest: {
-            role: components["schemas"]["Role"];
+            role?: components["schemas"]["Role"];
+            takes_runs?: boolean;
         };
         ServiceAccountKey: {
             /** Format: uuid */
@@ -2961,6 +2974,21 @@ export interface components {
              * @enum {string}
              */
             state: "revoked" | "active";
+            /**
+             * @description How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+             * @enum {string}
+             */
+            mode: "direct" | "propose";
+            /**
+             * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+             * @enum {string}
+             */
+            presence: "working" | "listening" | "offline";
+            /**
+             * Format: date-time
+             * @description When it last asked for work or reported on a run; null when it never did.
+             */
+            last_seen_at: string | null;
         };
         ConnectedAgentList: {
             grants: components["schemas"]["ConnectedAgent"][];
@@ -5504,7 +5532,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The service account with its new role. */
+            /** @description The service account with its new role and `takes_runs`. */
             200: {
                 headers: {
                     [name: string]: unknown;
