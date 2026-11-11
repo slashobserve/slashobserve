@@ -132,6 +132,9 @@ func (s *Service) openSession(ctx context.Context, row dbsqlc.AgentRequest) (Run
 	if err != nil {
 		return RunSession{}, err
 	}
+	if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
+		return RunSession{}, err
+	}
 	expires := time.Now().Add(s.runTime())
 	err = s.db.Queries().InsertRunToken(ctx, dbsqlc.InsertRunTokenParams{
 		TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts,
