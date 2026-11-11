@@ -32,18 +32,18 @@ const (
 )
 
 var (
-	ErrNoSave          = errors.New("the model finished without saving a dashboard")
-	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d rejected saves in a row", guard.MaxRejectionsInRow)
-	ErrRefused         = errors.New("the model declined the request")
-	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
+	ErrNoSave          = errors.New(revisions.FailureMessage(revisions.FailureNoToolCall, revisions.SourceObserve))
+	ErrRepairExhausted = errors.New(revisions.FailureMessage(revisions.FailureValidationExhausted, revisions.SourceObserve))
+	ErrRefused         = errors.New(revisions.FailureMessage(revisions.FailureRefused, revisions.SourceObserve))
+	ErrConflict        = errors.New(revisions.FailureMessage(revisions.FailureConflict, revisions.SourceObserve))
 	ErrInvalidTask     = brief.ErrInvalidTask
-	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
-	ErrNoFinding       = errors.New("the model finished without saving a finding")
+	ErrNoSuggestion    = errors.New(revisions.FailureMessage(revisions.FailureNoToolCall, revisions.SourceSuggest))
+	ErrNoFinding       = errors.New(revisions.FailureMessage(revisions.FailureNoFinding, revisions.SourceInvestigate))
 	ErrDraftInvalid    = brief.ErrDraftInvalid
 	errModelCall       = errors.New("model call failed")
 
 	ErrSuggestRepairExhausted error = &variantError{
-		message: fmt.Sprintf("the proposed panel still failed validation after %d rejected saves in a row", guard.MaxRejectionsInRow),
+		message: revisions.FailureMessage(revisions.FailureValidationExhausted, revisions.SourceSuggest),
 		base:    ErrRepairExhausted,
 	}
 )
@@ -762,7 +762,7 @@ func providerError(ctx context.Context, err error) error {
 
 type outputLimitError struct{ base error }
 
-func (e *outputLimitError) Error() string { return e.base.Error() + " after reaching max tokens" }
+func (e *outputLimitError) Error() string { return e.base.Error() + revisions.OutputLimitSuffix }
 func (e *outputLimitError) Unwrap() error { return e.base }
 
 func repairExhausted(mode tools.Mode, codes []string) error {
@@ -773,7 +773,7 @@ func repairExhausted(mode tools.Mode, codes []string) error {
 	if len(codes) == 0 {
 		return exhausted
 	}
-	return fmt.Errorf("%w (last issues: %s)", exhausted, strings.Join(codes, ", "))
+	return fmt.Errorf("%w%s", exhausted, revisions.IssuesSuffix(codes))
 }
 
 func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string, out Outcome, took time.Duration, err error) {

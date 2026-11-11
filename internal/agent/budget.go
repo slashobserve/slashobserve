@@ -1,6 +1,10 @@
 package agent
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/slashobserve/slashobserve/internal/revisions"
+)
 
 const (
 	maxCutOffsInRow          = 2
@@ -15,8 +19,8 @@ const (
 )
 
 var (
-	ErrNoProgress      = errors.New("the agent stopped making progress")
-	ErrBudgetExhausted = errors.New("the run reached the server's cost limit")
+	ErrNoProgress      = errors.New(revisions.FailureMessage(revisions.FailureNoProgress, revisions.SourceObserve))
+	ErrBudgetExhausted = errors.New(revisions.FailureMessage(revisions.FailureBudgetExhausted, revisions.SourceObserve))
 )
 
 func (r *runner) overBudget() bool {
