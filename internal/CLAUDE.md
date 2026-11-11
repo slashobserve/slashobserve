@@ -74,6 +74,7 @@ This lists only the packages whose purpose the name does not make obvious.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
+- `observe skill install` writes the skill embedded in the CLI binary and never one fetched from a server, because a skill instructs the person's own agents and the CLI talks to any `--server` it is given.
 - A tool's `MinRole` is the lowest role the web app needs for the same work: Viewer for every tool except `create_finding` and `save_finding`, which need Editor like Investigate (`revisions.runAllowed`).
   The services' folder checks decide the rest.
   `MinRole` is checked when the tool is called, not when tools are listed, and not inside agent runs.
