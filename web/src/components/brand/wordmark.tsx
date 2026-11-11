@@ -13,7 +13,7 @@ export function Wordmark({ size = 14, className }: Props) {
       )}
       style={{ fontSize: px }}
     >
-      <span className="mr-[0.06em]">/</span>observe
+      <span className="mr-[0.06em] text-primary">/</span>observe
     </span>
   )
 }

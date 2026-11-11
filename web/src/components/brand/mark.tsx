@@ -20,7 +20,7 @@ export function Mark({ size = 22, className }: Props) {
         strokeWidth={2.6}
         strokeLinecap="round"
         fill="none"
-        className="stroke-background"
+        className="stroke-primary"
       />
     </svg>
   )
