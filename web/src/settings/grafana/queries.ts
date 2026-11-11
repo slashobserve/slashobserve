@@ -125,6 +125,25 @@ export function useStartImport() {
   })
 }
 
+export function useCancelImport(connectionId: string, syncId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: () =>
+      api
+        .POST("/grafana/{id}/imports/{sync_id}/cancel", {
+          params: { path: { id: connectionId, sync_id: syncId } },
+        })
+        .then(unwrap),
+    onSuccess: (sync) =>
+      queryClient.setQueryData(grafanaKeys.sync(connectionId, syncId), sync),
+    onError: () =>
+      void queryClient.invalidateQueries({
+        queryKey: grafanaKeys.sync(connectionId, syncId),
+      }),
+  })
+}
+
 export function useImportSync(connectionId: string, syncId: string) {
   const queryClient = useQueryClient()
   const query = useQuery({
