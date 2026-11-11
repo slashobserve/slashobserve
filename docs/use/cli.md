@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `findings`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `activity`, `findings`, `saved-searches`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -169,6 +169,25 @@ It exits 1 when the investigation fails or ends without a finding.
 `bin/observe findings move <finding-id> --folder <folder-id>` moves a finding without a dashboard into another folder and prints `Moved <title> to <folder title>`.
 It needs Edit on the finding and on the folder, and a finding on a dashboard or a move into My Dashboards is refused with a 409.
 `--json` prints the response of `GET /api/v1/findings` or `POST /api/v1/findings/{id}/move` unchanged.
+
+## Saved searches
+
+`bin/observe saved-searches list` prints the logs and trace searches you can view, most recently changed first, with their id, kind, title, folder, datasource and last change.
+`--kind logs|traces` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
+
+`bin/observe saved-searches save --kind logs|traces --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
+`--from` and `--to` default to `now-1h` and `now` and are kept as written.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
+A flag of the other kind is refused with exit code 2 before any request is sent.
+
+`bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
+`bin/observe saved-searches move <id> --folder <folder-id>` files the search in another folder and shares it with that folder's readers; My Dashboards takes no moves, so save the search there instead.
+`bin/observe saved-searches delete <id>` removes it.
+Rename, move and delete need Edit on the saved search, and a move also needs Edit on the folder.
+Their text output names what was done, and `-q` hides it.
+
+`--json` prints the response of the matching `/api/v1/saved-searches` route unchanged, and nothing for `delete`.
+The kind, datasource, query and range of a saved search never change: save a new one instead.
 
 ## Comments
 
