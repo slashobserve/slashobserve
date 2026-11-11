@@ -37,6 +37,24 @@ If an Admin removes the domain later, the attempts fail with `domain_not_allowed
 
 The receiver must answer within 10 seconds, and a request body is never larger than 64 KiB.
 
+## Set up a webhook in Settings
+
+Admins see a Webhooks section in Settings; nobody else does.
+
+1. Open Settings, then Webhooks.
+2. Under Add a webhook, enter a name, the https address and the events to send.
+   The events are grouped as Dashboards, Annotations, Findings, Comment threads and Agent runs, and a group's box chooses all of its events.
+3. Select Add webhook.
+   If the address's domain is not on the outbound allowlist, the form says so and links to the Outbound access section, where an Admin can allow it.
+4. Copy the signing secret that appears, then select I have copied it.
+   The page keeps the secret only until then, and the server cannot show it again.
+
+Each webhook in the table shows its owner, address, events and status: `Sending`, `Retrying` after failed attempts, or `Disabled` with the reason.
+Test sends a `webhook.test` event and reports the outcome, status and duration.
+Attempts lists the recent attempts of that webhook.
+The menu next to them edits the webhook, enables or disables it, rotates its secret and deletes it, and rotating and deleting ask for confirmation first.
+Saving an edit or rotating the secret makes you the webhook's owner.
+
 ## Manage webhooks over HTTP
 
 All of these need the Admin role.

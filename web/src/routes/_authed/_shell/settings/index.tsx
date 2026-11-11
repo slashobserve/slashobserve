@@ -34,6 +34,7 @@ import {
   SettingsRow,
 } from "@/settings/settings-card"
 import { SettingsNav } from "@/settings/settings-nav"
+import { WebhooksSettings } from "@/settings/webhooks/webhooks-settings"
 
 type SettingsSearch = { connection?: string; sync?: string }
 
@@ -87,6 +88,8 @@ function SelectedSection({ id }: { id: SettingsSectionId }) {
       return <OutboundAccessCard />
     case "grafana":
       return <GrafanaSection />
+    case "webhooks":
+      return <WebhooksSection />
     case "appearance":
       return <AppearanceCard />
   }
@@ -119,6 +122,24 @@ function GrafanaSection() {
           })
         }
       />
+    </section>
+  )
+}
+
+function WebhooksSection() {
+  const headingId = useId()
+  return (
+    <section aria-labelledby={headingId}>
+      <div className="mb-3">
+        <h2 id={headingId} className="text-sm font-semibold">
+          Webhooks
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Send workspace activity to an address of your choice as signed
+          requests.
+        </p>
+      </div>
+      <WebhooksSettings />
     </section>
   )
 }
