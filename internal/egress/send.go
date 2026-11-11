@@ -3,10 +3,14 @@ package egress
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 )
 
 const maxSendBytes = 64 << 10
@@ -21,7 +25,8 @@ type SendRequest struct {
 }
 
 type SendResult struct {
-	Status int
+	Status     int
+	RetryAfter time.Duration
 }
 
 func (c *Client) Send(ctx context.Context, req SendRequest) (SendResult, error) {
@@ -81,5 +86,24 @@ func (c *Client) Send(ctx context.Context, req SendRequest) (SendResult, error) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxSendBytes))
-	return SendResult{Status: resp.StatusCode}, nil
+	return SendResult{Status: resp.StatusCode, RetryAfter: retryAfter(resp.Header, time.Now())}, nil
+}
+
+func retryAfter(header http.Header, now time.Time) time.Duration {
+	value := header.Get("Retry-After")
+	if value == "" {
+		return 0
+	}
+	seconds, err := strconv.ParseUint(value, 10, 64)
+	switch {
+	case err == nil:
+		return time.Duration(min(seconds, math.MaxInt32)) * time.Second
+	case errors.Is(err, strconv.ErrRange):
+		return math.MaxInt32 * time.Second
+	}
+	at, err := http.ParseTime(value)
+	if err != nil {
+		return 0
+	}
+	return max(at.Sub(now), 0)
 }

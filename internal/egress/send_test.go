@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -60,6 +61,10 @@ func newSendMux(rec *recorder) *http.ServeMux {
 			}
 			w.(http.Flusher).Flush()
 		}
+	})
+	mux.HandleFunc("/limited", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", r.URL.Query().Get("after"))
+		http.Error(w, "slow down", http.StatusTooManyRequests)
 	})
 	mux.HandleFunc("/abort", func(http.ResponseWriter, *http.Request) { panic(http.ErrAbortHandler) })
 	return mux
@@ -194,5 +199,44 @@ func TestSendReportsAConnectionThatDropsAsUnavailable(t *testing.T) {
 	var hostErr *HostError
 	if !errors.Is(err, ErrUnavailable) || !errors.As(err, &hostErr) || hostErr.Host != "feed.test" {
 		t.Fatalf("error = %#v, want ErrUnavailable for feed.test", err)
+	}
+}
+
+func TestSendReportsTheReceiversRetryAfter(t *testing.T) {
+	_, c := newUpstream(t, newAllow(t, "feed.test"), newSendMux(&recorder{}))
+	got, err := c.Send(sendCtx(t), SendRequest{Method: http.MethodPost, URL: "https://feed.test/limited?after=30"})
+	if err != nil || got.Status != http.StatusTooManyRequests || got.RetryAfter != 30*time.Second {
+		t.Fatalf("got %+v, %v; want status 429 and a 30 s Retry-After", got, err)
+	}
+	got, err = c.Send(sendCtx(t), SendRequest{Method: http.MethodPost, URL: "https://feed.test/run"})
+	if err != nil || got.RetryAfter != 0 {
+		t.Fatalf("got %+v, %v; want no Retry-After", got, err)
+	}
+}
+
+func TestRetryAfterReadsSecondsAndHTTPDates(t *testing.T) {
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name, value string
+		want        time.Duration
+	}{
+		{"absent", "", 0},
+		{"seconds", "120", 120 * time.Second},
+		{"zero", "0", 0},
+		{"date in the future", now.Add(90 * time.Second).Format(http.TimeFormat), 90 * time.Second},
+		{"date in the past", now.Add(-time.Minute).Format(http.TimeFormat), 0},
+		{"negative", "-5", 0},
+		{"fraction", "1.5", 0},
+		{"garbage", "soon", 0},
+		{"huge", "99999999999999999999999", math.MaxInt32 * time.Second},
+	}
+	for _, tc := range cases {
+		header := http.Header{}
+		if tc.value != "" {
+			header.Set("Retry-After", tc.value)
+		}
+		if got := retryAfter(header, now); got != tc.want {
+			t.Errorf("%s: retryAfter(%q) = %v, want %v", tc.name, tc.value, got, tc.want)
+		}
 	}
 }
