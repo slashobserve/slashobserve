@@ -318,11 +318,11 @@ func run() error {
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
@@ -463,6 +463,7 @@ func run() error {
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
 			observations.NewHandler(observationsService, logger),
+			observations.NewRCAHandler(observationsService, logger),
 			savedsearches.NewHandler(savedSearchesService, logger),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),

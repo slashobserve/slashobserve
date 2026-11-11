@@ -78,6 +78,10 @@ func Public(base *url.URL, token string) string {
 	return join(base, "p", token)
 }
 
+func RCA(base *url.URL, token string) string {
+	return join(base, "rca", token)
+}
+
 func withQuery(address string, query url.Values) string {
 	if len(query) == 0 {
 		return address
