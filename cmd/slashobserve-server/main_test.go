@@ -16,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
@@ -154,6 +156,46 @@ func TestReportedEffortIsOnlyAnAnthropicSetting(t *testing.T) {
 		t.Run(tt.provider+"/"+tt.effort, func(t *testing.T) {
 			if got := reportedEffort(config.LLM{Provider: tt.provider, Effort: tt.effort}); got != tt.want {
 				t.Fatalf("reportedEffort = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+type namedModel struct {
+	llm.Provider
+	model string
+}
+
+func (m namedModel) Model() string { return m.model }
+
+func TestCostLimitNeedsAModelWithAFullPrice(t *testing.T) {
+	prices, err := pricing.Parse([]byte("models:\n  full: { input: 1, output: 2, cache_read: 0, cache_write: 0 }\n  dated: { input: 1, output: 2, cache_read: 0, cache_write: 0, match: [dated-] }\n  partial: { input: 1, output: 2 }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name     string
+		limit    float64
+		provider llm.Provider
+		wantErr  bool
+	}{
+		{"no limit and an unpriced model", 0, namedModel{model: "unknown"}, false},
+		{"a limit and the agent off", 1, nil, false},
+		{"a limit and a fully priced model", 1, namedModel{model: "full"}, false},
+		{"a limit and a model priced by prefix", 1, namedModel{model: "dated-2026"}, false},
+		{"a limit and a dated id of a model with no prefix", 1, namedModel{model: "full-2026"}, true},
+		{"a limit and an unpriced model", 1, namedModel{model: "unknown"}, true},
+		{"a limit and a model missing cache rates", 1, namedModel{model: "partial"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Config{LLM: config.LLM{Prices: prices}, Agent: config.Agent{MaxRunCostUSD: tt.limit}}
+			err := requirePricedModel(cfg, tt.provider)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("requirePricedModel = %v, want error %v", err, tt.wantErr)
+			}
+			if err != nil && !strings.Contains(err.Error(), "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD") {
+				t.Errorf("error %q does not name the setting", err)
 			}
 		})
 	}
