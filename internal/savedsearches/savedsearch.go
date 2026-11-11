@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 type Kind string
@@ -83,6 +84,13 @@ type UpdateInput struct {
 type ListFilter struct {
 	Kind     Kind
 	FolderID pgtype.UUID
+}
+
+func URL(base *url.URL, s SavedSearch) string {
+	if s.Kind == KindLogs {
+		return links.Logs(base, s.address())
+	}
+	return links.Traces(base, s.address())
 }
 
 func (s SavedSearch) address() url.Values {

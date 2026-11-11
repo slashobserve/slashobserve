@@ -1,0 +1,57 @@
+search:
+  get:
+    operationId: searchWorkspace
+    summary: Search dashboards, findings, annotations, comments and saved searches by words.
+    description: >-
+      Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals.
+      A caller finds only what it can open: a dashboard and its annotations, findings and comments through the dashboard's folder, a finding filed in a folder and a saved search through that folder, a global annotation and its comments through General, and a finding in no folder only for the person or key that saved it and for Admins.
+      Only the latest version of a dashboard is searched.
+      `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space.
+      Results stop after 200 per query; refine the words to see more.
+    parameters:
+      - name: q
+        in: query
+        required: true
+        description: One to 200 characters with at least one letter or digit outside a `-` term and no control characters.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - name: kind
+        in: query
+        description: Only results of these kinds; repeat the parameter for several.
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            enum: [dashboard, finding, annotation, comment, saved_search]
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+    responses:
+      "200":
+        description: One page of results, best first.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SearchResultList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

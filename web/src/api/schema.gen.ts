@@ -385,6 +385,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search dashboards, findings, annotations, comments and saved searches by words.
+         * @description Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals. A caller finds only what it can open: a dashboard and its annotations, findings and comments through the dashboard's folder, a finding filed in a folder and a saved search through that folder, a global annotation and its comments through General, and a finding in no folder only for the person or key that saved it and for Admins. Only the latest version of a dashboard is searched. `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space. Results stop after 200 per query; refine the words to see more.
+         */
+        get: operations["searchWorkspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/annotations": {
         parameters: {
             query?: never;
@@ -3154,6 +3174,56 @@ export interface components {
             activity: components["schemas"]["ActivityEvent"][];
             next_cursor: string | null;
         };
+        SearchSnippetSegment: {
+            text: string;
+            /** @description True when the text is one of the matched words; render it as plain text, never as HTML. */
+            match: boolean;
+        };
+        /** @description The folder the result is read through; null for a finding in no folder. */
+        SearchResultFolder: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+        } | null;
+        /** @description What a comment is on; null for every other kind. */
+        SearchTarget: {
+            /** @enum {string} */
+            kind: "dashboard" | "finding" | "annotation";
+            /** Format: uuid */
+            id: string;
+            title: string;
+        } | null;
+        SearchResult: {
+            /** @enum {string} */
+            kind: "dashboard" | "finding" | "annotation" | "comment" | "saved_search";
+            /**
+             * Format: uuid
+             * @description The id of the object, or of the message for a comment.
+             */
+            id: string;
+            /** @description The object's title; for a comment, the title of what it is on; for an annotation, the first line of its text. */
+            title: string;
+            /** @description Up to two fragments of the object's text around the matched words, at most 300 characters in all; empty when the object has no text. */
+            snippet: components["schemas"]["SearchSnippetSegment"][];
+            /** @description The page that shows the object; a comment points at what it is on. Null for an annotation that is on no dashboard. */
+            url: string | null;
+            folder: components["schemas"]["SearchResultFolder"];
+            target: components["schemas"]["SearchTarget"];
+            /**
+             * Format: uuid
+             * @description The thread of a comment; null for every other kind.
+             */
+            thread_id: string | null;
+            /**
+             * Format: date-time
+             * @description When the object last changed; for a comment, when it was written or last edited.
+             */
+            updated_at: string;
+        };
+        SearchResultList: {
+            results: components["schemas"]["SearchResult"][];
+            next_cursor: string | null;
+        };
         /** @description Who made version 1 of the dashboard. It never changes. */
         Creator: {
             author: components["schemas"]["Author"];
@@ -5861,6 +5931,38 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    searchWorkspace: {
+        parameters: {
+            query: {
+                /** @description One to 200 characters with at least one letter or digit outside a `-` term and no control characters. */
+                q: string;
+                /** @description Only results of these kinds; repeat the parameter for several. */
+                kind?: ("dashboard" | "finding" | "annotation" | "comment" | "saved_search")[];
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of results, best first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
         };
     };
     listAnnotations: {

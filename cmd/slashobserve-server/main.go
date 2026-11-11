@@ -60,6 +60,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/sealed"
+	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/stars"
@@ -299,6 +300,7 @@ func run() error {
 	annotationsService := annotations.New(database, folderAccess)
 	annotationsHandler := annotations.NewHandler(annotationsService, logger)
 	activityStore := activity.NewStore(database, folderAccess)
+	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
@@ -417,6 +419,7 @@ func run() error {
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
+			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
 			threads.NewThreads(threadsService),
