@@ -55,6 +55,22 @@ export function findingLink(findingId: string) {
   return { to: "/findings/$findingId", params: { findingId } } as const
 }
 
+export function observationPath(observationId: string): string {
+  return path("o", observationId)
+}
+
+// The /o/$observationId route is not registered yet, so the router's typed `to` rejects it; the observation page plan removes the casts.
+export function observationLink(observationId: string) {
+  return {
+    to: "/o/$observationId" as never,
+    params: { observationId } as never,
+  }
+}
+
+export function observationsLink(search?: { new?: "1" }) {
+  return { to: "/observations", search: search ?? {} } as const
+}
+
 export type LogsLinkSearch = {
   ds?: string
   q?: string
