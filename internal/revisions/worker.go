@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -159,54 +158,26 @@ func (w *Worker) loop(ctx context.Context, wake <-chan struct{}) {
 }
 
 func (w *Worker) step(ctx context.Context) (bool, error) {
-	result, found, err := w.service.claim(ctx, w.claimant)
+	claim, found, err := w.service.Claim(ctx, w.claimant)
 	if err != nil || !found {
 		return false, err
 	}
-	claimed := result.request
-	if result.firstClaim && claimed.StartedAt.Valid && claimed.CreatedAt.Valid {
-		w.opts.Metrics.RequestClaimed(claimed.Source, claimed.StartedAt.Time.Sub(claimed.CreatedAt.Time))
+	row := claim.Row
+	if claim.FirstClaim && row.StartedAt.Valid && row.CreatedAt.Valid {
+		w.opts.Metrics.RequestClaimed(row.Source, row.StartedAt.Time.Sub(row.CreatedAt.Time))
 	}
-	return w.process(ctx, claimed), nil
+	return w.process(ctx, claim), nil
 }
 
-func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool {
-	source := Source(claimed.Source)
-	if source != SourceSuggest {
-		if settled, progressed := w.settleSaved(ctx, claimed, nil); settled {
-			return progressed
-		}
-	}
-
-	req := requestFrom(claimed)
-	requester, err := w.service.principals.Principal(ctx, auth.PrincipalKind(claimed.RequestedByKind), claimed.RequestedByID.String())
-	switch {
-	case errors.Is(err, auth.ErrPrincipalGone):
-		w.finish(ctx, claimed, outcome{message: requesterGoneMessage, code: "agent_requester_gone", failure: FailureRequesterGone})
-		return true
-	case err != nil:
-		w.logger.ErrorContext(ctx, "load agent request requester", logattrs.Failure("agent_requester_load_failed", err, logAttrs(claimed)...)...)
-		w.release(ctx, claimed, true)
-		return false
-	}
-	req.RequestedBy = requester
-	switch err := w.service.checkRun(ctx, Source(claimed.Source), claimed.DashboardID, requester); {
-	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
-		w.finish(ctx, claimed, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
-		return true
-	case err != nil:
-		w.logger.ErrorContext(ctx, "check agent request requester access", logattrs.Failure("agent_requester_access_failed", err, logAttrs(claimed)...)...)
-		w.release(ctx, claimed, true)
-		return false
-	}
-
-	result, run, err := w.runLeased(ctx, claimed, req)
+func (w *Worker) process(ctx context.Context, claim Claimed) bool {
+	claimed := claim.Row
+	result, run, err := w.runLeased(ctx, claimed, claim.Request)
 	if run.lost || errors.Is(err, ErrLeaseLost) {
 		w.logger.WarnContext(ctx, "agent request lease lost; dropping this attempt's work", logattrs.Failure("agent_request_lease_lost", ErrLeaseLost, append(logAttrs(claimed), slog.Int("attempt", int(claimed.Attempts)))...)...)
 		return false
 	}
 	if err == nil {
-		w.finish(ctx, claimed, successOutcome(source, result))
+		w.service.finishLogged(ctx, claimed, successOutcome(Source(claimed.Source), result))
 		return true
 	}
 	return w.settleFailure(ctx, claimed, run, result, err)
@@ -214,24 +185,24 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 
 func (w *Worker) settleFailure(ctx context.Context, claimed dbsqlc.AgentRequest, run runEnd, result Result, err error) bool {
 	if claimed.Source != string(SourceSuggest) {
-		if settled, progressed := w.settleSaved(ctx, claimed, result.Usage); settled {
+		if settled, progressed := w.service.settleSaved(ctx, claimed, result.Usage); settled {
 			return progressed
 		}
 	}
 	crashed := errors.Is(err, errCrashed)
 	switch settlementFor(run, ctx.Err() != nil, crashed) {
 	case settleCanceled:
-		w.finish(ctx, claimed, canceledOutcome(err, result.Usage))
+		w.service.finishLogged(ctx, claimed, canceledOutcome(err, result.Usage))
 	case settleRelease:
 		w.logger.InfoContext(ctx, "agent request interrupted; releasing it", slog.String("agent_request_id", claimed.ID.String()))
-		w.release(ctx, claimed, false)
+		w.service.releaseLogged(ctx, claimed, false)
 		return false
 	case settleTimedOut:
 		code, failure := "agent_run_timed_out", FailureRunTimeout
 		if crashed {
 			code, failure = "agent_run_panicked", FailureCrashed
 		}
-		w.finish(ctx, claimed, outcome{message: timedOutMessage, code: code, failure: failure, cause: err, usage: result.Usage})
+		w.service.finishLogged(ctx, claimed, outcome{message: timedOutMessage, code: code, failure: failure, cause: err, usage: result.Usage})
 	default:
 		code, failure := "agent_run_failed", result.FailureCode
 		if crashed {
@@ -240,7 +211,7 @@ func (w *Worker) settleFailure(ctx context.Context, claimed dbsqlc.AgentRequest,
 		if failure == "" {
 			failure = FailureInternal
 		}
-		w.finish(ctx, claimed, outcome{message: err.Error(), code: code, failure: failure, cause: err, usage: result.Usage})
+		w.service.finishLogged(ctx, claimed, outcome{message: err.Error(), code: code, failure: failure, cause: err, usage: result.Usage})
 	}
 	return true
 }
@@ -308,7 +279,7 @@ func (w *Worker) holdLease(ctx context.Context, claimed dbsqlc.AgentRequest, can
 			case <-ticker.C:
 			}
 			renewCtx, cancelRenew := context.WithTimeout(beatCtx, w.service.leaseTTL)
-			cancelRequested, err := w.service.renewLease(renewCtx, claimed)
+			cancelRequested, err := w.service.RenewLease(renewCtx, claimed)
 			cancelRenew()
 			switch {
 			case err == nil:
@@ -353,38 +324,6 @@ func suggestionOutcome(result Result) outcome {
 	return outcome{suggestion: proposed, usage: result.Usage}
 }
 
-func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, usage *Usage) (settled, progressed bool) {
-	checkCtx, cancel := finishContext(ctx)
-	defer cancel()
-	if claimed.Source == string(SourceInvestigate) {
-		found, err := w.service.hasFinding(checkCtx, claimed)
-		return w.settleChecked(ctx, claimed, err, found, outcome{finding: true, usage: usage})
-	}
-	version, saved, err := w.service.existingVersion(checkCtx, claimed)
-	if err == nil && !saved {
-		found, err := w.service.hasFinding(checkCtx, claimed)
-		return w.settleChecked(ctx, claimed, err, found, outcome{finding: true, usage: usage})
-	}
-	return w.settleChecked(ctx, claimed, err, saved, outcome{version: &version, usage: usage})
-}
-
-func (w *Worker) settleChecked(ctx context.Context, claimed dbsqlc.AgentRequest, err error, saved bool, success outcome) (settled, progressed bool) {
-	switch {
-	case err != nil:
-		w.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
-		if int(claimed.CheckFailures)+1 >= maxCheckFailures {
-			w.finish(ctx, claimed, outcome{message: checkFailedMessage, code: "agent_request_check_failed", failure: FailureCheckFailed, cause: err})
-			return true, true
-		}
-		w.release(ctx, claimed, true)
-		return true, false
-	case saved:
-		w.finish(ctx, claimed, success)
-		return true, true
-	}
-	return false, true
-}
-
 func (w *Worker) revise(ctx context.Context, req Request) (result Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
@@ -398,63 +337,4 @@ func (w *Worker) revise(ctx context.Context, req Request) (result Result, err er
 
 func finishContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
-}
-
-func (w *Worker) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) {
-	releaseCtx, cancel := finishContext(ctx)
-	defer cancel()
-	released, err := w.service.release(releaseCtx, claimed, checkFailed)
-	attrs := logAttrs(claimed)
-	switch {
-	case err != nil:
-		w.logger.ErrorContext(ctx, "release agent request; its lease will expire", logattrs.Failure("agent_request_release_failed", err, attrs...)...)
-	case !released:
-		w.logger.WarnContext(ctx, "agent request was finished elsewhere; not releasing it", attrs...)
-	}
-}
-
-func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outcome) {
-	finishCtx, cancel := finishContext(ctx)
-	defer cancel()
-	finished, err := w.service.finish(finishCtx, claimed, o)
-	attrs := logAttrs(claimed)
-	switch {
-	case err != nil:
-		w.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
-	case !finished:
-		w.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
-	case o.suggestion != nil, o.finding:
-		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("attempt", int(claimed.Attempts)))...)
-	case o.version != nil:
-		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(claimed.Attempts)))...)
-	default:
-		w.logger.WarnContext(ctx, "agent request failed", logattrs.Failure(o.code, o.cause, append(attrs, slog.Int("attempt", int(claimed.Attempts)))...)...)
-	}
-}
-
-func logAttrs(claimed dbsqlc.AgentRequest) []any {
-	attrs := []any{slog.String("agent_request_id", claimed.ID.String())}
-	if claimed.DashboardID.Valid {
-		attrs = append(attrs, slog.String("dashboard_id", claimed.DashboardID.String()))
-	}
-	return attrs
-}
-
-func requestFrom(row dbsqlc.AgentRequest) Request {
-	return Request{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Source:       Source(row.Source),
-		Prompt:       row.Prompt,
-		PanelID:      row.PanelID.String,
-		BaseVersion:  int(row.BaseVersion.Int32),
-		Draft:        row.Draft,
-		Attempt:      int(row.Attempts),
-		RequestedBy:  requesterOf(row),
-		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
-		Continues:    row.ContinuesID.Valid,
-		ContinueNote: row.ContinueNote.String,
-		From:         optionalTime(row.ContextFrom),
-		To:           optionalTime(row.ContextTo),
-	}
 }

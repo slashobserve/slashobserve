@@ -128,7 +128,7 @@ func TestReleasingACancelingRunSettlesItCanceledInsteadOfRequeueingIt(t *testing
 		t.Fatal(err)
 	}
 
-	if _, err := svc.Release(context.Background(), claimed, false); err != nil {
+	if _, err := svc.ReleaseRow(context.Background(), claimed, false); err != nil {
 		t.Fatalf("release: %v", err)
 	}
 	stored, err := svc.GetByID(context.Background(), id)

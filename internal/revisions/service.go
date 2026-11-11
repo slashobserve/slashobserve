@@ -586,19 +586,6 @@ func (s *Service) deleteExpiredBuilds(ctx context.Context, savepoint db.Savepoin
 	}
 }
 
-func (s *Service) renewLease(ctx context.Context, claimed dbsqlc.AgentRequest) (canceled bool, err error) {
-	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
-		LeaseSeconds: s.leaseTTL.Seconds(), ID: claimed.ID, Attempts: claimed.Attempts,
-	})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return false, ErrLeaseLost
-	case err != nil:
-		return false, fmt.Errorf("renew agent request lease: %w", err)
-	}
-	return cancelRequestedAt.Valid, nil
-}
-
 type outcome struct {
 	version    *int
 	suggestion json.RawMessage
