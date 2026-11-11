@@ -1,9 +1,12 @@
 ---
 title: Folders and access
-description: How folders hold dashboards and who can see or change them.
+description: How folders hold dashboards, findings and saved searches, and who can see or change them.
 ---
 
 Every dashboard lives in one folder.
+A folder also holds the findings filed in it and the logs and trace searches saved in it, and the folder's access rule covers all three: whoever can view the folder can read its dashboards, findings and saved searches, and the levels below decide who may change them.
+A folder's page lists its dashboards, and below them its **Findings** and its **Saved searches**, each only when the folder has some.
+Anyone with Edit on a saved search renames, moves or deletes it from its row menu there, and moves a finding from the finding's own page.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
 

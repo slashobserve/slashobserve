@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
+import { FolderFindings } from "./folder-findings"
+import { FolderSavedSearches } from "./folder-saved-searches"
 import { FolderSettingsBody } from "./folder-settings"
 import { folderQuery, type Folder } from "./queries"
 
@@ -98,6 +100,12 @@ export function FolderPage({
         onSearchChange={onSearchChange}
         folderId={folderId}
       />
+      {folder === undefined ? null : (
+        <>
+          <FolderFindings folderId={folderId} />
+          <FolderSavedSearches folderId={folderId} />
+        </>
+      )}
       {folder !== undefined && settingsOpen ? (
         <SidePanel
           title="Folder settings"

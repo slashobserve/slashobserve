@@ -163,6 +163,7 @@ describe("findingKeys", () => {
     for (const key of [
       findingKeys.one("f1"),
       findingKeys.forDashboard("d1"),
+      findingKeys.inFolder("f1"),
       findingKeys.panelData("f1", "p1", { from: "now-1h", to: "now" }),
     ]) {
       expect(isPrefix(findingKeys.all, key)).toBe(true)

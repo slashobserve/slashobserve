@@ -299,6 +299,7 @@ export const findingKeys = {
   one: (id: string) => ["findings", id] as const,
   forDashboard: (dashboardId: string) =>
     ["findings", "dashboard", dashboardId] as const,
+  inFolder: (folderId: string) => ["findings", "folder", folderId] as const,
   panelData: (
     id: string,
     panelId: string,
