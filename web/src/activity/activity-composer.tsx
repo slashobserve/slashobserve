@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { MentionButton } from "@/comments/mention-button"
+import { mentionOptions } from "@/comments/mentions"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
@@ -179,6 +180,7 @@ export function ActivityComposer({
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
+  const [mentioning, setMentioning] = useState(false)
   const history = usePromptHistory()
   const agent = useAgentInfo()
   const model = agentLabel(agent.data)
@@ -454,10 +456,13 @@ export function ActivityComposer({
           </Select>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <MentionButton
-              people={[]}
+              options={mentionOptions([], [])}
               field={field}
               value={draft}
               onChange={onDraftChange}
+              open={mentioning}
+              onOpenChange={setMentioning}
+              replaceFrom={null}
               disabled={pending}
             />
             {model !== null ? (

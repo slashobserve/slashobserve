@@ -249,10 +249,12 @@ describe("ThreadEntry", () => {
     const user = userEvent.setup()
     renderThread("open")
     await user.click(screen.getByRole("button", { name: "Reply" }))
-    await user.click(screen.getByRole("combobox", { name: "Mention" }))
+    await user.click(
+      screen.getByRole("combobox", { name: "Mention a person or an agent" })
+    )
     const options = await screen.findAllByRole("option")
     expect(options.map((option) => option.textContent)).toEqual([
-      "@observeAgent",
+      "Observe Agent@observe",
       "Ada",
       "Grace",
     ])

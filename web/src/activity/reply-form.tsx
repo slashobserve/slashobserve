@@ -4,7 +4,7 @@ import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { MentionButton } from "@/comments/mention-button"
-import type { MentionPerson } from "@/comments/mentions"
+import { mentionOptions, type MentionPerson } from "@/comments/mentions"
 import { useAddComment } from "@/comments/queries"
 import { isModEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
@@ -44,6 +44,7 @@ export function ReplyForm({
   const [body, setBody] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [replySaved, setReplySaved] = useState(false)
+  const [mentioning, setMentioning] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const inFlight = useRef(false)
   const mounted = useRef(false)
@@ -145,10 +146,13 @@ export function ReplyForm({
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <MentionButton
-          people={people}
+          options={mentionOptions(people, [])}
           field={textarea}
           value={body}
           onChange={setBody}
+          open={mentioning}
+          onOpenChange={setMentioning}
+          replaceFrom={null}
           disabled={busy || replySaved}
           className="mr-auto"
         />
