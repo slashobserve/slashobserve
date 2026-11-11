@@ -189,6 +189,44 @@ func (s schedulerMetrics) JobFinished(job, outcome string) {
 	s.jobs.WithLabelValues(job, outcome).Inc()
 }
 
+func (r *Registry) Fleet(live func() int) {
+	r.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "slashobserve_fleet_servers",
+		Help: "Servers that heartbeat into this database in the last 30 seconds, this one included.",
+	}, func() float64 { return float64(live()) }))
+}
+
+type SlotUsage struct {
+	Datasource string
+	InUse      int
+	Limit      int
+}
+
+func (r *Registry) DatasourceSlots(usage func() []SlotUsage) {
+	r.registry.MustRegister(slotsCollector{usage: usage})
+}
+
+var (
+	slotsInUse = prometheus.NewDesc("slashobserve_datasource_slots_in_use", "Queries running against a datasource on this server.", []string{"datasource"}, nil)
+	slotsLimit = prometheus.NewDesc("slashobserve_datasource_slots_limit", "Queries this server allows against a datasource at once: its share of the datasource's maxConcurrentQueries.", []string{"datasource"}, nil)
+)
+
+type slotsCollector struct {
+	usage func() []SlotUsage
+}
+
+func (slotsCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- slotsInUse
+	ch <- slotsLimit
+}
+
+func (c slotsCollector) Collect(ch chan<- prometheus.Metric) {
+	for _, u := range c.usage() {
+		ch <- prometheus.MustNewConstMetric(slotsInUse, prometheus.GaugeValue, float64(u.InUse), u.Datasource)
+		ch <- prometheus.MustNewConstMetric(slotsLimit, prometheus.GaugeValue, float64(u.Limit), u.Datasource)
+	}
+}
+
 func (r *Registry) Pool(stat func() *pgxpool.Stat) {
 	r.registry.MustRegister(poolCollector{stat: stat})
 }

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -29,7 +28,6 @@ const (
 )
 
 const (
-	maxUpstreamCalls     = 32
 	queryParallelism     = 4
 	defaultMaxDataPoints = 1000
 	minMaxDataPoints     = 10
@@ -37,8 +35,6 @@ const (
 	panelDeadline        = 55 * time.Second
 	upstreamWait         = 5 * time.Second
 )
-
-var upstreamCalls = semaphore.NewWeighted(maxUpstreamCalls)
 
 type Selection struct {
 	Values []string
@@ -114,7 +110,7 @@ func (e *AbortError) Unwrap() error { return e.Err }
 type Runner struct {
 	reg     *datasource.Registry
 	logger  *slog.Logger
-	sem     *semaphore.Weighted
+	slots   *Slots
 	values  *valueCache
 	metrics Metrics
 
@@ -136,18 +132,15 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	if logger == nil {
 		logger = slog.Default()
 	}
-	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, metrics: noMetrics{}, panelDeadline: panelDeadline, upstreamWait: upstreamWait}
+	r := &Runner{reg: reg, logger: logger, slots: defaultSlots, metrics: noMetrics{}, panelDeadline: panelDeadline, upstreamWait: upstreamWait}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
 }
 
-func (r *Runner) AcquireUpstream(ctx context.Context) (release func(), err error) {
-	if err := r.sem.Acquire(ctx, 1); err != nil {
-		return nil, err
-	}
-	return func() { r.sem.Release(1) }, nil
+func (r *Runner) AcquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
+	return r.slots.Acquire(ctx, datasourceUID)
 }
 
 func QueryKind(p *spec.Panel, q spec.Query) Kind {
@@ -596,10 +589,11 @@ func dataPanel(d *spec.Dashboard, id string) (*spec.Panel, bool) {
 }
 
 func upstream[T any](ctx context.Context, r *Runner, subject string, inst datasource.Instance, call func(context.Context) (T, error)) (out T, err error) {
-	if err := r.sem.Acquire(ctx, 1); err != nil {
+	release, err := r.slots.Acquire(ctx, inst.UID)
+	if err != nil {
 		return out, err
 	}
-	defer r.sem.Release(1)
+	defer release()
 	defer func() {
 		if p := recover(); p != nil {
 			r.logger.ErrorContext(ctx, "datasource call panicked",

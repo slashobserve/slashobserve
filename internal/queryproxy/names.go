@@ -104,7 +104,7 @@ func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
 	if needsTable && inst.Datasource.Type() == clickHouseType && req.Table == "" && req.Metric == "" {
 		return Names{}, invalidNamesf("table or metric is required for ClickHouse labels")
 	}
-	release, err := r.acquireUpstreamBounded(ctx)
+	release, err := r.acquireUpstreamBounded(ctx, inst.UID)
 	if err != nil {
 		return Names{}, err
 	}
@@ -130,10 +130,10 @@ func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
 	return newNames(req, cat, limit), nil
 }
 
-func (r *Runner) acquireUpstreamBounded(ctx context.Context) (release func(), err error) {
+func (r *Runner) acquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
 	waitCtx, cancel := context.WithTimeout(ctx, r.upstreamWait)
 	defer cancel()
-	release, err = r.AcquireUpstream(waitCtx)
+	release, err = r.AcquireUpstream(waitCtx, datasourceUID)
 	switch {
 	case err == nil:
 		return release, nil

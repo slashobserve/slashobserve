@@ -65,7 +65,7 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 		return LogPatterns{}, err
 	}
 	if native, ok := inst.Datasource.(datasource.LogPatternSource); ok {
-		found, err := r.nativePatterns(ctx, native, req)
+		found, err := r.nativePatterns(ctx, inst.UID, native, req)
 		switch {
 		case err == nil:
 			return foldNative(found, req.Limit, req.Range, inst.Datasource.Type()), nil
@@ -73,7 +73,7 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 			return LogPatterns{}, err
 		}
 	}
-	frames, err := r.sampleLines(ctx, lines, req)
+	frames, err := r.sampleLines(ctx, inst.UID, lines, req)
 	if err != nil {
 		return LogPatterns{}, err
 	}
@@ -89,8 +89,8 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 	return out, nil
 }
 
-func (r *Runner) nativePatterns(ctx context.Context, source datasource.LogPatternSource, req PatternsRequest) ([]datasource.NativePattern, error) {
-	release, err := r.acquireUpstreamBounded(ctx)
+func (r *Runner) nativePatterns(ctx context.Context, datasourceUID string, source datasource.LogPatternSource, req PatternsRequest) ([]datasource.NativePattern, error) {
+	release, err := r.acquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +98,8 @@ func (r *Runner) nativePatterns(ctx context.Context, source datasource.LogPatter
 	return source.LogPatterns(ctx, datasource.PatternRequest{Query: req.Query, Range: req.Range, Step: max(req.Range.To.Sub(req.Range.From)/patternSteps, time.Second)})
 }
 
-func (r *Runner) sampleLines(ctx context.Context, source datasource.LineSource, req PatternsRequest) ([]datasource.Frame, error) {
-	release, err := r.acquireUpstreamBounded(ctx)
+func (r *Runner) sampleLines(ctx context.Context, datasourceUID string, source datasource.LineSource, req PatternsRequest) ([]datasource.Frame, error) {
+	release, err := r.acquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return nil, err
 	}

@@ -30,6 +30,7 @@ const (
 	pollInterval    = 30 * time.Second
 	maxMessageBytes = 2048
 	summaryPrefix   = "Provisioned from "
+	sessionLockName = "provision"
 )
 
 var (
@@ -114,6 +115,10 @@ func (p *Provisioner) Run(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	return p.store.db.WithSessionLock(ctx, sessionLockName, p.provisionAll)
+}
+
+func (p *Provisioner) provisionAll(ctx context.Context) error {
 	files, err := specfiles.Scan(p.dir)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDirUnreadable, err)

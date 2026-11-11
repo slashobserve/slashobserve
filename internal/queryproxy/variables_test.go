@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/sync/semaphore"
-
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -558,7 +556,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		fake := newFake("prometheus")
 		fake.onVariable = answer("a", "b")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-		runner.sem = semaphore.NewWeighted(1)
+		runner.slots = NewSlots(map[string]int{"prom": 1}, nil)
 		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()

@@ -112,7 +112,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	step := "Read trace " + in.TraceID[:traceIDStepChars] + " on " + inst.UID
-	release, err := r.acquireUpstream(ctx)
+	release, err := r.acquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return datasourceFailure(step, err)
 	}
@@ -125,10 +125,10 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 	return success(fmt.Sprintf("%s: %s, %s, %s", step, plural(out.Spans, "span", "spans"), plural(len(out.Services), "service", "services"), plural(len(out.Errors), "error", "errors")), out), nil
 }
 
-func (r *Registry) acquireUpstream(ctx context.Context) (release func(), err error) {
+func (r *Registry) acquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
 	waitCtx, cancel := context.WithTimeout(ctx, upstreamWait)
 	defer cancel()
-	release, err = r.deps.Runner.AcquireUpstream(waitCtx)
+	release, err = r.deps.Runner.AcquireUpstream(waitCtx, datasourceUID)
 	switch {
 	case err == nil:
 		return release, nil
@@ -367,7 +367,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
 	stepName := "Read trace stats on " + inst.UID
-	release, err := r.acquireUpstream(ctx)
+	release, err := r.acquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return datasourceFailure(stepName, err)
 	}

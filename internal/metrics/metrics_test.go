@@ -59,6 +59,10 @@ func TestScrapeServesEverySeries(t *testing.T) {
 	r.Proxy().ProxyCache(true)
 	r.Scheduler().JobStarted("annotations")
 	r.Pool(newPoolStat(t))
+	r.Fleet(func() int { return 3 })
+	r.DatasourceSlots(func() []metrics.SlotUsage {
+		return []metrics.SlotUsage{{Datasource: "prom", InUse: 2, Limit: 16}, {Datasource: "loki", Limit: 32}}
+	})
 
 	body := scrape(t, r)
 	for _, want := range []string{
@@ -78,6 +82,11 @@ func TestScrapeServesEverySeries(t *testing.T) {
 		`slashobserve_db_pool_connections{state="idle"} 0`,
 		`slashobserve_db_pool_connections{state="constructing"} 0`,
 		`slashobserve_db_pool_max_connections 7`,
+		`slashobserve_fleet_servers 3`,
+		`slashobserve_datasource_slots_in_use{datasource="prom"} 2`,
+		`slashobserve_datasource_slots_limit{datasource="prom"} 16`,
+		`slashobserve_datasource_slots_in_use{datasource="loki"} 0`,
+		`slashobserve_datasource_slots_limit{datasource="loki"} 32`,
 		`slashobserve_db_pool_acquires_total 0`,
 		`slashobserve_db_pool_empty_acquires_total 0`,
 		`slashobserve_db_pool_acquire_wait_seconds_total 0`,

@@ -94,7 +94,7 @@ func (r *Registry) compareTraces(ctx context.Context, input json.RawMessage) (Re
 	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	step := "Compare traces on " + inst.UID
-	release, err := r.acquireUpstream(ctx)
+	release, err := r.acquireUpstream(ctx, inst.UID)
 	if err != nil {
 		return datasourceFailure(step, err)
 	}

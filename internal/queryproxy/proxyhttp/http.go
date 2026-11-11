@@ -567,7 +567,7 @@ func (h *Handler) lint(c *gin.Context) {
 		abortError(c, status, code, msg)
 		return
 	}
-	releaseUpstream, ok := h.acquireUpstream(c)
+	releaseUpstream, ok := h.acquireUpstream(c, inst.UID)
 	if !ok {
 		return
 	}
@@ -589,10 +589,10 @@ func (h *Handler) lint(c *gin.Context) {
 	c.JSON(http.StatusOK, lintResponse{Diagnostics: diagnostics})
 }
 
-func (h *Handler) acquireUpstream(c *gin.Context) (release func(), ok bool) {
+func (h *Handler) acquireUpstream(c *gin.Context, datasourceUID string) (release func(), ok bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), h.lintTimeout)
 	defer cancel()
-	release, err := h.runner.AcquireUpstream(ctx)
+	release, err := h.runner.AcquireUpstream(ctx, datasourceUID)
 	switch {
 	case err == nil:
 		return release, true

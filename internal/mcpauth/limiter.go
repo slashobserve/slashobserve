@@ -8,14 +8,18 @@ import (
 type limiter struct {
 	mu     sync.Mutex
 	limit  int
+	share  func(total int) int
 	window time.Duration
 	now    func() time.Time
 	counts map[string]int
 	start  time.Time
 }
 
-func newLimiter(limit int, window time.Duration) *limiter {
-	return &limiter{limit: limit, window: window, now: time.Now, counts: map[string]int{}}
+func newLimiter(limit int, window time.Duration, share func(total int) int) *limiter {
+	if share == nil {
+		share = func(total int) int { return total }
+	}
+	return &limiter{limit: limit, share: share, window: window, now: time.Now, counts: map[string]int{}}
 }
 
 func (l *limiter) allow(key string) bool {
@@ -26,7 +30,7 @@ func (l *limiter) allow(key string) bool {
 		l.counts = map[string]int{}
 		l.start = now
 	}
-	if l.counts[key] >= l.limit {
+	if l.counts[key] >= l.share(l.limit) {
 		return false
 	}
 	l.counts[key]++

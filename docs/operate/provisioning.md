@@ -6,6 +6,8 @@ description: Keep dashboards as ObserveSpec files in a directory, for example a 
 Provisioning turns a directory of ObserveSpec JSON files into dashboards.
 Set `SLASHOBSERVE_PROVISION_DIR` to the directory; when it is unset, provisioning is off.
 The server reads the directory once at startup and then checks it every 30 seconds, comparing each file's path, size and modification time, so a `git pull` into the directory reaches the dashboards within half a minute.
+With several servers, one provisions at a time under a Postgres lock; the others then find each file already saved.
+Behind a transaction-mode pooler the lock needs `SLASHOBSERVE_DATABASE_DIRECT_URL`, see [Behind a connection pooler](production.md#behind-a-connection-pooler).
 
 ## Directory layout
 

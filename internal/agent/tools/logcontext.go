@@ -101,7 +101,7 @@ func (r *Registry) logContext(ctx context.Context, input json.RawMessage) (Resul
 	for i := range sides {
 		g.Go(func() error {
 			var err error
-			frames[i], err = r.readLines(gctx, source, sides[i])
+			frames[i], err = r.readLines(gctx, inst.UID, source, sides[i])
 			return err
 		})
 	}
@@ -115,14 +115,14 @@ func (r *Registry) logContext(ctx context.Context, input json.RawMessage) (Resul
 	return success(fmt.Sprintf("Read %s around %s on %s", plural(n, "line", "lines"), in.Anchor, inst.UID), out), nil
 }
 
-func (r *Registry) readLines(ctx context.Context, source datasource.LineSource, req datasource.LinesRequest) ([]datasource.Frame, error) {
+func (r *Registry) readLines(ctx context.Context, datasourceUID string, source datasource.LineSource, req datasource.LinesRequest) ([]datasource.Frame, error) {
 	if req.Limit == 0 {
 		return nil, nil
 	}
 	if err := req.Range.Validate(); err != nil {
 		return nil, err
 	}
-	release, err := r.acquireUpstream(ctx)
+	release, err := r.acquireUpstream(ctx, datasourceUID)
 	if err != nil {
 		return nil, err
 	}

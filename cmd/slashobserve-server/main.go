@@ -38,6 +38,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/findings"
+	"github.com/slashobserve/slashobserve/internal/fleet"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
@@ -281,19 +282,30 @@ func run() error {
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
+	serverID := instanceID()
+	membership := fleet.New(database, serverID, version, logger)
+	serverMetrics.Fleet(membership.Live)
+	stopFleet := startFleet(ctx, membership, logger)
+	defer stopFleet()
+
 	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
 		return err
 	}
-	if err := authService.EnsureProvisioned(ctx, cfg.ServiceAccounts); err != nil {
+	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
+		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+	}); err != nil {
 		return serviceAccountsExit(err)
 	}
 
 	folderAccess := folders.NewAccess(database)
 
-	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithMetrics(serverMetrics.Proxy()))
+	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
+	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
+
+	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
-	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
+	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
@@ -359,7 +371,7 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
 	defer stopWorkers()
-	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
+	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
@@ -401,11 +413,11 @@ func run() error {
 	})
 	stopWebhooks := startWebhooks(ctx, webhooks.NewWorker(webhooks.WorkerDeps{
 		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
-		Followers: broker, InstanceID: instanceID(), Logger: logger,
+		Followers: broker, InstanceID: serverID, Logger: logger,
 	}), logger)
 	defer stopWebhooks()
 
-	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger}, database, authService)
+	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger, Share: membership.Share}, database, authService)
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -660,6 +672,40 @@ func startWebhooks(ctx context.Context, worker *webhooks.Worker, logger *slog.Lo
 		case <-done:
 		case <-time.After(shutdownTimeout):
 			logger.Warn("webhook worker did not stop in time")
+		}
+	}
+}
+
+func maxConcurrentQueries(datasources []config.Datasource) map[string]int {
+	totals := make(map[string]int, len(datasources))
+	for _, ds := range datasources {
+		totals[ds.UID] = ds.MaxConcurrentQueries
+	}
+	return totals
+}
+
+func slotUsage(slots *queryproxy.Slots) []metrics.SlotUsage {
+	usage := slots.Usage()
+	out := make([]metrics.SlotUsage, len(usage))
+	for i, u := range usage {
+		out[i] = metrics.SlotUsage{Datasource: u.Datasource, InUse: u.InUse, Limit: u.Limit}
+	}
+	return out
+}
+
+func startFleet(ctx context.Context, membership *fleet.Membership, logger *slog.Logger) func() {
+	fleetCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		membership.Run(fleetCtx)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			logger.Warn("server heartbeat did not stop in time")
 		}
 	}
 }

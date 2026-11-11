@@ -23,6 +23,7 @@ type People interface {
 type Config struct {
 	PublicURL *url.URL
 	Logger    *slog.Logger
+	Share     func(total int) int
 }
 
 type route struct {
@@ -58,11 +59,11 @@ func New(cfg Config, database *db.DB, people People) *Server {
 		issuer:         strings.TrimSuffix(cfg.PublicURL.String(), "/"),
 		resource:       cfg.PublicURL.JoinPath("mcp").String(),
 		mux:            http.NewServeMux(),
-		registerLimit:  newLimiter(registerPerMinute, limitWindow),
-		authorizeLimit: newLimiter(authorizePerMinute, limitWindow),
-		tokenLimit:     newLimiter(tokenPerMinute, limitWindow),
-		tokenClient:    newLimiter(tokenPerClientPerMinute, limitWindow),
-		revokeLimit:    newLimiter(revokePerMinute, limitWindow),
+		registerLimit:  newLimiter(registerPerMinute, limitWindow, cfg.Share),
+		authorizeLimit: newLimiter(authorizePerMinute, limitWindow, cfg.Share),
+		tokenLimit:     newLimiter(tokenPerMinute, limitWindow, cfg.Share),
+		tokenClient:    newLimiter(tokenPerClientPerMinute, limitWindow, nil),
+		revokeLimit:    newLimiter(revokePerMinute, limitWindow, cfg.Share),
 	}
 	resourceMetadata := s.protectedResourceMetadata()
 	s.routes = []route{

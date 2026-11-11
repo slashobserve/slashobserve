@@ -45,6 +45,9 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_db_pool_acquires_total`             | counter   |                                | Connections taken from the database pool.                                                                |
 | `slashobserve_db_pool_empty_acquires_total`       | counter   |                                | Acquires that waited because the pool had no idle connection.                                            |
 | `slashobserve_db_pool_acquire_wait_seconds_total` | counter   |                                | Time spent waiting to acquire a pool connection.                                                         |
+| `slashobserve_datasource_slots_in_use`            | gauge     | `datasource`                   | Queries running against a datasource on this server.                                                     |
+| `slashobserve_datasource_slots_limit`             | gauge     | `datasource`                   | Queries this server allows against a datasource at once: its share of the datasource's `maxConcurrentQueries`. |
+| `slashobserve_fleet_servers`                      | gauge     |                                | Servers that heartbeat into this database in the last 30 seconds, this one included.                     |
 
 The Go runtime series (`go_*`) and the process series (`process_*`) come from the Prometheus client library.
 
@@ -69,6 +72,12 @@ The share of API requests that failed with a server error over the last 5 minute
 ```promql
 sum(rate(slashobserve_http_request_duration_seconds_count{status=~"5.."}[5m]))
   / sum(rate(slashobserve_http_request_duration_seconds_count[5m]))
+```
+
+How much of each datasource's slots this server uses:
+
+```promql
+slashobserve_datasource_slots_in_use / slashobserve_datasource_slots_limit
 ```
 
 The 95th percentile time an agent request waited for a worker:

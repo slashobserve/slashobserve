@@ -92,7 +92,7 @@ func (h *Handler) traceStats(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
-	releaseUpstream, ok := h.acquireUpstream(c)
+	releaseUpstream, ok := h.acquireUpstream(c, uid)
 	if !ok {
 		return
 	}

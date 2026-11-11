@@ -481,6 +481,31 @@ func TestLimitsMustBeIntegers(t *testing.T) {
 	wantError(t, validPrometheus+"    limits:\n      maxRows: -3\n", nil, "limits.maxRows: must not be negative")
 }
 
+func TestMaxConcurrentQueries(t *testing.T) {
+	for _, tc := range []struct {
+		name, limits string
+		want         int
+	}{
+		{"omitted", "", 0},
+		{"zero keeps the default", "      maxConcurrentQueries: 0\n", 0},
+		{"kept", "      maxConcurrentQueries: 64\n", 64},
+		{"the most", "      maxConcurrentQueries: 1024\n", 1024},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := load(t, validPrometheus+"    limits:\n      maxRows: 5\n"+tc.limits, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got[0].MaxConcurrentQueries != tc.want {
+				t.Errorf("MaxConcurrentQueries = %d, want %d", got[0].MaxConcurrentQueries, tc.want)
+			}
+		})
+	}
+	wantError(t, validPrometheus+"    limits:\n      maxConcurrentQueries: -1\n", nil, "datasources[0].limits.maxConcurrentQueries: must not be negative")
+	wantError(t, validPrometheus+"    limits:\n      maxConcurrentQueries: 1025\n", nil, "datasources[0].limits.maxConcurrentQueries: must be at most 1024")
+	wantError(t, validPrometheus+"    limits:\n      maxConcurrentQueries: 1.5\n", nil, "a limits value must be an integer")
+}
+
 func TestOverflowErrorDoesNotEchoLiteral(t *testing.T) {
 	const literal = "99999999999999999999"
 	_, err := load(t, validPrometheus+"    limits:\n      maxSeries: "+literal+"\n", nil)
