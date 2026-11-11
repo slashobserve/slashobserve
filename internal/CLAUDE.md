@@ -19,6 +19,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `folders`: folders, permissions and the one place that decides who sees and changes a dashboard.
 - `forbidden`: the `forbidden_role` code and its 403 texts, a leaf package so the CLI can compare against them without the server.
 - `egress`: the only fetcher of user-supplied URLs; `egress/allowlist/` holds the outbound domain table, routes and the `SLASHOBSERVE_OUTBOUND_DOMAINS` lock.
+- `sealed`: encrypts stored secrets with `SLASHOBSERVE_SECRET_KEY`, one HKDF purpose label per kind of secret and the owning row's id as additional data; the only place a stored secret is sealed or opened.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
@@ -28,6 +29,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `tailhttp`: `GET /datasources/{uid}/tail`, the SSE live tail; one poller per stream, 5 per person, no query slot.
 - `tracecompare`: the pure ranking of attribute values that set selected traces apart from a baseline, shared by `POST /datasources/{uid}/trace-compare` and the `compare_traces` tool; the adapters read the pairs through `datasource.TraceAttributeSource` (Tempo at 4 traces at a time, ClickHouse in one query).
 - `activity`: the persisted activity log: `Append` is the only writer, `Store` reads it per audience (`List`, and `Start` and `Next` for followers), `Handler` serves `GET /activity`, and `events/stream` serves `GET /activity/stream`.
+- `webhooks`: Admin-configured outgoing webhooks: `Service` is the one writer of `webhooks` and `webhook_deliveries`, and `Worker` delivers activity events to each webhook in log order from a cursor `(cursor_xid, cursor_seq)` on its row, reading through `activity.Store.Next` as the webhook's owner, so nothing is written in a change's transaction and `activity.Append` knows nothing of webhooks.
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `threads`: comment threads on a dashboard, a finding or an annotation: `Service` is the one writer of `threads`, `thread_messages` and `thread_mentions`, takes access from `dashboards`, `findings` and `annotations` through their `Access` methods, and appends the `thread.*` activity events; message bodies never enter an event's `data`.
   `Threads` serves `/threads` and `/messages` over `Service` for every target; a thread id route also takes any message id of the thread, and only the legacy adapter can queue a revision.
@@ -227,6 +229,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
   The compose user `slashobserve_ro` is created on first boot by the distroless image's `docker-init` from `internal/datasource/clickhouse/testdata/readonly_user.sql`, mounted into `/docker-entrypoint-initdb.d`: the same definition, with the same fixed development password, the integration tests use.
 - Any feature that fetches a URL taken from user content goes through `egress.Client`, never its own `http.Client`.
+- A webhook request goes through `egress.Client.Send`; its URL, headers, body and the receiver's response are never logged or stored, only the status, an error code and the duration.
 - A rule that lives only in a schema description belongs in the authoring guide, because the model reads `prompts.Schema()`, which strips the annotations.
 
 ## Logging

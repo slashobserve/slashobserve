@@ -176,6 +176,12 @@ export const grafanaKeys = {
     ["grafana", connectionId, "imports", syncId] as const,
 }
 
+export const webhookKeys = {
+  all: ["webhooks"] as const,
+  list: () => ["webhooks", "list"] as const,
+  deliveries: (id: string) => ["webhooks", id, "deliveries"] as const,
+}
+
 export const repairKeys = {
   all: ["repairs"] as const,
   list: (folderId: string | null) =>

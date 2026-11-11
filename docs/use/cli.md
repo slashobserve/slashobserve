@@ -383,6 +383,32 @@ It reads `GET /api/v1/activity/stream` from the newest event it printed, so no e
 When the connection drops, or nothing arrives for 45 seconds (not even the server's 15 second pings), it reconnects after the server's retry delay from the last event it printed, and it exits 1 after 3 failed attempts in a row.
 If the server no longer knows that event it prints `Some activity may have been missed.` and continues from the newest event; run `bin/observe activity` again to read what happened in between.
 
+## Webhooks
+
+`bin/observe webhooks` manages the [webhooks](webhooks.md) that send workspace activity to an outside address as signed requests.
+Every verb needs an Admin key.
+
+```sh
+bin/observe webhooks add --name "Failed runs" --url https://hooks.example.com/slashobserve --event run.failed
+bin/observe webhooks list
+bin/observe webhooks test <webhook id>
+```
+
+- `list` prints each webhook's id, name, address, number of event types and status, which is `enabled` or `disabled (<reason>)`.
+- `add --name <name> --url <https address> --event <type>` creates a webhook, and `--event` repeats for several types.
+  It prints the webhook and its signing secret once, and a notice on standard error says the secret is not shown again, so copy it then; `-q` hides the notice but not the secret.
+  An address whose domain is not on the [outbound allowlist](../operate/outbound-access.md) fails with `outbound_domain_not_allowed`.
+- `update <id>` changes the `--name`, `--url` or `--event` list you pass and leaves the rest; with none of them it exits 2.
+- `enable <id>` and `disable <id>` turn a webhook on, clearing its failures, or off.
+- `test <id>` sends a `webhook.test` event now and prints its outcome, the receiver's status, the duration and the error code.
+  It exits 1 when the event was not delivered.
+- `rotate-secret <id>` makes a new signing secret and prints it once; the old one stops working at once.
+- `delete <id>` deletes the webhook and its recorded attempts.
+- `deliveries <id>` prints the newest attempts first as a table of time, event, outcome, status, duration and error code, up to `--limit` of them (1 to 100, 20 by default).
+
+`--json` prints the response body of each request unchanged.
+`update`, `enable`, `disable` and `rotate-secret` make the caller the webhook's owner, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+
 ## Shell completion
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.

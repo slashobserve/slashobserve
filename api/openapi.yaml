@@ -202,6 +202,16 @@ paths:
     $ref: "./paths/grafana.yaml#/grafana-id-imports-syncid"
   /grafana/resolve/{uid}:
     $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
+  /webhooks:
+    $ref: "./paths/webhooks.yaml#/webhooks-list"
+  /webhooks/{id}:
+    $ref: "./paths/webhooks.yaml#/webhooks-id"
+  /webhooks/{id}/secret:
+    $ref: "./paths/webhooks.yaml#/webhooks-id-secret"
+  /webhooks/{id}/test:
+    $ref: "./paths/webhooks.yaml#/webhooks-id-test"
+  /webhooks/{id}/deliveries:
+    $ref: "./paths/webhooks.yaml#/webhooks-id-deliveries"
   /repairs:
     $ref: "./paths/repairs.yaml#/repairs"
   /dashboards/{id}/star:
@@ -3649,6 +3659,173 @@ components:
           description: The summary of the last finished import, or null before the first one.
           allOf:
             - $ref: "#/components/schemas/GrafanaImportSummary"
+    Webhook:
+      type: object
+      additionalProperties: false
+      required: [id, name, url, event_types, owner, enabled, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          maxLength: 2048
+          description: The https address events are posted to.
+        event_types:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ActivityType"
+        owner:
+          $ref: "#/components/schemas/Actor"
+        enabled:
+          type: boolean
+        disabled_reason:
+          type: string
+          nullable: true
+          enum: [manual, gone, failing, owner, secret_unreadable]
+          description: "`manual` an Admin disabled it; `gone` the receiver answered 410; `failing` 50 attempts in a row failed; `owner` the owner is gone or no longer an Admin; `secret_unreadable` `SLASHOBSERVE_SECRET_KEY` is unset or changed."
+        disabled_at:
+          type: string
+          format: date-time
+          nullable: true
+        consecutive_failures:
+          type: integer
+          minimum: 0
+        next_attempt_at:
+          type: string
+          format: date-time
+          description: The earliest time of the next attempt; in the past while the webhook has nothing to send.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    WebhookList:
+      type: object
+      additionalProperties: false
+      required: [webhooks]
+      properties:
+        webhooks:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Webhook"
+    WebhookWithSecret:
+      type: object
+      additionalProperties: false
+      required: [webhook, secret]
+      properties:
+        webhook:
+          $ref: "#/components/schemas/Webhook"
+        secret:
+          type: string
+          description: The signing secret, `whsec_` and 43 characters. It is shown only in this response.
+    CreateWebhookRequest:
+      type: object
+      additionalProperties: false
+      required: [name, url, event_types]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: An https address on port 443 with a domain name, no user info and no fragment.
+        event_types:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ActivityType"
+    UpdateWebhookRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        event_types:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ActivityType"
+        enabled:
+          type: boolean
+    WebhookDelivery:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, event_type, activity_seq, attempted_at, duration_ms, status_code, outcome, error_code]
+      properties:
+        id:
+          type: string
+          description: The attempt's id, ordered by time.
+        delivery_id:
+          type: string
+          description: The `X-SlashObserve-Delivery` header of the attempt; the same for every attempt at one event.
+        event_type:
+          type: string
+          description: The event's activity type, or `webhook.test`.
+        activity_seq:
+          type: integer
+          format: int64
+          nullable: true
+          description: The `seq` of the activity event; null for a test.
+        attempted_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+          minimum: 0
+        status_code:
+          type: integer
+          nullable: true
+          description: The receiver's HTTP status; null when it was not reached.
+        outcome:
+          type: string
+          enum: [delivered, failed, skipped]
+        error_code:
+          type: string
+          nullable: true
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+    WebhookTestResult:
+      type: object
+      additionalProperties: false
+      required: [delivery]
+      properties:
+        delivery:
+          $ref: "#/components/schemas/WebhookDelivery"
+    WebhookDeliveryList:
+      type: object
+      additionalProperties: false
+      required: [deliveries, next_cursor]
+      properties:
+        deliveries:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/WebhookDelivery"
+        next_cursor:
+          type: string
+          nullable: true
     GrafanaConnectionList:
       type: object
       additionalProperties: false

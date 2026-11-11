@@ -31,6 +31,11 @@ A server that shuts down mid-run gives the lease back at once and records no out
 Every server registers `scheduler_heartbeat`, a job that does nothing every 5 minutes.
 It keeps a row in the `jobs` table and a series in the metrics from the first start, so you can tell the scheduler is running before any other job exists.
 
+## Other jobs
+
+`activity_prune` deletes old [activity](../use/activity.md#retention) events, and `webhook_deliveries_prune` deletes [webhook](../use/webhooks.md#attempts) attempts older than 7 days.
+Both run hourly.
+
 ## Metrics
 
 The scheduler reports two series:

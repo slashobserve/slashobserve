@@ -56,12 +56,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
+	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/users"
+	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
 var (
@@ -352,6 +354,7 @@ func run() error {
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
+	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
@@ -384,6 +387,15 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
+	webhooksService := webhooks.NewService(webhooks.Deps{
+		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
+	})
+	stopWebhooks := startWebhooks(ctx, webhooks.NewWorker(webhooks.WorkerDeps{
+		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
+		Followers: broker, InstanceID: instanceID(), Logger: logger,
+	}), logger)
+	defer stopWebhooks()
+
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -394,6 +406,7 @@ func run() error {
 			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService, folderAccess),
 			grafanaconn.NewHandler(grafanaService),
+			webhooks.NewHandler(webhooksService, logger),
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
@@ -593,6 +606,23 @@ func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog
 		case <-done:
 		case <-time.After(shutdownTimeout):
 			logger.Warn("scheduled jobs did not stop in time")
+		}
+	}
+}
+
+func startWebhooks(ctx context.Context, worker *webhooks.Worker, logger *slog.Logger) func() {
+	workerCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		worker.Run(workerCtx)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			logger.Warn("webhook worker did not stop in time")
 		}
 	}
 }

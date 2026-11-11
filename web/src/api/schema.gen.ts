@@ -2128,6 +2128,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the webhooks.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Webhooks are sorted by creation time; a response never carries a signing secret.
+         */
+        get: operations["listWebhooks"];
+        put?: never;
+        /**
+         * Send workspace activity to an https address.
+         * @description Only Admins can call this endpoint. The server then POSTs every activity event of the chosen types that the caller can read to the address, signed and retried in order; see the webhooks page of the guide for the payload and the signature. Only events that happen after the webhook is created are sent. The caller becomes the webhook's owner, and the webhook delivers only what its owner can read at the time of sending. The address must be https on port 443 with a domain name on the outbound allowlist; a webhook never adds its domain to the allowlist. The signing secret is returned once, here, and is stored encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY`. At most 20 webhooks can exist.
+         */
+        post: operations["createWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a webhook and its delivery attempts.
+         * @description Only Admins can call this endpoint. A delivery in flight may still reach the receiver once.
+         */
+        delete: operations["deleteWebhook"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a webhook's name, address, event types or state.
+         * @description Only Admins can call this endpoint. The caller becomes the webhook's owner, so it delivers only what the caller can read from now on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         */
+        patch: operations["updateWebhook"];
+        trace?: never;
+    };
+    "/webhooks/{id}/secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace a webhook's signing secret.
+         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The caller becomes the webhook's owner. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
+         */
+        post: operations["rotateWebhookSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send one test event to a webhook.
+         * @description Only Admins can call this endpoint. The server sends a signed `webhook.test` event with no `event` and waits for the answer, up to 10 seconds. It works on a disabled webhook, records the attempt in the delivery history and changes nothing else. A receiver that cannot be reached or answers with an error still gives 200, with `outcome` `failed` and its `error_code`.
+         */
+        post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List a webhook's recent delivery attempts, newest first.
+         * @description Only Admins can call this endpoint. Attempts are kept for 7 days. A row records the outcome, the receiver's status code, an error code and the duration, never a response body, a header or the address.
+         */
+        get: operations["listWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repairs": {
         parameters: {
             query?: never;
@@ -4107,6 +4223,85 @@ export interface components {
             last_test: components["schemas"]["GrafanaConnectionTest"] | null;
             /** @description The summary of the last finished import, or null before the first one. */
             last_sync: components["schemas"]["GrafanaImportSummary"] | null;
+        };
+        Webhook: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description The https address events are posted to. */
+            url: string;
+            event_types: components["schemas"]["ActivityType"][];
+            owner: components["schemas"]["Actor"];
+            enabled: boolean;
+            /**
+             * @description `manual` an Admin disabled it; `gone` the receiver answered 410; `failing` 50 attempts in a row failed; `owner` the owner is gone or no longer an Admin; `secret_unreadable` `SLASHOBSERVE_SECRET_KEY` is unset or changed.
+             * @enum {string|null}
+             */
+            disabled_reason: "manual" | "gone" | "failing" | "owner" | "secret_unreadable" | null;
+            /** Format: date-time */
+            disabled_at: string | null;
+            consecutive_failures: number;
+            /**
+             * Format: date-time
+             * @description The earliest time of the next attempt; in the past while the webhook has nothing to send.
+             */
+            next_attempt_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        WebhookList: {
+            webhooks: components["schemas"]["Webhook"][];
+        };
+        WebhookWithSecret: {
+            webhook: components["schemas"]["Webhook"];
+            /** @description The signing secret, `whsec_` and 43 characters. It is shown only in this response. */
+            secret: string;
+        };
+        CreateWebhookRequest: {
+            name: string;
+            /** @description An https address on port 443 with a domain name, no user info and no fragment. */
+            url: string;
+            event_types: components["schemas"]["ActivityType"][];
+        };
+        UpdateWebhookRequest: {
+            name?: string;
+            url?: string;
+            event_types?: components["schemas"]["ActivityType"][];
+            enabled?: boolean;
+        };
+        WebhookDelivery: {
+            /** @description The attempt's id, ordered by time. */
+            id: string;
+            /** @description The `X-SlashObserve-Delivery` header of the attempt; the same for every attempt at one event. */
+            delivery_id: string;
+            /** @description The event's activity type, or `webhook.test`. */
+            event_type: string;
+            /**
+             * Format: int64
+             * @description The `seq` of the activity event; null for a test.
+             */
+            activity_seq: number | null;
+            /** Format: date-time */
+            attempted_at: string;
+            duration_ms: number;
+            /** @description The receiver's HTTP status; null when it was not reached. */
+            status_code: number | null;
+            /** @enum {string} */
+            outcome: "delivered" | "failed" | "skipped";
+            /**
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+             * @enum {string|null}
+             */
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | null;
+        };
+        WebhookTestResult: {
+            delivery: components["schemas"]["WebhookDelivery"];
+        };
+        WebhookDeliveryList: {
+            deliveries: components["schemas"]["WebhookDelivery"][];
+            next_cursor: string | null;
         };
         GrafanaConnectionList: {
             connections: components["schemas"]["GrafanaConnection"][];
@@ -10157,6 +10352,252 @@ export interface operations {
                     "application/json": components["schemas"]["GrafanaResolved"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhooks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWebhookRequest"];
+            };
+        };
+        responses: {
+            /** @description The webhook is created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookWithSecret"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address's host is not on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description 20 webhooks already exist (`too_many_webhooks`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWebhookRequest"];
+            };
+        };
+        responses: {
+            /** @description The changed webhook. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Webhook"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the new address's host is not on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    rotateWebhookSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook and its new secret. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookWithSecret"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    testWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The recorded attempt. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored secret cannot be read with it (`secret_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listWebhookDeliveries: {
+        parameters: {
+            query?: {
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of attempts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

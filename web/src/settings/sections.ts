@@ -1,7 +1,13 @@
 import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type SettingsSectionId =
-  "agent" | "server" | "sign-in" | "outbound-access" | "grafana" | "appearance"
+  | "agent"
+  | "server"
+  | "sign-in"
+  | "outbound-access"
+  | "grafana"
+  | "webhooks"
+  | "appearance"
 
 export type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -19,6 +25,8 @@ const grafanaSection: SettingsSection = {
   label: "Grafana connection",
 }
 
+const webhooksSection: SettingsSection = { id: "webhooks", label: "Webhooks" }
+
 const appearanceSection: SettingsSection = {
   id: "appearance",
   label: "Appearance",
@@ -32,6 +40,7 @@ const everyoneSections: readonly SettingsSection[] = [
 const adminSections: readonly SettingsSection[] = [
   ...serverSections,
   grafanaSection,
+  webhooksSection,
   appearanceSection,
 ]
 

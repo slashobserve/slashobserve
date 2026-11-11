@@ -25,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
@@ -33,12 +34,16 @@ const (
 	maxURLBytes    = 2048
 	maxTokenBytes  = 4096
 	maxFolderDepth = 16
+
+	tokenKeyLabel = "slashobserve grafana connection token v1"
 )
 
 var (
-	ErrTokenRequired  = errors.New("a new url needs the token again")
-	ErrTooManyDomains = errors.New("the outbound allowlist is full")
-	ErrUnknownUID     = errors.New("no imported dashboard has this grafana uid")
+	ErrNoSecretKey     = errors.New("SLASHOBSERVE_SECRET_KEY must be set to store or use a Grafana connection token")
+	ErrUnreadableToken = errors.New("the stored token cannot be read with the current SLASHOBSERVE_SECRET_KEY; set the connection's token again")
+	ErrTokenRequired   = errors.New("a new url needs the token again")
+	ErrTooManyDomains  = errors.New("the outbound allowlist is full")
+	ErrUnknownUID      = errors.New("no imported dashboard has this grafana uid")
 )
 
 type InvalidError struct {
@@ -63,7 +68,7 @@ type Service struct {
 	domains *allowlist.Store
 	imports *imports.Service
 	access  *folders.Access
-	key     secretKey
+	key     sealed.Key
 	logger  *slog.Logger
 
 	life  context.Context
@@ -107,6 +112,25 @@ type DatasourceMatch struct {
 	Kind       string
 	Candidates []string
 	MatchedUID string
+}
+
+func (s *Service) sealToken(id pgtype.UUID, token string) ([]byte, error) {
+	ciphertext, err := s.key.Seal(tokenKeyLabel, id, []byte(token))
+	if errors.Is(err, sealed.ErrNoKey) {
+		return nil, ErrNoSecretKey
+	}
+	return ciphertext, err
+}
+
+func (s *Service) openToken(id pgtype.UUID, ciphertext []byte) (string, error) {
+	plain, err := s.key.Open(tokenKeyLabel, id, ciphertext)
+	switch {
+	case errors.Is(err, sealed.ErrNoKey):
+		return "", ErrNoSecretKey
+	case errors.Is(err, sealed.ErrUnreadable):
+		return "", ErrUnreadableToken
+	}
+	return string(plain), err
 }
 
 func newID() pgtype.UUID {
@@ -209,18 +233,18 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if err != nil {
 		return Connection{}, err
 	}
-	if len(s.key) == 0 {
+	if !s.key.Set() {
 		return Connection{}, ErrNoSecretKey
 	}
 	if err := s.ensureAllowed(ctx, by, host); err != nil {
 		return Connection{}, err
 	}
 	id := newID()
-	sealed, err := s.key.seal(id, token)
+	ciphertext, err := s.sealToken(id, token)
 	if err != nil {
 		return Connection{}, err
 	}
-	params := dbsqlc.InsertGrafanaConnectionParams{ID: id, Name: name, Url: u.String(), TokenCiphertext: sealed}
+	params := dbsqlc.InsertGrafanaConnectionParams{ID: id, Name: name, Url: u.String(), TokenCiphertext: ciphertext}
 	if creator, err := db.ParseUUID(by.ID); err == nil {
 		params.CreatedBy = creator
 	}
@@ -260,7 +284,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		if err != nil {
 			return Connection{}, err
 		}
-		if params.TokenCiphertext, err = s.key.seal(id, token); err != nil {
+		if params.TokenCiphertext, err = s.sealToken(id, token); err != nil {
 			return Connection{}, err
 		}
 		params.ResetTest = true
@@ -300,7 +324,7 @@ func (s *Service) client(ctx context.Context, id pgtype.UUID) (stored, grafanaCl
 	if err != nil {
 		return stored{}, grafanaClient{}, err
 	}
-	token, err := s.key.open(id, c.sealed)
+	token, err := s.openToken(id, c.sealed)
 	if err != nil {
 		return stored{}, grafanaClient{}, err
 	}
