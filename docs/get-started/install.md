@@ -6,7 +6,7 @@ description: Pull the image and run SlashObserve against your own Postgres, iden
 ## Deploy with Docker
 
 1. Create a Postgres database and a user that owns it.
-   The server keeps a connection pool of at least 16 connections unless the database URL sets `pool_max_conns`, so `max_connections` must allow that for each server process.
+   The server keeps a connection pool of 16 connections, or 8 plus 2 for each agent worker when that is more (24 with the default 8 workers), unless the database URL sets `pool_max_conns`, so `max_connections` must allow that for each server process.
    The project tests against Postgres 18.6; other versions are unverified.
 2. Pull the image:
 
