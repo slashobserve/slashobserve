@@ -38,10 +38,19 @@ const (
 
 var errCrashed = errors.New(crashedMessage)
 
+type WorkerMetrics interface {
+	RequestClaimed(source string, waited time.Duration)
+}
+
+type noWorkerMetrics struct{}
+
+func (noWorkerMetrics) RequestClaimed(string, time.Duration) {}
+
 type WorkerOptions struct {
 	Workers    int
 	Poll       time.Duration
 	RunTimeout time.Duration
+	Metrics    WorkerMetrics
 }
 
 type Worker struct {
@@ -65,6 +74,9 @@ func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, op
 	}
 	if opts.Poll <= 0 {
 		opts.Poll = defaultPoll
+	}
+	if opts.Metrics == nil {
+		opts.Metrics = noWorkerMetrics{}
 	}
 	return &Worker{service: service, listen: listen, logger: logger, opts: opts, heartbeat: heartbeatEvery}
 }
@@ -145,9 +157,13 @@ func (w *Worker) loop(ctx context.Context, wake <-chan struct{}) {
 }
 
 func (w *Worker) step(ctx context.Context) (bool, error) {
-	claimed, found, err := w.service.claim(ctx)
+	result, found, err := w.service.claim(ctx)
 	if err != nil || !found {
 		return false, err
+	}
+	claimed := result.request
+	if result.firstClaim && claimed.StartedAt.Valid && claimed.CreatedAt.Valid {
+		w.opts.Metrics.RequestClaimed(claimed.Source, claimed.StartedAt.Time.Sub(claimed.CreatedAt.Time))
 	}
 	return w.process(ctx, claimed), nil
 }

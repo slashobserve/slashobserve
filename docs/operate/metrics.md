@@ -33,6 +33,7 @@ A series with labels appears after its first observation, so a server that has r
 | ------------------------------------------------- | --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | `slashobserve_http_request_duration_seconds`      | histogram | `route`, `method`, `status`    | Time to answer an HTTP request.                                                                          |
 | `slashobserve_agent_runs_total`                   | counter   | `kind`, `outcome`              | Agent runs that ended.                                                                                   |
+| `slashobserve_agent_queue_wait_seconds`           | histogram | `source`                       | Time an agent request waited before a worker started it; a retry after a restart or a lost lease is not counted. |
 | `slashobserve_model_call_duration_seconds`        | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries.                                                           |
 | `slashobserve_model_tokens_total`                 | counter   | `direction`                    | Tokens the model provider reported.                                                                      |
 | `slashobserve_proxy_query_duration_seconds`       | histogram | `datasource_type`, `outcome`   | Time of one datasource call from the query proxy, for panel data, variable values and save checks alike. |
@@ -53,6 +54,7 @@ The Go runtime series (`go_*`) and the process series (`process_*`) come from th
 - `method` is the HTTP method, or `other` for a method the server does not serve.
 - `status` is the HTTP status code the server answered.
 - `kind` is `create` for a new dashboard, `revise` for a change to an existing one, and `suggest` for a single suggested panel.
+- `source` on `slashobserve_agent_queue_wait_seconds` is the request's source: `comment`, `prompt`, `observe`, `suggest` or `investigate`.
 - `outcome` on `slashobserve_agent_runs_total` is `succeeded`, `lease_lost` when the server lost its lease on the request and another attempt takes it over, or the failure code the request shows, such as `rate_limited`, `run_timeout` or `canceled`.
 - `outcome` on `slashobserve_model_call_duration_seconds` is `ok`, `rate_limited`, `call_timeout`, `provider_error`, `canceled`, or `error` for any other failure.
 - `direction` is `input`, `output`, `cache_read` or `cache_write`.
@@ -67,6 +69,12 @@ The share of API requests that failed with a server error over the last 5 minute
 ```promql
 sum(rate(slashobserve_http_request_duration_seconds_count{status=~"5.."}[5m]))
   / sum(rate(slashobserve_http_request_duration_seconds_count[5m]))
+```
+
+The 95th percentile time an agent request waited for a worker:
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(slashobserve_agent_queue_wait_seconds_bucket[15m])))
 ```
 
 The 95th percentile time of a model call, by model:

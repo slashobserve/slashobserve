@@ -12,7 +12,8 @@ func (s *Service) SetLeaseTTL(d time.Duration) { s.leaseTTL = d }
 func (w *Worker) SetHeartbeat(d time.Duration) { w.heartbeat = d }
 
 func (s *Service) Claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
-	return s.claim(ctx)
+	claimed, found, err := s.claim(ctx)
+	return claimed.request, found, err
 }
 
 func (s *Service) RenewLease(ctx context.Context, claimed dbsqlc.AgentRequest) error {

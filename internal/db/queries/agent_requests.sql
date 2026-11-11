@@ -39,7 +39,7 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING *;
+RETURNING sqlc.embed(agent_requests), (old.started_at IS NULL)::boolean AS first_claim;
 
 -- name: RenewAgentRequestLease :one
 UPDATE agent_requests

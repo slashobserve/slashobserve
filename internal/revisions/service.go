@@ -537,8 +537,13 @@ func (s *Service) Archive(ctx context.Context, id pgtype.UUID, by auth.Principal
 	return nil
 }
 
-func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
-	var claimed dbsqlc.AgentRequest
+type claimResult struct {
+	request    dbsqlc.AgentRequest
+	firstClaim bool
+}
+
+func (s *Service) claim(ctx context.Context) (claimResult, bool, error) {
+	var claimed claimResult
 	found := false
 	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
@@ -564,13 +569,13 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		if err != nil {
 			return fmt.Errorf("claim agent request: %w", err)
 		}
-		claimed, found = row, true
-		return recordRun(ctx, q, row)
+		claimed, found = claimResult{request: row.AgentRequest, firstClaim: row.FirstClaim}, true
+		return recordRun(ctx, q, row.AgentRequest)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {
 		s.logger.WarnContext(ctx, "agent request claim hit the one-running-request-per-dashboard index; nothing claimed", logattrs.Failure("agent_request_claim_conflict", err)...)
-		return dbsqlc.AgentRequest{}, false, nil
+		return claimResult{}, false, nil
 	}
 	return claimed, found, err
 }
