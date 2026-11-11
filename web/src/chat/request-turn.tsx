@@ -37,7 +37,6 @@ import {
 } from "./turn-model"
 
 const reconnectingAfterFailures = 2
-const noActions: ObserveRequest["allowed_actions"] = []
 
 export type TurnSummary = {
   id: string
@@ -46,7 +45,7 @@ export type TurnSummary = {
   status: "queued" | "running" | "succeeded" | "failed"
   state: ObserveRequest["state"]
   result_kind: ObserveRequest["result_kind"]
-  allowed_actions?: ObserveRequest["allowed_actions"]
+  allowed_actions: ObserveRequest["allowed_actions"]
   dashboard_id: string | null
   result_version: number | null
   error: string | null
@@ -126,17 +125,12 @@ export function RequestTurn({
       isActive(summary.status) ||
       loadSteps ||
       detailsOpen ||
-      mayHaveFinding(summary) ||
-      (summary.status === "failed" && summary.allowed_actions === undefined),
+      mayHaveFinding(summary),
   })
   const live = query.data
   const settled = !isActive(summary.status)
   const showLive = live !== undefined && !(settled && !isTerminal(live))
-  const shown: TurnSummary = showLive ? live : summary
-  const request = {
-    ...shown,
-    allowed_actions: shown.allowed_actions ?? noActions,
-  }
+  const request: TurnSummary = showLive ? live : summary
   const detail = showLive ? live : undefined
   const build = request.build
   const answers = mayHaveFinding(request)

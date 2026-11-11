@@ -2359,6 +2359,7 @@ components:
         - state
         - result_kind
         - attempts
+        - allowed_actions
         - result_version
         - error
         - failure_code
@@ -2416,6 +2417,13 @@ components:
           type: integer
           minimum: 0
           maximum: 2
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [cancel, keep_build, continue, retry, pin, archive]
+          description: What the caller may do with the revision now, in display order and by the same rule as `AgentRequest.allowed_actions`. `retry` is offered to anyone who can see a finished revision and may start that kind of request, not only the requester; every other action is the requester's.
         result_version:
           type: integer
           minimum: 1

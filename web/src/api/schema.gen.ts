@@ -3879,6 +3879,8 @@ export interface components {
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
             attempts: number;
+            /** @description What the caller may do with the revision now, in display order and by the same rule as `AgentRequest.allowed_actions`. `retry` is offered to anyone who can see a finished revision and may start that kind of request, not only the requester; every other action is the requester's. */
+            allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** @description The version the revision saved, set when the status is `succeeded` unless the agent answered with a finding. */
             result_version: number | null;
             /** @description Why the revision failed, set when the status is `failed`. */

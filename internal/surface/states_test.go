@@ -128,7 +128,7 @@ func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 			t.Errorf("%s.result_kind enum = %v, want %v", schema, got, kinds)
 		}
 	}
-	for _, schema := range []string{"AgentRequest", "RequestSummary"} {
+	for _, schema := range []string{"AgentRequest", "RequestSummary", "Revision"} {
 		if got := enumOf(t, doc, schema, "allowed_actions"); !slices.Equal(got, offered) {
 			t.Errorf("%s.allowed_actions items enum = %v, want %v", schema, got, offered)
 		}

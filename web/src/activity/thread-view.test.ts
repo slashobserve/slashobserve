@@ -57,6 +57,7 @@ function request(overrides: Partial<Revision> = {}): Revision {
   return {
     id: "r1",
     dashboard_id: "d1",
+    allowed_actions: [],
     source: "comment",
     comment_id: "c1",
     panel_id: null,
