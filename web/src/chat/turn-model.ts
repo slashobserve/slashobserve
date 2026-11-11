@@ -1,19 +1,21 @@
 import type { ObserveRequest } from "@/observe/queries"
 
 export function resultFinishedAt(
-  request: Pick<ObserveRequest, "status" | "finished_at" | "build_saved_at">
+  request: Pick<
+    ObserveRequest,
+    "result_kind" | "finished_at" | "build_saved_at"
+  >
 ): string | null {
-  return request.status === "failed" && request.build_saved_at !== null
+  return request.result_kind === "partial_version"
     ? request.build_saved_at
     : request.finished_at
 }
 
 export function mayHaveFinding(
-  request: Pick<ObserveRequest, "source" | "status" | "result_version">
+  request: Pick<ObserveRequest, "source" | "result_kind">
 ): boolean {
   return (
-    request.source === "investigate" ||
-    (request.status === "succeeded" && request.result_version === null)
+    request.source === "investigate" || request.result_kind === "observation"
   )
 }
 

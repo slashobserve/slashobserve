@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils"
 import {
   buildQuery,
   buildStatusText,
-  canContinueBuild,
   newPanelIds,
   saveBuildErrorText,
   useSaveBuild,
@@ -141,32 +140,27 @@ type BuildCardRequest = Pick<
   ObserveRequest,
   | "id"
   | "status"
+  | "state"
   | "dashboard_id"
   | "failure_code"
-  | "build_saved_at"
   | "continued_by"
+  | "allowed_actions"
 > &
-  Partial<Pick<ObserveRequest, "queue_position" | "cancel_requested_at">>
+  Partial<Pick<ObserveRequest, "queue_position">>
 
 function BuildActions({
   request,
-  build,
-  isRequester,
   onContinued,
 }: {
   request: BuildCardRequest
-  build: BuildProgress
-  isRequester: boolean
   onContinued: (next: ObserveRequest) => void
 }) {
   return (
     <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t px-3.5 py-2.5 text-[13px]">
-      <SaveBuild request={request} />
-      <ContinueBuildButton
-        request={{ ...request, build }}
-        isRequester={isRequester}
-        onContinued={onContinued}
-      />
+      {request.allowed_actions.includes("keep_build") ? (
+        <SaveBuild request={request} />
+      ) : null}
+      <ContinueBuildButton request={request} onContinued={onContinued} />
     </div>
   )
 }
@@ -244,16 +238,12 @@ export function BuildCard({
     build,
     failureCode: request.failure_code,
     queuePosition: request.queue_position ?? null,
-    canceling: (request.cancel_requested_at ?? null) !== null,
+    canceling: request.state === "canceling",
     continued: request.continued_by !== null,
   })
-  const mayAct = canContinueBuild({
-    status: request.status,
-    build,
-    buildSavedAt: request.build_saved_at,
-    continuedBy: request.continued_by,
-    isRequester,
-  })
+  const mayAct =
+    request.allowed_actions.includes("keep_build") ||
+    request.allowed_actions.includes("continue")
 
   return (
     <div className="flex flex-col overflow-hidden rounded-card border bg-background">
@@ -277,12 +267,7 @@ export function BuildCard({
       </div>
       {!compact && rows.length > 0 ? <Rows rows={rows} fresh={fresh} /> : null}
       {mayAct ? (
-        <BuildActions
-          request={request}
-          build={build}
-          isRequester={isRequester}
-          onContinued={onContinued}
-        />
+        <BuildActions request={request} onContinued={onContinued} />
       ) : null}
     </div>
   )

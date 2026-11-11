@@ -305,6 +305,18 @@ export function useCancelRequest(id: string) {
   })
 }
 
+export function useRetryRequest(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observe/{id}/retry", { params: { path: { id } } })
+        .then(unwrap)
+        .then((body) => body.request),
+    onSuccess: (request) => recordRequest(queryClient, request),
+  })
+}
+
 export function useContinueRequest(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -358,6 +370,13 @@ export function describeSubmitError(error: unknown): {
     }
     if (isAgentUnavailable(error)) {
       return { message: agentOffMessage, inline: true, invalid: false }
+    }
+    if (error.status === 409 && error.code === "invalid_transition") {
+      return {
+        message: "This request can no longer be tried again.",
+        inline: false,
+        invalid: false,
+      }
     }
     return { message: sentence(error.message), inline: false, invalid: false }
   }

@@ -45,8 +45,9 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Every build read (the build, its panel data and its variable values) goes through `readBuild` in `web/src/observe/build.ts`: a 404 `not_found` means the run finished, so it refetches the request once and holds the read while the page replaces itself with the dashboard, and a `panel_not_found` passes through.
 - A panel new in a build save or in a new dashboard version fades in once through `DashboardGrid`'s `newPanelIds`, only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
 - `web/src/observe/request-actions.tsx` is the only place Cancel, Stop and Continue render.
-  `can_cancel` comes from the server and is never recomputed in the browser.
-  A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build card.
+  What a run allows comes from `allowed_actions` and `can_cancel`, and what it produced from `state` and `result_kind`; the browser never derives them from other fields.
+  A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build progress.
+  A revision summary carries no `allowed_actions`, so a failed turn built from one loads its request to learn them.
 - A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, edit mode shows the saved layout, and the web never decides a freeze (the save funnel does).
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.

@@ -8,10 +8,9 @@ import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
   sentence,
-  useCreateObserveRequest,
+  useRetryRequest,
   type ObserveRequest,
 } from "@/observe/queries"
-import { retryAction } from "@/observe/request-model"
 import { dashboardLink } from "@/lib/links"
 
 import { failureText } from "./failure-text"
@@ -64,15 +63,14 @@ export function OpenDashboardLink({
 
 type FailedRequest = Pick<
   ObserveRequest,
+  | "id"
   | "source"
   | "dashboard_id"
-  | "panel_id"
-  | "prompt"
   | "error"
   | "failure_code"
   | "continued_by"
-> &
-  Partial<Pick<ObserveRequest, "from" | "to">>
+  | "allowed_actions"
+>
 
 export type RunOpens = "chat" | "build"
 
@@ -144,33 +142,17 @@ export function TurnFailure({
   onRetried: (request: ObserveRequest) => void
   opensRunsIn?: RunOpens
 }) {
-  const create = useCreateObserveRequest()
+  const retryRequest = useRetryRequest(request.id)
   const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
   const explained = failureText(request.failure_code)
   const [retrying, setRetrying] = useState(false)
-  const action = retryAction(request)
+  const canRetry = request.allowed_actions.includes("retry")
   const continued = request.continued_by !== null
 
   async function retry() {
     setRetrying(true)
     try {
-      const next = await create.mutateAsync(
-        action.kind === "investigate"
-          ? {
-              prompt: request.prompt,
-              kind: "investigate",
-              dashboardId: action.dashboardId,
-              panelId: action.panelId,
-              from: action.from,
-              to: action.to,
-            }
-          : {
-              prompt: request.prompt,
-              dashboardId:
-                action.kind === "revise" ? action.dashboardId : undefined,
-            }
-      )
-      await openNewRun(next)
+      await openNewRun(await retryRequest.mutateAsync())
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     } finally {
@@ -200,12 +182,10 @@ export function TurnFailure({
           ) : null}
           {explained !== null ? <p>{explained.next}</p> : null}
         </div>
-        {continued ||
-        action.kind !== "none" ||
-        request.dashboard_id !== null ? (
+        {continued || canRetry || request.dashboard_id !== null ? (
           <div className="flex flex-wrap items-center gap-2">
             <ContinuedNote request={request} />
-            {!continued && action.kind !== "none" ? (
+            {canRetry ? (
               <RetryButton busy={retrying} onClick={() => void retry()}>
                 Try again
               </RetryButton>
