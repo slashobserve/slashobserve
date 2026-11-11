@@ -56,6 +56,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.database.existingSecret }}
                   key: {{ .Values.database.urlKey }}
+            {{- if .Values.database.directUrlKey }}
+            - name: SLASHOBSERVE_DATABASE_DIRECT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.directUrlKey }}
+            {{- end }}
             - name: SLASHOBSERVE_PUBLIC_URL
               value: {{ .Values.publicURL | quote }}
             - name: SLASHOBSERVE_OIDC_ISSUER_URL

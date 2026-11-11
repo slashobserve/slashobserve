@@ -227,3 +227,26 @@ func TestActivityRetentionSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabaseDirectURLSetting(t *testing.T) {
+	const direct = "postgres://postgres.internal:5432/app"
+	tests := []struct {
+		name string
+		set  map[string]string
+		want string
+	}{
+		{name: "unset", want: ""},
+		{name: "set", set: map[string]string{envDatabaseDirectURL: direct}, want: direct},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.DatabaseDirectURL != tt.want {
+				t.Fatalf("DatabaseDirectURL = %q, want %q", cfg.DatabaseDirectURL, tt.want)
+			}
+		})
+	}
+}

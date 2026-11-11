@@ -29,6 +29,7 @@ kubectl -n slashobserve create secret generic slashobserve-llm --from-file=api-k
 ```
 
 - `database-url` holds the connection string, such as `postgres://slashobserve:<password>@<host>:5432/slashobserve?sslmode=require`.
+- `direct-url` is optional: a connection string that bypasses your pooler, added to the same Secret with `--from-file=direct-url=./database-direct-url` and named by `database.directUrlKey: direct-url`; see [Behind a connection pooler](production.md#behind-a-connection-pooler).
 - `oidc-client-secret` holds the client secret from your identity provider.
 - `secret-key` is optional and encrypts stored Grafana connection tokens; generate it with `openssl rand -hex 32`.
 - `llm-api-key` is optional and holds the model provider's key, which the chart mounts as a file for `SLASHOBSERVE_LLM_API_KEY_FILE`.

@@ -32,6 +32,8 @@ auth:
 EOF
 
 cat >"$work/everything.yaml" <<'EOF'
+database:
+  directUrlKey: direct-url
 image:
   digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
 imagePullSecrets:
@@ -110,6 +112,9 @@ for values in required everything; do
     die "the $values render creates a Secret"
   fi
 done
+
+grep -q 'SLASHOBSERVE_DATABASE_DIRECT_URL' "$work/everything.out" || die "the everything render has no SLASHOBSERVE_DATABASE_DIRECT_URL"
+! grep -q 'SLASHOBSERVE_DATABASE_DIRECT_URL' "$work/required.out" || die "the required render sets SLASHOBSERVE_DATABASE_DIRECT_URL"
 
 if helm template t "$CHART" >/dev/null 2>&1; then
   die "the chart renders without its required values"

@@ -14,6 +14,7 @@ import (
 const unmatchedRoute = "unmatched"
 
 var (
+	agentQueueBuckets = prometheus.ExponentialBuckets(0.25, 2, 12)
 	modelCallBuckets  = []float64{0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300, 600}
 	proxyQueryBuckets = []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
 	knownMethods      = map[string]bool{"GET": true, "HEAD": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true, "OPTIONS": true}
@@ -24,6 +25,7 @@ type Registry struct {
 
 	httpRequests     *prometheus.HistogramVec
 	agentRuns        *prometheus.CounterVec
+	agentQueueWait   *prometheus.HistogramVec
 	modelCalls       *prometheus.HistogramVec
 	modelTokens      *prometheus.CounterVec
 	proxyQueries     *prometheus.HistogramVec
@@ -44,6 +46,11 @@ func New() *Registry {
 			Name: "slashobserve_agent_runs_total",
 			Help: "Agent runs that ended, by kind (create, revise or suggest) and outcome (succeeded or the failure code).",
 		}, []string{"kind", "outcome"}),
+		agentQueueWait: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "slashobserve_agent_queue_wait_seconds",
+			Help:    "Time an agent request waited in the queue before a worker started it.",
+			Buckets: agentQueueBuckets,
+		}, []string{"source"}),
 		modelCalls: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "slashobserve_model_call_duration_seconds",
 			Help:    "Time of one model call including its retries, by provider, model and outcome.",
@@ -74,7 +81,7 @@ func New() *Registry {
 	r.registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		r.httpRequests, r.agentRuns, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
+		r.httpRequests, r.agentRuns, r.agentQueueWait, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
 	)
 	return r
 }
@@ -99,6 +106,14 @@ func (r *Registry) AgentRuns() AgentRuns { return AgentRuns{runs: r.agentRuns} }
 
 func (a AgentRuns) AgentRun(kind, outcome string) {
 	a.runs.WithLabelValues(kind, outcome).Inc()
+}
+
+type AgentQueue struct{ wait *prometheus.HistogramVec }
+
+func (r *Registry) AgentQueue() AgentQueue { return AgentQueue{wait: r.agentQueueWait} }
+
+func (a AgentQueue) RequestClaimed(source string, waited time.Duration) {
+	a.wait.WithLabelValues(source).Observe(waited.Seconds())
 }
 
 type ModelCalls struct {

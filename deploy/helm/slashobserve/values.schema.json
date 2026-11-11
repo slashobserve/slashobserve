@@ -60,7 +60,11 @@
           "$ref": "#/definitions/nonEmpty",
           "description": "Secret holding the Postgres connection string for SLASHOBSERVE_DATABASE_URL. The chart ships no Postgres."
         },
-        "urlKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the connection string in that Secret." }
+        "urlKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the connection string in that Secret." },
+        "directUrlKey": {
+          "type": "string",
+          "description": "Key in database.existingSecret holding a connection string straight to Postgres, for SLASHOBSERVE_DATABASE_DIRECT_URL. Set it when database.urlKey points at a transaction-mode pooler such as PgBouncer. Empty leaves it unset."
+        }
       }
     },
     "oidc": {

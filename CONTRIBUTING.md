@@ -14,7 +14,7 @@ Use the "Grafana import failure" issue template and attach the JSON, with creden
 
 ## Set up
 
-You need Go 1.27.3 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2 and Docker.
+You need Go 1.27.4 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2 and Docker.
 Docker runs the database-backed tests through testcontainers, and the demo stack.
 
     git clone https://github.com/slashobserve/slashobserve

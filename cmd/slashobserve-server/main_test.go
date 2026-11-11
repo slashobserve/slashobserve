@@ -28,11 +28,11 @@ func logExit(t *testing.T, err error) (map[string]any, *logtest.Capture) {
 
 func TestUnparsableDatabaseURLIsReportedWithoutTheURL(t *testing.T) {
 	url := fmt.Sprintf("postgres://%s:%s@db.internal:5432/app%%zz", "bob", "hunter2")
-	_, err := db.Open(context.Background(), url, slog.New(slog.DiscardHandler))
+	_, err := db.Open(context.Background(), db.Config{URL: url}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("db.Open accepted an invalid URL")
 	}
-	record, logs := logExit(t, databaseExit(url, err))
+	record, logs := logExit(t, databaseExit(config.Config{DatabaseURL: url}, err))
 	if record["error_code"] != "invalid_database_url" {
 		t.Errorf("record = %v", record)
 	}
@@ -43,11 +43,11 @@ func TestUnreachableDatabaseIsReportedByHostAndErrno(t *testing.T) {
 	url := fmt.Sprintf("postgres://%s:%s@127.0.0.1:1/appdb", "bob", "hunter2")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, err := db.Open(ctx, url, slog.New(slog.DiscardHandler))
+	_, err := db.Open(ctx, db.Config{URL: url}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("db.Open connected to a closed port")
 	}
-	record, logs := logExit(t, databaseExit(url, err))
+	record, logs := logExit(t, databaseExit(config.Config{DatabaseURL: url}, err))
 	logs.AssertSafeFailure(t, record, "database_unavailable", "bob", "hunter2", "appdb")
 	if record["db_host"] != "127.0.0.1" || record["db_port"] != float64(1) {
 		t.Errorf("db_host/db_port = %v/%v, want 127.0.0.1/1", record["db_host"], record["db_port"])
@@ -164,5 +164,56 @@ func TestVersionLineHasTheVersionAndTheCommit(t *testing.T) {
 	version, commit = "0.1.0", "abc1234"
 	if got := versionLine(); got != "0.1.0 (abc1234)" {
 		t.Fatalf("versionLine() = %q", got)
+	}
+}
+
+func TestPoolFloorGrowsWithTheWorkers(t *testing.T) {
+	tests := []struct{ workers, want int }{{1, 10}, {2, 12}, {8, 24}, {64, 136}}
+	for _, tt := range tests {
+		if got := poolFloor(tt.workers); got != tt.want {
+			t.Errorf("poolFloor(%d) = %d, want %d", tt.workers, got, tt.want)
+		}
+	}
+}
+
+func TestDirectURLToAnotherDatabaseIsReportedWithoutEitherURL(t *testing.T) {
+	cfg := config.Config{
+		DatabaseURL:       fmt.Sprintf("postgres://%s:%s@pool.internal:6432/appdb", "bob", "hunter2"),
+		DatabaseDirectURL: fmt.Sprintf("postgres://%s:%s@pg.internal:5432/otherdb", "carol", "swordfish"),
+	}
+	record, logs := logExit(t, databaseExit(cfg, fmt.Errorf("open: %w", db.ErrDirectURLMismatch)))
+	if record["error_code"] != "database_direct_url_mismatch" {
+		t.Errorf("record = %v", record)
+	}
+	logs.AssertAbsent(t, "bob", "hunter2", "pool.internal", "appdb", "carol", "swordfish", "pg.internal", "otherdb")
+}
+
+func TestUnparsableDirectURLIsReportedWithoutTheURL(t *testing.T) {
+	url := fmt.Sprintf("postgres://%s:%s@pg.internal:5432/app%%zz", "carol", "swordfish")
+	_, parseErr := pgconn.ParseConfig(url)
+	if parseErr == nil {
+		t.Fatal("pgconn.ParseConfig accepted an invalid URL")
+	}
+	cfg := config.Config{DatabaseURL: fmt.Sprintf("postgres://%s:%s@pool.internal:6432/appdb", "bob", "hunter2"), DatabaseDirectURL: url}
+	record, logs := logExit(t, databaseExit(cfg, fmt.Errorf("%w: %w", db.ErrDirectURL, parseErr)))
+	if record["error_code"] != "invalid_database_direct_url" {
+		t.Errorf("record = %v", record)
+	}
+	logs.AssertAbsent(t, "bob", "hunter2", "pool.internal", "carol", "swordfish", "pg.internal", "app%zz")
+}
+
+func TestUnreachableDirectURLIsReportedByTheDirectHost(t *testing.T) {
+	url := fmt.Sprintf("postgres://%s:%s@127.0.0.1:1/otherdb", "carol", "swordfish")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, connErr := pgconn.Connect(ctx, url)
+	if connErr == nil {
+		t.Fatal("pgconn.Connect reached a closed port")
+	}
+	cfg := config.Config{DatabaseURL: fmt.Sprintf("postgres://%s:%s@pool.internal:6432/appdb", "bob", "hunter2"), DatabaseDirectURL: url}
+	record, logs := logExit(t, databaseExit(cfg, fmt.Errorf("%w: %w", db.ErrDirectURL, connErr)))
+	logs.AssertSafeFailure(t, record, "database_unavailable", "bob", "hunter2", "pool.internal", "appdb", "carol", "swordfish", "otherdb")
+	if record["db_host"] != "127.0.0.1" || record["db_port"] != float64(1) || record["connection"] != "direct" {
+		t.Errorf("record = %v, want the direct host and port", record)
 	}
 }

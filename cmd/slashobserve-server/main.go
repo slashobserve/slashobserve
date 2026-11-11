@@ -115,14 +115,27 @@ func described(code string, cause error) error {
 }
 
 // The host and port come from the parsed setting, never from the error text, which also names the user and database.
-func databaseExit(databaseURL string, err error) error {
+func databaseExit(cfg config.Config, err error) error {
+	direct := errors.Is(err, db.ErrDirectURL)
 	var parseErr *pgconn.ParseConfigError
-	if errors.As(err, &parseErr) {
+	switch {
+	case errors.Is(err, db.ErrDirectURLMismatch):
+		return &exitError{code: "database_direct_url_mismatch", detail: "SLASHOBSERVE_DATABASE_DIRECT_URL reaches a different database than SLASHOBSERVE_DATABASE_URL", cause: err}
+	case direct && errors.As(err, &parseErr):
+		return &exitError{code: "invalid_database_direct_url", detail: "SLASHOBSERVE_DATABASE_DIRECT_URL is not a valid PostgreSQL connection string", cause: err}
+	case errors.As(err, &parseErr):
 		return &exitError{code: "invalid_database_url", detail: "SLASHOBSERVE_DATABASE_URL is not a valid PostgreSQL connection string", cause: err}
 	}
+	databaseURL := cfg.DatabaseURL
+	if direct {
+		databaseURL = cfg.DatabaseDirectURL
+	}
 	exit := &exitError{code: "database_unavailable", cause: err}
-	if cfg, parseErr := pgconn.ParseConfig(databaseURL); parseErr == nil {
-		exit.attrs = []any{slog.String("db_host", cfg.Host), slog.Int("db_port", int(cfg.Port))}
+	if connCfg, parseErr := pgconn.ParseConfig(databaseURL); parseErr == nil {
+		exit.attrs = []any{slog.String("db_host", connCfg.Host), slog.Int("db_port", int(connCfg.Port))}
+	}
+	if direct {
+		exit.attrs = append(exit.attrs, slog.String("connection", "direct"))
 	}
 	return exit
 }
@@ -251,10 +264,10 @@ func run() error {
 	context.AfterFunc(ctx, stop)
 
 	connectCtx, cancelConnect := context.WithTimeout(ctx, connectTimeout)
-	database, err := db.Open(connectCtx, cfg.DatabaseURL, logger)
+	database, err := db.Open(connectCtx, db.Config{URL: cfg.DatabaseURL, DirectURL: cfg.DatabaseDirectURL, MaxConnsFloor: poolFloor(cfg.Agent.Workers)}, logger)
 	cancelConnect()
 	if err != nil {
-		return databaseExit(cfg.DatabaseURL, err)
+		return databaseExit(cfg, err)
 	}
 	defer database.Close()
 	serverMetrics.Pool(database.Stat)
@@ -338,7 +351,7 @@ func run() error {
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
 
-	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
+	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
 	defer stopWorkers()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
@@ -521,10 +534,13 @@ func reportedEffort(llm config.LLM) string {
 	return ""
 }
 
+func poolFloor(workers int) int { return 2*workers + 8 }
+
 func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger, opts revisions.WorkerOptions) func() {
 	if !service.Available() {
 		return func() {}
 	}
+	logger.Info("agent workers configured", slog.Int("workers", opts.Workers))
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {

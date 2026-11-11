@@ -118,7 +118,7 @@ func TestListenerFailureLogsOnlyCodeAndType(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		revisions.NewWorker(svc, listen, logger, revisions.WorkerOptions{Poll: time.Hour}).Run(ctx)
+		revisions.NewWorker(svc, listen, logger, revisions.WorkerOptions{Workers: 2, Poll: time.Hour}).Run(ctx)
 	}()
 	t.Cleanup(func() {
 		cancel()

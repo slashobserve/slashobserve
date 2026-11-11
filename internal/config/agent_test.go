@@ -51,3 +51,39 @@ func TestSessionRenewSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentWorkersSetting(t *testing.T) {
+	const message = envAgentWorkers + ": must be a whole number from 1 to 64"
+	tests := []struct {
+		name    string
+		set     map[string]string
+		want    int
+		wantErr string
+	}{
+		{name: "unset gives the default", want: 8},
+		{name: "lowest", set: map[string]string{envAgentWorkers: "1"}, want: 1},
+		{name: "highest", set: map[string]string{envAgentWorkers: "64"}, want: 64},
+		{name: "zero", set: map[string]string{envAgentWorkers: "0"}, wantErr: message},
+		{name: "above the highest", set: map[string]string{envAgentWorkers: "65"}, wantErr: message},
+		{name: "negative", set: map[string]string{envAgentWorkers: "-1"}, wantErr: message},
+		{name: "fraction", set: map[string]string{envAgentWorkers: "2.5"}, wantErr: message},
+		{name: "not a number", set: map[string]string{envAgentWorkers: "abc"}, wantErr: message},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.Workers != tt.want {
+				t.Fatalf("Workers = %d, want %d", cfg.Agent.Workers, tt.want)
+			}
+		})
+	}
+}

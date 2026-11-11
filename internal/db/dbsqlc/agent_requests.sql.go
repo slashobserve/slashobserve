@@ -152,13 +152,8 @@ func (q *Queries) CancelAgentRequest(ctx context.Context, arg CancelAgentRequest
 }
 
 const claimAgentRequest = `-- name: ClaimAgentRequest :one
-UPDATE agent_requests
-SET status = 'running',
-  attempts = attempts + 1,
-  lease_until = clock_timestamp() + make_interval(secs => $1::double precision),
-  started_at = coalesce(started_at, clock_timestamp())
-WHERE id = (
-  SELECT r.id FROM agent_requests r
+WITH picked AS (
+  SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < $2::integer
     AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
@@ -169,7 +164,14 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at
+UPDATE agent_requests
+SET status = 'running',
+  attempts = attempts + 1,
+  lease_until = clock_timestamp() + make_interval(secs => $1::double precision),
+  started_at = coalesce(started_at, clock_timestamp())
+FROM picked
+WHERE agent_requests.id = picked.id
+RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, picked.first_claim::boolean AS first_claim
 `
 
 type ClaimAgentRequestParams struct {
@@ -177,49 +179,55 @@ type ClaimAgentRequestParams struct {
 	MaxAttempts  int32
 }
 
-func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestParams) (AgentRequest, error) {
+type ClaimAgentRequestRow struct {
+	AgentRequest AgentRequest
+	FirstClaim   bool
+}
+
+func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestParams) (ClaimAgentRequestRow, error) {
 	row := q.db.QueryRow(ctx, claimAgentRequest, arg.LeaseSeconds, arg.MaxAttempts)
-	var i AgentRequest
+	var i ClaimAgentRequestRow
 	err := row.Scan(
-		&i.ID,
-		&i.DashboardID,
-		&i.Source,
-		&i.CommentID,
-		&i.Prompt,
-		&i.PanelID,
-		&i.BaseVersion,
-		&i.Status,
-		&i.Attempts,
-		&i.CheckFailures,
-		&i.LeaseUntil,
-		&i.ResultVersion,
-		&i.Error,
-		&i.RequestedByKind,
-		&i.RequestedByID,
-		&i.RequestedByName,
-		&i.RequestedByEmail,
-		&i.CreatedAt,
-		&i.StartedAt,
-		&i.FinishedAt,
-		&i.Steps,
-		&i.RunUsage,
-		&i.Origin,
-		&i.OriginClient,
-		&i.Draft,
-		&i.Suggestion,
-		&i.FailureCode,
-		&i.BuildSavedAt,
-		&i.CancelRequestedAt,
-		&i.CanceledByKind,
-		&i.CanceledByID,
-		&i.CanceledByName,
-		&i.ContinuesID,
-		&i.ContinueNote,
-		&i.ContextFrom,
-		&i.ContextTo,
-		&i.Title,
-		&i.PinnedAt,
-		&i.ArchivedAt,
+		&i.AgentRequest.ID,
+		&i.AgentRequest.DashboardID,
+		&i.AgentRequest.Source,
+		&i.AgentRequest.CommentID,
+		&i.AgentRequest.Prompt,
+		&i.AgentRequest.PanelID,
+		&i.AgentRequest.BaseVersion,
+		&i.AgentRequest.Status,
+		&i.AgentRequest.Attempts,
+		&i.AgentRequest.CheckFailures,
+		&i.AgentRequest.LeaseUntil,
+		&i.AgentRequest.ResultVersion,
+		&i.AgentRequest.Error,
+		&i.AgentRequest.RequestedByKind,
+		&i.AgentRequest.RequestedByID,
+		&i.AgentRequest.RequestedByName,
+		&i.AgentRequest.RequestedByEmail,
+		&i.AgentRequest.CreatedAt,
+		&i.AgentRequest.StartedAt,
+		&i.AgentRequest.FinishedAt,
+		&i.AgentRequest.Steps,
+		&i.AgentRequest.RunUsage,
+		&i.AgentRequest.Origin,
+		&i.AgentRequest.OriginClient,
+		&i.AgentRequest.Draft,
+		&i.AgentRequest.Suggestion,
+		&i.AgentRequest.FailureCode,
+		&i.AgentRequest.BuildSavedAt,
+		&i.AgentRequest.CancelRequestedAt,
+		&i.AgentRequest.CanceledByKind,
+		&i.AgentRequest.CanceledByID,
+		&i.AgentRequest.CanceledByName,
+		&i.AgentRequest.ContinuesID,
+		&i.AgentRequest.ContinueNote,
+		&i.AgentRequest.ContextFrom,
+		&i.AgentRequest.ContextTo,
+		&i.AgentRequest.Title,
+		&i.AgentRequest.PinnedAt,
+		&i.AgentRequest.ArchivedAt,
+		&i.FirstClaim,
 	)
 	return i, err
 }

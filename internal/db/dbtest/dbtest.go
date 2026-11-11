@@ -77,7 +77,7 @@ func migrateTemplate(ctx context.Context) error {
 	if err := adminExec(ctx, "CREATE DATABASE "+templateDB); err != nil {
 		return err
 	}
-	d, err := db.Open(ctx, urlFor(templateDB), quietLogger())
+	d, err := db.Open(ctx, db.Config{URL: urlFor(templateDB)}, quietLogger())
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func create(t testing.TB, logger *slog.Logger, options string) *Database {
 	if err := adminExec(ctx, "CREATE DATABASE "+name+options); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
-	d, err := db.Open(ctx, urlFor(name), logger)
+	d, err := db.Open(ctx, db.Config{URL: urlFor(name)}, logger)
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
@@ -126,6 +126,10 @@ func create(t testing.TB, logger *slog.Logger, options string) *Database {
 		}
 	})
 	return &Database{DB: d, name: name}
+}
+
+func (d *Database) URL() string {
+	return urlFor(d.name)
 }
 
 func (d *Database) Exec(t testing.TB, sql string, args ...any) {
