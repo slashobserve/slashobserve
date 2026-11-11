@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest"
 import {
   insertMention,
   mentionName,
+  mentionOptions,
   mentionSegments,
   mentionToken,
+  mentionTriggerAt,
+  observeAgent,
   threadParticipants,
 } from "./mentions"
 
@@ -129,5 +132,64 @@ describe("mentionName", () => {
     )
     if (segment.kind !== "mention") throw new Error("expected a mention")
     expect(mentionName(segment, recorded)).toBeNull()
+  })
+})
+
+describe("mentionTriggerAt", () => {
+  it.each([
+    ["hi @", 4, 3],
+    ["@", 1, 0],
+    ["line\n@", 6, 5],
+    ["a@", 2, null],
+    ["hi @x", 5, null],
+    ["hi ", 3, null],
+    ["", 0, null],
+  ])("for %j with the caret at %i returns %s", (value, caret, expected) => {
+    expect(mentionTriggerAt(value, caret)).toBe(expected)
+  })
+})
+
+describe("mentionOptions", () => {
+  it("offers only the Observe Agent when there is no one else", () => {
+    expect(mentionOptions([], [])).toEqual([
+      {
+        value: "agent:observe",
+        label: "Observe Agent",
+        token: "@observe",
+        agent: true,
+        hint: "@observe",
+      },
+    ])
+  })
+
+  it("names the built-in agent by the handle the server recognizes", () => {
+    expect(observeAgent).toEqual({
+      handle: "observe",
+      name: "Observe Agent",
+      kind: "observe-agent",
+    })
+  })
+
+  it("lists the Observe Agent, then other agents, then people", () => {
+    const options = mentionOptions(
+      [
+        { id: adaId, name: "Ada" },
+        { id: "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d", name: "" },
+      ],
+      [{ handle: "claude", name: "Claude", kind: "outside-agent" }]
+    )
+    expect(options.map((option) => option.value)).toEqual([
+      "agent:observe",
+      "agent:claude",
+      `user:${adaId}`,
+      "user:3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d",
+    ])
+    expect(options[1]).toMatchObject({
+      label: "Claude",
+      token: "@claude",
+      hint: "@claude",
+    })
+    expect(options[2]).toMatchObject({ token: adaToken, hint: null })
+    expect(options[3].label).toBe("Unnamed")
   })
 })
