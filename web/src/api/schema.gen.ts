@@ -3137,7 +3137,11 @@ export interface paths {
         delete: operations["disconnectMyGrant"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set how one of the signed-in person's MCP clients makes changes.
+         * @description `direct` is the default; `propose` makes the agent's dashboard writes proposals that someone who can edit merges. The mode applies from the agent's next request. Another person's connection, a connection already disconnected and one that does not exist all answer 404 `not_found`. Only signed-in people may call it: a service-account key gets 403 `forbidden`, so no agent changes its own mode.
+         */
+        patch: operations["updateMyGrant"];
         trace?: never;
     };
     "/grants": {
@@ -3376,7 +3380,7 @@ export interface components {
              */
             state: "revoked" | "active";
             /**
-             * @description How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+             * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
              */
             mode: "direct" | "propose";
@@ -3390,6 +3394,10 @@ export interface components {
              * @description When it last asked for work or reported on a run; null when it never did.
              */
             last_seen_at: string | null;
+        };
+        UpdateConnectedAgentRequest: {
+            /** @enum {string} */
+            mode: "direct" | "propose";
         };
         ConnectedAgentList: {
             grants: components["schemas"]["ConnectedAgent"][];
@@ -13868,6 +13876,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateMyGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConnectedAgentRequest"];
+            };
+        };
+        responses: {
+            /** @description The connection with its new mode. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectedAgent"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

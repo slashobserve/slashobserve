@@ -430,4 +430,6 @@ A run that no agent held for 10 minutes fails as `agent_unavailable`.
 
 The `usage` of `finish_run` is shown on the run as the agent reports it, and a reported cost does not stop a run.
 A connected agent or service account shows its presence, `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise, with `last_seen_at`; see [Agent presence](../reference/states.md#agent-presence).
-Every connection's `mode` is `direct`.
+A connection's `mode` is `direct` by default.
+Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`; it applies from the agent's next request, and no key or agent can change it.
+In propose mode the agent's dashboard saves become proposals and it cannot merge them.

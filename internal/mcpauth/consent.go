@@ -57,6 +57,7 @@ func (s *Server) Register(api auth.Routes) {
 	api.POST("/oauth/requests/:id/approve", auth.RoleViewer, auth.RequireUser, s.approveRequest)
 	api.POST("/oauth/requests/:id/deny", auth.RoleViewer, auth.RequireUser, s.denyRequest)
 	api.GET("/me/grants", auth.RoleViewer, auth.RequireUser, s.listMyGrants)
+	api.PATCH("/me/grants/:id", auth.RoleViewer, auth.RequireUser, s.updateMine)
 	api.DELETE("/me/grants/:id", auth.RoleViewer, auth.RequireUser, s.disconnectMine)
 	api.GET("/grants", auth.RoleAdmin, auth.RequireUser, s.listAllGrants)
 	api.DELETE("/grants/:id", auth.RoleAdmin, auth.RequireUser, s.disconnectAny)

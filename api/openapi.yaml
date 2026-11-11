@@ -689,7 +689,7 @@ components:
         mode:
           type: string
           enum: [direct, propose]
-          description: How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+          description: How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
         presence:
           type: string
           enum: [working, listening, offline]
@@ -699,6 +699,14 @@ components:
           format: date-time
           nullable: true
           description: When it last asked for work or reported on a run; null when it never did.
+    UpdateConnectedAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [direct, propose]
     ConnectedAgentList:
       type: object
       additionalProperties: false
