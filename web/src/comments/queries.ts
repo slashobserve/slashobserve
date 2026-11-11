@@ -24,23 +24,6 @@ export function isPanelThread(comment: Comment): comment is PanelThread {
   return comment.parent_id === null && comment.panel_id !== null
 }
 
-export function withStatus(
-  comment: Comment,
-  status: CommentStatus,
-  now: string
-): Comment {
-  if (comment.parent_id !== null) return { ...comment, status }
-  const resolved = status === "resolved"
-  return {
-    ...comment,
-    status,
-    resolved_at: resolved ? now : null,
-    resolved_by: resolved ? comment.resolved_by : null,
-    resolved_actor: resolved ? comment.resolved_actor : null,
-    resolved_by_version: resolved ? comment.resolved_by_version : null,
-  }
-}
-
 type CommentsPage = { comments: Comment[]; next_cursor: string | null }
 type CommentsData = InfiniteData<CommentsPage, string | undefined>
 
@@ -182,29 +165,13 @@ export function useSetCommentStatus(
         })
         .then(unwrap)
         .then((body) => body.comment),
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient
-        .getQueryData<CommentsData>(key)
-        ?.pages.flatMap((page) => page.comments)
-        .find((comment) => comment.id === input.commentId)
+    onSuccess: (comment, input) => {
       queryClient.setQueryData<CommentsData>(key, (data) =>
-        mapComment(data, input.commentId, (comment) =>
-          withStatus(comment, input.status, new Date().toISOString())
-        )
+        mapComment(data, input.commentId, () => comment)
       )
-      return { previous }
+      onSaved?.(input.status)
     },
-    onSuccess: (_comment, input) => onSaved?.(input.status),
-    onError: (_error, input, context) => {
-      const previous = context?.previous
-      if (previous) {
-        queryClient.setQueryData<CommentsData>(key, (data) =>
-          mapComment(data, input.commentId, () => previous)
-        )
-      }
-      toast.error("Could not update the comment")
-    },
+    onError: () => toast.error("Could not update the comment"),
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 }

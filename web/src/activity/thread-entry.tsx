@@ -25,7 +25,7 @@ import {
 } from "./entry-frame"
 import { ReplyForm } from "./reply-form"
 import type { TimelineEntry } from "./timeline-model"
-import { canResolveThread, threadState, threadVerbText } from "./thread-view"
+import { threadState, threadVerbText } from "./thread-view"
 
 type Props = {
   dashboardId: string
@@ -33,7 +33,6 @@ type Props = {
   panelTitle: string | null
   onSelectPanel: (panelId: string) => void
   gate: AgentGate
-  canComment: boolean
   latestVersion: number
   clientName: string
 }
@@ -48,7 +47,6 @@ export function ThreadEntry({
   panelTitle,
   onSelectPanel,
   gate,
-  canComment,
   latestVersion,
   clientName,
 }: Props) {
@@ -64,6 +62,10 @@ export function ThreadEntry({
   const people = threadParticipants(
     [root, ...replies].map((comment) => comment.author)
   )
+  const allowed = root.allowed_actions
+  const canReply = allowed.includes("reply")
+  const canResolve = allowed.includes("resolve")
+  const canReopen = allowed.includes("reopen")
   const resolved = root.status === "resolved"
   const folded = resolved && !expanded
   const verb = threadVerbText(askedAgent, panelId, panelTitle)
@@ -93,7 +95,7 @@ export function ThreadEntry({
 
   function toggleStatus() {
     if (setStatus.isPending) return
-    const status = resolved ? "open" : "resolved"
+    const status = canReopen ? "open" : "resolved"
     setStatus.mutate(
       { commentId: root.id, status },
       {
@@ -166,7 +168,7 @@ export function ThreadEntry({
           ))}
         </ol>
       )}
-      {canComment && replying && !folded ? (
+      {canReply && replying && !folded ? (
         <ReplyForm
           dashboardId={dashboardId}
           rootId={root.id}
@@ -182,7 +184,7 @@ export function ThreadEntry({
           <span>{replyCount(replies.length)}</span>
         ) : null}
         <span className="flex flex-wrap items-center gap-0.5">
-          {canComment ? (
+          {canReply ? (
             <EntryAction
               ref={replyButton}
               icon={<ReplyIcon aria-hidden="true" />}
@@ -192,11 +194,11 @@ export function ThreadEntry({
               Reply
             </EntryAction>
           ) : null}
-          {canComment && canResolveThread(request) ? (
+          {canResolve || canReopen ? (
             <EntryAction
               ref={statusRef}
               icon={
-                resolved ? (
+                canReopen ? (
                   <RotateCcwIcon aria-hidden="true" />
                 ) : (
                   <CheckIcon aria-hidden="true" />
@@ -206,7 +208,7 @@ export function ThreadEntry({
               aria-busy={setStatus.isPending || undefined}
               onClick={toggleStatus}
             >
-              {resolved ? "Reopen" : "Resolve"}
+              {canReopen ? "Reopen" : "Resolve"}
             </EntryAction>
           ) : null}
           {resolved ? (
