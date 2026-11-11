@@ -1,11 +1,10 @@
-package activity
+package folders
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 type Audience struct {
@@ -15,10 +14,10 @@ type Audience struct {
 	ReaderID   pgtype.UUID
 }
 
-func AudienceOf(p auth.Principal, levels folders.Levels) (Audience, error) {
+func AudienceOf(p auth.Principal, levels Levels) (Audience, error) {
 	id, err := db.ParseUUID(p.ID)
 	if err != nil {
-		return Audience{}, folders.ErrForbidden
+		return Audience{}, ErrForbidden
 	}
 	return Audience{
 		Folders:    levels.Visible(),

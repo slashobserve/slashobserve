@@ -28,15 +28,15 @@ func NewStore(database *db.DB, access *folders.Access) *Store {
 	return &Store{db: database, access: access}
 }
 
-func (s *Store) Audience(ctx context.Context, p auth.Principal) (Audience, error) {
+func (s *Store) Audience(ctx context.Context, p auth.Principal) (folders.Audience, error) {
 	levels, err := s.access.Levels(ctx, p)
 	if err != nil {
-		return Audience{}, err
+		return folders.Audience{}, err
 	}
-	return AudienceOf(p, levels)
+	return folders.AudienceOf(p, levels)
 }
 
-func (s *Store) List(ctx context.Context, a Audience, f Filter, cursor string, limit int) (page []Event, next string, err error) {
+func (s *Store) List(ctx context.Context, a folders.Audience, f Filter, cursor string, limit int) (page []Event, next string, err error) {
 	params := dbsqlc.ListActivityParams{
 		Folders:     visibleFolders(a),
 		Admin:       a.Admin,
@@ -102,7 +102,7 @@ func (s *Store) head(ctx context.Context) (Position, error) {
 	return Position{xid: row.Xid.Uint64, seq: row.Seq}, nil
 }
 
-func (s *Store) Next(ctx context.Context, a Audience, f Filter, from Position, limit int) (page []Event, to Position, held bool, err error) {
+func (s *Store) Next(ctx context.Context, a folders.Audience, f Filter, from Position, limit int) (page []Event, to Position, held bool, err error) {
 	head, err := s.head(ctx)
 	if err != nil {
 		return nil, from, false, err
@@ -137,7 +137,7 @@ func (s *Store) Next(ctx context.Context, a Audience, f Filter, from Position, l
 	return eventsOf(rows), to, held, nil
 }
 
-func visibleFolders(a Audience) []pgtype.UUID {
+func visibleFolders(a folders.Audience) []pgtype.UUID {
 	if a.Folders == nil {
 		return []pgtype.UUID{}
 	}

@@ -118,7 +118,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - An activity row's folder follows its owner (`activity.Owner`, built by `OnDashboard`, `OnFinding`, `OnSavedSearch` or `General`): `InsertActivity` reads the owner's current folder, a global annotation takes General, and any other row has no folder and is visible only to its actor and to Admins.
   `Append` takes a shared advisory lock on the row's owner (dashboard, finding or saved search) and never locks the owner's row, because a delete holds that row and then cascades into child rows the appender may hold; a move of any of them updates the row, then runs `activity.Move` (the lock taken exclusively, then the rows rewritten), then appends the `*.moved` row, so a concurrent append either is moved with the owner or reads the new folder.
   A transaction writes or locks the owner's row before it appends, never after; a deleted owner's rows keep their folder.
-  Activity reads filter by `Levels.Visible()` in SQL through `activity.AudienceOf`, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
+  Activity reads filter by `Levels.Visible()` in SQL through `folders.AudienceOf`, the one definition of a reader's folders, Admin flag and identity, which search also reads, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
 - Deleting a dashboard is permanent: foreign keys cascade its versions, threads, agent requests and import record.
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.
 

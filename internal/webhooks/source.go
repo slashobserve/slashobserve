@@ -7,6 +7,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 type cursor struct {
@@ -19,7 +20,7 @@ func cursorOf(e activity.Event) cursor {
 }
 
 type audience struct {
-	inner activity.Audience
+	inner folders.Audience
 }
 
 type source struct {

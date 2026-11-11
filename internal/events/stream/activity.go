@@ -28,9 +28,9 @@ const (
 )
 
 type ActivityLog interface {
-	Audience(ctx context.Context, p auth.Principal) (activity.Audience, error)
+	Audience(ctx context.Context, p auth.Principal) (folders.Audience, error)
 	Start(ctx context.Context, lastEventID string) (activity.Position, bool, error)
-	Next(ctx context.Context, a activity.Audience, f activity.Filter, from activity.Position, limit int) ([]activity.Event, activity.Position, bool, error)
+	Next(ctx context.Context, a folders.Audience, f activity.Filter, from activity.Position, limit int) ([]activity.Event, activity.Position, bool, error)
 }
 
 type Principals interface {
@@ -68,7 +68,7 @@ type activityReader struct {
 	log      ActivityLog
 	logger   *slog.Logger
 	filter   activity.Filter
-	audience activity.Audience
+	audience folders.Audience
 	from     activity.Position
 
 	failedChecks int

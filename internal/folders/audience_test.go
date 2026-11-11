@@ -1,4 +1,4 @@
-package activity
+package folders
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 func TestAudienceOfPrincipals(t *testing.T) {
@@ -28,7 +27,7 @@ func TestAudienceOfPrincipals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AudienceOf(tt.principal, folders.Levels{})
+			got, err := AudienceOf(tt.principal, Levels{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -44,8 +43,8 @@ func TestAudienceOfPrincipals(t *testing.T) {
 
 func TestAudienceOfRefusesAnUnparsablePrincipalID(t *testing.T) {
 	for _, id := range []string{"", "not-a-uuid", "11111111111141118111111111111111"} {
-		_, err := AudienceOf(auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleAdmin}, folders.Levels{})
-		if !errors.Is(err, folders.ErrForbidden) {
+		_, err := AudienceOf(auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleAdmin}, Levels{})
+		if !errors.Is(err, ErrForbidden) {
 			t.Errorf("id %q: got %v, want ErrForbidden", id, err)
 		}
 	}
