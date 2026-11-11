@@ -43,6 +43,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
 | `list_metrics` | Viewer |
+| `list_saved_searches` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
@@ -54,6 +55,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `reply_to_comment` | Viewer |
 | `resolve_comment` | Viewer |
 | `sample_rows` | Viewer |
+| `save_search` | Viewer |
 | `trace_stats` | Viewer |
 | `update_dashboard` | Viewer |
 | `update_panels` | Viewer |
@@ -151,6 +153,18 @@ A finding without a `dashboard_id` is filed in `folder_id`, by default the key's
 `move_finding` moves a finding without a dashboard into another folder, which shares it with that folder's readers.
 It takes `finding_id` and `folder_id` and returns the finding with the title of its folder; it needs Edit on the finding and on the folder, and a finding or folder the key cannot see answers `not_found`.
 A finding on a dashboard answers `invalid_request`, because it follows the dashboard, and so does a move into My Dashboards.
+
+`save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
+It takes `kind` (`logs` or `traces`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
+A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`.
+`from` and `to` default to `now-1h` and `now`, and are saved as written.
+A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
+A `folder_id` the key cannot save in returns `forbidden_role`, and an unknown one `not_found`; a datasource that does not exist or does not fit the kind returns `invalid_request`.
+Check the query with `lint_query` or `draft_query` first, because saving runs no query.
+
+`list_saved_searches` lists the saved searches in the folders the key can see, most recently changed first, optionally of one `kind` or in one `folder_id`, with each one's datasource, query, filters, range, folder and `url`.
+No tool renames, moves or deletes a saved search: people do that on the web or with `observe saved-searches`.
+
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer with `create_finding`.
 
 `list_dashboard_health` is available over MCP only.

@@ -66,7 +66,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "create_annotation,create_comment,create_finding,draft_query,edit_comment,list_activity,list_comments,list_dashboard_health,list_folders,move_finding,reopen_comment,reply_to_comment,resolve_comment" {
+	if strings.Join(got, ",") != "create_annotation,create_comment,create_finding,draft_query,edit_comment,list_activity,list_comments,list_dashboard_health,list_folders,list_saved_searches,move_finding,reopen_comment,reply_to_comment,resolve_comment,save_search" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }

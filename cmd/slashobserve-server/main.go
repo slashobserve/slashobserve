@@ -308,19 +308,20 @@ func run() error {
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
 	toolRegistry := tools.New(tools.Deps{
-		Datasources: registry,
-		Runner:      runner,
-		Dashboards:  dashboardsService,
-		Threads:     threadsService,
-		Imports:     importsService,
-		Folders:     folderAccess,
-		Findings:    findingsService,
-		Health:      healthService,
-		Annotations: annotationsService,
-		Activity:    activityStore,
-		Provider:    llmProvider,
-		PublicURL:   cfg.PublicURL,
-		Logger:      logger,
+		Datasources:   registry,
+		Runner:        runner,
+		Dashboards:    dashboardsService,
+		Threads:       threadsService,
+		Imports:       importsService,
+		Folders:       folderAccess,
+		Findings:      findingsService,
+		SavedSearches: savedSearchesService,
+		Health:        healthService,
+		Annotations:   annotationsService,
+		Activity:      activityStore,
+		Provider:      llmProvider,
+		PublicURL:     cfg.PublicURL,
+		Logger:        logger,
 	})
 
 	var reviser revisions.Reviser
