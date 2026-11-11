@@ -319,6 +319,65 @@ func TestSignOutYourselfExpiresTheSessionCookie(t *testing.T) {
 	}
 }
 
+func (r *rig) addGrant(user pgtype.UUID, clientID string) {
+	r.t.Helper()
+	r.db.Exec(r.t, "INSERT INTO oauth_clients (id, redirect_uris) VALUES ($1, ARRAY['http://127.0.0.1:1/cb']) ON CONFLICT DO NOTHING", clientID)
+	r.db.Exec(r.t, "INSERT INTO oauth_grants (client_id, user_id, resource, expires_at) VALUES ($1, $2, 'http://localhost:8080/mcp', now() + interval '1 day')", clientID, user)
+}
+
+type grantState struct {
+	revoked bool
+	reason  string
+	by      string
+}
+
+func (r *rig) grantState(user pgtype.UUID, clientID string) grantState {
+	r.t.Helper()
+	var state grantState
+	var reason, by *string
+	err := r.db.SQLDB(r.t).QueryRowContext(r.t.Context(), "SELECT revoked_at IS NOT NULL, revoked_reason, revoked_by::text FROM oauth_grants WHERE user_id = $1 AND client_id = $2", user, clientID).Scan(&state.revoked, &reason, &by)
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	if reason != nil {
+		state.reason = *reason
+	}
+	if by != nil {
+		state.by = *by
+	}
+	return state
+}
+
+func TestSignOutDisconnectsThePersonsAgentsAndNoOnesElse(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	bob := r.addUser("bob", time.Now())
+	cy := r.addUser("cy", time.Now())
+	r.addSession(bob, "bob-1")
+	r.addGrant(bob, "client-a")
+	r.addGrant(bob, "client-b")
+	r.addGrant(cy, "client-a")
+	r.db.Exec(t, "UPDATE oauth_grants SET revoked_at = now(), revoked_reason = 'person' WHERE user_id = $1 AND client_id = 'client-b'", bob)
+
+	rec := r.do(http.MethodDelete, "/api/v1/users/"+bob.String()+"/sessions", userCaller(admin))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body)
+	}
+
+	if got := r.grantState(bob, "client-a"); !got.revoked || got.reason != "admin" || got.by != admin.String() {
+		t.Errorf("bob's live grant = %+v, want revoked by the admin with reason admin", got)
+	}
+	if got := r.grantState(bob, "client-b"); got.reason != "person" || got.by != "" {
+		t.Errorf("bob's earlier revocation was rewritten: %+v", got)
+	}
+	if got := r.grantState(cy, "client-a"); got.revoked {
+		t.Errorf("cy's grant was revoked: %+v", got)
+	}
+	if n := countSessions(t, r, bob); n != 0 {
+		t.Errorf("bob has %d sessions left", n)
+	}
+}
+
 func TestClientGoingAwayIsNotAServerError(t *testing.T) {
 	cases := []struct {
 		name   string

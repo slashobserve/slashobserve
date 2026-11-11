@@ -125,6 +125,7 @@ People connect their own MCP clients, such as Claude Code, VS Code and Cursor, t
   Changing `SLASHOBSERVE_PUBLIC_URL` therefore disconnects every connected agent.
 - **A connected agent has exactly the person's role and folder access, read again on every request.**
   Deleting a person disconnects their agents.
+  To cut someone off, remove them at the identity provider and use Sign out everywhere on the People page; a removed person's agents otherwise keep working until their refresh token lapses (30 days unused) or the grant's 90 days end.
 - **The client's name is a self-chosen label.**
   It is frozen when the client registers, shown on the approval page with the host the browser returns to, and never part of an access decision; a client can claim any name, and can only mislabel writes made as the person who approved it.
 - **Abuse limits.**

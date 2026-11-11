@@ -249,12 +249,25 @@ func (h *Handler) signOut(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
 		return
 	}
-	n, err := h.db.Queries().DeleteUserSessions(ctx, id)
+	by, err := db.ParseUUID(caller.ID)
 	if err != nil {
-		fail("delete user sessions", err)
+		fail("read caller id", err)
 		return
 	}
-	h.logger.InfoContext(ctx, "signed a person out everywhere", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()), slog.Int64("sessions", n))
+	var sessions, grants int64
+	err = h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if sessions, err = q.DeleteUserSessions(ctx, id); err != nil {
+			return err
+		}
+		grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: by, UserID: id})
+		return err
+	})
+	if err != nil {
+		fail("sign a person out everywhere", err)
+		return
+	}
+	h.logger.InfoContext(ctx, "signed a person out everywhere", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()), slog.Int64("sessions", sessions), slog.Int64("grants", grants))
 	if id.String() == caller.ID {
 		h.auth.ClearSessionCookie(c)
 	}

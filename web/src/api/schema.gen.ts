@@ -240,8 +240,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete every session of a person.
-         * @description Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
+         * Delete every session of a person and disconnect their MCP clients.
+         * @description Admin only. Deletes every session of the person and disconnects every MCP client they connected; the person can sign in and connect again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
          */
         delete: operations["signOutUserEverywhere"];
         options?: never;
@@ -5323,7 +5323,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every session of the person is deleted. */
+            /** @description Every session of the person is deleted and their MCP clients are disconnected. */
             204: {
                 headers: {
                     [name: string]: unknown;
