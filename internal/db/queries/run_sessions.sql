@@ -12,7 +12,7 @@ VALUES (@agent_request_id, @attempt, @state)
 ON CONFLICT (agent_request_id, attempt) DO UPDATE SET state = EXCLUDED.state, updated_at = now();
 
 -- name: DeleteRunSession :exec
-DELETE FROM run_sessions WHERE agent_request_id = @agent_request_id;
+DELETE FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
 
 -- name: DeleteOlderRunSessions :exec
 DELETE FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt < @attempt;

@@ -26,11 +26,16 @@ func (q *Queries) DeleteOlderRunSessions(ctx context.Context, arg DeleteOlderRun
 }
 
 const deleteRunSession = `-- name: DeleteRunSession :exec
-DELETE FROM run_sessions WHERE agent_request_id = $1
+DELETE FROM run_sessions WHERE agent_request_id = $1 AND attempt = $2
 `
 
-func (q *Queries) DeleteRunSession(ctx context.Context, agentRequestID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteRunSession, agentRequestID)
+type DeleteRunSessionParams struct {
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+}
+
+func (q *Queries) DeleteRunSession(ctx context.Context, arg DeleteRunSessionParams) error {
+	_, err := q.db.Exec(ctx, deleteRunSession, arg.AgentRequestID, arg.Attempt)
 	return err
 }
 
