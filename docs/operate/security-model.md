@@ -129,5 +129,5 @@ People connect their own MCP clients, such as Claude Code, VS Code and Cursor, t
 - **The client's name is a self-chosen label.**
   It is frozen when the client registers, shown on the approval page with the host the browser returns to, and never part of an access decision; a client can claim any name, and can only mislabel writes made as the person who approved it.
 - **Abuse limits.**
-  Registration, authorization, token and revocation requests are rate limited per server process, and the database caps unused clients at 1000, pending approvals at 10000 and connected agents per person at 20.
-  Several replicas each keep their own rate limits.
+  Registration, authorization, token and revocation requests are rate limited, and the database caps unused clients at 1000, pending approvals at 10000 and connected agents per person at 20.
+  The registration, authorization, token and revocation rate limits are totals divided among the live servers; the per-client token limit is per server.

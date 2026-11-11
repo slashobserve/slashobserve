@@ -415,7 +415,7 @@ func run() error {
 	}), logger)
 	defer stopWebhooks()
 
-	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger}, database, authService)
+	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger, Share: membership.Share}, database, authService)
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
