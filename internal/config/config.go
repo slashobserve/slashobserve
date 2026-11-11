@@ -69,6 +69,10 @@ const (
 	minAgentSessionRenewKiB = 32
 	maxAgentSessionRenewKiB = 4096
 
+	defaultAgentWorkers = 8
+	minAgentWorkers     = 1
+	maxAgentWorkers     = 64
+
 	minSecretKeyBytes = 32
 )
 
@@ -123,6 +127,7 @@ const (
 
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
+	envAgentWorkers         = "SLASHOBSERVE_AGENT_WORKERS"
 
 	envAgentLogToolInputs = "SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS"
 
@@ -138,7 +143,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentLogToolInputs,
+	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -164,6 +169,7 @@ type LLM struct {
 type Agent struct {
 	RunTimeout        time.Duration
 	SessionRenewBytes int
+	Workers           int
 	LogToolInputs     bool
 }
 
@@ -583,6 +589,15 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			errs = append(errs, fmt.Errorf("%s: must be a number of KiB between %d and %d, got %q", envAgentSessionRenewKiB, minAgentSessionRenewKiB, maxAgentSessionRenewKiB, v))
 		} else {
 			cfg.Agent.SessionRenewBytes = n << 10
+		}
+	}
+	cfg.Agent.Workers = defaultAgentWorkers
+	if v := get(lookup, envAgentWorkers); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < minAgentWorkers || n > maxAgentWorkers {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d to %d, got %q", envAgentWorkers, minAgentWorkers, maxAgentWorkers, v))
+		} else {
+			cfg.Agent.Workers = n
 		}
 	}
 	return errs

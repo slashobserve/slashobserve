@@ -251,7 +251,7 @@ func run() error {
 	context.AfterFunc(ctx, stop)
 
 	connectCtx, cancelConnect := context.WithTimeout(ctx, connectTimeout)
-	database, err := db.Open(connectCtx, cfg.DatabaseURL, logger)
+	database, err := db.Open(connectCtx, db.Config{URL: cfg.DatabaseURL, MaxConnsFloor: poolFloor(cfg.Agent.Workers)}, logger)
 	cancelConnect()
 	if err != nil {
 		return databaseExit(cfg.DatabaseURL, err)
@@ -338,7 +338,7 @@ func run() error {
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
 
-	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
+	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
@@ -521,10 +521,13 @@ func reportedEffort(llm config.LLM) string {
 	return ""
 }
 
+func poolFloor(workers int) int { return 2*workers + 8 }
+
 func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger, opts revisions.WorkerOptions) func() {
 	if !service.Available() {
 		return func() {}
 	}
+	logger.Info("agent workers configured", slog.Int("workers", opts.Workers))
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {

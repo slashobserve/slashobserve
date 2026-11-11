@@ -14,6 +14,7 @@ func TestPoolConfigMaxConns(t *testing.T) {
 	tests := []struct {
 		name    string
 		dsn     string
+		floor   int
 		want    int32
 		atLeast int32
 	}{
@@ -24,6 +25,9 @@ func TestPoolConfigMaxConns(t *testing.T) {
 		{name: "keyword with the parameter after a quoted value", dsn: "password='a b' pool_max_conns=3", want: 3},
 		{name: "service file with the parameter", dsn: "service=sized servicefile=" + serviceFile, want: 3},
 		{name: "url without the parameter", dsn: "postgres://u@h:5432/d?sslmode=disable", atLeast: minPoolConns},
+		{name: "floor above the minimum without the parameter", dsn: "postgres://u@h:5432/d?sslmode=disable", floor: 24, atLeast: 24},
+		{name: "floor below the minimum without the parameter", dsn: "postgres://u@h:5432/d?sslmode=disable", floor: 12, atLeast: minPoolConns},
+		{name: "floor above the minimum with the parameter", dsn: "postgres://u@h:5432/d?pool_max_conns=3", floor: 24, want: 3},
 		{name: "url whose parameter value contains the name", dsn: "postgres://u@h:5432/d?application_name=pool_max_conns", atLeast: minPoolConns},
 		{name: "url whose path contains the name", dsn: "postgres://u@h/pool_max_conns", atLeast: minPoolConns},
 		{name: "keyword without the parameter", dsn: "host=h user=u dbname=d", atLeast: minPoolConns},
@@ -32,7 +36,7 @@ func TestPoolConfigMaxConns(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := poolConfig(tt.dsn)
+			cfg, err := poolConfig(tt.dsn, tt.floor)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -171,6 +171,7 @@ The person who asked can also continue a stopped build: it starts a new run from
 A stopped build is saved or continued, never both.
 
 A queued request shows its place in the queue, such as "Queued, position 3".
+Each server runs `SLASHOBSERVE_AGENT_WORKERS` requests at once (8 by default); the rest wait in the queue in the order they were made.
 One request per dashboard runs at a time, so other revisions of a dashboard wait behind a run that does not end, and nobody else can cancel it.
 
 ### Timeouts and model calls

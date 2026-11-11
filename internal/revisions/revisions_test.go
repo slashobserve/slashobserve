@@ -1,6 +1,7 @@
 package revisions_test
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -45,6 +46,16 @@ func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (au
 
 func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
 	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns(database))}, opts...)...)
+}
+
+func TestNewWorkerNeedsAtLeastOneWorker(t *testing.T) {
+	svc := newTestService(nil, nil, quietLogger())
+	defer func() {
+		if recover() == nil {
+			t.Fatal("NewWorker accepted zero workers")
+		}
+	}()
+	revisions.NewWorker(svc, nil, quietLogger(), revisions.WorkerOptions{Workers: 0})
 }
 
 func TestMain(m *testing.M) {
@@ -137,6 +148,7 @@ func startWorkerLogged(t *testing.T, svc *revisions.Service, d *dbtest.Database,
 	if opts.Poll == 0 {
 		opts.Poll = 20 * time.Millisecond
 	}
+	opts.Workers = cmp.Or(opts.Workers, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {

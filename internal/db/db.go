@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
@@ -30,6 +31,11 @@ const (
 
 var ErrMigrationsPending = errors.New("database migrations are pending")
 
+type Config struct {
+	URL           string
+	MaxConnsFloor int
+}
+
 type DB struct {
 	pool     *pgxpool.Pool
 	sqlDB    *sql.DB
@@ -40,8 +46,8 @@ type DB struct {
 	migrationsApplied atomic.Bool
 }
 
-func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*DB, error) {
-	cfg, err := poolConfig(databaseURL)
+func Open(ctx context.Context, dbCfg Config, logger *slog.Logger) (*DB, error) {
+	cfg, err := poolConfig(dbCfg.URL, dbCfg.MaxConnsFloor)
 	if err != nil {
 		return nil, fmt.Errorf("configure database pool: %w", err)
 	}
@@ -63,7 +69,7 @@ func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*DB, er
 	return &DB{pool: pool, sqlDB: sqlDB, migrator: migrator, queries: dbsqlc.New(pool), logger: logger}, nil
 }
 
-func poolConfig(databaseURL string) (*pgxpool.Config, error) {
+func poolConfig(databaseURL string, floor int) (*pgxpool.Config, error) {
 	connCfg, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, err
@@ -75,7 +81,7 @@ func poolConfig(databaseURL string) (*pgxpool.Config, error) {
 	// Workers waiting on the claim lock each hold a pooled connection, so the CPU-derived default leaves little
 	// headroom for request handlers on small hosts. An explicit pool_max_conns still wins.
 	if _, explicit := connCfg.RuntimeParams[poolMaxConnsKey]; !explicit {
-		cfg.MaxConns = max(cfg.MaxConns, minPoolConns)
+		cfg.MaxConns = max(cfg.MaxConns, minPoolConns, int32(max(0, min(floor, math.MaxInt32))))
 	}
 	return cfg, nil
 }

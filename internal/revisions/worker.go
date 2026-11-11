@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	defaultWorkers   = 2
 	defaultPoll      = 5 * time.Second
 	heartbeatEvery   = 5 * time.Second
 	finishTimeout    = 15 * time.Second
@@ -61,8 +60,8 @@ func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, op
 	if service.access == nil {
 		panic("revisions: NewWorker needs a Service built with WithAccess")
 	}
-	if opts.Workers <= 0 {
-		opts.Workers = defaultWorkers
+	if opts.Workers < 1 {
+		panic("revisions: NewWorker needs at least one worker")
 	}
 	if opts.Poll <= 0 {
 		opts.Poll = defaultPoll

@@ -28,7 +28,7 @@ func logExit(t *testing.T, err error) (map[string]any, *logtest.Capture) {
 
 func TestUnparsableDatabaseURLIsReportedWithoutTheURL(t *testing.T) {
 	url := fmt.Sprintf("postgres://%s:%s@db.internal:5432/app%%zz", "bob", "hunter2")
-	_, err := db.Open(context.Background(), url, slog.New(slog.DiscardHandler))
+	_, err := db.Open(context.Background(), db.Config{URL: url}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("db.Open accepted an invalid URL")
 	}
@@ -43,7 +43,7 @@ func TestUnreachableDatabaseIsReportedByHostAndErrno(t *testing.T) {
 	url := fmt.Sprintf("postgres://%s:%s@127.0.0.1:1/appdb", "bob", "hunter2")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, err := db.Open(ctx, url, slog.New(slog.DiscardHandler))
+	_, err := db.Open(ctx, db.Config{URL: url}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("db.Open connected to a closed port")
 	}
@@ -164,5 +164,14 @@ func TestVersionLineHasTheVersionAndTheCommit(t *testing.T) {
 	version, commit = "0.1.0", "abc1234"
 	if got := versionLine(); got != "0.1.0 (abc1234)" {
 		t.Fatalf("versionLine() = %q", got)
+	}
+}
+
+func TestPoolFloorGrowsWithTheWorkers(t *testing.T) {
+	tests := []struct{ workers, want int }{{1, 10}, {2, 12}, {8, 24}, {64, 136}}
+	for _, tt := range tests {
+		if got := poolFloor(tt.workers); got != tt.want {
+			t.Errorf("poolFloor(%d) = %d, want %d", tt.workers, got, tt.want)
+		}
 	}
 }
