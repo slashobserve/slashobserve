@@ -34,7 +34,7 @@ Each version keeps a summary of 1 to 500 characters, the time, and who or what m
 - The version it was restored from, if it is a restore.
 
 Every author is shown with one label, the same in the web app, the CLI and MCP.
-A person or a service account shows their name, such as `Ishan`; over MCP the client follows, such as `Ishan (via Claude Code)`, or `(via MCP)` when the client sent no name; and a version the built-in agent saved shows `/observe for` and whoever asked, such as `/observe for Ishan`.
+A person or a service account shows their name, such as `Ishan`; over MCP the client follows, such as `Ishan (via Claude Code)`, or `(via MCP)` when the client sent no name; and a version the built-in agent saved shows `Observe Agent for` and whoever asked, such as `Observe Agent for Ishan`.
 The version menu, the History page and the activity feed show that label, and versions and dashboards in the API carry it as `actor.label`.
 The Dashboards page's **Made by** column shows the label of version 1, then the channel (Web, CLI or API) for a direct save, and its tooltip adds the email or "service account".
 The **Made by** filter lists each person with their email, and the dashboard header names the client of a dashboard made over MCP.

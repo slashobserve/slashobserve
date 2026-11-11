@@ -822,7 +822,7 @@ export interface paths {
         put?: never;
         /**
          * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `/observe for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -3164,7 +3164,7 @@ export interface components {
              * @description The agent request when the built-in agent made the change for this person or key; else null.
              */
             run_id: string | null;
-            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted. */
+            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted. */
             label: string;
         };
         /** @enum {string} */
@@ -3432,7 +3432,7 @@ export interface components {
             /** Format: date-time */
             resolved_at: string | null;
             resolved_by: components["schemas"]["Author"] | null;
-            /** @description Who resolved the thread, with the one `label` to show; `/observe for <name>` when an agent run did. Null on a reply and on an open thread. */
+            /** @description Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread. */
             resolved_actor: components["schemas"]["Actor"] | null;
             /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
             resolved_by_version: number | null;
@@ -3494,7 +3494,7 @@ export interface components {
             updated_at: string;
             /** Format: date-time */
             resolved_at: string | null;
-            /** @description Who resolved the thread, `/observe for <name>` when an agent run did; null while it is open. */
+            /** @description Who resolved the thread, `Observe Agent for <name>` when an agent run did; null while it is open. */
             resolved_actor: components["schemas"]["Actor"] | null;
             /** @description The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded. */
             resolved_by_version: number | null;

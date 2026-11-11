@@ -58,7 +58,7 @@ The dashboard opens in the same tab with the version button reading "Live · v1"
 
 A new dashboard goes into your My Dashboards, where only you can see it.
 To share it, open **Share** and publish it to a folder where you have Edit.
-In the Dashboards page's **Made by** column it shows "/observe for" and your name.
+In the Dashboards page's **Made by** column it shows "Observe Agent for" and your name.
 See [Folders](../teams/folders.md).
 
 Choose **Activity** at the top right to open the activity card.

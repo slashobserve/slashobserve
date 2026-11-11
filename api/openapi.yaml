@@ -1072,7 +1072,7 @@ components:
         label:
           type: string
           minLength: 1
-          description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
+          description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
       enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
@@ -1576,7 +1576,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Actor"
-          description: Who resolved the thread, with the one `label` to show; `/observe for <name>` when an agent run did. Null on a reply and on an open thread.
+          description: Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread.
         resolved_by_version:
           type: integer
           minimum: 1
@@ -1702,7 +1702,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Actor"
-          description: Who resolved the thread, `/observe for <name>` when an agent run did; null while it is open.
+          description: Who resolved the thread, `Observe Agent for <name>` when an agent run did; null while it is open.
         resolved_by_version:
           type: integer
           minimum: 1
