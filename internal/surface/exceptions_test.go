@@ -10,6 +10,7 @@ const (
 	webhookAdmin        = "An Admin decides where workspace activity is sent; an agent that could register a webhook could send it anywhere."
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
 	noDashboardMoves    = "no tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API"
+	noObservationMoves  = "no tool removes a block, or moves, renames or reopens an observation; people do that in the web app or the HTTP API"
 	noAnnotationDelete  = "no tool deletes an annotation; people do that in the web app or the HTTP API"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
 	builtInAgentQueue   = "starts or steers a run of the built-in agent; an outside agent does the work itself with its own model and the same tools"
@@ -59,28 +60,21 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
-	"createObservation":       {MCP: notBuilt, CLI: notBuilt},
-	"listObservations":        {MCP: notBuilt, CLI: notBuilt},
-	"getObservation":          {MCP: notBuilt, CLI: notBuilt},
-	"updateObservation":       {MCP: notBuilt, CLI: notBuilt},
-	"moveObservation":         {MCP: notBuilt, CLI: notBuilt},
-	"resolveObservation":      {MCP: notBuilt, CLI: notBuilt},
-	"reopenObservation":       {MCP: notBuilt, CLI: notBuilt},
-	"addObservationBlock":     {MCP: notBuilt, CLI: notBuilt},
-	"updateObservationBlock":  {MCP: notBuilt, CLI: notBuilt},
-	"removeObservationBlock":  {MCP: notBuilt, CLI: notBuilt},
-	"keepObservationBlock":    {MCP: notBuilt, CLI: notBuilt},
-	"discardObservationBlock": {MCP: notBuilt, CLI: notBuilt},
-	"getSnapshot":             {MCP: webRendering, CLI: webRendering},
-	"observationBlockData":    {MCP: webRendering, CLI: webRendering},
-	"publishRca":              {MCP: notBuilt, CLI: notBuilt},
-	"listRcas":                {MCP: notBuilt, CLI: notBuilt},
-	"getRca":                  {MCP: notBuilt, CLI: notBuilt},
-	"listRcaPublicLinks":      {MCP: publicLink, CLI: publicLink},
-	"createRcaPublicLink":     {MCP: publicLink, CLI: publicLink},
-	"deleteRcaPublicLink":     {MCP: publicLink, CLI: publicLink},
-	"viewPublicRca":           {MCP: publicView, CLI: publicView},
-	"viewPublicRcaSnapshot":   {MCP: publicView, CLI: publicView},
+	"updateObservation":      {MCP: noObservationMoves, CLI: notBuilt},
+	"moveObservation":        {MCP: noObservationMoves, CLI: notBuilt},
+	"reopenObservation":      {MCP: noObservationMoves, CLI: notBuilt},
+	"updateObservationBlock": {CLI: notBuilt},
+	"removeObservationBlock": {MCP: noObservationMoves, CLI: notBuilt},
+	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
+	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
+	"publishRca":             {MCP: notBuilt, CLI: notBuilt},
+	"listRcas":               {MCP: notBuilt, CLI: notBuilt},
+	"getRca":                 {MCP: notBuilt, CLI: notBuilt},
+	"listRcaPublicLinks":     {MCP: publicLink, CLI: publicLink},
+	"createRcaPublicLink":    {MCP: publicLink, CLI: publicLink},
+	"deleteRcaPublicLink":    {MCP: publicLink, CLI: publicLink},
+	"viewPublicRca":          {MCP: publicView, CLI: publicView},
+	"viewPublicRcaSnapshot":  {MCP: publicView, CLI: publicView},
 
 	"listFolders":          {CLI: notBuilt},
 	"createFolder":         {MCP: notBuilt, CLI: notBuilt},

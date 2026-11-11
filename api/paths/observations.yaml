@@ -1,6 +1,9 @@
 observations:
   post:
     operationId: createObservation
+    x-surfaces:
+      mcp: [create_observation]
+      cli: [observe o new]
     summary: Start an observation, a page of blocks in a folder.
     description: >-
       Needs Edit on the folder; without `folder_id` it is filed in the caller's My Dashboards, then General.
@@ -45,6 +48,9 @@ observations:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listObservations
+    x-surfaces:
+      mcp: [list_observations]
+      cli: [observe o list]
     summary: List the observations in the folders the caller can see, most recently changed first.
     description: >-
       Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404.
@@ -96,6 +102,9 @@ observations-id:
         format: uuid
   get:
     operationId: getObservation
+    x-surfaces:
+      mcp: [get_observation]
+      cli: [observe o show]
     summary: Read one observation with its blocks.
     description: >-
       Anyone who can view the observation's folder reads every block, requested ones included.
@@ -203,6 +212,9 @@ observations-id-resolve:
         format: uuid
   post:
     operationId: resolveObservation
+    x-surfaces:
+      mcp: [resolve_observation]
+      cli: [observe o resolve]
     summary: Close an open observation with a one-line summary.
     description: Needs Edit on the folder. A resolved observation answers 409 `invalid_transition`.
     requestBody:
@@ -275,6 +287,9 @@ observations-id-blocks:
         format: uuid
   post:
     operationId: addObservationBlock
+    x-surfaces:
+      mcp: [add_block]
+      cli: [observe o add]
     summary: Add a block to an observation.
     description: >-
       With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403.
@@ -340,6 +355,8 @@ blocks-id:
         format: uuid
   patch:
     operationId: updateObservationBlock
+    x-surfaces:
+      mcp: [update_block]
     summary: Change a block's body, width or position.
     description: >-
       Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
@@ -413,6 +430,9 @@ blocks-id-keep:
         format: uuid
   post:
     operationId: keepObservationBlock
+    x-surfaces:
+      mcp: [keep_block]
+      cli: [observe o keep]
     summary: Keep a requested block, which makes it live.
     description: Needs Edit on the folder and the block's current `version`. A live block answers 409 `invalid_transition`.
     requestBody:
@@ -452,6 +472,9 @@ blocks-id-discard:
         format: uuid
   post:
     operationId: discardObservationBlock
+    x-surfaces:
+      mcp: [discard_block]
+      cli: [observe o discard]
     summary: Discard a requested block.
     description: >-
       Needs Edit on the folder, or being the person or key that asked for the block.
