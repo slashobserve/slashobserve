@@ -19,6 +19,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `folders`: folders, permissions and the one place that decides who sees and changes a dashboard.
 - `forbidden`: the `forbidden_role` code and its 403 texts, a leaf package so the CLI can compare against them without the server.
 - `egress`: the only fetcher of user-supplied URLs; `egress/allowlist/` holds the outbound domain table, routes and the `SLASHOBSERVE_OUTBOUND_DOMAINS` lock.
+- `sealed`: encrypts stored secrets with `SLASHOBSERVE_SECRET_KEY`, one HKDF purpose label per kind of secret and the owning row's id as additional data; the only place a stored secret is sealed or opened.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
