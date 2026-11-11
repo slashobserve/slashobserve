@@ -252,11 +252,11 @@ func (r *rig) tokenError(t *testing.T, form url.Values, status int, code string)
 
 func (r *rig) authenticate(t *testing.T, access string) (auth.Principal, string, bool) {
 	t.Helper()
-	p, name, ok, err := r.server.Authenticate(t.Context(), "Bearer "+access)
+	got, ok, err := r.server.Authenticate(t.Context(), "Bearer "+access)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return p, name, ok
+	return got.Principal, got.Client, ok
 }
 
 func (r *rig) revokedReason(t *testing.T, userID, clientID string) string {

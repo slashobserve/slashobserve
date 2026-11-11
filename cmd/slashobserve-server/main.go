@@ -559,8 +559,8 @@ func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Cr
 	if p, ok, err := m.keys.BearerPrincipal(ctx, header); err != nil || ok {
 		return mcp.Credential{Principal: p}, ok, err
 	}
-	p, client, ok, err := m.oauth.Authenticate(ctx, header)
-	return mcp.Credential{Principal: p, OAuth: ok, Client: client}, ok, err
+	access, ok, err := m.oauth.Authenticate(ctx, header)
+	return mcp.Credential{Principal: access.Principal, OAuth: ok, Client: access.Client}, ok, err
 }
 
 func oauthMounts(oauthServer *mcpauth.Server) []server.Mount {

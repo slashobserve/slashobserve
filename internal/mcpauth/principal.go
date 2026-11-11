@@ -15,29 +15,35 @@ import (
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
-func (s *Server) Authenticate(ctx context.Context, header string) (auth.Principal, string, bool, error) {
+type Access struct {
+	Principal auth.Principal
+	Client    string
+	GrantID   string
+}
+
+func (s *Server) Authenticate(ctx context.Context, header string) (Access, bool, error) {
 	scheme, token, found := strings.Cut(header, " ")
 	if !found || !strings.EqualFold(scheme, "Bearer") || !opaquetoken.Shaped(token, accessPrefix) {
-		return auth.Principal{}, "", false, nil
+		return Access{}, false, nil
 	}
 	row, err := s.db.Queries().GetOAuthAccess(ctx, dbsqlc.GetOAuthAccessParams{TokenHash: opaquetoken.Hash(token), Resource: s.resource})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return auth.Principal{}, "", false, nil
+		return Access{}, false, nil
 	}
 	if err != nil {
-		return auth.Principal{}, "", false, err
+		return Access{}, false, err
 	}
 	principal, err := s.people.Principal(ctx, auth.KindUser, row.UserID.String())
 	if errors.Is(err, auth.ErrPrincipalGone) {
-		return auth.Principal{}, "", false, nil
+		return Access{}, false, nil
 	}
 	if err != nil {
-		return auth.Principal{}, "", false, err
+		return Access{}, false, err
 	}
 	if !row.LastUsedAt.Valid || time.Since(row.LastUsedAt.Time) > grantTouchInterval {
 		s.touch(ctx, row.ID)
 	}
-	return principal, row.Name.String, true, nil
+	return Access{Principal: principal, Client: row.Name.String, GrantID: row.ID.String()}, true, nil
 }
 
 func (s *Server) touch(ctx context.Context, grantID pgtype.UUID) {

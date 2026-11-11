@@ -39,6 +39,24 @@ func TestFlowIssuesTokensThatAuthenticateAsThePerson(t *testing.T) {
 	}
 }
 
+func TestAuthenticateNamesTheGrantOfTheToken(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	first := r.connect(t, ada, clientID)
+	got, ok, err := r.server.Authenticate(t.Context(), "Bearer "+first.Access)
+	if err != nil || !ok {
+		t.Fatalf("Authenticate = %v, %v", ok, err)
+	}
+	var want string
+	row := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM oauth_grants WHERE user_id = $1 AND client_id = $2 ORDER BY created_at DESC LIMIT 1`, ada.ID, clientID)
+	if err := row.Scan(&want); err != nil {
+		t.Fatal(err)
+	}
+	if got.GrantID != want {
+		t.Fatalf("GrantID = %q, want the grant %q", got.GrantID, want)
+	}
+}
+
 func TestAuthenticateRereadsTheRoleOnEveryRequest(t *testing.T) {
 	r := newRig(t)
 	got := r.connect(t, ada, r.registerClient(t, "claude-code"))
@@ -61,12 +79,12 @@ func TestAuthenticateIgnoresCredentialsThatAreNotAccessTokens(t *testing.T) {
 		"empty":          "",
 		"lowercase body": "Bearer " + strings.ToLower(got.Access),
 	} {
-		_, _, ok, err := r.server.Authenticate(t.Context(), header)
+		_, ok, err := r.server.Authenticate(t.Context(), header)
 		if err != nil || ok {
 			t.Errorf("%s: Authenticate = %v, %v", name, ok, err)
 		}
 	}
-	if _, _, ok, _ := r.server.Authenticate(t.Context(), "bearer "+got.Access); !ok {
+	if _, ok, _ := r.server.Authenticate(t.Context(), "bearer "+got.Access); !ok {
 		t.Error("the Bearer scheme is case-insensitive")
 	}
 }
