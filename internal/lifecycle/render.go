@@ -7,6 +7,7 @@ import (
 
 type Doc struct {
 	Title, Intro string
+	Derived      bool
 	States       []StateDoc
 	Moves        []MoveDoc
 }
@@ -76,6 +77,10 @@ func Render(docs ...Doc) string {
 	var b strings.Builder
 	b.WriteString(statesHeader)
 	for _, d := range docs {
+		if d.Derived {
+			renderDerived(&b, d)
+			continue
+		}
 		b.WriteString("\n## " + d.Title + "\n\n" + d.Intro + "\n\n")
 		b.WriteString("| State | Meaning | Actions |\n| --- | --- | --- |\n")
 		for _, s := range d.States {
@@ -95,6 +100,16 @@ func Render(docs ...Doc) string {
 		}
 	}
 	return b.String()
+}
+
+const derivedNote = "This state is computed from stored fields on every read; nothing stores it."
+
+func renderDerived(b *strings.Builder, d Doc) {
+	b.WriteString("\n## " + d.Title + "\n\n" + d.Intro + "\n" + derivedNote + "\n\n")
+	b.WriteString("| State | When |\n| --- | --- |\n")
+	for _, s := range d.States {
+		b.WriteString("| `" + s.Name + "` | " + s.Meaning + " |\n")
+	}
 }
 
 func codeList(items []string, sep string) string {
