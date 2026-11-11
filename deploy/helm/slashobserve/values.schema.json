@@ -44,7 +44,7 @@
     "replicaCount": {
       "type": "integer",
       "minimum": 0,
-      "description": "Server pods. One is the tested setup; more share Postgres for migrations, the scheduler and agent workers, but MCP, stream and in-flight limits are per process."
+      "description": "Server pods. One or more share one Postgres for migrations, the scheduler, events, agent runs, webhooks and OAuth tokens, and divide the limits that cap a shared resource; MCP, stream and in-flight limits are per process. Two servers behind a pooler are checked by make replicas-check; docs/operate/scaling.md says what to set."
     },
     "publicURL": {
       "type": "string",

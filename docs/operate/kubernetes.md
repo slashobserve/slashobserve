@@ -178,11 +178,8 @@ The server runs migrations forward only, so a rollback across a release that ran
 
 ## More than one replica
 
-One replica is the tested setup.
-More replicas share the work that runs through Postgres: migrations take a Postgres lock, so one pod migrates while the others wait, and the scheduler and the agent workers lease their jobs through the database.
-Each server heartbeats into the `server_instances` table every 10 seconds and counts the live servers; a datasource's `maxConcurrentQueries` and the OAuth endpoint totals are divided among them.
-Provisioning and the service-account file are applied by one pod at a time.
-The limits per person, per key and per process (concurrent MCP requests, event streams, query requests, drafts and live tails) stay per server, so each replica allows its own.
+Replicas share Postgres and behave as one server for jobs, events, agent runs, webhooks, tokens and provisioning, which is checked on two servers behind PgBouncer before each release that changes them.
+See [Run more than one server](scaling.md) for what to set, the limits each server keeps, and how to check the servers share the work.
 
 ## Try it on kind
 

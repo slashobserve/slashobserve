@@ -21,3 +21,4 @@ coverage.*
 
 /plans/
 /.claude/
+/loadtest/reports/

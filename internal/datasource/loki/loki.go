@@ -66,7 +66,7 @@ func New(opts Options) (*Datasource, error) {
 	d := &Datasource{opts: opts, prefix: prefix}
 	if opts.HTTPClient == nil {
 		d.client = &http.Client{
-			Transport:     http.DefaultTransport.(*http.Transport).Clone(),
+			Transport:     datasource.NewHTTPTransport(),
 			CheckRedirect: refuseRedirects,
 		}
 		d.ownsClient = true

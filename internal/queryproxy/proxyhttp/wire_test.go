@@ -148,3 +148,23 @@ func TestMarshalExemplarsTagsFramesWithTheQueryRefAndConvertsTimes(t *testing.T)
 		t.Fatalf("no exemplars = %s, %v, want []", empty, err)
 	}
 }
+
+func TestJoinFramesAllocatesExactlyWhatItHolds(t *testing.T) {
+	parts := [][]byte{
+		[]byte(`[{"a":1},{"a":2}]`),
+		[]byte(`[]`),
+		[]byte(strings.Repeat(`[{"b":"`+strings.Repeat("x", 1000)+`"}]`, 1)),
+		[]byte(`[{"c":3}]`),
+	}
+	got := joinFrames(parts)
+	want := `[{"a":1},{"a":2},{"b":"` + strings.Repeat("x", 1000) + `"},{"c":3}]`
+	if string(got) != want {
+		t.Fatalf("joined frames differ: %s", got)
+	}
+	if cap(got) != len(got) {
+		t.Fatalf("cap %d for len %d: the cache charges len, so spare capacity is memory it does not count", cap(got), len(got))
+	}
+	if empty := joinFrames(nil); string(empty) != "[]" || cap(empty) != len(empty) {
+		t.Fatalf("empty join = %q cap %d", empty, cap(empty))
+	}
+}

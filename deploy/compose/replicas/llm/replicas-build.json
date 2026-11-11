@@ -1,0 +1,223 @@
+{
+  "prompt": "replicas stack build",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_metrics",
+          "input": {
+            "datasource": "prom",
+            "search": "http_"
+          }
+        },
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "prom",
+            "metric": "http_requests_total"
+          }
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+          }
+        },
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+          }
+        },
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+          }
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create replicas build",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "Replicas build",
+              "tags": [
+                "loadtest"
+              ],
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval])"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create replicas build",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "Replicas build",
+              "tags": [
+                "loadtest"
+              ],
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "query_invalid"
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add requests by status",
+            "upsert": [
+              {
+                "id": "req_status",
+                "type": "timeseries",
+                "title": "Requests by status",
+                "gridPos": {
+                  "x": 12,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+                  }
+                ],
+                "unit": "reqps"
+              }
+            ]
+          }
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add p99 latency by route",
+            "upsert": [
+              {
+                "id": "p99_latency",
+                "type": "timeseries",
+                "title": "p99 latency by route",
+                "gridPos": {
+                  "x": 0,
+                  "y": 8,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "finish": true
+          }
+        }
+      ],
+      "fault": {
+        "kind": "delay",
+        "delay_ms": 1000
+      }
+    }
+  ]
+}

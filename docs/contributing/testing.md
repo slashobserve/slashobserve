@@ -48,6 +48,41 @@ A trace is recorded on the retry.
 When a shard fails, its HTML report and test results are uploaded as the `playwright-shard-N` artifact; when the API suite fails, the compose logs are uploaded as `e2e-logs`.
 Locally the suite runs with one worker, no retries and the list reporter.
 
+## Two servers and the load test
+
+`make replicas-up` builds this checkout and boots the isolated `slashobserve-replicas` compose stack: two servers behind HAProxy and PgBouncer in transaction mode, with `SLASHOBSERVE_DATABASE_DIRECT_URL` pointing straight at Postgres, the replay model provider, and the shop's Prometheus.
+HAProxy answers on http://localhost:48080 and spreads requests over both servers.
+Server 1 alone answers on http://localhost:48081 and server 2 alone on http://localhost:48082, so a check can write on one server and read on the other.
+The stack's project name, ports and volumes differ from the demo, the e2e stack and the evals stack, so it runs beside them and never stops, resets or reads them.
+`make replicas-down` removes only its containers and volumes.
+Nothing here runs in CI.
+
+`scripts/replicas.sh` also has `stop`, `kill` and `start` for one server, `workers` to recreate the servers with another `SLASHOBSERVE_AGENT_WORKERS`, `status` and `logs`.
+Its keys, the service accounts the load test signs in with, are written under `/tmp/slashobserve-replicas` and never printed.
+
+`make replicas-check` recreates the stack and runs `scripts/replicas.sh check`, which prints one `PASS`, `FAIL` or `KNOWN` line per item and takes about 15 minutes.
+It checks that migrations, provisioning and scheduled jobs run once across both servers, that the fleet count and the divided limits are right, that events, agent runs, webhook leases, logins and OAuth tokens cross servers, and that a server stopped gracefully, killed and restarted leaves no request lost.
+A `KNOWN` line is a gap the page for operators documents; whoever fixes it sees the line change.
+`scripts/replicas.sh check C5` reruns one item on a running stack, except C1 to C3, which need a fresh boot.
+Run it before a release that changes the scheduler, the agent queue, events, OAuth, webhooks, the fleet or provisioning, and paste its output into the pull request.
+
+`make loadtest` recreates the stack and measures it with `go run ./loadtest`, a load test that uses only the Go standard library.
+It runs four scenarios: viewers who reload one dashboard of 12 panels every 10 seconds, first on one shared time range and then on a different range each, 500 open activity streams while one editor writes annotations, MCP clients that call tools, and 20 and then 50 agent builds started at once on the replay model.
+Each build takes about 6 seconds of model time, so the builds measure the queue and the database, not a model.
+The series runs on one server, on two servers with 8 agent workers, and then the agent builds alone with 2 and with 16 workers, and takes about 50 minutes.
+`scripts/replicas.sh load [--only viewers|streams|mcp|agent] <label>` runs one pass on the stack as it is, with the running servers as replicas.
+The tool refuses to run against anything but this stack: a loopback target on port 8080 is the demo and is rejected, and another host needs `--remote <host>` with that exact host name.
+It never prints a key and deletes or resets nothing.
+
+Each pass writes `loadtest/reports/<time>-<label>/`, which is git-ignored.
+`report.md` has one table per scenario and then a table of gates.
+A gate fails the run: any 5xx or dropped connection, any other 4xx on more than 0.1% of requests, a stream that was refused or dropped, a lost or duplicated stream event, an agent build that fails or runs more than once, or a container that restarted or was killed for memory.
+The 300 ms server time for panel data and the 5 second queue wait at 8 workers are measurements next to the page's targets, not gates.
+Under the tables, `report.md` lists the peak CPU and memory of every container, the Postgres connections by state and the PgBouncer pool, and `slow-queries.txt` has the ten slowest statements.
+`report.json` holds every number.
+The observe API admits 20 new-dashboard requests at once and 3 per caller, so the 50 builds are 20 at once and the rest as slots free up; the report counts how often a submission was told to retry.
+Each viewer key is limited to 8 panel requests at once, as the server limits each caller.
+
 ## Coverage
 
 `COVER=1 make test` also measures coverage.

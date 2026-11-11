@@ -53,3 +53,4 @@ With PgBouncer 1.21 or newer, set `max_prepared_statements` above `0` so the ser
 With an older PgBouncer, add `default_query_exec_mode=exec` to `SLASHOBSERVE_DATABASE_URL`.
 
 Without the direct URL behind a transaction pooler, live updates and the migration lock do not work.
+For several servers, see [Run more than one server](scaling.md).

@@ -57,7 +57,15 @@ func appendWireFrames(out []wireFrame, ref string, frames []datasource.Frame) ([
 }
 
 func joinFrames(parts [][]byte) []byte {
-	out := []byte{'['}
+	size, nonEmpty := len("[]"), 0
+	for _, part := range parts {
+		if len(part) > len("[]") {
+			size += len(part) - len("[]")
+			nonEmpty++
+		}
+	}
+	out := make([]byte, 1, size+max(nonEmpty-1, 0))
+	out[0] = '['
 	for _, part := range parts {
 		if len(part) <= len("[]") {
 			continue

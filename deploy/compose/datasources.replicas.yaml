@@ -1,0 +1,17 @@
+# Replicas stack only: prom_small makes the fleet-wide slot division visible. No secrets here.
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    grafanaUids: [prometheus]
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+  - uid: prom_small
+    type: prometheus
+    name: Prometheus (4 slots)
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+    limits:
+      maxConcurrentQueries: 4

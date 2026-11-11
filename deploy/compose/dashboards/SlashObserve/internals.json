@@ -125,6 +125,24 @@
         { "id": "p_jobs_running", "type": "timeseries", "title": "Scheduled jobs running",
           "gridPos": { "x": 12, "y": 57, "w": 12, "h": 8 }, "datasource": "prom", "unit": "short",
           "queries": [{ "query": "sum by (exported_job) (slashobserve_scheduler_job_running)", "legend": "{{exported_job}}" }] }
+      ] },
+    { "id": "r_fleet", "type": "row", "title": "Are the servers sharing the work?",
+      "gridPos": { "x": 0, "y": 65, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_fleet_servers", "type": "stat", "title": "Servers",
+          "description": "Servers that heartbeat into the database; every server reports the same count, so this is the maximum, not a sum.",
+          "gridPos": { "x": 0, "y": 66, "w": 6, "h": 8 }, "datasource": "prom", "unit": "short", "decimals": 0,
+          "queries": [{ "query": "max(slashobserve_fleet_servers) or vector(0)", "instant": true }] },
+        { "id": "p_datasource_slots", "type": "timeseries", "title": "Datasource slots in use by datasource",
+          "gridPos": { "x": 6, "y": 66, "w": 9, "h": 8 }, "datasource": "prom", "unit": "short",
+          "queries": [
+            { "query": "sum by (datasource) (slashobserve_datasource_slots_in_use)", "legend": "{{datasource}} in use" },
+            { "query": "sum by (datasource) (slashobserve_datasource_slots_limit)", "legend": "{{datasource}} limit" }
+          ] },
+        { "id": "p_agent_queue_wait", "type": "timeseries", "title": "Agent queue wait p95",
+          "gridPos": { "x": 15, "y": 66, "w": 9, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [{ "query": "histogram_quantile(0.95, sum by (le) (rate(slashobserve_agent_queue_wait_seconds_bucket[$__rate_interval]))) or vector(0)" }],
+          "display": { "legend": "hidden" } }
       ] }
   ]
 }

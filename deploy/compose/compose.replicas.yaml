@@ -1,0 +1,84 @@
+x-no-collector: &no-collector
+  depends_on: !reset {}
+  environment:
+    OTEL_EXPORTER_OTLP_ENDPOINT: ""
+
+services:
+  postgres:
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "max_connections=200"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  pgbouncer:
+    image: ghcr.io/cloudnative-pg/pgbouncer:1.26.1@sha256:3164c7e929c05deef00175c0bb81f3446a59f7254715b43a865ec8cdb83f869e
+    volumes:
+      - ./replicas/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./replicas/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  server:
+    environment:
+      SLASHOBSERVE_DATABASE_URL: postgres://slashobserve:slashobserve@pgbouncer:6432/slashobserve?sslmode=disable
+      SLASHOBSERVE_DATABASE_DIRECT_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
+      SLASHOBSERVE_AGENT_WORKERS: ${SLASHOBSERVE_REPLICAS_AGENT_WORKERS:-8}
+      SLASHOBSERVE_LLM_PROVIDER: replay
+      # Without a soft limit the Go heap grows to twice its live size before a collection, which passes the 256M kill under load.
+      GOMEMLIMIT: 192MiB
+    volumes: !override
+      - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.replicas.yaml}:/etc/slashobserve/datasources.yaml:ro
+      - ./replicas/llm:/etc/slashobserve/llm-fixtures:ro
+      - ./dashboards/SlashObserve:/provision/SlashObserve:ro
+      - ./service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
+      - demo-keys:/demo-keys:ro
+    ports: !reset []
+    stop_grace_period: 30s
+    depends_on: !override
+      demo-keys:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      dex:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 256M
+
+  haproxy:
+    image: haproxy:3.2.26-alpine3.24@sha256:1c3568e520453cc8ba98c39501febcf450429c80e6cc27ecad779961d76e597c
+    volumes:
+      - ./replicas/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-48080}:8080"
+      - "127.0.0.1:${SLASHOBSERVE_REPLICAS_ONE_PORT:-48081}:8081"
+      - "127.0.0.1:${SLASHOBSERVE_REPLICAS_TWO_PORT:-48082}:8082"
+    depends_on:
+      server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  frontend-0: *no-collector
+  checkout-0: *no-collector
+  checkout-1: *no-collector
+  payments-0: *no-collector
+
+  loadgen:
+    environment:
+      LOADGEN_CURVE: flat
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""

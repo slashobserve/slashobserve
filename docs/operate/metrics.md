@@ -74,6 +74,18 @@ sum(rate(slashobserve_http_request_duration_seconds_count{status=~"5.."}[5m]))
   / sum(rate(slashobserve_http_request_duration_seconds_count[5m]))
 ```
 
+The number of live servers:
+
+```promql
+max(slashobserve_fleet_servers)
+```
+
+How much of each datasource's slots the whole fleet uses:
+
+```promql
+sum by (datasource) (slashobserve_datasource_slots_in_use) / sum by (datasource) (slashobserve_datasource_slots_limit)
+```
+
 How much of each datasource's slots this server uses:
 
 ```promql
