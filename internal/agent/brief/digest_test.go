@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"strings"
@@ -8,11 +8,11 @@ import (
 )
 
 func TestDigestKeepsTheNewestEntryPerSourceAndOrdersNewestFirst(t *testing.T) {
-	var d digest
-	d.add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"up", "http_requests_total"}})
-	d.add(tools.Discovery{Datasource: "prom", Of: "labels of http_requests_total", Names: []string{"code", "pod"}})
-	d.add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"node_load1"}})
-	d.add(tools.Discovery{Datasource: "ch", Of: "tables", Names: []string{"otel_logs"}})
+	var d Digest
+	d.Add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"up", "http_requests_total"}})
+	d.Add(tools.Discovery{Datasource: "prom", Of: "labels of http_requests_total", Names: []string{"code", "pod"}})
+	d.Add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"node_load1"}})
+	d.Add(tools.Discovery{Datasource: "ch", Of: "tables", Names: []string{"otel_logs"}})
 
 	want := "<discovered>\n" +
 		"Names this run already found; use them without listing them again.\n" +
@@ -20,22 +20,22 @@ func TestDigestKeepsTheNewestEntryPerSourceAndOrdersNewestFirst(t *testing.T) {
 		"- prom metrics: node_load1\n" +
 		"- prom labels of http_requests_total: code, pod\n" +
 		"</discovered>"
-	if got := d.text(); got != want {
+	if got := d.Text(); got != want {
 		t.Fatalf("text:\n%s\nwant:\n%s", got, want)
 	}
 }
 
 func TestDigestStopsBeforeItsByteCap(t *testing.T) {
-	var d digest
+	var d Digest
 	for _, source := range []string{"first", "second", "third"} {
 		names := make([]string, 120)
 		for i := range names {
 			names[i] = "metric_" + source + "_0123456789"
 		}
-		d.add(tools.Discovery{Datasource: "prom", Of: source, Names: names})
+		d.Add(tools.Discovery{Datasource: "prom", Of: source, Names: names})
 	}
 
-	got := d.text()
+	got := d.Text()
 	if len(got) > maxDigestBytes || !strings.HasSuffix(got, "</discovered>") {
 		t.Fatalf("digest is %d bytes and ends %q", len(got), got[max(0, len(got)-20):])
 	}
@@ -45,16 +45,16 @@ func TestDigestStopsBeforeItsByteCap(t *testing.T) {
 }
 
 func TestDigestIsEmptyWithoutEntries(t *testing.T) {
-	var d digest
-	if got := d.text(); got != "" {
+	var d Digest
+	if got := d.Text(); got != "" {
 		t.Fatalf("text = %q", got)
 	}
-	d.add(tools.Discovery{Datasource: "prom", Of: "metrics"})
-	if got := d.text(); got != "" {
+	d.Add(tools.Discovery{Datasource: "prom", Of: "metrics"})
+	if got := d.Text(); got != "" {
 		t.Fatalf("an entry without names must be ignored: %q", got)
 	}
-	d.add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{strings.Repeat("x", maxDigestBytes)}})
-	if got := d.text(); got != "" {
+	d.Add(tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{strings.Repeat("x", maxDigestBytes)}})
+	if got := d.Text(); got != "" {
 		t.Fatalf("an entry that cannot fit leaves no digest: %d bytes", len(got))
 	}
 }

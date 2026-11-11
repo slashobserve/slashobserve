@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"fmt"
@@ -26,14 +26,14 @@ func buildWithPanels(t *testing.T, built, planned int) *dashboards.Build {
 }
 
 func TestWriteBuildStatesProgressAndTheReasonForEachNewSession(t *testing.T) {
-	sentences := map[seedReason]string{
-		seedRestart:     "Why this is a new session: The server restarted while you worked.\n",
-		seedOutputLimit: "Why your conversation was shortened: Your last answer was cut off at the output limit. Save one panel per call, and check only what that panel needs.\n",
-		seedPending:     "Why your conversation was shortened: You answered without a tool call, but the build has fewer panels than you planned. Add the rest one per save, or resend planned_panels with the number you built, then finish.\n",
-		seedContinue:    "Why this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\n",
-		seedRenewed:     "Why your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.\n",
-		seedCallTimeout: "Why your conversation was shortened: Your last call ran past the time limit for one model call. Keep each answer short: save one panel per call, and check only what that panel needs.\n",
-		seedConflict:    "Why this is a new session: Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.\n",
+	sentences := map[Reason]string{
+		Restart:     "Why this is a new session: The server restarted while you worked.\n",
+		OutputLimit: "Why your conversation was shortened: Your last answer was cut off at the output limit. Save one panel per call, and check only what that panel needs.\n",
+		Pending:     "Why your conversation was shortened: You answered without a tool call, but the build has fewer panels than you planned. Add the rest one per save, or resend planned_panels with the number you built, then finish.\n",
+		Continue:    "Why this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\n",
+		Renewed:     "Why your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.\n",
+		CallTimeout: "Why your conversation was shortened: Your last call ran past the time limit for one model call. Keep each answer short: save one panel per call, and check only what that panel needs.\n",
+		Conflict:    "Why this is a new session: Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.\n",
 	}
 	for reason, sentence := range sentences {
 		t.Run(string(reason), func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestWriteBuildHasNoReasonLineForAFreshSession(t *testing.T) {
 
 func TestWriteBuildWithoutAPlannedCountStatesTheBuiltPanels(t *testing.T) {
 	var b strings.Builder
-	writeBuild(&b, seed{build: buildWithPanels(t, 12, 0), reason: seedRestart})
+	writeBuild(&b, seed{build: buildWithPanels(t, 12, 0), reason: Restart})
 	if !strings.Contains(b.String(), "The build holds 12 panels.\n") || strings.Contains(b.String(), "Panels built") {
 		t.Fatalf("section = %s", b.String())
 	}
@@ -87,16 +87,16 @@ func TestBuildContextOmitsTheBuildSectionWithoutABuildOrReason(t *testing.T) {
 }
 
 func TestBuildContextCarriesTheReasonWhenNothingIsBuiltYet(t *testing.T) {
-	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", nil, seed{reason: seedOutputLimit})
+	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", nil, seed{reason: OutputLimit})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasSuffix(got, "\nWhy your conversation was shortened: "+seedSentences[seedOutputLimit]) || strings.Contains(got, "<build>") {
+	if !strings.HasSuffix(got, "\nWhy your conversation was shortened: "+seedSentences[OutputLimit]) || strings.Contains(got, "<build>") {
 		t.Fatalf("context = %q", got)
 	}
 }
 
-func buildOf(t *testing.T) (*dashboards.Build, *revision) {
+func buildOf(t *testing.T) (*dashboards.Build, *Revision) {
 	t.Helper()
 	raw := `{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[{"id":"r1","type":"row","title":"R1","gridPos":{"x":0,"y":0,"w":24,"h":1},"panels":[{"id":"a","type":"stat","title":"A","gridPos":{"x":0,"y":1,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up"}]}]}]}`
 	d, err := spec.Parse([]byte(raw))
@@ -104,12 +104,12 @@ func buildOf(t *testing.T) (*dashboards.Build, *revision) {
 		t.Fatal(err)
 	}
 	build := &dashboards.Build{Spec: d, PlannedPanels: 2, Saves: 1}
-	return build, &revision{spec: d}
+	return build, &Revision{Spec: d}
 }
 
 func TestBuildContextShowsTheBuildAsTheNewDashboardForACreate(t *testing.T) {
 	build, view := buildOf(t)
-	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: seedRestart})
+	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: Restart})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +130,8 @@ func TestBuildContextShowsTheBuildAsTheNewDashboardForACreate(t *testing.T) {
 
 func TestBuildContextShowsTheBuildAsTheRevisionForARevise(t *testing.T) {
 	build, view := buildOf(t)
-	view.dashboardID, view.number = "d1", 3
-	got, err := buildContext(nil, tools.ModeRevise, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: seedPending})
+	view.DashboardID, view.Number = "d1", 3
+	got, err := buildContext(nil, tools.ModeRevise, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: Pending})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,16 +145,16 @@ func TestResumeReasonIsContinueOnlyForTheFirstAttemptOfAContinuation(t *testing.
 	for _, tc := range []struct {
 		name string
 		task Task
-		want seedReason
+		want Reason
 	}{
-		{"first attempt of a continuation", Task{Continues: true, Attempt: 1}, seedContinue},
-		{"second attempt of a continuation", Task{Continues: true, Attempt: 2}, seedRestart},
-		{"first attempt of an ordinary request", Task{Attempt: 1}, seedRestart},
-		{"second attempt of an ordinary request", Task{Attempt: 2}, seedRestart},
+		{"first attempt of a continuation", Task{Continues: true, Attempt: 1}, Continue},
+		{"second attempt of a continuation", Task{Continues: true, Attempt: 2}, Restart},
+		{"first attempt of an ordinary request", Task{Attempt: 1}, Restart},
+		{"second attempt of an ordinary request", Task{Attempt: 2}, Restart},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := resumeReason(tc.task); got != tc.want {
-				t.Fatalf("resumeReason = %q, want %q", got, tc.want)
+			if got := ResumeReason(tc.task); got != tc.want {
+				t.Fatalf("ResumeReason = %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -162,7 +162,7 @@ func TestResumeReasonIsContinueOnlyForTheFirstAttemptOfAContinuation(t *testing.
 
 func TestSeedsCarryTheContinueNoteOnceAfterTheSeedSentenceAndNeverWhenEmpty(t *testing.T) {
 	const noteLine = "The person's note for this run: add a latency row"
-	for _, reason := range []seedReason{seedContinue, seedRestart, seedConflict} {
+	for _, reason := range []Reason{Continue, Restart, Conflict} {
 		t.Run(string(reason), func(t *testing.T) {
 			sentence := "Why this is a new session: " + seedSentences[reason]
 			for name, write := range map[string]func(*strings.Builder, seed){
@@ -188,7 +188,7 @@ func TestSeedsCarryTheContinueNoteOnceAfterTheSeedSentenceAndNeverWhenEmpty(t *t
 
 func TestWriteSeedNoteWritesTheContinueSentenceThenTheNote(t *testing.T) {
 	var b strings.Builder
-	writeSeedNote(&b, seed{reason: seedContinue, note: "keep it small"})
+	writeSeedNote(&b, seed{reason: Continue, note: "keep it small"})
 	want := "\nWhy this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above." +
 		"\nThe person's note for this run: keep it small\n"
 	if b.String() != want {
@@ -198,11 +198,11 @@ func TestWriteSeedNoteWritesTheContinueSentenceThenTheNote(t *testing.T) {
 
 func TestBuildContextPutsTheContinueNoteInTheBuildSection(t *testing.T) {
 	build, view := buildOf(t)
-	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: seedContinue, note: "only the CPU rows"})
+	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", view, seed{build: build, reason: Continue, note: "only the CPU rows"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(got, "The person's note for this run: only the CPU rows\n") != 1 || !strings.Contains(got, seedSentences[seedContinue]) {
+	if strings.Count(got, "The person's note for this run: only the CPU rows\n") != 1 || !strings.Contains(got, seedSentences[Continue]) {
 		t.Fatalf("context:\n%s", got)
 	}
 }

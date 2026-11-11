@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-func investigateContext(statuses []datasource.Status, task Task, current *revision, sd seed) string {
+func investigateContext(statuses []datasource.Status, task Task, current *Revision, sd seed) string {
 	var b strings.Builder
 	writeDatasources(&b, statuses)
 	b.WriteString("\nInvestigate the question and save one finding.")
@@ -18,9 +18,9 @@ func investigateContext(statuses []datasource.Status, task Task, current *revisi
 		b.WriteString("\nWindow: the last hour")
 	}
 	if current != nil {
-		fmt.Fprintf(&b, "\nThe question is about dashboard %s, version %d.\n", current.dashboardID, current.number)
-		writeOutline(&b, current.spec, outlineTargets(current.spec, task.PanelID, task.Prompt))
-		if title, ok := panelTitle(current.spec, task.PanelID); ok {
+		fmt.Fprintf(&b, "\nThe question is about dashboard %s, version %d.\n", current.DashboardID, current.Number)
+		writeOutline(&b, current.Spec, outlineTargets(current.Spec, task.PanelID, task.Prompt))
+		if title, ok := panelTitle(current.Spec, task.PanelID); ok {
 			fmt.Fprintf(&b, "\nThe question is about panel %s titled %q, shown in full above.", task.PanelID, title)
 		}
 	}

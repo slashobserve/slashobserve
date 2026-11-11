@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"encoding/json"
@@ -14,12 +14,20 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-type revision struct {
-	dashboardID string
-	number      int
-	spec        *spec.Dashboard
-	unverified  dashboards.Unverified
-	conversion  []tools.Attention
+type Revision struct {
+	DashboardID string
+	Number      int
+	Spec        *spec.Dashboard
+	Unverified  dashboards.Unverified
+	Conversion  []tools.Attention
+}
+
+func buildView(current *Revision, build *dashboards.Build) *Revision {
+	view := &Revision{Spec: build.Spec, Unverified: build.Unverified}
+	if current != nil {
+		view.DashboardID, view.Number, view.Conversion = current.DashboardID, current.Number, current.Conversion
+	}
+	return view
 }
 
 func systemFor(statuses []datasource.Status) string {
@@ -32,7 +40,7 @@ func systemFor(statuses []datasource.Status) string {
 	return prompts.Build(types)
 }
 
-func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID, prompt string, current *revision, sd seed) (string, error) {
+func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID, prompt string, current *Revision, sd seed) (string, error) {
 	var b strings.Builder
 	writeDatasources(&b, statuses)
 	if mode == tools.ModeCreate && sd.build == nil {
@@ -40,14 +48,14 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 		writeSeedNote(&b, sd)
 		return b.String(), nil
 	}
-	body, err := json.Marshal(current.spec)
+	body, err := json.Marshal(current.Spec)
 	if err != nil {
-		return "", fmt.Errorf("marshal current spec: %w", err)
+		return "", fmt.Errorf("marshal current Spec: %w", err)
 	}
 	writeIntro(&b, mode, current, sd.build != nil)
 	if needsOutline(len(body)) {
 		b.WriteString(" The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\n")
-		writeOutline(&b, current.spec, outlineTargets(current.spec, panelID, prompt))
+		writeOutline(&b, current.Spec, outlineTargets(current.Spec, panelID, prompt))
 	} else {
 		fmt.Fprintf(&b, "\n```json\n%s\n```", body)
 	}
@@ -83,33 +91,33 @@ func writeDatasources(b *strings.Builder, statuses []datasource.Status) {
 	}
 }
 
-func writeIntro(b *strings.Builder, mode tools.Mode, current *revision, hasBuild bool) {
+func writeIntro(b *strings.Builder, mode tools.Mode, current *Revision, hasBuild bool) {
 	switch {
 	case mode == tools.ModeSuggest:
-		fmt.Fprintf(b, "\nYou are proposing a change to dashboard %s, version %d.", current.dashboardID, current.number)
+		fmt.Fprintf(b, "\nYou are proposing a change to dashboard %s, version %d.", current.DashboardID, current.Number)
 	case mode == tools.ModeCreate:
 		b.WriteString("\nCreate a new dashboard for the request. This is your build of the new dashboard, not saved as a version yet.")
 	case hasBuild:
-		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. This is your build of the revision, not saved as a version yet.", current.dashboardID, current.number)
+		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. This is your build of the revision, not saved as a version yet.", current.DashboardID, current.Number)
 	default:
-		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. Change it for the request, or answer it with save_finding if it only asks a question.", current.dashboardID, current.number)
+		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. Change it for the request, or answer it with save_finding if it only asks a question.", current.DashboardID, current.Number)
 	}
 }
 
-func writeSuggestRequest(b *strings.Builder, panelID string, current *revision) {
-	title, _ := panelTitle(current.spec, panelID)
+func writeSuggestRequest(b *strings.Builder, panelID string, current *Revision) {
+	title, _ := panelTitle(current.Spec, panelID)
 	if title == "" {
 		title = panelID
 	}
-	fmt.Fprintf(b, "\nPropose a change to panel %s titled %q for the request. Call update_panels with only that panel, with id %s, in upsert; everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.number)
+	fmt.Fprintf(b, "\nPropose a change to panel %s titled %q for the request. Call update_panels with only that panel, with id %s, in upsert; everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.Number)
 }
 
-func writePanelRequest(b *strings.Builder, source revisions.Source, panelID string, current *revision) {
+func writePanelRequest(b *strings.Builder, source revisions.Source, panelID string, current *Revision) {
 	if panelID == "" {
 		return
 	}
 	fromComment := source == revisions.SourceComment
-	if title, ok := panelTitle(current.spec, panelID); ok {
+	if title, ok := panelTitle(current.Spec, panelID); ok {
 		if fromComment {
 			fmt.Fprintf(b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
 		} else {
@@ -127,33 +135,33 @@ const (
 	maxListBytes = 8 << 10
 )
 
-func writeUnverified(b *strings.Builder, current *revision) {
-	u := current.unverified
+func writeUnverified(b *strings.Builder, current *Revision) {
+	u := current.Unverified
 	if u.Empty() {
 		return
 	}
 	var lines []string
 	for _, p := range u.Panels {
-		title, _ := panelTitle(current.spec, p.PanelID)
+		title, _ := panelTitle(current.Spec, p.PanelID)
 		lines = append(lines, fmt.Sprintf("- panel %s %q: %s", p.PanelID, title, firstIssue(p.Issues)))
 	}
 	for _, v := range u.Variables {
 		lines = append(lines, fmt.Sprintf("- variable %s: %s", v.Name, firstIssue(v.Issues)))
 	}
-	fmt.Fprintf(b, "\nUnverified in version %d: their queries failed when it was saved. A save keeps them unverified while their queries and the variables those use stay unchanged; a changed or new query must return data.", current.number)
+	fmt.Fprintf(b, "\nUnverified in version %d: their queries failed when it was saved. A save keeps them unverified while their queries and the variables those use stay unchanged; a changed or new query must return data.", current.Number)
 	writeCapped(b, lines)
 	b.WriteString("\nKeep unverified panels unless the request asks to delete them.")
 }
 
-func writeConversion(b *strings.Builder, current *revision) {
-	if len(current.conversion) == 0 {
+func writeConversion(b *strings.Builder, current *Revision) {
+	if len(current.Conversion) == 0 {
 		return
 	}
-	lines := make([]string, len(current.conversion))
-	for i, a := range current.conversion {
+	lines := make([]string, len(current.Conversion))
+	for i, a := range current.Conversion {
 		lines[i] = fmt.Sprintf("- %s %s %q: %s", a.Status, a.PanelID, a.Title, strings.Join(strings.Fields(a.Reason), " "))
 	}
-	fmt.Fprintf(b, "\nVersion %d is a Grafana import. The importer converted these panels only partly or kept them as placeholders:", current.number)
+	fmt.Fprintf(b, "\nVersion %d is a Grafana import. The importer converted these panels only partly or kept them as placeholders:", current.Number)
 	writeCapped(b, lines)
 }
 

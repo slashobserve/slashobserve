@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"slices"
@@ -14,26 +14,28 @@ const (
 	digestClosed = "</discovered>"
 )
 
-type digest struct{ entries []tools.Discovery }
+type Digest struct {
+	Entries []tools.Discovery `json:"entries"`
+}
 
-func (d *digest) add(x tools.Discovery) {
+func (d *Digest) Add(x tools.Discovery) {
 	if len(x.Names) == 0 {
 		return
 	}
-	d.entries = slices.DeleteFunc(d.entries, func(e tools.Discovery) bool {
+	d.Entries = slices.DeleteFunc(d.Entries, func(e tools.Discovery) bool {
 		return e.Datasource == x.Datasource && e.Of == x.Of
 	})
-	d.entries = append(d.entries, x)
+	d.Entries = append(d.Entries, x)
 }
 
-func (d *digest) text() string {
-	if len(d.entries) == 0 {
+func (d *Digest) Text() string {
+	if len(d.Entries) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString(digestOpen)
 	written := 0
-	for _, e := range slices.Backward(d.entries) {
+	for _, e := range slices.Backward(d.Entries) {
 		line := "- " + e.Datasource + " " + e.Of + ": " + strings.Join(e.Names, ", ") + "\n"
 		if b.Len()+len(line)+len(digestClosed) > maxDigestBytes {
 			break

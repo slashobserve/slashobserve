@@ -13,25 +13,22 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
-	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
-	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	maxPromptRunes  = 4000
-	maxRestarts     = 1
-	maxLoggedIssues = 20
+	maxPromptRunes = 4000
+	maxRestarts    = 1
 )
 
 var (
@@ -39,10 +36,10 @@ var (
 	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d rejected saves in a row", guard.MaxRejectionsInRow)
 	ErrRefused         = errors.New("the model declined the request")
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
-	ErrInvalidTask     = errors.New("invalid agent task")
+	ErrInvalidTask     = brief.ErrInvalidTask
 	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
 	ErrNoFinding       = errors.New("the model finished without saving a finding")
-	ErrDraftInvalid    = errors.New("the draft panel is not valid")
+	ErrDraftInvalid    = brief.ErrDraftInvalid
 	errModelCall       = errors.New("model call failed")
 
 	ErrSuggestRepairExhausted error = &variantError{
@@ -66,18 +63,13 @@ type ToolSet interface {
 	Call(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
 }
 
-type DashboardReader interface {
-	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
-	GetVersion(ctx context.Context, id pgtype.UUID, version int) (dashboards.Dashboard, dashboards.Version, error)
-}
+type DashboardReader = brief.DashboardReader
 
 type DatasourceHealth interface {
 	Health(ctx context.Context) []datasource.Status
 }
 
-type ImportReader interface {
-	ForDashboard(ctx context.Context, id pgtype.UUID) (imports.Record, error)
-}
+type ImportReader = brief.ImportReader
 
 type BuildStore interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
@@ -156,12 +148,10 @@ type Outcome struct {
 type Agent struct {
 	provider          llm.Provider
 	tools             ToolSet
-	dashboards        DashboardReader
+	loader            brief.Loader
 	builds            BuildStore
 	datasources       DatasourceHealth
-	imports           ImportReader
 	logger            *slog.Logger
-	investigateSystem string
 	toolSpecs         map[tools.Mode][]llm.ToolSpec
 	sessionRenewBytes int
 	logToolInputs     bool
@@ -190,12 +180,10 @@ func New(c Config) *Agent {
 	return &Agent{
 		provider:          c.Provider,
 		tools:             c.Tools,
-		dashboards:        c.Dashboards,
+		loader:            brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
 		builds:            c.Builds,
 		datasources:       c.Datasources,
-		imports:           c.Imports,
 		logger:            c.Logger,
-		investigateSystem: prompts.Investigate(),
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
 		logToolInputs:     c.LogToolInputs,
@@ -283,13 +271,13 @@ type runner struct {
 }
 
 type sessionEnd struct {
-	compact  seedReason
+	compact  brief.Reason
 	conflict bool
 	chat     llm.Session
 	results  []llm.ToolResult
 }
 
-func compaction(reason seedReason, chat llm.Session, results []llm.ToolResult) sessionEnd {
+func compaction(reason brief.Reason, chat llm.Session, results []llm.ToolResult) sessionEnd {
 	return sessionEnd{compact: reason, chat: chat, results: results}
 }
 
@@ -330,7 +318,7 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 }
 
 func (r *runner) loop(ctx context.Context) error {
-	reason := seedFresh
+	reason := brief.Fresh
 	restarts := 0
 	var carry *sessionEnd
 	for {
@@ -339,10 +327,10 @@ func (r *runner) loop(ctx context.Context) error {
 			return err
 		}
 		if restarted {
-			reason, carry = seedConflict, nil
+			reason, carry = brief.Conflict, nil
 		}
-		if build != nil && reason == seedFresh {
-			reason = resumeReason(r.task)
+		if build != nil && reason == brief.Fresh {
+			reason = brief.ResumeReason(r.briefTask())
 		}
 		end, err := r.session(ctx, current, build, reason, carry)
 		if err != nil {
@@ -358,8 +346,8 @@ func (r *runner) loop(ctx context.Context) error {
 			if err := r.restartFromLatest(ctx, &restarts); err != nil {
 				return err
 			}
-			reason = seedConflict
-		case end.compact != seedFresh:
+			reason = brief.Conflict
+		case end.compact != brief.Fresh:
 			carry, reason = &end, end.compact
 		default:
 			return nil
@@ -367,7 +355,7 @@ func (r *runner) loop(ctx context.Context) error {
 	}
 }
 
-func (r *runner) loadOnLatest(ctx context.Context, restarts *int) (current *revision, build *dashboards.Build, restarted bool, err error) {
+func (r *runner) loadOnLatest(ctx context.Context, restarts *int) (current *brief.Revision, build *dashboards.Build, restarted bool, err error) {
 	for {
 		if current, err = r.load(ctx); err != nil {
 			return nil, nil, false, err
@@ -391,8 +379,8 @@ func (r *runner) loadOnLatest(ctx context.Context, restarts *int) (current *revi
 	}
 }
 
-func (r *runner) buildIsStale(current *revision, build *dashboards.Build) bool {
-	return r.mode == tools.ModeRevise && build != nil && current != nil && build.BaseVersion != current.number
+func (r *runner) buildIsStale(current *brief.Revision, build *dashboards.Build) bool {
+	return r.mode == tools.ModeRevise && build != nil && current != nil && build.BaseVersion != current.Number
 }
 
 func (r *runner) rebase(ctx context.Context) (bool, error) {
@@ -430,26 +418,34 @@ func (r *runner) restartFromLatest(ctx context.Context, restarts *int) error {
 	return nil
 }
 
-func (r *runner) load(ctx context.Context) (*revision, error) {
-	var current *revision
+func (r *runner) load(ctx context.Context) (*brief.Revision, error) {
+	var current *brief.Revision
 	var err error
 	switch r.mode {
 	case tools.ModeRevise:
-		current, err = r.agent.loadLatest(ctx, r.dashboardID, r.task.RequestID)
+		current, err = r.agent.loader.Latest(ctx, r.dashboardID, r.task.RequestID)
 	case tools.ModeSuggest:
-		current, err = r.agent.loadBase(ctx, r.dashboardID, r.task)
+		current, err = r.agent.loader.Base(ctx, r.dashboardID, r.task.BaseVersion, r.task.PanelID, r.task.Draft, r.task.RequestID)
 	case tools.ModeInvestigate:
 		if r.dashboardID.Valid {
-			current, err = r.agent.loadLatest(ctx, r.dashboardID, r.task.RequestID)
+			current, err = r.agent.loader.Latest(ctx, r.dashboardID, r.task.RequestID)
 		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, loadFailure(err)
 	}
 	if current != nil {
-		r.out.DashboardID = current.dashboardID
+		r.out.DashboardID = current.DashboardID
 	}
 	return current, nil
+}
+
+func loadFailure(err error) error {
+	var failed *brief.LoadError
+	if errors.As(err, &failed) {
+		return &safeError{message: failed.Message, code: failed.Code, err: failed.Err}
+	}
+	return err
 }
 
 func (r *runner) loadBuild(ctx context.Context) (*dashboards.Build, error) {
@@ -490,135 +486,42 @@ func (a *Agent) buildStoreError(ctx context.Context, message string, err error, 
 	return &safeError{message: message, code: codeInternal, err: err}
 }
 
-func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string) (*revision, error) {
-	dash, ver, err := a.dashboards.Get(ctx, id)
-	rev, err := a.loaded(ctx, dash, ver, err, requestID, "latest version has no spec")
+func (r *runner) briefTask() brief.Task {
+	return brief.Task{
+		Mode: r.mode, Source: r.task.Source, Prompt: r.prompt, PanelID: r.task.PanelID,
+		From: r.task.From, To: r.task.To, ContinueNote: r.task.ContinueNote,
+		Continues: r.task.Continues, Attempt: r.task.Attempt,
+	}
+}
+
+func (r *runner) render(current *brief.Revision, build *dashboards.Build, reason brief.Reason) (brief.Message, error) {
+	message, err := brief.Render(r.statuses, r.briefTask(), brief.View{Current: current, Build: build}, reason, r.state.digest.Text())
 	if err != nil {
-		return nil, err
+		return brief.Message{}, contextError(err)
 	}
-	rev.conversion = a.conversionNotes(ctx, id, rev.number, requestID)
-	return rev, nil
+	return message, nil
 }
 
-func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision, error) {
-	dash, ver, err := a.dashboards.GetVersion(ctx, id, t.BaseVersion)
-	rev, err := a.loaded(ctx, dash, ver, err, t.RequestID, "base version has no spec")
-	if err != nil {
-		return nil, err
-	}
-	rev.conversion = a.conversionNotes(ctx, id, rev.number, t.RequestID)
-	if len(t.Draft) == 0 {
-		if _, ok := rev.spec.FindPanel(t.PanelID); !ok {
-			return nil, fmt.Errorf("%w: the panel is not in that version of the dashboard", ErrInvalidTask)
-		}
-	} else if rev.spec, err = spec.WithPanel(rev.spec, t.PanelID, t.Draft); err != nil {
-		return nil, a.draftInvalid(ctx, t.RequestID, err)
-	}
-	entry, ok := rev.spec.FindPanel(t.PanelID)
-	switch {
-	case !ok:
-		return nil, a.draftInvalid(ctx, t.RequestID, ErrDraftInvalid)
-	case !entry.Panel.Type.IsEditable():
-		return nil, fmt.Errorf("%w: the panel is not a data, text or dashboard list panel", ErrInvalidTask)
-	}
-	return rev, nil
-}
-
-func (a *Agent) conversionNotes(ctx context.Context, id pgtype.UUID, number int, requestID string) []tools.Attention {
-	if a.imports == nil {
-		return nil
-	}
-	record, err := a.imports.ForDashboard(ctx, id)
-	switch {
-	case errors.Is(err, imports.ErrNotFound), errors.Is(err, dashboards.ErrNotFound):
-		return nil
-	case err != nil:
-		if ctx.Err() == nil {
-			a.logger.WarnContext(ctx, "agent could not read the import record", logattrs.Failure("import_read_failed", err, slog.String("agent_request_id", requestID))...)
-		}
-		return nil
-	case record.Version != number:
-		return nil
-	}
-	return tools.ConversionAttention(record.Report)
-}
-
-func (a *Agent) draftInvalid(ctx context.Context, requestID string, err error) error {
-	attrs := logattrs.Failure("draft_invalid", err, slog.String("agent_request_id", requestID))
-	var invalid *spec.ValidationError
-	if errors.As(err, &invalid) {
-		issues := invalid.Issues[:min(len(invalid.Issues), maxLoggedIssues)]
-		codes := make([]string, len(issues))
-		paths := make([]string, len(issues))
-		for i, issue := range issues {
-			codes[i], paths[i] = string(issue.Code), issue.Path
-		}
-		attrs = append(attrs, slog.Int("issue_count", len(invalid.Issues)), slog.Any("issue_codes", codes), slog.Any("issue_paths", paths))
-	}
-	a.logger.WarnContext(ctx, "agent draft panel is not valid", attrs...)
-	return ErrDraftInvalid
-}
-
-func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashboards.Version, err error, requestID, noSpec string) (*revision, error) {
-	switch {
-	case errors.Is(err, dashboards.ErrNotFound):
-		return nil, dashboards.ErrNotFound
-	case err != nil:
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, ctxErr
-		}
-		a.logger.ErrorContext(ctx, "agent could not load the dashboard", append([]any{
-			slog.String("error_code", string(codeLoadFailed)),
-			slog.String("agent_request_id", requestID),
-		}, logattrs.Safe(err)...)...)
-		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: err}
-	case ver.Spec == nil:
-		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: errors.New(noSpec)}
-	}
-	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec, unverified: ver.Unverified}, nil
-}
-
-func (r *runner) prepareSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Request, error) {
-	contextText, system, err := r.sessionText(current, build, reason)
-	if err != nil {
-		return ctx, llm.Request{}, contextError(err)
-	}
-	if found := r.state.digest.text(); found != "" && r.mode != tools.ModeSuggest {
-		contextText += "\n\n" + found
-	}
+func (r *runner) beginSession(ctx context.Context, current *brief.Revision, build *dashboards.Build) context.Context {
 	run := runScope(r.task, r.prompt, r.mode, current)
-	ctx = tools.WithRun(ctx, run)
 	r.state.guard.BeginSession(build != nil, run.ParentVersion)
 	r.state.replays = nil
 	r.state.sessionBytes = 0
+	return tools.WithRun(ctx, run)
+}
 
+func (r *runner) startSession(ctx context.Context, current *brief.Revision, build *dashboards.Build, reason brief.Reason) (context.Context, llm.Session, error) {
+	message, err := r.render(current, build, reason)
+	if err != nil {
+		return ctx, nil, err
+	}
+	ctx = r.beginSession(ctx, current, build)
 	request := llm.Request{
-		System: system, Tools: r.agent.toolSpecs[r.mode], Prompt: r.prompt, Context: contextText,
+		System: message.System, Tools: r.agent.toolSpecs[r.mode], Prompt: r.prompt, Context: message.Context,
 		Pruning: llm.Pruning{KeepTurns: pruneKeepTurns, StepBytes: pruneStepBytes},
 	}
 	if build != nil {
 		request.BuildSaves = build.Saves
-	}
-	return ctx, request, nil
-}
-
-func (r *runner) sessionText(current *revision, build *dashboards.Build, reason seedReason) (contextText, system string, err error) {
-	sd := seed{build: build, reason: reason, note: r.task.ContinueNote}
-	if r.mode == tools.ModeInvestigate {
-		return investigateContext(r.statuses, r.task, current, sd), r.agent.investigateSystem, nil
-	}
-	view := current
-	if build != nil {
-		view = buildView(current, build)
-	}
-	contextText, err = buildContext(r.statuses, r.mode, r.task.Source, r.task.PanelID, r.prompt, view, sd)
-	return contextText, systemFor(r.statuses), err
-}
-
-func (r *runner) startSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Session, error) {
-	ctx, request, err := r.prepareSession(ctx, current, build, reason)
-	if err != nil {
-		return ctx, nil, err
 	}
 	chat, err := r.agent.provider.Start(ctx, request)
 	if err != nil {
@@ -627,13 +530,14 @@ func (r *runner) startSession(ctx context.Context, current *revision, build *das
 	return ctx, chat, nil
 }
 
-func (r *runner) compact(ctx context.Context, chat llm.Session, current *revision, build *dashboards.Build, reason seedReason) (context.Context, error) {
-	ctx, request, err := r.prepareSession(ctx, current, build, reason)
+func (r *runner) compact(ctx context.Context, chat llm.Session, current *brief.Revision, build *dashboards.Build, reason brief.Reason) (context.Context, error) {
+	message, err := r.render(current, build, reason)
 	if err != nil {
 		return ctx, err
 	}
+	ctx = r.beginSession(ctx, current, build)
 	err = chat.Compact(llm.Compaction{
-		Message:     request.UserMessage(),
+		Message:     message.User,
 		TailTurns:   compactTailTurns,
 		TailBytes:   compactTailBytes,
 		ResultBytes: compactResultBytes,
@@ -642,13 +546,13 @@ func (r *runner) compact(ctx context.Context, chat llm.Session, current *revisio
 		return ctx, providerError(ctx, err)
 	}
 	r.out.Compactions++
-	if reason == seedRenewed {
+	if reason == brief.Renewed {
 		r.out.Renewals++
 	}
 	return ctx, nil
 }
 
-func (r *runner) session(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason, carry *sessionEnd) (sessionEnd, error) {
+func (r *runner) session(ctx context.Context, current *brief.Revision, build *dashboards.Build, reason brief.Reason, carry *sessionEnd) (sessionEnd, error) {
 	var chat llm.Session
 	var results []llm.ToolResult
 	var err error
@@ -669,7 +573,7 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 		turn, err := r.agent.modelCall(ctx, chat, results, r.totals)
 		if err != nil {
 			if r.cutOffByTimeout(ctx, err) {
-				return compaction(seedCallTimeout, chat, results), nil
+				return compaction(brief.CallTimeout, chat, results), nil
 			}
 			return sessionEnd{}, providerError(ctx, err)
 		}
@@ -692,7 +596,7 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 			return end, err
 		}
 		if outcome.Built && r.state.sessionBytes > r.agent.sessionRenewBytes {
-			return compaction(seedRenewed, chat, results), nil
+			return compaction(brief.Renewed, chat, results), nil
 		}
 	}
 }
@@ -737,7 +641,7 @@ func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn, chat llm.Session,
 		if r.cutOff("the model's answer was cut off at the output limit") {
 			return sessionEnd{}, true, &outputLimitError{base: noResultError(r.mode)}
 		}
-		return compaction(seedOutputLimit, chat, results), true, nil
+		return compaction(brief.OutputLimit, chat, results), true, nil
 	case len(turn.ToolCalls) == 0:
 		end, err := r.finishWithoutCall(ctx, chat, noResultError(r.mode))
 		return end, true, err
@@ -772,7 +676,7 @@ func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResu
 		return sessionEnd{}, noResult
 	case r.mode == tools.ModeInvestigate && !r.state.findingNudged:
 		r.state.findingNudged = true
-		return compaction(seedNoFinding, chat, nil), nil
+		return compaction(brief.NoFinding, chat, nil), nil
 	case r.mode == tools.ModeInvestigate:
 		return sessionEnd{}, noResult
 	}
@@ -784,13 +688,13 @@ func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResu
 		return sessionEnd{}, r.agent.buildStoreError(ctx, "could not load the build", err, r.task.RequestID)
 	case !found && !r.state.answerNudged:
 		r.state.answerNudged = true
-		return compaction(seedNoAnswer, chat, nil), nil
+		return compaction(brief.NoAnswer, chat, nil), nil
 	case !found:
 		return sessionEnd{}, noResult
 	}
 	if build.Progress().Pending() > 0 && !r.state.pendingNudged {
 		r.state.pendingNudged = true
-		return compaction(seedPending, chat, nil), nil
+		return compaction(brief.Pending, chat, nil), nil
 	}
 	return r.commit(ctx)
 }
@@ -812,15 +716,7 @@ func (r *runner) commit(ctx context.Context) (sessionEnd, error) {
 	return sessionEnd{}, nil
 }
 
-func buildView(current *revision, build *dashboards.Build) *revision {
-	view := &revision{spec: build.Spec, unverified: build.Unverified}
-	if current != nil {
-		view.dashboardID, view.number, view.conversion = current.dashboardID, current.number, current.conversion
-	}
-	return view
-}
-
-func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.Run {
+func runScope(t Task, prompt string, mode tools.Mode, current *brief.Revision) tools.Run {
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
 	switch mode {
 	case tools.ModeCreate, tools.ModeRevise:
@@ -834,11 +730,11 @@ func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.R
 	if current == nil {
 		return run
 	}
-	run.DashboardID = current.dashboardID
-	run.ParentVersion = current.number
+	run.DashboardID = current.DashboardID
+	run.ParentVersion = current.Number
 	if mode == tools.ModeSuggest {
 		run.PanelID = t.PanelID
-		run.Base = current.spec
+		run.Base = current.Spec
 	}
 	return run
 }

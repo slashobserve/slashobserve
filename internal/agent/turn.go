@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -67,7 +68,7 @@ type runState struct {
 	findingNudged bool
 	answerNudged  bool
 	sessionBytes  int
-	digest        digest
+	digest        brief.Digest
 }
 
 type callSlot struct {
@@ -219,7 +220,7 @@ func (s *runState) runReads(ctx context.Context, calls []llm.ToolCall, reads []i
 			s.remember(admissions[i].Key, slots[i].content)
 		}
 		if found := slots[i].result.Discovered; found != nil && !slots[i].result.IsError {
-			s.digest.add(*found)
+			s.digest.Add(*found)
 		}
 	}
 	for _, i := range reads {

@@ -1,4 +1,4 @@
-package agent
+package brief
 
 import (
 	"encoding/json"
@@ -16,7 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func unverifiedRevision(t *testing.T, panels, variables int) *revision {
+func unverifiedRevision(t *testing.T, panels, variables int) *Revision {
 	t.Helper()
 	raw := `{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[{"id":"p2","type":"stat","title":"Missing","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up"}]}]}`
 	d, err := spec.Parse([]byte(raw))
@@ -35,7 +35,7 @@ func unverifiedRevision(t *testing.T, panels, variables int) *revision {
 	for i := range variables {
 		u.Variables = append(u.Variables, dashboards.UnverifiedVariable{Name: fmt.Sprintf("v%d", i), Issues: []spec.Issue{{Code: "variable_failed", Message: "boom"}}})
 	}
-	return &revision{dashboardID: "d", number: 3, spec: d, unverified: u}
+	return &Revision{DashboardID: "d", Number: 3, Spec: d, Unverified: u}
 }
 
 func TestWriteUnverifiedListsPanelsThenVariables(t *testing.T) {
@@ -52,7 +52,7 @@ func TestWriteUnverifiedListsPanelsThenVariables(t *testing.T) {
 
 func TestWriteUnverifiedWritesNothingWhenEmpty(t *testing.T) {
 	var b strings.Builder
-	writeUnverified(&b, &revision{number: 1})
+	writeUnverified(&b, &Revision{Number: 1})
 	if b.Len() != 0 {
 		t.Fatalf("block %q, want none", b.String())
 	}
@@ -72,7 +72,7 @@ func TestWriteUnverifiedStopsAtTheLineLimit(t *testing.T) {
 
 func TestWriteConversionListsPartialAndPlaceholderLines(t *testing.T) {
 	var b strings.Builder
-	writeConversion(&b, &revision{number: 1, conversion: []tools.Attention{
+	writeConversion(&b, &Revision{Number: 1, Conversion: []tools.Attention{
 		{PanelID: "p4", Title: "Requests and errors by route", Status: "partial", Reason: "Some overrides use matchers\nor properties that are not supported yet."},
 		{PanelID: "p10", Title: "Requests by pod", Status: "placeholder", Reason: "Grafana panel type barchart is not supported yet."},
 	}})
@@ -86,7 +86,7 @@ func TestWriteConversionListsPartialAndPlaceholderLines(t *testing.T) {
 
 func TestWriteConversionWritesNothingWhenEmpty(t *testing.T) {
 	var b strings.Builder
-	writeConversion(&b, &revision{number: 1})
+	writeConversion(&b, &Revision{Number: 1})
 	if b.Len() != 0 {
 		t.Fatalf("block %q, want none", b.String())
 	}
@@ -98,7 +98,7 @@ func TestWriteConversionStopsAtTheLineLimit(t *testing.T) {
 		notes[i] = tools.Attention{PanelID: fmt.Sprintf("p%d", i), Title: "T", Status: "partial", Reason: "r"}
 	}
 	var b strings.Builder
-	writeConversion(&b, &revision{number: 1, conversion: notes})
+	writeConversion(&b, &Revision{Number: 1, Conversion: notes})
 	got := b.String()
 	if lines := strings.Count(got, "\n- partial"); lines != maxListLines {
 		t.Fatalf("%d subject lines, want %d", lines, maxListLines)
@@ -110,7 +110,7 @@ func TestWriteConversionStopsAtTheLineLimit(t *testing.T) {
 
 func TestBuildContextPutsConversionAfterUnverified(t *testing.T) {
 	current := unverifiedRevision(t, 1, 1)
-	current.conversion = []tools.Attention{{PanelID: "p2", Title: "Missing", Status: "partial", Reason: "dropped overrides"}}
+	current.Conversion = []tools.Attention{{PanelID: "p2", Title: "Missing", Status: "partial", Reason: "dropped overrides"}}
 	got, err := buildContext(nil, tools.ModeRevise, revisions.SourcePrompt, "p2", "", current, seed{})
 	if err != nil {
 		t.Fatal(err)
@@ -123,9 +123,9 @@ func TestBuildContextPutsConversionAfterUnverified(t *testing.T) {
 	}
 }
 
-func nodeExporterFullRevision(t *testing.T) *revision {
+func nodeExporterFullRevision(t *testing.T) *Revision {
 	t.Helper()
-	data, err := os.ReadFile("../../pkg/grafana/testdata/golden/rfmoz/node-exporter-full.json")
+	data, err := os.ReadFile("../../../pkg/grafana/testdata/golden/rfmoz/node-exporter-full.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func nodeExporterFullRevision(t *testing.T) *revision {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &revision{dashboardID: "d", number: 7, spec: d}
+	return &Revision{DashboardID: "d", Number: 7, Spec: d}
 }
 
 func TestNeedsOutlineAroundTheThreshold(t *testing.T) {
@@ -162,7 +162,7 @@ func TestNeedsOutlineAroundTheThreshold(t *testing.T) {
 func TestBuildContextOfASmallDashboardKeepsTheFullJSON(t *testing.T) {
 	current := unverifiedRevision(t, 0, 0)
 	statuses := []datasource.Status{{UID: "prom", Type: "prometheus", Healthy: true}}
-	body, err := json.Marshal(current.spec)
+	body, err := json.Marshal(current.Spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestBuildContextOfASmallDashboardKeepsTheFullJSON(t *testing.T) {
 func TestBuildContextOfNodeExporterFullIsAnOutlineWithTheTargetInFull(t *testing.T) {
 	current := nodeExporterFullRevision(t)
 	const target = "p323"
-	entry, ok := current.spec.FindPanel(target)
+	entry, ok := current.Spec.FindPanel(target)
 	if !ok {
 		t.Fatalf("golden has no panel %s", target)
 	}
@@ -203,7 +203,7 @@ func TestBuildContextOfNodeExporterFullIsAnOutlineWithTheTargetInFull(t *testing
 	if len(got) >= 24<<10 {
 		t.Fatalf("context is %d bytes, want under 24 KiB", len(got))
 	}
-	for _, e := range current.spec.AllPanels() {
+	for _, e := range current.Spec.AllPanels() {
 		if n := strings.Count(got, "\n- "+e.Panel.ID+" "); n != 1 {
 			t.Errorf("panel %s listed %d times in the outline", e.Panel.ID, n)
 		}
@@ -223,11 +223,11 @@ func TestBuildContextOfNodeExporterFullIsAnOutlineWithTheTargetInFull(t *testing
 func TestOutlineHoldsTheDashboardFieldsAModelCanChange(t *testing.T) {
 	current := nodeExporterFullRevision(t)
 	var b strings.Builder
-	writeOutline(&b, current.spec, nil)
+	writeOutline(&b, current.Spec, nil)
 	got := b.String()
 	for _, want := range []string{
-		`Title: "` + current.spec.Title + `"`,
-		`Time: {"from":"` + current.spec.Time.From + `","to":"` + current.spec.Time.To + `"}`,
+		`Title: "` + current.Spec.Title + `"`,
+		`Time: {"from":"` + current.Spec.Time.From + `","to":"` + current.Spec.Time.To + `"}`,
 		`Tags: ["linux"]`,
 		"Links: [{",
 		"Variables: [{",
