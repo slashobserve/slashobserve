@@ -1534,6 +1534,31 @@ components:
           $ref: "#/components/schemas/DashboardSummary"
         version:
           $ref: "#/components/schemas/Version"
+    DashboardVersionSaved:
+      type: object
+      additionalProperties: false
+      required: [dashboard, version]
+      properties:
+        dashboard:
+          $ref: "#/components/schemas/DashboardSummary"
+        version:
+          $ref: "#/components/schemas/Version"
+        merged_from:
+          $ref: "#/components/schemas/MergedFrom"
+    MergedFrom:
+      type: object
+      additionalProperties: false
+      required: [base_version, onto_version]
+      description: Present when a stale save was merged on the server.
+      properties:
+        base_version:
+          type: integer
+          minimum: 1
+          description: The `parent_version` the caller sent.
+        onto_version:
+          type: integer
+          minimum: 1
+          description: The latest version the save was merged onto.
     SpecChange:
       type: object
       additionalProperties: false
@@ -1563,6 +1588,27 @@ components:
         latest_version:
           type: integer
           minimum: 1
+        conflicts:
+          type: array
+          description: >-
+            Present when a save asked for `merge: auto` and the newer versions changed the same panels, variables or settings.
+          items:
+            $ref: "#/components/schemas/MergeConflict"
+    MergeConflict:
+      type: object
+      additionalProperties: false
+      required: [kind, id, reason, message]
+      properties:
+        kind:
+          type: string
+          enum: [panel, variable, setting]
+        id:
+          type: string
+        reason:
+          type: string
+          enum: [both_changed, changed_and_removed, invalid]
+        message:
+          type: string
     Comment:
       type: object
       additionalProperties: false

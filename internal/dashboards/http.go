@@ -32,6 +32,8 @@ const (
 	maxLimit         = 200
 	maxOffset        = 100_000
 
+	mergeAuto = "auto"
+
 	maxDatasourceRunes = 64
 	maxQueryRunes      = 200
 	maxTags            = 10
@@ -53,6 +55,9 @@ type versionRequest struct {
 	Spec          json.RawMessage `json:"spec"`
 	Summary       *string         `json:"summary"`
 	ParentVersion *int            `json:"parent_version"`
+
+	Merge           *string `json:"merge"`
+	ProposeIfNeeded bool    `json:"propose_if_needed"`
 }
 
 type restoreRequest struct {
@@ -72,7 +77,7 @@ func (s *Service) Register(api auth.Routes) {
 	g.DELETE("/:id", auth.RoleViewer, edit, s.deleteDashboard)
 	g.GET("/:id/versions", auth.RoleViewer, view, s.listVersions)
 	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
-	g.POST("/:id/versions", auth.RoleViewer, edit, s.addVersion)
+	g.POST("/:id/versions", auth.RoleViewer, view, s.addVersion)
 	g.POST("/:id/versions/:version/restore", auth.RoleViewer, edit, s.restoreVersion)
 	g.POST("/:id/duplicate", auth.RoleViewer, view, s.duplicateDashboard)
 	g.GET("/:id/diff", auth.RoleViewer, view, s.diff)
@@ -334,6 +339,10 @@ func (s *Service) addVersion(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if abilities := folders.DashboardFrom(c).Abilities; !abilities.Edit && !abilities.Comment {
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		return
+	}
 	var req versionRequest
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
@@ -346,18 +355,34 @@ func (s *Service) addVersion(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "parent_version must be a positive 32-bit integer")
 		return
 	}
-	dash, ver, replayed, err := s.AddVersion(c.Request.Context(), httpapi.Caller(c), id, *req.ParentVersion, req.Spec, *req.Summary)
+	if req.Merge != nil && *req.Merge != mergeAuto {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", `merge must be "auto"`)
+		return
+	}
+	res, err := s.Save(c.Request.Context(), httpapi.Caller(c), SaveInput{
+		DashboardID:     id,
+		Parent:          *req.ParentVersion,
+		Spec:            req.Spec,
+		Summary:         *req.Summary,
+		Merge:           req.Merge != nil,
+		ProposeIfNeeded: req.ProposeIfNeeded,
+	})
 	if err != nil {
 		s.fail(c, "add dashboard version", err)
 		return
 	}
-	body := NewDashboardVersionJSON(dash, ver)
-	if replayed {
+	if res.Proposal != nil {
+		c.Header("Location", "/api/v1/proposals/"+res.Proposal.ID)
+		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened})
+		return
+	}
+	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom}
+	if res.Replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)
 		return
 	}
-	c.Header("Location", versionLocation(dash.ID, ver.Number))
+	c.Header("Location", versionLocation(res.Dashboard.ID, res.Version.Number))
 	c.JSON(http.StatusCreated, body)
 }
 
@@ -430,7 +455,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.As(err, &conflict):
-		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
+		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest, Conflicts: conflict.Conflicts})
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.As(err, &invalidInput):

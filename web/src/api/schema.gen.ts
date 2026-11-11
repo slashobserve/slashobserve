@@ -627,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
-         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`. A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries (every field, with the datasource each query uses) and every variable they reach are unchanged; the new version lists it again with the new issues. Any other failing query is a 422 `invalid_spec` that lists only the blocking issues.
+         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`. A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries (every field, with the datasource each query uses) and every variable they reach are unchanged; the new version lists it again with the new issues. Any other failing query is a 422 `invalid_spec` that lists only the blocking issues. With `merge: auto`, a stale save that changed other panels, variables or settings than the newer versions is merged and saved on top of the latest, and the reply has `merged_from`; an overlap answers 409 with `conflicts`. With `propose_if_needed`, a caller who can comment but not edit gets a proposal instead of a 403 where the server has proposals.
          */
         post: operations["createDashboardVersion"];
         delete?: never;
@@ -3836,6 +3836,18 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
         };
+        DashboardVersionSaved: {
+            dashboard: components["schemas"]["DashboardSummary"];
+            version: components["schemas"]["Version"];
+            merged_from?: components["schemas"]["MergedFrom"];
+        };
+        /** @description Present when a stale save was merged on the server. */
+        MergedFrom: {
+            /** @description The `parent_version` the caller sent. */
+            base_version: number;
+            /** @description The latest version the save was merged onto. */
+            onto_version: number;
+        };
         SpecChange: {
             /** @enum {string} */
             op: "add" | "remove" | "replace" | "reorder";
@@ -3850,6 +3862,16 @@ export interface components {
             error: string;
             code: string;
             latest_version: number;
+            /** @description Present when a save asked for `merge: auto` and the newer versions changed the same panels, variables or settings. */
+            conflicts?: components["schemas"]["MergeConflict"][];
+        };
+        MergeConflict: {
+            /** @enum {string} */
+            kind: "panel" | "variable" | "setting";
+            id: string;
+            /** @enum {string} */
+            reason: "both_changed" | "changed_and_removed" | "invalid";
+            message: string;
         };
         Comment: {
             /** Format: uuid */
@@ -7577,6 +7599,16 @@ export interface operations {
                     };
                     summary: string;
                     parent_version: number;
+                    /**
+                     * @description Merge a stale save onto the latest version on the server instead of answering 409 when nothing overlaps.
+                     * @enum {string}
+                     */
+                    merge?: "auto";
+                    /**
+                     * @description Save the change as a proposal when the caller can comment but not edit and the server has proposals.
+                     * @default false
+                     */
+                    propose_if_needed?: boolean;
                 };
             };
         };
@@ -7588,7 +7620,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             /** @description The new version. */
@@ -7598,7 +7630,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -142,18 +142,19 @@ This lists only the packages whose purpose the name does not make obvious.
   A new SQL file takes the next number above both the highest file and every Go migration version, because a file reusing a Go migration's version stops the server at boot.
 - Versions are immutable and linear (`parent_version = version - 1`).
   A save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy` outside any transaction.
-  `AddChangedVersion` (the `update_panels` save) runs only the changed panels and variables, as `ChangedSince` decides against the stored parent, never against what the caller claims, unless `needsFullCheck` says a `time` change or a title used by `$__dashboard` moved every result, and then it runs `checkSave`.
+  `Save` with `Partial` (the `update_panels` save) runs only the changed panels and variables, as `ChangedSince` decides against the stored parent, never against what the caller claims, unless `needsFullCheck` says a `time` change or a title used by `$__dashboard` moved every result, and then it runs `checkSave`.
   An unchanged panel that started failing stays verified until a full save runs.
   The conditional `latest_version` update is the concurrency check (409 `version_conflict`).
+  `Save` with `Merge` answers a stale save by merging it with `spec.Merge3` onto the latest version, checks the merged document with the save's own check and the latest as parent, and tries again on a lost race, three attempts in all; HTTP turns it on only for `"merge": "auto"`.
   A change sends one notification, inside its transaction, and `events.Notify` is the only sender on `events.Channel`: the live event's JSON with the appended activity row's `seq`, `{"seq":N}` when the change has no live event, or the live event alone when it appends nothing.
-- A save that changes an existing panel's `w` or `h` sets `responsive: false` on it in `freezeResized` (`internal/dashboards/responsive.go`), called from `persistVersion` before the replay check and from `commitRevision`; creates, imports, duplicates and restores never freeze, and the server never re-sizes a panel because of the flag.
+- A save that changes an existing panel's `w` or `h` sets `responsive: false` on it in `freezeResized` (`internal/dashboards/responsive.go`), called from `persist` before the replay check and from `commitRevision`; creates, imports, duplicates and restores never freeze, and the server never re-sizes a panel because of the flag.
 - `agent_request_builds` holds one build per agent request: the canonical Spec, the carried `unverified` list, `planned_panels` and `panels`, so nothing parses the Spec to show progress.
   Every build write is fenced by the attempt (`status = 'running' AND attempts = @attempt`), so a worker that lost its lease writes nothing.
   Every build save with a parent is a partial check, as `ChangedSince` decides against the build, or against the base version for the first save of a revision, and placement moves change only `gridPos`, so they run no query.
   `CommitBuild` is one transaction that writes the version and deletes the build, and it runs no query because every build save was already checked.
   A create build passes through `closeLines` (`internal/dashboards/closelines.go`) in `commitBuild`, the one funnel of every commit path; revisions do not.
   A conflict at commit, or a session about to start on a build whose base is older than the latest version, first tries `RebaseBuild` (`internal/dashboards/build.go`).
-  It rebases only when the build left every dashboard-level field as its base had it and the panels it changed (content, row or `gridPos`) are not among those the newer versions changed (content or row); it replays them onto the latest version through `spec.ApplyPanelPatch`, keeps the latest `gridPos` of a panel the build did not move, checks the changed panels with the partial check and moves the base with the attempt-fenced `RebaseAgentRequestBuild`, which leaves `saves` alone.
+  It rebases when `spec.Merge3(base, latest, build)` has no conflicts, then checks the changed panels with the partial check and moves the base with the attempt-fenced `RebaseAgentRequestBuild`, which leaves `saves` alone.
   After a commit conflict a clean rebase retries `CommitBuild` once in the same session.
   Otherwise the build is discarded, and the run restarts once from the latest version.
 - A failed request keeps its build for `revisions.BuildRetentionDays`, and `claim` deletes the expired ones beside `FailExhaustedAgentRequests`.
