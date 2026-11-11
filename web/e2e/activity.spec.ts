@@ -68,7 +68,7 @@ function composerBox(page: Page) {
 }
 
 function targetSelect(page: Page) {
-  return composerForm(page).getByRole("combobox")
+  return composerForm(page).getByRole("combobox", { name: "On" })
 }
 
 function showSelect(page: Page) {
