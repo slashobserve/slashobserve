@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -13,7 +12,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
-	"github.com/slashobserve/slashobserve/spec/examples"
 )
 
 type revision struct {
@@ -31,33 +29,7 @@ func systemFor(statuses []datasource.Status) string {
 			types = append(types, t)
 		}
 	}
-	return buildSystem(types)
-}
-
-func buildSystem(types []spec.DatasourceType) string {
-	var b strings.Builder
-	b.WriteString(strings.TrimRight(prompts.System(), "\n"))
-	b.WriteString("\n\n" + strings.TrimRight(prompts.Scope(), "\n"))
-	b.WriteString("\n\n# Authoring guide\n")
-	b.WriteString(strings.TrimRight(prompts.GuideFor(types), "\n"))
-	b.WriteString("\n\n# Example Spec (format only)\n")
-	writeJSONBlock(&b, compactJSON(examples.CheckoutServiceHealth))
-	b.WriteString("\n")
-	return b.String()
-}
-
-func compactJSON(body []byte) []byte {
-	var compact bytes.Buffer
-	if err := json.Compact(&compact, body); err != nil {
-		panic("agent: embedded example does not compact: " + err.Error())
-	}
-	return compact.Bytes()
-}
-
-func writeJSONBlock(b *strings.Builder, body []byte) {
-	b.WriteString("```json\n")
-	b.WriteString(strings.TrimRight(string(body), "\n"))
-	b.WriteString("\n```")
+	return prompts.Build(types)
 }
 
 func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID, prompt string, current *revision, sd seed) (string, error) {
