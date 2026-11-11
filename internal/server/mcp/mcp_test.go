@@ -21,11 +21,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/prompts/skill"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -81,7 +84,11 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(&syncWriter{w: logs}, nil))
-	reg := tools.New(tools.Deps{Logger: logger})
+	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: "logs", Name: "Logs", Datasource: fakeLoki{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := tools.New(tools.Deps{Datasources: datasources, Logger: logger})
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +101,10 @@ func newFixture(t *testing.T) *fixture {
 		tools:   offeredOverMCP(reg),
 	}
 }
+
+type fakeLoki struct{ datasource.Datasource }
+
+func (fakeLoki) Type() string { return "loki" }
 
 func offeredOverMCP(reg *tools.Registry) []tools.Tool {
 	var out []tools.Tool
@@ -421,7 +432,7 @@ type promptDescriptor struct {
 	} `json:"arguments"`
 }
 
-func TestObservePromptIsListedWithItsAskArgument(t *testing.T) {
+func TestObservePromptIsListedWithItsAskAndKindArguments(t *testing.T) {
 	f := newFixture(t)
 	rec := f.post(rpc(1, "prompts/list", nil), nil)
 	if rec.Code != http.StatusOK {
@@ -440,8 +451,8 @@ func TestObservePromptIsListedWithItsAskArgument(t *testing.T) {
 	if got.Name != "observe" || got.Title != "Observe" || got.Description == "" {
 		t.Errorf("prompt %+v", got)
 	}
-	if len(got.Arguments) != 1 || got.Arguments[0].Name != "ask" || got.Arguments[0].Required {
-		t.Errorf("arguments %+v, want one optional ask", got.Arguments)
+	if len(got.Arguments) != 2 || got.Arguments[0].Name != "ask" || got.Arguments[0].Required || got.Arguments[1].Name != "kind" || got.Arguments[1].Required {
+		t.Errorf("arguments %+v, want an optional ask and an optional kind", got.Arguments)
 	}
 }
 
@@ -487,6 +498,57 @@ func TestObservePromptServesTheSkillBody(t *testing.T) {
 				t.Errorf("log must hold the prompt event and never the ask: %s", f.logs.String())
 			}
 		})
+	}
+}
+
+func TestObservePromptServesTheRunSystemTextOfItsKind(t *testing.T) {
+	cases := []struct {
+		name string
+		kind string
+		want string
+	}{
+		{"build", "build", prompts.Build([]spec.DatasourceType{spec.Loki})},
+		{"build with surrounding space", " build ", prompts.Build([]spec.DatasourceType{spec.Loki})},
+		{"investigate", "investigate", prompts.Investigate()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			rec := f.post(rpc(1, "prompts/get", map[string]any{"name": "observe", "arguments": map[string]any{"kind": tc.kind, "ask": "checkout p99"}}), nil)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			var result struct {
+				Messages []struct {
+					Content struct {
+						Text string `json:"text"`
+					} `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Messages) != 1 || result.Messages[0].Content.Text != tc.want {
+				t.Errorf("the prompt text is not the run system text of kind %q", tc.kind)
+			}
+			if !strings.Contains(f.logs.String(), "kind="+strings.TrimSpace(tc.kind)) {
+				t.Errorf("log lacks the kind: %s", f.logs.String())
+			}
+		})
+	}
+}
+
+func TestObservePromptRefusesAnUnknownKindWithoutLoggingIt(t *testing.T) {
+	f := newFixture(t)
+	rec := f.post(rpc(1, "prompts/get", map[string]any{"name": "observe", "arguments": map[string]any{"kind": "secret-kind"}}), nil)
+	if rpcResponse := decodeRPC(t, rec); rpcResponse.Error == nil {
+		t.Fatalf("want a JSON-RPC error, got %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "kind must be build or investigate") {
+		t.Errorf("error does not name the accepted kinds: %s", rec.Body.String())
+	}
+	if strings.Contains(f.logs.String(), "secret-kind") {
+		t.Errorf("log holds the unknown kind: %s", f.logs.String())
 	}
 }
 

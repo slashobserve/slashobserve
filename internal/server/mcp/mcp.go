@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -69,6 +70,7 @@ type handler struct {
 	metadataURL string
 	transport   http.Handler
 	slots       slots
+	types       func() []spec.DatasourceType
 }
 
 func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Handler {
@@ -76,7 +78,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}}
+	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithPromptCapabilities(false),
