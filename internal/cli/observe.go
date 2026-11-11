@@ -20,14 +20,16 @@ const (
 )
 
 type agentRequest struct {
-	ID          string      `json:"id"`
-	Source      string      `json:"source"`
-	DashboardID *string     `json:"dashboard_id"`
-	Status      string      `json:"status"`
-	ResultVer   *int        `json:"result_version"`
-	URL         *string     `json:"url"`
-	Error       *string     `json:"error"`
-	Steps       []agentStep `json:"steps"`
+	ID          string        `json:"id"`
+	Source      string        `json:"source"`
+	Trigger     string        `json:"trigger"`
+	DashboardID *string       `json:"dashboard_id"`
+	Status      string        `json:"status"`
+	ResultVer   *int          `json:"result_version"`
+	URL         *string       `json:"url"`
+	Error       *string       `json:"error"`
+	Steps       []agentStep   `json:"steps"`
+	Usage       *requestUsage `json:"usage"`
 
 	QueuePosition *int            `json:"queue_position"`
 	FailureCode   *string         `json:"failure_code"`
@@ -35,6 +37,10 @@ type agentRequest struct {
 	BuildSavedAt  *string         `json:"build_saved_at"`
 	ContinuedBy   *string         `json:"continued_by"`
 	Finding       *findingSummary `json:"finding"`
+}
+
+type requestUsage struct {
+	CostUSD *float64 `json:"cost_usd"`
 }
 
 type buildSummary struct {
@@ -170,6 +176,20 @@ func (a *app) runStatus(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func costText(usage *requestUsage) string {
+	if usage == nil || usage.CostUSD == nil {
+		return "-"
+	}
+	switch cost := *usage.CostUSD; {
+	case cost == 0:
+		return "$0.00"
+	case cost < 0.01:
+		return "under $0.01"
+	default:
+		return fmt.Sprintf("about $%.2f", cost)
+	}
+}
+
 func printRequest(out *output, req agentRequest) {
 	version := "-"
 	if req.ResultVer != nil {
@@ -179,6 +199,8 @@ func printRequest(out *output, req agentRequest) {
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"Source", text(req.Source)},
+		{"Trigger", text(req.Trigger)},
+		{"Cost", costText(req.Usage)},
 		{"Dashboard", orDash(req.DashboardID)},
 		{"Version", version},
 		{"URL", orDash(req.URL)},

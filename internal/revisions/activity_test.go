@@ -166,11 +166,26 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	canceled := runRow(StatusFailed, SourcePrompt)
 	canceled.FailureCode = pgtype.Text{String: string(FailureCanceled), Valid: true}
 
+	withUsage := func(row dbsqlc.AgentRequest, usage string) dbsqlc.AgentRequest {
+		row.RunUsage = []byte(usage)
+		return row
+	}
+	const priced = `{"model":"m","model_calls":3,"cost_usd":0.125}`
+
 	cases := []struct {
 		name string
 		row  dbsqlc.AgentRequest
 		want map[string]any
 	}{
+		{"succeeded with a cost", withUsage(succeeded, priced), map[string]any{"source": "prompt", "result_version": float64(7), "cost_usd": 0.125}},
+		{"failed with a cost", withUsage(failed, priced), map[string]any{"source": "prompt", "failure_code": "no_progress", "cost_usd": 0.125}},
+		{"canceled with a cost", withUsage(canceled, priced), map[string]any{"source": "prompt", "cost_usd": 0.125}},
+		{"free run", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"cost_usd":0}`), map[string]any{"source": "prompt", "cost_usd": float64(0)}},
+		{"succeeded with an unpriced model", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","cost_usd":null}`), map[string]any{"source": "prompt"}},
+		{"succeeded with usage from before costs", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","model_calls":3}`), map[string]any{"source": "prompt"}},
+		{"failed with no usage", failed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
+		{"succeeded with unreadable usage", withUsage(runRow(StatusSucceeded, SourcePrompt), `[1`), map[string]any{"source": "prompt"}},
+		{"started keeps no cost", withUsage(running, priced), map[string]any{"source": "prompt", "attempt": float64(2)}},
 		{"queued", runRow(StatusQueued, SourceComment), map[string]any{"source": "comment"}},
 		{"queued continuation", queuedContinuation, map[string]any{"source": "observe", "continues_id": runContinuesID.String()}},
 		{"started", running, map[string]any{"source": "prompt", "attempt": float64(2)}},

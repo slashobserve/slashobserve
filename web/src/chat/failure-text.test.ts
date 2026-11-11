@@ -23,6 +23,13 @@ describe("failureText", () => {
     )
   })
 
+  it("explains a run that reached the cost limit", () => {
+    expect(failureText("budget_exhausted")).toEqual({
+      meaning: "The run reached the server's cost limit.",
+      next: "Save what was built or continue it, or ask an admin about the limit.",
+    })
+  })
+
   it.each([null, "internal", "toString", "something_new"])(
     "returns null for %s so the server sentence shows",
     (code) => {

@@ -2341,7 +2341,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
+          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know."
         usage:
           nullable: true
           allOf:
@@ -2444,6 +2444,7 @@ components:
         - save_now_refusals
         - stalled_turns
         - one_panel_refusals
+        - cost_usd
       properties:
         provider:
           type: string
@@ -2519,6 +2520,12 @@ components:
           type: integer
           minimum: 0
           description: Saves refused for adding or changing more than one panel.
+        cost_usd:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          description: Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
     AgentBuildProgress:
       type: object
       additionalProperties: false
@@ -2606,6 +2613,7 @@ components:
         - kind
         - title
         - source
+        - trigger
         - prompt
         - dashboard_id
         - base_version
@@ -2653,6 +2661,10 @@ components:
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
+        trigger:
+          type: string
+          enum: [person, mention, schedule, webhook, slack]
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         dashboard_id:
@@ -2696,7 +2708,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
+          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress` or `budget_exhausted`. Clients must tolerate codes they do not know."
         steps:
           type: array
           maxItems: 2000
@@ -2806,6 +2818,7 @@ components:
         - title
         - pinned_at
         - source
+        - trigger
         - prompt
         - status
         - dashboard_id
@@ -2832,6 +2845,10 @@ components:
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
+        trigger:
+          type: string
+          enum: [person, mention, schedule, webhook, slack]
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         status:

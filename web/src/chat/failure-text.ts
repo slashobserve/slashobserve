@@ -32,6 +32,10 @@ const texts: Record<string, FailureText> = {
     meaning: "The agent stopped making progress.",
     next: retryWithNames,
   },
+  budget_exhausted: {
+    meaning: "The run reached the server's cost limit.",
+    next: "Save what was built or continue it, or ask an admin about the limit.",
+  },
   validation_exhausted: {
     meaning: "The agent could not get its queries past the checks.",
     next: retryWithNames,

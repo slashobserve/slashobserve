@@ -9,6 +9,7 @@ function summary(
 ): RequestSummary {
   return {
     source: "observe",
+    trigger: "person",
     prompt: "Show checkout latency",
     status: "succeeded",
     dashboard_id: null,

@@ -33,7 +33,18 @@ const (
 
 const settingsSubject = ""
 
-var ErrNoProgress = errors.New("the agent stopped making progress")
+var (
+	ErrNoProgress      = errors.New("the agent stopped making progress")
+	ErrBudgetExhausted = errors.New("the run reached the server's cost limit")
+)
+
+func (r *runner) overBudget() bool {
+	if r.agent.maxRunCost <= 0 {
+		return false
+	}
+	cost, ok := r.agent.cost(r.out.Usage)
+	return ok && cost >= r.agent.maxRunCost
+}
 
 type guard struct {
 	message string

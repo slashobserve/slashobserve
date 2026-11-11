@@ -84,6 +84,8 @@ A prompt whose first word is a command name (`dashboards`, `comments`, `import`,
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
+`observe status` also shows the request's trigger, what started it; in this release that is always `person`, the requester.
+Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
 ### Exit codes
 

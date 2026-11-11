@@ -16,14 +16,23 @@ function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
+export function costText(cost: number | null | undefined): string | undefined {
+  if (cost === null || cost === undefined) return undefined
+  if (cost === 0) return "$0.00"
+  if (cost < 0.01) return "under $0.01"
+  return `about $${cost.toFixed(2)}`
+}
+
 export function stepSummary(
   steps: readonly { phase: string }[],
-  took?: string
+  took?: string,
+  cost?: string
 ): string {
   if (steps.length === 0) return "No steps recorded"
   const repairs = steps.filter((step) => step.phase === "repair").length
   const counted = `Ran ${steps.length} ${steps.length === 1 ? "step" : "steps"}`
-  const ran = took === undefined ? counted : `${counted} in ${took}`
+  const timed = took === undefined ? counted : `${counted} in ${took}`
+  const ran = cost === undefined ? timed : `${timed} for ${cost}`
   return repairs === 0
     ? ran
     : `${ran}, repaired ${repairs} ${repairs === 1 ? "query" : "queries"}`

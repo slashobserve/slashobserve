@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  costText,
   joinNames,
   orderTurns,
   shortRequestId,
@@ -77,6 +78,54 @@ describe("stepSummary", () => {
     expect(stepSummary([{ phase: "repair" }], "8s")).toBe(
       "Ran 1 step in 8s, repaired 1 query"
     )
+  })
+})
+
+describe("costText", () => {
+  it("leaves the cost out when the model has no price", () => {
+    expect(costText(null)).toBeUndefined()
+    expect(costText(undefined)).toBeUndefined()
+  })
+
+  it("shows a free run as zero dollars", () => {
+    expect(costText(0)).toBe("$0.00")
+  })
+
+  it("shows less than a cent as under a cent", () => {
+    expect(costText(0.0042)).toBe("under $0.01")
+    expect(costText(0.0099)).toBe("under $0.01")
+  })
+
+  it("rounds everything else to cents", () => {
+    expect(costText(0.01)).toBe("about $0.01")
+    expect(costText(0.1234)).toBe("about $0.12")
+    expect(costText(12.5)).toBe("about $12.50")
+  })
+})
+
+describe("stepSummary with a cost", () => {
+  const steps = [{ phase: "query" }, { phase: "save" }]
+
+  it("adds the cost after the duration", () => {
+    expect(stepSummary(steps, "1m 12s", "about $0.12")).toBe(
+      "Ran 2 steps in 1m 12s for about $0.12"
+    )
+  })
+
+  it("adds the cost after the count when there is no duration", () => {
+    expect(stepSummary(steps, undefined, "under $0.01")).toBe(
+      "Ran 2 steps for under $0.01"
+    )
+  })
+
+  it("keeps the repairs last", () => {
+    expect(
+      stepSummary([{ phase: "repair" }, { phase: "save" }], "8s", "$0.00")
+    ).toBe("Ran 2 steps in 8s for $0.00, repaired 1 query")
+  })
+
+  it("is unchanged without a cost", () => {
+    expect(stepSummary(steps, "8s", undefined)).toBe("Ran 2 steps in 8s")
   })
 })
 

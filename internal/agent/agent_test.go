@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -339,6 +341,11 @@ func newRig(t *testing.T, sessions ...*scriptedSession) *rig {
 
 func newRigWithRenewBytes(t *testing.T, renewBytes int, sessions ...*scriptedSession) *rig {
 	t.Helper()
+	return newRigWithConfig(t, func(c *agent.Config) { c.SessionRenewBytes = renewBytes }, sessions...)
+}
+
+func newRigWithConfig(t *testing.T, configure func(*agent.Config), sessions ...*scriptedSession) *rig {
+	t.Helper()
 	parsed, err := spec.Parse(examples.CheckoutServiceHealth)
 	if err != nil {
 		t.Fatal(err)
@@ -351,15 +358,16 @@ func newRigWithRenewBytes(t *testing.T, renewBytes int, sessions ...*scriptedSes
 		builds:   &fakeBuilds{},
 		logs:     &bytes.Buffer{},
 	}
-	r.agent = agent.New(agent.Config{
-		Provider:          r.provider,
-		Tools:             r.tools,
-		Dashboards:        r.dash,
-		Builds:            r.builds,
-		Datasources:       fakeHealth{},
-		Logger:            slog.New(slog.NewJSONHandler(r.logs, nil)),
-		SessionRenewBytes: renewBytes,
-	})
+	config := agent.Config{
+		Provider:    r.provider,
+		Tools:       r.tools,
+		Dashboards:  r.dash,
+		Builds:      r.builds,
+		Datasources: fakeHealth{},
+		Logger:      slog.New(slog.NewJSONHandler(r.logs, nil)),
+	}
+	configure(&config)
+	r.agent = agent.New(config)
 	return r
 }
 
@@ -480,6 +488,121 @@ func TestCreateHappyPath(t *testing.T) {
 	}
 	if _, ok := fin["error_code"]; ok {
 		t.Fatal("successful run logged an error")
+	}
+}
+
+func fakeModelPrices(t *testing.T) pricing.Table {
+	t.Helper()
+	table, err := pricing.Parse([]byte("models:\n  fake-model: { input: 2.00, output: 10.00, cache_read: 0.20, cache_write: 2.50 }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return table
+}
+
+func TestOutcomeCarriesTheEstimatedCostOfTheRun(t *testing.T) {
+	run := func(t *testing.T, prices pricing.Table) agent.Outcome {
+		t.Helper()
+		s := session(
+			toolTurn(call("c1", "list_datasources", `{}`)),
+			toolTurn(call("c2", "lint_query", `{"n":1}`)),
+			toolTurn(call("c3", "create_dashboard", `{"spec":{}}`)),
+		)
+		r := newRigWithConfig(t, func(c *agent.Config) { c.Prices = prices }, s)
+		r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+		out, err := r.agent.Run(context.Background(), r.task())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	t.Run("a priced model", func(t *testing.T) {
+		out := run(t, fakeModelPrices(t))
+		const want = (300*2.00 + 30*10.00 + 15*0.20 + 6*2.50) / 1e6
+		if out.CostUSD == nil || math.Abs(*out.CostUSD-want) > 1e-12 {
+			t.Fatalf("cost = %v, want %v", out.CostUSD, want)
+		}
+	})
+	t.Run("a model with no price", func(t *testing.T) {
+		if out := run(t, pricing.Table{}); out.CostUSD != nil {
+			t.Fatalf("cost = %v, want none", *out.CostUSD)
+		}
+	})
+}
+
+func budgetRig(t *testing.T, maxCostUSD float64, turns ...scriptedTurn) (*rig, *scriptedSession) {
+	t.Helper()
+	s := session(turns...)
+	r := newRigWithConfig(t, func(c *agent.Config) {
+		c.Prices = fakeModelPrices(t)
+		c.MaxRunCostUSD = maxCostUSD
+	}, s)
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	return r, s
+}
+
+func TestRunStopsBeforeTheCallThatTheCostLimitForbids(t *testing.T) {
+	const perTurnUSD = (100*2.00 + 10*10.00 + 5*0.20 + 2*2.50) / 1e6
+	cases := map[string]struct {
+		limit     float64
+		wantCalls int
+	}{
+		"limit below the first turn":    {perTurnUSD / 2, 1},
+		"limit equal to the first turn": {perTurnUSD, 1},
+		"limit crossed by the second":   {perTurnUSD * 1.5, 2},
+		"limit above the whole script":  {perTurnUSD * 10, 3},
+		"no limit":                      {0, 3},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r, s := budgetRig(t, tc.limit,
+				toolTurn(call("c1", "list_datasources", `{}`)),
+				toolTurn(call("c2", "lint_query", `{"n":1}`)),
+				toolTurn(call("c3", "create_dashboard", `{"spec":{}}`)),
+			)
+			out, err := r.agent.Run(context.Background(), r.task())
+			if got := s.modelCalls(); got != tc.wantCalls {
+				t.Fatalf("model calls = %d, want %d", got, tc.wantCalls)
+			}
+			if tc.wantCalls == 3 {
+				if err != nil || out.Version != 1 {
+					t.Fatalf("version %d, err %v: a limit never reached must not stop the run", out.Version, err)
+				}
+				return
+			}
+			if !errors.Is(err, agent.ErrBudgetExhausted) {
+				t.Fatalf("err = %v, want ErrBudgetExhausted", err)
+			}
+			if out.Usage.Calls != tc.wantCalls || out.CostUSD == nil {
+				t.Fatalf("outcome = %+v: the calls made must still be counted and priced", out)
+			}
+			if got := len(r.tools.names()); got != tc.wantCalls {
+				t.Fatalf("tools run = %v: the crossing turn's tool calls must still run", r.tools.names())
+			}
+		})
+	}
+}
+
+func TestRunStoppedByTheCostLimitFailsWithItsOwnCodeAndKeepsItsMessage(t *testing.T) {
+	r, _ := budgetRig(t, 1e-6, toolTurn(call("c1", "list_datasources", `{}`)))
+	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
+	if string(result.FailureCode) != "budget_exhausted" {
+		t.Fatalf("failure code = %q", result.FailureCode)
+	}
+	if err == nil || err.Error() != agent.ErrBudgetExhausted.Error() {
+		t.Fatalf("stored error = %v, want %q", err, agent.ErrBudgetExhausted)
+	}
+	if result.Usage == nil || result.Usage.CostUSD == nil {
+		t.Fatalf("usage = %+v: a stopped run still reports its cost", result.Usage)
+	}
+}
+
+func TestSaveInTheTurnThatCrossesTheCostLimitStillCommits(t *testing.T) {
+	r, s := budgetRig(t, 1e-6, toolTurn(call("c1", "create_dashboard", `{"spec":{}}`)))
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || s.modelCalls() != 1 {
+		t.Fatalf("version %d, calls %d, err %v: the finishing save must not be thrown away", out.Version, s.modelCalls(), err)
 	}
 }
 

@@ -330,6 +330,43 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 	}
 }
 
+func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Source: "prompt", Trigger: "person"})
+	lines := strings.Split(stdout.String(), "\n")
+	if len(lines) < 4 || strings.Fields(lines[2])[0] != "Source" || strings.Fields(lines[3])[0] != "Trigger" || strings.Fields(lines[3])[1] != "person" {
+		t.Fatalf("output lacks the trigger after the source:\n%s", stdout.String())
+	}
+}
+
+func TestPrintRequestShowsTheRunCost(t *testing.T) {
+	cost := func(v float64) *requestUsage { return &requestUsage{CostUSD: &v} }
+	cases := []struct {
+		name  string
+		usage *requestUsage
+		want  string
+	}{
+		{"no usage", nil, "-"},
+		{"an unpriced model", &requestUsage{}, "-"},
+		{"free", cost(0), "$0.00"},
+		{"a fraction of a cent", cost(0.0042), "under $0.01"},
+		{"one cent", cost(0.01), "about $0.01"},
+		{"normal", cost(0.1234), "about $0.12"},
+		{"large", cost(12.5), "about $12.50"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Trigger: "person", Usage: tc.usage})
+			lines := strings.Split(stdout.String(), "\n")
+			fields := strings.Fields(lines[4])
+			if len(fields) < 2 || fields[0] != "Cost" || strings.Join(fields[1:], " ") != tc.want {
+				t.Fatalf("Cost line = %q, want %q after the trigger:\n%s", lines[4], tc.want, stdout.String())
+			}
+		})
+	}
+}
+
 func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 	var posted string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

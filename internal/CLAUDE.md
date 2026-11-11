@@ -10,6 +10,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `actor`: who made a write and how it is shown: `Actor` (principal kind, id, name, origin and client, and the agent request id), its column mapping, and `Label` and `ClientName`, the only place an actor or an MCP client name becomes display text for the web, the CLI and MCP.
 - `logattrs`: turns an error into log attributes that are safe to write.
+- `llm/pricing`: the one model price table (embedded `prices.yaml`, replaced whole by `SLASHOBSERVE_LLM_PRICES_FILE`), read by run costs, the run cost limit and the evals runner; a model without a complete price is never priced as zero.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
 - `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
@@ -153,6 +154,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `activity.Append` is the only writer of the `activity` table and runs inside the transaction of the change it records; the dashboard stream's frames never carry `seq`, because the broker strips it.
 - Every activity read is `WHERE xid < pg_snapshot_xmin(pg_current_snapshot())` ordered and cursored by `(xid, seq)`, never by `seq` alone, with the horizon and the scan in one statement, because a transaction that took its xid first can append a lower `seq` after a later one committed; `seq` is only the public id of an event (`id:` in SSE and `Last-Event-ID`).
 - An activity `data` object carries ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON.
+- A run's cost is computed once, by `agent.Agent.cost` from the configured model and `llm/pricing`, and stored as `cost_usd` inside `run_usage`; there is no cost column, and runs from before it show none.
 - `dashboard_versions.agent_request_id` stays unique: an agent request commits at most one version, so a retried run or a second commit returns the version it already created.
   The agent's `create_dashboard`, `update_dashboard` and `update_panels` change the build, never the history.
 - A saved version always wins: before a failure is recorded, and when the lease sweep exhausts a request, the request counts as succeeded with the version saved under its id.
@@ -174,6 +176,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `SLASHOBSERVE_AGENT_RUN_TIMEOUT` defaults to no limit, and a set value is at least `1m`; the evals stack sets `120m` so its failures stay coded.
   `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` accepts `0` for no limit too, and the run limit is config's decision, so the worker has no default of its own.
   A run has no model-call cap, and without a run limit it ends at a commit, a failure, shutdown or lease loss.
+  `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` (default none) is a spend limit, not a call cap: `runner.overBudget` is checked before each model call, so the call that crossed it keeps its tool calls and the attempt fails `budget_exhausted` with its build kept; the server refuses to start with a limit and an unpriced model.
 - `SLASHOBSERVE_AGENT_WORKERS` (default 8, 1 to 64) is config's decision, so `NewWorker` has no default; the pool floor is `max(16, 2*workers+8)` (`poolFloor` in `main.go`) unless the URL sets `pool_max_conns`.
   The progress guards steer first and stop after: 3 rejected saves in a row (an accepted save resets the count); reads refused from the sixth model call of a save window (12 in suggest mode), except beside a save and in the call after a rejected save, with a nudge one call before; `no_progress` after two turns in a row in which every call was refused; a repeated save and a third identical read are refused; errors and `query_range` or `query_instant` results are never replayed; and the churn rule, `maxChangesPerPanel` 4 and `maxChurnedSavesInRow` 3, which measures progress by content (`Result.Edits`, from `editsOf` in `agent/tools/build.go`: any panel JSON, variable or dashboard-level field that differs from the build before, so a description-only save is progress) and not by `ChangedSince`, which only decides re-verification.
   A save that deletes a panel does not count the panels it adds as progress (`Edits.Added` and `Edits.Deleted`; they still count toward the per-panel changes), so one replacement passes within the 3 tolerated saves and repeated delete-and-add swaps end in `no_progress`.

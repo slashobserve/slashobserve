@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -93,6 +94,8 @@ type Config struct {
 	Logger            *slog.Logger
 	SessionRenewBytes int
 	LogToolInputs     bool
+	Prices            pricing.Table
+	MaxRunCostUSD     float64
 }
 
 type Task struct {
@@ -145,6 +148,7 @@ type Outcome struct {
 	SaveNowRefusals     int
 	StalledTurns        int
 	OnePanelRefusals    int
+	CostUSD             *float64
 }
 
 type Agent struct {
@@ -159,6 +163,8 @@ type Agent struct {
 	toolSpecs         map[tools.Mode][]llm.ToolSpec
 	sessionRenewBytes int
 	logToolInputs     bool
+	prices            pricing.Table
+	maxRunCost        float64
 }
 
 func New(c Config) *Agent {
@@ -191,6 +197,8 @@ func New(c Config) *Agent {
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
 		logToolInputs:     c.LogToolInputs,
+		prices:            c.Prices,
+		maxRunCost:        c.MaxRunCostUSD,
 	}
 }
 
@@ -198,8 +206,19 @@ func (a *Agent) Run(ctx context.Context, t Task) (Outcome, error) {
 	start := time.Now()
 	out := Outcome{Provider: a.provider.Name(), Model: a.provider.Model()}
 	err := a.run(ctx, t, &out)
+	if out.Usage.Calls > 0 {
+		if cost, ok := a.cost(out.Usage); ok {
+			out.CostUSD = &cost
+		}
+	}
 	a.logFinish(ctx, modeOf(t), t.RequestID, out, time.Since(start), err)
 	return out, err
+}
+
+func (a *Agent) cost(u llm.Usage) (float64, bool) {
+	return a.prices.Cost(a.provider.Model(), pricing.Tokens{
+		Input: u.InputTokens, Output: u.OutputTokens, CacheRead: u.CacheReadTokens, CacheWrite: u.CacheWriteTokens,
+	})
 }
 
 func modeOf(t Task) tools.Mode {
@@ -642,6 +661,9 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 		return sessionEnd{}, err
 	}
 	for {
+		if r.overBudget() {
+			return sessionEnd{}, ErrBudgetExhausted
+		}
 		r.state.modelCalls++
 		r.state.window.calls++
 		turn, err := r.agent.modelCall(ctx, chat, results, r.totals)
@@ -935,6 +957,7 @@ var sentinelFailures = []struct {
 	{ErrDraftInvalid, revisions.FailureDraftInvalid},
 	{ErrRepairExhausted, revisions.FailureValidationExhausted},
 	{ErrNoProgress, revisions.FailureNoProgress},
+	{ErrBudgetExhausted, revisions.FailureBudgetExhausted},
 	{dashboards.ErrBuildLost, revisions.FailureLeaseExpired},
 	{ErrRefused, revisions.FailureRefused},
 	{ErrConflict, revisions.FailureConflict},

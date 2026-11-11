@@ -143,7 +143,7 @@ A run the server restarts continues from its build.
 ## Limits
 
 A run has no cap on model calls and runs one save per turn.
-It ends when it finishes, is canceled, reaches `SLASHOBSERVE_AGENT_RUN_TIMEOUT` when that is set, loses its claim on the request, or stops making progress.
+It ends when it finishes, is canceled, reaches `SLASHOBSERVE_AGENT_RUN_TIMEOUT` or `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` when that is set, loses its claim on the request, or stops making progress.
 Three rejected saves in a row end it.
 
 ### Guards
@@ -181,6 +181,9 @@ Model calls stream.
 An attempt that receives nothing for `SLASHOBSERVE_LLM_IDLE_TIMEOUT` (180 s by default, `0` for none) is retried with backoff, like a rate limit or a server error, up to 4 attempts within `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`.
 A single model call, retries included, is stopped after 10 minutes by default; `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` sets that limit and `0` removes it.
 
+There is no cap on model calls, but `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` can bound what one attempt spends.
+When an attempt's estimated cost (see [Run cost](../connect/llm-providers.md#run-cost)) has reached it, the agent starts no further model call and the request fails with `budget_exhausted`, keeping its build; the call that crossed the limit has already run its tool calls, so a finishing save is kept.
+
 The first call of a new build runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`, and later calls cap their output at half of `SLASHOBSERVE_LLM_MAX_TOKENS` (at least 8192), resending a cut call once at the full cap.
 While a run is in flight the server renews its claim on the request every 5 seconds, so a long run is not picked up by a second worker.
 A run that ends without an accepted save writes no version.
@@ -189,6 +192,7 @@ A run shows its most recent 1000 steps per attempt.
 ### Failure codes and usage
 
 A failed run records one failure code beside its message, in `failure_code` on the request.
+Every request records `trigger`, what started it; in this release that is always `person`, the requester.
 
 The codes you will see most are:
 
@@ -201,6 +205,7 @@ The codes you will see most are:
 - `refused`
 - `validation_exhausted` (three rejected saves in a row)
 - `no_progress` (the run stopped making progress)
+- `budget_exhausted` (the run reached the server's cost limit)
 
 A run the server lost track of, such as after a restart, or whose save found its build taken over by a newer attempt, is `lease_expired`.
 Runs from v0.1.0 may show `turn_limit`, a model-call cap later versions removed.
@@ -220,6 +225,7 @@ The request's `usage` also reports:
 - `save_now_refusals` (reads refused for lack of a save)
 - `stalled_turns` (turns in which every call was refused)
 - `one_panel_refusals` (saves refused for changing more than one panel)
+- `cost_usd` (the estimated cost in US dollars of the attempt that finished the request, from the server's price table; `null` when the model has no price, see [Run cost](../connect/llm-providers.md#run-cost))
 
 A run that fails on its first model call has `usage` with `model_calls` 0 and `failed_calls` 1.
 
