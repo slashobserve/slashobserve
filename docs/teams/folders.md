@@ -10,7 +10,7 @@ General is open to everyone by role, and it cannot be renamed, deleted or restri
 Editors and Admins create folders.
 Anyone with Edit on a folder moves its dashboards into another folder where they have Edit, on the Dashboards page, and deletes a dashboard from its row menu there or from the dashboard's **More** menu, after a confirmation.
 A move needs Edit on both folders and saves no version.
-A folder can be deleted only when it is empty.
+A folder can be deleted only when it holds no dashboards, findings or saved searches.
 A title is 1 to 100 characters and unique without regard to case, and no shared folder can be called My Dashboards.
 
 A folder is open or restricted, and the folder's settings page (**Folder settings** on the Dashboards page) switches it:
@@ -38,7 +38,7 @@ An agent run in My Dashboards spends model tokens and queries every configured d
 My Dashboards has no list and cannot be renamed, shared or deleted.
 It is the first folder on the Dashboards page, and its row there reads "Only you".
 A service-account key has no My Dashboards, so its new dashboards go to General unless it names a folder.
-When a person's account is deleted, their My Dashboards and every dashboard in it are deleted with it, like their saved prompts.
+When a person's account is deleted, their My Dashboards and every dashboard, finding and saved search in it are deleted with it, like their saved prompts.
 
 Where a new dashboard goes when no folder is named: your My Dashboards; for a key, General.
 

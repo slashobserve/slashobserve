@@ -114,7 +114,7 @@ func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) 
 }
 
 const listActivity = `-- name: ListActivity :many
-SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at
+SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id
 FROM activity a
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND (a.folder_id = ANY($1::uuid[])
@@ -182,6 +182,8 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 			&i.RunID,
 			&i.Data,
 			&i.CreatedAt,
+			&i.FindingID,
+			&i.SavedSearchID,
 		); err != nil {
 			return nil, err
 		}
@@ -194,7 +196,7 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 }
 
 const listActivityAfter = `-- name: ListActivityAfter :many
-SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at
+SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id
 FROM activity a
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND (a.folder_id = ANY($1::uuid[])
@@ -260,6 +262,8 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 			&i.RunID,
 			&i.Data,
 			&i.CreatedAt,
+			&i.FindingID,
+			&i.SavedSearchID,
 		); err != nil {
 			return nil, err
 		}

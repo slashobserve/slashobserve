@@ -11,17 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countFolderDashboards = `-- name: CountFolderDashboards :one
-SELECT count(*)::integer FROM dashboards WHERE folder_id = $1
-`
-
-func (q *Queries) CountFolderDashboards(ctx context.Context, id pgtype.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, countFolderDashboards, id)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const createFolder = `-- name: CreateFolder :one
 INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name)
 VALUES ($1, $2, $3, $4)
@@ -71,7 +60,10 @@ func (q *Queries) DashboardFolder(ctx context.Context, id pgtype.UUID) (pgtype.U
 
 const deleteFolderIfEmpty = `-- name: DeleteFolderIfEmpty :execrows
 DELETE FROM folders
-WHERE folders.id = $1 AND NOT folders.general AND NOT EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = folders.id)
+WHERE folders.id = $1 AND NOT folders.general
+  AND NOT EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = folders.id)
+  AND NOT EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = folders.id)
+  AND NOT EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = folders.id)
 `
 
 func (q *Queries) DeleteFolderIfEmpty(ctx context.Context, id pgtype.UUID) (int64, error) {
@@ -166,6 +158,19 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 		return nil, err
 	}
 	return items, nil
+}
+
+const folderHasContents = `-- name: FolderHasContents :one
+SELECT (EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = $1)
+  OR EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = $1)
+  OR EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = $1))::boolean
+`
+
+func (q *Queries) FolderHasContents(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, folderHasContents, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getFolder = `-- name: GetFolder :one

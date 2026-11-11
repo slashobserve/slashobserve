@@ -9,21 +9,23 @@ import (
 )
 
 type Activity struct {
-	Seq          int64
-	Xid          pgtype.Uint64
-	Type         string
-	TargetKind   string
-	TargetID     pgtype.UUID
-	DashboardID  pgtype.UUID
-	FolderID     pgtype.UUID
-	ActorKind    string
-	ActorID      pgtype.UUID
-	ActorName    string
-	Origin       pgtype.Text
-	OriginClient pgtype.Text
-	RunID        pgtype.UUID
-	Data         []byte
-	CreatedAt    pgtype.Timestamptz
+	Seq           int64
+	Xid           pgtype.Uint64
+	Type          string
+	TargetKind    string
+	TargetID      pgtype.UUID
+	DashboardID   pgtype.UUID
+	FolderID      pgtype.UUID
+	ActorKind     string
+	ActorID       pgtype.UUID
+	ActorName     string
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	RunID         pgtype.UUID
+	Data          []byte
+	CreatedAt     pgtype.Timestamptz
+	FindingID     pgtype.UUID
+	SavedSearchID pgtype.UUID
 }
 
 type AgentRequest struct {
@@ -219,6 +221,7 @@ type Finding struct {
 	CreatedAt      pgtype.Timestamptz
 	Origin         pgtype.Text
 	OriginClient   pgtype.Text
+	FolderID       pgtype.UUID
 }
 
 type Folder struct {
@@ -398,6 +401,25 @@ type SavedPrompt struct {
 	Shared    bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type SavedSearch struct {
+	ID            pgtype.UUID
+	Kind          string
+	Title         string
+	DatasourceUid string
+	Query         pgtype.Text
+	Filters       []byte
+	TimeFrom      string
+	TimeTo        string
+	FolderID      pgtype.UUID
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type ServiceAccount struct {
