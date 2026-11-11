@@ -27,6 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
@@ -326,6 +327,16 @@ func run() error {
 		FindingURL:   findingURL,
 		Finding:      findingOfRequest(findingsService, findingURL),
 	}
+	revisionOpts := []revisions.Option{
+		revisions.WithPanels(dashboardsService),
+		revisions.WithSpecs(dashboardsService),
+		revisions.WithBuilds(buildStore{dashboardsService}),
+		revisions.WithPrincipals(authService),
+		revisions.WithAccess(folderAccess),
+		revisions.WithThreads(threads.NewRuns(database)),
+	}
+	queue := revisions.NewService(database, nil, logger, revisionOpts...)
+	claimsService := claims.New(claims.Config{DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, RunTimeout: cfg.Agent.RunTimeout, Logger: logger})
 	toolRegistry := tools.New(tools.Deps{
 		Datasources:   registry,
 		Runner:        runner,
@@ -338,7 +349,8 @@ func run() error {
 		Health:        healthService,
 		Annotations:   annotationsService,
 		Activity:      activityStore,
-		Runs:          revisions.NewRunReader(revisions.NewService(database, nil, logger, revisions.WithAccess(folderAccess)), observeOpts),
+		Runs:          revisions.NewRunReader(queue, observeOpts),
+		Claims:        claimsService,
 		Search:        searchService,
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
@@ -365,10 +377,12 @@ func run() error {
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithBuilds(buildStore{dashboardsService}), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess), revisions.WithThreads(threads.NewRuns(database)))
+	revisionsService := revisions.NewService(database, reviser, logger, revisionOpts...)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
+	stopClaims := startBackground(ctx, "claim listener", claimsService.Run, logger)
+	defer stopClaims()
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{InstanceID: serverID, Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
 	defer stopWorkers()
@@ -377,6 +391,7 @@ func run() error {
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
+	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))
 	jobs.Register("agent_requests_sweep", time.Minute, revisionsService.Sweep)
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
@@ -415,10 +430,10 @@ func run() error {
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
 	})
-	stopWebhooks := startWebhooks(ctx, webhooks.NewWorker(webhooks.WorkerDeps{
+	stopWebhooks := startBackground(ctx, "webhook worker", webhooks.NewWorker(webhooks.WorkerDeps{
 		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
 		Followers: broker, InstanceID: serverID, Logger: logger,
-	}), logger)
+	}).Run, logger)
 	defer stopWebhooks()
 
 	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger, Share: membership.Share}, database, authService)
@@ -465,8 +480,8 @@ func run() error {
 		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
 		Mounts: slices.Concat([]server.Mount{{
 			Path: "/mcp",
-			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, oauth: oauthServer}, mcp.Options{
-				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger,
+			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, runs: claimsService, oauth: oauthServer}, mcp.Options{
+				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Steps: claimsService,
 			}),
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
@@ -552,15 +567,27 @@ func revisionsBuildError(err error) error {
 
 type mcpCredentials struct {
 	keys  *auth.Service
+	runs  *claims.Service
 	oauth *mcpauth.Server
 }
 
 func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Credential, bool, error) {
 	if p, ok, err := m.keys.BearerPrincipal(ctx, header); err != nil || ok {
-		return mcp.Credential{Principal: p}, ok, err
+		cred := mcp.Credential{Principal: p}
+		if ok && p.Kind == auth.KindServiceAccount {
+			cred.Claimer = &claims.Claimer{Kind: revisions.AssignServiceAccount, ID: p.ID}
+		}
+		return cred, ok, err
+	}
+	if req, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
+		return mcp.Credential{Principal: req.RequestedBy, Run: &req}, ok, err
 	}
 	access, ok, err := m.oauth.Authenticate(ctx, header)
-	return mcp.Credential{Principal: access.Principal, OAuth: ok, Client: access.Client}, ok, err
+	if err != nil || !ok {
+		return mcp.Credential{}, ok, err
+	}
+	claimer := &claims.Claimer{Kind: revisions.AssignGrant, ID: access.GrantID, Person: access.Principal.ID, Client: access.Client}
+	return mcp.Credential{Principal: access.Principal, OAuth: true, Client: access.Client, Claimer: claimer}, true, nil
 }
 
 func oauthMounts(oauthServer *mcpauth.Server) []server.Mount {
@@ -663,19 +690,19 @@ func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog
 	}
 }
 
-func startWebhooks(ctx context.Context, worker *webhooks.Worker, logger *slog.Logger) func() {
-	workerCtx, cancel := context.WithCancel(ctx)
+func startBackground(ctx context.Context, name string, run func(context.Context), logger *slog.Logger) func() {
+	loopCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		worker.Run(workerCtx)
+		run(loopCtx)
 	}()
 	return func() {
 		cancel()
 		select {
 		case <-done:
 		case <-time.After(shutdownTimeout):
-			logger.Warn("webhook worker did not stop in time")
+			logger.Warn("background loop did not stop in time", slog.String("loop", name))
 		}
 	}
 }
