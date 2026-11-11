@@ -756,7 +756,7 @@ func TestCommentJSONAlwaysHasMentionsAndNullableEditAndResolver(t *testing.T) {
 	dash := r.createDashboard(t)
 	comment := r.createComment(t, dash, NewComment{Version: 1, Body: "plain"})
 
-	raw, err := json.Marshal(newCommentJSON(comment))
+	raw, err := json.Marshal(newCommentJSON(comment, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,5 +778,46 @@ func TestCommentJSONAlwaysHasMentionsAndNullableEditAndResolver(t *testing.T) {
 	wantActor := map[string]any{"kind": "user", "id": testUserID, "name": "Ada", "origin": nil, "client": nil, "run_id": nil, "label": "Ada"}
 	if !reflect.DeepEqual(got["actor"], wantActor) {
 		t.Errorf("actor = %#v, want %#v", got["actor"], wantActor)
+	}
+}
+
+func TestCommentJSONAllowedActionsFollowTheThreadMachineAndTheCaller(t *testing.T) {
+	running := &CommentRevision{ID: "r", Status: "running"}
+	queued := &CommentRevision{ID: "r", Status: "queued"}
+	finished := &CommentRevision{ID: "r", Status: "succeeded"}
+	cases := []struct {
+		name       string
+		comment    Comment
+		canComment bool
+		want       []string
+	}{
+		{"a viewer sees nothing on an open thread", Comment{Status: StatusOpen}, false, []string{}},
+		{"a viewer sees nothing on a resolved thread", Comment{Status: StatusResolved}, false, []string{}},
+		{"a commenter may reply and resolve an open thread", Comment{Status: StatusOpen}, true, []string{"reply", "resolve"}},
+		{"a commenter may reply and reopen a resolved thread", Comment{Status: StatusResolved}, true, []string{"reply", "reopen"}},
+		{"a running revision holds back resolve", Comment{Status: StatusOpen, Revision: running}, true, []string{"reply"}},
+		{"a queued revision holds back resolve", Comment{Status: StatusOpen, Revision: queued}, true, []string{"reply"}},
+		{"a finished revision does not hold back resolve", Comment{Status: StatusOpen, Revision: finished}, true, []string{"reply", "resolve"}},
+		{"a reply carries no actions", Comment{Status: StatusOpen, ParentID: "root"}, true, []string{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := json.Marshal(newCommentJSON(tc.comment, tc.canComment))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				AllowedActions []string `json:"allowed_actions"`
+			}
+			if err := json.Unmarshal(raw, &got); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(raw), `"allowed_actions":[`) || got.AllowedActions == nil {
+				t.Fatalf("allowed_actions is not an array in %s", raw)
+			}
+			if !reflect.DeepEqual(got.AllowedActions, tc.want) {
+				t.Errorf("allowed_actions = %v, want %v", got.AllowedActions, tc.want)
+			}
+		})
 	}
 }
