@@ -20,6 +20,7 @@ function comment(overrides: Partial<Comment> & { id: string }): Comment {
     panel_id: null,
     body: "text",
     status: "open",
+    allowed_actions: ["reply", "resolve"],
     author,
     actor,
     created_at: "2026-01-01T00:00:00Z",
