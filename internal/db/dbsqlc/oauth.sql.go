@@ -206,7 +206,7 @@ func (q *Queries) DeleteExpiredOAuthRequests(ctx context.Context) error {
 }
 
 const getOAuthAccess = `-- name: GetOAuthAccess :one
-SELECT g.id, g.user_id, g.last_used_at, c.name
+SELECT g.id, g.user_id, g.last_used_at, g.mode, c.name
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 JOIN oauth_clients c ON c.id = g.client_id
@@ -227,6 +227,7 @@ type GetOAuthAccessRow struct {
 	ID         pgtype.UUID
 	UserID     pgtype.UUID
 	LastUsedAt pgtype.Timestamptz
+	Mode       string
 	Name       pgtype.Text
 }
 
@@ -237,6 +238,7 @@ func (q *Queries) GetOAuthAccess(ctx context.Context, arg GetOAuthAccessParams) 
 		&i.ID,
 		&i.UserID,
 		&i.LastUsedAt,
+		&i.Mode,
 		&i.Name,
 	)
 	return i, err

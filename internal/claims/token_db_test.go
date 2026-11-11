@@ -6,16 +6,57 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-func (f *fixture) authenticate(t *testing.T, header string) (revisions.Request, bool) {
+func TestAuthenticateCarriesTheModeOfTheGrantTheRunIsAssignedTo(t *testing.T) {
+	f := newFixture(t)
+	f.d.Exec(t, "INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'issuer', 'subject', 'ada@example.com', 'Ada')", mustUUID(t, userID))
+	f.d.Exec(t, "INSERT INTO oauth_clients (id, redirect_uris) VALUES ('client', ARRAY['http://localhost/cb'])")
+	f.d.Exec(t, "INSERT INTO oauth_grants (id, client_id, user_id, resource, expires_at) VALUES ($1, 'client', $2, 'r', now() + interval '1 day')", mustUUID(t, grantID), mustUUID(t, userID))
+	f.queue(t, revisions.AssignGrant, grantID)
+	offer := f.claim(t, grantClaimer)
+
+	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Direct {
+		t.Fatalf("a run of a direct grant = %q accepted %v, want direct", access.Mode, ok)
+	}
+	f.d.Exec(t, "UPDATE oauth_grants SET mode = 'propose' WHERE id = $1", mustUUID(t, grantID))
+	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Propose {
+		t.Fatalf("a run of a propose grant = %q accepted %v, want propose on its next request", access.Mode, ok)
+	}
+}
+
+func TestAuthenticateGivesARunOfAServiceAccountTheDirectMode(t *testing.T) {
+	f := newFixture(t)
+	account, err := f.d.Queries().CreateServiceAccount(context.Background(), dbsqlc.CreateServiceAccountParams{Name: "ci-agent", Role: "editor"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.d.Exec(t, "UPDATE service_accounts SET takes_runs = true WHERE id = $1", account.ID)
+	claimer := Claimer{Kind: revisions.AssignServiceAccount, ID: account.ID.String(), Client: "ci"}
+	f.queue(t, revisions.AssignServiceAccount, claimer.ID)
+	offer := f.claim(t, claimer)
+
+	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Direct {
+		t.Fatalf("a service account run = %q accepted %v, want direct", access.Mode, ok)
+	}
+}
+
+func (f *fixture) authenticateRun(t *testing.T, header string) (RunAccess, bool) {
 	t.Helper()
-	req, ok, err := f.svc.Authenticate(context.Background(), header)
+	access, ok, err := f.svc.Authenticate(context.Background(), header)
 	if err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
-	return req, ok
+	return access, ok
+}
+
+func (f *fixture) authenticate(t *testing.T, header string) (revisions.Request, bool) {
+	t.Helper()
+	access, ok := f.authenticateRun(t, header)
+	return access.Request, ok
 }
 
 func TestAuthenticateAcceptsAFreshTokenAndNamesTheRequester(t *testing.T) {

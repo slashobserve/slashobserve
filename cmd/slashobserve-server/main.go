@@ -598,15 +598,15 @@ func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Cr
 		}
 		return cred, ok, err
 	}
-	if req, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
-		return mcp.Credential{Principal: req.RequestedBy, Run: &req}, ok, err
+	if run, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
+		return mcp.Credential{Principal: run.Request.RequestedBy, Run: &run.Request, Mode: run.Mode}, ok, err
 	}
 	access, ok, err := m.oauth.Authenticate(ctx, header)
 	if err != nil || !ok {
 		return mcp.Credential{}, ok, err
 	}
 	claimer := &claims.Claimer{Kind: revisions.AssignGrant, ID: access.GrantID, Person: access.Principal.ID, Client: access.Client}
-	return mcp.Credential{Principal: access.Principal, OAuth: true, Client: access.Client, Claimer: claimer}, true, nil
+	return mcp.Credential{Principal: access.Principal, OAuth: true, Client: access.Client, Claimer: claimer, Mode: access.Mode}, true, nil
 }
 
 func oauthMounts(oauthServer *mcpauth.Server) []server.Mount {

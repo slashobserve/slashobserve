@@ -99,7 +99,7 @@ FOR UPDATE OF t, g;
 UPDATE oauth_tokens SET rotated_at = now() WHERE token_hash = $1;
 
 -- name: GetOAuthAccess :one
-SELECT g.id, g.user_id, g.last_used_at, c.name
+SELECT g.id, g.user_id, g.last_used_at, g.mode, c.name
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 JOIN oauth_clients c ON c.id = g.client_id

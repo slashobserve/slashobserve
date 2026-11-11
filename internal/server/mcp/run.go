@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -52,6 +53,9 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 		prepare: func(ctx context.Context) (context.Context, http.Handler, error) {
 			ctx = auth.WithPrincipal(ctx, cred.Principal)
 			ctx = withRegisteredClient(origin.With(ctx, origin.Origin{Kind: req.Origin.Kind, Client: req.Origin.Client}))
+			if cred.Mode != "" {
+				ctx = grantmode.With(ctx, cred.Mode)
+			}
 			scope, err := h.scope(ctx, req)
 			if err != nil {
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", err, slog.String("agent_request_id", req.ID))...)
