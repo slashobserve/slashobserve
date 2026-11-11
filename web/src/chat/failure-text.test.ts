@@ -30,6 +30,20 @@ describe("failureText", () => {
     })
   })
 
+  it("explains a run no outside agent took", () => {
+    expect(failureText("agent_unavailable")).toEqual({
+      meaning: "No outside agent took this run within 10 minutes.",
+      next: "Check that the agent is connected and asking for work, then try again.",
+    })
+  })
+
+  it("explains a run an outside agent could not finish", () => {
+    expect(failureText("agent_failed")).toEqual({
+      meaning: "The outside agent said it could not finish the run.",
+      next: "Read its message, then try again.",
+    })
+  })
+
   it.each([null, "internal", "toString", "something_new"])(
     "returns null for %s so the server sentence shows",
     (code) => {

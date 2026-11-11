@@ -56,6 +56,12 @@ Migration 36 moves Grafana imports into the database and copies each connection'
 An import that an older server runs during the upgrade stays on that server and is not shown by the new ones, so finish or avoid imports while servers of both versions run.
 To go back, run `goose down-to 35` before starting an older binary; it writes each connection's newest finished import back to the connection.
 
+### Upgrading to the release that lets outside agents take runs
+
+Migration 37 adds the assignment columns on runs, `run_tokens`, `agent_workers`, `oauth_grants.mode` and `service_accounts.takes_runs`.
+A server older than this release claims runs without looking at who they are assigned to, so stop the old servers before any run is assigned to an outside agent.
+To go back, check that no run is assigned to an outside agent, then run `goose down-to 36` against the database before starting an older binary.
+
 ### Upgrading from an early release
 
 Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
