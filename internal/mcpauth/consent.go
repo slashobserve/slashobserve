@@ -56,6 +56,10 @@ func (s *Server) Register(api auth.Routes) {
 	api.GET("/oauth/requests/:id", auth.RoleViewer, auth.RequireUser, s.getRequest)
 	api.POST("/oauth/requests/:id/approve", auth.RoleViewer, auth.RequireUser, s.approveRequest)
 	api.POST("/oauth/requests/:id/deny", auth.RoleViewer, auth.RequireUser, s.denyRequest)
+	api.GET("/me/grants", auth.RoleViewer, auth.RequireUser, s.listMyGrants)
+	api.DELETE("/me/grants/:id", auth.RoleViewer, auth.RequireUser, s.disconnectMine)
+	api.GET("/grants", auth.RoleAdmin, auth.RequireUser, s.listAllGrants)
+	api.DELETE("/grants/:id", auth.RoleAdmin, auth.RequireUser, s.disconnectAny)
 }
 
 func requestID(c *gin.Context) (pgtype.UUID, bool) {

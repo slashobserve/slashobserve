@@ -1,0 +1,129 @@
+me-grants:
+  get:
+    operationId: listMyGrants
+    summary: List the MCP clients the signed-in person has connected.
+    description: >-
+      Newest first, live connections only: a disconnected or expired one is not listed.
+      `client.name` is the name the client registered under and is not verified, and null when it registered none.
+      `redirect_host` and `local` describe the client's first registered redirect URI.
+      `last_used_at` is null until the client first uses an access token.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of connected agents.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ConnectedAgentList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+me-grants-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: disconnectMyGrant
+    summary: Disconnect one of the signed-in person's MCP clients.
+    description: >-
+      The client's access and refresh tokens stop working at once and the client must be approved again.
+      Another person's connection, a connection already disconnected and one that does not exist all answer 404 `not_found`.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+    responses:
+      "204":
+        description: The connection is disconnected.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grants:
+  get:
+    operationId: listGrants
+    summary: List every person's connected MCP clients.
+    description: >-
+      Admin only.
+      Same shape and order as the signed-in person's own list, with every person's live connections.
+      Service accounts cannot call it.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of connected agents.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ConnectedAgentList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grants-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: disconnectGrant
+    summary: Disconnect any person's MCP client.
+    description: >-
+      Admin only.
+      The connection's tokens stop working at once, and the person can connect the client again.
+      A connection already disconnected or that does not exist answers 404 `not_found`.
+      Service accounts cannot call it.
+    responses:
+      "204":
+        description: The connection is disconnected.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

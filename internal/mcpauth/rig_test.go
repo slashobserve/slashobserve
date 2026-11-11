@@ -31,9 +31,10 @@ const (
 )
 
 var (
-	ada = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com", Role: auth.RoleViewer}
-	bob = auth.Principal{Kind: auth.KindUser, ID: "22222222-2222-4222-8222-222222222222", Name: "Bob", Email: "bob@example.com", Role: auth.RoleViewer}
-	bot = auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci", Role: auth.RoleAdmin}
+	ada  = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com", Role: auth.RoleViewer}
+	bob  = auth.Principal{Kind: auth.KindUser, ID: "22222222-2222-4222-8222-222222222222", Name: "Bob", Email: "bob@example.com", Role: auth.RoleViewer}
+	root = auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Root", Email: "root@example.com", Role: auth.RoleAdmin}
+	bot  = auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci", Role: auth.RoleAdmin}
 )
 
 type syncBuffer struct {
@@ -64,7 +65,7 @@ type rig struct {
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	d := dbtest.New(t)
-	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'https://idp', 'ada', 'ada@example.com', 'Ada'), ($2, 'https://idp', 'bob', 'bob@example.com', 'Bob')`, ada.ID, bob.ID)
+	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'https://idp', 'ada', 'ada@example.com', 'Ada'), ($2, 'https://idp', 'bob', 'bob@example.com', 'Bob'), ($3, 'https://idp', 'root', 'root@example.com', 'Root')`, ada.ID, bob.ID, root.ID)
 	base, err := url.Parse(testPublicURL)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +79,7 @@ func newRig(t *testing.T) *rig {
 	server := New(Config{PublicURL: base, Logger: logger}, d.DB, people)
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	principals := map[string]auth.Principal{ada.ID: ada, bob.ID: bob, bot.ID: bot}
+	principals := map[string]auth.Principal{ada.ID: ada, bob.ID: bob, root.ID: root, bot.ID: bot}
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		if p, ok := principals[c.GetHeader("X-Test-Principal")]; ok {
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))

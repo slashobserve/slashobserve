@@ -194,6 +194,8 @@ The client name is chosen by the client and SlashObserve cannot verify it; it is
 Access tokens last 1 hour, and a refresh token lasts 30 days from when it was issued and is replaced each time it is used, so a client that stays in use keeps working.
 A connection lasts at most 90 days, after which you approve it again.
 You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
+You can list and disconnect your connected agents over the API with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}` (any signed-in person), and an Admin can list and disconnect everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
+Service-account keys cannot call any of them.
 
 Each client's setup:
 
