@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -35,7 +36,7 @@ const (
 
 var (
 	ErrNoSave          = errors.New("the model finished without saving a dashboard")
-	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d rejected saves in a row", maxRejectionsInRow)
+	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d rejected saves in a row", guard.MaxRejectionsInRow)
 	ErrRefused         = errors.New("the model declined the request")
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
@@ -45,7 +46,7 @@ var (
 	errModelCall       = errors.New("model call failed")
 
 	ErrSuggestRepairExhausted error = &variantError{
-		message: fmt.Sprintf("the proposed panel still failed validation after %d rejected saves in a row", maxRejectionsInRow),
+		message: fmt.Sprintf("the proposed panel still failed validation after %d rejected saves in a row", guard.MaxRejectionsInRow),
 		base:    ErrRepairExhausted,
 	}
 )
@@ -306,23 +307,24 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	r := &runner{
 		agent: a, task: t, prompt: prompt, mode: mode, statuses: statuses,
 		requestID: requestUUID, dashboardID: dashboardUUID,
-		state:  &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, logInputs: a.logToolInputs, mode: mode},
+		state:  &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, logInputs: a.logToolInputs, guard: guard.New(mode)},
 		totals: &callTotals{},
 		out:    out,
 	}
 	defer func() {
-		out.RepairRounds += r.state.repairs
-		out.ToolCalls += r.state.toolCalls
+		counts := r.state.guard.Counts
+		out.RepairRounds += counts.Repairs
+		out.ToolCalls += counts.ToolCalls
 		out.ToolTime += r.state.toolTime
 		out.FailedCalls += r.totals.failedCalls
 		out.Retries += r.totals.retries
 		out.ModelTime += r.totals.modelTime
 		out.MaxSaveOutputTokens = max(out.MaxSaveOutputTokens, r.state.maxSaveOutput)
-		out.BuildSaves += r.state.buildSaves
-		out.Nudges += r.state.nudges
-		out.SaveNowRefusals += r.state.saveNowRefusals
-		out.StalledTurns += r.state.stalledTurns
-		out.OnePanelRefusals += r.state.onePanelRefusals
+		out.BuildSaves += counts.BuildSaves
+		out.Nudges += counts.Nudges
+		out.SaveNowRefusals += counts.SaveNowRefusals
+		out.StalledTurns += counts.StalledTurns
+		out.OnePanelRefusals += counts.OnePanelRefusals
 	}()
 	return r.loop(ctx)
 }
@@ -586,10 +588,8 @@ func (r *runner) prepareSession(ctx context.Context, current *revision, build *d
 	}
 	run := runScope(r.task, r.prompt, r.mode, current)
 	ctx = tools.WithRun(ctx, run)
-	r.state.parentVersion = run.ParentVersion
-	r.state.guards.resetReads()
-	r.state.window = saveWindow{}
-	r.state.building = build != nil
+	r.state.guard.BeginSession(build != nil, run.ParentVersion)
+	r.state.replays = nil
 	r.state.sessionBytes = 0
 
 	request := llm.Request{
@@ -666,7 +666,6 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 			return sessionEnd{}, ErrBudgetExhausted
 		}
 		r.state.modelCalls++
-		r.state.window.calls++
 		turn, err := r.agent.modelCall(ctx, chat, results, r.totals)
 		if err != nil {
 			if r.cutOffByTimeout(ctx, err) {
@@ -679,20 +678,20 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 		if end, done, err := r.endOfTurn(ctx, turn, chat, results); done || err != nil {
 			return end, err
 		}
-		var outcome turnOutcome
-		readGuard := readRefusal(r.mode, r.state.window, containsSave(turn.ToolCalls))
-		if results, outcome, err = r.state.executeTurn(ctx, turn.ToolCalls, readGuard); err != nil {
+		var outcome guard.Outcome
+		if results, outcome, err = r.state.executeTurn(ctx, turn.ToolCalls); err != nil {
 			return sessionEnd{}, err
 		}
-		if err := r.state.endStall(outcome); err != nil {
-			return sessionEnd{}, err
+		nudge, stop := r.state.guard.EndTurn()
+		if stop != nil {
+			return sessionEnd{}, r.state.stopped(*stop, outcome)
 		}
-		r.state.nudge(results, outcome)
+		appendNudge(results, nudge)
 		r.state.sessionBytes += sizeOfTurn(turn, results)
 		if end, done, err := r.settle(outcome); done || err != nil {
 			return end, err
 		}
-		if outcome.built && r.state.sessionBytes > r.agent.sessionRenewBytes {
+		if outcome.Built && r.state.sessionBytes > r.agent.sessionRenewBytes {
 			return compaction(seedRenewed, chat, results), nil
 		}
 	}
@@ -746,38 +745,25 @@ func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn, chat llm.Session,
 	return sessionEnd{}, false, nil
 }
 
-func (r *runner) settle(outcome turnOutcome) (sessionEnd, bool, error) {
+func (r *runner) settle(outcome guard.Outcome) (sessionEnd, bool, error) {
 	switch {
-	case outcome.finding != "":
-		r.out.FindingID = outcome.finding
+	case outcome.Finding != "":
+		r.out.FindingID = outcome.Finding
 		return sessionEnd{}, true, nil
-	case outcome.suggestion != nil:
-		r.out.Suggestion = outcome.suggestion
+	case outcome.Suggestion != nil:
+		r.out.Suggestion = outcome.Suggestion
 		return sessionEnd{}, true, nil
-	case outcome.saved != nil:
-		r.out.DashboardID = outcome.saved.dashboardID
-		r.out.Version = outcome.saved.version
-		r.out.Replayed = outcome.saved.replayed
+	case outcome.Saved != nil:
+		r.out.DashboardID = outcome.Saved.DashboardID
+		r.out.Version = outcome.Saved.Version
+		r.out.Replayed = outcome.Saved.Replayed
 		return sessionEnd{}, true, nil
-	case outcome.conflict:
+	case outcome.Conflict:
 		return sessionEnd{conflict: true}, true, nil
-	case outcome.notFound:
+	case outcome.NotFound:
 		return sessionEnd{}, true, dashboards.ErrNotFound
-	case outcome.rejected && r.state.rejections >= maxRejectionsInRow:
-		r.state.stop(fmt.Sprintf("Stopped: %d %s in a row were rejected", maxRejectionsInRow, rejectedThing(r.mode)))
-		return sessionEnd{}, true, repairExhausted(r.mode, outcome.issueCodes)
 	}
 	return sessionEnd{}, false, nil
-}
-
-func rejectedThing(mode tools.Mode) string {
-	switch mode {
-	case tools.ModeSuggest:
-		return "proposals"
-	case tools.ModeInvestigate:
-		return "findings"
-	}
-	return "saves"
 }
 
 func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResult error) (sessionEnd, error) {
