@@ -141,3 +141,14 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `fail` | `running` | `failed` | `grafana sync failed` | server |
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
+
+## Agent presence
+
+Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `working` | It holds the lease of a run it claimed. |
+| `listening` | It asked for work in the last 40 seconds. |
+| `offline` | It has not asked for work in 40 seconds and holds no run. |
