@@ -22,6 +22,7 @@ import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/p
 import { Route as AuthedShellTracesRouteImport } from './routes/_authed/_shell/traces'
 import { Route as AuthedBRequestIdRouteImport } from './routes/_authed/b/$requestId'
 import { Route as AuthedBuildsRequestIdRouteImport } from './routes/_authed/builds/$requestId'
+import { Route as AuthedConnectRequestIdRouteImport } from './routes/_authed/connect/$requestId'
 import { Route as AuthedDashboardsByTitleRouteImport } from './routes/_authed/dashboards/by-title'
 import { Route as AuthedFoldersFolderIdRouteImport } from './routes/_authed/folders/$folderId'
 import { Route as AuthedObserveRequestIdRouteImport } from './routes/_authed/observe/$requestId'
@@ -101,6 +102,11 @@ const AuthedBRequestIdRoute = AuthedBRequestIdRouteImport.update({
 const AuthedBuildsRequestIdRoute = AuthedBuildsRequestIdRouteImport.update({
   id: '/builds/$requestId',
   path: '/builds/$requestId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedConnectRequestIdRoute = AuthedConnectRequestIdRouteImport.update({
+  id: '/connect/$requestId',
+  path: '/connect/$requestId',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedDashboardsByTitleRoute = AuthedDashboardsByTitleRouteImport.update({
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/traces': typeof AuthedShellTracesRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
+  '/connect/$requestId': typeof AuthedConnectRequestIdRoute
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/traces': typeof AuthedShellTracesRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
+  '/connect/$requestId': typeof AuthedConnectRequestIdRoute
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
@@ -278,6 +286,7 @@ export interface FileRoutesById {
   '/_authed/_shell/traces': typeof AuthedShellTracesRoute
   '/_authed/b/$requestId': typeof AuthedBRequestIdRoute
   '/_authed/builds/$requestId': typeof AuthedBuildsRequestIdRoute
+  '/_authed/connect/$requestId': typeof AuthedConnectRequestIdRoute
   '/_authed/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/_authed/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/traces'
     | '/b/$requestId'
     | '/builds/$requestId'
+    | '/connect/$requestId'
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/observe/$requestId'
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/traces'
     | '/b/$requestId'
     | '/builds/$requestId'
+    | '/connect/$requestId'
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/observe/$requestId'
@@ -373,6 +384,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/traces'
     | '/_authed/b/$requestId'
     | '/_authed/builds/$requestId'
+    | '/_authed/connect/$requestId'
     | '/_authed/dashboards/by-title'
     | '/_authed/folders/$folderId'
     | '/_authed/observe/$requestId'
@@ -490,6 +502,13 @@ declare module '@tanstack/react-router' {
       path: '/builds/$requestId'
       fullPath: '/builds/$requestId'
       preLoaderRoute: typeof AuthedBuildsRequestIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/connect/$requestId': {
+      id: '/_authed/connect/$requestId'
+      path: '/connect/$requestId'
+      fullPath: '/connect/$requestId'
+      preLoaderRoute: typeof AuthedConnectRequestIdRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/dashboards/by-title': {
@@ -681,6 +700,7 @@ interface AuthedRouteChildren {
   AuthedShellRoute: typeof AuthedShellRouteWithChildren
   AuthedBRequestIdRoute: typeof AuthedBRequestIdRoute
   AuthedBuildsRequestIdRoute: typeof AuthedBuildsRequestIdRoute
+  AuthedConnectRequestIdRoute: typeof AuthedConnectRequestIdRoute
   AuthedDashboardsByTitleRoute: typeof AuthedDashboardsByTitleRoute
   AuthedFoldersFolderIdRoute: typeof AuthedFoldersFolderIdRoute
   AuthedObserveRequestIdRoute: typeof AuthedObserveRequestIdRoute
@@ -694,6 +714,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedShellRoute: AuthedShellRouteWithChildren,
   AuthedBRequestIdRoute: AuthedBRequestIdRoute,
   AuthedBuildsRequestIdRoute: AuthedBuildsRequestIdRoute,
+  AuthedConnectRequestIdRoute: AuthedConnectRequestIdRoute,
   AuthedDashboardsByTitleRoute: AuthedDashboardsByTitleRoute,
   AuthedFoldersFolderIdRoute: AuthedFoldersFolderIdRoute,
   AuthedObserveRequestIdRoute: AuthedObserveRequestIdRoute,

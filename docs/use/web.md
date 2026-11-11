@@ -15,6 +15,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/traces` | The trace search; `ds`, `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
+| `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 

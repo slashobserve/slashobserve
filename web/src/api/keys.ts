@@ -321,6 +321,10 @@ export const homeKeys = {
     ["dashboards", "list", "home-search", search] as const,
 }
 
+export const connectKeys = {
+  request: (id: string) => ["connect", "requests", id] as const,
+}
+
 export const publicKeys = {
   links: (dashboardId: string) => ["public-links", dashboardId] as const,
   dashboard: (token: string) => ["public", token] as const,
