@@ -90,7 +90,7 @@ func (s *Service) timeOut(ctx context.Context, row dbsqlc.AgentRequest) (ReportA
 	if err != nil {
 		return ReportAnswer{}, err
 	}
-	s.dropTokens(ctx, row)
+	s.DropTokens(ctx, row)
 	return ReportAnswer{State: ended.State, Stop: true}, nil
 }
 
@@ -102,7 +102,7 @@ func (s *Service) stopped(ctx context.Context, row dbsqlc.AgentRequest) (ReportA
 	return ReportAnswer{State: stored.State, Stop: true}, nil
 }
 
-func (s *Service) dropTokens(ctx context.Context, row dbsqlc.AgentRequest) {
+func (s *Service) DropTokens(ctx context.Context, row dbsqlc.AgentRequest) {
 	if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
 		s.logger.WarnContext(ctx, "delete run sessions; prune will remove them", logattrs.Failure("run_session_delete_failed", err, slog.String("agent_request_id", row.ID.String()))...)
 	}

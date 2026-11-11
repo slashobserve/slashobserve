@@ -58,7 +58,7 @@ func (s *Service) Finish(ctx context.Context, c Claimer, in FinishInput) (Finish
 	if err != nil {
 		return FinishAnswer{}, err
 	}
-	s.dropTokens(ctx, row)
+	s.DropTokens(ctx, row)
 	return answerOf(ended), nil
 }
 
