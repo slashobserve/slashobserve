@@ -321,6 +321,7 @@ func run() error {
 		Health:        healthService,
 		Annotations:   annotationsService,
 		Activity:      activityStore,
+		Search:        searchService,
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,

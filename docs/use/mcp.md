@@ -56,6 +56,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `resolve_comment` | Viewer |
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
+| `search_workspace` | Viewer |
 | `trace_stats` | Viewer |
 | `update_dashboard` | Viewer |
 | `update_panels` | Viewer |
@@ -192,6 +193,10 @@ The built-in agent has the same tool.
 `list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
 Narrow it with `dashboard_id`, `folder_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
 It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
+
+`search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `finding`, `annotation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
+Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.
+It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
 It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.

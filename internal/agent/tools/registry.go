@@ -31,6 +31,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
+	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -144,6 +145,7 @@ type Deps struct {
 	Health        *health.Service
 	Annotations   *annotations.Service
 	Activity      *activity.Store
+	Search        *search.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL
 	Logger        *slog.Logger

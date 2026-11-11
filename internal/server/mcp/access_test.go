@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
+	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -127,7 +128,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Findings: found, SavedSearches: savedsearches.New(database.DB, access, datasources, base, logger), Threads: commentThreads, Folders: access, Annotations: notes, PublicURL: base, Logger: logger})
+	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Findings: found, SavedSearches: savedsearches.New(database.DB, access, datasources, base, logger), Threads: commentThreads, Folders: access, Annotations: notes, Search: search.New(database.DB, access, base), PublicURL: base, Logger: logger})
 	authn := keyAuth{}
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
 		authn[bearer(p)] = Credential{Principal: p}
@@ -224,6 +225,13 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 				t.Errorf("get_dashboard of the open dashboard = %s", text(got))
 			}
 
+			for _, q := range []string{"payroll board", hiddenTag, "paid"} {
+				found := f.as(t, by, "search_workspace", map[string]any{"q": q})
+				if found.IsError || !strings.Contains(text(found), `"results":[]`) {
+					t.Errorf("search_workspace %q = %s, want no results", q, text(found))
+				}
+			}
+
 			refusals := map[string]toolResult{
 				"get_dashboard":   f.as(t, by, "get_dashboard", map[string]any{"dashboard_id": hidden}),
 				"list_comments":   f.as(t, by, "list_comments", map[string]any{"dashboard_id": hidden}),
@@ -262,6 +270,11 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 		}
 		if got := f.as(t, adminKey, "get_dashboard", map[string]any{"dashboard_id": hidden}); got.IsError || !strings.Contains(text(got), hiddenTitle) {
 			t.Errorf("get_dashboard = %s", text(got))
+		}
+		for _, q := range []string{"payroll board", "paid"} {
+			if got := f.as(t, adminKey, "search_workspace", map[string]any{"q": q}); got.IsError || !strings.Contains(text(got), hidden) {
+				t.Errorf("search_workspace %q = %s", q, text(got))
+			}
 		}
 	})
 }
@@ -308,6 +321,7 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 		"list_comments":    {"dashboard_id": id},
 		"list_datasources": {},
 		"query_instant":    {"datasource": "prom", "query": "up"},
+		"search_workspace": {"q": "checkout"},
 	}
 	panel := json.RawMessage(`{"id":"p","type":"timeseries","title":"changed","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`)
 	filed, _, err := f.findings.Save(t.Context(), adminKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
