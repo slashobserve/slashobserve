@@ -189,6 +189,7 @@ A run shows its most recent 1000 steps per attempt.
 ### Failure codes and usage
 
 A failed run records one failure code beside its message, in `failure_code` on the request.
+Every request records `trigger`, what started it; in this release that is always `person`, the requester.
 
 The codes you will see most are:
 

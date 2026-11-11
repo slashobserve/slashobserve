@@ -119,6 +119,43 @@ func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	h.call(t, http.MethodGet, "/api/v1/observe/"+investigation, "", http.StatusOK)
 }
 
+func TestEveryRequestIsStartedByAPerson(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	h := newDocumentedObserve(t, svc, user, nil)
+
+	created := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+
+	var triggers struct {
+		Request struct {
+			Trigger string `json:"trigger"`
+		} `json:"request"`
+	}
+	for _, id := range []string{created, revision} {
+		triggers.Request.Trigger = ""
+		rec := h.call(t, http.MethodGet, "/api/v1/observe/"+id, "", http.StatusOK)
+		if err := json.Unmarshal(rec.Body.Bytes(), &triggers); err != nil || triggers.Request.Trigger != "person" {
+			t.Fatalf("request %s trigger %q, err %v: %s", id, triggers.Request.Trigger, err, rec.Body)
+		}
+	}
+
+	list := h.call(t, http.MethodGet, "/api/v1/observe", "", http.StatusOK)
+	var listed struct {
+		Requests []struct {
+			Trigger string `json:"trigger"`
+		} `json:"requests"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &listed); err != nil || len(listed.Requests) != 2 {
+		t.Fatalf("list %v: %s", err, list.Body)
+	}
+	for _, row := range listed.Requests {
+		if row.Trigger != "person" {
+			t.Errorf("listed trigger %q, want person", row.Trigger)
+		}
+	}
+}
+
 func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (string, func(context.Context, pgtype.UUID) (json.RawMessage, bool, error)) {
 	t.Helper()
 	insertFindingFor(t, d, row.ID)

@@ -184,7 +184,7 @@ SET steps = (
 WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 
 -- name: ListAgentRequestsBy :many
-SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
+SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at,

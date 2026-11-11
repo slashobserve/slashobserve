@@ -22,6 +22,7 @@ const (
 type agentRequest struct {
 	ID          string      `json:"id"`
 	Source      string      `json:"source"`
+	Trigger     string      `json:"trigger"`
 	DashboardID *string     `json:"dashboard_id"`
 	Status      string      `json:"status"`
 	ResultVer   *int        `json:"result_version"`
@@ -179,6 +180,7 @@ func printRequest(out *output, req agentRequest) {
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"Source", text(req.Source)},
+		{"Trigger", text(req.Trigger)},
 		{"Dashboard", orDash(req.DashboardID)},
 		{"Version", version},
 		{"URL", orDash(req.URL)},

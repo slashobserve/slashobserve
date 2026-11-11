@@ -3593,6 +3593,11 @@ export interface components {
             title: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
+            /**
+             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
+             * @enum {string}
+             */
+            trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
             prompt: string;
             /**
              * Format: uuid
@@ -3690,6 +3695,11 @@ export interface components {
             id: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
+            /**
+             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
+             * @enum {string}
+             */
+            trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
             prompt: string;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";

@@ -2606,6 +2606,7 @@ components:
         - kind
         - title
         - source
+        - trigger
         - prompt
         - dashboard_id
         - base_version
@@ -2653,6 +2654,10 @@ components:
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
+        trigger:
+          type: string
+          enum: [person, mention, schedule, webhook, slack]
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         dashboard_id:
@@ -2806,6 +2811,7 @@ components:
         - title
         - pinned_at
         - source
+        - trigger
         - prompt
         - status
         - dashboard_id
@@ -2832,6 +2838,10 @@ components:
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
+        trigger:
+          type: string
+          enum: [person, mention, schedule, webhook, slack]
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         status:

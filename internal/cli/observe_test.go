@@ -330,6 +330,15 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 	}
 }
 
+func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Source: "prompt", Trigger: "person"})
+	lines := strings.Split(stdout.String(), "\n")
+	if len(lines) < 4 || strings.Fields(lines[2])[0] != "Source" || strings.Fields(lines[3])[0] != "Trigger" || strings.Fields(lines[3])[1] != "person" {
+		t.Fatalf("output lacks the trigger after the source:\n%s", stdout.String())
+	}
+}
+
 func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 	var posted string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

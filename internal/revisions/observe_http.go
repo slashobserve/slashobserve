@@ -82,6 +82,7 @@ type agentRequestJSON struct {
 	ID            string             `json:"id"`
 	Kind          string             `json:"kind"`
 	Source        Source             `json:"source"`
+	Trigger       string             `json:"trigger"`
 	Title         string             `json:"title"`
 	Prompt        string             `json:"prompt"`
 	DashboardID   *string            `json:"dashboard_id"`
@@ -124,6 +125,7 @@ type requestSummaryJSON struct {
 	ID             string  `json:"id"`
 	Kind           string  `json:"kind"`
 	Source         Source  `json:"source"`
+	Trigger        string  `json:"trigger"`
 	Title          string  `json:"title"`
 	PinnedAt       *string `json:"pinned_at"`
 	Prompt         string  `json:"prompt"`
@@ -415,6 +417,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		ID:           row.ID.String(),
 		Kind:         Kind(Source(row.Source)),
 		Source:       Source(row.Source),
+		Trigger:      row.Trigger,
 		Title:        requestTitle(row.Title, row.Prompt),
 		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
 		Prompt:       row.Prompt,
@@ -580,6 +583,7 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state bui
 		ID:          row.ID.String(),
 		Kind:        Kind(Source(row.Source)),
 		Source:      Source(row.Source),
+		Trigger:     row.Trigger,
 		Title:       requestTitle(row.Title, row.Prompt),
 		Prompt:      row.Prompt,
 		Status:      Status(row.Status),
