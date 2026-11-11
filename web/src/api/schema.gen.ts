@@ -2494,6 +2494,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a pending request from an MCP client to act as the signed-in person.
+         * @description The consent page reads this to show what the person approves. A request lives 10 minutes and is answered once. `client.name` is the name the client registered under and is not verified; `redirect_host` is where the browser returns after the answer, and `local` is true when that is this computer. `replaces_grant` is true when the person already connected this client. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        get: operations["getConnectionRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve an MCP client so it acts as the signed-in person.
+         * @description Answers once and consumes the request. `redirect_to` is the client's redirect URI with a one-time `code` (valid 60 seconds), the client's `state` and the issuer; the browser follows it. A person has at most 20 connected agents: approving a 21st client answers 409 `too_many_grants` and keeps the request, while approving a client the person already connected replaces that connection. Only signed-in people may call it, and a cookie session passes the cross-origin check: a service-account key gets 403 `forbidden`.
+         */
+        post: operations["approveConnectionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deny an MCP client's request to act as the signed-in person.
+         * @description Answers once and consumes the request. `redirect_to` is the client's redirect URI with `error=access_denied`, the client's `state` and the issuer. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         */
+        post: operations["denyConnectionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11216,6 +11282,118 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pending connection request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        client: {
+                            id: string;
+                            name: string | null;
+                            /** Format: date-time */
+                            registered_at: string;
+                            redirect_host: string;
+                            local: boolean;
+                        };
+                        person: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            email: string;
+                            role: components["schemas"]["Role"];
+                        };
+                        replaces_grant: boolean;
+                        /** Format: date-time */
+                        expires_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    approveConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirect_to: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The person already has 20 connected agents (`too_many_grants`). The request stays pending. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    denyConnectionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is denied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirect_to: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
 }

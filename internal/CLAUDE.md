@@ -37,6 +37,7 @@ This lists only the packages whose purpose the name does not make obvious.
   Every thread write locks the owning dashboard row `FOR KEY SHARE`, then the finding or annotation row the same way, before it writes or appends, so a delete (which holds `FOR UPDATE` and cascades into threads) never deadlocks with a thread write and a late writer finds the target gone.
   `Runs.ResolveForRun` takes that lock `SKIP LOCKED`, because the finishing run already holds its own agent request row: a dashboard being deleted skips the resolution instead of waiting for it.
   `dashboard_comments` is frozen after migration 00028: nothing reads or writes it, and the migration's Down rebuilds it from threads.
+- `mcpauth`: the OAuth 2.1 authorization server for MCP clients: metadata, dynamic registration, authorize, token, revoke, the consent and connected-agent API, and `Authenticate`, the only reader of OAuth access tokens; `cmd/slashobserve-server/main.go` composes it with service-account keys for `/mcp`, so `auth` never imports it.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
 - `health`: the `dashboard_health` job, registered hourly in `cmd/slashobserve-server/main.go`, the `/health` routes and dashboard opens (`dashboard_views`, written by `POST /dashboards/{id}/views` for people only).
@@ -64,7 +65,8 @@ This lists only the packages whose purpose the name does not make obvious.
   Remote images, tiles and GeoJSON must load through `/api/v1/assets/image` and `/api/v1/assets/geojson`.
 - `server.New` wraps the engine in `compressReads` (`internal/server/compress.go`): gzip only for GET and HEAD responses of 1024 bytes or more and never for `text/event-stream`, because a response to another method can echo a secret it created next to user text, the shape a BREACH attack needs.
 - `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
-  It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored) and refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
+  It accepts `Authorization: Bearer` service-account keys and OAuth access tokens (a session cookie is ignored); OAuth tokens are accepted nowhere else, and for them the registered client name is the origin client and `clientInfo` is ignored.
+  It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
 - A tool's `MinRole` is checked when the tool is called, not when tools are listed, and only for keys outside agent runs.
@@ -76,7 +78,7 @@ This lists only the packages whose purpose the name does not make obvious.
   Handlers never check roles.
   `auth.RequireUser` is a separate principal-kind check after the role, so a key cannot manage keys whatever its role.
 - The OIDC `groups` scope is requested only when discovery lists it in `scopes_supported`.
-- Sessions, keys and public link tokens are opaque random tokens stored only as SHA-256.
+- Sessions, keys, public link tokens and OAuth codes, access and refresh tokens are opaque random tokens made by `opaquetoken.New` and stored only as SHA-256.
   Request and panic logs pass the path through `loggedPath`, which replaces the token of `/api/v1/public/<token>` and `/p/<token>` with `:token`.
 - Creating, listing and revoking a public link needs Manage on the dashboard's folder; the routes declare `RequireDashboard(NeedView)` and `public.Service` decides, so a dashboard in a personal folder answers 409 `personal_folder` and one whose latest version reads `${__user.*}` answers 422 `user_scoped`.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
@@ -236,6 +238,7 @@ This lists only the packages whose purpose the name does not make obvious.
 
 - `log/slog`; request logs record the path, never the query string.
 - The server never logs secrets, prompt text, query text, variable values, tool results or MCP client names.
+  OAuth codes, tokens, `state`, redirect URIs and registered client names are never logged either.
   The `asset fetch failed` and `action run` lines never hold URLs, paths, queries, bodies or action inputs.
 - `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` (`internal/agent/toolinputs.go`) logs each run's tool inputs by shape only: a 12 hex character SHA-256 prefix, the size, a save's panel ids that match the id pattern and a rejected save's first 20 issue paths that are plain pointers, never input text.
 - The one exception to the provider-message rule is `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS`: when on, `llm.CallError.ProviderMessage` (scrubbed of the key and control characters, capped at 1024 bytes, never in `Error()`) is logged as `provider_error_message` on a failed `llm call finished` line.

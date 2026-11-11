@@ -28,36 +28,45 @@ import (
 )
 
 const (
-	goodKey   = "Bearer good"
-	errorKey  = "Bearer broken"
-	goneKey   = "Bearer gone"
-	otherKey  = "Bearer other"
-	publicURL = "http://observe.test:8080"
+	goodKey      = "Bearer good"
+	errorKey     = "Bearer broken"
+	goneKey      = "Bearer gone"
+	otherKey     = "Bearer other"
+	namedOAuth   = "Bearer oauth-named"
+	unnamedOAuth = "Bearer oauth-unnamed"
+	publicURL    = "http://observe.test:8080"
+	metadataURL  = publicURL + "/.well-known/oauth-protected-resource/mcp"
 )
+
+var oauthPerson = auth.Principal{Kind: auth.KindUser, ID: "u-1", Name: "Ada", Role: auth.RoleEditor}
 
 type fakeAuth struct {
 	mu    sync.Mutex
 	calls int
 }
 
-func (f *fakeAuth) BearerPrincipal(_ context.Context, header string) (auth.Principal, bool, error) {
+func (f *fakeAuth) Authenticate(_ context.Context, header string) (Credential, bool, error) {
 	f.mu.Lock()
 	f.calls++
 	f.mu.Unlock()
 	switch header {
 	case goodKey:
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci", Role: auth.RoleEditor}, true, nil
+		return Credential{Principal: auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci", Role: auth.RoleEditor}}, true, nil
 	case otherKey:
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other", Role: auth.RoleEditor}, true, nil
+		return Credential{Principal: auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other", Role: auth.RoleEditor}}, true, nil
+	case namedOAuth:
+		return Credential{Principal: oauthPerson, OAuth: true, Client: "Claude Code"}, true, nil
+	case unnamedOAuth:
+		return Credential{Principal: oauthPerson, OAuth: true}, true, nil
 	case errorKey:
-		return auth.Principal{}, false, errors.New("database exploded with secret-detail")
+		return Credential{}, false, errors.New("database exploded with secret-detail")
 	case goneKey:
-		return auth.Principal{}, false, fmt.Errorf("get key: %w", context.Canceled)
+		return Credential{}, false, fmt.Errorf("get key: %w", context.Canceled)
 	}
 	if id, ok := strings.CutPrefix(header, "Bearer pool-"); ok {
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool", Role: auth.RoleEditor}, true, nil
+		return Credential{Principal: auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool", Role: auth.RoleEditor}}, true, nil
 	}
-	return auth.Principal{}, false, nil
+	return Credential{}, false, nil
 }
 
 type fixture struct {
@@ -78,7 +87,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	authn := &fakeAuth{}
 	return &fixture{
-		handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}),
+		handler: NewHandler(reg, authn, Options{PublicURL: base, ResourceMetadataURL: metadataURL, Version: "test", Logger: logger}),
 		authn:   authn,
 		logs:    logs,
 		tools:   offeredOverMCP(reg),
@@ -226,6 +235,30 @@ func TestInvalidKeyIsRejected(t *testing.T) {
 	assertErrorBody(t, rec, http.StatusUnauthorized, "unauthenticated")
 	if rec.Header().Get("WWW-Authenticate") == "" {
 		t.Error("401 lacks WWW-Authenticate")
+	}
+}
+
+func TestUnauthorizedPointsClientsToTheResourceMetadata(t *testing.T) {
+	f := newFixture(t)
+	missing := f.post(rpc(1, "tools/list", nil), map[string]string{"Authorization": ""})
+	if got, want := missing.Header().Get("WWW-Authenticate"), `Bearer realm="slashobserve", resource_metadata="`+metadataURL+`"`; got != want {
+		t.Errorf("without a header WWW-Authenticate = %q, want %q", got, want)
+	}
+	refused := f.post(rpc(1, "tools/list", nil), map[string]string{"Authorization": "Bearer nope"})
+	if got, want := refused.Header().Get("WWW-Authenticate"), `Bearer realm="slashobserve", resource_metadata="`+metadataURL+`", error="invalid_token"`; got != want {
+		t.Errorf("with a refused token WWW-Authenticate = %q, want %q", got, want)
+	}
+}
+
+func TestUnauthorizedWithoutMetadataURLKeepsTheBareChallenge(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	h := NewHandler(tools.New(tools.Deps{Logger: logger}), &fakeAuth{}, Options{Logger: logger})
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", nil)))
+	req.Header.Set("Authorization", "Bearer nope")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Bearer realm="slashobserve"` {
+		t.Errorf("WWW-Authenticate = %q", got)
 	}
 }
 
@@ -1051,6 +1084,54 @@ func TestToolCallRecordsTheMCPClient(t *testing.T) {
 			}
 			if got.Kind != origin.MCP || got.Client != tt.want {
 				t.Errorf("origin %+v, want mcp client %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOAuthCredentialRecordsItsRegisteredName(t *testing.T) {
+	const metaKey = "io.modelcontextprotocol/clientInfo"
+	evil := map[string]any{metaKey: map[string]any{"name": "evil", "version": "1"}}
+	tests := []struct {
+		name          string
+		authorization string
+		want          string
+	}{
+		{"registered name beats clientInfo", namedOAuth, "Claude Code"},
+		{"unnamed client stays unnamed", unnamedOAuth, ""},
+		{"a key still takes clientInfo", goodKey, "evil"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			var got origin.Origin
+			var gotPrincipal auth.Principal
+			f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got = origin.From(ctx)
+				gotPrincipal, _ = auth.FromContext(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			headers := map[string]string{"Authorization": tt.authorization, "Mcp-Session-Id": clientLabel("from-label")}
+			init := f.post(rpc(1, "initialize", map[string]any{
+				"protocolVersion": "2025-11-25",
+				"capabilities":    map[string]any{},
+				"clientInfo":      map[string]any{"name": "evil", "version": "0"},
+			}), headers)
+			if init.Code != http.StatusOK {
+				t.Fatalf("initialize status %d: %s", init.Code, init.Body.String())
+			}
+			if issued := init.Header().Get("Mcp-Session-Id"); (issued != "") != (tt.authorization == goodKey) {
+				t.Errorf("initialize issued session label %q for %s", issued, tt.name)
+			}
+			rec := f.post(rpc(2, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}, "_meta": evil}), headers)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if got.Kind != origin.MCP || got.Client != tt.want {
+				t.Errorf("origin %+v, want mcp client %q", got, tt.want)
+			}
+			if tt.authorization != goodKey && gotPrincipal.ID != oauthPerson.ID {
+				t.Errorf("principal %+v, want the person", gotPrincipal)
 			}
 		})
 	}

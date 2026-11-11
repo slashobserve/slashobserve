@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 	_ "time/tzdata"
@@ -46,6 +47,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/prompts"
@@ -355,6 +357,7 @@ func run() error {
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
+	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
@@ -396,6 +399,7 @@ func run() error {
 	}), logger)
 	defer stopWebhooks()
 
+	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger}, database, authService)
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -432,12 +436,15 @@ func run() error {
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
+			oauthServer,
 		},
 		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
-		Mounts: append([]server.Mount{{
-			Path:    "/mcp",
-			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),
-		}}, metricsMounts(cfg.Metrics, serverMetrics)...),
+		Mounts: slices.Concat([]server.Mount{{
+			Path: "/mcp",
+			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, oauth: oauthServer}, mcp.Options{
+				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger,
+			}),
+		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
 		Metrics:       serverMetrics.HTTP(),
 		ContractCheck: cfg.APIContractCheck,
@@ -517,6 +524,28 @@ func revisionsBuildError(err error) error {
 		return revisions.ErrDashboardNotFound
 	}
 	return err
+}
+
+type mcpCredentials struct {
+	keys  *auth.Service
+	oauth *mcpauth.Server
+}
+
+func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Credential, bool, error) {
+	if p, ok, err := m.keys.BearerPrincipal(ctx, header); err != nil || ok {
+		return mcp.Credential{Principal: p}, ok, err
+	}
+	p, client, ok, err := m.oauth.Authenticate(ctx, header)
+	return mcp.Credential{Principal: p, OAuth: ok, Client: client}, ok, err
+}
+
+func oauthMounts(oauthServer *mcpauth.Server) []server.Mount {
+	paths := oauthServer.Paths()
+	mounts := make([]server.Mount, len(paths))
+	for i, path := range paths {
+		mounts[i] = server.Mount{Path: path, Handler: oauthServer}
+	}
+	return mounts
 }
 
 func metricsMounts(enabled bool, registry *metrics.Registry) []server.Mount {

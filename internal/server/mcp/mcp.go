@@ -33,23 +33,42 @@ const (
 	internalErrorMsg = "internal error"
 )
 
+type Credential struct {
+	Principal auth.Principal
+	OAuth     bool
+	Client    string
+}
+
 type Authenticator interface {
-	BearerPrincipal(ctx context.Context, header string) (auth.Principal, bool, error)
+	Authenticate(ctx context.Context, header string) (Credential, bool, error)
 }
 
 type Options struct {
-	PublicURL *url.URL
-	Version   string
-	Logger    *slog.Logger
+	PublicURL           *url.URL
+	ResourceMetadataURL string
+	Version             string
+	Logger              *slog.Logger
+}
+
+type registeredClientKey struct{}
+
+func withRegisteredClient(ctx context.Context) context.Context {
+	return context.WithValue(ctx, registeredClientKey{}, true)
+}
+
+func hasRegisteredClient(ctx context.Context) bool {
+	registered, _ := ctx.Value(registeredClientKey{}).(bool)
+	return registered
 }
 
 type handler struct {
-	call      func(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
-	authn     Authenticator
-	logger    *slog.Logger
-	origin    *url.URL
-	transport http.Handler
-	slots     slots
+	call        func(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
+	authn       Authenticator
+	logger      *slog.Logger
+	origin      *url.URL
+	metadataURL string
+	transport   http.Handler
+	slots       slots
 }
 
 func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Handler {
@@ -57,7 +76,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, slots: slots{held: map[string]int{}}}
+	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithRecovery(),
@@ -77,6 +96,9 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		mcpserver.WithStreamableHTTPLogger(logger),
 		mcpserver.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = origin.With(ctx, origin.From(r.Context()))
+			if hasRegisteredClient(r.Context()) {
+				ctx = withRegisteredClient(ctx)
+			}
 			if p, ok := auth.FromContext(r.Context()); ok {
 				return auth.WithPrincipal(ctx, p)
 			}
@@ -116,7 +138,7 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		o := origin.Origin{Kind: origin.MCP, Client: origin.From(ctx).Client}
-		if info := req.Params.Meta.ClientInfo(); info != nil {
+		if info := req.Params.Meta.ClientInfo(); info != nil && !hasRegisteredClient(ctx) {
 			if name := origin.CleanClient(info.Name); name != "" {
 				o.Client = name
 			}
@@ -177,10 +199,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	header := r.Header.Get("Authorization")
 	if header == "" {
-		unauthenticated(w, "authentication required")
+		h.unauthenticated(w, "authentication required", false)
 		return
 	}
-	principal, ok, err := h.authn.BearerPrincipal(r.Context(), header)
+	cred, ok, err := h.authn.Authenticate(r.Context(), header)
 	if err != nil {
 		if clientgone.Is(r.Context(), err) {
 			clientgone.WriteHeader(w, r, h.logger, "resolve bearer key")
@@ -191,9 +213,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		unauthenticated(w, "invalid credentials")
+		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
+	principal := cred.Principal
 	key := principalKey(principal)
 	if !h.slots.acquire(key) {
 		w.Header().Set("Retry-After", "1")
@@ -201,8 +224,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.slots.release(key)
-	ctx := origin.With(auth.WithPrincipal(r.Context(), principal),
-		origin.Origin{Kind: origin.MCP, Client: labelClient(r.Header.Get(mcpserver.HeaderKeySessionID))})
+	ctx := auth.WithPrincipal(r.Context(), principal)
+	if cred.OAuth {
+		ctx = withRegisteredClient(origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: cred.Client}))
+	} else {
+		ctx = origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: labelClient(r.Header.Get(mcpserver.HeaderKeySessionID))})
+	}
 	r = r.Clone(ctx)
 	r.Header.Del(mcpserver.HeaderKeySessionID)
 	var body []byte
@@ -226,7 +253,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.slots.releaseGlobal()
-	if client := initializeClient(body); client != "" {
+	if client := initializeClient(body); client != "" && !cred.OAuth {
 		w = &labelWriter{ResponseWriter: w, label: clientLabel(client)}
 	}
 	h.transport.ServeHTTP(w, r)
@@ -309,8 +336,15 @@ func canonicalHost(u *url.URL) string {
 	return net.JoinHostPort(strings.ToLower(u.Hostname()), port)
 }
 
-func unauthenticated(w http.ResponseWriter, message string) {
-	w.Header().Set("WWW-Authenticate", `Bearer realm="slashobserve"`)
+func (h *handler) unauthenticated(w http.ResponseWriter, message string, tokenRefused bool) {
+	challenge := `Bearer realm="slashobserve"`
+	if h.metadataURL != "" {
+		challenge += `, resource_metadata="` + h.metadataURL + `"`
+		if tokenRefused {
+			challenge += `, error="invalid_token"`
+		}
+	}
+	w.Header().Set("WWW-Authenticate", challenge)
 	writeError(w, http.StatusUnauthorized, "unauthenticated", message)
 }
 

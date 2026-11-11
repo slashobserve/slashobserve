@@ -56,9 +56,9 @@ var (
 
 type keyAuth map[string]auth.Principal
 
-func (k keyAuth) BearerPrincipal(_ context.Context, header string) (auth.Principal, bool, error) {
+func (k keyAuth) Authenticate(_ context.Context, header string) (Credential, bool, error) {
 	p, ok := k[header]
-	return p, ok, nil
+	return Credential{Principal: p}, ok, nil
 }
 
 func bearer(p auth.Principal) string { return "Bearer " + p.Name }

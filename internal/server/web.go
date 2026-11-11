@@ -26,7 +26,7 @@ func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 
 	engine.NoRoute(func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
-		if urlPath == "/api" || strings.HasPrefix(urlPath, "/api/") {
+		if isServerPath(urlPath) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found", "code": "not_found"})
 			return
 		}
@@ -59,6 +59,17 @@ func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
 	})
+}
+
+var serverPathPrefixes = []string{"/api", "/oauth", "/.well-known"}
+
+func isServerPath(urlPath string) bool {
+	for _, prefix := range serverPathPrefixes {
+		if urlPath == prefix || strings.HasPrefix(urlPath, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func serveFile(c *gin.Context, fsys fs.FS, name, cacheControl string) error {

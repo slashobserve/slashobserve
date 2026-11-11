@@ -234,6 +234,12 @@ paths:
     $ref: "./paths/health.yaml#/health-repairs"
   /health/run:
     $ref: "./paths/health.yaml#/health-run"
+  /oauth/requests/{id}:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id"
+  /oauth/requests/{id}/approve:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id-approve"
+  /oauth/requests/{id}/deny:
+    $ref: "./paths/oauth.yaml#/oauth-requests-id-deny"
 components:
   securitySchemes:
     sessionCookie:

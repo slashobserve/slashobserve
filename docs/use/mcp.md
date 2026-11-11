@@ -6,13 +6,15 @@ description: Connect Claude Code, OpenCode, Cursor and other MCP clients to the 
 The server exposes its tools to MCP clients over Streamable HTTP at `<public url>/mcp`, so Claude Code, OpenCode, Cursor and other clients can build and edit dashboards with their own model.
 `GET /api/v1/instance` returns the exact address as `mcp_url` next to `public_url`; it needs a signed-in session or a key.
 
-Requests must carry `Authorization: Bearer <key>` with a [service-account key](../operate/service-account-keys.md).
-Browser sessions are not accepted on `/mcp`.
-The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key and `503` above 32 across all keys.
-On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
+Requests must carry `Authorization: Bearer <token>`, where the token is either a person's OAuth access token (the default for people, see [Connect your own agent](#connect-your-own-agent)) or a [service-account key](../operate/service-account-keys.md) (for headless bots, see [Keys for bots](#keys-for-bots)).
+Browser sessions are not accepted on `/mcp`, and an OAuth access token is accepted nowhere else.
+A request without a token, or with one the server refuses, gets `401` with `WWW-Authenticate: Bearer realm="slashobserve", resource_metadata="<public url>/.well-known/oauth-protected-resource/mcp"`, which is how an MCP client finds the sign-in; a refused token adds `error="invalid_token"`.
+The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key or person and `503` above 32 across all callers.
+For a key, `initialize` returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
+For an OAuth client, the name it registered under is used and `clientInfo` is ignored.
 Each version, agent request, finding and annotation records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name, and the web app, the CLI and the API show the author as `<name> (via <client>)`.
 
-Each tool has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
+Each tool has a lowest role, which the server checks when a client calls it, using the role of the key's service account, or of the person for an OAuth client:
 
 | Tool | Lowest role |
 | ---- | ----------- |
@@ -179,13 +181,77 @@ The result names the folder the dashboard went to in `folder`, and `folder_note`
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).
 
+## Connect your own agent
+
+Add `<public url>/mcp` to an MCP client, approve it once in your browser, and the client acts as you.
+The client registers itself, then opens a page in your browser, signed in through your identity provider as for the web app.
+That page names the client, shows your name, email and role, shows the host the browser returns to, and asks you to approve or deny.
+When the client runs on your own computer the page warns that any program on this computer can ask under any name, so approve only a connection you just started.
+
+After you approve, the client acts with your role and your folder access, re-read on every call, so a role change takes effect at once.
+Everything it writes shows as `<your name> (via <client>)`.
+The client name is chosen by the client and SlashObserve cannot verify it; it is a label and never changes what the client may do.
+Access tokens last 1 hour, and a refresh token lasts 30 days from when it was issued and is replaced each time it is used, so a client that stays in use keeps working.
+A connection lasts at most 90 days, after which you approve it again.
+You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
+
+Each client's setup:
+
+### Claude Code
+
+```sh
+claude mcp add --transport http slashobserve https://observe.example.com/mcp
+```
+
+Then run `/mcp` inside Claude Code and choose Authenticate, or run `claude mcp login slashobserve`.
+`claude mcp logout slashobserve` disconnects it.
+
+### VS Code
+
+Add this to `.vscode/mcp.json`, choose Start on the server, and allow the sign-in:
+
+```json
+{
+  "servers": {
+    "slashobserve": {
+      "type": "http",
+      "url": "https://observe.example.com/mcp"
+    }
+  }
+}
+```
+
+### Cursor
+
+Add a `url`-only entry to `.cursor/mcp.json` and sign in when Cursor asks:
+
+```json
+{
+  "mcpServers": {
+    "slashobserve": {
+      "url": "https://observe.example.com/mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop and claude.ai
+
+These add the server from their connector settings and reach it from Anthropic's servers, so `SLASHOBSERVE_PUBLIC_URL` must be an `https` address that is reachable from the internet.
+A server on `localhost` cannot be added.
+
+## Keys for bots
+
+A service-account key suits a headless bot that has no person to approve it.
+Its writes show as the service account, and its role decides what it may do.
+
 Export the key in the shell that starts your client, so the key never lands in a config file:
 
 ```sh
 export OBSERVE_TOKEN=<your service-account key>
 ```
 
-## Claude Code
+### Claude Code
 
 Add this to `.mcp.json` in your project, with your server's address:
 
@@ -215,7 +281,7 @@ Prefer `.mcp.json`.
 
 The **API keys** page's Claude Code snippet also appends one line to your project's `CLAUDE.md` (only if the file does not already contain `For SlashObserve dashboards`) so Claude Code reads open comments with `list_comments`, fixes them with `update_dashboard`, then replies to each comment with `reply_to_comment` and resolves it with `resolve_comment`, passing the version that fixed it.
 
-## OpenCode
+### OpenCode
 
 Add this to `opencode.json`:
 
@@ -236,7 +302,7 @@ Add this to `opencode.json`:
 
 `"oauth": false` stops OpenCode from trying an OAuth flow; SlashObserve takes only the bearer key.
 
-## Cursor
+### Cursor
 
 Cursor reads remote MCP servers from `.cursor/mcp.json` (per project) or `~/.cursor/mcp.json`.
 The following is a generic example that this project has not tested with Cursor.
