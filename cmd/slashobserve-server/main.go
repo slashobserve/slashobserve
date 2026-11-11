@@ -57,6 +57,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/internal/server"
@@ -300,6 +301,7 @@ func run() error {
 	activityStore := activity.NewStore(database, folderAccess)
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
+	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
@@ -421,6 +423,7 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
+			savedsearches.NewHandler(savedSearchesService, logger),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			users.NewHandler(database, authService, folderAccess, logger),
 			outbound,

@@ -13,6 +13,10 @@ export const eventTypeLabels = {
   "finding.created": "Finding saved",
   "finding.pinned": "Finding pinned",
   "finding.moved": "Finding moved",
+  "saved_search.created": "Saved search created",
+  "saved_search.updated": "Saved search updated",
+  "saved_search.moved": "Saved search moved",
+  "saved_search.deleted": "Saved search deleted",
   "thread.opened": "Thread opened",
   "thread.replied": "Thread replied to",
   "thread.edited": "Message edited",
@@ -30,6 +34,7 @@ const groupLabels: Record<string, string> = {
   dashboard: "Dashboards",
   annotation: "Annotations",
   finding: "Findings",
+  saved_search: "Saved searches",
   thread: "Comment threads",
   run: "Agent runs",
 }

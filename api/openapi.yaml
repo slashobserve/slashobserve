@@ -170,6 +170,10 @@ paths:
     $ref: "./paths/findings.yaml#/findings-id-move"
   /findings/{id}/panels/{panel_id}/data:
     $ref: "./paths/findings.yaml#/findings-id-panels-panel-id-data"
+  /saved-searches:
+    $ref: "./paths/saved-searches.yaml#/saved-searches"
+  /saved-searches/{id}:
+    $ref: "./paths/saved-searches.yaml#/saved-searches-id"
   /news:
     $ref: "./paths/news.yaml#/news"
   /assets/image:
@@ -1058,7 +1062,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1079,11 +1083,11 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, thread, run]
             id:
               type: string
               format: uuid
-              description: The id of the dashboard, annotation, finding, comment thread or agent request the event is about.
+              description: The id of the dashboard, annotation, finding, saved search, comment thread or agent request the event is about.
         dashboard_id:
           type: string
           format: uuid
@@ -3139,6 +3143,137 @@ components:
           description: The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder.
         permissions:
           $ref: "#/components/schemas/Permissions"
+    SavedSearchFilters:
+      type: object
+      additionalProperties: false
+      description: The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others.
+      properties:
+        columns:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 256
+            pattern: "^[^,]+$"
+          description: The visible columns of a logs search, in order.
+        service:
+          type: string
+          maxLength: 200
+        span:
+          type: string
+          maxLength: 200
+        min:
+          type: string
+          description: The shortest duration, such as `250ms` or `2s`.
+        max:
+          type: string
+          description: The longest duration, such as `250ms` or `2s`.
+        errors:
+          type: boolean
+          description: Only traces with an error.
+    SavedSearch:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, datasource_uid, query, filters, from, to, folder, permissions, actor, created_at, updated_at, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [logs, traces]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        datasource_uid:
+          type: string
+        query:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 8000
+          description: The query as it runs, with the filter pills folded in; null for a trace search made of filters only.
+        filters:
+          $ref: "#/components/schemas/SavedSearchFilters"
+        from:
+          type: string
+          description: The start of the range as written, such as `now-1h`.
+        to:
+          type: string
+          description: The end of the range as written, such as `now`.
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: When the search was saved, renamed or moved last.
+        url:
+          type: string
+          description: The address of the logs or traces page that reopens the search, relative when the server has no public URL configured.
+    SavedSearchList:
+      type: object
+      additionalProperties: false
+      required: [saved_searches, next_cursor]
+      properties:
+        saved_searches:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedSearch"
+        next_cursor:
+          type: string
+          nullable: true
+    CreateSavedSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, title, datasource_uid]
+      properties:
+        kind:
+          type: string
+          enum: [logs, traces]
+        title:
+          type: string
+          description: 1 to 120 characters after trimming, without control characters.
+        datasource_uid:
+          type: string
+          description: The uid of a datasource that exists and fits the kind.
+        query:
+          type: string
+          nullable: true
+          description: 1 to 8000 characters; required for a logs search.
+        filters:
+          $ref: "#/components/schemas/SavedSearchFilters"
+        from:
+          type: string
+          maxLength: 64
+          default: now-1h
+          description: A time expression the time range accepts.
+        to:
+          type: string
+          maxLength: 64
+          default: now
+        folder_id:
+          type: string
+          format: uuid
+          description: The folder to save in, which needs Create. Default the caller's My Dashboards, else General.
+    UpdateSavedSearchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+        folder_id:
+          type: string
+          format: uuid
     FindingList:
       type: object
       additionalProperties: false
@@ -3768,7 +3903,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 21
+          maxItems: 25
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -3834,7 +3969,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 21
+          maxItems: 25
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -3853,7 +3988,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 21
+          maxItems: 25
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
