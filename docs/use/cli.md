@@ -162,7 +162,8 @@ bin/observe investigate --dashboard <dashboard-id> --panel <panel-id> --from now
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--panel` without `--dashboard`, or one of `--from` and `--to` alone, exits 2.
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
-`--json` prints the finished request, which carries the `observation_id` of the observation the investigation wrote into (see [Observations](observations.md#investigations-write-into-an-observation)).
+Each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
+`bin/observe investigate` has no flag to write into an existing observation; the `observation_id` field of `POST /api/v1/observe` does that.
 
 `--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
 It exits 1 when the investigation fails or ends without a finding.

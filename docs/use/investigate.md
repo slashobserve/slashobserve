@@ -40,6 +40,9 @@ While you are editing the layout it reads "Investigate (finish the layout first)
 From a terminal, `observe investigate <question...>` asks the same question and prints the finding; `--dashboard`, `--panel`, `--from` and `--to` set what it is about.
 See [CLI](cli.md).
 
+Every investigation also opens an observation, which shows the run while it works and receives the finding's conclusion and evidence when it is saved.
+See [Investigations write into an observation](observations.md#investigations-write-into-an-observation) for where it goes and how to write into an existing one with `observation_id`.
+
 ## Read the finding
 
 In the chat, an investigation's turn shows its steps like a build, with the status "Investigating" while it runs.

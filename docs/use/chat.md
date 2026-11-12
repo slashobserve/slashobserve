@@ -202,6 +202,7 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
 Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs.
+A retried investigation writes into the same observation when the person retrying may comment on it, and otherwise into a new one (see [Observations](observations.md#investigations-write-into-an-observation)).
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 

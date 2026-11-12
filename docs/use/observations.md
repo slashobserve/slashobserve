@@ -88,12 +88,33 @@ A revision with a snapshot of data that depends on who is viewing, from `${__use
 
 ## Investigations write into an observation
 
-An [investigation](investigate.md) opens an observation when it is queued, and works into it while it runs.
-`POST /api/v1/observe` takes an optional `observation_id` for an investigation, which must be an observation you can see and may comment on, and without one the server starts a new observation.
-A new observation goes in the folder of the dashboard the investigation is about when you can edit that folder, otherwise in the folder you create in by default, which is My Dashboards for a person.
-The page shows a `run` block while the agent works.
+An [investigation](investigate.md) opens an observation when it is queued, and its run shows there as a `run` block while the agent works.
+`POST /api/v1/observe` with `kind` `investigate`, and `observe investigate`, both do this.
 
-When the agent saves its finding, the finding is saved as before, and its conclusion also becomes a text block, with one panel block for each panel of its evidence.
-The blocks are `live` when you can edit the folder and `requested` when you can only comment, and saving twice never adds them twice.
-A failure writing the observation never changes the finding, and an investigation whose observation cannot be placed still runs and saves its finding.
-Runs report the observation in `observation_id`, and `observe investigate --json` carries it.
+`POST /api/v1/observe` takes an optional `observation_id` for an investigation, the observation to write into.
+It must be an observation you can see, or the answer is 404 `not_found`, and one you may comment on, or the answer is 403 `forbidden_role`.
+An investigation that names an observation with 100 blocks already gets no run block and no `observation_id`, because the page has no room.
+
+Without `observation_id`, the server makes a new observation:
+
+- Its title is the first line of the prompt, cut to 200 characters, or "Investigation" when that line is empty.
+- Its range is the window of the investigation, and it has none when the investigation was given no `from` and `to`.
+- It goes in the folder of the dashboard the investigation is about when you can edit that folder.
+  Otherwise it goes in your My Dashboards when you may create there, and otherwise in General when you may create there.
+- When no such folder exists, the investigation still runs, writes no observation, and its `observation_id` is null.
+
+When the agent saves its finding, the finding is saved as before.
+Its conclusion also becomes a text block that starts with `## <title>` and goes on with the finding's Markdown, cut to the 8,000 characters the server accepts in a text block, followed by one panel block for each panel of its evidence.
+The panel blocks show the finding's own window.
+The run block then cites these blocks, and a run adds them once, so saving the finding again adds nothing.
+An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
+
+A block is `live` when you can edit the observation's folder at the moment it is written, and `requested` when you can only comment.
+A failure writing these blocks never changes the finding or the investigation's result: the failure is logged and the finding stands.
+A server error while the observation is opened queues nothing and answers the request with that error.
+
+`observation_id` on a run is the observation it writes into, and `GET /api/v1/observe/{id}` and `observe investigate --json` carry it.
+`observe investigate` has no flag to name an observation, so a terminal always starts a new one.
+
+Starting an investigation again, with `POST /api/v1/observe/{id}/retry` or `observe retry`, writes into the observation of the run when you may comment on it.
+Otherwise, or when that run had none, the rules for a new observation apply to you.
