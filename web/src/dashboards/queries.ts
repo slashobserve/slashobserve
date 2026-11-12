@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { ApiError, unwrap } from "@/api/errors"
 import {
   dashboardKeys,
   datasourceKeys,
@@ -174,7 +174,17 @@ export function useAddVersion(id: string) {
             parent_version: input.parent_version,
           },
         })
-        .then(unwrap),
+        .then(unwrap)
+        .then((saved) => {
+          if ("proposal_id" in saved) {
+            throw new ApiError(
+              202,
+              "proposal_created",
+              "The change was saved as a proposal."
+            )
+          }
+          return saved
+        }),
     onSuccess: store,
   })
 }

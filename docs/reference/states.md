@@ -89,6 +89,23 @@ A block is one item on an observation's page: Markdown, a live panel, a frozen s
 | `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
 | `remove` | `live` | `deleted` | `observation.block_removed` | editor |
 
+## Proposal
+
+A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `open` | Waiting for someone who can edit to merge or discard it. | `update`, `merge`, `discard` |
+| `merged` | Its change was saved as a new version of the dashboard. Final. | - |
+| `discarded` | Closed without saving its change. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `propose` | - | `open` | `proposal.opened` | commenter |
+| `update` | `open` | - | `proposal.updated` | requester |
+| `merge` | `open` | `merged` | `proposal.merged` | editor |
+| `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.

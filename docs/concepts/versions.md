@@ -20,6 +20,7 @@ These all save a version:
 - A restore of an older version.
 
 Moving a dashboard to another folder saves no version.
+A [proposal](proposals.md) saves none either until a person who can edit merges it.
 
 ## What a version records
 

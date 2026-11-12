@@ -151,7 +151,7 @@ LIMIT 500;
 
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = @id AND (sqlc.narg('before')::int IS NULL OR version < sqlc.narg('before')::int)
 ORDER BY version DESC

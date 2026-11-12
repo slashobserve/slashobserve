@@ -2,6 +2,7 @@ package dashboards
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -355,5 +357,74 @@ func TestTheVersionsRouteAnswersAViewerBeforeReadingTheBodyAndACommenterAfter(t 
 	}
 	if rec := b.serve(commenterNoGrant, http.MethodPost, path, saveBody(twoPanels("y0", "x1"), 2, "")); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) {
 		t.Errorf("a commenter with a valid body = %d %s, want 403 %s", rec.Code, rec.Body, roleErrorCode)
+	}
+}
+
+func TestAnEditorInProposeModeNeverWritesAVersionDirectly(t *testing.T) {
+	r := newRig(t, false)
+	dash := r.createDashboard(t)
+	proposed := 0
+	r.service.SetProposer(func(context.Context, auth.Principal, ProposeInput) (ProposalRef, error) {
+		proposed++
+		return ProposalRef{ID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", Revision: 1, Opened: true}, nil
+	})
+	ctx := grantmode.With(t.Context(), grantmode.Propose)
+	save := func(propose bool) (SaveResult, error) {
+		return r.service.Save(ctx, testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "idea", ProposeIfNeeded: propose})
+	}
+
+	if _, err := save(false); !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("without propose_if_needed: err = %v, want forbidden", err)
+	}
+	if got := r.latestNumber(t, dash); got != 1 || proposed != 0 {
+		t.Fatalf("latest = %d, proposer ran %d times, want no version and no proposal", got, proposed)
+	}
+	res, err := save(true)
+	if err != nil || res.Proposal == nil || res.Version.Number != 0 || proposed != 1 {
+		t.Fatalf("proposal %+v, version %d, err %v, want a proposal and no version", res.Proposal, res.Version.Number, err)
+	}
+	if got := r.latestNumber(t, dash); got != 1 {
+		t.Fatalf("latest = %d, want 1", got)
+	}
+	if _, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "direct"}); err != nil {
+		t.Fatalf("the same editor outside propose mode: %v", err)
+	}
+}
+
+func TestCheckProposalRunsTheQueriesTheProposalChanges(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: []panelDef{{id: "p0", query: "m0"}, {id: "p1", query: "m1"}}})
+	parse := func(q0, q1 string) *spec.Dashboard {
+		parsed, err := spec.Parse(twoPanels(q0, q1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed
+	}
+	p.setFail("y1", true)
+
+	if err := r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "x1"), false); err != nil {
+		t.Fatalf("a proposal whose queries run: %v", err)
+	}
+	_ = wantInvalid(t, r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "y1"), false))
+	_ = wantInvalid(t, r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "y1"), true))
+	if err := r.service.CheckProposal(t.Context(), testUser, id, 9, parse("m0", "x1"), false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("an unknown base: err = %v, want not found", err)
+	}
+	if got := r.latestNumber(t, id); got != 1 {
+		t.Fatalf("latest = %d, want the check to save nothing", got)
+	}
+}
+
+func TestAVersionNamesTheProposalItWasMergedFromOrNull(t *testing.T) {
+	meta := VersionMeta{Number: 2, Author: Author{Kind: "user", ID: "u", Name: "Ada"}, MergedProposalID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"}
+	raw, err := json.Marshal(newVersionMetaJSON(meta))
+	if err != nil || !strings.Contains(string(raw), `"merged_proposal_id":"0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"`) {
+		t.Fatalf("merged version = %s, %v", raw, err)
+	}
+	meta.MergedProposalID = ""
+	raw, err = json.Marshal(newVersionMetaJSON(meta))
+	if err != nil || !strings.Contains(string(raw), `"merged_proposal_id":null`) {
+		t.Fatalf("direct version = %s, %v", raw, err)
 	}
 }

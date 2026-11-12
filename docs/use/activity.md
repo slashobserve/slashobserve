@@ -25,6 +25,8 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Observation | `observation.block_added`, `observation.block_updated` | A block is added to an observation's page, or one changes or moves. |
 | Observation | `observation.block_kept`, `observation.block_discarded` | An editor keeps a block someone requested, or discards it; its author may discard it too. |
 | Observation | `observation.block_removed` | A block is taken off an observation's page. |
+| Proposal | `proposal.opened`, `proposal.updated` | A [change is proposed](../concepts/proposals.md), or its author saves again. |
+| Proposal | `proposal.merged`, `proposal.discarded` | Someone who can edit merges it, or it is discarded. |
 | Run | `run.queued`, `run.started`, `run.released` | An [agent request](chat.md) is queued, a worker starts it, or a stopping server hands it back to the queue. |
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |

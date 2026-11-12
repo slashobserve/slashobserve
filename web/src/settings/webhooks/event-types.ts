@@ -28,6 +28,10 @@ export const eventTypeLabels = {
   "observation.block_kept": "Block kept",
   "observation.block_discarded": "Block discarded",
   "observation.block_removed": "Block removed",
+  "proposal.opened": "Proposal opened",
+  "proposal.updated": "Proposal updated",
+  "proposal.merged": "Proposal merged",
+  "proposal.discarded": "Proposal discarded",
   "thread.opened": "Thread opened",
   "thread.replied": "Thread replied to",
   "thread.edited": "Message edited",
@@ -50,6 +54,7 @@ const groupLabels: Record<string, string> = {
   finding: "Findings",
   saved_search: "Saved searches",
   observation: "Observations",
+  proposal: "Proposals",
   thread: "Comment threads",
   run: "Agent runs",
 }

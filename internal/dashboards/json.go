@@ -73,6 +73,8 @@ type versionMetaJSON struct {
 	OriginClient   *string    `json:"origin_client"`
 	AgentRequestID *string    `json:"agent_request_id"`
 	Actor          actor.JSON `json:"actor"`
+
+	MergedProposalID *string `json:"merged_proposal_id"`
 }
 
 type versionJSON struct {
@@ -206,6 +208,8 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 		OriginClient:   httpapi.OptionalString(v.OriginClient),
 		AgentRequestID: httpapi.OptionalString(v.AgentRequestID),
 		Actor:          versionActor(v).JSON(),
+
+		MergedProposalID: httpapi.OptionalString(v.MergedProposalID),
 	}
 }
 

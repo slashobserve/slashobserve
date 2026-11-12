@@ -517,7 +517,7 @@ func (q *Queries) ListDashboardTags(ctx context.Context, folders []pgtype.UUID) 
 
 const listDashboardVersions = `-- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = $1 AND ($2::int IS NULL OR version < $2::int)
 ORDER BY version DESC
@@ -531,19 +531,20 @@ type ListDashboardVersionsParams struct {
 }
 
 type ListDashboardVersionsRow struct {
-	DashboardID    pgtype.UUID
-	Version        int32
-	ParentVersion  pgtype.Int4
-	RestoredFrom   pgtype.Int4
-	Summary        string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	AgentRequestID pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
+	DashboardID      pgtype.UUID
+	Version          int32
+	ParentVersion    pgtype.Int4
+	RestoredFrom     pgtype.Int4
+	Summary          string
+	AuthorKind       string
+	AuthorID         pgtype.UUID
+	AuthorName       string
+	AuthorEmail      pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	AgentRequestID   pgtype.UUID
+	MergedProposalID pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVersionsParams) ([]ListDashboardVersionsRow, error) {
@@ -568,6 +569,7 @@ func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVe
 			&i.Origin,
 			&i.OriginClient,
 			&i.AgentRequestID,
+			&i.MergedProposalID,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

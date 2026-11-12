@@ -6,7 +6,7 @@ activity:
       cli: [observe activity]
     summary: List workspace activity, newest first.
     description: >-
-      Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled.
+      Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled.
       Events are ordered by their position in the log, newest first, and `seq` is the id of an event.
       A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin.
       A global annotation belongs to General, so everyone who can read global annotations sees its events.
@@ -21,6 +21,7 @@ activity:
       `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`;
       `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`;
       `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`;
+      `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`;
       `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known.
       `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation or observation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`).
       Suggestions and build progress are not recorded.
@@ -45,7 +46,7 @@ activity:
         explode: true
         schema:
           type: array
-          maxItems: 39
+          maxItems: 43
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
@@ -115,7 +116,7 @@ activity-stream:
         explode: true
         schema:
           type: array
-          maxItems: 39
+          maxItems: 43
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since

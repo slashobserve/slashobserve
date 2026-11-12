@@ -53,6 +53,11 @@ var exceptions = map[string]exception{
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 
+	"listProposals":   {MCP: notBuilt, CLI: notBuilt},
+	"getProposal":     {MCP: notBuilt, CLI: notBuilt},
+	"mergeProposal":   {MCP: notBuilt, CLI: notBuilt},
+	"discardProposal": {MCP: notBuilt, CLI: notBuilt},
+
 	"logVolume": {MCP: notBuilt, CLI: notBuilt},
 
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},

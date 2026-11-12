@@ -356,7 +356,8 @@ dashboards-id-versions:
       the new version lists it again with the new issues.
       Any other failing query is a 422 `invalid_spec` that lists only the blocking issues.
       With `merge: auto`, a stale save that changed other panels, variables or settings than the newer versions is merged and saved on top of the latest, and the reply has `merged_from`; an overlap answers 409 with `conflicts`.
-      With `propose_if_needed`, a caller who can comment but not edit gets a proposal instead of a 403 where the server has proposals.
+      With `propose_if_needed`, a caller who can comment but not edit, or whose connection is in propose mode, gets a proposal and a 202 instead of a 403.
+      Without it, such a caller is refused with 403.
     requestBody:
       required: true
       content:
@@ -385,7 +386,7 @@ dashboards-id-versions:
               propose_if_needed:
                 type: boolean
                 default: false
-                description: Save the change as a proposal when the caller can comment but not edit and the server has proposals.
+                description: Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
     responses:
       "200":
         description: The request repeats the latest version, so that version is returned.
@@ -410,6 +411,17 @@ dashboards-id-versions:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
+      "202":
+        description: The change became a proposal, or a revision of the caller's open one; no version was saved.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalCreated"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

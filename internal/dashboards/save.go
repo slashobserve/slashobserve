@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -72,12 +73,16 @@ type savedDocument struct {
 	canonical []byte
 }
 
+func mustPropose(ctx context.Context, a folders.Abilities) bool {
+	return !a.Edit || grantmode.From(ctx) == grantmode.Propose
+}
+
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {
 	access, err := s.need(ctx, by, in.DashboardID, folders.NeedView)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	if !access.Abilities.Edit {
+	if mustPropose(ctx, access.Abilities) {
 		return s.propose(ctx, by, in, access)
 	}
 	res, err := s.persist(ctx, by, in)
@@ -112,6 +117,19 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 		return SaveResult{}, err
 	}
 	return SaveResult{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+}
+
+func (s *Service) CheckProposal(ctx context.Context, by auth.Principal, id pgtype.UUID, base int, next *spec.Dashboard, partial bool) error {
+	prev, err := s.VersionSpec(ctx, id, base)
+	if err != nil {
+		return err
+	}
+	prevUnverified, err := s.store.unverified(ctx, id, base)
+	if err != nil {
+		return err
+	}
+	_, err = s.verify(ctx, by, prev, prevUnverified, next, partial)
+	return err
 }
 
 func (s *Service) persist(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {

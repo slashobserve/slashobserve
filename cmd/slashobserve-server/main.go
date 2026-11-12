@@ -54,6 +54,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/prompts"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -307,6 +308,8 @@ func run() error {
 
 	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
+	proposalsService := proposals.New(database, folderAccess, dashboardsService, logger)
+	dashboardsService.SetProposer(proposalsService.Propose)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
@@ -345,6 +348,7 @@ func run() error {
 		Runner:        runner,
 		Dashboards:    dashboardsService,
 		Threads:       threadsService,
+		Proposals:     proposalsService,
 		Imports:       importsService,
 		Folders:       folderAccess,
 		Findings:      findingsService,
@@ -449,6 +453,7 @@ func run() error {
 		API: []server.Registrar{
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
+			proposals.NewHandler(proposalsService, folderAccess.RequireDashboard(folders.NeedView), logger),
 			imports.NewHandler(importsService, folderAccess),
 			grafanaconn.NewHandler(grafanaService),
 			webhooks.NewHandler(webhooksService, logger),
