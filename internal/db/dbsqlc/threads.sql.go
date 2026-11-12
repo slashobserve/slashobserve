@@ -20,7 +20,7 @@ SELECT
   coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::text, $4::text, $5::uuid,
   $6::text, $7::text, $8::text, $9::text, clock.at, clock.at
 FROM clock
-RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id
 `
 
 type CreateMessageParams struct {
@@ -63,6 +63,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (T
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EditedAt,
+		&i.RunID,
 	)
 	return i, err
 }
@@ -132,7 +133,7 @@ const editMessage = `-- name: EditMessage :one
 UPDATE thread_messages
 SET body = $1::text, edited_at = clock_timestamp(), updated_at = clock_timestamp()
 WHERE id = $2
-RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id
 `
 
 type EditMessageParams struct {
@@ -156,12 +157,13 @@ func (q *Queries) EditMessage(ctx context.Context, arg EditMessageParams) (Threa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EditedAt,
+		&i.RunID,
 	)
 	return i, err
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at FROM thread_messages WHERE id = $1
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id FROM thread_messages WHERE id = $1
 `
 
 func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (ThreadMessage, error) {
@@ -180,6 +182,7 @@ func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (ThreadMessage
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EditedAt,
+		&i.RunID,
 	)
 	return i, err
 }
@@ -303,7 +306,7 @@ func (q *Queries) InsertMention(ctx context.Context, arg InsertMentionParams) er
 }
 
 const listMentions = `-- name: ListMentions :many
-SELECT message_id, user_id, agent, name FROM thread_mentions WHERE message_id = ANY($1::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id
+SELECT message_id, user_id, agent, name, agent_grant_id, agent_service_account_id FROM thread_mentions WHERE message_id = ANY($1::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id
 `
 
 func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([]ThreadMention, error) {
@@ -320,6 +323,8 @@ func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([
 			&i.UserID,
 			&i.Agent,
 			&i.Name,
+			&i.AgentGrantID,
+			&i.AgentServiceAccountID,
 		); err != nil {
 			return nil, err
 		}
@@ -332,7 +337,7 @@ func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([
 }
 
 const listThreadMessages = `-- name: ListThreadMessages :many
-SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id
+SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id
 FROM thread_messages m
 JOIN threads t ON t.id = m.thread_id
 WHERE (t.dashboard_id = $1::uuid
@@ -396,6 +401,7 @@ func (q *Queries) ListThreadMessages(ctx context.Context, arg ListThreadMessages
 			&i.ThreadMessage.CreatedAt,
 			&i.ThreadMessage.UpdatedAt,
 			&i.ThreadMessage.EditedAt,
+			&i.ThreadMessage.RunID,
 			&i.Thread.ID,
 			&i.Thread.DashboardID,
 			&i.Thread.DashboardVersion,
