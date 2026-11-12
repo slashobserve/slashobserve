@@ -152,6 +152,7 @@ The guards steer before they stop, and every refusal and every stop shows as a s
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
+The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards (see [MCP](../use/mcp.md#the-run-session-enforces-the-guards)).
 
 ### Tool results and failures
 
@@ -297,6 +298,15 @@ When a revision request comes from a comment, the server resolves that thread it
 ### Data sent to the provider
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).
+
+## Runtimes
+
+`SLASHOBSERVE_AGENT_RUNTIME` picks where the loop runs.
+With `go`, the default, the loop runs inside the server.
+With `sidecar`, the server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
+The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
+The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
+Whichever runtime runs, the guards, the limits and the saved result are the same.
 
 ## MCP clients use their own model
 
