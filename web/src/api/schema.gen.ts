@@ -4858,6 +4858,8 @@ export interface components {
             /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired`, `no_progress`, `agent_unavailable`, `agent_failed` or `budget_exhausted`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
+            /** @description The end of the text the model has written in this attempt, while the request is running; null otherwise. It is kept only in server memory and is gone once the request finishes. Steps remain the record of what the agent did. */
+            live_text: string | null;
             /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
             /** @description Progress of the build the agent assembles for this request, null when there is none. Shown to everyone who can see the request; the build's Spec is readable only by the requester through `GET /observe/{id}/build`. */

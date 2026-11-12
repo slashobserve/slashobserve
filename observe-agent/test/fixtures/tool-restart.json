@@ -1,0 +1,4 @@
+{
+  "prompt": "a save restarts the run",
+  "turns": [{ "tool_calls": [{ "name": "update_panels" }] }]
+}

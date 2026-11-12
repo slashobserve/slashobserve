@@ -6,18 +6,17 @@ import { chromium } from "@playwright/test"
 
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), "../public")
 
-const ink = "#0a0a0a"
-const paper = "#ffffff"
-const inkDark = "#fafafa"
-const paperDark = "#111113"
+const ink = "#0d0d12"
+const inkDark = "#ececf1"
+const accent = "#0a7f86"
 const slash = "M14.6 5.6 9.4 18.4"
 const radius = "5.8"
 
-const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>rect{fill:${ink}}path{stroke:${paper}}@media (prefers-color-scheme:dark){rect{fill:${inkDark}}path{stroke:${paperDark}}}</style><rect width="24" height="24" rx="${radius}"/><path d="${slash}" fill="none" stroke-width="2.6" stroke-linecap="round"/></svg>`
+const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>rect{fill:${ink}}path{stroke:${accent}}@media (prefers-color-scheme:dark){rect{fill:${inkDark}}}</style><rect width="24" height="24" rx="${radius}"/><path d="${slash}" fill="none" stroke-width="2.6" stroke-linecap="round"/></svg>`
 
 function iconSvg(size, rounded) {
   const corner = rounded ? ` rx="${radius}"` : ""
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24"><rect width="24" height="24"${corner} fill="${ink}"/><path d="${slash}" fill="none" stroke="${paper}" stroke-width="2.6" stroke-linecap="round"/></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24"><rect width="24" height="24"${corner} fill="${ink}"/><path d="${slash}" fill="none" stroke="${accent}" stroke-width="2.6" stroke-linecap="round"/></svg>`
 }
 
 const pngs = [

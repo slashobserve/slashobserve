@@ -1,0 +1,13 @@
+{
+  "prompt": "create happy path",
+  "turns": [
+    {
+      "text": "building",
+      "tool_calls": [
+        { "name": "list_datasources" },
+        { "name": "list_metrics", "input": { "datasource": "prom" } },
+        { "name": "create_dashboard", "input": { "title": "t" } }
+      ]
+    }
+  ]
+}

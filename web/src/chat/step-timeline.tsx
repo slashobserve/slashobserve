@@ -26,6 +26,7 @@ type Props = {
   working: boolean
   reconnecting: boolean
   latest?: number
+  liveText?: string | null
   requestId?: string
   pane?: boolean
 }
@@ -132,6 +133,7 @@ export function StepTimeline({
   working,
   reconnecting,
   latest,
+  liveText,
   requestId,
   pane = false,
 }: Props) {
@@ -178,6 +180,16 @@ export function StepTimeline({
           </li>
         ) : null}
       </ol>
+      {working && liveText ? (
+        <div className="flex max-h-[9em] flex-col justify-end overflow-hidden pl-[21px] text-[13px] leading-[1.5]">
+          <p
+            aria-live="off"
+            className="text-[13px] wrap-anywhere whitespace-pre-wrap text-muted-foreground"
+          >
+            {liveText}
+          </p>
+        </div>
+      ) : null}
       {clipped ? (
         <button
           type="button"

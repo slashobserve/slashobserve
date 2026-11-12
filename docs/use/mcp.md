@@ -36,6 +36,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `get_panels` | Viewer |
 | `get_proposal` | Viewer |
 | `get_run` | Viewer |
+| `get_run_brief` | Viewer |
 | `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
 | `get_trace` | Viewer |
@@ -442,6 +443,7 @@ The loop of an agent that takes runs:
    Call it again.
 2. A claimed run holds its `id`, `attempt`, `kind`, `prompt` and target, a `session` with a `url` and a `token`, and the `observe` prompt to read with the run's `kind`.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
+   `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
 5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
@@ -452,13 +454,61 @@ Its prompt list is empty, because the `observe` prompt is read on the first conn
 
 The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
-A run that saved a dashboard version or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
+A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no agent held for 10 minutes fails as `agent_unavailable`.
 
-The `usage` of `finish_run` is shown on the run as the agent reports it, and a reported cost does not stop a run.
+### The run session enforces the guards
+
+The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it:
+
+- The save-now window: after 6 turns without a save, 12 in an investigate or suggest run, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
+- Identical reads: a third identical read is refused, and an errored read or a query result runs again.
+- One save per turn: a second save in one turn is refused.
+- Repeated saves: a save identical to an earlier one is refused.
+- Rejected saves in a row: the third ends the run as `validation_exhausted`.
+- Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
+- Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
+- The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`; without `usage` the server cannot know the cost and never stops a run for it.
+- Conflicts: a save that finds a newer version first rebases the build onto it when the panels do not overlap, and otherwise the run restarts once from the latest version; a second conflict ends the run as `conflict`.
+
+Every call may carry `_meta["slashobserve.com/turn"]` with `{"id", "calls", "saves"}`: the id of one model turn, how many calls the turn made and how many of them save.
+The server treats the calls with one id as one turn.
+Without the key, each call is its own turn, so the stalled-turn and one-save-per-turn guards judge one call at a time.
+A key the server cannot trust (an empty or over-long id, more than 64 calls, or more saves than calls) is ignored.
+The key may also carry `usage`, the same cumulative object as `report_run`, counting the model call that made the turn, so a run the server ends on the result of that turn stores the usage including it.
+The cost limit is checked only on `report_run` and `finish_run`.
+
+Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"settled", "build"}`.
+`settled` is `saved`, `proposed`, `finding` or `suggested` once the run has its result (`proposed` when the save became a proposal, which ends the run as succeeded with the result kind `proposal`), `restarted` when a conflict restarted the run from the latest version, `ended` once the run has ended, and `null` otherwise.
+`build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
+Some results also carry a note after the content, which an agent reads like any other tool text.
+
+### Briefs, usage and live text
+
+`get_run_brief` takes `run_id`, `attempt` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
+`message` is the first message of a model session.
+Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against, and the server may replace `reason` (with `conflict` after a rebase, with the resume reason when the run has a build).
+An agent that never calls it works from the claim answer and the `observe` prompt.
+It answers `run_ended` for a run that has ended.
+
+`report_run` also takes, all optional:
+
+- `text`, at most 4,000 characters: the end of what the model is writing, shown on the run as live text while the run is running and never stored.
+- `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
+
+Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress.
+
+`finish_run` also takes `failure_code`, one of `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `no_finding`, `refused`, `no_fixture` and `internal`, with `outcome` `failed`: the server stores its own text for the code, so no `message` is needed.
+`commit: true`, with `outcome` `succeeded`, saves the finished build as a version first.
+`usage` takes the fields above.
+The answer has `restarted`, true when the commit found a newer version and the run restarted from it: the run stays claimed, so call `get_run_brief` and go on.
+`finish_run` on a run that was canceled settles it as canceled at once.
+A `failure_code` with another outcome, a code outside the list, or `commit` with `outcome` `failed` answers `invalid_request`.
+
+The `usage` of `finish_run` is shown on the run as the agent reports it.
 A connected agent or service account shows its presence, `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise, with `last_seen_at`; see [Agent presence](../reference/states.md#agent-presence).
 A connection's `mode` is `direct` by default.
 Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`; it applies from the agent's next request, and no key or agent can change it.
 In propose mode `update_dashboard` and `update_panels` save a proposal and answer `proposed` even when the person is an Editor, `merge_proposal` answers `propose_mode`, and `discard_proposal` works only on a proposal the agent itself opened.
-A save that removes panels or variables answers `proposal_required` and names them, so the agent asks its person to remove them; the same holds when a run ends with `finish` on a build that removed any.
+A save that removes panels or variables answers `proposal_required` and names them, so the agent asks its person to remove them; the same holds when a run ends with `finish` on a build that removed any, and when `finish_run` with `commit` saves such a build, which stays so the agent can put the panels back and finish again.
 `create_dashboard` is not changed by the mode.

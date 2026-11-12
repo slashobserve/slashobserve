@@ -121,7 +121,7 @@ export function PanelChrome({
         transparent ? "border-transparent bg-transparent" : "bg-card",
         emphasized &&
           "border-foreground outline outline-1 -outline-offset-1 outline-foreground",
-        selected && "ring-2 ring-ring"
+        selected && "ring-2 ring-selection-strong"
       )}
     >
       <header

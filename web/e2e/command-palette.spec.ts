@@ -166,7 +166,7 @@ test("draws the palette flat in dark mode", async ({ page }) => {
   })
   expect(styles).toEqual({
     boxShadow: "none",
-    backgroundColor: "rgb(17, 17, 19)",
+    backgroundColor: "rgb(26, 27, 31)",
     borderTopWidth: "1px",
   })
 })

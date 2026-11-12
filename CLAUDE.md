@@ -9,13 +9,14 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 
 | Command | What it does |
 | --- | --- |
-| `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
+| `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded, `bin/observe` and `bin/observe-agent`. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
-| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), then `scripts/release-scripts-test.sh` (the release tag and release notes scripts), `scripts/install-test.sh` (the root `install.sh`, against fake release assets) and `scripts/docs-lint-test.sh` (the docs lint rules, against fixture pages). |
-| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, `scripts/docs-lint.sh` on the docs pages, and `scripts/helm-check.sh` (Helm lint and renders of the chart, no Secret in them, and its internals dashboard equal to the compose copy). |
+| `make agent` | Install the `observe-agent` dependencies and compile `bin/observe-agent` with Bun (`--version` prints the make `VERSION`); `make build` builds it too. |
+| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), `bun test` for `observe-agent`, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts), `scripts/install-test.sh` (the root `install.sh`, against fake release assets) and `scripts/docs-lint-test.sh` (the docs lint rules, against fixture pages). |
+| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, the `observe-agent` typecheck and Prettier check, `scripts/docs-lint.sh` on the docs pages, and `scripts/helm-check.sh` (Helm lint and renders of the chart, no Secret in them, and its internals dashboard equal to the compose copy). |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo`), `build`: what the CI `check` job runs. |
-| `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
+| `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`) and for the `observe-agent` lockfile: what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make golden` | Rewrite the `pkg/grafana` corpus goldens and the generated option map (`optionmap.json`). |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` from the published images `ghcr.io/slashobserve/slashobserve` and `ghcr.io/slashobserve/demo-shop` (tag `latest`, overridable with `SLASHOBSERVE_IMAGE` and `SLASHOBSERVE_SHOP_IMAGE`) with no compile, and stop it; it cannot pull until the first release tag is published, so use `make demo-build` until then. The stack: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
@@ -38,7 +39,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make evals-stack-up [EVALS_STACK_MODE=replay\|<env-file>]` | Generate the replay fixtures and synthetic series, then boot the isolated `slashobserve-evals` stack on http://localhost:28080 (Prometheus on :29090, the `checkout-0` and `checkout-1` fault APIs on :28081 and :28082); the default `replay` mode never reads `deploy/compose/.env`, and an env file path boots it on the provider settings of that file; it returns once Prometheus serves the node, shop and synthetic series the scenarios read, about 3 minutes after the containers are healthy, once the synthetic series hold the history a retime step needs. |
 | `make evals-stack-down` | Remove the `slashobserve-evals` containers and drop its volumes only. |
 | `scripts/evals-stack.sh up --k8s replay` | Boot the evals stack against the running Kubernetes demo: it adds the `prom_k8s` datasource, joins the server to the cluster's docker network and serves no synthetic series. Then `go run ./evals/runner --verify-k8s --server http://localhost:28080 --bootstrap-dex` imports the 29 Kubernetes corpus dashboards and compares their unverified panels with `evals/k8s-gaps.yaml`; `--profile k8s` runs the live suite on them. |
-| `make evals-replay` | Boot the replay stack and run `--suite replay --bootstrap-dex --min-pass 1` against it with no key or model: what the CI `evals-replay` job runs. |
+| `make evals-replay` | Boot the replay stack and run `--suite replay --bootstrap-dex --min-pass 1` against it with no key or model (`EVALS_OUT=<file>` writes the JSON report; `SLASHOBSERVE_AGENT_RUNTIME=go|sidecar` picks the runtime): what the CI `evals-replay` job runs. |
 | `make evals-live [EVALS_MATRIX=evals/matrix.yaml] [EVALS_REPORT_DIR=evals/reports/live]` | Run the live suite once per model of the git-ignored matrix file (see `evals/matrix.example.yaml`) against a running evals stack, recreating only the server between models; spends tokens, so it runs by hand and CI never runs it. |
 
 Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`, `/healthz` and `/readyz` to :8080), `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
@@ -49,6 +50,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 
 - `internal/CLAUDE.md`: backend conventions for `internal/` and `cmd/`.
 - `web/CLAUDE.md`: frontend conventions.
+- `observe-agent/CLAUDE.md`: the built-in agent's separate process.
 - `e2e/CLAUDE.md`: rules for both end-to-end suites; read it before editing `scripts/e2e.sh`, the demo data under `deploy/compose/` or `demo`, or a Playwright spec in `web/e2e`.
 - `pkg/` has no file of its own; its rules are under "pkg conventions" below.
 
@@ -63,6 +65,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `spec/`: `schema/observespec.v0.json` and `schema/defaults.json`, plus `examples/` (valid examples and `invalid/` fixtures with `expected.json`) shared by Go, TS and e2e tests.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
+- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it unless `SLASHOBSERVE_AGENT_RUNTIME=go`, and the image ships it at `/usr/local/bin/observe-agent`.
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
 - `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite), `replicas.sh` (lifecycle of the isolated `slashobserve-replicas` stack: `up`, `down`, `status`, `logs`, `keys`, `stop`, `kill`, `start`, `workers`, `check`, `load`), `evals-stack.sh` (lifecycle of the isolated `slashobserve-evals` stack: `up [--k8s] replay|<env-file>`, `server [--k8s] <env-file>`, `down`, `status`), `demo-k8s.sh` (lifecycle of the Kubernetes demo cluster) and the release tag and notes scripts.
@@ -107,22 +110,23 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 ## Dependencies
 
 - Pin exact versions only, and only versions released at least 14 days earlier.
-  `web/bunfig.toml` enforces both for npm packages; Go dependencies are exact in `go.mod`.
+  `web/bunfig.toml` and `observe-agent/bunfig.toml` enforce both for npm packages; Go dependencies are exact in `go.mod`.
 - `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
 - Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
 - `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it.
-- `anthropic-sdk-go` and `openai-go/v3` are the only model clients.
+- The model clients are `anthropic-sdk-go` and `openai-go/v3` for the Go runtime and draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
   Adapters stream, retry in one place (`llm.Retry`, the SDKs' retries off) and keep provider history append-only except `Session.Compact`; request-side pruning changes only what is sent.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).
   The OpenAI-compatible adapter rebuilds assistant history with its own helper, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`, in `internal/db/dbtest` and in `deploy/helm/kind/postgres.yaml`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki`, `grafana/tempo`, `elasticsearch` and `opensearch` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo,elasticsearch}`, and `prom/prometheus` also in `deploy/helm/kind/prometheus.yaml`; the `kindest/node` image in `demo/k8s/kind.yaml` and `deploy/helm/kind/kind.yaml`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the root `Dockerfile` runs on `distroless/base-nossl` for the Bun binary's glibc while `demo/Dockerfile` keeps `distroless/static`, so the two digests no longer move together; Bun in `web/package.json` (`packageManager`, read by CI), in `observe-agent/package.json` (`packageManager` and the exact `@types/bun`, which follows the same version) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`, in `internal/db/dbtest` and in `deploy/helm/kind/postgres.yaml`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki`, `grafana/tempo`, `elasticsearch` and `opensearch` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo,elasticsearch}`, and `prom/prometheus` also in `deploy/helm/kind/prometheus.yaml`; the `kindest/node` image in `demo/k8s/kind.yaml` and `deploy/helm/kind/kind.yaml`.
   Dependabot ignores the `golang` and `oven/bun` images because they move with those pins.
 - Justify every new dependency in its PR.
 
 ## Product rules
 
-- The agent only ever outputs ObserveSpec JSON, and its text output is discarded: only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
+- The agent only ever outputs ObserveSpec JSON, and its text is never stored and never leaves a run as a result: only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
+  While a run runs, the end of its text is shown as plain text (`live_text`, server memory only, never rendered as Markdown or HTML).
   No code path takes LLM-written HTML or JS into the UI.
   The agent outputs ObserveSpec JSON or, in an investigate run or a chat request that only asks a question, a tool-saved finding, which is written into an observation; nothing else leaves a run.
 - The agent saves into a build one panel per save, and only the finished build becomes a version, one per request.
@@ -142,8 +146,9 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - A webhook is an Admin's decision: no agent or MCP tool reads, creates, changes, tests or deletes one.
 - Connecting an MCP client is a person's decision on the consent page: no agent, MCP tool or key approves, lists or disconnects one.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
-- Tools are defined once in `internal/agent/tools`, with one description per tool and per parameter; MCP and the built-in agent read the same text except the four named variants in `wording.go` (`guide`, `folder`, `run target`, `build`), and `TestSurfacesDifferOnlyByNamedVariants` fails on any other difference; the comment tools, the observation tools (`create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`), `list_folders`, `create_finding`, `move_finding`, `save_search`, `list_saved_searches`, `list_dashboard_health`, `create_annotation`, `list_activity`, `get_run`, `search_workspace`, `draft_query`, `claim_run`, `report_run` and `finish_run` are MCP-only, `list_annotations` reaches the agent only in investigate runs, and `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.
-  A run token (`sot_`) session on `/mcp` lists exactly the tools `OfferedIn` the run's mode with the agent wording, acts as the requester and records a step per call.
+- Tools are defined once in `internal/agent/tools`, with one description per tool and per parameter; MCP and the built-in agent read the same text except the four named variants in `wording.go` (`guide`, `folder`, `run target`, `build`), and `TestSurfacesDifferOnlyByNamedVariants` fails on any other difference; the comment tools, the observation tools (`create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`), `list_folders`, `create_finding`, `move_finding`, `save_search`, `list_saved_searches`, `list_dashboard_health`, `create_annotation`, `list_activity`, `get_run`, `search_workspace`, `draft_query`, `claim_run`, `report_run`, `finish_run` and `get_run_brief` are MCP-only, `list_annotations` reaches the agent only in investigate runs, and `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.
+  A run token (`sot_`) session on `/mcp` lists exactly the tools `OfferedIn` the run's mode with the agent wording, acts as the requester, records a step per call and passes every call through `internal/runsession`, which holds the guards and the build for the run (state in `run_sessions`), so connected agents meet the built-in agent's guards.
+  The built-in agent's own sidecar claims over the same `/mcp` with a per-child `soa_` token accepted only from a loopback peer and listing only the four claim tools.
   No tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API, and delete also with the CLI.
   `move_finding` is the one move tool, deprecated with the other finding tools, and only for a finding without a dashboard.
 - The `/observe` guide for outside agents is `internal/agent/prompts/skill/observe/SKILL.md`, a complete Agent Skill: the MCP prompt `observe` serves its body, so the guide is one text; `internal/surface` fails when it names a tool MCP does not offer or an `observe` command the CLI lacks.

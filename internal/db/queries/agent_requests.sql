@@ -103,7 +103,7 @@ WITH target AS (
   LEFT JOIN findings f ON f.agent_request_id = r.id
   LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
   WHERE r.id = @id AND r.attempts = @attempts AND r.state = ANY(@from_states::text[]) AND r.cancel_requested_at IS NOT NULL
-  FOR UPDATE OF r
+  FOR NO KEY UPDATE OF r
 )
 UPDATE agent_requests
 SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,

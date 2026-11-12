@@ -58,8 +58,8 @@ test("uses the M1 tokens in both themes", async ({ page }) => {
   ).toBeGreaterThan(0)
   expect(await readTokens()).toEqual({
     background: "rgb(255, 255, 255)",
-    color: "rgb(10, 10, 10)",
-    ring: "#0a0a0a",
+    color: "rgb(13, 13, 18)",
+    ring: "#0a7f86",
     series1: "#2a78d6",
   })
 
@@ -67,10 +67,10 @@ test("uses the M1 tokens in both themes", async ({ page }) => {
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   expect(await readTokens()).toEqual({
-    background: "rgb(17, 17, 19)",
-    color: "rgb(250, 250, 250)",
-    ring: "#fafafa",
-    series1: "#3987e5",
+    background: "rgb(19, 20, 23)",
+    color: "rgb(236, 236, 241)",
+    ring: "#2ab3b1",
+    series1: "#4a94ee",
   })
 })
 

@@ -3262,6 +3262,7 @@ components:
         - error
         - failure_code
         - steps
+        - live_text
         - usage
         - build
         - build_saved_at
@@ -3371,6 +3372,11 @@ components:
           maxItems: 2000
           items:
             $ref: "#/components/schemas/AgentStep"
+        live_text:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: The end of the text the model has written in this attempt, while the request is running; null otherwise. It is kept only in server memory and is gone once the request finishes. Steps remain the record of what the agent did.
         usage:
           nullable: true
           allOf:
