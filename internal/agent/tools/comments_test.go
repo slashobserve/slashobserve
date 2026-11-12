@@ -588,3 +588,29 @@ func TestStartRunsNeedsTheMentionRuns(t *testing.T) {
 		}
 	}
 }
+
+func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
+	r := newAccessRig(t)
+	var account string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
+		t.Fatal(err)
+	}
+	token := "@[runner](service_account:" + account + ")"
+
+	for _, mention := range []string{"@observe", token} {
+		target := `"target":"observation:` + r.privateFinding(t, adminCaller).ObservationID + `"`
+		created := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+mention+` what changed?","start_runs":true}`)
+		out, ok := created.Content.(commentResultOut)
+		if !ok || out.Run != nil || out.RunRefusal == nil || out.RunRefusal.Code != threads.RefusalPersonStarts || !strings.Contains(out.RunRefusal.Message, "web app or the CLI") || created.Step != "Opened a comment" {
+			t.Fatalf("create with %s = %s, step %q", mention, textOf(t, created), created.Step)
+		}
+		replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+mention+` and before?","start_runs":true}`)
+		if again, ok := replied.Content.(commentResultOut); !ok || again.Run != nil || again.RunRefusal == nil || again.RunRefusal.Code != threads.RefusalPersonStarts || again.Comment.Body == "" {
+			t.Fatalf("reply with %s = %s", mention, textOf(t, replied))
+		}
+	}
+	var queued int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests`).Scan(&queued); err != nil || queued != 0 {
+		t.Fatalf("%d runs queued, err %v", queued, err)
+	}
+}

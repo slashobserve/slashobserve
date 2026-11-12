@@ -84,7 +84,7 @@ This lists only the packages whose purpose the name does not make obvious.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
   `/mcp` tries keys, then run tokens, then OAuth; a run token is valid only while its attempt holds the lease and the run is `running`; `claim_run` long polls skip the global MCP slot because `internal/claims` caps them.
 - `Tool.MCPOnly` tools are left out of the model's tool list by `agent.New`.
-  A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools queue a run only when `start_runs` is set, through `threads.MentionRuns`.
+  A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools queue a comment run only when `start_runs` is set, through `threads.MentionRuns` with `WithoutInvestigations`, so an observation thread answers `investigation_person_only` and no MCP tool queues an investigation.
 - `observe skill install` writes the skill embedded in the CLI binary and never one fetched from a server, because a skill instructs the person's own agents and the CLI talks to any `--server` it is given.
 - A tool's `MinRole` is the lowest role the web app needs for the same work: Viewer for every tool except `create_finding` and `save_finding`, which need Editor like Investigate (`revisions.runAllowed`).
   The services' folder checks decide the rest.

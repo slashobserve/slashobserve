@@ -398,7 +398,7 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 	case r.deps.Mentions == nil:
 		return Result{}, errCommentsNotConfigured
 	default:
-		thread, message, run, refusal, err = r.deps.Mentions.Open(ctx, principal, open, true)
+		thread, message, run, refusal, err = r.deps.Mentions.Open(ctx, principal, open, true, threads.WithoutInvestigations())
 	}
 	if err != nil {
 		return commentFailure(err)
@@ -434,7 +434,7 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	case r.deps.Mentions == nil:
 		return Result{}, errCommentsNotConfigured
 	default:
-		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, in.Body, true)
+		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, in.Body, true, threads.WithoutInvestigations())
 	}
 	if err != nil {
 		return commentFailure(err)

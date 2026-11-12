@@ -179,9 +179,10 @@ A comment id is the id of any message of the thread, and the first message's id 
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
 `create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
-A dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none; a run started this way is checked like one the same person starts in the web app.
+A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
+A run started this way is checked like one the same person starts in the web app.
 Two agents in one comment with `start_runs` answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
-The refusal codes are `mention_target_unsupported`, `agent_unavailable`, `forbidden_role` and `too_many_runs`.
+The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable`, `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 

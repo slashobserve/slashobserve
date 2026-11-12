@@ -22,6 +22,7 @@ const (
 	RefusalAgentUnavailable  = "agent_unavailable"
 	RefusalForbidden         = "forbidden_role"
 	RefusalTooManyRuns       = "too_many_runs"
+	RefusalPersonStarts      = "investigation_person_only"
 
 	transcriptMessages = 20
 	transcriptRunes    = 8000
@@ -39,6 +40,16 @@ type RunRefusal struct {
 	Message string
 }
 
+type RunOption func(*runPolicy)
+
+type runPolicy struct {
+	noInvestigations bool
+}
+
+func WithoutInvestigations() RunOption {
+	return func(p *runPolicy) { p.noInvestigations = true }
+}
+
 type MentionRuns struct {
 	service      *Service
 	queue        *revisions.Service
@@ -49,11 +60,11 @@ func NewMentionRuns(service *Service, queue *revisions.Service, builtinAgent boo
 	return &MentionRuns{service: service, queue: queue, builtinAgent: builtinAgent}
 }
 
-func (m *MentionRuns) Open(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+func (m *MentionRuns) Open(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
 	run, err := m.prepare(ctx, startRuns, in.Body, func() (Target, error) {
 		sc, err := m.service.scopeOf(ctx, by, in.Target)
 		return sc.target, err
-	}, by)
+	}, by, opts)
 	if err != nil {
 		return Thread{}, Message{}, nil, nil, err
 	}
@@ -61,11 +72,11 @@ func (m *MentionRuns) Open(ctx context.Context, by auth.Principal, in OpenInput,
 	return thread, message, run.started(), run.refusal(), err
 }
 
-func (m *MentionRuns) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, body string, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+func (m *MentionRuns) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, body string, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
 	run, err := m.prepare(ctx, startRuns, body, func() (Target, error) {
 		_, sc, err := m.service.writableThread(ctx, by, threadID)
 		return sc.target, err
-	}, by)
+	}, by, opts)
 	if err != nil {
 		return Thread{}, Message{}, nil, nil, err
 	}
@@ -78,11 +89,12 @@ type mentionRun struct {
 	ctx       context.Context
 	by        auth.Principal
 	agent     Mention
+	policy    runPolicy
 	refused   *RunRefusal
 	queuedRun *StartedRun
 }
 
-func (m *MentionRuns) prepare(ctx context.Context, startRuns bool, body string, targetOf func() (Target, error), by auth.Principal) (*mentionRun, error) {
+func (m *MentionRuns) prepare(ctx context.Context, startRuns bool, body string, targetOf func() (Target, error), by auth.Principal, opts []RunOption) (*mentionRun, error) {
 	if !startRuns {
 		return nil, nil
 	}
@@ -95,6 +107,9 @@ func (m *MentionRuns) prepare(ctx context.Context, startRuns bool, body string, 
 		return nil, err
 	}
 	run := &mentionRun{runs: m, ctx: ctx, by: by, agent: agent}
+	for _, opt := range opts {
+		opt(&run.policy)
+	}
 	run.refused, err = run.decide(target)
 	return run, err
 }
@@ -124,6 +139,9 @@ func (r *mentionRun) decide(target Target) (*RunRefusal, error) {
 	case KindDashboard:
 		source, dashboardID = revisions.SourceComment, target.ID
 	case KindObservation:
+		if r.policy.noInvestigations {
+			return &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}, nil
+		}
 		source = revisions.SourceInvestigate
 	default:
 		return &RunRefusal{Code: RefusalUnsupportedTarget, Message: "agents can be asked from dashboard and observation threads"}, nil
