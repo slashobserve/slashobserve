@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -142,6 +143,12 @@ func TestGetProposal(t *testing.T) {
 			t.Errorf("actions = %v step = %q", out.AllowedActions, res.Step)
 		}
 	})
+	t.Run("a person's proposal names its author", func(t *testing.T) {
+		out := rig.call(asUser(editorCaller), t, nameGetProposal, idInput(id)).Content.(proposals.ProposalJSON)
+		if out.Actor.Label != "Cam" || out.Actor.Client != nil || out.Actor.RunID != nil {
+			t.Fatalf("actor = %+v", out.Actor)
+		}
+	})
 	t.Run("failures", func(t *testing.T) {
 		for name, tt := range map[string]struct{ input, code string }{
 			"no id":      {`{}`, codeInvalidRequest},
@@ -171,6 +178,21 @@ func TestGetProposal(t *testing.T) {
 			t.Fatalf("code = %q", got)
 		}
 	})
+}
+
+func TestProposalsOverMCPNameTheClient(t *testing.T) {
+	rig := newProposalsRig(t)
+	mcp := origin.With(asUser(commenterCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	id := rig.propose(mcp, t, "From an agent")
+
+	got := rig.call(asUser(editorCaller), t, nameGetProposal, idInput(id)).Content.(proposals.ProposalJSON)
+	if got.Actor.Label != "Cam (via Claude Code)" || got.Actor.Client == nil || *got.Actor.Client != "Claude Code" {
+		t.Fatalf("get actor = %+v", got.Actor)
+	}
+	listed := rig.call(asUser(editorCaller), t, nameListProposals, `{"dashboard_id":"`+rig.dashboard+`"}`).Content.(proposalListOut)
+	if len(listed.Proposals) != 1 || listed.Proposals[0].Actor.Label != "Cam (via Claude Code)" {
+		t.Fatalf("list = %+v", listed.Proposals)
+	}
 }
 
 func TestMergeProposal(t *testing.T) {

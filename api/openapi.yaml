@@ -1638,7 +1638,7 @@ components:
     ProposalSummary:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
       description: A proposed change to a dashboard, without its document.
       properties:
         id:
@@ -1668,6 +1668,8 @@ components:
           description: The head revision's summary.
         author:
           $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
         origin:
           type: string
           enum: [web, cli, mcp, api]
@@ -1720,7 +1722,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -1750,6 +1752,8 @@ components:
           description: The head revision's summary.
         author:
           $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
         origin:
           type: string
           enum: [web, cli, mcp, api]

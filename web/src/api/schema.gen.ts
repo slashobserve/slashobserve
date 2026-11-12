@@ -3996,6 +3996,7 @@ export interface components {
             /** @description The head revision's summary. */
             summary: string;
             author: components["schemas"]["Author"];
+            actor: components["schemas"]["Actor"];
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -4037,6 +4038,7 @@ export interface components {
             /** @description The head revision's summary. */
             summary: string;
             author: components["schemas"]["Author"];
+            actor: components["schemas"]["Actor"];
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;

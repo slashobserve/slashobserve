@@ -3,7 +3,10 @@ package proposals
 import (
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -22,6 +25,7 @@ type SummaryJSON struct {
 	BaseVersion    int         `json:"base_version"`
 	Summary        string      `json:"summary"`
 	Author         authorJSON  `json:"author"`
+	Actor          actor.JSON  `json:"actor"`
 	Origin         *string     `json:"origin"`
 	OriginClient   *string     `json:"origin_client"`
 	RunID          *string     `json:"run_id"`
@@ -57,6 +61,16 @@ func newAuthorJSON(a Author) authorJSON {
 	return authorJSON(a)
 }
 
+func authorActor(i Item) actor.Actor {
+	return actor.Actor{
+		Kind:   auth.PrincipalKind(i.Author.Kind),
+		ID:     i.Author.ID,
+		Name:   i.Author.Name,
+		Origin: origin.Origin{Kind: origin.Kind(i.Origin), Client: i.OriginClient},
+		RunID:  i.RunID,
+	}
+}
+
 func timeText(t *time.Time) *string {
 	if t == nil {
 		return nil
@@ -78,6 +92,7 @@ func NewSummaryJSON(i Item) SummaryJSON {
 		BaseVersion:    i.BaseVersion,
 		Summary:        i.Summary,
 		Author:         newAuthorJSON(i.Author),
+		Actor:          authorActor(i).JSON(),
 		Origin:         httpapi.OptionalString(i.Origin),
 		OriginClient:   httpapi.OptionalString(i.OriginClient),
 		RunID:          httpapi.OptionalString(i.RunID),
