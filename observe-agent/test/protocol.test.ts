@@ -76,12 +76,73 @@ describe("protocol", () => {
       api_key: "",
       base_url: "",
       effort: "",
-      max_tokens: 0,
-      request_timeout_seconds: 0,
-      idle_timeout_seconds: 0,
+      max_tokens: 16000,
+      request_timeout_seconds: 600,
+      idle_timeout_seconds: 180,
       replay_dir: "",
       log_provider_errors: false,
       session_renew_bytes: 0,
+    })
+  })
+
+  const defaults: Array<[string, object, string, number]> = [
+    [
+      "anthropic gets medium effort",
+      { provider: "anthropic" },
+      "medium",
+      16000,
+    ],
+    [
+      "anthropic keeps a configured effort and limit",
+      { provider: "anthropic", effort: "high", max_tokens: 4096 },
+      "high",
+      4096,
+    ],
+    ["openai gets no effort", { provider: "openai" }, "", 16000],
+    [
+      "openai keeps a configured effort",
+      { provider: "openai", effort: "low", max_tokens: 2048 },
+      "low",
+      2048,
+    ],
+  ]
+  test.each(defaults)(
+    "%s when the claim leaves them out",
+    (_name, input, effort, maxTokens) => {
+      const parsed = claimAnswer.parse({ ...claimed, model: input })
+      expect(parsed.model?.effort).toBe(effort)
+      expect(parsed.model?.max_tokens).toBe(maxTokens)
+    }
+  )
+
+  test("an empty effort and a zero limit sent by the server get the defaults", () => {
+    const parsed = claimAnswer.parse({
+      ...claimed,
+      model: { provider: "anthropic", effort: "", max_tokens: 0 },
+    })
+    expect(parsed.model).toMatchObject({ effort: "medium", max_tokens: 16000 })
+  })
+
+  test("zero timeouts get Go's defaults and configured ones are kept", () => {
+    const unset = claimAnswer.parse({
+      ...claimed,
+      model: { provider: "openai" },
+    })
+    expect(unset.model).toMatchObject({
+      request_timeout_seconds: 600,
+      idle_timeout_seconds: 180,
+    })
+    const set = claimAnswer.parse({
+      ...claimed,
+      model: {
+        provider: "openai",
+        request_timeout_seconds: 30,
+        idle_timeout_seconds: 20,
+      },
+    })
+    expect(set.model).toMatchObject({
+      request_timeout_seconds: 30,
+      idle_timeout_seconds: 20,
     })
   })
 

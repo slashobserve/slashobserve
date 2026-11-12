@@ -64,19 +64,42 @@ export type RunMeta = z.infer<typeof runMeta>
 
 export const noRunMeta: RunMeta = { settled: null, build: null }
 
-export const modelSettings = z.object({
-  provider: z.string(),
-  model: z.string().default(""),
-  api_key: z.string().default(""),
-  base_url: z.string().default(""),
-  effort: z.string().default(""),
-  max_tokens: count.default(0),
-  request_timeout_seconds: count.default(0),
-  idle_timeout_seconds: count.default(0),
-  replay_dir: z.string().default(""),
-  log_provider_errors: z.boolean().default(false),
-  session_renew_bytes: count.default(0),
-})
+export const defaultMaxTokens = 16000
+export const defaultAnthropicEffort = "medium"
+export const defaultRequestTimeoutSeconds = 600
+export const defaultIdleTimeoutSeconds = 180
+
+export const modelSettings = z
+  .object({
+    provider: z.string(),
+    model: z.string().default(""),
+    api_key: z.string().default(""),
+    base_url: z.string().default(""),
+    effort: z.string().default(""),
+    max_tokens: count.default(0),
+    request_timeout_seconds: count.default(0),
+    idle_timeout_seconds: count.default(0),
+    replay_dir: z.string().default(""),
+    log_provider_errors: z.boolean().default(false),
+    session_renew_bytes: count.default(0),
+  })
+  .transform((settings) => ({
+    ...settings,
+    effort:
+      settings.effort === "" && settings.provider === "anthropic"
+        ? defaultAnthropicEffort
+        : settings.effort,
+    max_tokens:
+      settings.max_tokens === 0 ? defaultMaxTokens : settings.max_tokens,
+    request_timeout_seconds:
+      settings.request_timeout_seconds === 0
+        ? defaultRequestTimeoutSeconds
+        : settings.request_timeout_seconds,
+    idle_timeout_seconds:
+      settings.idle_timeout_seconds === 0
+        ? defaultIdleTimeoutSeconds
+        : settings.idle_timeout_seconds,
+  }))
 export type ModelSettings = z.infer<typeof modelSettings>
 
 export const offeredRun = z.object({
