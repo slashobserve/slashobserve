@@ -387,3 +387,9 @@ export const observationKeys = {
   rcaLinks: (id: string, revision: number) =>
     ["observations", id, "rcas", revision, "links"] as const,
 }
+
+export const rcaKeys = {
+  publicView: (token: string) => ["rca-public", token] as const,
+  publicSnapshot: (token: string, snapshotId: string) =>
+    ["rca-public", token, "snapshots", snapshotId] as const,
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -12,6 +13,8 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { observationsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
+import { RcaPanel } from "@/rca/rca-panel"
+import { rcasQuery } from "@/rca/queries"
 
 import { AddBlockRow } from "./add-block-row"
 import { addProblemText } from "./block-rows"
@@ -100,10 +103,22 @@ function AddToPage({
   )
 }
 
-function LoadedObservation({ envelope }: { envelope: ObservationEnvelope }) {
+type RcaControl = { open: boolean; onOpenChange: (open: boolean) => void }
+
+function LoadedObservation({
+  envelope,
+  rca,
+}: {
+  envelope: ObservationEnvelope
+  rca: RcaControl
+}) {
   const { observation, permissions } = envelope
   const blocks = observation.blocks ?? []
   const canAdd = permissions.edit || permissions.comment
+  const canPublish = observation.allowed_actions.includes("publish")
+  const revisions = useQuery(rcasQuery(observation.id))
+  const hasRevisions = (revisions.data?.length ?? 0) > 0
+  const rcaButton = useRef<HTMLButtonElement>(null)
   const [discussionHidden, setDiscussionHidden] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const showButton = useRef<HTMLButtonElement>(null)
@@ -141,6 +156,18 @@ function LoadedObservation({ envelope }: { envelope: ObservationEnvelope }) {
                 focusAfterToggle.current = "discussion"
                 setDiscussionHidden(false)
               }}
+              extraActions={
+                canPublish || hasRevisions ? (
+                  <Button
+                    ref={rcaButton}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => rca.onOpenChange(true)}
+                  >
+                    {canPublish ? "Publish as RCA" : "RCA revisions"}
+                  </Button>
+                ) : null
+              }
             />
             <BlockList
               observation={observation}
@@ -191,11 +218,24 @@ function LoadedObservation({ envelope }: { envelope: ObservationEnvelope }) {
           </div>
         )}
       </div>
+      {rca.open ? (
+        <RcaPanel
+          observation={observation}
+          trigger={rcaButton}
+          onClose={() => rca.onOpenChange(false)}
+        />
+      ) : null}
     </div>
   )
 }
 
-export function ObservationPage({ observationId }: { observationId: string }) {
+export function ObservationPage({
+  observationId,
+  rca,
+}: {
+  observationId: string
+  rca: RcaControl
+}) {
   const query = useObservation(observationId)
   const title = query.data?.observation.title
   useDocumentTitle(
@@ -204,7 +244,7 @@ export function ObservationPage({ observationId }: { observationId: string }) {
       : `${title} - Observations - SlashObserve`
   )
   if (query.data !== undefined)
-    return <LoadedObservation envelope={query.data} />
+    return <LoadedObservation envelope={query.data} rca={rca} />
   if (query.error instanceof ApiError && query.error.status === 404) {
     return <ObservationNotFound />
   }
