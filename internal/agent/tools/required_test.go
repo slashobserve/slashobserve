@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
@@ -48,7 +49,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observationService)
+	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{
 		Datasources:   datasources,
 		Runner:        runner,

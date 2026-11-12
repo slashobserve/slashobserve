@@ -326,7 +326,7 @@ func run() error {
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService)
+	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService, proposalsService)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		FindingURL:   findingURL,

@@ -2065,7 +2065,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, finding, annotation, observation]
+              enum: [dashboard, finding, annotation, observation, proposal]
             id:
               type: string
               format: uuid

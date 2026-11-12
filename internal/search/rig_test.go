@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -61,7 +62,7 @@ func newRig(t *testing.T) *rig {
 		access:      access,
 		findings:    findingService,
 		annotations: annotationService,
-		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observations.New(d.DB, access, nil, nil, logger)),
+		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observations.New(d.DB, access, nil, nil, logger), proposals.New(d.DB, access, dashboardService, logger)),
 		saved:       savedsearches.New(d.DB, access, nil, nil, logger),
 	}
 	for _, p := range []auth.Principal{admin, editor, payroll, ada} {

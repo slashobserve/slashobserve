@@ -109,6 +109,8 @@ A thread has **Resolve** and, once resolved, **Reopen**.
 A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
 Over the API and MCP each thread carries `allowed_actions`, the actions the caller may take now (`reply`, `resolve` or `reopen`), which is empty for someone who may not comment; see [States](../reference/states.md).
+A thread can also be on a [proposal](../concepts/proposals.md), written `proposal:<id>` as the target of the threads API.
+It has no panel or version and follows the proposal's dashboard: View reads it and Comment writes to it.
 
 Replies sit under the comment they answer.
 With no model on the server, an open thread reads "Open, waiting for `<client>`", so the person or tool that will act on it is clear.

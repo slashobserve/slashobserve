@@ -170,7 +170,7 @@ func TestTargetsParseTheObservationKind(t *testing.T) {
 	if err != nil || got.Kind != KindObservation || got.ID.String() != id {
 		t.Fatalf("parsed %+v, %v", got, err)
 	}
-	if _, err := ParseTarget("run:" + id); err == nil || !strings.Contains(err.Error(), "dashboard, finding or annotation, or observation") {
+	if _, err := ParseTarget("run:" + id); err == nil || !strings.Contains(err.Error(), "dashboard, finding or annotation, observation or proposal") {
 		t.Errorf("an unknown kind: %v", err)
 	}
 }

@@ -44,7 +44,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
-A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding, annotation or observation the thread is on, as `{"kind": "dashboard", "id": "..."}`.
+A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 

@@ -68,10 +68,11 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (T
 }
 
 const createThread = `-- name: CreateThread :one
-INSERT INTO threads (dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, observation_id)
+INSERT INTO threads (dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, observation_id, proposal_id)
 VALUES (
   $1::uuid, $2::integer, $3::text,
-  $4::uuid, $5::uuid, $6::uuid
+  $4::uuid, $5::uuid, $6::uuid,
+  $7::uuid
 )
 RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id
 `
@@ -83,6 +84,7 @@ type CreateThreadParams struct {
 	FindingID        pgtype.UUID
 	AnnotationID     pgtype.UUID
 	ObservationID    pgtype.UUID
+	ProposalID       pgtype.UUID
 }
 
 func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thread, error) {
@@ -93,6 +95,7 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 		arg.FindingID,
 		arg.AnnotationID,
 		arg.ObservationID,
+		arg.ProposalID,
 	)
 	var i Thread
 	err := row.Scan(
@@ -338,13 +341,14 @@ JOIN threads t ON t.id = m.thread_id
 WHERE (t.dashboard_id = $1::uuid
     OR t.finding_id = $2::uuid
     OR t.annotation_id = $3::uuid
-    OR t.observation_id = $4::uuid)
-  AND ($5::text IS NULL OR t.status = $5::text)
-  AND ($6::text IS NULL OR t.panel_id = $6::text)
-  AND ($7::timestamptz IS NULL
-    OR (m.created_at, m.id) > ($7::timestamptz, $8::uuid))
+    OR t.observation_id = $4::uuid
+    OR t.proposal_id = $5::uuid)
+  AND ($6::text IS NULL OR t.status = $6::text)
+  AND ($7::text IS NULL OR t.panel_id = $7::text)
+  AND ($8::timestamptz IS NULL
+    OR (m.created_at, m.id) > ($8::timestamptz, $9::uuid))
 ORDER BY m.created_at, m.id
-LIMIT $9
+LIMIT $10
 `
 
 type ListThreadMessagesParams struct {
@@ -352,6 +356,7 @@ type ListThreadMessagesParams struct {
 	FindingID       pgtype.UUID
 	AnnotationID    pgtype.UUID
 	ObservationID   pgtype.UUID
+	ProposalID      pgtype.UUID
 	Status          pgtype.Text
 	PanelID         pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
@@ -370,6 +375,7 @@ func (q *Queries) ListThreadMessages(ctx context.Context, arg ListThreadMessages
 		arg.FindingID,
 		arg.AnnotationID,
 		arg.ObservationID,
+		arg.ProposalID,
 		arg.Status,
 		arg.PanelID,
 		arg.CursorCreatedAt,
@@ -476,6 +482,17 @@ SELECT id FROM observations WHERE id = $1 FOR KEY SHARE
 
 func (q *Queries) LockObservationKeyShare(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockObservationKeyShare, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockProposalKeyShare = `-- name: LockProposalKeyShare :one
+SELECT id FROM proposals WHERE id = $1 FOR KEY SHARE
+`
+
+func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockProposalKeyShare, id)
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
