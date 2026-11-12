@@ -4194,7 +4194,10 @@ export interface components {
              */
             id: string;
             target: {
-                /** @enum {string} */
+                /**
+                 * @description `finding` is a deprecated alias that is never returned: a thread on a finding is a thread on its observation, so it answers `observation`.
+                 * @enum {string}
+                 */
                 kind: "dashboard" | "finding" | "annotation" | "observation" | "proposal";
                 /** Format: uuid */
                 id: string;

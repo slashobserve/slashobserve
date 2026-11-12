@@ -235,14 +235,14 @@ The kind, datasource, query and range of a saved search never change: save a new
 
 ## Comments
 
-Comments on a dashboard, an annotation or a proposal can be worked from the terminal, and so can the discussion of a finding's observation.
-A target is written `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `proposal`, for example `dashboard:0a1b2c3d-0000-4000-8000-000000000001`.
-The kind `finding` is deprecated and is removed in the next release: it resolves to the finding's observation discussion, and the thread it opens or lists says `observation` as its target kind.
+Comments on a dashboard, an annotation or a proposal can be worked from the terminal, and so can the discussion of an observation.
+A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`, for example `dashboard:0a1b2c3d-0000-4000-8000-000000000001`.
+The kind `finding` is deprecated and is removed in the next release: `finding:<id>` resolves to the discussion of the finding's observation, and the thread it opens or lists says `observation` as its target kind.
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
   `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
-  On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on a finding, an annotation or a proposal.
+  On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
   Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--json` and `-q` must come before it.
   A thread started this way never queues an agent revision.
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.

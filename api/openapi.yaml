@@ -2070,6 +2070,7 @@ components:
           properties:
             kind:
               type: string
+              description: "`finding` is a deprecated alias that is never returned: a thread on a finding is a thread on its observation, so it answers `observation`."
               enum: [dashboard, finding, annotation, observation, proposal]
             id:
               type: string
