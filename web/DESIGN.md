@@ -586,43 +586,43 @@ The palette has five families. Use the token, never the hex.
 
 ### Accent
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `primary` | `#0a7f86` | `#2ab3b1` | The one accent: main action, the wordmark slash, the built-in agent, selection, unread, focus |
-| `primary-hover` | `#086a70` | `#40c4c1` | Hover and pressed state of the accent |
-| `on-primary` | `#ffffff` | `#04191a` | Text and icons on the accent |
-| `primary-container` | `#e0f4f4` | `#12302f` | Mentions, highlighted text, a selected time range |
-| `on-primary-container` | `#086a70` | `#5fd6d0` | Accent-coloured text on a surface or on the soft accent |
+| Token                  | Light     | Dark      | Use                                                                                           |
+| ---------------------- | --------- | --------- | --------------------------------------------------------------------------------------------- |
+| `primary`              | `#0a7f86` | `#2ab3b1` | The one accent: main action, the wordmark slash, the built-in agent, selection, unread, focus |
+| `primary-hover`        | `#086a70` | `#40c4c1` | Hover and pressed state of the accent                                                         |
+| `on-primary`           | `#ffffff` | `#04191a` | Text and icons on the accent                                                                  |
+| `primary-container`    | `#e0f4f4` | `#12302f` | Mentions, highlighted text, a selected time range                                             |
+| `on-primary-container` | `#086a70` | `#5fd6d0` | Accent-coloured text on a surface or on the soft accent                                       |
 
 Use the accent for one filled button per page or card, the send button in a composer, links that start an agent run, and selection. Do not use it for decoration, headings or large fills.
 
 ### Surfaces and text
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `surface` | `#ffffff` | `#131417` | The page |
-| `surface-raised` | `#ffffff` | `#1a1b1f` | Cards, panels, menus, outline buttons. Same as the page in light, one step lighter in dark |
-| `surface-chrome` | `#f5f5f7` | `#0b0c0e` | The sidebar |
-| `surface-nav-active` | `#ffffff` | `#212327` | The active sidebar item |
-| `surface-canvas` | `#fafafb` | `#0f1012` | Inset areas: code, a hovered row |
-| `surface-muted` | `#f1f1f4` | `#25272c` | Active tab, hover fill |
-| `on-surface` | `#0d0d12` | `#ececf1` | Text |
-| `on-surface-muted` | `#5d5d68` | `#a0a2ae` | Hints and secondary text |
-| `outline` | `#e4e4e9` | `#2e3036` | Every 1px border |
-| `chart-grid` | `#ececf0` | `#26282d` | Chart gridlines |
+| Token                | Light     | Dark      | Use                                                                                        |
+| -------------------- | --------- | --------- | ------------------------------------------------------------------------------------------ |
+| `surface`            | `#ffffff` | `#131417` | The page                                                                                   |
+| `surface-raised`     | `#ffffff` | `#1a1b1f` | Cards, panels, menus, outline buttons. Same as the page in light, one step lighter in dark |
+| `surface-chrome`     | `#f5f5f7` | `#0b0c0e` | The sidebar                                                                                |
+| `surface-nav-active` | `#ffffff` | `#212327` | The active sidebar item                                                                    |
+| `surface-canvas`     | `#fafafb` | `#0f1012` | Inset areas: code, a hovered row                                                           |
+| `surface-muted`      | `#f1f1f4` | `#25272c` | Active tab, hover fill                                                                     |
+| `on-surface`         | `#0d0d12` | `#ececf1` | Text                                                                                       |
+| `on-surface-muted`   | `#5d5d68` | `#a0a2ae` | Hints and secondary text                                                                   |
+| `outline`            | `#e4e4e9` | `#2e3036` | Every 1px border                                                                           |
+| `chart-grid`         | `#ececf0` | `#26282d` | Chart gridlines                                                                            |
 
 Body text on any surface meets WCAG AA (4.5:1). Hints use `on-surface-muted`, which also meets AA on `surface`, `surface-chrome` and `surface-muted`.
 
 ### Status
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `success` | `#3d7a00` | `#86d43a` | Healthy, saved, allowed |
-| `success-container` | `#eaf5dc` | `#1c2e10` | Background behind it |
-| `warning` | `#8a6100` | `#fab219` | Waiting, needs a choice |
-| `warning-container` | `#fbf0d6` | `#3a2c0a` | Background behind it |
-| `error` | `#c22f2f` | `#ec6a6a` | Failed, destructive |
-| `error-container` | `#fbe8e8` | `#331517` | Background behind it |
+| Token               | Light     | Dark      | Use                     |
+| ------------------- | --------- | --------- | ----------------------- |
+| `success`           | `#3d7a00` | `#86d43a` | Healthy, saved, allowed |
+| `success-container` | `#eaf5dc` | `#1c2e10` | Background behind it    |
+| `warning`           | `#8a6100` | `#fab219` | Waiting, needs a choice |
+| `warning-container` | `#fbf0d6` | `#3a2c0a` | Background behind it    |
+| `error`             | `#c22f2f` | `#ec6a6a` | Failed, destructive     |
+| `error-container`   | `#fbe8e8` | `#331517` | Background behind it    |
 
 Status always comes as an icon and a word, never as colour alone. Use the strong colour for the icon or the text, and the container colour only for a small badge behind it.
 
@@ -638,16 +638,16 @@ Dark is its own palette, not the light one inverted.
 
 ### Chart series
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
+| Token      | Light     | Dark      | Use          |
+| ---------- | --------- | --------- | ------------ |
 | `series-1` | `#2a78d6` | `#4a94ee` | First series |
-| `series-2` | `#eb6834` | `#e8703c` | Second |
-| `series-3` | `#19a472` | `#2bb583` | Third |
-| `series-4` | `#c28400` | `#e0a01a` | Fourth |
-| `series-5` | `#c2409b` | `#dd66b6` | Fifth |
-| `series-6` | `#7b61d1` | `#a08cf0` | Sixth |
-| `series-7` | `#7c8594` | `#939baa` | Seventh |
-| `series-8` | `#9a6b3f` | `#bd8c5e` | Eighth |
+| `series-2` | `#eb6834` | `#e8703c` | Second       |
+| `series-3` | `#19a472` | `#2bb583` | Third        |
+| `series-4` | `#c28400` | `#e0a01a` | Fourth       |
+| `series-5` | `#c2409b` | `#dd66b6` | Fifth        |
+| `series-6` | `#7b61d1` | `#a08cf0` | Sixth        |
+| `series-7` | `#7c8594` | `#939baa` | Seventh      |
+| `series-8` | `#9a6b3f` | `#bd8c5e` | Eighth       |
 
 Series colours belong to data only: lines, bars, legend swatches. Assign them in order and never reuse them for buttons, status or people. Blue is `series-1`, which is why the accent is not blue. Status green leans yellow so it does not read as the teal accent.
 Light series 3 and 4 are darker than the canvas values so every series keeps 3:1 contrast on a white card.
@@ -655,14 +655,14 @@ A chart never relies on colour alone: every series has a legend label.
 
 ### People
 
-| Tint | Light fill and text | Dark fill and text |
-| --- | --- | --- |
+| Tint            | Light fill and text     | Dark fill and text      |
+| --------------- | ----------------------- | ----------------------- |
 | `person-violet` | `#e7e5fb` and `#3f39a8` | `#2f2b63` and `#c2bdfa` |
-| `person-rose` | `#fde2ea` and `#9b1c45` | `#56192c` and `#f9b3c7` |
-| `person-amber` | `#fdebc8` and `#7a4b00` | `#4b3509` and `#f5cf80` |
-| `person-sky` | `#dbebfb` and `#14508f` | `#173a61` and `#a9d0f7` |
-| `person-lime` | `#e3f2d1` and `#3a6212` | `#2d4412` and `#c3e298` |
-| `person-plum` | `#f3e0f5` and `#7a2585` | `#491e4d` and `#e8b3ee` |
+| `person-rose`   | `#fde2ea` and `#9b1c45` | `#56192c` and `#f9b3c7` |
+| `person-amber`  | `#fdebc8` and `#7a4b00` | `#4b3509` and `#f5cf80` |
+| `person-sky`    | `#dbebfb` and `#14508f` | `#173a61` and `#a9d0f7` |
+| `person-lime`   | `#e3f2d1` and `#3a6212` | `#2d4412` and `#c3e298` |
+| `person-plum`   | `#f3e0f5` and `#7a2585` | `#491e4d` and `#e8b3ee` |
 
 Each person gets one tint for their avatar, assigned in order when they join and kept everywhere. The tint is used for the avatar only. Agents never take a person tint.
 
@@ -670,20 +670,20 @@ Each person gets one tint for their avatar, assigned in order when they join and
 
 Geist for everything, Geist Mono for queries, JSON, ids and log lines.
 
-| Token | Size and weight | Use |
-| --- | --- | --- |
-| `headline-lg` | 28, 600 | Title of a document page: an observation |
-| `headline-md` | 20, 600 | Title of an app page: Home, Inbox, Agents, a dashboard |
-| `title-md` | 16, 600 | A block or note title inside a list or a page |
-| `title-sm` | 14, 600 | Section and card headings |
-| `body-lg` | 15, 400 | Text people write and read on a document page |
-| `body-md` | 14, 400 | Default interface text |
-| `body-sm` | 13, 400 | Secondary text, table cells, comments |
-| `label-md` | 13, 500 | Buttons, tabs, navigation |
-| `label-sm` | 12, 400 | Hints, timestamps, metadata |
-| `label-xs` | 11, 600 | Counts, chips, avatar initials |
-| `metric` | 28, 600 | The number on a stat tile, with tabular figures |
-| `code` | 13, 400, mono | Queries, diffs, log lines |
+| Token         | Size and weight | Use                                                    |
+| ------------- | --------------- | ------------------------------------------------------ |
+| `headline-lg` | 28, 600         | Title of a document page: an observation               |
+| `headline-md` | 20, 600         | Title of an app page: Home, Inbox, Agents, a dashboard |
+| `title-md`    | 16, 600         | A block or note title inside a list or a page          |
+| `title-sm`    | 14, 600         | Section and card headings                              |
+| `body-lg`     | 15, 400         | Text people write and read on a document page          |
+| `body-md`     | 14, 400         | Default interface text                                 |
+| `body-sm`     | 13, 400         | Secondary text, table cells, comments                  |
+| `label-md`    | 13, 500         | Buttons, tabs, navigation                              |
+| `label-sm`    | 12, 400         | Hints, timestamps, metadata                            |
+| `label-xs`    | 11, 600         | Counts, chips, avatar initials                         |
+| `metric`      | 28, 600         | The number on a stat tile, with tabular figures        |
+| `code`        | 13, 400, mono   | Queries, diffs, log lines                              |
 
 Sentence case everywhere. No uppercase labels. Weight carries hierarchy: 600 for titles and names, 500 for controls, 400 for the rest.
 
@@ -698,11 +698,11 @@ A 4px base. The spacing scale is 4, 8, 12, 16, 24, 32.
 
 Breakpoints:
 
-| Width | What changes |
-| --- | --- |
-| Under 1200px | The sidebar folds to an icon rail (`rail-collapsed`, 52px) |
-| Under 1100px | The side panel and margin comments drop below the content. Inbox shows the list alone |
-| Under 900px | The sidebar becomes a top bar. Stat tiles go two across, panels go full width, floating notes sit under their chart |
+| Width        | What changes                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Under 1200px | The sidebar folds to an icon rail (`rail-collapsed`, 52px)                                                          |
+| Under 1100px | The side panel and margin comments drop below the content. Inbox shows the list alone                               |
+| Under 900px  | The sidebar becomes a top bar. Stat tiles go two across, panels go full width, floating notes sit under their chart |
 
 No page scrolls sideways at 390px. Tables scroll inside their own container.
 
@@ -714,12 +714,12 @@ Emphasis uses a stronger border: a selected panel or the active composer takes a
 
 ## Shapes
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `xs` | 4px | Chips, tags, keyboard hints, mentions, the active segment of a toggle |
-| `sm` | 6px | Buttons, inputs, navigation items |
-| `md` | 10px | Cards, panels, composers, menus |
-| `full` | round | People and agent avatars, counts, switches, status dots |
+| Token  | Value | Use                                                                   |
+| ------ | ----- | --------------------------------------------------------------------- |
+| `xs`   | 4px   | Chips, tags, keyboard hints, mentions, the active segment of a toggle |
+| `sm`   | 6px   | Buttons, inputs, navigation items                                     |
+| `md`   | 10px  | Cards, panels, composers, menus                                       |
+| `full` | round | People and agent avatars, counts, switches, status dots               |
 
 Round means an author (a person or an agent) or a count. A 6px corner means a control. Do not mix them.
 A dashed 1.5px border means "suggested, not saved yet". A solid border means saved.
