@@ -394,6 +394,26 @@ func (q *Queries) GetDashboardVersionUnverified(ctx context.Context, arg GetDash
 	return unverified, err
 }
 
+const getRunProposal = `-- name: GetRunProposal :one
+SELECT id, dashboard_id, revision FROM proposals
+WHERE run_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+type GetRunProposalRow struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	Revision    int32
+}
+
+func (q *Queries) GetRunProposal(ctx context.Context, runID pgtype.UUID) (GetRunProposalRow, error) {
+	row := q.db.QueryRow(ctx, getRunProposal, runID)
+	var i GetRunProposalRow
+	err := row.Scan(&i.ID, &i.DashboardID, &i.Revision)
+	return i, err
+}
+
 const insertDashboardVersion = `-- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,

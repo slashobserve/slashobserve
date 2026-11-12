@@ -174,3 +174,9 @@ UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
 
 -- name: NotifyEvent :exec
 SELECT pg_notify(@channel::text, @payload::text);
+
+-- name: GetRunProposal :one
+SELECT id, dashboard_id, revision FROM proposals
+WHERE run_id = @run_id
+ORDER BY created_at DESC, id DESC
+LIMIT 1;

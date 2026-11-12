@@ -7,11 +7,15 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -618,5 +622,101 @@ func TestAMergeAndADiscardAtOnceLeaveOneOutcome(t *testing.T) {
 	}
 	if got := r.activity(t); len(got) != 2 {
 		t.Fatalf("activity = %v, want opened and one close", got)
+	}
+}
+
+const runAttempt = 1
+
+func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgtype.UUID {
+	t.Helper()
+	queued, err := r.db.Queries().EnqueueAgentRequest(t.Context(), dbsqlc.EnqueueAgentRequestParams{
+		DashboardID: dash, Source: "prompt", Prompt: "revise", BaseVersion: 1,
+		RequestedByKind: string(editor.Kind), RequestedByID: mustParse(t, editor.ID), RequestedByName: editor.Name,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{
+		LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim),
+	})
+	if err != nil || claimed.AgentRequest.ID != queued.ID {
+		t.Fatalf("claimed %v, want %v, err %v", claimed.AgentRequest.ID, queued.ID, err)
+	}
+	_, err = r.dashboards.SaveBuild(t.Context(), editor, dashboards.BuildSave{
+		RequestID: queued.ID, Attempt: runAttempt, DashboardID: dash, BaseVersion: 1, Spec: specOf("t", panels...),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return queued.ID
+}
+
+func (r *rig) proposalsOfRun(t *testing.T, run pgtype.UUID) int {
+	t.Helper()
+	var n int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM proposals WHERE run_id = $1`, run.String()).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestARunWhoseRequesterLostEditCommitsItsBuildAsAProposalOwnedByTheRun(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+	run := r.runWithABuild(t, id, changed, second)
+
+	commit, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	if err != nil || commit.Proposal == nil || !commit.Proposal.Opened || commit.Proposal.Revision != 1 || commit.Version.Number != 0 {
+		t.Fatalf("commit = proposal %+v, version %d, err %v, want an opened proposal at revision 1", commit.Proposal, commit.Version.Number, err)
+	}
+	if r.proposalsOfRun(t, run) != 1 {
+		t.Fatal("the proposal is not owned by the run")
+	}
+	if _, found, err := r.dashboards.Build(t.Context(), run); err != nil || found {
+		t.Fatalf("the build survived its proposal: found = %v, err %v", found, err)
+	}
+	if got := r.latest(t, id); got != 1 {
+		t.Fatalf("latest = %d, want 1: a proposal saves no version", got)
+	}
+
+	again, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	if err != nil || again.Proposal == nil || again.Proposal.ID != commit.Proposal.ID || again.Proposal.Opened || again.Dashboard.ID != id.String() {
+		t.Fatalf("second commit = proposal %+v, dashboard %s, err %v, want the same proposal replayed", again.Proposal, again.Dashboard.ID, err)
+	}
+	if r.proposalsOfRun(t, run) != 1 {
+		t.Fatal("the replay wrote a second proposal")
+	}
+}
+
+func TestALostAttemptsCommitWritesNoProposal(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+	run := r.runWithABuild(t, id, changed, second)
+
+	if _, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt+1); !errors.Is(err, dashboards.ErrBuildLost) {
+		t.Fatalf("err = %v, want ErrBuildLost", err)
+	}
+	if r.proposalsOfRun(t, run) != 0 {
+		t.Fatal("a lost attempt left a proposal")
+	}
+	if _, found, err := r.dashboards.Build(t.Context(), run); err != nil || !found {
+		t.Fatalf("the build was lost: found = %v, err %v", found, err)
+	}
+	if got := r.activity(t); len(got) != 0 {
+		t.Fatalf("activity = %v, want none from a rolled back proposal", got)
+	}
+}
+
+func TestAnEditorsRunInProposeModeCommitsAsAProposal(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+	run := r.runWithABuild(t, id, changed, second)
+
+	commit, err := r.dashboards.CommitBuild(grantmode.With(t.Context(), grantmode.Propose), editor, run, runAttempt)
+	if err != nil || commit.Proposal == nil || commit.Version.Number != 0 {
+		t.Fatalf("commit = proposal %+v, version %d, err %v", commit.Proposal, commit.Version.Number, err)
+	}
+	if got := r.latest(t, id); got != 1 {
+		t.Fatalf("latest = %d, want 1", got)
 	}
 }

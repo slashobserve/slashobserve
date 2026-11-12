@@ -65,11 +65,12 @@ func (q *Queries) ArchiveAgentRequest(ctx context.Context, id pgtype.UUID) (int6
 
 const cancelAgentRequest = `-- name: CancelAgentRequest :one
 WITH target AS (
-  SELECT r.id, r.state AS prior_state, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id,
+  SELECT r.id, r.state AS prior_state, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id, pr.id AS proposal_id,
     (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp()) AS finishes
   FROM agent_requests r
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
+  LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
   WHERE r.id = $5 AND r.state = ANY($6::text[]) AND r.source <> 'suggest'
   FOR UPDATE OF r
 )
@@ -78,13 +79,13 @@ SET cancel_requested_at = coalesce(agent_requests.cancel_requested_at, clock_tim
   canceled_by_kind = coalesce(agent_requests.canceled_by_kind, $1),
   canceled_by_id = coalesce(agent_requests.canceled_by_id, $2),
   canceled_by_name = coalesce(agent_requests.canceled_by_name, $3),
-  state = CASE WHEN NOT t.finishes THEN 'canceling' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN NOT t.finishes THEN 'running' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN NOT t.finishes THEN agent_requests.result_kind WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' ELSE agent_requests.result_kind END,
+  state = CASE WHEN NOT t.finishes THEN 'canceling' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN NOT t.finishes THEN 'running' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN NOT t.finishes THEN agent_requests.result_kind WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
   result_version = CASE WHEN t.finishes THEN t.saved_version ELSE agent_requests.result_version END,
   dashboard_id = CASE WHEN t.finishes THEN coalesce(agent_requests.dashboard_id, t.saved_dashboard_id) ELSE agent_requests.dashboard_id END,
-  error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN $4::text END,
-  failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' END,
+  error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN $4::text END,
+  failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
   lease_until = CASE WHEN t.finishes THEN NULL ELSE agent_requests.lease_until END,
   finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE agent_requests.finished_at END
 FROM target t
@@ -742,18 +743,19 @@ func (q *Queries) EnqueueSuggestRequest(ctx context.Context, arg EnqueueSuggestR
 
 const expireUnclaimedAgentRequests = `-- name: ExpireUnclaimedAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE $1::text END,
-  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'agent_unavailable' END,
+  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE $1::text END,
+  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent_unavailable' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 LEFT JOIN findings f ON f.agent_request_id = e.id
+LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id
   AND r.status IN ('queued', 'running')
   AND r.state = ANY($2::text[])
@@ -922,18 +924,19 @@ func (q *Queries) FailAgentRequest(ctx context.Context, arg FailAgentRequestPara
 
 const failExhaustedAgentRequests = `-- name: FailExhaustedAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'agent run did not finish' END,
-  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL) THEN NULL ELSE 'lease_expired' END,
+  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent run did not finish' END,
+  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'lease_expired' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 LEFT JOIN findings f ON f.agent_request_id = e.id
+LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id AND r.status = 'running' AND r.state = ANY($1::text[])
   AND r.lease_until < clock_timestamp() AND r.attempts >= $2::integer
 RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id
@@ -1615,6 +1618,17 @@ func (q *Queries) RenewAgentRequestLease(ctx context.Context, arg RenewAgentRequ
 	return cancel_requested_at, err
 }
 
+const runHasProposal = `-- name: RunHasProposal :one
+SELECT EXISTS (SELECT 1 FROM proposals WHERE run_id = $1)
+`
+
+func (q *Queries) RunHasProposal(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, runHasProposal, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const setRequestObservation = `-- name: SetRequestObservation :one
 UPDATE agent_requests SET observation_id = $1 WHERE id = $2
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id
@@ -1681,21 +1695,22 @@ func (q *Queries) SetRequestObservation(ctx context.Context, arg SetRequestObser
 
 const settleAgentRequest = `-- name: SettleAgentRequest :one
 WITH target AS (
-  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id
+  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id, pr.id AS proposal_id
   FROM agent_requests r
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
+  LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
   WHERE r.id = $3 AND r.attempts = $4 AND r.state = ANY($5::text[]) AND r.cancel_requested_at IS NOT NULL
   FOR UPDATE OF r
 )
 UPDATE agent_requests
-SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' ELSE agent_requests.result_kind END,
+SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
   result_version = t.saved_version,
   dashboard_id = coalesce(agent_requests.dashboard_id, t.saved_dashboard_id),
-  error = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN $1::text END,
-  failure_code = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' END,
+  error = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN $1::text END,
+  failure_code = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
   run_usage = coalesce($2::jsonb, agent_requests.run_usage),
   lease_until = NULL,
   finished_at = clock_timestamp()
@@ -1774,18 +1789,19 @@ func (q *Queries) SettleAgentRequest(ctx context.Context, arg SettleAgentRequest
 
 const settleCanceledAgentRequests = `-- name: SettleCanceledAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' ELSE r.result_kind END,
+SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN $1::text END,
-  failure_code = CASE WHEN (saved.version IS NULL AND f.id IS NULL) THEN 'canceled' END,
+  error = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN $1::text END,
+  failure_code = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'canceled' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 LEFT JOIN findings f ON f.agent_request_id = e.id
+LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id AND r.status IN ('queued', 'running') AND r.state = ANY($2::text[])
   AND r.cancel_requested_at IS NOT NULL
   AND (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp())
@@ -1971,6 +1987,85 @@ type SucceedFindingRequestParams struct {
 
 func (q *Queries) SucceedFindingRequest(ctx context.Context, arg SucceedFindingRequestParams) (AgentRequest, error) {
 	row := q.db.QueryRow(ctx, succeedFindingRequest,
+		arg.RunUsage,
+		arg.ID,
+		arg.FromStates,
+		arg.Attempts,
+	)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+		&i.FailureCode,
+		&i.BuildSavedAt,
+		&i.CancelRequestedAt,
+		&i.CanceledByKind,
+		&i.CanceledByID,
+		&i.CanceledByName,
+		&i.ContinuesID,
+		&i.ContinueNote,
+		&i.ContextFrom,
+		&i.ContextTo,
+		&i.Title,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.Trigger,
+		&i.State,
+		&i.ResultKind,
+		&i.AssignedKind,
+		&i.AssignedID,
+		&i.ClaimedBy,
+		&i.ObservationID,
+	)
+	return i, err
+}
+
+const succeedProposalRequest = `-- name: SucceedProposalRequest :one
+UPDATE agent_requests
+SET state = 'succeeded',
+  status = 'succeeded',
+  result_kind = 'proposal',
+  run_usage = $1::jsonb,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+WHERE agent_requests.id = $2 AND agent_requests.state = ANY($3::text[]) AND agent_requests.attempts = $4
+  AND EXISTS (SELECT 1 FROM proposals p WHERE p.run_id = agent_requests.id)
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id
+`
+
+type SucceedProposalRequestParams struct {
+	RunUsage   []byte
+	ID         pgtype.UUID
+	FromStates []string
+	Attempts   int32
+}
+
+func (q *Queries) SucceedProposalRequest(ctx context.Context, arg SucceedProposalRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, succeedProposalRequest,
 		arg.RunUsage,
 		arg.ID,
 		arg.FromStates,

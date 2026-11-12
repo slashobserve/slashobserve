@@ -312,6 +312,8 @@ func successOutcome(source Source, result Result) outcome {
 		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: result.Usage}
 	case result.FindingID != "":
 		return outcome{finding: true, usage: result.Usage}
+	case result.ProposalID != "":
+		return outcome{proposal: true, usage: result.Usage}
 	}
 	return outcome{version: &result.Version, usage: result.Usage}
 }

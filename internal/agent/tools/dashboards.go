@@ -37,7 +37,7 @@ const (
 	codeProposed        = "proposed"
 
 	proposedStep    = "Proposed for an Editor to merge"
-	proposedMessage = "Your change is waiting for someone who can edit this dashboard; get_proposal shows it and its conflicts."
+	proposedMessage = "Nothing was saved to the dashboard: your change is a proposal waiting for someone who can edit it to merge."
 
 	defaultCreateSummary = "Create dashboard"
 	defaultUpdateSummary = "Update dashboard"

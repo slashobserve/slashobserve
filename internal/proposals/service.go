@@ -130,17 +130,13 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 		next := revisionContent{spec: raw, base: in.BaseVersion, summary: in.Summary}
 		if !found {
 			ref, err = insertProposal(ctx, q, in, next, who, cols)
+		} else {
+			ref, err = foldIntoOpen(ctx, q, in, saveBase, locked, next, who)
+		}
+		if err != nil || in.InTx == nil {
 			return err
 		}
-		h, err := readHead(ctx, q, locked.id)
-		if err != nil {
-			return err
-		}
-		if next.spec, next.base, err = foldOnto(ctx, q, in, saveBase, h); err != nil {
-			return err
-		}
-		ref, err = addRevision(ctx, q, locked.id, h.row.Title, in.DashboardID, next, who)
-		return err
+		return in.InTx(q)
 	})
 	switch {
 	case isForeignKey(err, dashboardForeignKey):
@@ -152,6 +148,17 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 		slog.String("actor_id", who.ID), slog.String("proposal_id", ref.ID), slog.String("dashboard_id", in.DashboardID.String()),
 		slog.Int("revision", ref.Revision), slog.Bool("opened", ref.Opened))
 	return ref, nil
+}
+
+func foldIntoOpen(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, saveBase *spec.Dashboard, locked openProposal, next revisionContent, who actor.Actor) (dashboards.ProposalRef, error) {
+	h, err := readHead(ctx, q, locked.id)
+	if err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	if next.spec, next.base, err = foldOnto(ctx, q, in, saveBase, h); err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	return addRevision(ctx, q, locked.id, h.row.Title, in.DashboardID, next, who)
 }
 
 type revisionContent struct {

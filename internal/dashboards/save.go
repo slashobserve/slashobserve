@@ -53,6 +53,7 @@ type ProposeInput struct {
 	Summary     string
 	RequestID   pgtype.UUID
 	Partial     bool
+	InTx        func(q *dbsqlc.Queries) error
 }
 
 type ProposalRef struct {

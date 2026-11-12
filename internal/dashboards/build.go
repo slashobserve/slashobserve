@@ -64,7 +64,7 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 	revision := in.DashboardID.Valid
 	fallback := defaultCreateSummary
 	if revision {
-		if _, err := s.need(ctx, by, in.DashboardID, folders.NeedEdit); err != nil {
+		if _, err := s.need(ctx, by, in.DashboardID, folders.NeedComment); err != nil {
 			return Build{}, err
 		}
 		fallback = defaultUpdateSummary
@@ -205,25 +205,45 @@ func (s *Service) ViewBuild(ctx context.Context, by auth.Principal, requestID pg
 	return build, nil
 }
 
-func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Dashboard, Version, bool, error) {
-	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	if saved {
-		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
-			return Dashboard{}, Version{}, false, err
-		}
-		return dash, ver, true, nil
+type Commit struct {
+	Dashboard Dashboard
+	Version   Version
+	Replayed  bool
+	Proposal  *ProposalRef
+}
+
+func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, error) {
+	if commit, replayed, err := s.replayedCommit(ctx, by, requestID, attempt); err != nil || replayed {
+		return commit, err
 	}
 	build, found, err := s.Build(ctx, requestID)
 	if err != nil {
-		return Dashboard{}, Version{}, false, err
+		return Commit{}, err
 	}
 	if !found {
-		return Dashboard{}, Version{}, false, ErrBuildNotFound
+		return Commit{}, ErrBuildNotFound
 	}
-	return s.commitBuild(ctx, by, build, build.Summary, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
+	deleteBuild := deleteBuildFenced(ctx, requestID, attempt)
+	if build.DashboardID.Valid {
+		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
+		if err != nil {
+			return Commit{}, err
+		}
+		if mustPropose(ctx, access.Abilities) && access.Abilities.Comment && s.proposer != nil {
+			return s.proposeBuild(ctx, by, build, access, deleteBuild)
+		}
+	}
+	dash, ver, replayed, err := s.commitBuild(ctx, by, build, build.Summary, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
+		return deleteBuild(q)
+	})
+	if err != nil {
+		return Commit{}, err
+	}
+	return Commit{Dashboard: dash, Version: ver, Replayed: replayed}, nil
+}
+
+func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, attempt int) func(q *dbsqlc.Queries) error {
+	return func(q *dbsqlc.Queries) error {
 		n, err := q.DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, Attempt: httpapi.Int32(attempt)})
 		if err != nil {
 			return fmt.Errorf("delete agent request build: %w", err)
@@ -232,7 +252,63 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 			return ErrBuildLost
 		}
 		return nil
+	}
+}
+
+func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
+	if err != nil {
+		return Commit{}, false, err
+	}
+	if saved {
+		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+			return Commit{}, false, err
+		}
+		return Commit{Dashboard: dash, Version: ver, Replayed: true}, true, nil
+	}
+	return s.proposedByRun(ctx, by, requestID, attempt)
+}
+
+func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Build, access folders.DashboardAccess, deleteBuild func(q *dbsqlc.Queries) error) (Commit, error) {
+	ref, err := s.proposer(ctx, by, ProposeInput{
+		DashboardID: build.DashboardID,
+		BaseVersion: build.BaseVersion,
+		Spec:        build.Spec,
+		Summary:     build.Summary,
+		RequestID:   build.RequestID,
+		Partial:     true,
+		InTx:        deleteBuild,
 	})
+	if err != nil {
+		return Commit{}, err
+	}
+	dash, _, err := s.store.latest(ctx, build.DashboardID)
+	if err != nil {
+		return Commit{}, err
+	}
+	return Commit{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+}
+
+func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+	row, err := s.store.db.Queries().GetRunProposal(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Commit{}, false, nil
+	}
+	if err != nil {
+		return Commit{}, false, fmt.Errorf("get run proposal: %w", err)
+	}
+	access, err := s.need(ctx, by, row.DashboardID, folders.NeedView)
+	if err != nil {
+		return Commit{}, false, err
+	}
+	dash, _, err := s.store.latest(ctx, row.DashboardID)
+	if err != nil {
+		return Commit{}, false, err
+	}
+	if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+		return Commit{}, false, err
+	}
+	return Commit{Dashboard: withAccess(dash, access), Proposal: &ProposalRef{ID: row.ID.String(), Revision: int(row.Revision)}}, true, nil
 }
 
 func (s *Service) DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error {

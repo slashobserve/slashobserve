@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -30,6 +32,17 @@ func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 	}
 	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
 	return r.as(WithRun(r.ctx, Run{Mode: ModeCreate, Build: true, RequestID: request.ID.String(), Attempt: 1}))
+}
+
+func (r *panelsRig) reviseRun(ctx context.Context, t *testing.T, id string) panelsCaller {
+	t.Helper()
+	queue := revisions.NewService(r.database.DB, noopReviser{}, slog.New(slog.DiscardHandler), revisions.WithAccess(folders.NewAccess(r.database.DB)))
+	request, err := queue.Submit(r.ctx, revisions.EnqueueParams{DashboardID: mustUUID(t, id), Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: placeholderUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
+	return r.as(WithRun(ctx, Run{Mode: ModeRevise, DashboardID: id, ParentVersion: 1, Build: true, RequestID: request.ID.String(), Attempt: 1}))
 }
 
 func buildCreateJSON(panel string, extra string) string {
@@ -1417,6 +1430,31 @@ func TestLayoutOutShowsTheOpenEndOfTheRow(t *testing.T) {
 			raw, _ := json.Marshal(out)
 			if has := strings.Contains(string(raw), `"open"`); has != (tt.want != "") {
 				t.Errorf("marshalled layout %s, want the open key present only when there is an open end", raw)
+			}
+		})
+	}
+}
+
+func TestAFinishSaveByARequesterWhoCannotEditAnswersProposedAndSavesNoVersion(t *testing.T) {
+	for name, ctx := range map[string]func(*panelsRig) context.Context{
+		"a commenter":          func(*panelsRig) context.Context { return auth.WithPrincipal(context.Background(), commenterCaller) },
+		"an editor in propose": func(r *panelsRig) context.Context { return grantmode.With(r.ctx, grantmode.Propose) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			rig := newPanelsRig(t)
+			id := rig.seedStats(t)
+			run := rig.reviseRun(ctx(rig), t, id)
+
+			res, _ := run.run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,"summary":"Change","upsert":[`+suggestStat("p1", "Proposed", "count(up)", 0)+`],"finish":true}`)
+			out, ok := res.Content.(proposedOut)
+			if res.IsError || !ok || out.Code != codeProposed || out.ProposalID == "" || out.Revision != 1 || !out.Opened || !strings.Contains(out.URL, id) {
+				t.Fatalf("res = %#v", res.Content)
+			}
+			if res.Step != proposedStep {
+				t.Errorf("step = %q, want %q", res.Step, proposedStep)
+			}
+			if got := rig.latest(t, id).Number; got != 1 {
+				t.Fatalf("the finish saved version %d", got)
 			}
 		})
 	}
