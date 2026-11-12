@@ -75,6 +75,7 @@ A run does not save versions as it goes.
 Every accepted `create_dashboard`, `update_dashboard` or `update_panels` goes into a build, an unsaved copy of the dashboard that only the person who asked can watch (see [Chat](../use/chat.md#watch-the-build)).
 Each save into the build is checked like a version save, so every panel's queries are verified as the panel arrives.
 The build becomes one version when the agent finishes, either with `finish` set on its last save or with an answer that has no tool call.
+When the requester can no longer edit the dashboard, it becomes a [proposal](proposals.md) instead (see [When the requester cannot edit](#when-the-requester-cannot-edit)).
 Nothing shows in the dashboard list, a folder or the history before that, and an intermediate panel never becomes a version.
 
 ### One panel per save
@@ -280,6 +281,15 @@ A new dashboard goes to the requester's My Dashboards, where every person has Ed
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
+
+### When the requester cannot edit
+
+The server checks the requester once more when the build commits.
+When they can still comment on the dashboard but can no longer edit it, or the run acts in propose mode, the build is saved as a [proposal](proposals.md) and not as a version.
+The proposal belongs to the run, so a second attempt of the same run adds a revision to it and does not open another.
+The run succeeds with `result_kind: proposal` and no `result_version`, and the comment that asked for it stays open, because nothing was saved.
+Someone who can edit the dashboard merges or discards the proposal; the run's last step says "Proposed for an Editor to merge".
+**Save what was built** still needs Edit.
 
 ### Tools in a run
 
