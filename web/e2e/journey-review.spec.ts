@@ -116,7 +116,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           .click()
 
         await expect(
-          form.getByText(/Observe Agent is working on it/)
+          own.getByText(/Observe Agent is working on it/)
         ).toBeVisible()
         const running = entries(page).filter({
           has: page.getByText("is working on it", { exact: true }),
@@ -129,12 +129,12 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("resolved", async () => {
         finish()
-        await expect(own.getByText("Resolved by version 2")).toBeVisible({
-          timeout: agentTimeout,
-        })
+        await expect(
+          own.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
         await expect(versionEntry(page, 2)).toHaveCount(1)
         await expect(versionButton(page)).toHaveText("Live · v2")
-        await expect(activityToggle(page, 1)).toBeVisible()
+        await expect(activityToggle(page, 2)).toBeVisible()
         await expect(
           thread(teammateComment).getByText("Open", { exact: true })
         ).toBeVisible()

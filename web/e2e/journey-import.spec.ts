@@ -258,10 +258,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         })
         await expect(
           form.getByRole("textbox", { name: "Comment or request" })
-        ).toHaveValue(fixPrompt)
-        await form
-          .getByRole("textbox", { name: "Comment or request" })
-          .fill(`@observe ${fixPrompt}`)
+        ).toHaveValue(`@observe ${fixPrompt}`)
         await form
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()

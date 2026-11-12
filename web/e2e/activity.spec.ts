@@ -414,9 +414,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(running).toHaveCount(1)
 
         finish()
-        const saved = entry.getByRole("link", { name: "Saved as version 2" })
-        await expect(saved).toBeVisible({ timeout: agentTimeout })
-        await expect(saved).toHaveAttribute("href", /versions\?from=1&to=2/)
+        await expect(
+          entry.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
         await expect(running).toHaveCount(0)
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
@@ -450,14 +450,13 @@ for (const colorScheme of ["light", "dark"] as const) {
           .click()
 
         await expect(
-          form.getByText(/Observe Agent is working on it/)
+          thread.getByText(/Observe Agent is working on it/)
         ).toBeVisible()
 
         finish()
-        await expect(thread.getByText("Resolved by version 2")).toBeVisible({
-          timeout: agentTimeout,
-        })
-        await thread.getByRole("button", { name: "Show thread" }).click()
+        await expect(
+          thread.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, p99Prompt).filter({
