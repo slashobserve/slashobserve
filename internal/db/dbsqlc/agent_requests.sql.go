@@ -381,12 +381,15 @@ const enqueueAgentRequest = `-- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
-  continues_id, continue_note
+  continues_id, continue_note,
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context
 ) VALUES (
   $1, $2, $3, $4, $5, $6::integer,
   $7, $8, $9, $10,
   $11::text, $12::text,
-  $13::uuid, $14::text
+  $13::uuid, $14::text,
+  coalesce($15::text, 'builtin'), $16::uuid, coalesce($17::text, 'person'),
+  $18::uuid, $19::text
 )
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context
 `
@@ -406,6 +409,11 @@ type EnqueueAgentRequestParams struct {
 	OriginClient     pgtype.Text
 	ContinuesID      pgtype.UUID
 	ContinueNote     pgtype.Text
+	AssignedKind     pgtype.Text
+	AssignedID       pgtype.UUID
+	Trigger          pgtype.Text
+	ThreadMessageID  pgtype.UUID
+	ThreadContext    pgtype.Text
 }
 
 func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentRequestParams) (AgentRequest, error) {
@@ -424,6 +432,11 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		arg.OriginClient,
 		arg.ContinuesID,
 		arg.ContinueNote,
+		arg.AssignedKind,
+		arg.AssignedID,
+		arg.Trigger,
+		arg.ThreadMessageID,
+		arg.ThreadContext,
 	)
 	var i AgentRequest
 	err := row.Scan(
@@ -482,12 +495,15 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 const enqueueInvestigateRequest = `-- name: EnqueueInvestigateRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, prompt, panel_id, context_from, context_to,
-  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context
 ) VALUES (
   $1::uuid, 'investigate', $2, $3::text,
   $4::timestamptz, $5::timestamptz,
   $6, $7, $8, $9,
-  $10::text, $11::text
+  $10::text, $11::text,
+  coalesce($12::text, 'builtin'), $13::uuid, coalesce($14::text, 'person'),
+  $15::uuid, $16::text
 )
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context
 `
@@ -504,6 +520,11 @@ type EnqueueInvestigateRequestParams struct {
 	RequestedByEmail pgtype.Text
 	Origin           pgtype.Text
 	OriginClient     pgtype.Text
+	AssignedKind     pgtype.Text
+	AssignedID       pgtype.UUID
+	Trigger          pgtype.Text
+	ThreadMessageID  pgtype.UUID
+	ThreadContext    pgtype.Text
 }
 
 func (q *Queries) EnqueueInvestigateRequest(ctx context.Context, arg EnqueueInvestigateRequestParams) (AgentRequest, error) {
@@ -519,6 +540,11 @@ func (q *Queries) EnqueueInvestigateRequest(ctx context.Context, arg EnqueueInve
 		arg.RequestedByEmail,
 		arg.Origin,
 		arg.OriginClient,
+		arg.AssignedKind,
+		arg.AssignedID,
+		arg.Trigger,
+		arg.ThreadMessageID,
+		arg.ThreadContext,
 	)
 	var i AgentRequest
 	err := row.Scan(

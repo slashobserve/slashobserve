@@ -284,15 +284,17 @@ func (q *Queries) GetThreadOfMessage(ctx context.Context, id pgtype.UUID) (Threa
 }
 
 const insertMention = `-- name: InsertMention :exec
-INSERT INTO thread_mentions (message_id, user_id, agent, name)
-VALUES ($1::uuid, $2::uuid, $3::text, $4::text)
+INSERT INTO thread_mentions (message_id, user_id, agent, agent_grant_id, agent_service_account_id, name)
+VALUES ($1::uuid, $2::uuid, $3::text, $4::uuid, $5::uuid, $6::text)
 `
 
 type InsertMentionParams struct {
-	MessageID pgtype.UUID
-	UserID    pgtype.UUID
-	Agent     pgtype.Text
-	Name      string
+	MessageID             pgtype.UUID
+	UserID                pgtype.UUID
+	Agent                 pgtype.Text
+	AgentGrantID          pgtype.UUID
+	AgentServiceAccountID pgtype.UUID
+	Name                  string
 }
 
 func (q *Queries) InsertMention(ctx context.Context, arg InsertMentionParams) error {
@@ -300,13 +302,15 @@ func (q *Queries) InsertMention(ctx context.Context, arg InsertMentionParams) er
 		arg.MessageID,
 		arg.UserID,
 		arg.Agent,
+		arg.AgentGrantID,
+		arg.AgentServiceAccountID,
 		arg.Name,
 	)
 	return err
 }
 
 const listMentions = `-- name: ListMentions :many
-SELECT message_id, user_id, agent, name, agent_grant_id, agent_service_account_id FROM thread_mentions WHERE message_id = ANY($1::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id
+SELECT message_id, user_id, agent, name, agent_grant_id, agent_service_account_id FROM thread_mentions WHERE message_id = ANY($1::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id, agent_grant_id, agent_service_account_id
 `
 
 func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([]ThreadMention, error) {
@@ -487,6 +491,36 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	return id_2, err
 }
 
+const mentionableGrant = `-- name: MentionableGrant :one
+SELECT coalesce(c.name, '')::text AS name
+FROM oauth_grants g
+JOIN oauth_clients c ON c.id = g.client_id
+WHERE g.id = $1 AND g.user_id = $2 AND g.revoked_at IS NULL AND g.expires_at > now()
+`
+
+type MentionableGrantParams struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+func (q *Queries) MentionableGrant(ctx context.Context, arg MentionableGrantParams) (string, error) {
+	row := q.db.QueryRow(ctx, mentionableGrant, arg.ID, arg.UserID)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
+const mentionableServiceAccount = `-- name: MentionableServiceAccount :one
+SELECT name FROM service_accounts WHERE id = $1 AND takes_runs
+`
+
+func (q *Queries) MentionableServiceAccount(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, mentionableServiceAccount, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const observationOfFinding = `-- name: ObservationOfFinding :one
 SELECT observation_id FROM findings WHERE id = $1
 `
@@ -626,6 +660,55 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 		&i.ProposalID,
 	)
 	return i, err
+}
+
+const threadTranscript = `-- name: ThreadTranscript :many
+SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id
+FROM thread_messages m
+WHERE m.thread_id = $1
+  AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = $2)
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $3
+`
+
+type ThreadTranscriptParams struct {
+	ThreadID pgtype.UUID
+	BeforeID pgtype.UUID
+	RowLimit int32
+}
+
+func (q *Queries) ThreadTranscript(ctx context.Context, arg ThreadTranscriptParams) ([]ThreadMessage, error) {
+	rows, err := q.db.Query(ctx, threadTranscript, arg.ThreadID, arg.BeforeID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ThreadMessage
+	for rows.Next() {
+		var i ThreadMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.ThreadID,
+			&i.Body,
+			&i.AuthorKind,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.Origin,
+			&i.OriginClient,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EditedAt,
+			&i.RunID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const userMentionNames = `-- name: UserMentionNames :many

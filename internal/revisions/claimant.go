@@ -50,3 +50,12 @@ func (c Claimant) assignedID() (pgtype.UUID, error) {
 	}
 	return id, nil
 }
+
+type Assignee struct {
+	Kind AssigneeKind
+	ID   pgtype.UUID
+}
+
+func (a Assignee) kindText() pgtype.Text {
+	return pgtype.Text{String: string(a.Kind), Valid: a.Kind != ""}
+}
