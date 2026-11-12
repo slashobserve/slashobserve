@@ -1,23 +1,10 @@
-import { useId, useState } from "react"
+import { useState, type Dispatch, type SetStateAction } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useNavigate } from "@tanstack/react-router"
-import { LoaderCircleIcon } from "lucide-react"
-import { toast } from "sonner"
+import { Link } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { Discussion } from "@/discussion/discussion"
@@ -25,18 +12,12 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { dashboardLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { Side } from "./conflict-choices"
-import { mergeLeftProposalStale, mergeProblem } from "./merge-problem"
+import { ProposalActions } from "./proposal-actions"
 import { ProposalBody } from "./proposal-body"
-import { choicesFrom, unitKey, type Picks } from "./proposal-view"
-import {
-  proposalQuery,
-  useDiscardProposal,
-  useMergeProposal,
-  type Proposal,
-} from "./queries"
+import type { Picks } from "./proposal-view"
+import { proposalQuery, type Proposal } from "./queries"
 
 const columnClass = "flex w-full max-w-[720px] min-w-0 flex-col gap-6"
 
@@ -97,138 +78,20 @@ function Location({ proposal }: { proposal: Proposal }) {
   )
 }
 
-function DiscardButton({
-  proposal,
-  onStale,
-}: {
-  proposal: Proposal
-  onStale: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
-  const discard = useDiscardProposal(proposal.id)
-
-  function changeOpen(next: boolean) {
-    if (!next && discard.isPending) return
-    setOpen(next)
-    if (!next) {
-      setProblem(null)
-      discard.reset()
-    }
-  }
-
-  function confirm() {
-    setProblem(null)
-    discard.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("Discarded")
-        setOpen(false)
-      },
-      onError: (error) => {
-        setProblem(loadProblemText(error))
-        if (mergeLeftProposalStale(error)) onStale()
-      },
-    })
-  }
-
-  return (
-    <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        Discard
-      </Button>
-      <AlertDialog open={open} onOpenChange={changeOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard this proposal?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its change is not saved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {problem === null ? null : (
-            <Alert variant="destructive">
-              <AlertDescription>{problem}</AlertDescription>
-            </Alert>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel aria-disabled={discard.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={discard.isPending}
-              focusableWhenDisabled
-              aria-busy={discard.isPending}
-              onClick={confirm}
-            >
-              {discard.isPending ? (
-                <LoaderCircleIcon
-                  aria-hidden="true"
-                  className="motion-safe:animate-spin"
-                />
-              ) : null}
-              Discard
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  )
-}
-
 function LoadedProposal({
   proposal,
-  onStale,
   picks,
-  onPick,
+  onPicksChange,
 }: {
   proposal: Proposal
-  onStale: () => void
   picks: Picks
-  onPick: (key: string, side: Side) => void
+  onPicksChange: Dispatch<SetStateAction<Picks>>
 }) {
   useDocumentTitle(`${proposal.title} - Proposals - SlashObserve`)
-  const navigate = useNavigate()
-  const hintId = useId()
-  const merge = useMergeProposal(proposal.id)
-  const [problem, setProblem] = useState<string | null>(null)
-  const canMerge = proposal.allowed_actions.includes("merge")
-  const canDiscard = proposal.allowed_actions.includes("discard")
-  const { choices, missing } = choicesFrom(proposal.conflicts, picks)
-  const blocked = proposal.conflicts.some(
-    (conflict) => conflict.reason === "invalid"
-  )
-  const hint = blocked
-    ? "Some changes cannot be merged; discard this proposal or ask its author to fix it"
-    : missing.length > 0
-      ? "Choose a side for each conflict first"
-      : null
+  const [merging, setMerging] = useState(false)
 
-  function submit() {
-    if (missing.length > 0 || merge.isPending) return
-    setProblem(null)
-    merge.mutate(
-      { revision: proposal.revision, choices },
-      {
-        onSuccess: (merged) => {
-          toast.success(
-            merged.merged_version === null
-              ? "Merged"
-              : `Merged as version ${merged.merged_version}`,
-            {
-              action: {
-                label: "Open dashboard",
-                onClick: () =>
-                  void navigate({ ...dashboardLink(merged.dashboard_id) }),
-              },
-            }
-          )
-        },
-        onError: (error) => {
-          setProblem(mergeProblem(error))
-          if (mergeLeftProposalStale(error)) onStale()
-        },
-      }
-    )
+  function pick(key: string, side: Side) {
+    onPicksChange((current) => ({ ...current, [key]: side }))
   }
 
   return (
@@ -237,44 +100,15 @@ function LoadedProposal({
       <ProposalBody
         proposal={proposal}
         picks={picks}
-        onPick={onPick}
-        disabled={merge.isPending}
+        onPick={pick}
+        disabled={merging}
       />
-      {canMerge || canDiscard ? (
-        <div className="flex flex-col gap-2">
-          {problem === null ? null : (
-            <Alert variant="destructive">
-              <AlertDescription>{problem}</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex items-center gap-2">
-            {canMerge ? (
-              <Button
-                aria-disabled={hint !== null || undefined}
-                aria-describedby={hint === null ? undefined : hintId}
-                aria-busy={merge.isPending || undefined}
-                onClick={submit}
-              >
-                {merge.isPending ? (
-                  <LoaderCircleIcon
-                    aria-hidden="true"
-                    className="motion-safe:animate-spin"
-                  />
-                ) : null}
-                Merge
-              </Button>
-            ) : null}
-            {canDiscard ? (
-              <DiscardButton proposal={proposal} onStale={onStale} />
-            ) : null}
-          </div>
-          {hint === null ? null : (
-            <p id={hintId} className="text-xs text-muted-foreground">
-              {hint}
-            </p>
-          )}
-        </div>
-      ) : null}
+      <ProposalActions
+        proposal={proposal}
+        picks={picks}
+        onPicksChange={onPicksChange}
+        onMergingChange={setMerging}
+      />
     </div>
   )
 }
@@ -284,21 +118,6 @@ export function ProposalPage({ proposalId }: { proposalId: string }) {
   const [picks, setPicks] = useState<Picks>({})
   const proposal = query.data
 
-  function pick(key: string, side: Side) {
-    setPicks((current) => ({ ...current, [key]: side }))
-  }
-
-  function refetch() {
-    void query.refetch().then((result) => {
-      const present = new Set((result.data?.conflicts ?? []).map(unitKey))
-      setPicks((current) =>
-        Object.fromEntries(
-          Object.entries(current).filter(([key]) => present.has(key))
-        )
-      )
-    })
-  }
-
   if (proposal !== undefined) {
     return (
       <div className="@container">
@@ -307,8 +126,7 @@ export function ProposalPage({ proposalId }: { proposalId: string }) {
             <LoadedProposal
               proposal={proposal}
               picks={picks}
-              onPick={pick}
-              onStale={refetch}
+              onPicksChange={setPicks}
             />
           </div>
           <div className="w-full @min-[1100px]:sticky @min-[1100px]:top-3.5 @min-[1100px]:h-[calc(100svh-4.75rem)] @min-[1100px]:w-96 @min-[1100px]:flex-none">

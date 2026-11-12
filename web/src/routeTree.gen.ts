@@ -17,6 +17,7 @@ import { Route as RcaTokenRouteImport } from './routes/rca/$token'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/health'
+import { Route as AuthedShellInboxRouteImport } from './routes/_authed/_shell/inbox'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellLogsRouteImport } from './routes/_authed/_shell/logs'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
@@ -28,6 +29,9 @@ import { Route as AuthedDashboardsByTitleRouteImport } from './routes/_authed/da
 import { Route as AuthedFoldersFolderIdRouteImport } from './routes/_authed/folders/$folderId'
 import { Route as AuthedObserveRequestIdRouteImport } from './routes/_authed/observe/$requestId'
 import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shell/_chat/index'
+import { Route as AuthedShellChatAskRouteImport } from './routes/_authed/_shell/_chat/ask'
+import { Route as AuthedShellAgentsIndexRouteImport } from './routes/_authed/_shell/agents/index'
+import { Route as AuthedShellAgentsAgentRefRouteImport } from './routes/_authed/_shell/agents/$agentRef'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
 import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shell/f/$folderId'
 import { Route as AuthedShellFindingsFindingIdRouteImport } from './routes/_authed/_shell/findings/$findingId'
@@ -81,6 +85,11 @@ const AuthedShellDatasourcesRoute = AuthedShellDatasourcesRouteImport.update({
 const AuthedShellHealthRoute = AuthedShellHealthRouteImport.update({
   id: '/health',
   path: '/health',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellInboxRoute = AuthedShellInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellKeysRoute = AuthedShellKeysRouteImport.update({
@@ -138,6 +147,22 @@ const AuthedShellChatIndexRoute = AuthedShellChatIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedShellChatRoute,
 } as any)
+const AuthedShellChatAskRoute = AuthedShellChatAskRouteImport.update({
+  id: '/ask',
+  path: '/ask',
+  getParentRoute: () => AuthedShellChatRoute,
+} as any)
+const AuthedShellAgentsIndexRoute = AuthedShellAgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellAgentsAgentRefRoute =
+  AuthedShellAgentsAgentRefRouteImport.update({
+    id: '/agents/$agentRef',
+    path: '/agents/$agentRef',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellDashboardsIndexRoute =
   AuthedShellDashboardsIndexRouteImport.update({
     id: '/dashboards/',
@@ -243,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/rca/$token': typeof RcaTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
+  '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/logs': typeof AuthedShellLogsRoute
   '/people': typeof AuthedShellPeopleRoute
@@ -253,6 +279,8 @@ export interface FileRoutesByFullPath {
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/ask': typeof AuthedShellChatAskRoute
+  '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
@@ -264,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/d/$dashboardId/versions': typeof AuthedDDashboardIdVersionsRoute
   '/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
+  '/agents/': typeof AuthedShellAgentsIndexRoute
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/import/': typeof AuthedShellImportIndexRoute
   '/observations/': typeof AuthedShellObservationsIndexRoute
@@ -278,6 +307,7 @@ export interface FileRoutesByTo {
   '/rca/$token': typeof RcaTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
+  '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/logs': typeof AuthedShellLogsRoute
   '/people': typeof AuthedShellPeopleRoute
@@ -288,6 +318,8 @@ export interface FileRoutesByTo {
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/ask': typeof AuthedShellChatAskRoute
+  '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
@@ -299,6 +331,7 @@ export interface FileRoutesByTo {
   '/d/$dashboardId/versions': typeof AuthedDDashboardIdVersionsRoute
   '/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
+  '/agents': typeof AuthedShellAgentsIndexRoute
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
   '/import': typeof AuthedShellImportIndexRoute
   '/observations': typeof AuthedShellObservationsIndexRoute
@@ -316,6 +349,7 @@ export interface FileRoutesById {
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/health': typeof AuthedShellHealthRoute
+  '/_authed/_shell/inbox': typeof AuthedShellInboxRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/logs': typeof AuthedShellLogsRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
@@ -326,6 +360,8 @@ export interface FileRoutesById {
   '/_authed/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/_authed/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/_authed/_shell/_chat/ask': typeof AuthedShellChatAskRoute
+  '/_authed/_shell/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
@@ -338,6 +374,7 @@ export interface FileRoutesById {
   '/_authed/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
   '/_authed/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/_authed/_shell/_chat/': typeof AuthedShellChatIndexRoute
+  '/_authed/_shell/agents/': typeof AuthedShellAgentsIndexRoute
   '/_authed/_shell/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/_authed/_shell/import/': typeof AuthedShellImportIndexRoute
   '/_authed/_shell/observations/': typeof AuthedShellObservationsIndexRoute
@@ -354,6 +391,7 @@ export interface FileRouteTypes {
     | '/rca/$token'
     | '/datasources'
     | '/health'
+    | '/inbox'
     | '/keys'
     | '/logs'
     | '/people'
@@ -364,6 +402,8 @@ export interface FileRouteTypes {
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/observe/$requestId'
+    | '/ask'
+    | '/agents/$agentRef'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
@@ -375,6 +415,7 @@ export interface FileRouteTypes {
     | '/d/$dashboardId/versions'
     | '/d/$dashboardId/{-$slug}'
     | '/dashboards/$dashboardId/versions'
+    | '/agents/'
     | '/dashboards/'
     | '/import/'
     | '/observations/'
@@ -389,6 +430,7 @@ export interface FileRouteTypes {
     | '/rca/$token'
     | '/datasources'
     | '/health'
+    | '/inbox'
     | '/keys'
     | '/logs'
     | '/people'
@@ -399,6 +441,8 @@ export interface FileRouteTypes {
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/observe/$requestId'
+    | '/ask'
+    | '/agents/$agentRef'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
@@ -410,6 +454,7 @@ export interface FileRouteTypes {
     | '/d/$dashboardId/versions'
     | '/d/$dashboardId/{-$slug}'
     | '/dashboards/$dashboardId/versions'
+    | '/agents'
     | '/dashboards'
     | '/import'
     | '/observations'
@@ -426,6 +471,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/health'
+    | '/_authed/_shell/inbox'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/logs'
     | '/_authed/_shell/people'
@@ -436,6 +482,8 @@ export interface FileRouteTypes {
     | '/_authed/dashboards/by-title'
     | '/_authed/folders/$folderId'
     | '/_authed/observe/$requestId'
+    | '/_authed/_shell/_chat/ask'
+    | '/_authed/_shell/agents/$agentRef'
     | '/_authed/_shell/f/$folderId'
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
@@ -448,6 +496,7 @@ export interface FileRouteTypes {
     | '/_authed/d/$dashboardId/{-$slug}'
     | '/_authed/dashboards/$dashboardId/versions'
     | '/_authed/_shell/_chat/'
+    | '/_authed/_shell/agents/'
     | '/_authed/_shell/dashboards/'
     | '/_authed/_shell/import/'
     | '/_authed/_shell/observations/'
@@ -519,6 +568,13 @@ declare module '@tanstack/react-router' {
       path: '/health'
       fullPath: '/health'
       preLoaderRoute: typeof AuthedShellHealthRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/inbox': {
+      id: '/_authed/_shell/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AuthedShellInboxRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/keys': {
@@ -597,6 +653,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthedShellChatIndexRouteImport
       parentRoute: typeof AuthedShellChatRoute
+    }
+    '/_authed/_shell/_chat/ask': {
+      id: '/_authed/_shell/_chat/ask'
+      path: '/ask'
+      fullPath: '/ask'
+      preLoaderRoute: typeof AuthedShellChatAskRouteImport
+      parentRoute: typeof AuthedShellChatRoute
+    }
+    '/_authed/_shell/agents/': {
+      id: '/_authed/_shell/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AuthedShellAgentsIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/agents/$agentRef': {
+      id: '/_authed/_shell/agents/$agentRef'
+      path: '/agents/$agentRef'
+      fullPath: '/agents/$agentRef'
+      preLoaderRoute: typeof AuthedShellAgentsAgentRefRouteImport
+      parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/dashboards/': {
       id: '/_authed/_shell/dashboards/'
@@ -721,11 +798,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedShellChatRouteChildren {
+  AuthedShellChatAskRoute: typeof AuthedShellChatAskRoute
   AuthedShellChatIndexRoute: typeof AuthedShellChatIndexRoute
   AuthedShellChatCRequestIdRoute: typeof AuthedShellChatCRequestIdRoute
 }
 
 const AuthedShellChatRouteChildren: AuthedShellChatRouteChildren = {
+  AuthedShellChatAskRoute: AuthedShellChatAskRoute,
   AuthedShellChatIndexRoute: AuthedShellChatIndexRoute,
   AuthedShellChatCRequestIdRoute: AuthedShellChatCRequestIdRoute,
 }
@@ -738,10 +817,12 @@ interface AuthedShellRouteChildren {
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
   AuthedShellHealthRoute: typeof AuthedShellHealthRoute
+  AuthedShellInboxRoute: typeof AuthedShellInboxRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellLogsRoute: typeof AuthedShellLogsRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
   AuthedShellTracesRoute: typeof AuthedShellTracesRoute
+  AuthedShellAgentsAgentRefRoute: typeof AuthedShellAgentsAgentRefRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
@@ -750,6 +831,7 @@ interface AuthedShellRouteChildren {
   AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellTTraceIdRoute: typeof AuthedShellTTraceIdRoute
+  AuthedShellAgentsIndexRoute: typeof AuthedShellAgentsIndexRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellImportIndexRoute: typeof AuthedShellImportIndexRoute
   AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
@@ -760,10 +842,12 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
   AuthedShellHealthRoute: AuthedShellHealthRoute,
+  AuthedShellInboxRoute: AuthedShellInboxRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellLogsRoute: AuthedShellLogsRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
   AuthedShellTracesRoute: AuthedShellTracesRoute,
+  AuthedShellAgentsAgentRefRoute: AuthedShellAgentsAgentRefRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,
@@ -772,6 +856,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellTTraceIdRoute: AuthedShellTTraceIdRoute,
+  AuthedShellAgentsIndexRoute: AuthedShellAgentsIndexRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellImportIndexRoute: AuthedShellImportIndexRoute,
   AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,

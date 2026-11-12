@@ -1,14 +1,14 @@
 import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type NavPath =
-  | "/"
+  | "/inbox"
   | "/observations"
   | "/dashboards"
   | "/health"
   | "/logs"
   | "/traces"
+  | "/agents"
   | "/datasources"
-  | "/keys"
   | "/people"
   | "/settings"
 
@@ -20,7 +20,7 @@ export type NavItem = {
 }
 
 const navItems: readonly NavItem[] = [
-  { to: "/", label: "Observe", group: "main", minRole: "viewer" },
+  { to: "/inbox", label: "Inbox", group: "main", minRole: "viewer" },
   {
     to: "/observations",
     label: "Observations",
@@ -31,13 +31,13 @@ const navItems: readonly NavItem[] = [
   { to: "/health", label: "Health", group: "main", minRole: "viewer" },
   { to: "/logs", label: "Logs", group: "main", minRole: "viewer" },
   { to: "/traces", label: "Traces", group: "main", minRole: "viewer" },
+  { to: "/agents", label: "Agents", group: "main", minRole: "viewer" },
   {
     to: "/datasources",
     label: "Datasources",
     group: "workspace",
     minRole: "admin",
   },
-  { to: "/keys", label: "API keys", group: "workspace", minRole: "admin" },
   { to: "/people", label: "People", group: "workspace", minRole: "admin" },
   { to: "/settings", label: "Settings", group: "workspace", minRole: "viewer" },
 ]
@@ -47,12 +47,13 @@ export function visibleNavItems(role: Role): NavItem[] {
 }
 
 export function isNavItemActive(to: NavPath, pathname: string): boolean {
-  if (to === "/") {
-    return (
-      pathname === "/" || pathname === "/import" || pathname.startsWith("/c/")
-    )
-  }
   if (to === "/traces" && pathname.startsWith("/t/")) return true
+  if (to === "/agents" && pathname === "/keys") return true
   if (to === "/observations" && pathname.startsWith("/o/")) return true
   return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+export function unreadBadge(count: number | null): string | null {
+  if (count === null || count <= 0) return null
+  return count >= 100 ? "99+" : String(count)
 }

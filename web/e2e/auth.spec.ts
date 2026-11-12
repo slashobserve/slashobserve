@@ -10,7 +10,7 @@ test("shows the signed-in user", async ({ page }) => {
   ).toBeVisible()
   await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
   await expect(
-    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+    page.getByRole("heading", { level: 1, name: "Inbox" })
   ).toBeVisible()
 })
 
@@ -51,9 +51,9 @@ test("falls back to the home page for an unsafe return_to", async ({
   page,
 }) => {
   await page.goto("/login?return_to=/%5Cevil.com")
-  await expect(page).toHaveURL("/")
+  await expect(page).toHaveURL(/\/inbox$/)
   await expect(
-    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+    page.getByRole("heading", { level: 1, name: "Inbox" })
   ).toBeVisible()
 })
 

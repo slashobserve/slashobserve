@@ -4,7 +4,8 @@ import { createDashboard, loadSpec, uniqueTitle } from "./api"
 import { expect, test, type Page } from "./fixtures"
 
 const pageNames = [
-  "Observe",
+  "Inbox",
+  "Agents",
   "Dashboards",
   "Datasources",
   "API keys",
@@ -187,7 +188,7 @@ test("runs sign out from the palette", async ({ page, consoleErrors }) => {
   await expect(palette(page)).toHaveCount(0)
   await expect(page.getByText("Sign out failed. Try again.")).toBeVisible()
   expect(signOutRequests).toBe(1)
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/inbox$/)
   dropLoggedFailures(consoleErrors, "500")
 })
 

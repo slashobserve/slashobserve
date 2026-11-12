@@ -2,6 +2,7 @@ import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   createFileRoute,
+  Link,
   useLocation,
   useRouteContext,
 } from "@tanstack/react-router"
@@ -88,7 +89,19 @@ function SelectedSection({ id }: { id: SettingsSectionId }) {
     case "outbound-access":
       return <OutboundAccessCard />
     case "connected-agents":
-      return <ConnectedAgentsSection />
+      return (
+        <>
+          <p className="mb-4 text-[13px] text-muted-foreground">
+            Observe Agent, your connected agents and the service accounts that
+            take runs are on the{" "}
+            <Link to="/agents" className="underline underline-offset-4">
+              Agents page
+            </Link>
+            .
+          </p>
+          <ConnectedAgentsSection />
+        </>
+      )
     case "grafana":
       return <GrafanaSection />
     case "webhooks":

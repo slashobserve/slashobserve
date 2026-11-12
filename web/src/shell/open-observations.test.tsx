@@ -11,14 +11,31 @@ function observation(id: string, title: string) {
   return { id, title, state: "open" }
 }
 
-function answer(observations: unknown[], nextCursor: string | null) {
-  const fetch = vi.fn(
-    async () =>
-      new Response(JSON.stringify({ observations, next_cursor: nextCursor }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      })
-  )
+function inboxItem(observationId: string, unread: boolean) {
+  return {
+    seq: 1,
+    type: "observation.block_added",
+    target: { kind: "observation", id: observationId },
+    reason: "requested_block",
+    unread,
+    data: {},
+  }
+}
+
+function answer(
+  observations: unknown[],
+  nextCursor: string | null,
+  inbox: unknown[] = []
+) {
+  const fetch = vi.fn(async (request: Request) => {
+    const body = new URL(request.url).pathname.endsWith("/inbox")
+      ? { items: inbox, next_cursor: null, unread_count: inbox.length }
+      : { observations, next_cursor: nextCursor }
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+  })
   vi.stubGlobal("fetch", fetch)
   return fetch
 }
@@ -46,8 +63,10 @@ describe("OpenObservations", () => {
       screen.getByRole("group", { name: "Open observations 2" })
     ).toBeInTheDocument()
 
-    const request = fetch.mock.calls[0] as unknown as [Request]
-    const url = new URL(request[0].url, "http://localhost")
+    const request = fetch.mock.calls
+      .map(([call]) => call)
+      .find((call) => new URL(call.url).pathname.endsWith("/observations"))
+    const url = new URL(request!.url, "http://localhost")
     expect(url.searchParams.get("state")).toBe("open")
     expect(url.searchParams.get("limit")).toBe("8")
   })
@@ -78,6 +97,23 @@ describe("OpenObservations", () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(screen.queryByText("Open observations")).not.toBeInTheDocument()
     expect(container.querySelector("ul")).toBeNull()
+  })
+
+  it("marks an observation with an unread inbox item and leaves the others plain", async () => {
+    answer(
+      [observation("o1", "Checkout latency"), observation("o2", "Slow pods")],
+      null,
+      [inboxItem("o1", true), inboxItem("o2", false)]
+    )
+    renderWithProviders(<OpenObservations collapsed={false} />, { route })
+
+    const unread = await screen.findByRole("link", {
+      name: "Checkout latency Unread",
+    })
+    expect(unread.querySelector(".font-semibold")).not.toBeNull()
+    const read = screen.getByRole("link", { name: "Slow pods" })
+    expect(read.querySelector(".font-semibold")).toBeNull()
+    expect(screen.getAllByText("Unread")).toHaveLength(1)
   })
 
   it("renders nothing when the sidebar is folded to icons", async () => {

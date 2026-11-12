@@ -31,18 +31,19 @@ async function noHorizontalOverflow(page: Page) {
 }
 
 const pages = [
-  ["/", "Observe", "What do you want to see?"],
-  ["/dashboards", "Dashboards", "Dashboards"],
-  ["/datasources", "Datasources", "Datasources"],
-  ["/keys", "API keys", "API keys"],
-  ["/people", "People", "People"],
-  ["/settings", "Settings", "Settings"],
+  ["/inbox", "Inbox", "Inbox", "Inbox"],
+  ["/agents", "Agents", "Agents", "Agents"],
+  ["/dashboards", "Dashboards", "Dashboards", "Dashboards"],
+  ["/datasources", "Datasources", "Datasources", "Datasources"],
+  ["/keys", "API keys", "API keys", "Agents"],
+  ["/people", "People", "People", "People"],
+  ["/settings", "Settings", "Settings", "Settings"],
 ] as const
 
 test("renders every shell page with its crumb and current item", async ({
   page,
 }) => {
-  for (const [path, label, heading] of pages) {
+  for (const [path, label, heading, current] of pages) {
     await page.goto(path)
     await expect(
       page.getByRole("heading", { level: 1, name: heading })
@@ -52,10 +53,26 @@ test("renders every shell page with its crumb and current item", async ({
         .getByRole("navigation", { name: "Breadcrumb" })
         .locator('[aria-current="page"]')
     ).toHaveText(label)
-    const current = sidebar(page).locator('a[aria-current="page"]')
-    await expect(current).toHaveCount(1)
-    await expect(current).toHaveAccessibleName(label)
+    const active = sidebar(page).locator('a[aria-current="page"]')
+    await expect(active).toHaveCount(1)
+    await expect(active).toHaveAccessibleName(new RegExp(`^${current}`))
   }
+})
+
+test("redirects / to the inbox and keeps the chat at /ask", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await expect(page).toHaveURL(/\/inbox$/)
+  await page.goto("/ask")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+  ).toBeVisible()
+  await expect(
+    page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .locator('[aria-current="page"]')
+  ).toHaveText("Ask")
 })
 
 test("redirects /settings/keys to /keys", async ({ page }) => {
@@ -193,8 +210,8 @@ test("shows the sidebar rail on a dashboard", async ({ page, request }) => {
   await expect(sidebar(page)).toBeVisible()
   await expectWidth(sidebar(page), 44)
   await expect(grip(page)).toHaveCount(0)
-  await sidebar(page).getByRole("link", { name: "API keys" }).click()
-  await expect(page).toHaveURL(/\/keys$/)
+  await sidebar(page).getByRole("link", { name: "Agents" }).click()
+  await expect(page).toHaveURL(/\/agents$/)
 })
 
 test("shows focus in a monochrome ring", async ({ page }) => {

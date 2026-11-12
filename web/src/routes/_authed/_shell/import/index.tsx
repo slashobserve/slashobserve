@@ -5,7 +5,7 @@ import { ImportPage } from "@/import/import-page"
 
 export const Route = createFileRoute("/_authed/_shell/import/")({
   staticData: {
-    crumbs: [{ label: "Observe", to: "/" }, { label: "Import from Grafana" }],
+    crumbs: [{ label: "Ask", to: "/ask" }, { label: "Import from Grafana" }],
   },
   component: ImportRoute,
 })

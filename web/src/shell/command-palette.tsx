@@ -12,11 +12,13 @@ import { useNavigate, useRouteContext, useRouter } from "@tanstack/react-router"
 import {
   ArrowUpRightIcon,
   BookmarkIcon,
+  BotIcon,
   ChartGanttIcon,
   DatabaseIcon,
   FileTextIcon,
   FlagIcon,
   HeartPulseIcon,
+  InboxIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
@@ -39,10 +41,10 @@ import { observationsLink } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
-import type { NavPath } from "./nav"
 import {
   minSearchLength,
   paletteGroups,
+  type PagePath,
   type MatchSegment,
   type PaletteEntry,
   type ResultEntry,
@@ -52,13 +54,14 @@ import { usePaletteStore } from "./palette-store"
 import { useToggleTheme } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
 
-const pageIcons: Record<NavPath, LucideIcon> = {
-  "/": TerminalIcon,
+const pageIcons: Record<PagePath, LucideIcon> = {
+  "/inbox": InboxIcon,
   "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/health": HeartPulseIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
+  "/agents": BotIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
@@ -168,7 +171,7 @@ function PaletteBody({ close }: { close: () => void }) {
     } else if (entry.id === "action:new-observation") {
       void navigate(observationsLink({ new: "1" }))
     } else if (entry.id === "action:ask") {
-      void navigate({ to: "/" })
+      void navigate({ to: "/ask" })
     } else if (entry.id === "action:import") {
       void navigate({ to: "/import" })
     } else if (entry.id === "action:theme") {

@@ -122,7 +122,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       )
 
       await test.step("start from the composer", async () => {
-        await page.goto("/")
+        await page.goto("/ask")
         await page.getByRole("link", { name: "Import from Grafana" }).click()
         await expect(page).toHaveURL(/\/import$/)
         await expect(
@@ -183,7 +183,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
 
       await test.step("find it in History", async () => {
-        await page.goto("/")
+        await page.goto("/ask")
         await page.getByRole("button", { name: "History", exact: true }).click()
         const history = page.getByRole("complementary", { name: "History" })
         await history.getByRole("tab", { name: "Imports" }).click()

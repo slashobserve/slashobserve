@@ -203,7 +203,11 @@ function GrantsTable({
               className={scope === "all" ? "text-muted-foreground" : undefined}
             >
               {scope === "mine" ? (
-                <ModeSelect grant={grant} />
+                <ModeSelect
+                  grantId={grant.id}
+                  mode={grant.mode}
+                  name={agentName(grant.client.name)}
+                />
               ) : (
                 modeLabel(grant.mode)
               )}

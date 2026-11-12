@@ -1,14 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router"
-
-import { ChatHome } from "@/chat/chat-home"
-import { useDocumentTitle } from "@/lib/document-title"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/_authed/_shell/_chat/")({
-  staticData: { crumbs: [{ label: "Observe" }] },
-  component: Home,
+  beforeLoad: ({ location }) => {
+    throw redirect({
+      href: location.searchStr === "" ? "/inbox" : `/ask${location.searchStr}`,
+      replace: true,
+    })
+  },
 })
-
-function Home() {
-  useDocumentTitle("Observe - SlashObserve")
-  return <ChatHome />
-}

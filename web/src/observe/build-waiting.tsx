@@ -33,7 +33,7 @@ export function NothingSaved() {
       title="Nothing was saved."
       action={
         <Link
-          to="/"
+          to="/ask"
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           Back to Observe

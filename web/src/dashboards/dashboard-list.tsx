@@ -486,7 +486,7 @@ export function DashboardList({
               </p>
               <div className="flex gap-2">
                 <Link
-                  to="/"
+                  to="/ask"
                   className={cn(buttonVariants({ variant: "outline" }))}
                 >
                   Open the chat

@@ -110,17 +110,21 @@ function offlineFailuresLogged(consoleErrors: string[]) {
   }
 }
 
-test("opens API keys from the sidebar", async ({ page }) => {
-  await page.goto("/")
-  const link = page
-    .getByRole("navigation", { name: "Main" })
-    .getByRole("link", { name: "API keys" })
-  await link.click()
+test("opens API keys from the Agents page", async ({ page }) => {
+  await page.goto("/agents")
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "API keys", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/keys$/)
   await expect(
     page.getByRole("heading", { level: 1, name: "API keys" })
   ).toBeVisible()
-  await expect(link).toHaveAttribute("aria-current", "page")
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Agents" })
+  ).toHaveAttribute("aria-current", "page")
   await expect(page).toHaveTitle("API keys - SlashObserve")
 })
 

@@ -93,7 +93,7 @@ export function ChatRowMenu({
       onSuccess: () => {
         setConfirming(false)
         afterDelete.current?.focus()
-        if (current) void navigate({ to: "/" })
+        if (current) void navigate({ to: "/ask" })
       },
       onError: (error) => setProblem(failureText(error)),
     })

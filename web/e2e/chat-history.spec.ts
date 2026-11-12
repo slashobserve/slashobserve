@@ -37,7 +37,7 @@ function rowOf(aside: Locator, requestId: string) {
   return aside.locator(`[data-chat-row][id="chat-row-${requestId}"]`)
 }
 
-async function openHistory(page: Page, path = "/") {
+async function openHistory(page: Page, path = "/ask") {
   await page.goto(path)
   await historyButton(page).click()
   await expect(historyButton(page)).toHaveAttribute("aria-expanded", "true")
@@ -153,7 +153,7 @@ for (const scheme of ["light", "dark"] as const) {
       const olderId = await createRequest(page, neverSavesPrompt)
       const newerId = await createRequest(page, unanswerablePrompt)
 
-      await page.goto("/")
+      await page.goto("/ask")
       const button = historyButton(page)
       await expect(button).toHaveAttribute("aria-expanded", "false")
       await button.click()
@@ -249,9 +249,9 @@ for (const scheme of ["light", "dark"] as const) {
 
       await trigger.click()
       await palette
-        .getByRole("option", { name: "Observe", exact: true })
+        .getByRole("option", { name: "Ask Observe Agent", exact: true })
         .click()
-      await expect(page).toHaveURL(/\/$/)
+      await expect(page).toHaveURL(/\/ask$/)
       await expect(panel(page)).toBeVisible()
 
       await panel(page).getByRole("heading", { level: 2 }).focus()

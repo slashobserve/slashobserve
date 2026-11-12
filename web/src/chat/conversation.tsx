@@ -132,7 +132,7 @@ function RequestNotFound({ removed }: { removed: boolean }) {
           ? "This request no longer exists."
           : "This request does not exist."}
       </p>
-      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+      <Link to="/ask" className={cn(buttonVariants({ variant: "outline" }))}>
         Back to Observe
       </Link>
     </div>
@@ -158,7 +158,7 @@ function LoadError({
             <RetryButton busy={busy} onClick={onRetry}>
               Retry
             </RetryButton>
-            <Link to="/" className="underline underline-offset-4">
+            <Link to="/ask" className="underline underline-offset-4">
               Back to Observe
             </Link>
           </div>

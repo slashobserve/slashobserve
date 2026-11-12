@@ -44,7 +44,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const release = await holdRequestPollsUntilFinished(page)
 
       await test.step("ask", async () => {
-        await page.goto("/")
+        await page.goto("/ask")
         await expect(
           page.getByRole("heading", {
             level: 1,
@@ -192,7 +192,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
 
       await test.step("find it in Recent chats", async () => {
-        await page.goto("/")
+        await page.goto("/ask")
         const recent = page.getByRole("region", { name: "Recent chats" })
         const row = recent
           .getByRole("button", { name: new RegExp(askPrompt) })
