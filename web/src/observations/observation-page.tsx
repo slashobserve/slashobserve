@@ -197,7 +197,7 @@ function LoadedObservation({
               className="h-full max-h-[480px] @min-[1100px]:max-h-none"
               target={`observation:${observation.id}`}
               hint="Messages stay here until someone adds them to the page"
-              emptyText="No messages yet. Ask a question or type @observe to start a run."
+              emptyText="No messages yet. Ask a question or leave a note."
               onHide={() => {
                 focusAfterToggle.current = "show"
                 setDiscussionHidden(true)
