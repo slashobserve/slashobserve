@@ -3,6 +3,7 @@ package threads
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -82,10 +83,23 @@ func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result,
 	return revisions.Result{}, nil
 }
 
+type runObservations struct {
+	service *observations.Service
+}
+
+func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in revisions.RunObservationOpen) (pgtype.UUID, error) {
+	id, err := r.service.OpenForRun(ctx, q, observations.RunOpen{Run: in.Run, By: in.By, ObservationID: in.ObservationID, Strict: in.Strict})
+	if errors.Is(err, observations.ErrNotFound) {
+		return pgtype.UUID{}, revisions.ErrObservationNotFound
+	}
+	return id, err
+}
+
 type rig struct {
 	db           *dbtest.Database
 	service      *Service
 	comments     *Comments
+	mentions     *MentionRuns
 	revisions    *revisions.Service
 	dashboards   *dashboards.Service
 	findings     *findings.Service
@@ -119,7 +133,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	if agent {
 		reviser = noopReviser{}
 	}
-	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
+	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access), revisions.WithObservations(runObservations{observationService}))
 	proposalService := proposals.New(database.DB, access, dashboardService, logger)
 	dashboardService.SetProposer(proposalService.Propose)
 	service := NewService(database.DB, access, dashboardService, annotationService, observationService, proposalService)
@@ -127,6 +141,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 		db:           database,
 		service:      service,
 		comments:     NewComments(service, queue),
+		mentions:     NewMentionRuns(service, queue, agent),
 		revisions:    queue,
 		dashboards:   dashboardService,
 		findings:     findingService,

@@ -2026,10 +2026,10 @@ components:
       properties:
         kind:
           type: string
-          enum: [user, agent]
+          enum: [user, agent, grant, service_account]
         id:
           type: string
-          description: The user's id for a `user` mention, and `observe` for the built-in agent.
+          description: The user's id for a `user` mention, `observe` for the built-in agent, the connected agent's grant id for a `grant` mention and the service account's id for a `service_account` mention.
         name:
           type: string
           description: The name the mention showed when it was written.
@@ -2168,6 +2168,36 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+        run:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, status, assigned_kind]
+          description: The run this write started, set only on the response of a write sent with `start_runs`; null on every list read and edit.
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [queued, running, succeeded, failed]
+            assigned_kind:
+              type: string
+              enum: [builtin, grant, service_account]
+              description: Who takes the run, the built-in agent, a connected agent or a service account.
+        run_refusal:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [code, message]
+          description: Why a write sent with `start_runs` stored the message and started no run; null otherwise.
+          properties:
+            code:
+              type: string
+              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs]
+              description: "`mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
+            message:
+              type: string
     ThreadPage:
       type: object
       additionalProperties: false
@@ -5944,7 +5974,7 @@ components:
               - $ref: "#/components/schemas/InvalidTransition"
     ThreadRefused:
       description: >-
-        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec) or `unknown_version` (the version does not exist on the dashboard).
+        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent).
       content:
         application/json:
           schema:

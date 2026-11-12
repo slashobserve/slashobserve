@@ -17,6 +17,7 @@ const (
 	testReply     = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 	testPanel     = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 	testFinding   = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+	testRun       = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 )
 
 var spaces = regexp.MustCompile(` {2,}`)
@@ -73,6 +74,12 @@ func TestCommentsCommands(t *testing.T) {
 	}
 	messageEnvelope := `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `,"message":` + messageJSON(testReply, testThread, "Ada", "x") + `}`
 	on := "finding:" + testFinding
+	messageWith := func(extra string) string {
+		message := messageJSON(testReply, testThread, "Ada", "@observe go")
+		return `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `,"message":` + strings.TrimSuffix(message, "}") + `,` + extra + `}}`
+	}
+	startedMessageEnvelope := messageWith(`"run":{"id":"` + testRun + `","status":"queued","assigned_kind":"builtin"},"run_refusal":null`)
+	refusedMessageEnvelope := messageWith(`"run":null,"run_refusal":{"code":"too_many_runs","message":"the dashboard already has its limit of runs"}`)
 	replyBody := envelope(commentJSON(testReply, testThread, "", true, "Ada", "x", "null"))
 	resolvedPlain := envelope(commentJSON(testThread, "", "", true, "Ada", "x", "null"))
 	resolvedV3 := envelope(commentJSON(testThread, "", "", true, "Ada", "x", "3"))
@@ -409,6 +416,64 @@ func TestCommentsCommands(t *testing.T) {
 			args:     []string{"comments", "reply", "nope", "text"},
 			wantCode: 2,
 			wantErr:  `"nope" is not a valid id`,
+		},
+		{
+			name:       "add with --start-runs sends the opt-in and prints the run",
+			args:       []string{"comments", "add", "--start-runs", "--on", "dashboard:" + testDashboard, "@observe", "why", "is", "it", "slow"},
+			status:     http.StatusCreated,
+			response:   startedMessageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"@observe why is it slow","start_runs":true,"target":"dashboard:` + testDashboard + `"}`,
+			wantOut:    []string{"Started thread " + testThread, "Started run " + testRun + ", taken by builtin"},
+		},
+		{
+			name:       "add with --start-runs prints a refusal and still succeeds",
+			args:       []string{"comments", "add", "--start-runs", "--on", on, "@observe", "hi"},
+			status:     http.StatusCreated,
+			response:   refusedMessageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"@observe hi","start_runs":true,"target":"` + on + `"}`,
+			wantOut:    []string{"Started thread " + testThread},
+			wantNotOut: []string{"Started run"},
+			wantErr:    "No run started (too_many_runs): the dashboard already has its limit of runs",
+		},
+		{
+			name:       "add without --start-runs sends no opt-in",
+			args:       []string{"comments", "add", "--on", on, "@observe", "hi"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"body":"@observe hi","target":"` + on + `"}`,
+		},
+		{
+			name:       "reply with --start-runs uses the thread endpoint and prints the run",
+			args:       []string{"comments", "reply", "--start-runs", testThread, "@observe", "go"},
+			status:     http.StatusCreated,
+			response:   startedMessageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/messages",
+			wantBody:   `{"body":"@observe go","start_runs":true}`,
+			wantOut:    []string{"Replied to thread " + testThread + " as " + testReply, "Started run " + testRun + ", taken by builtin"},
+		},
+		{
+			name:       "reply with --start-runs and --json prints the body",
+			args:       []string{"comments", "reply", "--json", "--start-runs", testThread, "@observe", "go"},
+			status:     http.StatusCreated,
+			response:   startedMessageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads/" + testThread + "/messages",
+			wantBody:   `{"body":"@observe go","start_runs":true}`,
+			wantOut:    []string{`"run"`},
+			wantNotOut: []string{"Started run"},
+		},
+		{
+			name:     "reply with --start-runs refuses the legacy dashboard form",
+			args:     []string{"comments", "reply", "--start-runs", testDashboard, testThread, "@observe", "go"},
+			wantCode: 2,
+			wantErr:  "--start-runs needs a reply by comment id alone, without a dashboard id",
 		},
 		{
 			name:     "reply needs an id",

@@ -177,7 +177,11 @@ Each comment has its `version`, which is null off a dashboard, `edited_at` and i
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
 A comment id is the id of any message of the thread, and the first message's id is the thread's.
 
-Write `@observe` to address the built-in agent: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run.
+Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
+`create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
+A dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none; a run started this way is checked like one the same person starts in the web app.
+Two agents in one comment with `start_runs` answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
+The refusal codes are `mention_target_unsupported`, `agent_unavailable`, `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 

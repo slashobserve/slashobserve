@@ -22,9 +22,14 @@ type commentListOptions struct {
 }
 
 type commentAddOptions struct {
-	on      string
-	panel   string
-	version int
+	on        string
+	panel     string
+	version   int
+	startRuns bool
+}
+
+type commentReplyOptions struct {
+	startRuns bool
 }
 
 type commentResolveOptions struct {
@@ -65,11 +70,24 @@ type commentThread struct {
 }
 
 type threadMessage struct {
-	ID        string        `json:"id"`
-	ThreadID  string        `json:"thread_id"`
-	Actor     activityActor `json:"actor"`
-	CreatedAt string        `json:"created_at"`
-	Body      string        `json:"body"`
+	ID         string        `json:"id"`
+	ThreadID   string        `json:"thread_id"`
+	Actor      activityActor `json:"actor"`
+	CreatedAt  string        `json:"created_at"`
+	Body       string        `json:"body"`
+	Run        *startedRun   `json:"run"`
+	RunRefusal *runRefusal   `json:"run_refusal"`
+}
+
+type startedRun struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	AssignedKind string `json:"assigned_kind"`
+}
+
+type runRefusal struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 type threadPage struct {
@@ -99,7 +117,7 @@ func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
 		Short: "Comment on dashboards, observations, annotations and proposals",
-		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nThe kind finding is deprecated: it resolves to the discussion of the finding's observation.\nMention a person in a comment as @[Name](user:<id>) and the built-in agent as @observe; a mention is recorded in the activity log and starts no run.",
+		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nThe kind finding is deprecated: it resolves to the discussion of the finding's observation.\nMention a person in a comment as @[Name](user:<id>), the built-in agent as @observe, one of your connected agents as @[Name](grant:<id>) and a service account that takes runs as @[Name](service_account:<id>).\nA mention is recorded in the activity log and starts no run unless add or reply is given --start-runs.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -271,7 +289,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when the run cannot start, and the reason is printed.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -279,6 +297,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&a.commentAdd.on, "on", "", "what to comment on, as <kind>:<id>")
 	cmd.Flags().StringVar(&a.commentAdd.panel, "panel", "", "the panel of the dashboard to comment on")
 	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
+	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
 	return cmd
 }
 
@@ -300,6 +319,9 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		}
 		payload["version"] = a.commentAdd.version
 	}
+	if a.commentAdd.startRuns {
+		payload["start_runs"] = true
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
@@ -318,18 +340,29 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
+	reportRun(out, created.Message)
 	return nil
+}
+
+func reportRun(out *output, message threadMessage) {
+	if message.Run != nil {
+		out.confirm("Started run %s, taken by %s", text(message.Run.ID), text(message.Run.AssignedKind))
+	}
+	if message.RunRefusal != nil {
+		out.warn("No run started (%s): %s", text(message.RunRefusal.Code), text(message.RunRefusal.Message))
+	}
 }
 
 func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.",
+		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q or --start-runs must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\n--start-runs starts a run for the one agent the text mentions, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
 	cmd.Flags().SetInterspersed(false)
+	cmd.Flags().BoolVar(&a.commentReply.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
 	return cmd
 }
 
@@ -354,13 +387,19 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	path, payload := "threads/"+commentID+"/messages", map[string]string{"body": body}
+	path, payload := "threads/"+commentID+"/messages", map[string]any{"body": body}
 	if withDashboard {
+		if a.commentReply.startRuns {
+			return usagef("--start-runs needs a reply by comment id alone, without a dashboard id")
+		}
 		dashboardID, err := parseID(args[0])
 		if err != nil {
 			return err
 		}
-		path, payload = "dashboards/"+dashboardID+"/comments", map[string]string{"parent_id": commentID, "body": body}
+		path, payload = "dashboards/"+dashboardID+"/comments", map[string]any{"parent_id": commentID, "body": body}
+	}
+	if a.commentReply.startRuns {
+		payload["start_runs"] = true
 	}
 	if body == "" {
 		return usagef("reply needs text")
@@ -382,24 +421,25 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	out.line("Replied to thread %s as %s", text(thread), text(message))
+	out.line("Replied to thread %s as %s", text(thread), text(message.ID))
+	reportRun(out, message)
 	return nil
 }
 
-func repliedIDs(data []byte, legacy bool, commentID string) (thread, message string, err error) {
+func repliedIDs(data []byte, legacy bool, commentID string) (thread string, message threadMessage, err error) {
 	if !legacy {
 		created, err := decode[threadMessageEnvelope](data)
-		return created.Thread.ID, created.Message.ID, err
+		return created.Thread.ID, created.Message, err
 	}
 	created, err := decode[commentEnvelope](data)
 	if err != nil {
-		return "", "", err
+		return "", threadMessage{}, err
 	}
 	thread = commentID
 	if created.Comment.ParentID != nil {
 		thread = *created.Comment.ParentID
 	}
-	return thread, created.Comment.ID, nil
+	return thread, threadMessage{ID: created.Comment.ID}, nil
 }
 
 func (a *app) commentsEditCommand() *cobra.Command {

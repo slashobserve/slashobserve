@@ -43,7 +43,7 @@ func (r *rig) call(t *testing.T, who auth.Principal, method, path string, body a
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
 	})
-	NewThreads(r.service).Register(auth.NewRoutes(api))
+	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
 	req := httptest.NewRequestWithContext(t.Context(), method, "/api/v1"+path, reader)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")

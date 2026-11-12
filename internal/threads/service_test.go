@@ -24,7 +24,7 @@ func (r *rig) open(t *testing.T, by auth.Principal, in OpenInput) (Thread, Messa
 
 func (r *rig) reply(t *testing.T, by auth.Principal, id, body string) (Thread, Message) {
 	t.Helper()
-	thread, message, err := r.service.Reply(t.Context(), by, mustParse(t, id), body)
+	thread, message, err := r.service.Reply(t.Context(), by, mustParse(t, id), body, nil)
 	if err != nil {
 		t.Fatalf("reply to %s: %v", id, err)
 	}
@@ -173,7 +173,7 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	}
 
 	id := mustParse(t, thread.ID)
-	if _, _, err := r.service.Reply(t.Context(), viewer, id, "hi"); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(t.Context(), viewer, id, "hi", nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply on a hidden thread: err = %v", err)
 	}
 	if _, _, _, err := r.service.Edit(t.Context(), viewer, mustParse(t, message.ID), "hi"); !errors.Is(err, ErrNotFound) {
@@ -197,7 +197,7 @@ func TestAFindingInARestrictedFolderIsPrivateToThatFoldersGroupAndAdmins(t *test
 		if _, err := r.service.List(t.Context(), by, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("%s list: err = %v, want ErrTargetNotFound", by.Name, err)
 		}
-		if _, _, err := r.service.Reply(t.Context(), by, mustParse(t, thread.ID), "hi"); !errors.Is(err, ErrNotFound) {
+		if _, _, err := r.service.Reply(t.Context(), by, mustParse(t, thread.ID), "hi", nil); !errors.Is(err, ErrNotFound) {
 			t.Errorf("%s reply: err = %v, want ErrNotFound", by.Name, err)
 		}
 	}
@@ -247,7 +247,7 @@ func TestAGlobalAnnotationFollowsTheGeneralFolder(t *testing.T) {
 	}
 
 	thread, _ := r.open(t, commenter, OpenInput{Target: global, Body: "from a commenter"})
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "no"); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "no", nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer replying: err = %v, want folders.ErrForbidden", err)
 	}
 	if _, _, err := r.service.SetStatus(t.Context(), viewer, mustParse(t, thread.ID), StatusResolved, nil); !errors.Is(err, folders.ErrForbidden) {
@@ -518,7 +518,7 @@ func TestDeletingTheTargetDeletesItsThreads(t *testing.T) {
 	if threads != 0 || messages != 0 {
 		t.Errorf("%d threads and %d messages survived their annotation", threads, messages)
 	}
-	if _, _, err := r.service.Reply(t.Context(), testUser, mustParse(t, thread.ID), "late"); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(t.Context(), testUser, mustParse(t, thread.ID), "late", nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply on a deleted target: err = %v, want ErrNotFound", err)
 	}
 }

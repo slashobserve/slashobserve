@@ -243,11 +243,12 @@ The kind `finding` is deprecated and is removed in the next release: `finding:<i
   `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
   On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
-  Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--json` and `-q` must come before it.
-  A thread started this way never queues an agent revision.
+  Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--start-runs`, `--json` and `-q` must come before it.
+  A thread started this way queues no agent run unless you add `--start-runs`; see [Start a run from a mention](#start-a-run-from-a-mention).
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
   `bin/observe comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint; when the first two arguments are both ids, the first is the dashboard id.
-  Everything after the ids is the reply text, so flags such as `--json` or `-q` must come before the ids.
+  Everything after the ids is the reply text, so flags such as `--json`, `-q` or `--start-runs` must come before the ids.
+  `--start-runs` works only with the comment id alone, because the dashboard comment endpoint never starts a run.
   Without `--json` it always prints the thread and the new reply id, even with `-q`.
 - `bin/observe comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
@@ -257,8 +258,18 @@ The kind `finding` is deprecated and is removed in the next release: `finding:<i
   If the thread was already resolved, `--version` is not applied and the command exits 1.
 - `bin/observe comments reopen <comment-id>` reopens a resolved thread, and `-q` hides its confirmation.
 
-Mention a person in the text as `@[Name](user:<id>)` and the built-in agent as `@observe`, at most 20 mentions in a comment.
-A mention shows in the [activity log](activity.md) and starts no agent run.
+Mention a person in the text as `@[Name](user:<id>)`, the built-in agent as `@observe`, one of your own connected agents as `@[Name](grant:<id>)` and a service account that takes runs as `@[Name](service_account:<id>)`, at most 20 mentions in a comment.
+A mention shows in the [activity log](activity.md) and starts no agent run unless you add `--start-runs`.
+
+### Start a run from a mention
+
+`--start-runs` on `comments add` or `comments reply` starts a run for the one agent the text mentions, in the same transaction as the comment.
+The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
+A dashboard thread starts a comment run, which a Commenter may start and which ends in a proposal when you cannot edit; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
+Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing.
+You can mention only your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
+When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider), `forbidden_role` or `too_many_runs`.
+When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
 
 Add `--json` to any of them to print the API response unchanged.
 

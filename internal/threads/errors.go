@@ -14,6 +14,8 @@ var (
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )
 
+var errInvalidMention = &InvalidInputError{Code: CodeInvalidMention, Message: "you can mention only your own connected agents and service accounts that take runs"}
+
 type ObservationThreadExistsError struct {
 	ThreadID pgtype.UUID
 }
@@ -41,6 +43,8 @@ const (
 	CodeNotAuthor       = "not_author"
 	CodeUnknownPanel    = "unknown_panel"
 	CodeUnknownVersion  = "unknown_version"
+	CodeInvalidMention  = "invalid_mention"
+	CodeTooManyAgents   = "too_many_agents"
 
 	CodeObservationThreadExists = "observation_thread_exists"
 )

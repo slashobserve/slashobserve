@@ -960,7 +960,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, a finding, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding, an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. Starting a thread on `finding:<id>` is deprecated and resolves to the finding's observation: when that observation already has a discussion, the message is added to it as a reply and the answer is 201 with the discussion thread and the new message. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)` and the built-in agent with `@observe`, at most 20 mentions in a message. A mention is recorded and shows in the activity log; it starts no agent run and notifies no one. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread never queues an agent revision; send a comment with `request_revision` to a dashboard for that. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding, an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. Starting a thread on `finding:<id>` is deprecated and resolves to the finding's observation: when that observation already has a discussion, the message is added to it as a reply and the answer is 201 with the discussion thread and the new message. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message. A grant that is not yours, revoked or expired, or a service account that takes no runs, answers 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded and shows in the activity log, and notifies no one. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role` or `too_many_runs`. A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -983,7 +983,7 @@ export interface paths {
         put?: never;
         /**
          * Add a message to a thread.
-         * @description The path takes the thread's id or the id of any of its messages. A reply never reopens a resolved thread. The body rules, the mention syntax and the 4000 character limit are those of starting a thread. The reply is recorded as a `thread.replied` activity event, and on a dashboard thread it sends `comment.created` to the dashboard's event stream. Writing needs Comment on the thread's target.
+         * @description The path takes the thread's id or the id of any of its messages. A reply never reopens a resolved thread. The body rules, the mention syntax, `start_runs` and the 4000 character limit are those of starting a thread; a run started from a reply is given the thread's earlier messages as context. The reply is recorded as a `thread.replied` activity event, and on a dashboard thread it sends `comment.created` to the dashboard's event stream. Writing needs Comment on the thread's target.
          */
         post: operations["replyToThread"];
         delete?: never;
@@ -1055,7 +1055,7 @@ export interface paths {
         head?: never;
         /**
          * Edit the body of your own message.
-         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
+         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body; an edit never starts a run. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
          */
         patch: operations["editMessage"];
         trace?: never;
@@ -4178,8 +4178,8 @@ export interface components {
         };
         Mention: {
             /** @enum {string} */
-            kind: "user" | "agent";
-            /** @description The user's id for a `user` mention, and `observe` for the built-in agent. */
+            kind: "user" | "agent" | "grant" | "service_account";
+            /** @description The user's id for a `user` mention, `observe` for the built-in agent, the connected agent's grant id for a `grant` mention and the service account's id for a `service_account` mention. */
             id: string;
             /** @description The name the mention showed when it was written. */
             name: string;
@@ -4254,6 +4254,27 @@ export interface components {
             mentions: components["schemas"]["Mention"][];
             /** @description Whether the caller may edit this message, which only its author may do and only while the caller can still comment. */
             can_edit: boolean;
+            /** @description The run this write started, set only on the response of a write sent with `start_runs`; null on every list read and edit. */
+            run?: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "queued" | "running" | "succeeded" | "failed";
+                /**
+                 * @description Who takes the run, the built-in agent, a connected agent or a service account.
+                 * @enum {string}
+                 */
+                assigned_kind: "builtin" | "grant" | "service_account";
+            } | null;
+            /** @description Why a write sent with `start_runs` stored the message and started no run; null otherwise. */
+            run_refusal?: {
+                /**
+                 * @description `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full.
+                 * @enum {string}
+                 */
+                code: "mention_target_unsupported" | "agent_unavailable" | "forbidden_role" | "too_many_runs";
+                message: string;
+            } | null;
         };
         ThreadPage: {
             threads: components["schemas"]["Thread"][];
@@ -6287,7 +6308,7 @@ export interface components {
                 "application/json": components["schemas"]["ProposalChanged"] | components["schemas"]["InvalidTransition"];
             };
         };
-        /** @description The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec) or `unknown_version` (the version does not exist on the dashboard). */
+        /** @description The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent). */
         ThreadRefused: {
             headers: {
                 [name: string]: unknown;
@@ -8634,11 +8655,16 @@ export interface operations {
                     /** @description The panel to comment on; absent or null means the whole object. Dashboards only. */
                     panel_id?: string | null;
                     body: string;
+                    /**
+                     * @description Start a run for the agent the body mentions, in the same transaction as the message; one agent per message.
+                     * @default false
+                     */
+                    start_runs?: boolean;
                 };
             };
         };
         responses: {
-            /** @description The new open thread and its first message. */
+            /** @description The new open thread and its first message, with `message.run` or `message.run_refusal` when `start_runs` was sent and the body mentions an agent. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -8688,11 +8714,16 @@ export interface operations {
             content: {
                 "application/json": {
                     body: string;
+                    /**
+                     * @description Start a run for the agent the body mentions, in the same transaction as the message; one agent per message.
+                     * @default false
+                     */
+                    start_runs?: boolean;
                 };
             };
         };
         responses: {
-            /** @description The thread and the new message. */
+            /** @description The thread and the new message, with `message.run` or `message.run_refusal` when `start_runs` was sent and the body mentions an agent. */
             201: {
                 headers: {
                     [name: string]: unknown;

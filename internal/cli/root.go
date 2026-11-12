@@ -39,6 +39,7 @@ type app struct {
 	remove          deleteOptions
 	commentList     commentListOptions
 	commentAdd      commentAddOptions
+	commentReply    commentReplyOptions
 	commentResolve  commentResolveOptions
 	importing       importOptions
 	run             runOptions
