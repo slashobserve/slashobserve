@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { dashboardLink, findingLink } from "@/lib/links"
+import { dashboardLink, observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
@@ -149,10 +149,10 @@ export function FindingCard({
         {panels.length > 0 ? <MakeDashboardAction finding={finding} /> : null}
         {showOpenLink ? (
           <Link
-            {...findingLink(finding.id)}
+            {...observationLink(finding.observation_id)}
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           >
-            Open finding
+            Open observation
           </Link>
         ) : null}
       </div>

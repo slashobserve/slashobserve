@@ -5,7 +5,6 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -121,23 +120,6 @@ export function useReplyToThread(target: string) {
         })
         .then(unwrap),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: threadKeys.list(target) }),
-  })
-}
-
-export function useSetThreadStatus(target: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: { threadId: string; status: Thread["status"] }) => {
-      const params = { params: { path: { thread_id: input.threadId } } }
-      return (
-        input.status === "resolved"
-          ? api.POST("/threads/{thread_id}/resolve", params)
-          : api.POST("/threads/{thread_id}/reopen", params)
-      ).then(unwrap)
-    },
-    onError: () => toast.error("Could not update the thread"),
-    onSettled: () =>
       queryClient.invalidateQueries({ queryKey: threadKeys.list(target) }),
   })
 }

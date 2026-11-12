@@ -15,10 +15,8 @@ import { panelRetry } from "@/dashboards/use-panel-data"
 import type { Panel } from "@/spec"
 
 export type Finding = components["schemas"]["Finding"]
-export type FindingEnvelope = components["schemas"]["FindingEnvelope"]
 
 const findingsPage = 50
-export const folderFindingsPage = 100
 
 export function findingQuery(id: string) {
   return queryOptions({
@@ -44,20 +42,6 @@ export function findingsForDashboardQuery(dashboardId: string) {
         })
         .then(unwrap)
         .then((body) => body.findings),
-    staleTime: 10_000,
-  })
-}
-
-export function folderFindingsQuery(folderId: string) {
-  return queryOptions({
-    queryKey: findingKeys.inFolder(folderId),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/findings", {
-          params: { query: { folder_id: folderId, limit: folderFindingsPage } },
-          signal,
-        })
-        .then(unwrap),
     staleTime: 10_000,
   })
 }
@@ -149,21 +133,5 @@ export function useMakeDashboard(id: string) {
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
     },
-  })
-}
-
-export function useMoveFinding(id: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    networkMode: "always",
-    mutationFn: (folderId: string) =>
-      api
-        .POST("/findings/{id}/move", {
-          params: { path: { id } },
-          body: { folder_id: folderId },
-        })
-        .then(unwrap),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: findingKeys.all }),
   })
 }

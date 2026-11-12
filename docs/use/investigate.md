@@ -48,7 +48,7 @@ See [Investigations write into an observation](observations.md#investigations-wr
 
 In the chat, an investigation's turn shows its steps like a build, with the status "Investigating" while it runs.
 When it ends, the turn shows the answer: the conclusion, the evidence panels, and when and over which window it was found.
-On a dashboard, your running investigations show in the activity pane as running entries, and each finding about the dashboard appears there as "Agent found" with the same card and an **Open finding** link to its page.
+On a dashboard, your running investigations show in the activity pane as running entries, and each finding about the dashboard appears there as "Agent found" with the same card and an **Open observation** link to the observation it lives in.
 
 The page is the observation at `/o/<id>`, with the conclusion and the evidence panels as blocks, the discussion and who wrote what; see [Observations](observations.md#open-an-observation).
 The evidence panels always show the finding's own window, not the dashboard's current range.

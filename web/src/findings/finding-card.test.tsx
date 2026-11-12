@@ -44,9 +44,13 @@ function finding(): Finding {
   }
 }
 
-function renderCard(variant?: "card" | "page") {
+function renderCard(variant?: "card" | "page", showOpenLink = false) {
   return renderWithProviders(
-    <FindingCard finding={finding()} showOpenLink={false} variant={variant} />,
+    <FindingCard
+      finding={{ ...finding(), observation_id: "o9" }}
+      showOpenLink={showOpenLink}
+      variant={variant}
+    />,
     { route: { path: "/", url: "/" } }
   )
 }
@@ -79,6 +83,12 @@ describe("FindingCard", () => {
     expect(body).toHaveClass("max-w-[680px]")
     expect(body?.querySelector('[class*="text-"]')).toBeNull()
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
+  })
+
+  it("links to the finding's observation, not to the finding", async () => {
+    renderCard("card", true)
+    const link = await screen.findByRole("link", { name: "Open observation" })
+    expect(link).toHaveAttribute("href", "/o/o9")
   })
 
   it("names the evidence range on the page", async () => {
