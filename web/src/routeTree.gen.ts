@@ -32,6 +32,7 @@ import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shel
 import { Route as AuthedShellFindingsFindingIdRouteImport } from './routes/_authed/_shell/findings/$findingId'
 import { Route as AuthedShellImportIndexRouteImport } from './routes/_authed/_shell/import/index'
 import { Route as AuthedShellImportRepairRouteImport } from './routes/_authed/_shell/import/repair'
+import { Route as AuthedShellOObservationIdRouteImport } from './routes/_authed/_shell/o/$observationId'
 import { Route as AuthedShellObservationsIndexRouteImport } from './routes/_authed/_shell/observations/index'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
 import { Route as AuthedShellSettingsGrafanaRouteImport } from './routes/_authed/_shell/settings/grafana'
@@ -157,6 +158,12 @@ const AuthedShellImportRepairRoute = AuthedShellImportRepairRouteImport.update({
   path: '/import/repair',
   getParentRoute: () => AuthedShellRoute,
 } as any)
+const AuthedShellOObservationIdRoute =
+  AuthedShellOObservationIdRouteImport.update({
+    id: '/o/$observationId',
+    path: '/o/$observationId',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellObservationsIndexRoute =
   AuthedShellObservationsIndexRouteImport.update({
     id: '/observations/',
@@ -235,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
+  '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -267,6 +275,7 @@ export interface FileRoutesByTo {
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
+  '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -302,6 +311,7 @@ export interface FileRoutesById {
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
+  '/_authed/_shell/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/_authed/_shell/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/_authed/_shell/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
+    | '/o/$observationId'
     | '/settings/grafana'
     | '/settings/keys'
     | '/t/$traceId'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
+    | '/o/$observationId'
     | '/settings/grafana'
     | '/settings/keys'
     | '/t/$traceId'
@@ -403,6 +415,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/f/$folderId'
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
+    | '/_authed/_shell/o/$observationId'
     | '/_authed/_shell/settings/grafana'
     | '/_authed/_shell/settings/keys'
     | '/_authed/_shell/t/$traceId'
@@ -587,6 +600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellImportRepairRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/o/$observationId': {
+      id: '/_authed/_shell/o/$observationId'
+      path: '/o/$observationId'
+      fullPath: '/o/$observationId'
+      preLoaderRoute: typeof AuthedShellOObservationIdRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/observations/': {
       id: '/_authed/_shell/observations/'
       path: '/observations'
@@ -685,6 +705,7 @@ interface AuthedShellRouteChildren {
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
+  AuthedShellOObservationIdRoute: typeof AuthedShellOObservationIdRoute
   AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellTTraceIdRoute: typeof AuthedShellTTraceIdRoute
@@ -705,6 +726,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,
+  AuthedShellOObservationIdRoute: AuthedShellOObservationIdRoute,
   AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellTTraceIdRoute: AuthedShellTTraceIdRoute,
