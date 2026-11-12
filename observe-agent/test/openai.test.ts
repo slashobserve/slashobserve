@@ -381,6 +381,128 @@ describe("the stop reason survives the usage chunk", () => {
   })
 })
 
+describe("a streamed refusal", () => {
+  const refusalDelta = (refusal: string) =>
+    chunk([{ index: 0, delta: { role: "assistant", refusal } }])
+
+  const cases: Array<[string, object[], string]> = [
+    [
+      "a refusal then stop ends as refusal",
+      [
+        refusalDelta("I can't help "),
+        refusalDelta("with that."),
+        chunk([{ index: 0, delta: {}, finish_reason: "stop" }]),
+        chunk([], usage),
+      ],
+      "refusal",
+    ],
+    [
+      "a refusal wins over length",
+      [
+        refusalDelta("no"),
+        chunk([{ index: 0, delta: {}, finish_reason: "length" }]),
+        chunk([], usage),
+      ],
+      "refusal",
+    ],
+    [
+      "tool calls win over a refusal",
+      [
+        refusalDelta("no"),
+        chunk([
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  ...toolCallDelta,
+                  function: { name: "list", arguments: '{"q":"a"}' },
+                },
+              ],
+            },
+          },
+        ]),
+        chunk([{ index: 0, delta: {}, finish_reason: "tool_calls" }]),
+        chunk([], usage),
+      ],
+      "tool_use",
+    ],
+    [
+      "an empty refusal is no refusal",
+      [
+        chunk([{ index: 0, delta: { role: "assistant", content: "ok" } }]),
+        chunk([{ index: 0, delta: { refusal: null }, finish_reason: "stop" }]),
+        chunk([], usage),
+      ],
+      "end_turn",
+    ],
+  ]
+  test.each(cases)("%s", async (_name, chunks, want) => {
+    const http = fakeFetch(() => sse(chunks, true))
+    const session = createOpenAISession(openai(), start(), live, {
+      fetch: http.fetch,
+      env: freshEnv(),
+    })
+    const answer = await session.next(undefined, io())
+    expect(answer.turn.stop).toBe(want as never)
+  })
+
+  test("the refusal is echoed back in the history next to the tool calls", async () => {
+    const http = fakeFetch((_request, nth) =>
+      nth === 0
+        ? sse(
+            [
+              refusalDelta("partly refused"),
+              chunk([
+                {
+                  index: 0,
+                  delta: {
+                    tool_calls: [
+                      {
+                        ...toolCallDelta,
+                        function: { name: "list", arguments: '{"q":"a"}' },
+                      },
+                    ],
+                  },
+                },
+              ]),
+              chunk([{ index: 0, delta: {}, finish_reason: "tool_calls" }]),
+              chunk([], usage),
+            ],
+            true
+          )
+        : sse(
+            [
+              chunk([
+                { index: 0, delta: { role: "assistant", content: "ok" } },
+              ]),
+              chunk([{ index: 0, delta: {}, finish_reason: "stop" }]),
+              chunk([], usage),
+            ],
+            true
+          )
+    )
+    const session = createOpenAISession(openai(), start(), live, {
+      fetch: http.fetch,
+      env: freshEnv(),
+    })
+    await session.next(undefined, io())
+    await session.next([result("call_1")], io())
+    expect(http.requests[1]?.body).toMatchObject({
+      messages: [
+        { role: "system" },
+        { role: "user" },
+        {
+          role: "assistant",
+          refusal: "partly refused",
+          tool_calls: [{ id: "call_1" }],
+        },
+        { role: "tool", tool_call_id: "call_1" },
+      ],
+    })
+  })
+})
+
 describe("the request the AI SDK sends matches the Go adapter", () => {
   const done = () =>
     sse(

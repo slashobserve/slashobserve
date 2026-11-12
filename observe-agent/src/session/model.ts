@@ -63,7 +63,12 @@ export type Adapter = {
   instructions: (system: string) => Instructions | undefined
   providerOptions: (tuning: Tuning) => ProviderOptions
   breakpoint: (messages: ModelMessage[]) => ModelMessage[]
-  stopReason: (finish: Finish, hasToolCalls: boolean) => StopReason
+  stopReason: (
+    finish: Finish,
+    hasToolCalls: boolean,
+    refused: boolean
+  ) => StopReason
+  refusalOf?: (raw: unknown) => string
   usage: (usage: LanguageModelUsage) => Omit<TurnUsage, "calls">
 }
 
@@ -78,6 +83,7 @@ type Streamed = {
   text: string
   calls: ToolCall[]
   parts: AssistantParts
+  refusal: string
   finish: Finish
   usage: LanguageModelUsage
 }
@@ -215,7 +221,10 @@ export class ModelSession implements Session {
     if (exchange.stop === "max_tokens") {
       return { turn, attempts: exchange.attempts }
     }
-    this.history = [...messages, assistantMessage(exchange.streamed.parts)]
+    this.history = [
+      ...messages,
+      assistantMessage(exchange.streamed.parts, exchange.streamed.refusal),
+    ]
     this.calls++
     this.pending = exchange.streamed.calls
     this.ended = this.pending.length === 0
@@ -268,7 +277,8 @@ export class ModelSession implements Session {
     const { value: streamed, attempts } = retried
     const stop = this.adapter.stopReason(
       streamed.finish,
-      streamed.calls.length > 0
+      streamed.calls.length > 0,
+      streamed.refusal !== ""
     )
     return {
       streamed,
@@ -303,6 +313,7 @@ export class ModelSession implements Session {
     })
 
     let text = ""
+    let refusal = ""
     const calls: ToolCall[] = []
     const parts: AssistantParts = []
     const open = new Map<string, TextPart | ReasoningPart>()
@@ -361,6 +372,9 @@ export class ModelSession implements Session {
             }
             break
           }
+          case "raw":
+            refusal += adapter.refusalOf?.(part.rawValue) ?? ""
+            break
           case "tool-call": {
             if (part.providerExecuted === true) {
               break
@@ -416,6 +430,7 @@ export class ModelSession implements Session {
       text,
       calls,
       parts: parts.filter((part) => part.type !== "text" || part.text !== ""),
+      refusal,
       finish,
       usage,
     }

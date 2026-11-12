@@ -9,9 +9,16 @@ import type { Session, Start, StopReason } from "./types"
 export const openaiName = "openai"
 export const openaiApiRoot = "https://api.openai.com/v1"
 
-function stopReason(finish: Finish, hasToolCalls: boolean): StopReason {
+function stopReason(
+  finish: Finish,
+  hasToolCalls: boolean,
+  refused: boolean
+): StopReason {
   if (hasToolCalls && finish.raw !== "length") {
     return "tool_use"
+  }
+  if (refused) {
+    return "refusal"
   }
   switch (finish.raw) {
     case "stop":
@@ -30,6 +37,16 @@ function stopReason(finish: Finish, hasToolCalls: boolean): StopReason {
       })
       return "end_turn"
   }
+}
+
+function refusalOf(raw: unknown): string {
+  const choices = (raw as { choices?: unknown } | null)?.choices
+  if (!Array.isArray(choices)) {
+    return ""
+  }
+  const refusal = (choices[0] as { delta?: { refusal?: unknown } } | null)
+    ?.delta?.refusal
+  return typeof refusal === "string" ? refusal : ""
 }
 
 function withCompletionTokens(
@@ -73,6 +90,7 @@ export function createOpenAISession(
     }),
     breakpoint: (messages) => messages,
     stopReason,
+    refusalOf,
     usage: (usage) => ({
       inputTokens: Math.max(
         0,

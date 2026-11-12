@@ -88,8 +88,17 @@ export function toolMessage(
   }
 }
 
-export function assistantMessage(parts: AssistantParts): ModelMessage {
-  return { role: "assistant", content: parts }
+export function assistantMessage(
+  parts: AssistantParts,
+  refusal = ""
+): ModelMessage {
+  return refusal === ""
+    ? { role: "assistant", content: parts }
+    : {
+        role: "assistant",
+        content: parts,
+        providerOptions: { openaiCompatible: { refusal } },
+      }
 }
 
 function resultParts(message: ModelMessage): ToolResultPart[] {
