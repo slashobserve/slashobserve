@@ -47,6 +47,14 @@ VALUES ('t', 'm', $1::jsonb, now() - interval '1 hour', now(), 'user', gen_rando
 	return err
 }
 
+func insertObservedFinding(sqlDB *sql.DB, evidence string) error {
+	_, err := sqlDB.Exec(`WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  VALUES (general_folder_id(), 't', 'user', gen_random_uuid(), 'seed') RETURNING id)
+INSERT INTO findings (observation_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+SELECT o.id, 't', 'm', $1::jsonb, now() - interval '1 hour', now(), 'user', gen_random_uuid(), 'seed' FROM o`, evidence)
+	return err
+}
+
 func TestInvestigateRowsFollowTheirShape(t *testing.T) {
 	d := dbtest.New(t)
 	seedDashboard(t, d, findingsDashboard, 1)
@@ -89,7 +97,7 @@ func TestFindingsRejectMoreThanFourEvidencePanels(t *testing.T) {
 		{"an object", `{}`, "findings_evidence_check"},
 	}
 	for _, c := range cases {
-		err := insertFinding(sqlDB, c.evidence)
+		err := insertObservedFinding(sqlDB, c.evidence)
 		if got := constraintOf(err); got != c.want || (c.want == "" && err != nil) {
 			t.Errorf("%s: error = %v, want violation %q", c.name, err, c.want)
 		}
