@@ -30,8 +30,7 @@ services:
       SLASHOBSERVE_DATABASE_DIRECT_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
       SLASHOBSERVE_AGENT_WORKERS: ${SLASHOBSERVE_REPLICAS_AGENT_WORKERS:-8}
       SLASHOBSERVE_LLM_PROVIDER: replay
-      # Without a soft limit the Go heap grows to twice its live size before a collection, which passes the 256M kill under load.
-      GOMEMLIMIT: 192MiB
+      GOMEMLIMIT: 384MiB
     volumes: !override
       - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.replicas.yaml}:/etc/slashobserve/datasources.yaml:ro
       - ./replicas/llm:/etc/slashobserve/llm-fixtures:ro
