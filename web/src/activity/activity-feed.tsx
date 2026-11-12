@@ -248,7 +248,7 @@ export function ActivityFeed({
   const mode = composerMode(permissions)
   const note = readerNote(mode, folderTitle ?? "this folder")
   const gate = sendToAgentState({
-    canEdit: permissions.edit,
+    canComment: permissions.comment,
     agentAvailable: agent.data?.available,
     pinned,
     layoutEditing,
@@ -429,11 +429,9 @@ export function ActivityFeed({
           onDraftChange={onDraftChange}
           gate={gate}
           placeholder={
-            mode === "comment-only"
-              ? "Write a comment"
-              : noModel
-                ? "Leave a comment for the team and Claude Code"
-                : "Write a comment, or tell the agent what to change"
+            noModel
+              ? "Leave a comment for the team and Claude Code"
+              : "Write a comment, or tell the agent what to change"
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}

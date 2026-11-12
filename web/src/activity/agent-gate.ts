@@ -7,13 +7,13 @@ export type AgentGate =
   | { kind: "blocked"; reason: string }
 
 export function sendToAgentState(input: {
-  canEdit: boolean
+  canComment: boolean
   agentAvailable: boolean | undefined
   pinned: boolean
   layoutEditing: boolean
   activeRequests: number
 }): AgentGate {
-  if (!input.canEdit) return { kind: "hidden" }
+  if (!input.canComment) return { kind: "hidden" }
   if (input.agentAvailable === false) return { kind: "no-model" }
   if (input.pinned) {
     return {

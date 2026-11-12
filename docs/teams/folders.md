@@ -81,7 +81,7 @@ A key therefore sees a restricted folder only when its service account is an Adm
 To let automation work in a restricted folder, use a key of an Admin service account.
 
 The agent works as the person or key that asked.
-The request needs Edit on the dashboard, and the server checks it when the request is queued and again when a worker starts it.
+The request needs Comment on the dashboard's folder, and the server checks it when the request is queued and again when a worker starts it.
 A new dashboard from the chat goes to the requester's My Dashboards, or to General for a key.
 A request whose person lost access or was deleted in between fails with a message saying so.
 

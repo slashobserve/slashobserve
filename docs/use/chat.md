@@ -228,7 +228,8 @@ If someone saves a version while it works, it restarts once from the newest one.
 Requests for one dashboard run one at a time, in the order they were sent, and up to 5 can be queued or running.
 A sixth is refused with `too_many_revisions`.
 
-A follow-up needs Edit on the dashboard's folder, which Editors and Admins have by default; see [Roles](../teams/roles.md).
+A follow-up needs Comment on the dashboard's folder, which Commenters, Editors and Admins have by default; with Comment but not Edit, the result is a [proposal](../concepts/proposals.md) that someone with Edit merges.
+See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
 ### From the dashboard's activity pane
