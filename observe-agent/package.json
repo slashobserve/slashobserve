@@ -12,7 +12,10 @@
     "build": "bun build --compile --minify src/main.ts --outfile ../bin/observe-agent"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.91",
+    "@ai-sdk/openai-compatible": "3.0.80",
     "@modelcontextprotocol/sdk": "1.32.2",
+    "ai": "7.0.156",
     "zod": "4.6.6"
   },
   "devDependencies": {

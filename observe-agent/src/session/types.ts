@@ -67,17 +67,33 @@ export type SessionFactory = (
 
 export type CallFailure = "call_timeout" | "rate_limited" | "provider_error"
 
+export type CallDetails = {
+  type?: string
+  code?: string
+  param?: string
+  requestId?: string
+  retryAfterMs?: number
+  providerMessage?: string
+}
+
 export class CallError extends Error {
   readonly failure: CallFailure
   readonly provider: string
   readonly status: number
   readonly idle: boolean
+  readonly type: string
+  readonly code: string
+  readonly param: string
+  readonly requestId: string
+  readonly retryAfterMs: number
+  declare readonly providerMessage: string
 
   constructor(
     provider: string,
     failure: CallFailure,
     status = 0,
-    idle = false
+    idle = false,
+    details: CallDetails = {}
   ) {
     super(callErrorText(provider, failure, status))
     this.name = "CallError"
@@ -85,6 +101,15 @@ export class CallError extends Error {
     this.provider = provider
     this.status = status
     this.idle = idle
+    this.type = details.type ?? ""
+    this.code = details.code ?? ""
+    this.param = details.param ?? ""
+    this.requestId = details.requestId ?? ""
+    this.retryAfterMs = details.retryAfterMs ?? 0
+    Object.defineProperty(this, "providerMessage", {
+      value: details.providerMessage ?? "",
+      enumerable: false,
+    })
   }
 }
 

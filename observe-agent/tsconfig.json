@@ -4,6 +4,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "module": "preserve",
     "moduleResolution": "bundler",
