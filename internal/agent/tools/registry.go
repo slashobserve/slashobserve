@@ -48,6 +48,7 @@ const (
 
 	MaxModelSpecBytes = 128 << 10
 	maxSuggestResult  = 64 << 10
+	maxBriefBytes     = 128 << 10
 )
 
 var (
@@ -73,7 +74,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes}
 
 const defaultNarrowing = "narrow the request"
 

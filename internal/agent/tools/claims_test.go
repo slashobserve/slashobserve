@@ -463,3 +463,22 @@ func TestGetRunBriefOfAFreshSessionLeavesTheReasonOutAndKeepsBuildNullWithoutOne
 		t.Fatalf("reason = %q", rs.briefReasons[0])
 	}
 }
+
+func TestGetRunBriefAnswersABriefBeyondTheDefaultResultCapAndRefusesOneBeyondItsOwn(t *testing.T) {
+	call := func(system, message int) Result {
+		rs := &fakeRunSessions{brief: BriefAnswer{System: strings.Repeat("s", system), Message: strings.Repeat("m", message)}}
+		deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
+		res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
+	if res := call(40<<10, 50<<10); res.IsError {
+		t.Fatalf("a 90 KiB brief refused: %#v", res.Content)
+	}
+	if code := errorCode(t, call(maxBriefBytes, 1)); code != FailureResultTooLarge {
+		t.Fatalf("code = %q, want %q", code, FailureResultTooLarge)
+	}
+}
