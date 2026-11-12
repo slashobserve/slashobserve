@@ -186,14 +186,14 @@ test("draws both themes", async ({ page }) => {
   await openDatasources(page)
   await expect(datasourceRow(page, "prom")).toBeVisible()
   await expect(card(page)).toHaveCSS("background-color", "rgb(255, 255, 255)")
-  await expect(card(page)).toHaveCSS("border-top-color", "rgb(228, 228, 231)")
+  await expect(card(page)).toHaveCSS("border-top-color", "rgb(228, 228, 233)")
 
   await page.emulateMedia({ colorScheme: "dark" })
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   await expect(datasourceRow(page, "prom")).toBeVisible()
-  await expect(card(page)).toHaveCSS("background-color", "rgb(17, 17, 19)")
-  await expect(card(page)).toHaveCSS("border-top-color", "rgb(42, 42, 46)")
+  await expect(card(page)).toHaveCSS("background-color", "rgb(19, 20, 23)")
+  await expect(card(page)).toHaveCSS("border-top-color", "rgb(46, 48, 54)")
 })
 
 test.describe("on a phone", () => {

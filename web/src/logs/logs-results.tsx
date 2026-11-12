@@ -110,7 +110,7 @@ export function ExploreLogs({
   )
 }
 
-const phoneQuery = "(max-width: 760px)"
+const phoneQuery = "(max-width: 899px)"
 
 function subscribePhone(onChange: () => void) {
   const media = window.matchMedia(phoneQuery)

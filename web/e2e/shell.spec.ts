@@ -147,9 +147,9 @@ test("collapses to icons with tooltips and remembers it", async ({ page }) => {
   await expectWidth(sidebar(page), 240)
 })
 
-test("hides the sidebar under 760px", async ({ page }) => {
+test("hides the sidebar under 900px", async ({ page }) => {
   await page.goto("/")
-  await page.setViewportSize({ width: 700, height: 900 })
+  await page.setViewportSize({ width: 899, height: 900 })
   await expect(sidebar(page)).toBeHidden()
   await expect(
     page.getByRole("button", { name: "Collapse sidebar" })
@@ -157,11 +157,11 @@ test("hides the sidebar under 760px", async ({ page }) => {
   await expect(page.getByRole("main")).toBeVisible()
   expect(await noHorizontalOverflow(page)).toBe(true)
 
-  await page.setViewportSize({ width: 761, height: 900 })
+  await page.setViewportSize({ width: 900, height: 900 })
   await expect(sidebar(page)).toBeVisible()
 })
 
-test("hides an open collapsed-sidebar tooltip under 760px", async ({
+test("hides an open collapsed-sidebar tooltip under 900px", async ({
   page,
 }) => {
   await page.goto("/")
@@ -197,14 +197,14 @@ test("shows the sidebar rail on a dashboard", async ({ page, request }) => {
   await expect(page).toHaveURL(/\/keys$/)
 })
 
-test("shows focus in a monochrome ring", async ({ page }) => {
+test("shows focus in a teal ring", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/settings")
   const datasources = sidebar(page).getByRole("link", { name: "Datasources" })
   await tabUntilFocused(page, datasources, 15)
   await expect
     .poll(() => datasources.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("10, 10, 10")
+    .toContain("10, 127, 134")
 })
 
 test("draws the shell in dark mode", async ({ page }) => {
@@ -232,13 +232,13 @@ test("draws the shell in dark mode", async ({ page }) => {
     }
   })
   expect(styles).toEqual({
-    root: "rgb(9, 9, 11)",
-    wrapper: "rgb(17, 17, 19)",
+    root: "rgb(11, 12, 14)",
+    wrapper: "rgb(19, 20, 23)",
     borderWidth: "0px",
     radius: "0px",
     top: 0,
     rightEdge: true,
-    current: "rgb(17, 17, 19)",
+    current: "rgb(19, 20, 23)",
     currentBorder: "rgba(0, 0, 0, 0)",
   })
 })

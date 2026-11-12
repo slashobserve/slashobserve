@@ -6,8 +6,8 @@ import { expect, test, type Page } from "./fixtures"
 const listPath = "/api/v1/dashboards"
 
 const cardColors = {
-  light: { background: "rgb(255, 255, 255)", border: "rgb(228, 228, 231)" },
-  dark: { background: "rgb(17, 17, 19)", border: "rgb(42, 42, 46)" },
+  light: { background: "rgb(255, 255, 255)", border: "rgb(228, 228, 233)" },
+  dark: { background: "rgb(19, 20, 23)", border: "rgb(46, 48, 54)" },
 } as const
 
 function isListRequest(url: URL): boolean {
