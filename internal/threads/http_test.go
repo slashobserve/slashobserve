@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
@@ -108,7 +109,8 @@ func TestOpeningAThreadOnEachTargetAnswersThreadAndMessage(t *testing.T) {
 
 	onFinding := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": "finding:" + finding.String(), "body": "agreed"})
 	onFinding.expect(t, http.StatusCreated, "")
-	if onFinding.at(t, "thread", "dashboard_id") != nil || onFinding.at(t, "thread", "version") != nil || onFinding.at(t, "thread", "target", "id") != finding.String() {
+	if onFinding.at(t, "thread", "dashboard_id") != nil || onFinding.at(t, "thread", "version") != nil ||
+		onFinding.at(t, "thread", "target", "kind") != "observation" || onFinding.at(t, "thread", "target", "id") != r.observationOf(t, finding).String() {
 		t.Errorf("finding thread = %v", onFinding.body["thread"])
 	}
 
@@ -130,6 +132,9 @@ func TestListingThreadsPagesByMessages(t *testing.T) {
 	r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "third"}).expect(t, http.StatusCreated, "")
 	other := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "other thread"})
 	other.expect(t, http.StatusCreated, "")
+	if other.at(t, "thread", "id") != threadID {
+		t.Fatalf("a second open on a finding opened thread %v, want a reply in %s", other.at(t, "thread", "id"), threadID)
+	}
 
 	first := r.call(t, viewer, http.MethodGet, "/threads?limit=2&target="+targetValue, nil)
 	first.expect(t, http.StatusOK, "")
@@ -144,7 +149,7 @@ func TestListingThreadsPagesByMessages(t *testing.T) {
 
 	second := r.call(t, viewer, http.MethodGet, "/threads?limit=2&target="+targetValue+"&cursor="+url.QueryEscape(cursor), nil)
 	second.expect(t, http.StatusOK, "")
-	if len(second.at(t, "messages").([]any)) != 2 || len(second.at(t, "threads").([]any)) != 2 || second.at(t, "next_cursor") != nil {
+	if len(second.at(t, "messages").([]any)) != 2 || len(second.at(t, "threads").([]any)) != 1 || second.at(t, "next_cursor") != nil {
 		t.Fatalf("second page = %v", second.body)
 	}
 	bodies := []string{}
@@ -160,8 +165,12 @@ func TestListingThreadsPagesByMessages(t *testing.T) {
 	resolved := r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/resolve", nil)
 	resolved.expect(t, http.StatusOK, "")
 	open := r.call(t, viewer, http.MethodGet, "/threads?status=open&target="+targetValue, nil)
-	if got := len(open.at(t, "messages").([]any)); got != 1 {
-		t.Errorf("open messages = %d, want 1", got)
+	if got := len(open.at(t, "messages").([]any)); got != 0 {
+		t.Errorf("open messages = %d, want 0", got)
+	}
+	closed := r.call(t, viewer, http.MethodGet, "/threads?status=resolved&target="+targetValue, nil)
+	if got := len(closed.at(t, "messages").([]any)); got != 4 {
+		t.Errorf("resolved messages = %d, want 4", got)
 	}
 }
 
@@ -203,9 +212,9 @@ func TestAViewerReadsAFindingThreadButCannotWriteToIt(t *testing.T) {
 
 func TestAHiddenTargetOrThreadAnswersNotFound(t *testing.T) {
 	r := newRig(t)
-	detached := r.createFinding(t, viewer, pgtype.UUID{})
+	detached := r.createFindingIn(t, admin, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 	targetValue := "finding:" + detached.String()
-	opened := r.call(t, viewer, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "private"})
+	opened := r.call(t, admin, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "private"})
 	opened.expect(t, http.StatusCreated, "")
 	threadID := opened.at(t, "thread", "id").(string)
 	messageID := opened.at(t, "message", "id").(string)
@@ -217,7 +226,7 @@ func TestAHiddenTargetOrThreadAnswersNotFound(t *testing.T) {
 		path   string
 		body   any
 	}{
-		{"list an unfiled finding of someone else", http.MethodGet, "/threads?target=" + targetValue, nil},
+		{"list a finding in a folder the caller cannot see", http.MethodGet, "/threads?target=" + targetValue, nil},
 		{"open on it", http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "hi"}},
 		{"list a missing dashboard", http.MethodGet, "/threads?target=dashboard:" + missing, nil},
 		{"reply to its thread", http.MethodPost, "/threads/" + threadID + "/messages", map[string]any{"body": "hi"}},

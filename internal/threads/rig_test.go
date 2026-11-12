@@ -122,7 +122,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
 	proposalService := proposals.New(database.DB, access, dashboardService, logger)
 	dashboardService.SetProposer(proposalService.Propose)
-	service := NewService(database.DB, access, dashboardService, findingService, annotationService, observationService, proposalService)
+	service := NewService(database.DB, access, dashboardService, annotationService, observationService, proposalService)
 	return &rig{
 		db:           database,
 		service:      service,
@@ -168,13 +168,31 @@ func (r *rig) addVersion(t *testing.T, dash pgtype.UUID, parent int) {
 
 func (r *rig) createFinding(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	f, _, err := r.findings.Save(t.Context(), by, findings.SaveInput{
-		DashboardID: dashboardID, Title: "Checkout is slow", Markdown: "the 5xx rate rose", From: time.Now().Add(-time.Hour), To: time.Now(),
-	})
+	return r.saveFinding(t, by, findings.SaveInput{DashboardID: dashboardID})
+}
+
+func (r *rig) createFindingIn(t *testing.T, by auth.Principal, folder pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	return r.saveFinding(t, by, findings.SaveInput{FolderID: folder})
+}
+
+func (r *rig) saveFinding(t *testing.T, by auth.Principal, in findings.SaveInput) pgtype.UUID {
+	t.Helper()
+	in.Title, in.Markdown, in.From, in.To = "Checkout is slow", "the 5xx rate rose", time.Now().Add(-time.Hour), time.Now()
+	f, _, err := r.findings.Save(t.Context(), by, in)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return mustParse(t, f.ID)
+}
+
+func (r *rig) observationOf(t *testing.T, finding pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	id, err := r.db.Queries().ObservationOfFinding(t.Context(), finding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
 }
 
 func (r *rig) createAnnotation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {

@@ -53,7 +53,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commentThreads := threads.NewService(database.DB, access, service, found, notes, observationService, proposals.New(database.DB, access, service, logger))
+	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{
 		Datasources:   datasources,
 		Runner:        runner,

@@ -129,7 +129,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commentThreads := threads.NewService(database.DB, access, service, found, notes, observationService, proposals.New(database.DB, access, service, logger))
+	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
