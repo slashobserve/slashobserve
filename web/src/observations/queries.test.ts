@@ -13,6 +13,7 @@ import {
   observationsInfiniteQuery,
   replaceBlock,
   useAddBlock,
+  useAddBlockTo,
   useCreateObservation,
   useDiscardBlock,
   useKeepBlock,
@@ -332,6 +333,34 @@ describe("block writes", () => {
       position: 1,
     })
     expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
+  })
+
+  it("adds a block to the observation named with the call and refetches only that one", async () => {
+    const calls = stubServer({
+      "POST /api/v1/observations/o2/blocks": {
+        status: 201,
+        body: { block: { ...block("c", 0), observation_id: "o2" } },
+      },
+    })
+    const queryClient = seededClient()
+    queryClient.setQueryData(observationKeys.one("o2"), envelope([]))
+    const { result } = renderHook(() => useAddBlockTo(), {
+      wrapper: wrapperFor(queryClient),
+    })
+    const panel = { panel: { type: "logs", title: "Logs" } }
+    await act(() =>
+      result.current.mutateAsync({
+        observationId: "o2",
+        kind: "panel",
+        body: panel,
+      })
+    )
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.path).toBe("/api/v1/observations/o2/blocks")
+    expect(calls[0]?.body).toEqual({ kind: "panel", body: panel })
+    expect(isInvalidated(queryClient, observationKeys.one("o2"))).toBe(true)
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(false)
+    expect(isInvalidated(queryClient, observationKeys.list({}, 20))).toBe(true)
   })
 
   it("sends the version with an update and shows the saved block", async () => {

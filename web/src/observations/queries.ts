@@ -231,43 +231,59 @@ export function useReopenObservation(id: string) {
 }
 
 function useBlockMutation<Input, Result>(
-  id: string,
+  id: string | ((input: Input) => string),
   call: (input: Input) => Promise<Result>,
   onWritten: (queryClient: QueryClient, result: Result, input: Input) => void
 ) {
   const queryClient = useQueryClient()
+  const observationOf = (input: Input) =>
+    typeof id === "string" ? id : id(input)
   return useMutation({
     networkMode: "always",
     mutationFn: call,
     onSuccess: (result, input) => {
       onWritten(queryClient, result, input)
-      void refetchObservation(queryClient, id)
+      void refetchObservation(queryClient, observationOf(input))
     },
-    onError: (error) => {
+    onError: (error, input) => {
       if (error instanceof BlockVersionConflict) {
-        writeBlock(queryClient, id, error.current)
+        writeBlock(queryClient, observationOf(input), error.current)
       }
     },
     onSettled: () => refreshLists(queryClient),
   })
 }
 
+type AddBlockInput = {
+  kind: "text" | "panel" | "snapshot"
+  body?: BlockBody
+  width?: BlockWidth
+  position?: number
+  from_block_id?: string
+}
+
+function postBlock(id: string, input: AddBlockInput) {
+  return api
+    .POST("/observations/{id}/blocks", {
+      params: { path: { id } },
+      body: input,
+    })
+    .then(unwrap)
+}
+
 export function useAddBlock(id: string) {
   return useBlockMutation(
     id,
-    (input: {
-      kind: "text" | "panel" | "snapshot"
-      body?: BlockBody
-      width?: BlockWidth
-      position?: number
-      from_block_id?: string
-    }) =>
-      api
-        .POST("/observations/{id}/blocks", {
-          params: { path: { id } },
-          body: input,
-        })
-        .then(unwrap),
+    (input: AddBlockInput) => postBlock(id, input),
+    () => {}
+  )
+}
+
+export function useAddBlockTo() {
+  return useBlockMutation(
+    ({ observationId }: AddBlockInput & { observationId: string }) =>
+      observationId,
+    ({ observationId, ...input }) => postBlock(observationId, input),
     () => {}
   )
 }
