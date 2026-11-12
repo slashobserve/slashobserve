@@ -20,12 +20,14 @@ import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
+import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 
+import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
 import { DatasourceControl } from "./datasource-control"
@@ -180,6 +182,7 @@ function LogsWorkspaceView({
   const selection = current?.selection ?? null
   const detailTab = current?.tab ?? "table"
   const [adding, setAdding] = useState(false)
+  const [addingToObservation, setAddingToObservation] = useState(false)
   const [saving, setSaving] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const savable = logsDraft({ uid, type, search, range })
@@ -191,6 +194,7 @@ function LogsWorkspaceView({
   const queryFocus = useRef<() => void>(() => {})
   const selectionTrigger = useRef<HTMLElement | null>(null)
   const addTrigger = useRef<HTMLButtonElement>(null)
+  const observationTrigger = useRef<HTMLButtonElement>(null)
   const agentAvailable = useAgentInfo().data?.available === true
   const [mode, setMode] = useInputMode({
     agentAvailable,
@@ -280,6 +284,7 @@ function LogsWorkspaceView({
           : null
     }
     setAdding(false)
+    setAddingToObservation(false)
     setHeld({ selection: next, tab: tab ?? detailTab, scope: resultsScope })
   }
 
@@ -375,10 +380,26 @@ function LogsWorkspaceView({
               aria-describedby={q === undefined ? notRunId : undefined}
               onClick={() => {
                 selectLine(null)
+                setAddingToObservation(false)
                 setAdding(true)
               }}
             >
               Add to dashboard
+            </Button>
+            <Button
+              ref={observationTrigger}
+              type="button"
+              variant="outline"
+              disabled={q === undefined}
+              title={q === undefined ? "Run a query first." : undefined}
+              aria-describedby={q === undefined ? notRunId : undefined}
+              onClick={() => {
+                selectLine(null)
+                setAdding(false)
+                setAddingToObservation(true)
+              }}
+            >
+              Add to observation
             </Button>
             {q === undefined ? (
               <span id={notRunId} className="sr-only">
@@ -424,6 +445,22 @@ function LogsWorkspaceView({
           query={q}
           onClose={() => setAdding(false)}
           trigger={addTrigger}
+        />
+      ) : null}
+      {addingToObservation && q !== undefined ? (
+        <AddToObservationPanel
+          panel={logsPanelFor({
+            id: "logs",
+            title: "Logs",
+            datasource: uid,
+            query: q,
+            y: 0,
+          })}
+          from={range.from}
+          to={range.to}
+          defaultObservationId={search.observation}
+          onClose={() => setAddingToObservation(false)}
+          trigger={observationTrigger}
         />
       ) : null}
     </LogsWorkspaceContext>

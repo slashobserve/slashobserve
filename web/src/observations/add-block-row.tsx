@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react"
+import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -132,6 +133,7 @@ function TextComposer({
 export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
   const label = canEdit ? "Add a block" : "Suggest a block"
   const verb = canEdit ? "Add" : "Suggest"
+  const navigate = useNavigate()
   const textButton = useRef<HTMLButtonElement>(null)
   const panelButton = useRef<HTMLButtonElement>(null)
   const [composing, setComposing] = useState(false)
@@ -185,6 +187,18 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
           }}
         >
           Panel
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            void navigate({
+              to: "/logs",
+              search: { observation: observation.id },
+            })
+          }
+        >
+          Logs
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
