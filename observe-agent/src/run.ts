@@ -48,6 +48,10 @@ export type ClaimedRun = {
 
 export type RunOptions = Partial<ReporterOptions>
 
+type FinishBody =
+  | { outcome: "succeeded"; commit?: boolean }
+  | { outcome: "failed"; failure_code?: FailureCode }
+
 type Mode = "create" | "revise" | "investigate" | "suggest"
 
 class Failure extends Error {
@@ -241,6 +245,9 @@ class RunLoop {
         run_id: this.runRef.run_id,
         state: error.state,
       })
+      if (error.state === "canceling") {
+        await this.finishQuietly({ outcome: "failed" })
+      }
       return
     }
     if (error instanceof ToolError && error.code === "not_your_run") {
@@ -253,8 +260,12 @@ class RunLoop {
       failure_code: code,
       error: error instanceof Error ? error.name : "unknown",
     })
+    await this.finishQuietly({ outcome: "failed", failure_code: code })
+  }
+
+  private async finishQuietly(body: FinishBody): Promise<void> {
     try {
-      await this.finish({ outcome: "failed", failure_code: code })
+      await this.finish(body)
     } catch (finishError) {
       if (!this.outer.aborted) {
         log("warn", "finish_run failed", {
@@ -514,11 +525,7 @@ class RunLoop {
     }
   }
 
-  private async finish(
-    body:
-      | { outcome: "succeeded"; commit?: boolean }
-      | { outcome: "failed"; failure_code?: FailureCode }
-  ) {
+  private async finish(body: FinishBody) {
     await this.reporter.flush()
     return this.claim.finishRun(
       { ...this.runRef, ...body, usage: this.usageBody() },

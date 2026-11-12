@@ -390,7 +390,7 @@ describe("model failures", () => {
   test("a provider without a session fails internal", async () => {
     const claim = new FakeClaim()
     const run = claimed("create happy path")
-    run.model.provider = "anthropic"
+    run.model.provider = "gemini"
     await drive(claim, run)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",
@@ -429,7 +429,7 @@ describe("lease and live text", () => {
     }
   })
 
-  test("stop aborts the model call and ends without finish_run", async () => {
+  test("canceling aborts the model call and settles the run with finish_run", async () => {
     const claim = new FakeClaim()
     claim.report = (_input, nth) =>
       nth >= 1 ? { stop: true, state: "canceling" } : {}
@@ -439,17 +439,45 @@ describe("lease and live text", () => {
       textFlushMs: 60_000,
     })
     expect(performance.now() - started).toBeLessThan(2000)
-    expect(claim.finishes).toHaveLength(0)
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]).toMatchObject({
+      outcome: "failed",
+      run_id: "11111111-1111-4111-8111-111111111111",
+      attempt: 1,
+    })
+    expect(claim.finishes[0]?.failure_code).toBeUndefined()
     expect(claim.tools.closed).toBe(true)
   })
 
-  test("stop on the first report ends the run before any model call", async () => {
+  test("canceling on the first report settles the run before any model call", async () => {
     const claim = new FakeClaim()
-    claim.report = () => ({ stop: true, state: "failed" })
+    claim.report = () => ({ stop: true, state: "canceling" })
     await drive(claim, claimed("create happy path"))
     expect(claim.tools.calls).toHaveLength(0)
-    expect(claim.finishes).toHaveLength(0)
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "failed" })
   })
+
+  test("a failing finish_run after canceling does not fail the loop", async () => {
+    const claim = new FakeClaim()
+    claim.report = () => ({ stop: true, state: "canceling" })
+    claim.finishRun = async () => {
+      throw notYourRun()
+    }
+    await drive(claim, claimed("create happy path"))
+    expect(claim.tools.closed).toBe(true)
+  })
+
+  test.each(["failed", "succeeded", "canceled"])(
+    "a %s run on the first report ends without finish_run",
+    async (state) => {
+      const claim = new FakeClaim()
+      claim.report = () => ({ stop: true, state })
+      await drive(claim, claimed("create happy path"))
+      expect(claim.tools.calls).toHaveLength(0)
+      expect(claim.finishes).toHaveLength(0)
+    }
+  )
 
   test("not_your_run from report_run ends quietly", async () => {
     const claim = new FakeClaim()
