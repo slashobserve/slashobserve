@@ -10,6 +10,7 @@ import {
   type Ref,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -24,7 +25,12 @@ import {
   latestDashboardQuery,
   useAddVersion,
 } from "@/dashboards/queries"
+import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
+import { useLatestPermissions } from "@/dashboards/permissions"
+import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { panelTitles } from "@/history/diff-groups"
+import { proposalLink } from "@/lib/links"
 import { useSpecValidator } from "@/lib/use-spec-validator"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import {
@@ -130,6 +136,9 @@ export default function PanelEditor({
   const datasourceId = useId()
   const queryClient = useQueryClient()
   const save = useAddVersion(dashboardId)
+  const navigate = useNavigate()
+  const permissions = useLatestPermissions(dashboardId)
+  const propose = !permissions.edit && permissions.comment
   const datasources = useDatasources()
   const [draft, dispatch] = useReducer(draftReducer, undefined, () =>
     startDraft(version, panel)
@@ -227,6 +236,7 @@ export default function PanelEditor({
       ?.scrollIntoView({ block: "nearest" })
   }, [issuesByQuery])
 
+  const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
   const titleOk = current.title === undefined || current.title.trim() !== ""
@@ -286,16 +296,32 @@ export default function PanelEditor({
           note.trim() ||
           defaultSaveSummary(changes, normalised.title || normalised.id),
         parent_version: parent,
+        propose,
       },
       {
-        onSuccess: (saved) => {
-          toast.success(`Saved version ${saved.version.version}`)
+        onSuccess: (outcome) => {
+          toast.success(
+            saveToast(outcome),
+            outcome.kind === "proposed"
+              ? {
+                  action: {
+                    label: "View proposal",
+                    onClick: () =>
+                      void navigate(proposalLink(outcome.proposalId)),
+                  },
+                }
+              : undefined
+          )
           onSaved()
         },
         onError: (error) => {
           if (error instanceof ApiError) {
             if (error.status === 409 && error.latestVersion !== undefined) {
-              setProblem({ kind: "conflict", latest: error.latestVersion })
+              setProblem({
+                kind: "conflict",
+                latest: error.latestVersion,
+                conflicts: error.conflicts,
+              })
               return
             }
             if (error.status === 422) {
@@ -324,7 +350,13 @@ export default function PanelEditor({
     )
   }
 
-  async function applyToLatest() {
+  async function withLatestPanel(
+    onLatest: (latest: {
+      spec: Dashboard
+      version: number
+      panel: EditablePanel
+    }) => void
+  ) {
     setApplying(true)
     setProblem(null)
     try {
@@ -345,11 +377,11 @@ export default function PanelEditor({
         })
         return
       }
-      submit(
-        latestSpec,
-        latest.version.version,
-        rebasePanel(draft.base, draft.panel, entry.panel)
-      )
+      onLatest({
+        spec: latestSpec,
+        version: latest.version.version,
+        panel: entry.panel,
+      })
     } catch (error) {
       setProblem({
         kind: "failed",
@@ -363,6 +395,18 @@ export default function PanelEditor({
     }
   }
 
+  function applyToLatest() {
+    return withLatestPanel(({ spec: latestSpec, version: latestOf, panel }) =>
+      submit(latestSpec, latestOf, rebasePanel(draft.base, draft.panel, panel))
+    )
+  }
+
+  function reload() {
+    return withLatestPanel(({ version: latestOf, panel }) =>
+      dispatch({ type: "rebase", version: latestOf, panel })
+    )
+  }
+
   function saveDraft() {
     if (newer > 0) void applyToLatest()
     else submit(spec, draft.baseVersion, draft.panel)
@@ -371,6 +415,15 @@ export default function PanelEditor({
   const registerJsonGuard = useCallback((guard: LeaveGuard) => {
     jsonGuard.current = guard
   }, [])
+
+  const footerSummary = jsonBlocked
+    ? "Fix the JSON to save."
+    : propose
+      ? `${changeSummary(changes)}. An editor merges your change`
+      : changeSummary(changes)
+  let saveLabel = `Save as version ${latestVersion + 1}`
+  if (propose) saveLabel = "Propose change"
+  else if (newer > 0) saveLabel = `Apply my changes to version ${newer}`
 
   const data = isDataPanel(current) ? current : null
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
@@ -498,12 +551,23 @@ export default function PanelEditor({
               tabIndex={-1}
               className="outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <AlertTitle>
-                Version {newer} was saved while you were editing.
-              </AlertTitle>
-              <AlertDescription>
-                Your changes stay here until you apply them to that version.
-              </AlertDescription>
+              {problem?.kind === "conflict" ? (
+                <MergeConflicts
+                  conflicts={problem.conflicts}
+                  titles={conflictTitles}
+                  latest={problem.latest}
+                  onReload={() => void reload()}
+                />
+              ) : (
+                <>
+                  <AlertTitle>
+                    Version {newer} was saved while you were editing.
+                  </AlertTitle>
+                  <AlertDescription>
+                    Your changes stay here until you apply them to that version.
+                  </AlertDescription>
+                </>
+              )}
             </Alert>
           ) : null}
           {problem ? (
@@ -516,18 +580,14 @@ export default function PanelEditor({
         </div>
       )}
       <EditorFooter
-        summary={jsonBlocked ? "Fix the JSON to save." : changeSummary(changes)}
+        summary={footerSummary}
         noteOpen={noteOpen}
         note={note}
         onNoteOpen={() => setNoteOpen(true)}
         onNoteChange={setNote}
         saving={saving || applying}
         canSave={canSave}
-        saveLabel={
-          newer > 0
-            ? `Apply my changes to version ${newer}`
-            : `Save as version ${latestVersion + 1}`
-        }
+        saveLabel={saveLabel}
         onSave={saveDraft}
         onDiscard={onDiscard}
         readOnly={readOnly}

@@ -101,6 +101,7 @@ import {
 import { MoreMenu } from "./more-menu"
 import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
 import { PanelContainer } from "./panel-container"
+import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { PanelSource } from "./panel-source"
 import type { DashboardAccess } from "./permissions"
@@ -114,6 +115,7 @@ import {
 } from "./queries"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
+import { saveToast } from "./save-outcome"
 import { interpolateTitle } from "./rows/interpolate-title"
 import { useRowStore } from "./rows/row-store"
 import {
@@ -333,10 +335,10 @@ function DashboardView({
             ? `Make "${title}" responsive`
             : `Keep the size of "${title}"`,
           parent_version: version,
+          propose: false,
         },
         {
-          onSuccess: (saved) =>
-            toast.success(`Saved version ${saved.version.version}`),
+          onSuccess: (outcome) => toast.success(saveToast(outcome)),
           onError: (failure) => {
             const problem = saveProblemFrom(
               failure,
@@ -364,7 +366,8 @@ function DashboardView({
   const inspectPanel = inspectablePanelOf(spec, search.inspect)
   const inspecting = inspectPanel !== undefined && !editing
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
-  const editingPanel = permissions.edit && panelInUrl
+  const mayOpenEditor = permissions.edit || permissions.comment
+  const editingPanel = mayOpenEditor && panelInUrl
   const chatRequestId =
     panelInUrl || search.share === true || editing || inspecting || kiosk
       ? undefined
@@ -515,7 +518,7 @@ function DashboardView({
       }
     },
     edit:
-      permissions.edit && !editing
+      mayOpenEditor && !editing
         ? () => {
             const panel = shortcutPanel()
             if (!panel || !isEditablePanel(panel)) return
@@ -652,6 +655,7 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
+    <ProposalsButton key="proposals" dashboardId={dashboardId} />,
     <MoreMenu
       key="more"
       mayEdit={permissions.edit}
@@ -867,7 +871,7 @@ function DashboardView({
             version={version}
             latestVersion={latestVersion}
             pinned={pinned}
-            canEdit={permissions.edit}
+            canEdit={mayOpenEditor}
             folder={access.folder}
             canManage={permissions.manage}
             madeBy={madeByBreadcrumb(envelope.dashboard.creator)}

@@ -6,17 +6,20 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { unwrap } from "@/api/errors"
 import {
   dashboardKeys,
   datasourceKeys,
   folderKeys,
   importKeys,
   observeKeys,
+  proposalKeys,
   userKeys,
 } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import type { Dashboard } from "@/spec"
+
+import type { SaveOutcome } from "./save-outcome"
 
 export type DashboardEnvelope =
   paths["/dashboards/{id}"]["get"]["responses"][200]["content"]["application/json"]
@@ -157,6 +160,7 @@ export function forgetDashboard(queryClient: QueryClient, id: string) {
 }
 
 export function useAddVersion(id: string) {
+  const queryClient = useQueryClient()
   const store = useStoreSavedVersion(id)
   return useMutation({
     mutationKey: dashboardKeys.saves(id),
@@ -164,7 +168,8 @@ export function useAddVersion(id: string) {
       spec: Dashboard
       summary: string
       parent_version: number
-    }) =>
+      propose: boolean
+    }): Promise<SaveOutcome> =>
       api
         .POST("/dashboards/{id}/versions", {
           params: { path: { id } },
@@ -172,20 +177,33 @@ export function useAddVersion(id: string) {
             spec: { ...input.spec },
             summary: input.summary,
             parent_version: input.parent_version,
+            merge: "auto",
+            ...(input.propose ? { propose_if_needed: true } : {}),
           },
         })
-        .then(unwrap)
-        .then((saved) => {
-          if ("proposal_id" in saved) {
-            throw new ApiError(
-              202,
-              "proposal_created",
-              "The change was saved as a proposal."
-            )
+        .then((result) => {
+          const body = unwrap(result)
+          if ("proposal_id" in body) {
+            return {
+              kind: "proposed",
+              proposalId: body.proposal_id,
+              revision: body.revision,
+              opened: body.opened,
+            }
           }
-          return saved
+          return {
+            kind: "saved",
+            envelope: body,
+            version: body.version.version,
+            mergedFrom: body.merged_from ?? null,
+          }
         }),
-    onSuccess: store,
+    onSuccess: async (outcome) => {
+      if (outcome.kind === "saved") return store(outcome.envelope)
+      await queryClient.invalidateQueries({
+        queryKey: proposalKeys.list(id, "open"),
+      })
+    },
   })
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -15,19 +15,18 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { dashboardKeys } from "@/api/keys"
+import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator } from "@/spec"
 
-import {
-  asDashboardSpec,
-  latestDashboardQuery,
-  useAddVersion,
-} from "../queries"
+import { useAddVersion } from "../queries"
+import { saveToast } from "../save-outcome"
 import { useDashboardSearch, useSetDashboardSearch } from "../search"
 import { applyLayout } from "./layout"
 import { focusEditLayoutButton, useLayoutStore } from "./layout-store"
+import { MergeConflicts } from "./merge-conflicts"
 import { saveProblemFrom, type Problem } from "./save-problem"
 
-const conflictDescriptionId = "layout-conflict-description"
 const defaultSummary = "Update layout"
 const maxSummaryLength = 500
 const rejectedHeading = "The server rejected this layout:"
@@ -51,9 +50,11 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
   const end = useLayoutStore((state) => state.end)
+  const baseSpec = useLayoutStore((state) => state.session?.baseSpec)
+  const titles = useMemo(() => panelTitles(baseSpec), [baseSpec])
   const save = useAddVersion(dashboardId)
   const inputRef = useRef<HTMLInputElement>(null)
-  const reapplyRef = useRef<HTMLButtonElement>(null)
+  const reloadRef = useRef<HTMLButtonElement>(null)
   const [summary, setSummary] = useState(defaultSummary)
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -64,7 +65,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
 
   const conflicted = problem?.kind === "conflict"
   useEffect(() => {
-    if (conflicted) reapplyRef.current?.focus()
+    if (conflicted) reloadRef.current?.focus()
   }, [conflicted])
 
   function changeOpen(next: boolean) {
@@ -78,8 +79,8 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
     }
   }
 
-  function finish(version: number) {
-    toast.success(`Saved version ${version}`)
+  function finish(message: string) {
+    toast.success(message)
     onOpenChange(false)
     end()
     if (search.version !== undefined) {
@@ -120,9 +121,10 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
         spec: checked.spec,
         summary: summary.trim(),
         parent_version: session.baseVersion,
+        propose: false,
       },
       {
-        onSuccess: (saved) => finish(saved.version.version),
+        onSuccess: (outcome) => finish(saveToast(outcome)),
         onError: (failure) =>
           setProblem(saveProblemFrom(failure, rejectedHeading)),
       }
@@ -137,29 +139,17 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
     void send()
   }
 
-  async function reapply() {
-    setPreparing(true)
-    try {
-      const latest = await queryClient.fetchQuery({
-        ...latestDashboardQuery(queryClient, dashboardId),
-        staleTime: 0,
-      })
-      useLayoutStore
-        .getState()
-        .rebase(latest.version.version, asDashboardSpec(latest.version.spec))
-    } catch (failure) {
-      setProblem(saveProblemFrom(failure, rejectedHeading))
-      setPreparing(false)
-      return
-    }
-    setPreparing(false)
-    await send()
-  }
-
   function discard() {
     end()
     onOpenChange(false)
     focusEditLayoutButton()
+  }
+
+  function reload() {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.latest(dashboardId),
+    })
+    discard()
   }
 
   return (
@@ -169,29 +159,18 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
           <>
             <DialogHeader>
               <DialogTitle>Save layout</DialogTitle>
-              <DialogDescription id={conflictDescriptionId}>
-                Version {problem.latest} was saved while you were editing.
-              </DialogDescription>
+              <DialogDescription>Your layout was not saved.</DialogDescription>
             </DialogHeader>
+            <MergeConflicts
+              conflicts={problem.conflicts}
+              titles={titles}
+              latest={problem.latest}
+              onReload={reload}
+              reloadRef={reloadRef}
+            />
             <DialogFooter>
-              <Button variant="outline" onClick={discard} disabled={pending}>
-                Discard my changes
-              </Button>
-              <Button
-                ref={reapplyRef}
-                aria-describedby={conflictDescriptionId}
-                focusableWhenDisabled
-                disabled={pending}
-                aria-busy={pending}
-                onClick={() => void reapply()}
-              >
-                {pending ? (
-                  <LoaderCircleIcon
-                    aria-hidden="true"
-                    className="size-3.5 motion-safe:animate-spin"
-                  />
-                ) : null}
-                Reapply my layout to version {problem.latest}
+              <Button variant="outline" onClick={() => changeOpen(false)}>
+                Cancel
               </Button>
             </DialogFooter>
           </>

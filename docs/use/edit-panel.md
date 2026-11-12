@@ -164,6 +164,10 @@ On success the toast reads "Saved version 4" and you return to the timeline.
 If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
 It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
+A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
+The toast then reads "Saved version 5, merged with changes made since version 3".
+When the newer versions changed the same things, nothing is saved: the editor lists them under "Version 4 changed the same things", each as the panel title, "Variable <name>" or "Dashboard settings" with what clashed, and **Reload version 4** replaces your draft with that version's panel.
+
 A refused save lists "This panel was rejected:" with each query and its problem, and "Other problems in this dashboard:" for panels you did not touch.
 "The panel could not be checked right now." with **Try again** means the check itself failed, for instance a datasource did not answer, rather than the panel being wrong.
 Your draft stays in place after any of these.
@@ -178,3 +182,8 @@ A Commenter or Viewer gets it only when a restricted folder's list gives them Ed
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 Without Edit you can still open the dashboard, and a Commenter can [comment on a panel](review.md) for an Editor to act on.
+
+A Commenter can also open a panel's editor with **Suggest an edit** in the panel menu.
+The save button reads "Propose change" and the footer says "An editor merges your change".
+Saving creates a [proposal](../concepts/proposals.md) instead of a version, and the toast reads "Proposed for an editor to merge" with **View proposal**; saving again while it is open reads "Added to your open proposal (revision 2)".
+The dashboard's top row shows "1 proposal" while one is open, listing each with its author and "Behind" when the dashboard has moved on.

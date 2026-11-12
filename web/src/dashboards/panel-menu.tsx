@@ -146,10 +146,12 @@ export function PanelMenu({
       },
     })
   }
-  if (canEdit && isEditablePanel(panel)) {
+  const canPropose = canComment && !canEdit
+  if ((canEdit || canPropose) && isEditablePanel(panel)) {
+    const name = canEdit ? "Edit" : "Suggest an edit"
     items.push({
       id: "edit",
-      label: idle ? "Edit" : "Edit (finish the layout first)",
+      label: idle ? name : `${name} (finish the layout first)`,
       icon: <PencilIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {

@@ -1,5 +1,7 @@
+import type { components } from "@/api/schema.gen"
 import { lowerFirst } from "@/lib/text"
 
+type MergeConflict = components["schemas"]["MergeConflict"]
 export type ApiIssue = { path: string; code: string; message: string }
 
 export class ApiError extends Error {
@@ -9,6 +11,7 @@ export class ApiError extends Error {
   readonly latestVersion: number | undefined
   readonly retryAfterMs: number | undefined
   readonly ref: string | undefined
+  readonly conflicts: MergeConflict[]
 
   constructor(
     status: number,
@@ -17,7 +20,8 @@ export class ApiError extends Error {
     issues: ApiIssue[] = [],
     latestVersion?: number,
     retryAfterMs?: number,
-    ref?: string
+    ref?: string,
+    conflicts: MergeConflict[] = []
   ) {
     super(message)
     this.name = "ApiError"
@@ -27,6 +31,7 @@ export class ApiError extends Error {
     this.latestVersion = latestVersion
     this.retryAfterMs = retryAfterMs
     this.ref = ref
+    this.conflicts = conflicts
   }
 }
 
@@ -63,6 +68,37 @@ function readIssues(value: unknown): ApiIssue[] {
   return issues
 }
 
+const conflictKinds = new Set(["panel", "variable", "setting"])
+const conflictReasons = new Set([
+  "both_changed",
+  "changed_and_removed",
+  "invalid",
+])
+
+function readConflicts(value: unknown): MergeConflict[] {
+  if (!Array.isArray(value)) return []
+  const conflicts: MergeConflict[] = []
+  for (const item of value) {
+    if (
+      isRecord(item) &&
+      typeof item.kind === "string" &&
+      conflictKinds.has(item.kind) &&
+      typeof item.id === "string" &&
+      typeof item.reason === "string" &&
+      conflictReasons.has(item.reason) &&
+      typeof item.message === "string"
+    ) {
+      conflicts.push({
+        kind: item.kind as MergeConflict["kind"],
+        id: item.id,
+        reason: item.reason as MergeConflict["reason"],
+        message: item.message,
+      })
+    }
+  }
+  return conflicts
+}
+
 function readRetryAfterMs(response: Response): number | undefined {
   const header = response.headers.get("Retry-After")
   if (header === null || header.trim() === "") return undefined
@@ -93,7 +129,10 @@ export function toApiError(response: Response, body: unknown): ApiError {
     readIssues(fields.issues),
     latestVersion,
     readRetryAfterMs(response),
-    typeof fields.ref === "string" && fields.ref !== "" ? fields.ref : undefined
+    typeof fields.ref === "string" && fields.ref !== ""
+      ? fields.ref
+      : undefined,
+    readConflicts(fields.conflicts)
   )
 }
 
