@@ -1,0 +1,8 @@
+{
+  "prompt": "panels still pending",
+  "turns": [
+    { "tool_calls": [{ "name": "create_dashboard" }] },
+    { "text": "done" },
+    { "text": "done again" }
+  ]
+}

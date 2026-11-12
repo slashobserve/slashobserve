@@ -1,0 +1,9 @@
+{
+  "prompt": "max tokens twice",
+  "turns": [
+    {
+      "fault": { "kind": "max_tokens" },
+      "tool_calls": [{ "name": "create_dashboard" }]
+    }
+  ]
+}
