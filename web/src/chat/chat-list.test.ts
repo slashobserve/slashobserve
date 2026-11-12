@@ -30,6 +30,7 @@ function summary(
     continues_id: null,
     continued_by: null,
     continue_note: null,
+    observation_id: null,
     origin: "web",
     origin_client: null,
     created_at: "2026-11-06T10:00:00Z",
