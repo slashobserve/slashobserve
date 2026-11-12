@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -104,6 +105,7 @@ type store struct {
 	proposalID     string
 	commitErr      error
 	commits        int
+	commitOrigin   origin.Origin
 	rebases        int
 	discards       int
 }
@@ -141,9 +143,10 @@ func (s *store) Build(context.Context, pgtype.UUID) (dashboards.Build, bool, err
 	return *s.build, true, nil
 }
 
-func (s *store) CommitBuild(_ context.Context, _ auth.Principal, requestID pgtype.UUID, _ int) (dashboards.Commit, error) {
+func (s *store) CommitBuild(ctx context.Context, _ auth.Principal, requestID pgtype.UUID, _ int) (dashboards.Commit, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.commitOrigin = origin.From(ctx)
 	if s.build == nil {
 		return dashboards.Commit{}, dashboards.ErrBuildNotFound
 	}

@@ -102,6 +102,11 @@ type runFixture struct {
 
 func newRunFixture(t *testing.T, mode tools.Mode) *runFixture {
 	t.Helper()
+	return newAssignedRunFixture(t, mode, revisions.AssignGrant)
+}
+
+func newAssignedRunFixture(t *testing.T, mode tools.Mode, assignee revisions.AssigneeKind) *runFixture {
+	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(&syncWriter{w: logs}, nil))
 	reg := tools.New(tools.Deps{Logger: logger})
@@ -111,7 +116,7 @@ func newRunFixture(t *testing.T, mode tools.Mode) *runFixture {
 	}
 	req := revisions.Request{
 		ID: runRequestID, Attempt: 2, RequestedBy: requester,
-		Origin: origin.Origin{Kind: origin.Web, Client: "browser"},
+		Origin: origin.Origin{Kind: origin.Web, Client: "browser"}, Assignee: assignee,
 	}
 	runs := &fakeRuns{mode: mode}
 	h := NewHandler(reg, runAuth{req: req}, Options{
@@ -267,6 +272,40 @@ func TestRunSessionCallActsForTheRequesterInsideTheRunAndGoesThroughTheRunSessio
 	}
 	if !strings.Contains(f.logs.String(), "agent_request_id="+runRequestID) {
 		t.Errorf("the call log lacks the run id: %s", f.logs.String())
+	}
+}
+
+func TestRunSessionWritesRecordTheOriginOfTheClaimerKind(t *testing.T) {
+	const metaKey = "io.modelcontextprotocol/clientInfo"
+	tests := []struct {
+		name     string
+		assignee revisions.AssigneeKind
+		want     origin.Origin
+	}{
+		{"the built-in agent writes with the run's origin", revisions.AssignBuiltin, origin.Origin{Kind: origin.Web, Client: "browser"}},
+		{"a connected agent writes as mcp with the run's client", revisions.AssignGrant, origin.Origin{Kind: origin.MCP, Client: "browser"}},
+		{"a service account writes as mcp with the run's client", revisions.AssignServiceAccount, origin.Origin{Kind: origin.MCP, Client: "browser"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAssignedRunFixture(t, tools.ModeRevise, tt.assignee)
+			var got origin.Origin
+			f.handler.call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got = origin.From(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			params := map[string]any{
+				"name": "lint_query", "arguments": map[string]any{},
+				"_meta": map[string]any{metaKey: map[string]any{"name": "evil", "version": "1"}},
+			}
+			rec := f.post(runToken, rpc(1, "tools/call", params))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if got != tt.want {
+				t.Errorf("origin = %+v, want %+v", got, tt.want)
+			}
+		})
 	}
 }
 

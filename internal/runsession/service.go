@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -108,7 +109,7 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
 	}
-	ctx = auth.WithPrincipal(ctx, req.RequestedBy)
+	ctx = origin.With(auth.WithPrincipal(ctx, req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		sess, err := s.open(ctx, q, req, id)

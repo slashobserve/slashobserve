@@ -220,7 +220,9 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(ctx, name, principal, "invalid_arguments", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
-		ctx = origin.With(ctx, clientOrigin(ctx, req))
+		if !inRun {
+			ctx = origin.With(ctx, clientOrigin(ctx, req))
+		}
 		answer, err := h.answerFor(ctx, name, input, req, kind)
 		if err != nil {
 			if ctx.Err() != nil {

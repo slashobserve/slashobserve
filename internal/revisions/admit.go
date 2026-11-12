@@ -269,6 +269,7 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		Attempt:      int(row.Attempts),
 		RequestedBy:  requesterOf(row),
 		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
+		Assignee:     AssigneeKind(row.AssignedKind),
 		Continues:    row.ContinuesID.Valid,
 		ContinueNote: row.ContinueNote.String,
 		From:         optionalTime(row.ContextFrom),

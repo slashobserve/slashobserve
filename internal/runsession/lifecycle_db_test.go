@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -313,6 +314,42 @@ func TestFinishWithCommitSavesTheBuildAndSucceedsWithItsVersion(t *testing.T) {
 	}
 	if out.State != "succeeded" || out.ResultVersion == nil || *out.ResultVersion != 2 || out.Restarted || r.store.commits != 1 {
 		t.Fatalf("out %+v, commits %d", out, r.store.commits)
+	}
+}
+
+func TestFinishWithCommitSavesWithTheRunsOriginOnlyForTheBuiltInAgent(t *testing.T) {
+	runOrigin := origin.Origin{Kind: origin.CLI}
+	session := origin.Origin{Kind: origin.MCP, Client: "cursor"}
+	tests := []struct {
+		name    string
+		claimer revisions.Claimant
+		want    origin.Origin
+	}{
+		{"the built-in agent saves as the run", builtin, runOrigin},
+		{"a connected agent saves as its own mcp client", grantClaimant, session},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newRig(t)
+			row, err := r.runs.Submit(origin.With(context.Background(), runOrigin), revisions.EnqueueParams{
+				DashboardID: r.dash, Source: revisions.SourcePrompt, Prompt: "add a latency panel", BaseVersion: 1, By: ada,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.claimer.Kind == revisions.AssignGrant {
+				r.d.Exec(t, "UPDATE agent_requests SET assigned_kind = 'grant', assigned_id = $2 WHERE id = $1", row.ID, mustUUID(t, grantID))
+			}
+			req := r.claim(tt.claimer).Request
+			r.startBuild(req, "a")
+			ctx := origin.With(context.Background(), session)
+			if _, err := r.svc.Finish(ctx, req, tools.RunFinish{Outcome: "succeeded", Commit: true}); err != nil {
+				t.Fatal(err)
+			}
+			if got := r.store.commitOrigin; got != tt.want {
+				t.Errorf("the commit's origin = %+v, want %+v", got, tt.want)
+			}
+		})
 	}
 }
 
