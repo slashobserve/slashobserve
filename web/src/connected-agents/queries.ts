@@ -3,13 +3,19 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  type InfiniteData,
 } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { ApiError, unwrap } from "@/api/errors"
 import { grantKeys } from "@/api/keys"
+import type { components } from "@/api/schema.gen"
+import { sentence } from "@/observe/queries"
 
-import type { GrantScope } from "./rows"
+import type { ConnectedAgent, GrantMode, GrantScope } from "./rows"
+
+type GrantPage = components["schemas"]["ConnectedAgentList"]
 
 function grantsQuery(scope: GrantScope) {
   return infiniteQueryOptions({
@@ -48,6 +54,43 @@ export function useDisconnect(scope: GrantScope) {
           : api.DELETE("/grants/{id}", params)
       ).then(unwrap)
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: grantKeys.all }),
+  })
+}
+
+export function useSetGrantMode() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { id: string; mode: GrantMode }) =>
+      api
+        .PATCH("/me/grants/{id}", {
+          params: { path: { id: input.id } },
+          body: { mode: input.mode },
+        })
+        .then(unwrap),
+    onSuccess: (grant: ConnectedAgent) =>
+      queryClient.setQueryData<InfiniteData<GrantPage>>(
+        grantKeys.list("mine"),
+        (data) =>
+          data === undefined
+            ? data
+            : {
+                ...data,
+                pages: data.pages.map((page) => ({
+                  ...page,
+                  grants: page.grants.map((item) =>
+                    item.id === grant.id ? grant : item
+                  ),
+                })),
+              }
+      ),
+    onError: (error) =>
+      toast.error(
+        error instanceof ApiError
+          ? sentence(error.message)
+          : "Could not change the mode"
+      ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: grantKeys.all }),
   })
 }

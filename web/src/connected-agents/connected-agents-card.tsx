@@ -16,10 +16,12 @@ import {
 } from "@/settings/settings-card"
 
 import { DisconnectButton } from "./disconnect-button"
+import { ModeSelect } from "./mode-select"
 import { useAllGrants, useMyGrants } from "./queries"
 import {
   agentName,
   connectPrompt,
+  modeLabel,
   type ConnectedAgent,
   type GrantScope,
 } from "./rows"
@@ -165,7 +167,7 @@ function GrantsTable({
   return (
     <TableCard
       label={label}
-      minWidth={scope === "all" ? 640 : 520}
+      minWidth={scope === "all" ? 720 : 600}
       stackOnNarrow
       className="rounded-none border-0"
     >
@@ -173,6 +175,7 @@ function GrantsTable({
         <tr>
           <HeaderCell>Agent</HeaderCell>
           {scope === "all" ? <HeaderCell>Person</HeaderCell> : null}
+          <HeaderCell>Mode</HeaderCell>
           <HeaderCell>Connected</HeaderCell>
           <HeaderCell>Last used</HeaderCell>
           <HeaderCell>
@@ -196,6 +199,15 @@ function GrantsTable({
                 {`${grant.person.name} (${grant.person.email})`}
               </Cell>
             ) : null}
+            <Cell
+              className={scope === "all" ? "text-muted-foreground" : undefined}
+            >
+              {scope === "mine" ? (
+                <ModeSelect grant={grant} />
+              ) : (
+                modeLabel(grant.mode)
+              )}
+            </Cell>
             <Cell className="text-muted-foreground">
               Connected <RelativeTime iso={grant.created_at} />
             </Cell>
