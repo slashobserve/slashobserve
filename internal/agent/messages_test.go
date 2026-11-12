@@ -28,6 +28,7 @@ func TestStoredMessagesAreTheSharedFailureMessages(t *testing.T) {
 		{"repair exhausted", ErrRepairExhausted, revisions.FailureValidationExhausted, revisions.SourceObserve},
 		{"suggest repair exhausted", ErrSuggestRepairExhausted, revisions.FailureValidationExhausted, revisions.SourceSuggest},
 		{"no fixture", llm.ErrNoFixture, revisions.FailureNoFixture, revisions.SourceObserve},
+		{"no fixture on a model call", fmt.Errorf("%w: %w", errModelCall, llm.ErrNoFixture), revisions.FailureNoFixture, revisions.SourceObserve},
 		{"internal", errors.New("boom"), revisions.FailureInternal, revisions.SourceObserve},
 		{"timeout", fmt.Errorf("%w: %w", errModelCall, llm.NewCallError("p", llm.CallTimeout, 0)), revisions.FailureCallTimeout, revisions.SourceObserve},
 		{"rate limited", fmt.Errorf("%w: %w", errModelCall, llm.NewCallError("p", llm.RateLimited, 429)), revisions.FailureRateLimited, revisions.SourceObserve},

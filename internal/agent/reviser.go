@@ -104,9 +104,11 @@ func storedMessage(err error) string {
 	var safe *safeError
 	switch {
 	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrRefused),
-		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, llm.ErrNoFixture),
+		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask),
 		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding), errors.Is(err, ErrBudgetExhausted):
 		return err.Error()
+	case errors.Is(err, llm.ErrNoFixture):
+		return revisions.FailureMessage(revisions.FailureNoFixture, revisions.SourceObserve)
 	case errors.Is(err, dashboards.ErrNotFound):
 		return revisions.FailureMessage(revisions.FailureNotFound, revisions.SourceObserve)
 	case errors.As(err, &safe):

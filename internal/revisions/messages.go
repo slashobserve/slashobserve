@@ -20,7 +20,7 @@ var failureMessages = map[FailureCode]string{
 	FailureRateLimited:     "the model provider is rate limiting requests",
 	FailureProviderError:   "the model provider returned an error",
 	FailureRefused:         "the model declined the request",
-	FailureNoFixture:       "no replay fixture",
+	FailureNoFixture:       "model call failed: no replay fixture",
 	FailureInternal:        "the agent run failed",
 	FailureConflict:        "the dashboard changed twice while the agent was revising it",
 	FailureNotFound:        "the dashboard no longer exists",

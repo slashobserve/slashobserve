@@ -12,7 +12,7 @@ func TestFailureMessageReadsPerCodeAndSource(t *testing.T) {
 		{FailureRateLimited, SourceObserve, "the model provider is rate limiting requests"},
 		{FailureProviderError, SourceObserve, "the model provider returned an error"},
 		{FailureRefused, SourceObserve, "the model declined the request"},
-		{FailureNoFixture, SourceObserve, "no replay fixture"},
+		{FailureNoFixture, SourceObserve, "model call failed: no replay fixture"},
 		{FailureInternal, SourceObserve, "the agent run failed"},
 		{FailureConflict, SourceObserve, "the dashboard changed twice while the agent was revising it"},
 		{FailureNotFound, SourceObserve, "the dashboard no longer exists"},
