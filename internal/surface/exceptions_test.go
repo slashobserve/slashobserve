@@ -101,6 +101,10 @@ var exceptions = map[string]exception{
 	"disconnectMyGrant": {MCP: connectedAgents, CLI: connectedAgents},
 	"listGrants":        {MCP: connectedAgents, CLI: connectedAgents},
 	"disconnectGrant":   {MCP: connectedAgents, CLI: connectedAgents},
+	"listAgents":        {MCP: connectedAgents, CLI: personOnly},
+
+	"listInbox":     {CLI: personOnly},
+	"markInboxRead": {MCP: personOnly, CLI: personOnly},
 
 	"requestHealthRepairs": {MCP: builtInAgentQueue},
 	"runDashboardHealth":   {MCP: notBuilt},

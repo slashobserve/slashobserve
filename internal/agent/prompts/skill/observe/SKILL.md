@@ -18,6 +18,7 @@ First pick the kind of work - build, change, investigate, search logs or traces,
 Search before you build: search_workspace finds dashboards, findings, annotations, comments and saved searches by their words.
 A dashboard or finding that already answers the ask is the answer: open it with get_dashboard or list_findings and say so.
 list_activity shows what changed recently and who changed it.
+Read list_inbox to find what your person is asked to do.
 
 ## Build a dashboard
 

@@ -1,0 +1,105 @@
+inbox:
+  get:
+    operationId: listInbox
+    x-surfaces:
+      mcp: [list_inbox]
+    summary: List what asks something of the signed-in person, newest first.
+    description: >-
+      The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`.
+      Each item is an activity event with a `reason`, the first rule it matches, and `unread`.
+      `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open.
+      `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested.
+      `mention` is a comment that mentions the caller by name.
+      `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested.
+      `run_failed` is a failed run the caller requested that nobody has continued.
+      `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none.
+      An item is unread when it is newer than the position `POST /api/v1/inbox/read` stored for the caller, and every item is unread until the caller reads once.
+      `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more.
+      Items carry no comment, message or finding text, as in the activity log.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    parameters:
+      - name: view
+        in: query
+        schema:
+          type: string
+          enum: [for_you, everything, proposals, mentions]
+          default: for_you
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+    responses:
+      "200":
+        description: One page of the inbox.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InboxList"
+      "400":
+        description: The `view` is not one of the four (`invalid_view`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+inbox-read:
+  post:
+    operationId: markInboxRead
+    summary: Mark the inbox read up to one event.
+    description: >-
+      Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread.
+      The position only moves forward, so a `seq` older than the stored one changes nothing.
+      Reading one item without the ones before it is not offered.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [seq]
+            properties:
+              seq:
+                type: integer
+                format: int64
+                minimum: 1
+                description: The `seq` of an activity event, normally the newest item the person has seen.
+    responses:
+      "204":
+        description: The inbox is read up to the event, or already was.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: No activity has that `seq` (`unknown_seq`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

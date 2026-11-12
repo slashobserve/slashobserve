@@ -106,9 +106,10 @@ type movedEventData struct {
 }
 
 type blockEventData struct {
-	Title     string `json:"title"`
-	BlockID   string `json:"block_id"`
-	BlockKind Kind   `json:"block_kind"`
+	Title     string     `json:"title"`
+	BlockID   string     `json:"block_id"`
+	BlockKind Kind       `json:"block_kind"`
+	State     BlockState `json:"state,omitempty"`
 }
 
 func timePtr(t pgtype.Timestamptz) *time.Time {

@@ -302,6 +302,12 @@ paths:
     $ref: "./paths/grants.yaml#/grants"
   /grants/{id}:
     $ref: "./paths/grants.yaml#/grants-id"
+  /agents:
+    $ref: "./paths/agents.yaml#/agents"
+  /inbox:
+    $ref: "./paths/inbox.yaml#/inbox"
+  /inbox/read:
+    $ref: "./paths/inbox.yaml#/inbox-read"
 components:
   securitySchemes:
     sessionCookie:
@@ -727,6 +733,103 @@ components:
         next_cursor:
           type: string
           nullable: true
+    AgentRunStats:
+      type: object
+      additionalProperties: false
+      required: [runs, failed, cost_usd, median_queue_wait_seconds]
+      properties:
+        runs:
+          type: integer
+        failed:
+          type: integer
+        cost_usd:
+          type: number
+          nullable: true
+          description: Null when a finished run has no recorded cost.
+        median_queue_wait_seconds:
+          type: number
+          nullable: true
+          description: Null when no run started.
+    AgentsOverview:
+      type: object
+      additionalProperties: false
+      required: [observe_agent, connected, service_accounts]
+      properties:
+        observe_agent:
+          type: object
+          additionalProperties: false
+          required: [enabled, provider, model, runtime, scope, last_7_days]
+          properties:
+            enabled:
+              type: boolean
+            provider:
+              type: string
+              nullable: true
+            model:
+              type: string
+              nullable: true
+            runtime:
+              type: string
+              enum: [go]
+            scope:
+              type: string
+              enum: [workspace, you]
+            last_7_days:
+              $ref: "#/components/schemas/AgentRunStats"
+        connected:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [grant_id, client_name, mode, present, last_seen_at, connected_at, writes_7d, last_7_days]
+            properties:
+              grant_id:
+                type: string
+                format: uuid
+              client_name:
+                type: string
+                description: The client's display name, or `MCP` when it registered none.
+              mode:
+                type: string
+                enum: [direct, propose]
+              present:
+                type: boolean
+              last_seen_at:
+                type: string
+                format: date-time
+                nullable: true
+              connected_at:
+                type: string
+                format: date-time
+              writes_7d:
+                type: integer
+              last_7_days:
+                $ref: "#/components/schemas/AgentRunStats"
+        service_accounts:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, present, last_seen_at, last_7_days]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              present:
+                type: boolean
+              last_seen_at:
+                type: string
+                format: date-time
+                nullable: true
+              last_7_days:
+                nullable: true
+                allOf:
+                  - $ref: "#/components/schemas/AgentRunStats"
+                description: Null unless the caller is an Admin.
     UpdatePersonRequest:
       type: object
       additionalProperties: false
@@ -1211,6 +1314,69 @@ components:
         next_cursor:
           type: string
           nullable: true
+    InboxItem:
+      type: object
+      additionalProperties: false
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread]
+      description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
+      properties:
+        seq:
+          type: integer
+          format: int64
+          minimum: 1
+        type:
+          $ref: "#/components/schemas/ActivityType"
+        target:
+          type: object
+          additionalProperties: false
+          required: [kind, id]
+          properties:
+            kind:
+              type: string
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
+            id:
+              type: string
+              format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+        actor:
+          $ref: "#/components/schemas/Actor"
+        data:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+          enum: [proposal, requested_block, mention, reply, run_failed]
+          description: The first rule the event matches, or null in the `everything` view when it matches none.
+        unread:
+          type: boolean
+    InboxList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor, unread_count]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/InboxItem"
+        next_cursor:
+          type: string
+          nullable: true
+        unread_count:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: How many `for_you` items are unread, at most 100; 100 means 100 or more.
     SearchSnippetSegment:
       type: object
       additionalProperties: false

@@ -331,6 +331,13 @@ type Import struct {
 	GrafanaUid      string
 }
 
+type InboxCursor struct {
+	UserID    pgtype.UUID
+	ReadXid   pgtype.Uint64
+	ReadSeq   int64
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID

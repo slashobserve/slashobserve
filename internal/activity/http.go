@@ -36,6 +36,7 @@ func NewHandler(store *Store, logger *slog.Logger) *Handler {
 
 func (h *Handler) Register(api auth.Routes) {
 	api.GET("/activity", auth.RoleViewer, h.list)
+	h.registerInbox(api)
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -73,6 +74,8 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	switch {
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
+	case errors.Is(err, ErrPersonOnly):
+		httpapi.AbortError(c, http.StatusForbidden, "user_session_required", inboxSessionText)
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
 	case clientgone.Handle(c, h.logger, action, err):

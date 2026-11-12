@@ -78,6 +78,14 @@ The down section has costs:
 - The observations that were made from findings are deleted with everything on them, so edits, blocks and resolves made on them since the upgrade are lost; the observation of a run is kept.
 - A finding with no dashboard comes back filed in the folder of its observation, so a finding that a service account saved with no folder comes back filed in General.
 
+### Upgrading to the release that adds the inbox
+
+Migration 43 adds `inbox_cursors`, one read position per person, the `inbox_reason` SQL function and the partial index `activity_inbox_idx` on the activity log.
+The index is built with a plain `CREATE INDEX`, which blocks writes to the activity log, and so every change that records activity, until it finishes.
+At the default 180 day retention the build is short, but a log that holds millions of events can take a minute or more, so upgrade when little is changing.
+An older server ignores the new objects, so servers of both versions can run together.
+To go back, run `goose down-to 42` against the database before starting an older binary; everyone's read position is lost, and the next inbox shows the last 30 days as unread.
+
 ### Upgrading from an early release
 
 Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
