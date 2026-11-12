@@ -13,7 +13,7 @@ import (
 
 const guideFile = "internal/agent/prompts/skill/observe/SKILL.md"
 
-var guideFields = []string{"folder_id", "parent_version", "version_conflict", "failing_panels", "next_cursor", "next_offset", "not_found", "start_runs", "run_refusal"}
+var guideFields = []string{"folder_id", "parent_version", "version_conflict", "failing_panels", "next_cursor", "next_offset", "not_found", "start_runs", "run_refusal", "thread_context"}
 
 var (
 	toolLikeName = regexp.MustCompile(`\b[a-z]+(?:_[a-z]+)+\b`)

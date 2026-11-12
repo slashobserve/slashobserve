@@ -7,7 +7,6 @@ import {
   entryWith,
   fixturePrompt,
   holdRequestsRunning,
-  revisionsApi,
 } from "./activity"
 import {
   addVersion,
@@ -36,7 +35,7 @@ const you = "admin"
 const perRoutePrompt = fixturePrompt("comment-per-route.json")
 const p99Prompt = fixturePrompt("followup-p99-panel.json")
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
-const commentsPostApi = /\/api\/v1\/dashboards\/[^/]+\/comments$/
+const threadsPostApi = /\/api\/v1\/threads$/
 const olderVersionNote =
   "You are viewing an older version. Open the latest version to send changes to the agent."
 const internalError = JSON.stringify({ error: "boom", code: "internal" })
@@ -86,12 +85,12 @@ async function pickOption(page: Page, select: Locator, label: string) {
   await page.getByRole("option", { name: label, exact: true }).click()
 }
 
-function addCommentButton(page: Page) {
-  return composerForm(page).getByRole("button", { name: "Add comment" })
+function sendButton(page: Page) {
+  return composerForm(page).getByRole("button", { name: "Send", exact: true })
 }
 
-function sendToAgentButton(page: Page) {
-  return composerForm(page).getByRole("button", { name: "Send to agent" })
+function askAgentButton(page: Page) {
+  return composerForm(page).getByRole("button", { name: /^Send and ask / })
 }
 
 async function openCard(page: Page, id: string, search = "") {
@@ -164,7 +163,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(composerBox(page)).toBeFocused()
 
       await composerBox(page).fill("Latency looks high")
-      await addCommentButton(page).click()
+      await sendButton(page).click()
 
       const entry = entryWith(page, "Latency looks high")
       await expect(entry).toHaveCount(1)
@@ -196,7 +195,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       let release!: () => void
       const held = new Promise<void>((resolve) => (release = resolve))
-      await page.route(commentsPostApi, async (route) => {
+      await page.route(threadsPostApi, async (route) => {
         if (route.request().method() !== "POST") {
           await route.fallback()
           return
@@ -377,17 +376,15 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(counter("500 characters left")).toBeVisible()
       await box.fill("a".repeat(3600))
       await expect(counter("400 characters left")).toBeVisible()
-      await expect(addCommentButton(page)).toBeEnabled()
+      await expect(sendButton(page)).toBeEnabled()
 
       await box.fill(`  ${"a".repeat(4000)}  `)
       await expect(counter("0 characters left")).toBeVisible()
-      await expect(addCommentButton(page)).toBeEnabled()
-      await expect(sendToAgentButton(page)).toBeEnabled()
+      await expect(sendButton(page)).toBeEnabled()
 
       await box.fill("a".repeat(4001))
       await expect(counter("1 character over")).toBeVisible()
-      await expect(addCommentButton(page)).toBeDisabled()
-      await expect(sendToAgentButton(page)).toBeDisabled()
+      await expect(sendButton(page)).toBeDisabled()
     })
 
     test.describe("with the replay agent", () => {
@@ -400,8 +397,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         const finish = await holdRequestsRunning(page)
 
         await pickOption(page, targetSelect(page), agentRpsTitle)
-        await composerBox(page).fill(perRoutePrompt)
-        await sendToAgentButton(page).click()
+        await composerBox(page).fill(`@observe ${perRoutePrompt}`)
+        await askAgentButton(page).click()
 
         const entry = entryWith(page, perRoutePrompt).filter({
           has: page.getByText("asked the agent on", { exact: true }),
@@ -417,9 +414,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(running).toHaveCount(1)
 
         finish()
-        const saved = entry.getByRole("link", { name: "Saved as version 2" })
-        await expect(saved).toBeVisible({ timeout: agentTimeout })
-        await expect(saved).toHaveAttribute("href", /versions\?from=1&to=2/)
+        await expect(
+          entry.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
         await expect(running).toHaveCount(0)
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
@@ -445,17 +442,22 @@ for (const colorScheme of ["light", "dark"] as const) {
         })
         await thread.getByRole("button", { name: "Reply", exact: true }).click()
         const form = thread.getByRole("form", { name: "Reply to this comment" })
-        await form.getByRole("textbox", { name: "Reply" }).fill(p99Prompt)
-        await form.getByRole("button", { name: "Send to agent" }).click()
+        await form
+          .getByRole("textbox", { name: "Reply" })
+          .fill(`@observe ${p99Prompt}`)
+        await form
+          .getByRole("button", { name: "Send and ask Observe Agent" })
+          .click()
 
-        await expect(form).toHaveCount(0)
-        await expect(thread.getByText("Sent to the agent")).toBeVisible()
+        await expect(
+          thread.getByText(/Observe Agent is working on it/)
+        ).toBeVisible()
 
         finish()
-        await expect(thread.getByText("Resolved by version 2")).toBeVisible({
-          timeout: agentTimeout,
-        })
-        await thread.getByRole("button", { name: "Show thread" }).click()
+        await expect(
+          thread.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(thread.getByText("Observe Agent finished.")).toBeVisible()
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, p99Prompt).filter({
@@ -469,8 +471,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         await openCard(page, id)
         const finish = await holdRequestsRunning(page)
 
-        await composerBox(page).fill(unanswerablePrompt)
-        await sendToAgentButton(page).click()
+        await composerBox(page).fill(`@observe ${unanswerablePrompt}`)
+        await askAgentButton(page).click()
 
         const details = card(page).getByRole("link", {
           name: /Details of the running agent request/,
@@ -486,14 +488,15 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
     })
 
-    test("explains when Send to agent is unavailable", async ({
+    test("explains when asking the agent is unavailable", async ({
       page,
       request,
     }) => {
       const { id, spec } = await createOverview(request)
       await addVersion(request, id, spec, 1, "Second save")
       await openCard(page, id)
-      await expect(sendToAgentButton(page)).toBeVisible()
+      await composerBox(page).fill("@observe check the dip")
+      await expect(askAgentButton(page)).toBeEnabled()
 
       await versionButton(page).click()
       await page
@@ -503,8 +506,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page).toHaveURL(/version=1/)
 
       await expect(card(page).getByText(olderVersionNote)).toBeVisible()
-      await expect(sendToAgentButton(page)).toHaveCount(0)
-      await expect(addCommentButton(page)).toBeVisible()
+      await expect(askAgentButton(page)).toBeDisabled()
+      await composerBox(page).fill("A plain note")
+      await expect(sendButton(page)).toBeEnabled()
 
       await versionButton(page).click()
       await page
@@ -524,7 +528,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(toggle(page)).toBeDisabled()
     })
 
-    test("hides Send to agent without a model", async ({ page, request }) => {
+    test("offers no agent send without a model", async ({ page, request }) => {
       const { id } = await createOverview(request)
       await page.route("**/api/v1/agent", (route) =>
         route.fulfill({
@@ -546,7 +550,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         "Leave a comment for the team and Claude Code"
       )
       await composerBox(page).fill("A note for the team")
-      await addCommentButton(page).click()
+      await sendButton(page).click()
 
       const entry = entryWith(page, "A note for the team")
       await expect(entry).toHaveCount(1)
@@ -557,9 +561,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         entry.getByRole("form", { name: "Reply to this comment" })
       ).toBeVisible()
-      await expect(
-        page.getByRole("button", { name: "Send to agent" })
-      ).toHaveCount(0)
+      await expect(askAgentButton(page)).toHaveCount(0)
     })
 
     test("limits queued agent requests", async ({
@@ -568,14 +570,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       consoleErrors,
     }) => {
       const { id } = await createOverview(request)
-      await page.route(revisionsApi, (route) => {
-        if (route.request().method() !== "POST") return route.fallback()
-        return route.fulfill({
-          status: 429,
-          json: { error: "too many revisions", code: "too_many_revisions" },
-        })
-      })
-      await page.route(commentsPostApi, (route) => {
+      await page.route(threadsPostApi, (route) => {
         if (route.request().method() !== "POST") return route.fallback()
         return route.fulfill({
           status: 500,
@@ -587,7 +582,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       const box = composerBox(page)
       await box.fill("Please split this by route")
-      await addCommentButton(page).click()
+      await sendButton(page).click()
       await expect(composerForm(page).getByRole("alert")).toHaveText(
         "The comment could not be posted right now. Try again."
       )
@@ -595,13 +590,24 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(box).toBeFocused()
       clearRejectedRequestLogs(consoleErrors, 500)
 
-      await sendToAgentButton(page).click()
-      await expect(composerForm(page).getByRole("alert")).toHaveText(
-        "This dashboard already has 5 revisions waiting. Try again when one finishes."
-      )
-      await expect(box).toHaveValue("Please split this by route")
-      await expect(box).toBeFocused()
-      clearRejectedRequestLogs(consoleErrors, 429)
+      const refusal = "This dashboard already has 5 runs waiting."
+      await page.unroute(threadsPostApi)
+      await page.route(threadsPostApi, (route) => {
+        if (route.request().method() !== "POST") return route.fallback()
+        return route.fulfill({
+          status: 201,
+          json: {
+            thread: { id: "00000000-0000-4000-8000-000000000001" },
+            message: {
+              id: "00000000-0000-4000-8000-000000000001",
+              run_refusal: { code: "too_many_runs", message: refusal },
+            },
+          },
+        })
+      })
+      await box.fill("@observe Please split this by route")
+      await askAgentButton(page).click()
+      await expect(composerForm(page).getByText(refusal)).toBeVisible()
     })
 
     test("resizes and remembers the width", async ({ page, request }) => {
@@ -668,17 +674,17 @@ for (const colorScheme of ["light", "dark"] as const) {
       const posted = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
-          commentsPostApi.test(new URL(response.url()).pathname)
+          threadsPostApi.test(new URL(response.url()).pathname)
       )
-      await addCommentButton(page).click()
+      await sendButton(page).click()
 
       await expect(entryWith(page, "Posted from an older version")).toHaveCount(
         1
       )
       const body = (await (await posted).json()) as {
-        comment: { version: number }
+        thread: { version: number }
       }
-      expect(body.comment.version).toBe(2)
+      expect(body.thread.version).toBe(2)
     })
 
     test("opens old links", async ({ page, request }) => {

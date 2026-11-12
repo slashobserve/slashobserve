@@ -74,11 +74,11 @@ describe("importStatus", () => {
 describe("fixPrompt", () => {
   it("names the panel by title and id", () => {
     expect(fixPrompt('Errors for "checkout"', "p-7")).toBe(
-      'Fix the unverified panel "Errors for "checkout"" (p-7).'
+      '@observe Fix the unverified panel "Errors for "checkout"" (p-7).'
     )
   })
 
   it("falls back to the id when the title is empty", () => {
-    expect(fixPrompt("", "p-7")).toBe("Fix the unverified panel p-7.")
+    expect(fixPrompt("", "p-7")).toBe("@observe Fix the unverified panel p-7.")
   })
 })

@@ -9,14 +9,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-const (
-	messageCallTimeout   = "the model did not answer in time"
-	messageRateLimited   = "the model provider is rate limiting requests"
-	messageProviderError = "the model provider returned an error"
-	messageRunFailed     = "the agent run failed"
-	messageDashboardGone = "the dashboard no longer exists"
-)
-
 type Reviser struct {
 	agent *Agent
 	steps revisions.StepRecorder
@@ -76,7 +68,7 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 
 func taskFor(req revisions.Request) Task {
 	task := Task{
-		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote,
+		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext,
 		DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy,
 		Investigate: req.Source == revisions.SourceInvestigate, From: req.From, To: req.To,
 	}
@@ -112,11 +104,13 @@ func storedMessage(err error) string {
 	var safe *safeError
 	switch {
 	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrRefused),
-		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, llm.ErrNoFixture),
+		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask),
 		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding), errors.Is(err, ErrBudgetExhausted):
 		return err.Error()
+	case errors.Is(err, llm.ErrNoFixture):
+		return revisions.FailureMessage(revisions.FailureNoFixture, revisions.SourceObserve)
 	case errors.Is(err, dashboards.ErrNotFound):
-		return messageDashboardGone
+		return revisions.FailureMessage(revisions.FailureNotFound, revisions.SourceObserve)
 	case errors.As(err, &safe):
 		return safe.message
 	case errors.Is(err, errModelCall):
@@ -126,7 +120,7 @@ func storedMessage(err error) string {
 	case errors.Is(err, context.DeadlineExceeded):
 		return context.DeadlineExceeded.Error()
 	}
-	return messageRunFailed
+	return revisions.FailureMessage(revisions.FailureInternal, revisions.SourceObserve)
 }
 
 func modelCallMessage(err error) string {
@@ -134,10 +128,10 @@ func modelCallMessage(err error) string {
 	if errors.As(err, &callErr) {
 		switch callErr.Failure {
 		case llm.CallTimeout:
-			return messageCallTimeout
+			return revisions.FailureMessage(revisions.FailureCallTimeout, revisions.SourceObserve)
 		case llm.RateLimited:
-			return messageRateLimited
+			return revisions.FailureMessage(revisions.FailureRateLimited, revisions.SourceObserve)
 		}
 	}
-	return messageProviderError
+	return revisions.FailureMessage(revisions.FailureProviderError, revisions.SourceObserve)
 }

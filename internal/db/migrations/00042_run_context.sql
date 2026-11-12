@@ -13,12 +13,14 @@ ALTER TABLE agent_requests
   ADD COLUMN thread_context TEXT CONSTRAINT agent_requests_thread_context_check CHECK (length(thread_context) BETWEEN 1 AND 8000);
 CREATE INDEX agent_requests_thread_message_idx ON agent_requests (thread_message_id) WHERE thread_message_id IS NOT NULL;
 
-ALTER TABLE thread_messages ADD COLUMN run_id UUID REFERENCES agent_requests (id) ON DELETE SET NULL;
+ALTER TABLE thread_messages
+  ADD COLUMN run_id UUID REFERENCES agent_requests (id) ON DELETE SET NULL,
+  ADD COLUMN run_assigned_kind TEXT CONSTRAINT thread_messages_run_assigned_kind_check CHECK (run_assigned_kind IN ('builtin', 'grant', 'service_account'));
 CREATE INDEX thread_messages_run_idx ON thread_messages (run_id) WHERE run_id IS NOT NULL;
 
 -- +goose Down
 DROP INDEX thread_messages_run_idx;
-ALTER TABLE thread_messages DROP COLUMN run_id;
+ALTER TABLE thread_messages DROP COLUMN run_assigned_kind, DROP COLUMN run_id;
 
 DROP INDEX agent_requests_thread_message_idx;
 ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_thread_context_check;

@@ -8,6 +8,11 @@ import { Composer } from "./composer"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
 const people = [{ id: adaId, name: "Ada" }]
+const claude = {
+  kind: "grant" as const,
+  id: "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d",
+  name: "Claude Code",
+}
 
 function setup(
   props: Partial<Parameters<typeof Composer>[0]> = {},
@@ -140,5 +145,57 @@ describe("Composer", () => {
     expect(
       screen.getByText("Stays here until added to the page")
     ).toBeInTheDocument()
+  })
+
+  it("labels the send button with the agent a message asks", async () => {
+    const { user, field } = setup({ agents: [claude] })
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled()
+    await user.click(field)
+    await user.paste("hello @observe")
+    expect(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    ).toBeEnabled()
+    await user.clear(field)
+    await user.type(field, "x")
+    await user.click(
+      screen.getByRole("combobox", { name: "Mention a person or an agent" })
+    )
+    await user.click(await screen.findByRole("option", { name: /Claude Code/ }))
+    expect(
+      await screen.findByRole("button", { name: "Send and ask Claude Code" })
+    ).toBeEnabled()
+  })
+
+  it("asks for one agent and blocks sending when a message mentions two", async () => {
+    const { user, field, submit } = setup({ agents: [claude] })
+    await user.click(field)
+    await user.paste(`@observe @[Claude Code](grant:${claude.id}) go`)
+    expect(screen.getByText("Mention one agent per message")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled()
+    await user.keyboard("{Control>}{Enter}{/Control}")
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it("keeps the same agent mentioned twice sendable", async () => {
+    const { user, field } = setup()
+    await user.click(field)
+    await user.paste("@observe and again @observe")
+    expect(screen.queryByText("Mention one agent per message")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    ).toBeEnabled()
+  })
+
+  it("blocks sending a message that mentions an agent when agents are blocked, and says why", async () => {
+    const { user, field } = setup({
+      agentsBlocked: "Finish editing the layout.",
+    })
+    await user.type(field, "plain note")
+    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled()
+    await user.paste(" @observe")
+    expect(screen.getByText("Finish editing the layout.")).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    ).toBeDisabled()
   })
 })

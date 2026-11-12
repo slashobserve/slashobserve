@@ -162,7 +162,7 @@ ingress:
 The pod runs as the image's non-root user 65532 with a read-only root filesystem, every capability dropped and no Kubernetes API token mounted.
 The liveness probe requests `/healthz` and the readiness probe `/readyz`.
 A startup probe on `/readyz` allows 5 minutes before the liveness probe starts, so a long migration at boot is not mistaken for a hung server.
-Set `resources` to fit your load; the demo stack limits the server to 256 MiB of memory.
+Set `resources` to fit your load; the demo stack limits the server to 512 MiB of memory.
 
 ## Upgrade and roll back
 

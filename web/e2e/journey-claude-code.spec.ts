@@ -74,14 +74,14 @@ for (const colorScheme of ["light", "dark"] as const) {
         await form
           .getByRole("textbox", { name: "Comment or request" })
           .fill(requestText)
-        await form.getByRole("button", { name: "Add comment" }).click()
+        await form.getByRole("button", { name: "Send", exact: true }).click()
 
         await expect(thread()).toHaveCount(1)
         await expect(
           thread().getByText("Open, waiting for Claude Code")
         ).toBeVisible()
         await expect(
-          page.getByRole("button", { name: "Send to agent" })
+          page.getByRole("button", { name: /^Send and ask / })
         ).toHaveCount(0)
         const note = card(page).getByRole("region", {
           name: "Waiting for Claude Code",
@@ -157,7 +157,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           card(page)
             .getByRole("form", { name: "Add to the activity" })
-            .getByRole("button", { name: "Send to agent" })
+            .getByRole("button", { name: "Send", exact: true })
         ).toBeVisible()
       })
     })

@@ -540,6 +540,13 @@ type PublicLink struct {
 	RcaID         pgtype.UUID
 }
 
+type RunSession struct {
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+	State          []byte
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type RunToken struct {
 	TokenHash      []byte
 	AgentRequestID pgtype.UUID
@@ -665,19 +672,20 @@ type ThreadMention struct {
 }
 
 type ThreadMessage struct {
-	ID           pgtype.UUID
-	ThreadID     pgtype.UUID
-	Body         string
-	AuthorKind   string
-	AuthorID     pgtype.UUID
-	AuthorName   string
-	AuthorEmail  pgtype.Text
-	Origin       pgtype.Text
-	OriginClient pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	EditedAt     pgtype.Timestamptz
-	RunID        pgtype.UUID
+	ID              pgtype.UUID
+	ThreadID        pgtype.UUID
+	Body            string
+	AuthorKind      string
+	AuthorID        pgtype.UUID
+	AuthorName      string
+	AuthorEmail     pgtype.Text
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	EditedAt        pgtype.Timestamptz
+	RunID           pgtype.UUID
+	RunAssignedKind pgtype.Text
 }
 
 type User struct {

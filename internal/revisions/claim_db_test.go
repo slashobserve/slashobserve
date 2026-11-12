@@ -61,6 +61,9 @@ func TestBuiltinClaimantNeverTakesARunAssignedToAnOutsideAgent(t *testing.T) {
 	if !found || claimed.Row.ID != mustUUID(t, own.ID) || claimed.Row.ClaimedBy.String != "builtin:server-1" {
 		t.Fatalf("claim = %+v found %v, want the built-in run claimed by builtin:server-1", claimed.Row, found)
 	}
+	if claimed.Request.Assignee != revisions.AssignBuiltin {
+		t.Fatalf("request assignee = %q, want builtin", claimed.Request.Assignee)
+	}
 }
 
 func TestGrantClaimantTakesOnlyRunsAssignedToItsGrant(t *testing.T) {
@@ -76,6 +79,9 @@ func TestGrantClaimantTakesOnlyRunsAssignedToItsGrant(t *testing.T) {
 	}
 	if claimed.Row.ClaimedBy.String != "grant:"+grantA || claimed.Request.RequestedBy.ID != userID || claimed.Request.Attempt != 1 {
 		t.Fatalf("claimed_by %q, requester %q, attempt %d", claimed.Row.ClaimedBy.String, claimed.Request.RequestedBy.ID, claimed.Request.Attempt)
+	}
+	if claimed.Request.Assignee != revisions.AssignGrant {
+		t.Fatalf("request assignee = %q, want grant", claimed.Request.Assignee)
 	}
 	if _, found := claimAs(t, svc, grantClaimant(grantA, userID)); found {
 		t.Fatal("grant a took a second run, assigned to grant b")

@@ -235,13 +235,13 @@ It does not need to have been your dashboard.
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.
-In its activity pane, write the change in "Write a comment, or tell the agent what to change" and choose **Send to agent**, or reply to a comment thread and choose **Send to agent** there.
+In its activity pane, write the change in "Write a comment, or tell the agent what to change" with `@observe` in it and send, or reply to a comment thread with `@observe` in the reply.
 The up arrow recalls your earlier prompts there too, and the footer shows the model.
 These requests carry on in the activity pane; see [Comments, agent requests and versions](review.md).
 In the conversation, a turn sent from the dashboard shows "Sent from the dashboard".
 
 While a request runs, its entry in the activity pane shows the latest three phases of its timeline, with **Show all steps** for the rest, how long it has been running, and **Cancel run** for the person who asked.
-While your own request runs, the same stop button sits next to **Send to agent**.
+While your own request runs, the same stop button sits next to the send button.
 When the request saves a version, its entry reads "Saved as version N" with a link to the change between that version and the one before, and says how long the run took.
 The dashboard reloads the new version, and panels the version added fade in once.
 

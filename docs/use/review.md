@@ -41,7 +41,7 @@ Filters that match nothing say "No activity matches these filters."
 ## Comment on a panel or the dashboard
 
 At the bottom of the card, the form "Add to the activity" has an **On** menu with "The whole dashboard" and every panel title, and a box labelled "Comment or request".
-Write the comment and choose **Add comment**, or press Cmd+Enter (Ctrl+Enter elsewhere).
+Write the comment and choose **Send** (the up arrow), or press Cmd+Enter (Ctrl+Enter elsewhere).
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
 To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
@@ -49,7 +49,7 @@ The card opens scoped to that panel with the cursor in the box.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
-**Add comment** never asks the agent to do anything.
+A comment that mentions no agent never asks an agent to do anything.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
 Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
@@ -64,35 +64,44 @@ An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
-The **Mention** box under a reply or an edit lists the people who already wrote in the thread and the built-in agent, `@observe`.
+The **Mention** box, or typing `@` after a space, lists the people who already wrote in the thread, the built-in agent (Observe Agent, `@observe`) and your own connected agents.
 Choosing one inserts it at the cursor.
-The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only `@observe`.
-A person is stored as `@[Name](user:<id>)` and shows as "@Name" once the comment is saved, using the name the server has for that person.
+The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.
+A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](grant:<id>)`; both show as "@Name" once the comment is saved, using the name the server has.
 A comment can mention at most 20 people and agents.
-A mention is recorded and appears in the [activity log](activity.md); it does not start an agent run and does not notify anyone, so use **Send to agent** to ask the agent for work.
+A mention is recorded and appears in the [activity log](activity.md); it does not notify anyone.
+A mention of an agent starts a run only when you send the comment from a composer that asks the agent, as described next.
 
-## Send a comment to the agent
+## Ask the agent from a comment
 
-There are two ways to ask the agent for a change from the activity card, and both need Comment on the dashboard's folder.
+Mention one agent in a comment and send it: the send button then reads "Send and ask Observe Agent" (or the connected agent's name), and the agent gets a run for that message.
+Asking needs Comment on the dashboard's folder.
 With Comment but not Edit, what the agent builds becomes a [proposal](../concepts/proposals.md) for someone who can edit to merge, and **Save what was built** is not offered.
 
-- **From the form.** Write what to change in the box and choose **Send to agent**.
-  The request appears as an agent request entry, not a comment thread.
+- **From the form.** Write what to change, mention `@observe`, and send.
   Pick a panel in **On** to tell the agent which panel you mean.
-- **From a thread.** Choose **Reply** on a comment, write the instruction, and choose **Send to agent** in the reply form.
-  The server saves your reply first, then sends the request tied to that comment.
-  If the request fails after the reply is saved, the card says "Your reply was saved." and why the request failed.
-  When the agent saves a version for it, the server resolves the thread itself and the thread shows "Resolved by version N".
+  The comment is attached to the latest version and the panel you chose.
+- **From a thread.** Choose **Reply** on a comment, write the instruction with the mention, and send.
+  The agent gets the earlier messages of the thread as context.
+
+Under the form the card says "Observe Agent is working on it" with a link to the run, "`<name>` was asked" for a connected agent, or why no run started, for example that the dashboard already has 5 runs waiting.
+The comment is saved in every case, and a refusal never loses it.
+When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
+A run started from a mention never resolves or reopens the thread.
+
+A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
 The agent revises the latest version and saves the next one, as described in [Chat and follow-ups](chat.md).
 It sees the Spec, your message and the panel you chose.
 
-**Send to agent** is not offered when:
+A mention does not start a run, and the form says why, when:
 
-- the server has no model; the box then reads "Leave a comment for the team and Claude Code", and an external agent can pick the comment up over [MCP](mcp.md);
 - you are viewing an older version: "You are viewing an older version. Open the latest version to send changes to the agent.";
 - you are editing the layout: "Finish editing the layout to send changes to the agent.";
 - 5 requests are already queued or running for this dashboard: "5 requests are already waiting for the agent. Send this when one finishes."
+
+When the server has no model, the box reads "Leave a comment for the team and Claude Code", and a comment that mentions `@observe` is saved with a line saying no run started.
+An external agent can pick the comment up over [MCP](mcp.md).
 
 ## Share a link
 

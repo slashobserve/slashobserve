@@ -5,6 +5,16 @@ RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS agent
+ARG TARGETARCH
+ARG VERSION=dev
+WORKDIR /src/observe-agent
+COPY observe-agent/package.json observe-agent/bun.lock observe-agent/bunfig.toml ./
+RUN bun install --frozen-lockfile
+COPY observe-agent/ ./
+RUN case "$TARGETARCH" in amd64) bun_arch=x64 ;; arm64) bun_arch=arm64 ;; *) echo "unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac && \
+    bun build --compile --minify --target="bun-linux-${bun_arch}" --define "OBSERVE_AGENT_VERSION=\"${VERSION}\"" src/main.ts --outfile /out/observe-agent
+
 FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82 AS server
 ARG TARGETOS
 ARG TARGETARCH
@@ -20,8 +30,9 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/slashobserve-server ./cmd/slashobserve-server
 
-FROM gcr.io/distroless/static-debian13:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
+FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:6a2a3346335b94d3be0732472245f42ca3ce3cc1135a9521a2bda4b677f2ef0d
 COPY --from=server /out/slashobserve-server /usr/local/bin/slashobserve-server
+COPY --from=agent /out/observe-agent /usr/local/bin/observe-agent
 ENV SLASHOBSERVE_HTTP_ADDR=:8080
 EXPOSE 8080
 USER nonroot:nonroot

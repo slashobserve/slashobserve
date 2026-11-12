@@ -2,6 +2,7 @@ package revisions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -36,9 +37,10 @@ const (
 )
 
 type Ending struct {
-	Failure FailureCode
-	Message string
-	Usage   *Usage
+	Failure    FailureCode
+	Message    string
+	Usage      *Usage
+	Suggestion json.RawMessage
 }
 
 func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) {
@@ -159,6 +161,8 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 		return canceledOutcome(nil, e.Usage), nil
 	case e.Failure != "":
 		return outcome{message: e.Message, code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
+	case Source(row.Source) == SourceSuggest:
+		return suggestionOutcome(Result{Suggestion: e.Suggestion, Usage: e.Usage}), nil
 	case Source(row.Source) == SourceInvestigate:
 		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
 	}
@@ -265,9 +269,13 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		Attempt:      int(row.Attempts),
 		RequestedBy:  requesterOf(row),
 		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
+		Assignee:     AssigneeKind(row.AssignedKind),
 		Continues:    row.ContinuesID.Valid,
 		ContinueNote: row.ContinueNote.String,
-		From:         optionalTime(row.ContextFrom),
-		To:           optionalTime(row.ContextTo),
+
+		ThreadContext: row.ThreadContext.String,
+
+		From: optionalTime(row.ContextFrom),
+		To:   optionalTime(row.ContextTo),
 	}
 }

@@ -45,6 +45,7 @@ type ObserveOptions struct {
 	DashboardURL   func(dashboardID, title string) string
 	ObservationURL func(observationID string) string
 	Finding        func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	LiveText       func(runID string, attempt int) (string, bool)
 }
 
 type ObserveHandler struct {
@@ -102,6 +103,7 @@ type agentRequestJSON struct {
 	Error          *string            `json:"error"`
 	FailureCode    *string            `json:"failure_code"`
 	Steps          []Step             `json:"steps"`
+	LiveText       *string            `json:"live_text"`
 	StepsTruncated bool               `json:"steps_truncated,omitempty"`
 	Usage          *Usage             `json:"usage"`
 	Build          *buildProgressJSON `json:"build"`

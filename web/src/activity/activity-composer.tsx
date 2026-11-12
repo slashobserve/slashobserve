@@ -39,8 +39,19 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { MentionButton } from "@/comments/mention-button"
-import { mentionOptions } from "@/comments/mentions"
-import { useAddComment } from "@/comments/queries"
+import { agentSendBlock, oneAgentText, SendButton } from "@/comments/composer"
+import {
+  agentMentionsIn,
+  mentionedAgents,
+  mentionOptions,
+} from "@/comments/mentions"
+import { RunStarted } from "@/comments/run-started"
+import {
+  askedAgent,
+  useOpenThread,
+  type SentMessage,
+} from "@/comments/thread-queries"
+import { useMentionableAgents } from "@/comments/use-mentionable-agents"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
 import { isModEnter } from "@/lib/shortcuts"
@@ -52,12 +63,7 @@ import {
   useCreateObserveRequest,
 } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
-import {
-  describeRevisionError,
-  isAgentUnavailable,
-  maxPromptLength,
-  useRequestRevision,
-} from "@/revisions/queries"
+import { isAgentUnavailable, maxPromptLength } from "@/revisions/queries"
 
 import { useActivityStore } from "./activity-store"
 import type { AgentGate } from "./agent-gate"
@@ -117,18 +123,6 @@ function commentFailureText(error: unknown): string {
   return "The comment could not be posted. Check your connection and try again."
 }
 
-function requestFailureText(error: unknown): string {
-  if (
-    error instanceof ApiError &&
-    error.status === 422 &&
-    error.code === "unknown_panel"
-  ) {
-    return panelGoneText
-  }
-  if (isAgentUnavailable(error)) return agentGoneText
-  return describeRevisionError(error)
-}
-
 function investigateFailureText(error: unknown): string {
   if (
     error instanceof ApiError &&
@@ -166,8 +160,7 @@ export function ActivityComposer({
   const textareaId = useId()
   const errorId = useId()
   const targetId = useId()
-  const addComment = useAddComment(dashboardId)
-  const requestRevision = useRequestRevision(dashboardId)
+  const openThread = useOpenThread(`dashboard:${dashboardId}`)
   const createRequest = useCreateObserveRequest()
   const queryClient = useQueryClient()
   const agentKind = useActivityStore((state) => state.agentKind)
@@ -187,6 +180,11 @@ export function ActivityComposer({
   const history = usePromptHistory()
   const agent = useAgentInfo()
   const model = agentLabel(agent.data)
+  const agents = useMentionableAgents()
+  const [started, setStarted] = useState<{
+    result: SentMessage
+    agentName: string
+  } | null>(null)
 
   useImperativeHandle(
     textareaRef,
@@ -208,11 +206,16 @@ export function ActivityComposer({
   const length = [...trimmed].length
   const over = length > maxPromptLength
   const showCounter = length >= counterThreshold
-  const pendingComment = addComment.isPending
-  const pendingRequest = requestRevision.isPending || createRequest.isPending
-  const pending = pendingComment || pendingRequest
+  const pendingComment = openThread.isPending
+  const pendingInvestigation = createRequest.isPending
+  const pending = pendingComment || pendingInvestigation
   const waitingForPanels = target.kind === "panel" && panels.length === 0
+  const sendBlock = agentSendBlock(
+    trimmed,
+    gate.kind === "blocked" ? gate.reason : null
+  )
   const cannotSubmit = trimmed === "" || over || waitingForPanels
+  const cannotSend = cannotSubmit || sendBlock !== null
 
   function announce(text: string) {
     setNote((current) => ({ text, count: current.count + 1 }))
@@ -263,35 +266,36 @@ export function ActivityComposer({
     field.current?.focus()
   }
 
-  function addCommentNow() {
-    if (cannotSubmit || pending) return
+  function sendNow() {
+    if (cannotSend || pending) return
     setFailure(null)
-    addComment.mutate(
-      { body: trimmed, version: latestVersion, panelId },
+    setStarted(null)
+    const startRuns = agentMentionsIn(trimmed) === 1
+    const agentName = mentionedAgents(trimmed)[0]?.name ?? ""
+    openThread.mutate(
       {
-        onSuccess: () => succeeded("Comment added"),
+        body: trimmed,
+        startRuns,
+        version: latestVersion,
+        panelId,
+      },
+      {
+        onSuccess: (result) => {
+          if (startRuns) history.record(trimmed)
+          if (askedAgent(result)) {
+            setStarted({ result, agentName })
+          }
+          succeeded(startRuns ? "Sent to the agent" : "Comment added")
+        },
         onError: (error) => failed(commentFailureText(error)),
       }
     )
   }
 
-  function sendToAgent() {
+  function investigateNow() {
     if (cannotSubmit || pending) return
     setFailure(null)
-    if (investigating) {
-      investigate()
-      return
-    }
-    requestRevision.mutate(
-      { prompt: trimmed, baseVersion: latestVersion, panelId },
-      {
-        onSuccess: () => {
-          history.record(trimmed)
-          succeeded("Sent to the agent")
-        },
-        onError: (error) => failed(requestFailureText(error)),
-      }
-    )
+    investigate()
   }
 
   function investigate() {
@@ -320,13 +324,13 @@ export function ActivityComposer({
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    addCommentNow()
+    sendNow()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (isModEnter(event) && !event.nativeEvent.isComposing) {
       event.preventDefault()
-      addCommentNow()
+      sendNow()
       return
     }
     const element = event.currentTarget
@@ -459,7 +463,7 @@ export function ActivityComposer({
           </Select>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <MentionButton
-              options={mentionOptions([], [])}
+              options={mentionOptions([], agents)}
               field={field}
               value={draft}
               onChange={onDraftChange}
@@ -497,30 +501,37 @@ export function ActivityComposer({
           {failure}
         </p>
       ) : null}
+      {sendBlock === oneAgentText ? (
+        <p className="text-xs text-muted-foreground">{oneAgentText}</p>
+      ) : null}
+      {started === null ? null : (
+        <RunStarted
+          run={started.result.run}
+          refusal={started.result.runRefusal}
+          agentName={started.agentName}
+        />
+      )}
       <div className="flex items-center justify-end gap-2">
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={cannotSubmit}
-          aria-disabled={pending || undefined}
-          aria-busy={pendingComment || undefined}
-        >
-          Add comment
-        </Button>
         {runningRequestId !== undefined ? (
           <StopRequestButton requestId={runningRequestId} />
         ) : null}
-        {gate.kind === "allowed" ? (
+        {investigating && gate.kind === "allowed" ? (
           <Button
             type="button"
             disabled={cannotSubmit}
             aria-disabled={pending || undefined}
-            aria-busy={pendingRequest || undefined}
-            onClick={sendToAgent}
+            aria-busy={pendingInvestigation || undefined}
+            onClick={investigateNow}
           >
-            {investigating ? "Investigate" : "Send to agent"}
+            Investigate
           </Button>
-        ) : null}
+        ) : (
+          <SendButton
+            body={trimmed}
+            disabled={cannotSend}
+            busy={pendingComment}
+          />
+        )}
       </div>
       <span role="status" className="sr-only">
         {liveRegionText(note.text, note.count)}

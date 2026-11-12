@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -60,6 +61,23 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 	return ReportAnswer{State: string(revisions.StateRunning), LeaseUntil: &until}, nil
 }
 
+func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt int) (revisions.Request, error) {
+	row, err := s.claimedRun(ctx, c, runID, attempt)
+	if err != nil {
+		return revisions.Request{}, err
+	}
+	requester, err := s.runs.Requester(ctx, row)
+	if errors.Is(err, auth.ErrPrincipalGone) {
+		return revisions.Request{}, ErrNotYourRun
+	}
+	if err != nil {
+		return revisions.Request{}, err
+	}
+	req := revisions.RequestOf(row)
+	req.RequestedBy = requester
+	return req, nil
+}
+
 func (s *Service) claimedRun(ctx context.Context, c Claimer, runID string, attempt int) (dbsqlc.AgentRequest, error) {
 	id, err := db.ParseUUID(runID)
 	if err != nil || attempt < 1 || attempt > math.MaxInt32 {
@@ -90,7 +108,7 @@ func (s *Service) timeOut(ctx context.Context, row dbsqlc.AgentRequest) (ReportA
 	if err != nil {
 		return ReportAnswer{}, err
 	}
-	s.dropTokens(ctx, row)
+	s.DropTokens(ctx, row)
 	return ReportAnswer{State: ended.State, Stop: true}, nil
 }
 
@@ -102,14 +120,14 @@ func (s *Service) stopped(ctx context.Context, row dbsqlc.AgentRequest) (ReportA
 	return ReportAnswer{State: stored.State, Stop: true}, nil
 }
 
-func (s *Service) dropTokens(ctx context.Context, row dbsqlc.AgentRequest) {
+func (s *Service) DropTokens(ctx context.Context, row dbsqlc.AgentRequest) {
 	if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
 		s.logger.WarnContext(ctx, "delete run sessions; prune will remove them", logattrs.Failure("run_session_delete_failed", err, slog.String("agent_request_id", row.ID.String()))...)
 	}
 }
 
 func (s *Service) recordNote(ctx context.Context, row dbsqlc.AgentRequest, note string) {
-	note = cleanText(note, maxNoteRunes)
+	note = CleanText(note, maxNoteRunes)
 	if note == "" {
 		return
 	}

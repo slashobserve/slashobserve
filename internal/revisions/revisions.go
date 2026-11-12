@@ -86,6 +86,8 @@ var (
 	ErrRequestFinished  = errors.New("the request already finished")
 	ErrNotContinuable   = errors.New("the request has no stopped build to continue")
 
+	ErrAssigneeUnavailable = errors.New("the agent this run was assigned to cannot take it again: its connection was revoked, expired or is not yours, or the service account no longer takes runs")
+
 	ErrTooManyInvestigations = tooManyInvestigationsError{}
 
 	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
@@ -141,7 +143,7 @@ func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
 type Threads interface {
 	ForRun(ctx context.Context, dashboardID, commentID pgtype.UUID) (threadID pgtype.UUID, panelID string, err error)
-	ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
+	RunEnded(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
 }
 
 type RunObservationOpen struct {
@@ -200,11 +202,21 @@ type Request struct {
 	Attempt     int
 	RequestedBy auth.Principal
 	Origin      origin.Origin
+	Assignee    AssigneeKind
 
 	Continues    bool
 	ContinueNote string
 
+	ThreadContext string
+
 	From, To *time.Time
+}
+
+func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {
+	if r.Assignee == AssignBuiltin {
+		return r.Origin
+	}
+	return outside
 }
 
 type Result struct {

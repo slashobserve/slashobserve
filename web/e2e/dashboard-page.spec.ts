@@ -18,9 +18,9 @@ const themes = [
   {
     scheme: "light",
     background: "rgb(255, 255, 255)",
-    border: "rgb(228, 228, 231)",
+    border: "rgb(228, 228, 233)",
   },
-  { scheme: "dark", background: "rgb(17, 17, 19)", border: "rgb(42, 42, 46)" },
+  { scheme: "dark", background: "rgb(19, 20, 23)", border: "rgb(46, 48, 54)" },
 ] as const
 
 async function createPageDashboard(request: APIRequestContext) {
@@ -213,7 +213,7 @@ test("clears a posted draft after the dashboard was left", async ({
   const held = new Promise<void>((resolve) => {
     release = resolve
   })
-  await page.route(`**/api/v1/dashboards/${id}/comments`, async (route) => {
+  await page.route("**/api/v1/threads", async (route) => {
     if (route.request().method() !== "POST") return route.fallback()
     await held
     return route.fallback()
@@ -226,7 +226,7 @@ test("clears a posted draft after the dashboard was left", async ({
       .getByRole("complementary", { name: "Activity" })
       .getByRole("textbox", { name: "Comment or request" })
   await composer().fill("Posted while leaving")
-  await page.getByRole("button", { name: "Add comment" }).click()
+  await page.getByRole("button", { name: "Send", exact: true }).click()
   await page
     .getByRole("navigation", { name: "Breadcrumb" })
     .getByRole("link", { name: "Dashboards", exact: true })
@@ -236,7 +236,7 @@ test("clears a posted draft after the dashboard was left", async ({
   const posted = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response.url().endsWith(`/dashboards/${id}/comments`)
+      response.url().endsWith("/threads")
   )
   release()
   expect((await posted).status()).toBe(201)

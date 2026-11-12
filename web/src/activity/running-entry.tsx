@@ -106,6 +106,7 @@ export function RunningEntry({ entry }: Props) {
         working={status === "running"}
         reconnecting={false}
         latest={3}
+        liveText={data?.live_text}
       />
       {status === "running" ? (
         <RunningFor startedAt={data?.started_at ?? request.started_at} />
