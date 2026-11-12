@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -631,5 +632,50 @@ func TestHTTPStartsAnInvestigationOnAnObservationThread(t *testing.T) {
 	if len(queued) != 1 || queued[0].Source != "investigate" || queued[0].ObservationID != id.String() ||
 		started.at(t, "message", "run", "id") != queued[0].ID || started.at(t, "message", "run_refusal") != nil {
 		t.Fatalf("answer %v, runs %+v", started.body, queued)
+	}
+}
+
+func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	obs := r.createObservation(t, testUser, pgtype.UUID{})
+	grant := r.connectedAgent(t, testUser)
+	mcp := origin.Origin{Kind: origin.MCP, Client: "Codex"}
+	outside := origin.Origin{Kind: origin.MCP, Client: "other"}
+	tests := []struct {
+		name         string
+		target       Target
+		body         string
+		ctxOrigin    origin.Origin
+		wantAssignee revisions.AssigneeKind
+		wantSource   revisions.Source
+		wantWrites   origin.Origin
+	}{
+		{"built-in agent on a dashboard", target(KindDashboard, dash), "@observe look", origin.Origin{Kind: origin.CLI}, revisions.AssignBuiltin, revisions.SourceComment, origin.Origin{Kind: origin.CLI}},
+		{"built-in agent on an observation", target(KindObservation, obs), "@observe look", origin.Origin{Kind: origin.Web}, revisions.AssignBuiltin, revisions.SourceInvestigate, origin.Origin{Kind: origin.Web}},
+		{"connected agent", target(KindDashboard, dash), grantToken(grant) + " look", mcp, revisions.AssignGrant, revisions.SourceComment, outside},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := OpenInput{Target: tt.target, Body: tt.body}
+			if tt.target.Kind == KindDashboard {
+				in.Version = new(1)
+			}
+			_, _, started, refusal, err := r.mentions.Open(origin.With(t.Context(), tt.ctxOrigin), testUser, in, true)
+			if err != nil || started == nil || refusal != nil {
+				t.Fatalf("started = %+v, refusal = %+v, err = %v", started, refusal, err)
+			}
+			row, err := r.db.Queries().GetAgentRequestByID(t.Context(), mustParse(t, started.ID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := revisions.RequestOf(row)
+			if req.Assignee != tt.wantAssignee || req.Source != tt.wantSource || req.Origin != tt.ctxOrigin || req.RequestedBy.ID != testUserID {
+				t.Fatalf("request = %+v", req)
+			}
+			if got := req.WriteOrigin(outside); got != tt.wantWrites {
+				t.Fatalf("WriteOrigin = %+v, want %+v", got, tt.wantWrites)
+			}
+		})
 	}
 }

@@ -54,7 +54,7 @@ func TestRequestAndRevisionJSONReportNullControlFields(t *testing.T) {
 		value  any
 		fields []string
 	}{
-		{"request", agentRequestJSON{}, []string{"build", "build_saved_at", "queue_position", "cancel_requested_at", "canceled_by", "continues_id", "continue_note", "continued_by"}},
+		{"request", agentRequestJSON{}, []string{"build", "build_saved_at", "queue_position", "cancel_requested_at", "canceled_by", "continues_id", "continue_note", "continued_by", "live_text"}},
 		{"summary", requestSummaryJSON{}, []string{"failure_code", "build", "build_saved_at", "continues_id", "continued_by", "continue_note"}},
 		{"revision", revisionJSON{}, []string{"failure_code", "build", "build_saved_at", "continues_id", "continued_by", "continue_note"}},
 	}

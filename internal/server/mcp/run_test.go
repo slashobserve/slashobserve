@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/runsession"
 )
 
 const (
@@ -49,36 +50,62 @@ func (a runAuth) Authenticate(_ context.Context, header string) (Credential, boo
 	return Credential{}, false, nil
 }
 
-type recordedStep struct {
+type fakeCall struct {
 	req  revisions.Request
-	step revisions.Step
+	call runsession.Call
 }
 
-type stepLog struct {
+type fakeRuns struct {
+	mode     tools.Mode
+	scopeErr error
+	notes    []string
+	meta     runsession.RunMeta
+
 	mu    sync.Mutex
-	steps []recordedStep
+	calls []fakeCall
 }
 
-func (l *stepLog) RecordStep(_ context.Context, req revisions.Request, st revisions.Step) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.steps = append(l.steps, recordedStep{req, st})
+func (r *fakeRuns) Scope(_ context.Context, req revisions.Request) (tools.Run, error) {
+	if r.scopeErr != nil {
+		return tools.Run{}, r.scopeErr
+	}
+	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate}, nil
 }
 
-func (l *stepLog) recorded() []recordedStep {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return slices.Clone(l.steps)
+func (r *fakeRuns) Call(ctx context.Context, req revisions.Request, call runsession.Call, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
+	r.mu.Lock()
+	r.calls = append(r.calls, fakeCall{req: req, call: call})
+	r.mu.Unlock()
+	res, err := dispatch(ctx)
+	if err != nil {
+		return runsession.Answer{}, err
+	}
+	body, err := json.Marshal(res.Content)
+	if err != nil {
+		return runsession.Answer{}, err
+	}
+	return runsession.Answer{Content: body, IsError: res.IsError, Notes: r.notes, Meta: r.meta}, nil
+}
+
+func (r *fakeRuns) recorded() []fakeCall {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.calls)
 }
 
 type runFixture struct {
 	handler *handler
 	reg     *tools.Registry
-	steps   *stepLog
+	runs    *fakeRuns
 	logs    *bytes.Buffer
 }
 
 func newRunFixture(t *testing.T, mode tools.Mode) *runFixture {
+	t.Helper()
+	return newAssignedRunFixture(t, mode, revisions.AssignGrant)
+}
+
+func newAssignedRunFixture(t *testing.T, mode tools.Mode, assignee revisions.AssigneeKind) *runFixture {
 	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(&syncWriter{w: logs}, nil))
@@ -89,16 +116,13 @@ func newRunFixture(t *testing.T, mode tools.Mode) *runFixture {
 	}
 	req := revisions.Request{
 		ID: runRequestID, Attempt: 2, RequestedBy: requester,
-		Origin: origin.Origin{Kind: origin.Web, Client: "browser"},
+		Origin: origin.Origin{Kind: origin.Web, Client: "browser"}, Assignee: assignee,
 	}
-	steps := &stepLog{}
+	runs := &fakeRuns{mode: mode}
 	h := NewHandler(reg, runAuth{req: req}, Options{
-		PublicURL: base, Version: "test", Logger: logger, Steps: steps,
-		Scope: func(_ context.Context, r revisions.Request) (tools.Run, error) {
-			return tools.Run{Mode: mode, RequestID: r.ID, Attempt: r.Attempt, Build: mode != tools.ModeInvestigate}, nil
-		},
+		PublicURL: base, Version: "test", Logger: logger, Runs: runs,
 	}).(*handler)
-	return &runFixture{handler: h, reg: reg, steps: steps, logs: logs}
+	return &runFixture{handler: h, reg: reg, runs: runs, logs: logs}
 }
 
 func (f *runFixture) post(token, body string) *httptest.ResponseRecorder {
@@ -212,7 +236,7 @@ func TestRunSessionServesNoPromptsAndNoInstructions(t *testing.T) {
 	}
 }
 
-func TestRunSessionCallActsForTheRequesterInsideTheRunAndRecordsAStep(t *testing.T) {
+func TestRunSessionCallActsForTheRequesterInsideTheRunAndGoesThroughTheRunSessions(t *testing.T) {
 	const metaKey = "io.modelcontextprotocol/clientInfo"
 	f := newRunFixture(t, tools.ModeRevise)
 	var gotRun tools.Run
@@ -242,20 +266,59 @@ func TestRunSessionCallActsForTheRequesterInsideTheRunAndRecordsAStep(t *testing
 	if gotOrigin.Kind != origin.MCP || gotOrigin.Client != "browser" {
 		t.Errorf("origin = %+v, want the run's client and not the one the session reports", gotOrigin)
 	}
-	steps := f.steps.recorded()
-	if len(steps) != 1 {
-		t.Fatalf("recorded %d steps, want 1", len(steps))
-	}
-	step := steps[0]
-	if step.req.ID != runRequestID || step.req.Attempt != 2 || step.step.Phase != "lint" || step.step.Tool != "lint_query" || step.step.Status != "ok" || step.step.Message != "Linted a query" {
-		t.Errorf("step = %+v", step)
-	}
-	if step.step.At.IsZero() || step.step.DurationMS < 0 {
-		t.Errorf("step timing = %+v", step.step)
+	calls := f.runs.recorded()
+	if len(calls) != 1 || calls[0].req.ID != runRequestID || calls[0].req.Attempt != 2 || calls[0].call.Name != "lint_query" || calls[0].call.Turn != nil {
+		t.Fatalf("calls = %+v", calls)
 	}
 	if !strings.Contains(f.logs.String(), "agent_request_id="+runRequestID) {
 		t.Errorf("the call log lacks the run id: %s", f.logs.String())
 	}
+}
+
+func TestRunSessionWritesRecordTheOriginOfTheClaimerKind(t *testing.T) {
+	const metaKey = "io.modelcontextprotocol/clientInfo"
+	tests := []struct {
+		name     string
+		assignee revisions.AssigneeKind
+		want     origin.Origin
+	}{
+		{"the built-in agent writes with the run's origin", revisions.AssignBuiltin, origin.Origin{Kind: origin.Web, Client: "browser"}},
+		{"a connected agent writes as mcp with the run's client", revisions.AssignGrant, origin.Origin{Kind: origin.MCP, Client: "browser"}},
+		{"a service account writes as mcp with the run's client", revisions.AssignServiceAccount, origin.Origin{Kind: origin.MCP, Client: "browser"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAssignedRunFixture(t, tools.ModeRevise, tt.assignee)
+			var got origin.Origin
+			f.handler.call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got = origin.From(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			params := map[string]any{
+				"name": "lint_query", "arguments": map[string]any{},
+				"_meta": map[string]any{metaKey: map[string]any{"name": "evil", "version": "1"}},
+			}
+			rec := f.post(runToken, rpc(1, "tools/call", params))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if got != tt.want {
+				t.Errorf("origin = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func callResult(t *testing.T, rec *httptest.ResponseRecorder) mcplib.CallToolResult {
+	t.Helper()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var result mcplib.CallToolResult
+	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+		t.Fatal(err)
+	}
+	return result
 }
 
 func TestRunSessionCallCarriesTheModeOfTheGrantTheRunIsAssignedTo(t *testing.T) {
@@ -276,37 +339,109 @@ func TestRunSessionCallCarriesTheModeOfTheGrantTheRunIsAssignedTo(t *testing.T) 
 	}
 }
 
-func TestRunSessionRecordsFailedAndErroredCallsAsErrors(t *testing.T) {
+func TestRunSessionPassesTheTurnKeyAndIgnoresMalformedOnes(t *testing.T) {
 	cases := map[string]struct {
-		call    func(context.Context, string, json.RawMessage) (tools.Result, error)
-		message string
+		meta any
+		want *runsession.Turn
 	}{
-		"tool error": {
-			call: func(context.Context, string, json.RawMessage) (tools.Result, error) {
-				return tools.Result{IsError: true, Content: map[string]string{"code": "not_found"}, Step: "Could not run update_panels: not_found"}, nil
-			},
-			message: "Could not run update_panels: not_found",
-		},
-		"internal error": {
-			call: func(context.Context, string, json.RawMessage) (tools.Result, error) {
-				return tools.Result{}, errors.New("secret-detail")
-			},
-			message: internalErrorMsg,
-		},
+		"a turn":              {map[string]any{"id": "t1", "calls": 3, "saves": 1}, &runsession.Turn{ID: "t1", Calls: 3, Saves: 1}},
+		"not an object":       {"t1", nil},
+		"a number for the id": {map[string]any{"id": 4, "calls": 1}, nil},
+		"calls as text":       {map[string]any{"id": "t1", "calls": "3"}, nil},
+		"no key":              {nil, nil},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := newRunFixture(t, tools.ModeRevise)
-			f.handler.call = tc.call
-			f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "update_panels", "arguments": map[string]any{}}))
-			steps := f.steps.recorded()
-			if len(steps) != 1 || steps[0].step.Status != "error" || steps[0].step.Phase != "save" || steps[0].step.Message != tc.message {
-				t.Fatalf("steps = %+v", steps)
+			f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
 			}
-			if strings.Contains(f.logs.String(), "secret-detail") {
-				t.Error("the logs carry the error text")
+			params := map[string]any{"name": "lint_query", "arguments": map[string]any{}}
+			if tc.meta != nil {
+				params["_meta"] = map[string]any{turnMetaKey: tc.meta}
+			}
+			f.post(runToken, rpc(1, "tools/call", params))
+			calls := f.runs.recorded()
+			if len(calls) != 1 {
+				t.Fatalf("calls = %+v", calls)
+			}
+			got := calls[0].call.Turn
+			if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
+				t.Fatalf("turn = %+v, want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestRunSessionPassesTheUsageOfTheTurn(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	meta := map[string]any{"id": "t1", "calls": 1, "saves": 0, "usage": map[string]any{"model_calls": 4, "failed_calls": 1, "output_tokens": 90}}
+	f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "lint_query", "arguments": map[string]any{}, "_meta": map[string]any{turnMetaKey: meta}}))
+	calls := f.runs.recorded()
+	if len(calls) != 1 || calls[0].call.Turn == nil || calls[0].call.Turn.Usage == nil {
+		t.Fatalf("calls = %+v", calls)
+	}
+	if got := calls[0].call.Turn.Usage; got.ModelCalls != 4 || got.FailedCalls != 1 || got.OutputTokens != 90 {
+		t.Fatalf("usage = %+v", got)
+	}
+}
+
+func TestRunSessionResultCarriesTheRunKeyAndTheNotesButNotInItsStructuredContent(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	settled := "saved"
+	f.runs.notes = []string{"read less"}
+	f.runs.meta = runsession.RunMeta{Settled: &settled, Build: &tools.BuildProgress{Saves: 2, Panels: 3, PlannedPanels: 5}}
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	result := callResult(t, f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "lint_query", "arguments": map[string]any{}})))
+	text, _ := result.Content[0].(mcplib.TextContent)
+	if text.Text != "{\"ok\":\"true\"}\n\n<note>read less</note>" {
+		t.Errorf("text = %q", text.Text)
+	}
+	if got, _ := json.Marshal(result.StructuredContent); string(got) != `{"ok":"true"}` {
+		t.Errorf("structured content = %s", got)
+	}
+	got, _ := json.Marshal(result.Meta.AdditionalFields[runMetaKey])
+	if string(got) != `{"build":{"panels":3,"planned_panels":5,"saves":2},"settled":"saved"}` {
+		t.Errorf("run meta = %s", got)
+	}
+}
+
+func TestRunSessionResultWithNothingSettledCarriesNullsAndNonRunResultsCarryNoKey(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	params := map[string]any{"name": "lint_query", "arguments": map[string]any{}}
+	inRun := callResult(t, f.post(runToken, rpc(1, "tools/call", params)))
+	got, _ := json.Marshal(inRun.Meta.AdditionalFields[runMetaKey])
+	if string(got) != `{"build":null,"settled":null}` {
+		t.Errorf("run meta = %s", got)
+	}
+	outside := callResult(t, f.post(requesterToken, rpc(2, "tools/call", params)))
+	if outside.Meta != nil {
+		if _, ok := outside.Meta.AdditionalFields[runMetaKey]; ok {
+			t.Errorf("a call outside a run carries the run key: %+v", outside.Meta)
+		}
+	}
+}
+
+func TestRunSessionAnswersAnInternalErrorWithoutItsText(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{}, errors.New("secret-detail")
+	}
+	result := callResult(t, f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "update_panels", "arguments": map[string]any{}})))
+	text, _ := result.Content[0].(mcplib.TextContent)
+	if !result.IsError || text.Text != internalErrorMsg {
+		t.Fatalf("result = %+v", result)
+	}
+	if strings.Contains(f.logs.String(), "secret-detail") {
+		t.Error("the logs carry the error text")
 	}
 }
 
@@ -351,9 +486,7 @@ func TestRunSessionHasItsOwnInFlightSlot(t *testing.T) {
 
 func TestRunSessionRefusesARunWhoseScopeCannotBeBuilt(t *testing.T) {
 	f := newRunFixture(t, tools.ModeRevise)
-	f.handler.scope = func(context.Context, revisions.Request) (tools.Run, error) {
-		return tools.Run{}, errors.New("secret-detail")
-	}
+	f.runs.scopeErr = errors.New("secret-detail")
 	rec := f.post(runToken, rpc(1, "tools/list", map[string]any{}))
 	assertErrorBody(t, rec, http.StatusInternalServerError, "internal")
 	if strings.Contains(rec.Body.String(), "secret-detail") || strings.Contains(f.logs.String(), "secret-detail") {

@@ -46,6 +46,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/livetext"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -61,6 +62,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/runsession"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/sealed"
@@ -235,6 +237,13 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 	return service, nil
 }
 
+func logDatasources(cfg config.Config, logger *slog.Logger) {
+	if cfg.DatasourcesFile != "" && len(cfg.Datasources) == 0 {
+		logger.Warn("datasources file lists no datasources", slog.String("path", cfg.DatasourcesFile))
+	}
+	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
+}
+
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -249,14 +258,15 @@ func run() error {
 		return datasourcesExit(err)
 	}
 	defer func() { _ = registry.Close() }()
-	if cfg.DatasourcesFile != "" && len(cfg.Datasources) == 0 {
-		logger.Warn("datasources file lists no datasources", slog.String("path", cfg.DatasourcesFile))
-	}
-	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
+	logDatasources(cfg, logger)
 
 	serverMetrics := metrics.New()
 
 	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
+	if err != nil {
+		return err
+	}
+	sidecar, err := prepareAgentRuntime(cfg, llmProvider != nil, logger)
 	if err != nil {
 		return err
 	}
@@ -330,10 +340,12 @@ func run() error {
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
+	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		ObservationURL: func(id string) string { return links.Observation(cfg.PublicURL, id) },
 		Finding:        findingOfRequest(findingsService, findingURL),
+		LiveText:       liveText.Text,
 	}
 	revisionOpts := []revisions.Option{
 		revisions.WithPanels(dashboardsService),
@@ -346,7 +358,16 @@ func run() error {
 	}
 	queue := revisions.NewService(database, nil, logger, revisionOpts...)
 	mentionRuns := threads.NewMentionRuns(threadsService, queue, llmProvider != nil)
-	claimsService := claims.New(claims.Config{DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, RunTimeout: cfg.Agent.RunTimeout, Logger: logger})
+	claimsConfig := claims.Config{
+		DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
+		InstanceID: serverID, Model: sidecar.modelSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
+	}
+	claimsService := claims.New(claimsConfig)
+	runSessions := runsession.New(runsession.Config{
+		DB: database, Runs: queue, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
+		Imports: importsService, Statuses: registry, Steps: claimsService,
+		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
+	})
 	toolRegistry := tools.New(tools.Deps{
 		Datasources:   registry,
 		Runner:        runner,
@@ -364,6 +385,8 @@ func run() error {
 		Activity:      activityStore,
 		Runs:          revisions.NewRunReader(queue, observeOpts),
 		Claims:        claimsService,
+		RunSessions:   runSessions,
+		LiveText:      liveText,
 		Search:        searchService,
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
@@ -396,9 +419,14 @@ func run() error {
 	go broker.Run(ctx)
 	stopClaims := startBackground(ctx, "claim listener", claimsService.Run, logger)
 	defer stopClaims()
+	stopLiveText := startBackground(ctx, "live text listener", liveText.Run, logger)
+	defer stopLiveText()
 
-	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{InstanceID: serverID, Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
-	defer stopWorkers()
+	goWorkers := func() func() {
+		return startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{InstanceID: serverID, Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
+	}
+	supervisor, stopAgentRuntime := sidecar.start(ctx, cfg, claimsService, goWorkers, logger)
+	defer stopAgentRuntime()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
@@ -497,8 +525,8 @@ func run() error {
 		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
 		Mounts: slices.Concat([]server.Mount{{
 			Path: "/mcp",
-			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, runs: claimsService, oauth: oauthServer}, mcp.Options{
-				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Steps: claimsService,
+			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, runs: claimsService, oauth: oauthServer, supervisor: supervisor}, mcp.Options{
+				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Runs: runSessions,
 			}),
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
@@ -594,13 +622,10 @@ func revisionsBuildError(err error) error {
 	return err
 }
 
-type mcpCredentials struct {
-	keys  *auth.Service
-	runs  *claims.Service
-	oauth *mcpauth.Server
-}
-
 func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Credential, bool, error) {
+	if cred, ok, claimed := m.observeAgent(header); claimed {
+		return cred, ok, nil
+	}
 	if p, ok, err := m.keys.BearerPrincipal(ctx, header); err != nil || ok {
 		cred := mcp.Credential{Principal: p}
 		if ok && p.Kind == auth.KindServiceAccount {

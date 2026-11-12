@@ -30,10 +30,10 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
-	$(MAKE) server cli
+	$(MAKE) server cli agent
 
 server:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(GO_LDFLAGS)' -o bin/slashobserve-server ./cmd/slashobserve-server
@@ -44,6 +44,12 @@ cli:
 web-deps:
 	cd web && bun install --frozen-lockfile
 
+agent-deps:
+	cd observe-agent && bun install --frozen-lockfile
+
+agent: agent-deps
+	cd observe-agent && bun build --compile --minify --define OBSERVE_AGENT_VERSION='"$(VERSION)"' src/main.ts --outfile ../bin/observe-agent
+
 web: web-deps
 	cd web && bun run build
 
@@ -53,16 +59,17 @@ generate: web-deps
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 
-test: web-deps
+test: web-deps agent-deps
 	go test $(GO_TEST_FLAGS) ./...
 	$(if $(COVER),go tool cover -func=coverage.out | tail -1)
 	cd $(SHOP_DIR) && go test -race ./...
 	cd web && bun run test $(WEB_TEST_FLAGS)
+	cd observe-agent && bun test
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
 	scripts/docs-lint-test.sh
 
-lint: web-deps
+lint: web-deps agent-deps
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
@@ -75,6 +82,8 @@ lint: web-deps
 	cd web && bun run lint
 	cd web && bun run knip
 	cd web && bun run format:check
+	cd observe-agent && bun run typecheck
+	cd observe-agent && bun run format:check
 	scripts/docs-lint.sh
 	scripts/helm-check.sh
 
@@ -94,6 +103,8 @@ audit:
 	cd $(SHOP_DIR) && go tool -modfile=../tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
+	cd observe-agent && bun audit --prod
+	cd observe-agent && bun audit --audit-level=high
 
 demo:
 	$(COMPOSE) up -d --wait --wait-timeout 300
@@ -183,7 +194,7 @@ evals-stack-down:
 
 evals-replay:
 	scripts/evals-stack.sh up replay
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
 
 evals-live:
 	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)

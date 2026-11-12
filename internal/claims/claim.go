@@ -17,11 +17,12 @@ import (
 const observePrompt = "observe"
 
 type Offer struct {
-	Run               *OfferedRun `json:"run"`
-	Session           *RunSession `json:"session,omitempty"`
-	LeaseSeconds      int         `json:"lease_seconds,omitempty"`
-	SystemPrompt      *PromptRef  `json:"system_prompt,omitempty"`
-	RetryAfterSeconds int         `json:"retry_after_seconds,omitempty"`
+	Run               *OfferedRun    `json:"run"`
+	Session           *RunSession    `json:"session,omitempty"`
+	LeaseSeconds      int            `json:"lease_seconds,omitempty"`
+	SystemPrompt      *PromptRef     `json:"system_prompt,omitempty"`
+	Model             *ModelSettings `json:"model,omitempty"`
+	RetryAfterSeconds int            `json:"retry_after_seconds,omitempty"`
 }
 
 type OfferedRun struct {
@@ -107,12 +108,12 @@ func (s *Service) tryClaim(ctx context.Context, c Claimer) (Offer, bool, error) 
 	if err != nil || !found {
 		return Offer{}, false, err
 	}
-	offer, err := s.offer(ctx, claimed)
+	offer, err := s.offer(ctx, c, claimed)
 	return offer, err == nil, err
 }
 
-func (s *Service) offer(ctx context.Context, claimed revisions.Claimed) (Offer, error) {
-	session, err := s.openSession(ctx, claimed.Row)
+func (s *Service) offer(ctx context.Context, c Claimer, claimed revisions.Claimed) (Offer, error) {
+	session, err := s.openSession(ctx, c, claimed.Row)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "open run session; releasing the run", logattrs.Failure("run_session_failed", err, slog.String("agent_request_id", claimed.Row.ID.String()), slog.Int("attempt", int(claimed.Row.Attempts)))...)
 		s.runs.Release(ctx, claimed.Row)
@@ -124,10 +125,11 @@ func (s *Service) offer(ctx context.Context, claimed revisions.Claimed) (Offer, 
 		Session:      &session,
 		LeaseSeconds: int(revisions.LeaseTTL / time.Second),
 		SystemPrompt: &PromptRef{Name: observePrompt, Arguments: map[string]string{"kind": run.Kind}},
+		Model:        s.modelFor(c),
 	}, nil
 }
 
-func (s *Service) openSession(ctx context.Context, row dbsqlc.AgentRequest) (RunSession, error) {
+func (s *Service) openSession(ctx context.Context, c Claimer, row dbsqlc.AgentRequest) (RunSession, error) {
 	secret, hash, err := opaquetoken.New(tokenPrefix)
 	if err != nil {
 		return RunSession{}, err
@@ -143,7 +145,7 @@ func (s *Service) openSession(ctx context.Context, row dbsqlc.AgentRequest) (Run
 	if err != nil {
 		return RunSession{}, err
 	}
-	return RunSession{URL: s.publicURL.JoinPath("mcp").String(), Token: secret, ExpiresAt: expires.UTC().Format(time.RFC3339)}, nil
+	return RunSession{URL: s.sessionBase(c).JoinPath("mcp").String(), Token: secret, ExpiresAt: expires.UTC().Format(time.RFC3339)}, nil
 }
 
 func offeredRun(req revisions.Request) OfferedRun {
@@ -182,10 +184,13 @@ func formatTime(t *time.Time) *string {
 }
 
 func (s *Service) touch(ctx context.Context, c Claimer) time.Time {
+	if c.Kind == revisions.AssignBuiltin {
+		return time.Now()
+	}
 	id, err := db.ParseUUID(c.ID)
 	if err == nil {
 		err = s.db.Queries().TouchAgentWorker(ctx, dbsqlc.TouchAgentWorkerParams{
-			ID: c.claimant().Key(), PrincipalKind: string(c.Kind), PrincipalID: id, Client: cleanText(c.Client, maxClientRunes),
+			ID: c.claimant().Key(), PrincipalKind: string(c.Kind), PrincipalID: id, Client: CleanText(c.Client, maxClientRunes),
 		})
 	}
 	if err != nil {

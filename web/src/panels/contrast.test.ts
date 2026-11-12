@@ -88,6 +88,19 @@ describe("contrast", () => {
     }
   )
 
+  it.each(themes)(
+    "gives the %s mark slash at least 3:1 on the tile it is drawn on",
+    (_theme, tokens) => {
+      const slash = tokens.get("mark-slash")
+      const tile = tokens.get("foreground")
+      expect(slash).toBeDefined()
+      expect(tile).toBeDefined()
+      expect(
+        contrastRatio(rgbOf(slash ?? ""), rgbOf(tile ?? ""))
+      ).toBeGreaterThanOrEqual(3)
+    }
+  )
+
   it("parses the forms a canvas fillStyle returns", () => {
     expect(parseRgb("#0ca30c")).toEqual([12, 163, 12])
     expect(parseRgb("rgba(12, 163, 12, 0.5)")).toEqual([12, 163, 12])

@@ -11,6 +11,8 @@ CI runs all of them on every pull request: the `check` job runs the unit and com
 `make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, and the tests of the release, install and docs lint scripts.
 Run one part on its own with `go test -race ./...` from the repository root or `bun run test` from `web/`.
 
+A server built from source starts `observe-agent` by default, so run `make agent` first, or set `SLASHOBSERVE_AGENT_RUNTIME=go`: start-up fails when the default runtime cannot find `observe-agent`.
+
 Go tests sit next to the code as `*_test.go` files.
 Web tests for pure helpers sit next to the code as `*.test.ts` files.
 

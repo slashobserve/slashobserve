@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent/brief"
+	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -19,12 +20,8 @@ import (
 
 const (
 	maxParallelTools = 4
-	maxIssueCodes    = 3
 
-	phaseDiscover = tools.PhaseDiscover
-	phaseQuery    = tools.PhaseQuery
-	phaseSave     = tools.PhaseSave
-	phaseRepair   = "repair"
+	phaseSave = tools.PhaseSave
 
 	statusOK    = "ok"
 	statusError = "error"
@@ -32,18 +29,10 @@ const (
 	toolUpdateDashboard = "update_dashboard"
 	toolUpdatePanels    = "update_panels"
 	toolImportGrafana   = "import_grafana_dashboard"
-	toolSaveFinding     = "save_finding"
-
-	codeInvalidRequest  = "invalid_request"
-	codeVersionConflict = "version_conflict"
-	codeNotFound        = "not_found"
-	codeProposed        = "proposed"
 
 	internalStep     = "internal error"
 	stopTool         = "agent"
 	unknownToolLabel = "unknown_tool"
-
-	stepReusedRead = "Reused the result of an identical call"
 )
 
 const (
@@ -63,58 +52,23 @@ type safeError struct {
 func (e *safeError) Error() string { return e.message }
 func (e *safeError) Unwrap() error { return e.err }
 
-type savedVersion struct {
-	dashboardID string
-	version     int
-	replayed    bool
-}
-
-type turnOutcome struct {
-	saved      *savedVersion
-	built      bool
-	suggestion json.RawMessage
-	finding    string
-	proposal   string
-	conflict   bool
-	notFound   bool
-	rejected   bool
-	issueCodes []string
-	answered   int
-	note       string
-}
-
 type runState struct {
 	tools         ToolSet
 	known         map[string]bool
 	progress      func(Step)
 	logger        *slog.Logger
 	logInputs     bool
-	mode          tools.Mode
-	parentVersion int
-	rejections    int
-	repairs       int
-	toolCalls     int
+	guard         guard.State
+	replays       map[string][]byte
 	toolTime      time.Duration
 	maxSaveOutput int64
-	buildSaves    int
 	cutOffs       int
 	modelCalls    int
 	pendingNudged bool
 	findingNudged bool
 	answerNudged  bool
-	building      bool
-
-	nudges           int
-	saveNowRefusals  int
-	stalledTurns     int
-	onePanelRefusals int
-
-	window       saveWindow
-	lastGuard    guard
-	churn        churn
-	sessionBytes int
-	guards       guards
-	digest       digest
+	sessionBytes  int
+	digest        brief.Digest
 }
 
 type callSlot struct {
@@ -147,13 +101,6 @@ func isSave(name string) bool {
 	return tools.Phase(name) == tools.PhaseSave
 }
 
-func phaseFor(name string, repairing bool) string {
-	if repairing && isSave(name) {
-		return phaseRepair
-	}
-	return tools.Phase(name)
-}
-
 func containsSave(calls []llm.ToolCall) bool {
 	return slices.ContainsFunc(calls, func(c llm.ToolCall) bool { return isSave(c.Name) })
 }
@@ -169,63 +116,59 @@ func withNote(content []byte, note string) []byte {
 }
 
 func (s *runState) restart() {
-	s.rejections, s.cutOffs, s.pendingNudged = 0, 0, false
-	s.window = saveWindow{}
-	s.churn = churn{}
-	s.guards.resetAll()
+	s.cutOffs, s.pendingNudged = 0, false
+	s.replays = nil
+	s.guard.Restart()
 }
 
-func (s *runState) nudge(results []llm.ToolResult, outcome turnOutcome) {
-	if len(results) == 0 || outcome.built || outcome.saved != nil || outcome.suggestion != nil || outcome.finding != "" || outcome.proposal != "" {
+func appendNudge(results []llm.ToolResult, note string) {
+	if note == "" || len(results) == 0 {
 		return
 	}
-	if note := nudgeFor(s.mode, s.window); note != "" {
-		last := &results[len(results)-1]
-		last.Content = string(withNote([]byte(last.Content), note))
-		s.nudges++
-	}
+	last := &results[len(results)-1]
+	last.Content = string(withNote([]byte(last.Content), note))
 }
 
-func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, readGuard guard) ([]llm.ToolResult, turnOutcome, error) {
+func (s *runState) callOf(c llm.ToolCall) guard.Call {
+	return guard.Call{Name: c.Name, Label: s.label(c.Name), Input: c.Input}
+}
+
+func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall) ([]llm.ToolResult, guard.Outcome, error) {
 	start := time.Now()
 	defer func() { s.toolTime += time.Since(start) }()
-	s.toolCalls += len(calls)
-	repairing := s.rejections > 0
-	slots := make([]callSlot, len(calls))
-	var reads []int
-	saveIndex := -1
-	var extraSaves []int
+	s.guard.BeginTurn(containsSave(calls))
+	var reads, saves []int
 	for i, c := range calls {
-		switch {
-		case !isSave(c.Name):
+		if isSave(c.Name) {
+			saves = append(saves, i)
+		} else {
 			reads = append(reads, i)
-		case saveIndex < 0:
-			saveIndex = i
-		default:
-			extraSaves = append(extraSaves, i)
 		}
+	}
+	admissions := make([]guard.Admission, len(calls))
+	for _, i := range slices.Concat(reads, saves) {
+		admissions[i] = s.guard.Admit(i, s.callOf(calls[i]))
 	}
 
-	if err := s.runReads(ctx, calls, reads, slots, repairing, readGuard); err != nil {
-		return nil, turnOutcome{}, err
+	slots := make([]callSlot, len(calls))
+	if err := s.runReads(ctx, calls, reads, slots, admissions); err != nil {
+		return nil, guard.Outcome{}, err
 	}
-	var outcome turnOutcome
-	if saveIndex >= 0 {
-		var err error
-		if outcome, err = s.runSave(ctx, calls[saveIndex], &slots[saveIndex], repairing); err != nil {
-			return nil, turnOutcome{}, err
+	var outcome guard.Outcome
+	for n, i := range saves {
+		if n > 0 {
+			slots[i] = s.refusedSlot(calls[i], admissions[i])
+			s.report(slots[i])
+			continue
 		}
-	}
-	for _, i := range extraSaves {
-		slots[i] = s.rejectCall(calls[i], repairing, "only one save per turn")
-		s.report(slots[i])
+		var err error
+		if outcome, err = s.runSave(ctx, calls[i], &slots[i], admissions[i]); err != nil {
+			return nil, guard.Outcome{}, err
+		}
 	}
 
 	results := make([]llm.ToolResult, len(calls))
 	for i, c := range calls {
-		if !slots[i].refused {
-			outcome.answered++
-		}
 		results[i] = llm.ToolResult{
 			CallID:   c.ID,
 			Content:  string(slots[i].content),
@@ -236,34 +179,22 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, readGu
 	return results, outcome, nil
 }
 
-func (s *runState) runReads(ctx context.Context, calls []llm.ToolCall, reads []int, slots []callSlot, repairing bool, readGuard guard) error {
-	keys := make(map[int]string, len(reads))
-	firstOf := map[string]int{}
+func (s *runState) runReads(ctx context.Context, calls []llm.ToolCall, reads []int, slots []callSlot, admissions []guard.Admission) error {
 	duplicates := map[int]int{}
 	var dispatch []int
 	for _, i := range reads {
-		if readGuard.message != "" {
-			slots[i] = s.refuseCall(calls[i], repairing, readGuard)
-			s.saveNowRefusals++
-			continue
-		}
-		key := callKey(calls[i].Name, calls[i].Input)
-		if first, ok := firstOf[key]; ok {
-			duplicates[i] = first
-			continue
-		}
-		firstOf[key] = i
-		keys[i] = key
-		decision, content := s.guards.noteRead(key)
-		switch decision {
-		case readRefuse:
-			slots[i] = s.refuseCall(calls[i], repairing, guardRepeatedRead)
-		case readReplay:
+		adm := admissions[i]
+		switch adm.Verdict {
+		case guard.Refuse:
+			slots[i] = s.refusedSlot(calls[i], adm)
+		case guard.Reuse:
+			duplicates[i] = adm.ReuseOf
+		case guard.Replay:
 			slots[i] = callSlot{
 				name:    s.label(calls[i].Name),
-				phase:   phaseFor(calls[i].Name, repairing),
-				content: withNote(content, messageReplayed),
-				result:  tools.Result{Step: stepReusedRead},
+				phase:   adm.Phase,
+				content: withNote(s.replays[adm.Key], adm.Note),
+				result:  tools.Result{Step: adm.Step},
 			}
 		default:
 			dispatch = append(dispatch, i)
@@ -276,20 +207,25 @@ func (s *runState) runReads(ctx context.Context, calls []llm.ToolCall, reads []i
 		sem <- struct{}{}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			slots[i] = s.call(ctx, calls[i], repairing)
+			slots[i] = s.call(ctx, calls[i], admissions[i].Phase)
 		})
 	}
 	wg.Wait()
 	for _, i := range dispatch {
-		failed := slots[i].result.IsError || slots[i].err != nil
-		s.guards.rememberRead(keys[i], calls[i].Name, slots[i].content, failed)
-		if found := slots[i].result.Discovered; found != nil && !failed {
-			s.digest.add(*found)
+		if slots[i].err != nil {
+			continue
+		}
+		settled, _ := s.guard.Settle(s.callOf(calls[i]), slots[i].result, slots[i].content)
+		if settled.Replayable {
+			s.remember(admissions[i].Key, slots[i].content)
+		}
+		if found := slots[i].result.Discovered; found != nil && !slots[i].result.IsError {
+			s.digest.Add(*found)
 		}
 	}
 	for _, i := range reads {
 		if first, ok := duplicates[i]; ok {
-			slots[i] = reusedSlot(slots[first])
+			slots[i] = reusedSlot(slots[first], admissions[i])
 		}
 		s.report(slots[i])
 		if slots[i].err != nil {
@@ -299,46 +235,62 @@ func (s *runState) runReads(ctx context.Context, calls []llm.ToolCall, reads []i
 	return nil
 }
 
-func reusedSlot(first callSlot) callSlot {
+func (s *runState) remember(key string, content []byte) {
+	if s.replays == nil {
+		s.replays = map[string][]byte{}
+	}
+	s.replays[key] = content
+}
+
+func (s *runState) refusedSlot(c llm.ToolCall, adm guard.Admission) callSlot {
+	return callSlot{
+		name:    s.label(c.Name),
+		phase:   adm.Phase,
+		content: adm.Content,
+		result:  tools.Result{IsError: true, Step: adm.Step},
+		refused: true,
+	}
+}
+
+func reusedSlot(first callSlot, adm guard.Admission) callSlot {
 	if first.refused {
 		return first
 	}
 	first.duration = 0
-	first.result.Step = stepReusedRead
+	first.result.Step = adm.Step
 	return first
 }
 
-func (s *runState) runSave(ctx context.Context, c llm.ToolCall, slot *callSlot, repairing bool) (turnOutcome, error) {
-	if c.Name == toolSaveFinding && s.building {
-		*slot = s.rejectCall(c, repairing, "this run already saved panels; finish the dashboard instead of saving a finding")
+func (s *runState) runSave(ctx context.Context, c llm.ToolCall, slot *callSlot, adm guard.Admission) (guard.Outcome, error) {
+	if adm.Verdict == guard.Refuse {
+		*slot = s.refusedSlot(c, adm)
 		s.report(*slot)
-		return turnOutcome{}, nil
+		return guard.Outcome{}, nil
 	}
-	if s.guards.noteSave(callKey(c.Name, c.Input)) {
-		*slot = s.refuseCall(c, repairing, guardRepeatedSave)
-		s.report(*slot)
-		return turnOutcome{}, nil
-	}
-	*slot = s.call(ctx, c, repairing)
-	if slot.phase == phaseRepair {
-		s.repairs++
-	}
-	if slot.result.Refusal == tools.RefusalOnePanel {
-		s.onePanelRefusals++
-	}
+	*slot = s.call(ctx, c, adm.Phase)
 	s.report(*slot)
 	if slot.err != nil {
-		return turnOutcome{}, s.internal(ctx, *slot)
+		return guard.Outcome{}, s.internal(ctx, *slot)
 	}
-	outcome, err := s.classifySave(ctx, *slot)
-	if outcome.note != "" {
-		slot.content = withNote(slot.content, outcome.note)
+	settled, err := s.guard.Settle(s.callOf(c), slot.result, slot.content)
+	if errors.Is(err, guard.ErrMalformed) {
+		return guard.Outcome{}, s.malformed(ctx, *slot)
 	}
-	return outcome, err
+	if settled.Stop != nil {
+		return guard.Outcome{}, s.stopped(*settled.Stop, settled.Outcome)
+	}
+	if settled.Note != "" {
+		slot.content = withNote(slot.content, settled.Note)
+	}
+	if settled.Outcome.Built {
+		s.cutOffs = 0
+		s.replays = nil
+	}
+	return settled.Outcome, nil
 }
 
-func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) callSlot {
-	slot := callSlot{name: s.label(c.Name), phase: phaseFor(c.Name, repairing)}
+func (s *runState) call(ctx context.Context, c llm.ToolCall, phase string) callSlot {
+	slot := callSlot{name: s.label(c.Name), phase: phase}
 	start := time.Now()
 	slot.result, slot.err = s.tools.Call(ctx, c.Name, c.Input)
 	slot.end = time.Now()
@@ -358,39 +310,11 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	return slot
 }
 
-func (s *runState) rejectCall(c llm.ToolCall, repairing bool, reason string) callSlot {
-	content, _ := json.Marshal(map[string]string{"code": codeInvalidRequest, "message": reason})
-	return callSlot{
-		name:    s.label(c.Name),
-		phase:   phaseFor(c.Name, repairing),
-		content: content,
-		result:  tools.Result{IsError: true, Step: "Rejected " + s.label(c.Name) + " input: " + reason},
-		refused: true,
+func (s *runState) stopped(stop guard.Stop, outcome guard.Outcome) error {
+	s.stop(stop.Step)
+	if stop.Failure == revisions.FailureValidationExhausted {
+		return repairExhausted(s.guard.Mode, outcome.IssueCodes)
 	}
-}
-
-func (s *runState) refuseCall(c llm.ToolCall, repairing bool, g guard) callSlot {
-	s.lastGuard = g
-	slot := s.rejectCall(c, repairing, g.message)
-	slot.result.Step = "Refused " + s.label(c.Name) + ": " + g.refused
-	return slot
-}
-
-func (s *runState) endStall(outcome turnOutcome) error {
-	s.window.diagnose = outcome.rejected
-	if outcome.answered > 0 {
-		s.window.stalled = 0
-		return nil
-	}
-	s.stalledTurns++
-	if s.window.stalled++; s.window.stalled < maxStalledTurns {
-		return nil
-	}
-	reason := s.lastGuard.stopped
-	if reason == "" {
-		reason = fmt.Sprintf("Stopped: %d turns in a row had every call refused", maxStalledTurns)
-	}
-	s.stop(reason)
 	return ErrNoProgress
 }
 
@@ -457,108 +381,12 @@ func (s *runState) internal(ctx context.Context, slot callSlot) error {
 	return &safeError{message: "the " + slot.name + " tool failed with an internal error", code: code, err: slot.err}
 }
 
-type saveBody struct {
-	Code          string          `json:"code"`
-	DashboardID   string          `json:"dashboard_id"`
-	Version       int             `json:"version"`
-	LatestVersion int             `json:"latest_version"`
-	Replayed      *bool           `json:"replayed"`
-	Suggested     bool            `json:"suggested"`
-	FindingID     string          `json:"finding_id"`
-	ProposalID    string          `json:"proposal_id"`
-	Build         *struct{}       `json:"build"`
-	Panel         json.RawMessage `json:"panel"`
-	Issues        []struct {
-		Code string `json:"code"`
-	} `json:"issues"`
-}
-
-func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome, error) {
-	var body saveBody
-	if err := json.Unmarshal(slot.content, &body); err != nil {
-		return turnOutcome{}, s.malformed(ctx, slot)
-	}
-	if !slot.result.IsError {
-		if body.Code == codeProposed && body.ProposalID != "" && s.mode == tools.ModeRevise {
-			s.buildSaves++
-			s.window = saveWindow{}
-			return turnOutcome{proposal: body.ProposalID}, nil
-		}
-		return s.classifyAccepted(ctx, slot, body)
-	}
-	switch {
-	case body.Code == "":
-		return turnOutcome{}, s.malformed(ctx, slot)
-	case body.Code == codeVersionConflict && s.mode == tools.ModeRevise && body.LatestVersion != s.parentVersion:
-		return turnOutcome{conflict: true}, nil
-	case body.Code == codeNotFound && s.mode == tools.ModeRevise:
-		return turnOutcome{notFound: true}, nil
-	}
-	s.rejections++
-	return turnOutcome{rejected: true, issueCodes: body.issueCodes()}, nil
-}
-
-func (s *runState) classifyAccepted(ctx context.Context, slot callSlot, body saveBody) (turnOutcome, error) {
-	switch {
-	case s.mode == tools.ModeInvestigate || slot.name == toolSaveFinding:
-		if body.FindingID == "" {
-			return turnOutcome{}, s.malformed(ctx, slot)
-		}
-		s.window = saveWindow{}
-		return turnOutcome{finding: body.FindingID}, nil
-	case s.mode == tools.ModeSuggest:
-		if !body.Suggested || len(body.Panel) == 0 {
-			return turnOutcome{}, s.malformed(ctx, slot)
-		}
-		return turnOutcome{suggestion: body.Panel}, nil
-	case body.Build != nil && body.Version < 1:
-		s.building = true
-		s.rejections, s.cutOffs = 0, 0
-		s.window = saveWindow{}
-		s.buildSaves++
-		s.guards.resetReads()
-		note, stop := s.churn.note(slot.result.Edits)
-		if stop {
-			s.stop(fmt.Sprintf("Stopped: %d saves in a row changed nothing new", maxChurnedSavesInRow+1))
-			return turnOutcome{}, ErrNoProgress
-		}
-		return turnOutcome{built: true, note: note}, nil
-	case body.DashboardID == "" || body.Version < 1:
-		return turnOutcome{}, s.malformed(ctx, slot)
-	}
-	if slot.name != toolImportGrafana {
-		s.buildSaves++
-	}
-	s.window = saveWindow{}
-	return turnOutcome{saved: &savedVersion{
-		dashboardID: body.DashboardID,
-		version:     body.Version,
-		replayed:    body.Replayed != nil && *body.Replayed,
-	}}, nil
-}
-
-func (b saveBody) issueCodes() []string {
-	var codes []string
-	for _, issue := range b.Issues {
-		if llm.IsPlainToken(issue.Code) && !slices.Contains(codes, issue.Code) {
-			codes = append(codes, issue.Code)
-		}
-		if len(codes) == maxIssueCodes {
-			break
-		}
-	}
-	if len(codes) == 0 && llm.IsPlainToken(b.Code) {
-		codes = []string{b.Code}
-	}
-	return codes
-}
-
 func (s *runState) malformed(ctx context.Context, slot callSlot) error {
 	s.logger.ErrorContext(ctx, "agent save result is malformed",
 		slog.String("tool", slot.name), slog.String("error_code", string(codeMalformedResult)), agentRequestAttr(ctx))
 	return &safeError{
 		message: "the " + slot.name + " tool returned an unreadable result",
 		code:    codeMalformedResult,
-		err:     errors.New("save result is malformed"),
+		err:     guard.ErrMalformed,
 	}
 }

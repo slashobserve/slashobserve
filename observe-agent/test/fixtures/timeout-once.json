@@ -1,0 +1,10 @@
+{
+  "prompt": "timeout once",
+  "turns": [
+    {
+      "fault": { "kind": "call_timeout" },
+      "tool_calls": [{ "name": "list_metrics" }]
+    },
+    { "tool_calls": [{ "name": "create_dashboard" }] }
+  ]
+}
