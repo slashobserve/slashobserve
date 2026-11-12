@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  agentMentionsIn,
+  agentToken,
   insertMention,
+  mentionedAgents,
   mentionName,
   mentionOptions,
   mentionSegments,
@@ -149,8 +152,85 @@ describe("mentionTriggerAt", () => {
   })
 })
 
+const grantId = "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d"
+const accountId = "b1f0e2d3-4c5b-4a6d-9e7f-8a9b0c1d2e3f"
+const claude = { kind: "grant" as const, id: grantId, name: "Claude Code" }
+const deployBot = {
+  kind: "service_account" as const,
+  id: accountId,
+  name: "Deploy bot",
+}
+
+describe("agentToken", () => {
+  it.each([
+    ["the built-in agent", observeAgent, "@observe"],
+    ["a connected agent", claude, `@[Claude Code](grant:${grantId})`],
+    [
+      "a service account",
+      deployBot,
+      `@[Deploy bot](service_account:${accountId})`,
+    ],
+    [
+      "a name with brackets",
+      { ...claude, name: "[Claude]\n" },
+      `@[Claude](grant:${grantId})`,
+    ],
+  ])("writes the token the server parses for %s", (_name, agent, token) => {
+    expect(agentToken(agent)).toBe(token)
+  })
+})
+
+describe("agentMentionsIn", () => {
+  it.each([
+    ["no mention", "plain text", 0],
+    ["only a person", `hi ${adaToken}`, 0],
+    ["the built-in agent", "@observe look", 1],
+    ["a connected agent", `${agentToken(claude)} look`, 1],
+    ["the same agent twice", `@observe and @observe again`, 1],
+    ["the same grant twice", `${agentToken(claude)} ${agentToken(claude)}`, 1],
+    ["two different agents", `@observe ${agentToken(deployBot)}`, 2],
+    [
+      "three kinds with a person",
+      `@observe ${agentToken(claude)} ${agentToken(deployBot)} ${adaToken}`,
+      3,
+    ],
+  ])("counts %s", (_name, body, count) => {
+    expect(agentMentionsIn(body)).toBe(count)
+  })
+})
+
+describe("mentionedAgents", () => {
+  it("names the built-in agent and each connected agent once", () => {
+    expect(
+      mentionedAgents(`@observe ${agentToken(claude)} @observe`).map(
+        (agent) => agent.name
+      )
+    ).toEqual(["Observe Agent", "Claude Code"])
+  })
+})
+
+describe("mentionSegments for agent tokens", () => {
+  it("reads a grant and a service account token", () => {
+    const segments = mentionSegments(
+      `${agentToken(claude)} ${agentToken(deployBot)}`
+    )
+    expect(segments.map((segment) => segment.kind)).toEqual([
+      "mention",
+      "text",
+      "mention",
+    ])
+    expect(segments[0]).toMatchObject({
+      ref: { kind: "grant", id: grantId },
+      name: "Claude Code",
+    })
+    expect(segments[2]).toMatchObject({
+      ref: { kind: "service_account", id: accountId },
+    })
+  })
+})
+
 describe("mentionOptions", () => {
-  it("offers only the Observe Agent when there is no one else", () => {
+  it("offers the Observe Agent first when no one else is given", () => {
     expect(mentionOptions([], [])).toEqual([
       {
         value: "agent:observe",
@@ -162,34 +242,27 @@ describe("mentionOptions", () => {
     ])
   })
 
-  it("names the built-in agent by the handle the server recognizes", () => {
-    expect(observeAgent).toEqual({
-      handle: "observe",
-      name: "Observe Agent",
-      kind: "observe-agent",
-    })
-  })
-
-  it("lists the Observe Agent, then other agents, then people", () => {
+  it("lists the Observe Agent once, then other agents, then people", () => {
     const options = mentionOptions(
       [
         { id: adaId, name: "Ada" },
-        { id: "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d", name: "" },
+        { id: "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c3e", name: "" },
       ],
-      [{ handle: "claude", name: "Claude", kind: "outside-agent" }]
+      [observeAgent, claude, deployBot]
     )
     expect(options.map((option) => option.value)).toEqual([
       "agent:observe",
-      "agent:claude",
+      `grant:${grantId}`,
+      `service_account:${accountId}`,
       `user:${adaId}`,
-      "user:3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d",
+      "user:3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c3e",
     ])
     expect(options[1]).toMatchObject({
-      label: "Claude",
-      token: "@claude",
-      hint: "@claude",
+      label: "Claude Code",
+      token: `@[Claude Code](grant:${grantId})`,
+      agent: true,
     })
-    expect(options[2]).toMatchObject({ token: adaToken, hint: null })
-    expect(options[3].label).toBe("Unnamed")
+    expect(options[3]).toMatchObject({ token: adaToken, hint: null })
+    expect(options[4].label).toBe("Unnamed")
   })
 })

@@ -16,14 +16,22 @@ import { RelativeTime, useNow } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Composer } from "@/comments/composer"
-import { threadParticipants } from "@/comments/mentions"
+import {
+  agentMentionsIn,
+  mentionedAgents,
+  threadParticipants,
+} from "@/comments/mentions"
 import { MessageText } from "@/comments/message-text"
+import { RunStarted } from "@/comments/run-started"
 import {
   useOpenThread,
   useReplyToThread,
   useThreads,
   type Message,
+  askedAgent,
+  type SentMessage,
 } from "@/comments/thread-queries"
+import { useMentionableAgents } from "@/comments/use-mentionable-agents"
 import { markOf } from "@/lib/author"
 import { formatDate } from "@/lib/date-format"
 import { liveRegionText } from "@/lib/live-region"
@@ -99,6 +107,11 @@ export function Discussion({
   } = useThreads(target)
   const openThread = useOpenThread(target)
   const replyToThread = useReplyToThread(target)
+  const agents = useMentionableAgents()
+  const [sent, setSent] = useState<{
+    result: SentMessage
+    agentName: string
+  } | null>(null)
   const { messages, replyThreadId, canWrite } = useMemo(
     () => discussionModel(threads, canComment),
     [threads, canComment]
@@ -140,10 +153,18 @@ export function Discussion({
   }, [isPending, isError, messages, principal.id])
 
   async function send(body: string) {
-    if (replyThreadId !== null) {
-      await replyToThread.mutateAsync({ threadId: replyThreadId, body })
-    } else {
-      await openThread.mutateAsync({ body })
+    const startRuns = agentMentionsIn(body) === 1
+    setSent(null)
+    const result =
+      replyThreadId !== null
+        ? await replyToThread.mutateAsync({
+            threadId: replyThreadId,
+            body,
+            startRuns,
+          })
+        : await openThread.mutateAsync({ body, startRuns })
+    if (askedAgent(result)) {
+      setSent({ result, agentName: mentionedAgents(body)[0]?.name ?? "" })
     }
     following.current = true
     const element = list.current
@@ -234,12 +255,21 @@ export function Discussion({
       </header>
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       <div className="p-4 pt-2">
+        {sent === null ? null : (
+          <div className="pb-2">
+            <RunStarted
+              run={sent.result.run}
+              refusal={sent.result.runRefusal}
+              agentName={sent.agentName}
+            />
+          </div>
+        )}
         <Composer
           label="Message"
           placeholder={placeholder ?? "Message, or type @ to ask an agent"}
           hint={hint}
           people={people}
-          agents={[]}
+          agents={agents}
           disabledReason={disabledReason}
           onSubmit={send}
         />

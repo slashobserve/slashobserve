@@ -11,9 +11,9 @@ export type MentionSegment =
 export type MentionPerson = { id: string; name: string }
 
 export type MentionAgent = {
-  handle: string
+  kind: "observe" | "grant" | "service_account"
+  id: string
   name: string
-  kind: "observe-agent" | "outside-agent"
 }
 
 export type MentionOption = {
@@ -25,18 +25,19 @@ export type MentionOption = {
 }
 
 export const observeAgent: MentionAgent = {
-  handle: "observe",
+  kind: "observe",
+  id: "",
   name: "Observe Agent",
-  kind: "observe-agent",
 }
 
-const agentMention: MentionRef = { kind: "agent", id: "observe" }
+const observeHandle = "observe"
+const agentMention: MentionRef = { kind: "agent", id: observeHandle }
 
 const uuid =
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 const handleRune = "[\\p{L}\\p{Nd}_-]"
 const mentionPattern = new RegExp(
-  `@\\[([^\\]\\n]*)\\]\\(user:(${uuid})\\)|(?<!${handleRune})@observe(?!${handleRune})`,
+  `@\\[([^\\]\\n]*)\\]\\((user|grant|service_account):(${uuid})\\)|(?<!${handleRune})@${observeHandle}(?!${handleRune})`,
   "gu"
 )
 
@@ -47,11 +48,16 @@ export function mentionSegments(body: string): MentionSegment[] {
     if (match.index > from) {
       segments.push({ kind: "text", text: body.slice(from, match.index) })
     }
-    const [raw, name, id] = match
+    const [raw, name, kind, id] = match
     segments.push(
       id === undefined
-        ? { kind: "mention", ref: agentMention, name: "observe", raw }
-        : { kind: "mention", ref: { kind: "user", id }, name, raw }
+        ? { kind: "mention", ref: agentMention, name: observeHandle, raw }
+        : {
+            kind: "mention",
+            ref: { kind: kind as MentionRef["kind"], id },
+            name,
+            raw,
+          }
     )
     from = match.index + raw.length
   }
@@ -60,28 +66,68 @@ export function mentionSegments(body: string): MentionSegment[] {
   return segments
 }
 
+function tokenName(name: string, fallback: string): string {
+  const cleaned = name.replace(/[[\]\n\r]/g, "").trim()
+  return cleaned === "" ? fallback : cleaned
+}
+
 export function mentionToken(person: MentionPerson): string {
-  const name = person.name.replace(/[[\]\n\r]/g, "").trim()
-  return `@[${name === "" ? "user" : name}](user:${person.id})`
+  return `@[${tokenName(person.name, "user")}](user:${person.id})`
+}
+
+export function agentToken(agent: MentionAgent): string {
+  if (agent.kind === "observe") return `@${observeHandle}`
+  return `@[${tokenName(agent.name, "agent")}](${agent.kind}:${agent.id})`
+}
+
+const agentHints: Record<MentionAgent["kind"], string> = {
+  observe: `@${observeHandle}`,
+  grant: "Your agent",
+  service_account: "Service account",
 }
 
 function agentOption(agent: MentionAgent): MentionOption {
   return {
-    value: `agent:${agent.handle}`,
+    value:
+      agent.kind === "observe"
+        ? `agent:${observeHandle}`
+        : `${agent.kind}:${agent.id}`,
     label: agent.name,
-    token: `@${agent.handle}`,
+    token: agentToken(agent),
     agent: true,
-    hint: `@${agent.handle}`,
+    hint: agentHints[agent.kind],
   }
+}
+
+export function mentionedAgents(body: string): { key: string; name: string }[] {
+  const found = new Map<string, string>()
+  for (const segment of mentionSegments(body)) {
+    if (segment.kind !== "mention" || segment.ref.kind === "user") continue
+    const key = `${segment.ref.kind}:${segment.ref.id.toLowerCase()}`
+    if (found.has(key)) continue
+    found.set(
+      key,
+      segment.ref.kind === "agent" ? observeAgent.name : segment.name
+    )
+  }
+  return [...found].map(([key, name]) => ({ key, name }))
+}
+
+export function agentMentionsIn(body: string): number {
+  return mentionedAgents(body).length
 }
 
 export function mentionOptions(
   people: readonly MentionPerson[],
   agents: readonly MentionAgent[]
 ): MentionOption[] {
+  const offered = new Map<string, MentionOption>()
+  for (const agent of [observeAgent, ...agents]) {
+    const option = agentOption(agent)
+    offered.set(option.value, option)
+  }
   return [
-    agentOption(observeAgent),
-    ...agents.map(agentOption),
+    ...offered.values(),
     ...people.map((person) => ({
       value: `user:${person.id}`,
       label: person.name === "" ? "Unnamed" : person.name,
