@@ -27,7 +27,7 @@ function Items({ nodes }: { nodes: ReactNode[] }) {
   return nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>)
 }
 
-const narrowQuery = "(max-width: 760px)"
+const narrowQuery = "(max-width: 899px)"
 
 function subscribeNarrow(onChange: () => void) {
   const media = window.matchMedia(narrowQuery)

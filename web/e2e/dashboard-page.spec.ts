@@ -18,9 +18,9 @@ const themes = [
   {
     scheme: "light",
     background: "rgb(255, 255, 255)",
-    border: "rgb(228, 228, 231)",
+    border: "rgb(228, 228, 233)",
   },
-  { scheme: "dark", background: "rgb(17, 17, 19)", border: "rgb(42, 42, 46)" },
+  { scheme: "dark", background: "rgb(19, 20, 23)", border: "rgb(46, 48, 54)" },
 ] as const
 
 async function createPageDashboard(request: APIRequestContext) {

@@ -25,7 +25,7 @@ export function MessageBody({
           <span
             key={index}
             data-mention={segment.ref.kind}
-            className="rounded-chip bg-primary-container text-on-primary-container px-[3px] font-semibold"
+            className="rounded-chip bg-primary-container px-[3px] font-semibold text-on-primary-container"
           >
             @{name}
           </span>
