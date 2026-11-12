@@ -110,6 +110,28 @@ func TestTheFrozenRangeIsTheBlocksThenTheObservationsThenTheLastHour(t *testing.
 	}
 }
 
+func TestTheStoredRangeIsTheOneTheFreezerWasGivenDownToTheMicrosecond(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	own := `{"panel":{"type":"stat","title":"Up","datasource":"prom","queries":[{"ref":"A","query":"up"}]},"from":"2026-10-01T00:00:00.123456789Z","to":"2026-10-01T06:00:00.987654321Z"}`
+	block, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(own)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	frozen := r.addSnapshot(t, editor, o, block)
+	snap, err := r.service.Snapshot(t.Context(), viewer, mustUUID(t, frozen.SnapshotID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.From.Equal(r.freezer.from) || !snap.To.Equal(r.freezer.to) {
+		t.Errorf("the freezer drew %v-%v, the snapshot says %v-%v", r.freezer.from, r.freezer.to, snap.From, snap.To)
+	}
+	if r.freezer.from.Nanosecond()%1000 != 0 || r.freezer.to.Nanosecond()%1000 != 0 {
+		t.Errorf("the freezer was given sub-microsecond bounds %v-%v", r.freezer.from, r.freezer.to)
+	}
+}
+
 func TestAFreezerErrorOrAnOversizeBodyInsertsNothing(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)

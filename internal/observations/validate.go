@@ -30,6 +30,7 @@ const (
 	panelIssuePath    = "/panel"
 	wrappedPanelPath  = "/panels/0"
 	defaultPanelRange = time.Hour
+	storedPrecision   = time.Microsecond
 )
 
 type TextBody struct {

@@ -156,6 +156,7 @@ func wrapBlock(parent dbsqlc.Observation, block dbsqlc.ObservationBlock) (*spec.
 		return nil, time.Time{}, time.Time{}, fmt.Errorf("decode panel block: %w", err)
 	}
 	from, to := blockRange(body, timePtr(parent.TimeFrom), timePtr(parent.TimeTo), time.Now().UTC())
+	from, to = from.Truncate(storedPrecision), to.Truncate(storedPrecision)
 	d, err := findings.EvidenceSpec(parent.Title, from, to, []json.RawMessage{body.Panel})
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, fmt.Errorf("wrap panel block: %w", err)
