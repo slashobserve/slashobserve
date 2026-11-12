@@ -591,7 +591,7 @@ test("keeps a Select's Escape inside the panel", async ({ page }) => {
 })
 
 test.describe("beside a narrow content area", () => {
-  test.use({ viewport: { width: 1100, height: 800 } })
+  test.use({ viewport: { width: 1000, height: 800 } })
 
   test("stacks the panel under the page with a top border", async ({
     page,
@@ -610,7 +610,7 @@ test.describe("beside a narrow content area", () => {
     const railBox = await box(page.getByRole("navigation", { name: "Main" }))
     expect(panelBox.y).toBeGreaterThanOrEqual(mainBox.y + mainBox.height - 1)
     expect(panelBox.x).toBeCloseTo(railBox.x + railBox.width, 0)
-    expect(panelBox.x + panelBox.width).toBeCloseTo(1100, 0)
+    expect(panelBox.x + panelBox.width).toBeCloseTo(1000, 0)
   })
 })
 
