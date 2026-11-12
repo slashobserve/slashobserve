@@ -9,13 +9,14 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 
 | Command | What it does |
 | --- | --- |
-| `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
+| `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded, `bin/observe` and `bin/observe-agent`. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
-| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), then `scripts/release-scripts-test.sh` (the release tag and release notes scripts), `scripts/install-test.sh` (the root `install.sh`, against fake release assets) and `scripts/docs-lint-test.sh` (the docs lint rules, against fixture pages). |
-| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, `scripts/docs-lint.sh` on the docs pages, and `scripts/helm-check.sh` (Helm lint and renders of the chart, no Secret in them, and its internals dashboard equal to the compose copy). |
+| `make agent` | Install the `observe-agent` dependencies and compile `bin/observe-agent` with Bun (`--version` prints the make `VERSION`); `make build` builds it too. |
+| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), `bun test` for `observe-agent`, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts), `scripts/install-test.sh` (the root `install.sh`, against fake release assets) and `scripts/docs-lint-test.sh` (the docs lint rules, against fixture pages). |
+| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, the `observe-agent` typecheck and Prettier check, `scripts/docs-lint.sh` on the docs pages, and `scripts/helm-check.sh` (Helm lint and renders of the chart, no Secret in them, and its internals dashboard equal to the compose copy). |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo`), `build`: what the CI `check` job runs. |
-| `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
+| `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`) and for the `observe-agent` lockfile: what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make golden` | Rewrite the `pkg/grafana` corpus goldens and the generated option map (`optionmap.json`). |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` from the published images `ghcr.io/slashobserve/slashobserve` and `ghcr.io/slashobserve/demo-shop` (tag `latest`, overridable with `SLASHOBSERVE_IMAGE` and `SLASHOBSERVE_SHOP_IMAGE`) with no compile, and stop it; it cannot pull until the first release tag is published, so use `make demo-build` until then. The stack: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
@@ -49,6 +50,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 
 - `internal/CLAUDE.md`: backend conventions for `internal/` and `cmd/`.
 - `web/CLAUDE.md`: frontend conventions.
+- `observe-agent/CLAUDE.md`: the built-in agent's separate process.
 - `e2e/CLAUDE.md`: rules for both end-to-end suites; read it before editing `scripts/e2e.sh`, the demo data under `deploy/compose/` or `demo`, or a Playwright spec in `web/e2e`.
 - `pkg/` has no file of its own; its rules are under "pkg conventions" below.
 
@@ -63,6 +65,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `spec/`: `schema/observespec.v0.json` and `schema/defaults.json`, plus `examples/` (valid examples and `invalid/` fixtures with `expected.json`) shared by Go, TS and e2e tests.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
+- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it when `SLASHOBSERVE_AGENT_RUNTIME=sidecar`, and the image ships it at `/usr/local/bin/observe-agent`.
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
 - `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite), `replicas.sh` (lifecycle of the isolated `slashobserve-replicas` stack: `up`, `down`, `status`, `logs`, `keys`, `stop`, `kill`, `start`, `workers`, `check`, `load`), `evals-stack.sh` (lifecycle of the isolated `slashobserve-evals` stack: `up [--k8s] replay|<env-file>`, `server [--k8s] <env-file>`, `down`, `status`), `demo-k8s.sh` (lifecycle of the Kubernetes demo cluster) and the release tag and notes scripts.
@@ -107,16 +110,16 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 ## Dependencies
 
 - Pin exact versions only, and only versions released at least 14 days earlier.
-  `web/bunfig.toml` enforces both for npm packages; Go dependencies are exact in `go.mod`.
+  `web/bunfig.toml` and `observe-agent/bunfig.toml` enforce both for npm packages; Go dependencies are exact in `go.mod`.
 - `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
 - Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
 - `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it.
-- `anthropic-sdk-go` and `openai-go/v3` are the only model clients.
+- The model clients are `anthropic-sdk-go` and `openai-go/v3` for the Go runtime and draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
   Adapters stream, retry in one place (`llm.Retry`, the SDKs' retries off) and keep provider history append-only except `Session.Compact`; request-side pruning changes only what is sent.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).
   The OpenAI-compatible adapter rebuilds assistant history with its own helper, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`, in `internal/db/dbtest` and in `deploy/helm/kind/postgres.yaml`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki`, `grafana/tempo`, `elasticsearch` and `opensearch` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo,elasticsearch}`, and `prom/prometheus` also in `deploy/helm/kind/prometheus.yaml`; the `kindest/node` image in `demo/k8s/kind.yaml` and `deploy/helm/kind/kind.yaml`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the root `Dockerfile` runs on `distroless/base-nossl` for the Bun binary's glibc while `demo/Dockerfile` keeps `distroless/static`, so the two digests no longer move together; Bun in `web/package.json` (`packageManager`, read by CI), in `observe-agent/package.json` and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`, in `internal/db/dbtest` and in `deploy/helm/kind/postgres.yaml`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki`, `grafana/tempo`, `elasticsearch` and `opensearch` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo,elasticsearch}`, and `prom/prometheus` also in `deploy/helm/kind/prometheus.yaml`; the `kindest/node` image in `demo/k8s/kind.yaml` and `deploy/helm/kind/kind.yaml`.
   Dependabot ignores the `golang` and `oven/bun` images because they move with those pins.
 - Justify every new dependency in its PR.
 

@@ -55,7 +55,7 @@ services:
       resources:
         limits:
           cpus: "2"
-          memory: 256M
+          memory: 512M
 
   haproxy:
     image: haproxy:3.2.26-alpine3.24@sha256:1c3568e520453cc8ba98c39501febcf450429c80e6cc27ecad779961d76e597c

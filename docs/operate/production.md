@@ -38,6 +38,11 @@ The image's Docker health check runs `slashobserve-server healthcheck`, which re
 Datasources never affect `/readyz`.
 An unreachable Prometheus shows up as a datasource health problem, not as a server that is down.
 
+## The image
+
+The image carries `observe-agent` at `/usr/local/bin/observe-agent` beside `slashobserve-server`; the server starts it only when `SLASHOBSERVE_AGENT_RUNTIME=sidecar`.
+Its base is `distroless/base-nossl`, which has glibc for the `observe-agent` binary and still runs as the non-root user `nonroot`.
+
 ## Behind a connection pooler
 
 A transaction-mode pooler such as PgBouncer breaks the two things that need one Postgres session for a long time: `LISTEN`, which carries live dashboard updates and wakes the agent workers, and the lock that makes concurrent migrations safe.

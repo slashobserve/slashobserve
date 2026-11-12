@@ -31,6 +31,10 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 2. Pull the new image tag (or build your own image) and replace the container.
 3. Watch the log: the server applies pending migrations at startup, each logged as `applied migration` with its version, and `/readyz` returns 200 once they are done.
 
+The image now ships `observe-agent` and runs on `distroless/base-nossl`, so it is about 44 MB larger to pull (19 MB to 63 MB compressed on arm64) and about 107 MB larger unpacked: the 82 MB binary and a 24 MB C library layer.
+The compose stack raises the server memory limit from 256M to 512M for the same reason.
+`SLASHOBSERVE_AGENT_RUNTIME` defaults to `go` in this release, so a running server behaves as before until you set `sidecar`.
+
 ### Migrations
 
 Migrations run under a Postgres lock, so starting several servers at once is safe: one migrates and the others wait.

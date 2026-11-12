@@ -17,6 +17,7 @@ Dockerfile
 e2e-compose.log
 internal/server/webdist
 web/node_modules
+observe-agent/node_modules
 web/dist
 web/playwright-report
 web/test-results
