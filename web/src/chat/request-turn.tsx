@@ -209,6 +209,7 @@ export function RequestTurn({
                 steps={steps}
                 working={showsWorkingRow(request, stalled)}
                 reconnecting={reconnecting}
+                liveText={detail?.live_text}
                 requestId={summary.id}
                 pane={inPane}
               />

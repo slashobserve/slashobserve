@@ -23,6 +23,7 @@ Choosing another role for an existing account in the Create key panel changes th
 An account takes runs only when an Admin turns on `takes_runs` with `PATCH /api/v1/service-accounts/{id}`; the account then lists as `listening` or `working` while it asks for work.
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
 A key has no My Dashboards folder.
+A service account that takes runs works under the same guards as the built-in agent, enforced by the server on every call of the run's session; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
 Beyond that, see [the security model](security-model.md) for what any key can do.
 
 ## Declare service accounts in a file

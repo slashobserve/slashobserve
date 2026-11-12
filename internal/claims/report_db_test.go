@@ -89,7 +89,7 @@ func TestReportOfACancelingRunTellsTheAgentToStop(t *testing.T) {
 func TestReportOfAFinishedRunTellsTheAgentToStop(t *testing.T) {
 	f := newFixture(t)
 	queued, _ := f.claimed(t)
-	if _, err := f.svc.Finish(context.Background(), grantClaimer, FinishInput{RunID: queued.ID.String(), Attempt: 1, Outcome: "failed", Message: "no"}); err != nil {
+	if _, err := f.runs.End(context.Background(), f.stored(t, queued.ID), revisions.Ending{Failure: revisions.FailureAgentFailed, Message: "no"}); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,0 +1,7 @@
+{
+  "prompt": "investigate the spike",
+  "turns": [
+    { "tool_calls": [{ "name": "query_range", "input": { "query": "up" } }] },
+    { "tool_calls": [{ "name": "save_finding", "input": { "summary": "s" } }] }
+  ]
+}

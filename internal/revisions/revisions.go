@@ -200,11 +200,19 @@ type Request struct {
 	Attempt     int
 	RequestedBy auth.Principal
 	Origin      origin.Origin
+	Assignee    AssigneeKind
 
 	Continues    bool
 	ContinueNote string
 
 	From, To *time.Time
+}
+
+func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {
+	if r.Assignee == AssignBuiltin {
+		return r.Origin
+	}
+	return outside
 }
 
 type Result struct {

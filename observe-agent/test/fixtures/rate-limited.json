@@ -1,0 +1,4 @@
+{
+  "prompt": "rate limited",
+  "turns": [{ "fault": { "kind": "rate_limited" }, "text": "x" }]
+}

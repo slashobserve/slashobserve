@@ -2,17 +2,61 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-func (r *Registry) RunFor(ctx context.Context, req revisions.Request) (Run, error) {
+var (
+	ErrInvalidReason      = errors.New("reason is not one the brief knows")
+	ErrInvalidFailureCode = errors.New("failure_code is not one the agent loop reports")
+	ErrCommitNeedsSuccess = errors.New("commit applies only to a succeeded outcome")
+	ErrRunEnded           = errors.New("the run has ended")
+)
+
+type BuildProgress struct {
+	Saves         int `json:"saves"`
+	Panels        int `json:"panels"`
+	PlannedPanels int `json:"planned_panels"`
+}
+
+type BriefAnswer struct {
+	System  string         `json:"system"`
+	Message string         `json:"message"`
+	Reason  string         `json:"reason"`
+	Build   *BuildProgress `json:"build"`
+}
+
+type RunFinish struct {
+	Outcome     string
+	FailureCode string
+	Message     string
+	Commit      bool
+	Usage       *revisions.Usage
+}
+
+type RunFinished struct {
+	State         string  `json:"state"`
+	ResultKind    string  `json:"result_kind"`
+	ResultVersion *int    `json:"result_version"`
+	FailureCode   *string `json:"failure_code"`
+	Restarted     bool    `json:"restarted"`
+}
+
+type RunSessions interface {
+	Brief(ctx context.Context, req revisions.Request, reason string) (BriefAnswer, error)
+	NoteUsage(ctx context.Context, req revisions.Request, u revisions.Usage) (stop bool, err error)
+	Finish(ctx context.Context, req revisions.Request, in RunFinish) (RunFinished, error)
+	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
+}
+
+func RunFor(req revisions.Request) (Run, error) {
 	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt}
 	switch {
 	case req.Source == revisions.SourceSuggest:
-		return Run{}, fmt.Errorf("%w: suggest runs have no outside session", ErrInvariant)
+		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}
 	case req.Source == revisions.SourceInvestigate:
 		run.Mode, run.PanelID = ModeInvestigate, req.PanelID
 		if req.From != nil && req.To != nil {
@@ -26,14 +70,9 @@ func (r *Registry) RunFor(ctx context.Context, req revisions.Request) (Run, erro
 	if req.DashboardID == "" {
 		return run, nil
 	}
-	id, err := db.ParseUUID(req.DashboardID)
-	if err != nil {
+	if _, err := db.ParseUUID(req.DashboardID); err != nil {
 		return Run{}, fmt.Errorf("%w: run dashboard id: %w", ErrInvariant, err)
 	}
-	version, err := r.deps.Dashboards.LatestVersion(ctx, id)
-	if err != nil {
-		return Run{}, err
-	}
-	run.DashboardID, run.ParentVersion = req.DashboardID, version
+	run.DashboardID = req.DashboardID
 	return run, nil
 }

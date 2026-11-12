@@ -1,0 +1,10 @@
+{
+  "prompt": "commit hits a conflict",
+  "turns": [
+    { "tool_calls": [{ "name": "create_dashboard" }] },
+    { "text": "done" }
+  ],
+  "resumes": {
+    "1": { "turns": [{ "text": "done after the restart" }] }
+  }
+}

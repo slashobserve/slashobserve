@@ -184,5 +184,17 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		out.Steps = []Step{}
 	}
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
+	out.LiveText = r.liveText(row)
 	return out
+}
+
+func (r *RunReader) liveText(row dbsqlc.AgentRequest) *string {
+	if State(row.State) != StateRunning || r.opts.LiveText == nil {
+		return nil
+	}
+	text, ok := r.opts.LiveText(row.ID.String(), int(row.Attempts))
+	if !ok {
+		return nil
+	}
+	return &text
 }

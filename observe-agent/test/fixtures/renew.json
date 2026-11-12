@@ -1,0 +1,20 @@
+{
+  "prompt": "renew the session",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "panels": "a long enough panel body to pass the renewal threshold"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        { "name": "update_panels", "input": { "panels": "second" } }
+      ]
+    }
+  ]
+}

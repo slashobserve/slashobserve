@@ -26,11 +26,15 @@ const (
 	userID       = "11111111-1111-4111-8111-111111111111"
 	grantID      = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 	otherGrantID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	instanceID   = "server-1"
 )
 
 var (
 	ada          = auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ada", Email: "ada@example.com", Role: auth.RoleEditor}
 	grantClaimer = Claimer{Kind: revisions.AssignGrant, ID: grantID, Person: userID, Client: "Claude Code"}
+
+	builtinClaimer = Claimer{Kind: revisions.AssignBuiltin, ID: instanceID}
+	modelSettings  = ModelSettings{Provider: "anthropic", Model: "claude-x", APIKey: "sk-test-key", MaxTokens: 4096, SessionRenewBytes: 262144}
 )
 
 func TestMain(m *testing.M) {
@@ -63,7 +67,12 @@ func newFixture(t *testing.T) *fixture {
 	people := &principals{}
 	runs := revisions.NewService(d.DB, noReviser{}, logger,
 		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
-	svc := New(Config{DB: d.DB, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
+	svc := New(Config{
+		DB: d.DB, Runs: runs, Listen: d.Listen,
+		PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, InternalURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"},
+		InstanceID: instanceID, Model: func() *ModelSettings { settings := modelSettings; return &settings },
+		RunTimeout: time.Hour, Logger: logger,
+	})
 	return &fixture{svc: svc, runs: runs, d: d, principals: people, dashboard: seedDashboard(t, d)}
 }
 
@@ -205,10 +214,11 @@ func TestServiceAccountTakesRunsOnlyWhenItIsAWorker(t *testing.T) {
 func TestClaimRefusesCredentialsThatAreNotWorkers(t *testing.T) {
 	f := newFixture(t)
 	for name, c := range map[string]Claimer{
-		"built-in":                  {Kind: revisions.AssignBuiltin, ID: "server-1"},
-		"unknown kind":              {Kind: "other", ID: grantID},
-		"service account not found": {Kind: revisions.AssignServiceAccount, ID: grantID},
-		"service account bad id":    {Kind: revisions.AssignServiceAccount, ID: "not-a-uuid"},
+		"built-in of another server": {Kind: revisions.AssignBuiltin, ID: "server-2"},
+		"built-in without an id":     {Kind: revisions.AssignBuiltin},
+		"unknown kind":               {Kind: "other", ID: grantID},
+		"service account not found":  {Kind: revisions.AssignServiceAccount, ID: grantID},
+		"service account bad id":     {Kind: revisions.AssignServiceAccount, ID: "not-a-uuid"},
 	} {
 		if _, err := f.svc.Claim(context.Background(), c, 0); !errors.Is(err, ErrNotAWorker) {
 			t.Errorf("%s: claim = %v, want ErrNotAWorker", name, err)

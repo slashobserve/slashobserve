@@ -8,7 +8,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-const runForRequestID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+const (
+	runForRequestID   = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+	runForDashboardID = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+)
 
 func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 	from := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
@@ -30,10 +33,9 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
 		},
 	}
-	registry := New(Deps{})
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := registry.RunFor(t.Context(), tc.req)
+			got, err := RunFor(tc.req)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -44,19 +46,21 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 	}
 }
 
-func TestRunForRefusesASuggestRun(t *testing.T) {
-	_, err := New(Deps{}).RunFor(t.Context(), revisions.Request{ID: runForRequestID, Source: revisions.SourceSuggest, Attempt: 1})
-	if !errors.Is(err, ErrInvariant) {
-		t.Fatalf("err = %v, want ErrInvariant", err)
+func TestRunForMapsASuggestRunAndPinsNoVersion(t *testing.T) {
+	got, err := RunFor(revisions.Request{ID: runForRequestID, Source: revisions.SourceSuggest, DashboardID: runForDashboardID, PanelID: "p_up", BaseVersion: 4, Prompt: "p", Attempt: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Run{Mode: ModeSuggest, RequestID: runForRequestID, DashboardID: runForDashboardID, PanelID: "p_up"}
+	if got != want {
+		t.Fatalf("run = %+v, want %+v", got, want)
 	}
 }
 
-func TestRunForReadsTheLatestVersionOfARevision(t *testing.T) {
-	rig := newAccessRig(t)
-	id := rig.seed(t, "Checkout")
+func TestRunForNamesTheDashboardOfARevisionAndPinsNoVersion(t *testing.T) {
 	for name, source := range map[string]revisions.Source{"revise": revisions.SourceObserve, "investigate": revisions.SourceInvestigate} {
 		t.Run(name, func(t *testing.T) {
-			got, err := rig.registry.RunFor(t.Context(), revisions.Request{ID: runForRequestID, Source: source, DashboardID: id.String(), Prompt: "p", Attempt: 3})
+			got, err := RunFor(revisions.Request{ID: runForRequestID, Source: source, DashboardID: runForDashboardID, Prompt: "p", Attempt: 3})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -64,9 +68,16 @@ func TestRunForReadsTheLatestVersionOfARevision(t *testing.T) {
 			if source == revisions.SourceInvestigate {
 				wantMode, wantBuild = ModeInvestigate, false
 			}
-			if got.Mode != wantMode || got.Build != wantBuild || got.DashboardID != id.String() || got.ParentVersion != 1 || got.Attempt != 3 || got.RequestID != runForRequestID {
+			if got.Mode != wantMode || got.Build != wantBuild || got.DashboardID != runForDashboardID || got.ParentVersion != 0 || got.Attempt != 3 || got.RequestID != runForRequestID {
 				t.Fatalf("run = %+v", got)
 			}
 		})
+	}
+}
+
+func TestRunForRefusesADashboardIDThatIsNotAUUID(t *testing.T) {
+	_, err := RunFor(revisions.Request{ID: runForRequestID, Source: revisions.SourceObserve, DashboardID: "nope", Attempt: 1})
+	if !errors.Is(err, ErrInvariant) {
+		t.Fatalf("err = %v, want ErrInvariant", err)
 	}
 }

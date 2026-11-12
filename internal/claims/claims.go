@@ -27,36 +27,40 @@ const (
 	touchEvery           = 15 * time.Second
 	maxClientRunes       = 200
 	maxNoteRunes         = 500
-	maxMessageRunes      = 500
-	maxUsageTextRunes    = 100
-	maxCostUSD           = 10000.0
 	defaultRunTime       = time.Hour
 )
 
 var (
-	ErrNotAWorker = errors.New("this credential does not take runs")
-	ErrNotYourRun = errors.New("this run is not claimed by you at that attempt")
+	ErrNotAWorker     = errors.New("this credential does not take runs")
+	ErrNotYourRun     = errors.New("this run is not claimed by you at that attempt")
+	ErrInvalidOutcome = errors.New("outcome must be succeeded or failed")
 )
 
 type Config struct {
-	DB         *db.DB
-	Runs       *revisions.Service
-	Listen     events.Listener
-	PublicURL  *url.URL
-	RunTimeout time.Duration
-	Logger     *slog.Logger
+	DB          *db.DB
+	Runs        *revisions.Service
+	Listen      events.Listener
+	PublicURL   *url.URL
+	InternalURL *url.URL
+	InstanceID  string
+	Model       func() *ModelSettings
+	RunTimeout  time.Duration
+	Logger      *slog.Logger
 }
 
 type Service struct {
-	db         *db.DB
-	runs       *revisions.Service
-	listen     events.Listener
-	publicURL  *url.URL
-	runTimeout time.Duration
-	logger     *slog.Logger
-	steps      *revisions.Steps
-	hub        *hub
-	poll       time.Duration
+	db          *db.DB
+	runs        *revisions.Service
+	listen      events.Listener
+	publicURL   *url.URL
+	internalURL *url.URL
+	instanceID  string
+	model       func() *ModelSettings
+	runTimeout  time.Duration
+	logger      *slog.Logger
+	steps       *revisions.Steps
+	hub         *hub
+	poll        time.Duration
 }
 
 func New(c Config) *Service {
@@ -64,15 +68,18 @@ func New(c Config) *Service {
 		panic("claims.New needs a database, the runs service, a listener and the public URL")
 	}
 	return &Service{
-		db:         c.DB,
-		runs:       c.Runs,
-		listen:     c.Listen,
-		publicURL:  c.PublicURL,
-		runTimeout: c.RunTimeout,
-		logger:     c.Logger,
-		steps:      revisions.NewSteps(c.DB, c.Logger),
-		hub:        newHub(),
-		poll:       pollEvery,
+		db:          c.DB,
+		runs:        c.Runs,
+		listen:      c.Listen,
+		publicURL:   c.PublicURL,
+		internalURL: c.InternalURL,
+		instanceID:  c.InstanceID,
+		model:       c.Model,
+		runTimeout:  c.RunTimeout,
+		logger:      c.Logger,
+		steps:       revisions.NewSteps(c.DB, c.Logger),
+		hub:         newHub(),
+		poll:        pollEvery,
 	}
 }
 
@@ -107,6 +114,11 @@ func ClaimerFrom(ctx context.Context) (Claimer, bool) {
 
 func (s *Service) eligible(ctx context.Context, c Claimer) error {
 	switch c.Kind {
+	case revisions.AssignBuiltin:
+		if c.ID == "" || c.ID != s.instanceID {
+			return ErrNotAWorker
+		}
+		return nil
 	case revisions.AssignGrant:
 		return nil
 	case revisions.AssignServiceAccount:
@@ -127,7 +139,7 @@ func textOf(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: true}
 }
 
-func cleanText(s string, maxRunes int) string {
+func CleanText(s string, maxRunes int) string {
 	s = strings.TrimSpace(strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), ""))
 	if utf8.RuneCountInString(s) > maxRunes {
 		return string([]rune(s)[:maxRunes])
