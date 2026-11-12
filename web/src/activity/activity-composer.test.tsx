@@ -48,20 +48,10 @@ function stubServer(sent: Record<string, unknown> = {}) {
           effort: null,
         })
       }
-      if (pathname === "/api/v1/me/grants") {
+      if (pathname === "/api/v1/agents") {
         return json({
-          grants: [
-            {
-              id: grantId,
-              client: {
-                id: "c",
-                name: "Claude Code",
-                redirect_host: "h",
-                local: true,
-              },
-            },
-          ],
-          next_cursor: null,
+          connected: [{ grant_id: grantId, client_name: "Claude Code" }],
+          service_accounts: [],
         })
       }
       return json({ service_accounts: [] })

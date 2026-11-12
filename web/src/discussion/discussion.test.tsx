@@ -101,9 +101,6 @@ function mockServer({
         effort: null,
       })
     }
-    if (pathname === "/api/v1/me/grants") {
-      return json({ grants: [], next_cursor: null })
-    }
     if (pathname === "/api/v1/agents") return json({ service_accounts: [] })
     return json({
       threads,
