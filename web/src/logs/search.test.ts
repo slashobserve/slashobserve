@@ -32,7 +32,22 @@ describe("validateLogsSearch", () => {
       line: undefined,
       view: undefined,
       tail: undefined,
+      observation: undefined,
     })
+  })
+
+  it("keeps an observation id", () => {
+    const observation = "8b1f6c1e-3f5a-4c2e-9a77-0c1d2e3f4a5b"
+    expect(validateLogsSearch({ observation }).observation).toBe(observation)
+  })
+
+  it.each([
+    ["is empty", ""],
+    ["is not a uuid", "checkout-slow"],
+    ["has a path in it", "../8b1f6c1e-3f5a-4c2e-9a77-0c1d2e3f4a5b"],
+    ["is a uuid with a suffix", "8b1f6c1e-3f5a-4c2e-9a77-0c1d2e3f4a5bz"],
+  ])("drops an observation that %s", (_, observation) => {
+    expect(validateLogsSearch({ observation }).observation).toBeUndefined()
   })
 
   it("keeps the pills, columns, open line, view and tail keys", () => {
