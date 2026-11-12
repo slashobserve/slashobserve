@@ -23,7 +23,7 @@ import { useAddVersion } from "../queries"
 import { saveToast } from "../save-outcome"
 import { useDashboardSearch, useSetDashboardSearch } from "../search"
 import { applyLayout } from "./layout"
-import { focusEditLayoutButton, useLayoutStore } from "./layout-store"
+import { focusAfterLayoutChange, useLayoutStore } from "./layout-store"
 import { MergeConflicts } from "./merge-conflicts"
 import { saveProblemFrom, type Problem } from "./save-problem"
 
@@ -86,7 +86,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
     if (search.version !== undefined) {
       setSearch((state) => ({ ...state, version: undefined }))
     }
-    focusEditLayoutButton()
+    focusAfterLayoutChange()
   }
 
   async function send() {
@@ -142,7 +142,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
   function discard() {
     end()
     onOpenChange(false)
-    focusEditLayoutButton()
+    focusAfterLayoutChange()
   }
 
   function reload() {

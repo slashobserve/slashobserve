@@ -64,6 +64,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
+import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -74,18 +75,14 @@ import { DuplicateDashboardDialog } from "./duplicate-dashboard-dialog"
 import { detailsBlockReason } from "./edit/details"
 import { DetailsDialog } from "./edit/details-dialog"
 import {
-  EditControls,
-  findFirstMoveHandle,
-  NewerVersionNotice,
-} from "./edit/edit-controls"
-import {
-  editLayoutButtonId,
-  focusWhenIdle,
+  findMoreMenuButton,
   useGridEditable,
+  useIsDirty,
   useLayoutStore,
 } from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
 import { saveProblemFrom } from "./edit/save-problem"
+import { UnsavedBar } from "./edit/unsaved-bar"
 import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
 import {
   useDashboardEvents,
@@ -118,6 +115,7 @@ import { withResponsive } from "./responsive"
 import { saveToast } from "./save-outcome"
 import { interpolateTitle } from "./rows/interpolate-title"
 import { useRowStore } from "./rows/row-store"
+import { useSelectedPanel, useSelectionStore } from "./selection-store"
 import {
   backFromSearch,
   panelEditorShowsNewerVersion,
@@ -241,13 +239,12 @@ function DashboardView({
   )
   const session = useLayoutStore((state) => state.session)
   const setLayout = useLayoutStore((state) => state.setLayout)
-  const startLayout = useLayoutStore((state) => state.start)
+  const ensureLayout = useLayoutStore((state) => state.ensure)
   const gridBox = useRef<HTMLDivElement>(null)
-  const canEdit = useGridEditable(gridBox)
-  const editing =
-    session !== null &&
-    session.dashboardId === dashboardId &&
-    search.version === undefined
+  const gridEditable = useGridEditable(gridBox)
+  const layoutDirty = useIsDirty()
+  const sessionOpen = session !== null && session.dashboardId === dashboardId
+  const editing = sessionOpen && search.version === undefined && layoutDirty
   const version = editing ? session.baseVersion : envelopeVersion
   const spec = editing ? session.baseSpec : envelopeSpec
   const unverified = useMemo(
@@ -368,6 +365,39 @@ function DashboardView({
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
   const mayOpenEditor = permissions.edit || permissions.comment
   const editingPanel = mayOpenEditor && panelInUrl
+  const arranging =
+    permissions.edit &&
+    search.version === undefined &&
+    gridEditable &&
+    viewed === undefined &&
+    !panelInUrl &&
+    !kiosk
+  useLayoutEffect(() => {
+    if (arranging) ensureLayout(dashboardId, envelopeVersion, envelopeSpec)
+  }, [
+    arranging,
+    sessionOpen,
+    ensureLayout,
+    dashboardId,
+    envelopeVersion,
+    envelopeSpec,
+  ])
+  const selection = useSelectedPanel(dashboardId)
+  const selectedId =
+    !kiosk &&
+    viewed === undefined &&
+    selection !== null &&
+    layoutPanelOf(spec, selection) !== undefined
+      ? selection
+      : null
+  const layout =
+    sessionOpen && ((arranging && selectedId !== null) || editing)
+      ? session.layout
+      : undefined
+  useEffect(() => {
+    useSelectionStore.getState().clear()
+  }, [dashboardId, search.version])
+  const commentTool = useCanvasTool((state) => state.tool === "comment")
   const chatRequestId =
     panelInUrl || search.share === true || editing || inspecting || kiosk
       ? undefined
@@ -544,7 +574,11 @@ function DashboardView({
         ? closeView
         : kiosk
           ? leaveKiosk
-          : undefined,
+          : commentTool
+            ? () => useCanvasTool.getState().setTool("select")
+            : selectedId !== null
+              ? () => useSelectionStore.getState().clear()
+              : undefined,
     zoomOut: moveRange((now) =>
       zoomOut(effectiveFrom, effectiveTo, now, timeOptions)
     ),
@@ -627,15 +661,6 @@ function DashboardView({
     flashTimer.current = window.setTimeout(() => setFlashed(null), 2000)
   }, [])
 
-  const beginLayoutEdit = () => {
-    const start = () => {
-      startLayout(dashboardId, envelopeVersion, envelopeSpec)
-      focusWhenIdle(findFirstMoveHandle)
-    }
-    if (editGuard.current) editGuard.current.leaveThen(start)
-    else start()
-  }
-
   const controls = [
     <div key="time" className="flex items-center gap-1.5">
       <TimeRangePicker
@@ -659,11 +684,6 @@ function DashboardView({
     <MoreMenu
       key="more"
       mayEdit={permissions.edit}
-      canEditLayout={canEdit && !editing}
-      layoutBlockedByActivity={
-        !canEdit && !editing && cardVisible && !cardLayout.stacked
-      }
-      pinned={pinned}
       detailsBlockedBy={detailsBlockReason({
         pinned,
         editingLayout: editing,
@@ -674,7 +694,6 @@ function DashboardView({
         editingLayout: editing,
       })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
-      onEditLayout={beginLayoutEdit}
       onEditDetails={() => setDetailsOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
@@ -713,6 +732,7 @@ function DashboardView({
 
   const renderPanel = (item: PanelItem, size: Size, viewing = false) => (
     <PanelContainer
+      dashboardId={dashboardId}
       source={source}
       cursor={cursor}
       panel={item.panel}
@@ -735,11 +755,17 @@ function DashboardView({
       onRetryBlocked={onRetryBlocked}
       refreshMs={refreshMs}
       mixedDatasources={mixedDatasources}
-      editable={editing && canEdit}
+      editable={
+        arranging &&
+        layout !== undefined &&
+        item.first &&
+        item.panel.id === selectedId
+      }
       layoutSession={editing}
       openComments={item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0}
       unverifiedReason={unverified.panels.get(item.panel.id)}
       highlighted={item.panel.id === search.panel || item.panel.id === flashed}
+      selected={item.first && !viewing && item.panel.id === selectedId}
       editingPanel={
         editingPanel && item.first && item.panel.id === search.panel
       }
@@ -791,19 +817,9 @@ function DashboardView({
                 />
               }
               controls={controls}
-              editing={
-                <EditControls dashboardId={dashboardId} pinned={pinned} />
-              }
               actions={actions}
             />
           )}
-          {editing ? (
-            <NewerVersionNotice
-              dashboardId={dashboardId}
-              baseVersion={session.baseVersion}
-              latestVersion={latestVersion}
-            />
-          ) : null}
           {kiosk ? null : (
             <>
               <VariablesBar
@@ -853,9 +869,10 @@ function DashboardView({
                   spec={spec}
                   selections={selections}
                   values={values}
-                  editable={editing && canEdit}
-                  layout={editing ? session.layout : undefined}
-                  onLayoutChange={editing ? setLayout : undefined}
+                  editable={arranging && layout !== undefined}
+                  layout={layout}
+                  onLayoutChange={layout ? setLayout : undefined}
+                  selectedId={selectedId}
                   newPanelIds={editing ? undefined : seen.fresh}
                   renderPanel={(item, size) => renderPanel(item, size)}
                 />
@@ -899,6 +916,14 @@ function DashboardView({
             onClose={closeInspect}
           />
         ) : null}
+        <UnsavedBar dashboardId={dashboardId} />
+        {kiosk ? null : (
+          <CanvasTools
+            permissions={permissions}
+            idle={!editing}
+            composerRef={composerRef}
+          />
+        )}
         {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
         <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <DetailsDialog
@@ -907,7 +932,7 @@ function DashboardView({
           version={envelopeVersion}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
-          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+          finalFocus={() => findMoreMenuButton() ?? true}
         />
         <DuplicateDashboardDialog
           source={{
@@ -918,7 +943,7 @@ function DashboardView({
           targets={duplicate}
           open={duplicating}
           onOpenChange={setDuplicating}
-          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+          finalFocus={() => findMoreMenuButton() ?? true}
         />
         <DeleteDashboardDialog
           dashboard={{
@@ -928,7 +953,7 @@ function DashboardView({
           }}
           open={deleting}
           onOpenChange={setDeleting}
-          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+          finalFocus={() => findMoreMenuButton() ?? true}
           onDeleted={async (alreadyGone) => {
             toast.success(
               alreadyGone
@@ -975,12 +1000,9 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   const queryClient = useQueryClient()
   const latest = useQuery(latestDashboardQuery(queryClient, dashboardId))
   const latestVersion = latest.data?.dashboard.latest_version
-  const editing = useLayoutStore(
-    (state) => state.session?.dashboardId === dashboardId
-  )
   const { status: liveStatus } = useDashboardEvents(dashboardId, {
     pinnedVersion: search.version,
-    toastVersions: !editing && !panelEditorShowsNewerVersion(search),
+    toastVersions: !panelEditorShowsNewerVersion(search),
   })
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode

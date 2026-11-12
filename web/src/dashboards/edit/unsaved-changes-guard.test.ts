@@ -32,8 +32,8 @@ const history = {
 }
 
 function makeDirty() {
-  const { start, commitLayout } = useLayoutStore.getState()
-  start("d1", 1, spec)
+  const { ensure, commitLayout } = useLayoutStore.getState()
+  ensure("d1", 1, spec)
   const layout = useLayoutStore.getState().session!.layout
   commitLayout(
     layout.map((entry) => ({ ...entry, w: 6 })),
@@ -45,7 +45,7 @@ beforeEach(() => useLayoutStore.getState().end())
 
 describe("shouldBlockNavigation", () => {
   it("lets any navigation through while the layout is clean", () => {
-    useLayoutStore.getState().start("d1", 1, spec)
+    useLayoutStore.getState().ensure("d1", 1, spec)
     expect(shouldBlockNavigation({ current: live, next: pinned })).toBe(false)
     expect(shouldBlockNavigation({ current: live, next: elsewhere })).toBe(
       false

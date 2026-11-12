@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent,
   type RefObject,
 } from "react"
 import { toast } from "sonner"
@@ -37,9 +38,12 @@ import {
   type Variable,
 } from "@/spec"
 
+import { useCanvasTool } from "./canvas-tools"
+import { commentOnPanel } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import { PanelMenu } from "./panel-menu"
+import { PanelToolbar } from "./panel-toolbar"
 import {
   panelDataKey,
   panelFingerprint,
@@ -47,6 +51,7 @@ import {
   type PanelSource,
 } from "./panel-source"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
+import { useSelectionStore } from "./selection-store"
 import { useInView } from "./use-in-view"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { UnverifiedLabel } from "./unverified-label"
@@ -89,7 +94,11 @@ function focusPanel(root: HTMLElement | null) {
   article.focus({ preventScroll: true })
 }
 
+const interactiveTarget =
+  'button, a, input, select, textarea, [role="menuitem"], [role="toolbar"]'
+
 type PanelContainerProps = {
+  dashboardId?: string
   source: PanelSource
   cursor: SharedCursor
   panel: LayoutPanel
@@ -115,6 +124,7 @@ type PanelContainerProps = {
   openComments: number
   unverifiedReason: string | undefined
   highlighted: boolean
+  selected?: boolean
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
@@ -129,6 +139,7 @@ type PanelContainerProps = {
 }
 
 export const PanelContainer = memo(function PanelContainer({
+  dashboardId,
   source,
   cursor,
   panel: sourcePanel,
@@ -154,6 +165,7 @@ export const PanelContainer = memo(function PanelContainer({
   openComments,
   unverifiedReason,
   highlighted,
+  selected = false,
   editingPanel,
   canComment,
   canEdit,
@@ -178,6 +190,7 @@ export const PanelContainer = memo(function PanelContainer({
   const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
+  const commentTool = useCanvasTool((state) => state.tool === "comment")
   const body = panelBodySize(Math.floor(width), Math.floor(height))
   const dataPanel = useMemo(
     () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
@@ -350,6 +363,33 @@ export const PanelContainer = memo(function PanelContainer({
   )
   useEffect(() => () => useHoveredPanel.getState().leave(panelId), [panelId])
 
+  const permissions = useMemo(
+    () => ({ comment: canComment, edit: canEdit }),
+    [canComment, canEdit]
+  )
+  const selectPanel = useMemo(
+    () =>
+      dashboardId === undefined
+        ? undefined
+        : () => useSelectionStore.getState().select(dashboardId, panelId),
+    [dashboardId, panelId]
+  )
+  const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || viewing) return
+    const target = event.target as Element
+    if (target.closest(interactiveTarget)) return
+    if (commentTool) {
+      if (layoutSession) return
+      event.preventDefault()
+      event.stopPropagation()
+      useCanvasTool.getState().setTool("select")
+      commentOnPanel(setSearch, panelId)
+      requestAnimationFrame(() => composerRef.current?.focus())
+      return
+    }
+    if (!target.closest("[data-panel-body]")) selectPanel?.()
+  }
+
   const data = query.data
   const onDownloadCsv = useMemo(
     () =>
@@ -372,12 +412,34 @@ export const PanelContainer = memo(function PanelContainer({
     [state, panelName]
   )
 
+  const panelMenu = (inToolbar: boolean) => (
+    <PanelMenu
+      panel={panel}
+      tableView={tableView}
+      onToggleTableView={() => setTableView((current) => !current)}
+      idle={!layoutSession}
+      viewing={viewing}
+      onDownloadCsv={onDownloadCsv}
+      onSavePng={onSavePng}
+      canComment={canComment}
+      canEdit={canEdit}
+      onToggleResponsive={
+        onToggleResponsive && !layoutSession
+          ? () => onToggleResponsive(panel)
+          : undefined
+      }
+      composerRef={composerRef}
+      inToolbar={inToolbar}
+    />
+  )
+
   return (
     <div
       ref={ref}
-      className="size-full"
+      className="relative size-full"
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
+      onPointerDownCapture={onPointerDownCapture}
     >
       <PanelChrome
         panel={panel}
@@ -388,6 +450,8 @@ export const PanelContainer = memo(function PanelContainer({
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
         highlighted={highlighted}
+        selected={selected}
+        onSelect={viewing ? undefined : selectPanel}
         editing={editingPanel}
         repeatOf={repeatOf}
         datasourceLabel={
@@ -412,25 +476,7 @@ export const PanelContainer = memo(function PanelContainer({
             />
           </>
         }
-        menu={
-          <PanelMenu
-            panel={panel}
-            tableView={tableView}
-            onToggleTableView={() => setTableView((current) => !current)}
-            idle={!layoutSession}
-            viewing={viewing}
-            onDownloadCsv={onDownloadCsv}
-            onSavePng={onSavePng}
-            canComment={canComment}
-            canEdit={canEdit}
-            onToggleResponsive={
-              onToggleResponsive && !layoutSession
-                ? () => onToggleResponsive(panel)
-                : undefined
-            }
-            composerRef={composerRef}
-          />
-        }
+        menu={panelMenu(false)}
       >
         <div ref={bodyRef} className="size-full">
           {dataPanel && query.data ? (
@@ -463,6 +509,17 @@ export const PanelContainer = memo(function PanelContainer({
           ) : null}
         </div>
       </PanelChrome>
+      {selected && !viewing ? (
+        <PanelToolbar
+          panel={panel}
+          permissions={permissions}
+          composerRef={composerRef}
+          from={from}
+          to={to}
+          idle={!layoutSession}
+          menu={panelMenu(true)}
+        />
+      ) : null}
     </div>
   )
 })
