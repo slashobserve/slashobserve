@@ -33,7 +33,11 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 
 The image now ships `observe-agent` and runs on `distroless/base-nossl`, so it is about 44 MB larger to pull (19 MB to 63 MB compressed on arm64) and about 107 MB larger unpacked: the 82 MB binary and a 24 MB C library layer.
 The compose stack raises the server memory limit from 256M to 512M for the same reason.
-`SLASHOBSERVE_AGENT_RUNTIME` defaults to `go` in this release, so a running server behaves as before until you set `sidecar`.
+The default agent runtime is now `sidecar`.
+Set `SLASHOBSERVE_AGENT_RUNTIME=go` to keep the old runtime.
+Memory per server grows by about 50 MiB, the idle size of the `observe-agent` child.
+Run sessions of connected agents now get the built-in agent's guards.
+The server does not start with `sidecar` when `observe-agent` is missing from `PATH` or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 
 ### Migrations
 

@@ -20,7 +20,7 @@ The ceiling of the agent is usually the rate limit of your model provider, not t
 - One Postgres that every server uses, with a [backup](upgrades-and-backups.md).
 - `SLASHOBSERVE_AGENT_WORKERS` on each server.
   It defaults to 8, and the fleet runs the replica count times this many agent requests at once.
-- With `SLASHOBSERVE_AGENT_RUNTIME=sidecar`, each server runs one `observe-agent` child process that works that server's runs, so the fleet runs one per server.
+- With the default `SLASHOBSERVE_AGENT_RUNTIME=sidecar`, each server runs one `observe-agent` child process that works that server's runs, so the fleet runs one per server.
   Measured on a compose stack with the replay model, an idle child holds about 50 MiB resident (`docker top`), and the whole server container, child included, shows about 48 MiB in `docker stats`; the compose server limit is 512M.
 - `limits.maxConcurrentQueries` on each datasource, as the total number of queries the datasource can take from the whole fleet.
   It defaults to 32; see [the datasources file](../reference/datasources-file.md).

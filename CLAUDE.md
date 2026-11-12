@@ -65,7 +65,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `spec/`: `schema/observespec.v0.json` and `schema/defaults.json`, plus `examples/` (valid examples and `invalid/` fixtures with `expected.json`) shared by Go, TS and e2e tests.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
-- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it when `SLASHOBSERVE_AGENT_RUNTIME=sidecar`, and the image ships it at `/usr/local/bin/observe-agent`.
+- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it unless `SLASHOBSERVE_AGENT_RUNTIME=go`, and the image ships it at `/usr/local/bin/observe-agent`.
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
 - `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite), `replicas.sh` (lifecycle of the isolated `slashobserve-replicas` stack: `up`, `down`, `status`, `logs`, `keys`, `stop`, `kill`, `start`, `workers`, `check`, `load`), `evals-stack.sh` (lifecycle of the isolated `slashobserve-evals` stack: `up [--k8s] replay|<env-file>`, `server [--k8s] <env-file>`, `down`, `status`), `demo-k8s.sh` (lifecycle of the Kubernetes demo cluster) and the release tag and notes scripts.

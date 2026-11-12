@@ -114,7 +114,7 @@ func TestAgentRuntimeSetting(t *testing.T) {
 		want    AgentRuntime
 		wantErr string
 	}{
-		{name: "unset is go", want: AgentRuntimeGo},
+		{name: "unset is sidecar", want: AgentRuntimeSidecar},
 		{name: "go", set: "go", want: AgentRuntimeGo},
 		{name: "sidecar", set: "sidecar", want: AgentRuntimeSidecar},
 		{name: "upper case", set: "SIDECAR", want: AgentRuntimeSidecar},

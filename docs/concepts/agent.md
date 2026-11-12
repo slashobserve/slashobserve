@@ -315,8 +315,8 @@ The agent sends what its tools return to the LLM provider, including names, labe
 ## Runtimes
 
 `SLASHOBSERVE_AGENT_RUNTIME` picks where the loop runs.
-With `go`, the default, the loop runs inside the server.
-With `sidecar`, the server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
+With `sidecar`, the default, the server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
+With `go`, the loop runs inside the server.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 Whichever runtime runs, the guards, the limits and the saved result are the same.

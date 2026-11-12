@@ -180,7 +180,7 @@ const (
 	AgentRuntimeGo      AgentRuntime = "go"
 	AgentRuntimeSidecar AgentRuntime = "sidecar"
 
-	defaultAgentRuntime = AgentRuntimeGo
+	defaultAgentRuntime = AgentRuntimeSidecar
 )
 
 type Agent struct {
