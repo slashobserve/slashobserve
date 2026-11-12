@@ -1,0 +1,13 @@
+{
+  "prompt": "timeout twice",
+  "turns": [
+    {
+      "fault": { "kind": "call_timeout" },
+      "tool_calls": [{ "name": "list_metrics" }]
+    },
+    {
+      "fault": { "kind": "call_timeout" },
+      "tool_calls": [{ "name": "create_dashboard" }]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "prompt": "model refuses",
+  "turns": [{ "fault": { "kind": "refusal" }, "text": "x" }]
+}
