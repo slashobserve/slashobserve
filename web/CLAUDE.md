@@ -122,6 +122,9 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 
 ## Design
 
+`web/DESIGN.md` is the design system: tokens, type, layout, shapes and components, in light and dark.
+The rules below are how the code applies it.
+
 - Design tokens come from the M6 design canvas (board WsColors) and live only in `web/src/index.css`, with light and dark values.
   `--chrome` is for the sidebar and app edge only.
 - Radii are `rounded-chip` for chips and tags, `rounded-control` for controls and `rounded-card` for panels and cards.
