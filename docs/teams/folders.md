@@ -6,7 +6,7 @@ description: How folders hold dashboards, observations and saved searches, and w
 Every dashboard lives in one folder.
 A folder also holds the [observations](../use/observations.md) in it, the answers of investigations included, and the logs and trace searches saved in it, and the folder's access rule covers all three: whoever can view the folder can read its dashboards, observations and saved searches, and the levels below decide who may change them.
 A finding is an answer written into an observation, so it follows the folder its observation is in.
-A folder's page lists its dashboards, and below them its **Findings**, the answers about no dashboard whose observation is in the folder, and its **Saved searches**, each only when the folder has some.
+A folder's page lists its dashboards, and below them its **Observations**, with their state and when they last changed, and its **Saved searches**, which appears only when the folder has some.
 Anyone with Edit on a saved search renames, moves or deletes it from its row menu there, and moves an observation, with the finding in it, from the observation's **More actions** menu.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
