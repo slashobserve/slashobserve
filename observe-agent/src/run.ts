@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { log } from "./log"
+import { log, type Fields } from "./log"
 import type { ClaimApi, RunTools } from "./mcp"
 import { isSave } from "./phase"
 import {
@@ -105,6 +105,26 @@ function sessionFailure(error: unknown): FailureCode {
     return "internal"
   }
   return "provider_error"
+}
+
+function failedCallFields(runId: string, error: CallError): Fields {
+  const retryAfterSeconds = error.retryAfterMs / 1_000
+  const optional: Array<[string, string]> = [
+    ["provider_error_type", error.type],
+    ["provider_error_code", error.code],
+    ["provider_error_param", error.param],
+    ["request_id", error.requestId],
+    ["retry_after", retryAfterSeconds > 0 ? String(retryAfterSeconds) : ""],
+    ["provider_error_message", error.providerMessage],
+  ]
+  return {
+    run_id: runId,
+    provider: error.provider,
+    status: error.status,
+    failure_code: error.failure,
+    ...(error.idle ? { idle_timeout: true } : {}),
+    ...Object.fromEntries(optional.filter(([, value]) => value !== "")),
+  }
 }
 
 function failureOf(error: unknown): FailureCode {
@@ -399,6 +419,13 @@ class RunLoop {
     } catch (error) {
       this.modelMs += Date.now() - started
       this.throwIfQuiet(error)
+      if (error instanceof CallError) {
+        log(
+          "warn",
+          "llm call finished",
+          failedCallFields(this.runRef.run_id, error)
+        )
+      }
       if (
         error instanceof CallError &&
         error.failure === "call_timeout" &&

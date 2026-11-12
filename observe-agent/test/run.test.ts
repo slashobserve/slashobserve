@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { configureLog } from "../src/log"
 import { runLoop } from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
+import { CallError, type SessionFactory } from "../src/session/types"
 import {
   FakeClaim,
   claimed,
@@ -410,6 +411,106 @@ describe("model failures", () => {
       outcome: "failed",
       failure_code: "provider_error",
     })
+  })
+})
+
+describe("a failed model call is logged", () => {
+  const written: string[] = []
+  beforeEach(() => {
+    written.length = 0
+    configureLog("warn")
+    spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      written.push(String(chunk))
+      return true
+    })
+  })
+  afterEach(() => {
+    spyOn(process.stderr, "write").mockRestore()
+    configureLog("error")
+  })
+
+  const failing =
+    (error: CallError): SessionFactory =>
+    async () => ({
+      next: async () => {
+        throw error
+      },
+      compact: async () => {},
+    })
+
+  async function driveFailing(error: CallError) {
+    const claim = new FakeClaim()
+    await runLoop(
+      claim,
+      claimed("create happy path"),
+      failing(error),
+      new AbortController().signal,
+      idle
+    )
+    const lines = written.map(
+      (line) => JSON.parse(line) as Record<string, unknown>
+    )
+    return { claim, call: lines.find((l) => l.msg === "llm call finished") }
+  }
+
+  test("the provider error fields are logged under the Go names", async () => {
+    const { claim, call } = await driveFailing(
+      new CallError("openai", "rate_limited", 429, false, {
+        type: "rate_limit_error",
+        code: "rate_limited",
+        param: "model",
+        requestId: "req_abc",
+        retryAfterMs: 7_000,
+      })
+    )
+    expect(claim.finishes[0]).toMatchObject({ failure_code: "rate_limited" })
+    expect(call).toMatchObject({
+      level: "warn",
+      run_id: "11111111-1111-4111-8111-111111111111",
+      provider: "openai",
+      status: 429,
+      failure_code: "rate_limited",
+      provider_error_type: "rate_limit_error",
+      provider_error_code: "rate_limited",
+      provider_error_param: "model",
+      request_id: "req_abc",
+      retry_after: "7",
+    })
+    expect(call).not.toHaveProperty("provider_error_message")
+  })
+
+  test("fields the provider did not send are left out", async () => {
+    const { call } = await driveFailing(
+      new CallError("anthropic", "provider_error")
+    )
+    expect(Object.keys(call ?? {}).sort()).toEqual([
+      "failure_code",
+      "level",
+      "msg",
+      "provider",
+      "run_id",
+      "status",
+      "time",
+    ])
+  })
+
+  test("an idle timeout is marked", async () => {
+    const { call } = await driveFailing(
+      new CallError("openai", "call_timeout", 0, true)
+    )
+    expect(call).toMatchObject({
+      failure_code: "call_timeout",
+      idle_timeout: true,
+    })
+  })
+
+  test("the provider message is logged only when the error carries it", async () => {
+    const { call } = await driveFailing(
+      new CallError("openai", "provider_error", 400, false, {
+        providerMessage: "bad request",
+      })
+    )
+    expect(call).toMatchObject({ provider_error_message: "bad request" })
   })
 })
 
