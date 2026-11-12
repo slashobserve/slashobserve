@@ -30,7 +30,7 @@ const statesDocPath = "../../docs/reference/states.md"
 func statesReference() string {
 	return lifecycle.Render(
 		revisions.RunMachine.Doc("Run", "A run is one agent request, started by `POST /observe`, a comment, a prompt, an investigation or a suggestion."),
-		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, a finding or an annotation, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
+		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, an observation, an annotation or a proposal, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),

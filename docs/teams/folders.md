@@ -1,19 +1,20 @@
 ---
 title: Folders and access
-description: How folders hold dashboards, findings and saved searches, and who can see or change them.
+description: How folders hold dashboards, observations and saved searches, and who can see or change them.
 ---
 
 Every dashboard lives in one folder.
-A folder also holds the findings filed in it and the logs and trace searches saved in it, and the folder's access rule covers all three: whoever can view the folder can read its dashboards, findings and saved searches, and the levels below decide who may change them.
-A folder's page lists its dashboards, and below them its **Findings** and its **Saved searches**, each only when the folder has some.
-Anyone with Edit on a saved search renames, moves or deletes it from its row menu there, and moves a finding from the finding's own page.
+A folder also holds the [observations](../use/observations.md) in it, the answers of investigations included, and the logs and trace searches saved in it, and the folder's access rule covers all three: whoever can view the folder can read its dashboards, observations and saved searches, and the levels below decide who may change them.
+A finding is an answer written into an observation, so it follows the folder its observation is in.
+A folder's page lists its dashboards, and below them its **Findings**, the answers about no dashboard whose observation is in the folder, and its **Saved searches**, each only when the folder has some.
+Anyone with Edit on a saved search renames, moves or deletes it from its row menu there, and moves an observation, with the finding in it, from the observation's **More actions** menu.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
 
 Editors and Admins create folders.
 Anyone with Edit on a folder moves its dashboards into another folder where they have Edit, on the Dashboards page, and deletes a dashboard from its row menu there or from the dashboard's **More** menu, after a confirmation.
 A move needs Edit on both folders and saves no version.
-A folder can be deleted only when it holds no dashboards, findings or saved searches.
+A folder can be deleted only when it holds no dashboards, observations or saved searches.
 A title is 1 to 100 characters and unique without regard to case, and no shared folder can be called My Dashboards.
 
 A folder is open or restricted, and the folder's settings page (**Folder settings** on the Dashboards page) switches it:
@@ -41,7 +42,7 @@ An agent run in My Dashboards spends model tokens and queries every configured d
 My Dashboards has no list and cannot be renamed, shared or deleted.
 It is the first folder on the Dashboards page, and its row there reads "Only you".
 A service-account key has no My Dashboards, so its new dashboards go to General unless it names a folder.
-When a person's account is deleted, their My Dashboards and every dashboard, finding and saved search in it are deleted with it, like their saved prompts.
+When a person's account is deleted, their My Dashboards and every dashboard, observation and saved search in it are deleted with it, like their saved prompts.
 
 Where a new dashboard goes when no folder is named: your My Dashboards; for a key, General.
 

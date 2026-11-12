@@ -60,7 +60,7 @@ var RunMachine = lifecycle.Machine[State, Action]{
 		StateQueued:    "Waiting for a worker.",
 		StateRunning:   "A worker holds its lease and runs the agent.",
 		StateCanceling: "The requester canceled it and its worker is stopping.",
-		StateSucceeded: "It saved its result: a version, a suggestion or a finding.",
+		StateSucceeded: "It saved its result: a version, a suggestion or a finding saved into an observation.",
 		StateFailed:    "It stopped without a result; a build it left can be kept or continued.",
 		StateCanceled:  "The requester canceled it; a build it left can be kept or continued.",
 	},
