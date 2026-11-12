@@ -226,14 +226,15 @@ Without `observation_id`, the server makes a new observation:
   Otherwise it goes in your My Dashboards when you may create there, and otherwise in General when you may create there.
 - When no such folder exists, the investigation still runs, writes no observation, and its `observation_id` is null.
 
-When the agent saves its finding, the finding is saved as before.
-Its conclusion also becomes a text block that starts with `## <title>` and goes on with the finding's Markdown, cut to the 8,000 characters the server accepts in a text block, followed by one panel block for each panel of its evidence.
+When the agent saves its finding, the finding and its conclusion are written in one transaction, and a failure leaves neither.
+The conclusion becomes a text block that starts with `## <title>` and goes on with the finding's Markdown, cut to the 8,000 characters the server accepts in a text block, followed by one panel block for each panel of its evidence.
 The panel blocks show the finding's own window.
 The run block then cites these blocks, and a run adds them once, so saving the finding again adds nothing.
 An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
+A finding saved by a run that has an observation takes its own id, and one saved with no run observation takes the id of the observation it creates; its `observation_id` names the observation either way.
 
 A block is `live` when you can edit the observation's folder at the moment it is written, and `requested` when you can only comment.
-A failure writing these blocks never changes the finding or the investigation's result: the failure is logged and the finding stands.
+When the run's observation is gone, hidden from you, or in a folder you cannot comment in, saving the finding fails and writes nothing, instead of opening a second observation.
 A server error while the observation is opened queues nothing and answers the request with that error.
 
 `observation_id` on a run is the observation it writes into, and `GET /api/v1/observe/{id}` and `observe investigate --json` carry it.

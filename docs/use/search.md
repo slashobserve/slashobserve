@@ -1,10 +1,10 @@
 ---
 title: Search
-description: Find dashboards, findings, annotations, observations, comments and saved searches by their words, ranked by relevance, showing each person only what they can open.
+description: Find dashboards, observations, annotations, comments and saved searches by their words, ranked by relevance, showing each person only what they can open.
 ---
 
 Search finds past work by its words.
-One query covers dashboards, findings, annotations, observations, comments and saved logs and trace searches, and ranks the matches together.
+One query covers dashboards, annotations, observations, comments and saved logs and trace searches, and ranks the matches together.
 You call it with `GET /api/v1/search`, which needs the Viewer role or higher and works with a session or a service-account key.
 
 ## What each kind matches
@@ -12,9 +12,8 @@ You call it with `GET /api/v1/search`, which needs the Viewer role or higher and
 | Kind | Title and tags | Text | Query text |
 | --- | --- | --- | --- |
 | `dashboard` | Title and tags. | Description, and the titles and descriptions of panels, rows included. | The query of every panel, rows included. |
-| `finding` | Title. | The text of the finding, and the titles and descriptions of its evidence panels. | The queries of its evidence panels. |
 | `annotation` | The first line of its text, and its tags. | The text. | None. |
-| `observation` | Title. | The summary, and the Markdown of its live text blocks. | None. |
+| `observation` | Title. | The summary, and the Markdown of its live text blocks, which hold an investigation's answer. | None. |
 | `comment` | None. | One message, with each mention read as `@Name`. | None. |
 | `saved_search` | Title. | The service and span filters of a trace search. | The query of a logs search. |
 
@@ -23,15 +22,15 @@ A comment is one message, not a whole thread, and a result for it names the obje
 Folders, text panel content and prompts are not searched.
 A match in a title or a tag counts for more than a match in the text, and a match in query text counts for less.
 Query text is searched as plain words, so `http_requests_total` is found by `http_requests_total` and by `requests`.
+A finding's answer lives in its observation, so a finding is found as that observation and never as a separate result.
 
 ## Who finds what
 
 A result appears only when you can open the object it points to.
-A dashboard is found through its folder, and so are its annotations, findings and comments.
-A finding filed in a folder, an [observation](observations.md) and a saved search are found through that folder.
+A dashboard is found through its folder, and so are its annotations and comments.
+An [observation](observations.md), its comments and a saved search are found through the folder each is in.
 A global annotation, one on no dashboard, and its comments are found by everyone who can read General.
 A comment is found by whoever can read what it is on.
-An unfiled finding, one on no dashboard and in no folder, is found only by the person or key that saved it and by Admins.
 Personal folders stay private, Admins included.
 A result never shows a title or a snippet of something you cannot open, and a move, a delete or an edit changes the results at once.
 
@@ -65,7 +64,7 @@ A query returns at most 200 results, so refine the words to see more.
 | Parameter | Meaning |
 | --- | --- |
 | `q` | The words to search for. Required. |
-| `kind` | Only results of this kind: `dashboard`, `finding`, `annotation`, `observation`, `comment` or `saved_search`. Repeat it for several. |
+| `kind` | Only results of this kind: `dashboard`, `annotation`, `observation`, `comment` or `saved_search`. Repeat it for several. `finding` is deprecated, is removed in the next release and means `observation`, so a search that names both returns each observation once. |
 | `limit` | 1 to 50 results, 20 by default. |
 | `cursor` | The `next_cursor` of the previous page. |
 
@@ -74,12 +73,12 @@ Each result has these fields.
 
 | Field | Meaning |
 | --- | --- |
-| `kind` | One of the six kinds. |
+| `kind` | One of the five kinds. |
 | `id` | The id of the object, or of the message for a comment. |
 | `title` | The title of the object, or for a comment, of what it is on. |
 | `snippet` | Up to two fragments of the text around the matched words, as `{"text", "match"}` segments of at most 300 characters in all. A segment with `match` set is a matched word. Render it as text, never as HTML. |
 | `url` | The page that shows the object, or null for an annotation on no dashboard. |
-| `folder` | The `id` and `title` of the folder the result is read through, or null for an unfiled finding. |
+| `folder` | The `id` and `title` of the folder the result is read through, or null for an annotation on no dashboard. |
 | `target` | For a comment, the `kind`, `id` and `title` of what it is on, else null. |
 | `thread_id` | For a comment, its thread, else null. |
 | `updated_at` | When the object last changed, or for a comment, when it was written or last edited. |

@@ -68,7 +68,7 @@ In a terminal, the progress goes to standard output with the last line: the agen
 When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 latency")` or a pipe, standard output holds only the address, and the steps, the panel lines and `Saved version N` go to standard error, one per line.
 `-q` hides the steps, the panel lines and `Saved version N`, and prints only the address.
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
-A prompt that only asks a question ends with a finding, which the CLI prints as `observe investigate` does.
+A prompt that only asks a question ends with an answer saved into an [observation](observations.md), which the CLI prints as `observe investigate` does.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 `--open` opens the dashboard address in the browser once it is saved, with `open` on macOS, `xdg-open` on Linux and the URL handler on Windows; when the opener is missing or fails, the CLI prints a warning and still exits 0.
@@ -174,10 +174,13 @@ It exits 1 when the investigation fails or ends without a finding.
 
 ## Findings
 
+`observe findings` is deprecated and is removed in the next release: a finding is an answer saved into an observation, and `bin/observe o list` lists them (see [Observations](#observations)).
+Both subcommands print `observe findings is deprecated and is removed in the next release` and the replacement to standard error before they run, and their standard output and `--json` output are unchanged.
+
 `bin/observe findings list` prints your own findings, newest first, with where each one lives: a dashboard, a folder, or `-` for a finding in no folder.
 `--dashboard <id>` lists the findings on one dashboard and `--folder <id>` those filed in one folder, never both, and `--limit` and `--cursor` page through the result.
 
-`bin/observe findings move <finding-id> --folder <folder-id>` moves a finding without a dashboard into another folder and prints `Moved <title> to <folder title>`.
+`bin/observe findings move <finding-id> --folder <folder-id>` moves a finding without a dashboard into another folder and prints `Moved <title> to <folder title>`; to move an observation, use the web app.
 It needs Edit on the finding and on the folder, and a finding on a dashboard or a move into My Dashboards is refused with a 409.
 `--json` prints the response of `GET /api/v1/findings` or `POST /api/v1/findings/{id}/move` unchanged.
 
@@ -232,8 +235,9 @@ The kind, datasource, query and range of a saved search never change: save a new
 
 ## Comments
 
-Comments on a dashboard, a finding, an annotation or a proposal can be worked from the terminal.
-A target is written `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `proposal`, for example `finding:0a1b2c3d-0000-4000-8000-000000000001`.
+Comments on a dashboard, an annotation or a proposal can be worked from the terminal, and so can the discussion of a finding's observation.
+A target is written `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `proposal`, for example `dashboard:0a1b2c3d-0000-4000-8000-000000000001`.
+The kind `finding` is deprecated and is removed in the next release: it resolves to the finding's observation discussion, and the thread it opens or lists says `observation` as its target kind.
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
   `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
@@ -450,11 +454,11 @@ The server keeps a connection's last 20 imports, and an interrupt stops the wait
 
 ## Search
 
-`bin/observe search` finds dashboards, findings, annotations, observations, comments and saved searches by words, ranked by relevance, as the [search](search.md) of the web app does:
+`bin/observe search` finds dashboards, annotations, observations, comments and saved searches by words, ranked by relevance, as the [search](search.md) of the web app does:
 
 ```sh
 bin/observe search checkout latency
-bin/observe search "connection reset" --kind comment --kind finding -- -staging
+bin/observe search "connection reset" --kind comment --kind observation -- -staging
 ```
 
 ```text
@@ -466,7 +470,7 @@ Every word must match, and the page explains the rest of the syntax: quoted phra
 Write words that start with `-` after `--`, so the command does not read them as flags.
 A line holds the kind, the title, the folder and the address of the page that opens the result, with `no folder` or `no page` when it has none, and the snippet is indented on the line below.
 A comment shows the title of what it is on.
-`--kind` takes `dashboard`, `finding`, `annotation`, `observation`, `comment` or `saved_search` and repeats, `--limit` prints 1 to 50 results (20 by default) and `--cursor` continues from the cursor a full page prints.
+`--kind` takes `dashboard`, `annotation`, `observation`, `comment` or `saved_search` and repeats (`finding` is deprecated and means `observation`), `--limit` prints 1 to 50 results (20 by default) and `--cursor` continues from the cursor a full page prints.
 `--json` prints the response of `GET /api/v1/search` unchanged, and no match prints `No results.`
 You find only what the key can read.
 

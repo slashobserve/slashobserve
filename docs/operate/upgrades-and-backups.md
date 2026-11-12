@@ -62,6 +62,22 @@ Migration 37 adds the assignment columns on runs, `run_tokens`, `agent_workers`,
 A server older than this release claims runs without looking at who they are assigned to, so stop the old servers before any run is assigned to an outside agent.
 To go back, check that no run is assigned to an outside agent, then run `goose down-to 36` against the database before starting an older binary.
 
+### Upgrading to the release that turns findings into observations
+
+Migration 41 gives every finding an observation and makes `findings.observation_id` required.
+A finding that an investigation saved keeps the observation of its run.
+Every other finding becomes a resolved observation with the finding's id, filed in the folder the finding was in, else its dashboard's folder, else the saver's My Dashboards, else General, with the finding's text as a text block and each evidence panel as a panel block.
+The comment threads of a finding are merged into one discussion on its observation, which is reopened when any of them was open, and the activity of a finding moves to its observation and that observation's folder.
+Take the backup first.
+Stop every old server before the first new one starts, because an older server saves findings without an observation and opens threads on a finding, which the new schema refuses.
+
+To go back, run `goose down-to 39` against the database before starting an older binary.
+The down section has costs:
+
+- Threads that were merged stay merged, and are not split into their original threads again.
+- The observations that were made from findings are deleted with everything on them, so edits, blocks and resolves made on them since the upgrade are lost; the observation of a run is kept.
+- A finding with no dashboard comes back filed in the folder of its observation, so a finding that a service account saved with no folder comes back filed in General.
+
 ### Upgrading from an early release
 
 Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
