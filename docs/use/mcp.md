@@ -451,4 +451,5 @@ A connected agent or service account shows its presence, `working` while it hold
 A connection's `mode` is `direct` by default.
 Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`; it applies from the agent's next request, and no key or agent can change it.
 In propose mode `update_dashboard` and `update_panels` save a proposal and answer `proposed` even when the person is an Editor, `merge_proposal` answers `propose_mode`, and `discard_proposal` works only on a proposal the agent itself opened.
+A save that removes panels or variables answers `proposal_required` and names them, so the agent asks its person to remove them; the same holds when a run ends with `finish` on a build that removed any.
 `create_dashboard` is not changed by the mode.

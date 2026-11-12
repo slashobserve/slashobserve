@@ -1459,3 +1459,23 @@ func TestAFinishSaveByARequesterWhoCannotEditAnswersProposedAndSavesNoVersion(t 
 		})
 	}
 }
+
+func TestAProposeModeFinishThatRemovedAPanelAnswersProposalRequiredAndKeepsTheBuild(t *testing.T) {
+	rig := newPanelsRig(t)
+	id := rig.seedStats(t)
+	run := rig.reviseRun(grantmode.With(rig.ctx, grantmode.Propose), t, id)
+
+	res, _ := run.run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,"summary":"Remove","delete":["p2"],"finish":true}`)
+	out, ok := res.Content.(proposalRequiredOut)
+	if !res.IsError || !ok || out.Code != codeProposalRequired || len(out.Removed) != 1 || out.Removed[0].ID != "p2" {
+		t.Fatalf("res = %#v", res.Content)
+	}
+	if got := rig.latest(t, id).Number; got != 1 {
+		t.Fatalf("the refused finish saved version %d", got)
+	}
+
+	res, _ = run.run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,"summary":"Restore","upsert":[`+suggestStat("p2", "Two", "sum(up)", 4)+`],"finish":true}`)
+	if _, ok := res.Content.(proposedOut); res.IsError || !ok {
+		t.Fatalf("after putting the panel back: res = %#v", res.Content)
+	}
+}

@@ -433,6 +433,12 @@ func (s *Service) diff(c *gin.Context) {
 	c.JSON(http.StatusOK, diffJSON{From: fromN, To: toN, Changes: changes})
 }
 
+type proposalRequiredJSON struct {
+	Error   string            `json:"error"`
+	Code    string            `json:"code"`
+	Removed []spec.UnitChange `json:"removed"`
+}
+
 func (s *Service) Fail(c *gin.Context, action string, err error) {
 	s.fail(c, action, err)
 }
@@ -442,6 +448,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	var conflict *ConflictError
 	var invalid *InvalidSpecError
 	var invalidInput *InvalidInputError
+	var proposalRequired *ProposalRequiredError
 	if clientgone.Handle(c, s.logger, action, err) {
 		return
 	}
@@ -456,6 +463,8 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest, Conflicts: conflict.Conflicts})
+	case errors.As(err, &proposalRequired):
+		c.AbortWithStatusJSON(http.StatusConflict, proposalRequiredJSON{Error: proposalRequired.Error(), Code: "proposal_required", Removed: proposalRequired.Removed})
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.As(err, &invalidInput):

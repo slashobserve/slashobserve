@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func (r *rig) saveConcurrent(t *testing.T, dash pgtype.UUID, parent int, raw []byte) {
@@ -218,6 +219,36 @@ func TestAnEditorsBuildCommitsAsAVersionUnlessTheRunActsInProposeMode(t *testing
 				t.Fatalf("proposal %+v, version %d, proposer calls %d, want proposal %v, version %d, calls %d", commit.Proposal, commit.Version.Number, len(seen), tc.wantProposal, tc.wantVersion, tc.wantProposals)
 			}
 		})
+	}
+}
+
+func TestAProposeModeBuildThatRemovedAPanelIsRefusedAtCommitAndKeepsTheBuild(t *testing.T) {
+	r, _ := newProbeRig(t)
+	dash := r.createDashboard(t, "p1", "p2")
+	id := r.runningRequest(t, dash)
+	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1"), "p1"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var seen []ProposeInput
+	r.proposeThroughTheDatabase(&seen)
+
+	_, err := r.service.CommitBuild(grantmode.With(t.Context(), grantmode.Propose), testUser, id, buildAttempt)
+	var refused *ProposalRequiredError
+	if !errors.As(err, &refused) || len(refused.Removed) != 1 || refused.Removed[0].ID != "p2" || refused.Removed[0].Kind != spec.UnitPanel {
+		t.Fatalf("err = %v, want proposal_required removing panel p2", err)
+	}
+	if len(seen) != 0 {
+		t.Fatalf("the proposer ran %d times", len(seen))
+	}
+	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+		t.Fatalf("the build was lost: found = %v, err %v", found, err)
+	}
+
+	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	if err != nil || commit.Version.Number != 2 {
+		t.Fatalf("the same build outside propose mode: version %d, err %v", commit.Version.Number, err)
 	}
 }
 

@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -426,5 +428,80 @@ func TestAVersionNamesTheProposalItWasMergedFromOrNull(t *testing.T) {
 	raw, err = json.Marshal(newVersionMetaJSON(meta))
 	if err != nil || !strings.Contains(string(raw), `"merged_proposal_id":null`) {
 		t.Fatalf("direct version = %s, %v", raw, err)
+	}
+}
+
+func TestAProposeModeSaveThatRemovesPanelsOrVariablesIsRefusedAndWritesNothing(t *testing.T) {
+	const variable = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(up, instance)"}`
+	r, _ := newProbeRig(t)
+	dash := r.createSpec(t, specDef{variables: variable, panels: numberedPanels(3)})
+	proposed := 0
+	r.service.SetProposer(func(context.Context, auth.Principal, ProposeInput) (ProposalRef, error) {
+		proposed++
+		return ProposalRef{ID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", Revision: 1, Opened: true}, nil
+	})
+	propose := grantmode.With(t.Context(), grantmode.Propose)
+	save := func(ctx context.Context, by auth.Principal, def specDef) (SaveResult, error) {
+		return r.service.Save(ctx, by, SaveInput{DashboardID: dash, Parent: 1, Spec: def.json(), Summary: "idea", ProposeIfNeeded: true})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		def     specDef
+		removed []spec.UnitChange
+		message string
+	}{
+		{"a panel", specDef{variables: variable, panels: numberedPanels(2)}, []spec.UnitChange{{Kind: spec.UnitPanel, ID: "p2", Change: spec.ChangeRemoved}},
+			`This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove panel "p2"`},
+		{"a variable", specDef{panels: numberedPanels(3)}, []spec.UnitChange{{Kind: spec.UnitVariable, ID: "inst", Change: spec.ChangeRemoved}},
+			`This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove variable "inst"`},
+		{"a panel and a variable", specDef{panels: numberedPanels(1)}, []spec.UnitChange{
+			{Kind: spec.UnitPanel, ID: "p1", Change: spec.ChangeRemoved},
+			{Kind: spec.UnitPanel, ID: "p2", Change: spec.ChangeRemoved},
+			{Kind: spec.UnitVariable, ID: "inst", Change: spec.ChangeRemoved},
+		}, `This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove panel "p1", panel "p2", variable "inst"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := save(propose, testUser, tc.def)
+			var refused *ProposalRequiredError
+			if !errors.As(err, &refused) || !slices.Equal(refused.Removed, tc.removed) || refused.Error() != tc.message {
+				t.Fatalf("err = %v (%+v), want proposal_required removing %+v with %q", err, refused, tc.removed, tc.message)
+			}
+		})
+	}
+	if got := r.latestNumber(t, dash); got != 1 || proposed != 0 {
+		t.Fatalf("latest = %d, proposer ran %d times, want no version and no proposal", got, proposed)
+	}
+
+	changed := specDef{variables: variable, panels: []panelDef{{id: "p0", query: "changed"}, {id: "p1", query: "m1"}, {id: "p2", query: "m2"}}}
+	if res, err := save(propose, testUser, changed); err != nil || res.Proposal == nil || proposed != 1 {
+		t.Fatalf("a propose-mode change that removes nothing: proposal %+v, err %v, proposer calls %d", res.Proposal, err, proposed)
+	}
+
+	removing := specDef{panels: numberedPanels(2)}
+	if res, err := save(t.Context(), commenterNoGrant, removing); err != nil || res.Proposal == nil || proposed != 2 {
+		t.Fatalf("a commenter outside propose mode removing units: proposal %+v, err %v, proposer calls %d", res.Proposal, err, proposed)
+	}
+}
+
+func TestAProposalRequiredFailureAnswers409WithTheRemovedUnits(t *testing.T) {
+	r, _ := newProbeRig(t)
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	r.service.Fail(c, "save", &ProposalRequiredError{Removed: []spec.UnitChange{{Kind: spec.UnitPanel, ID: "p1", Change: spec.ChangeRemoved}}})
+
+	var body struct {
+		Error   string            `json:"error"`
+		Code    string            `json:"code"`
+		Removed []spec.UnitChange `json:"removed"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusConflict || body.Code != "proposal_required" || !strings.HasSuffix(body.Error, `ask your person to remove panel "p1"`) || len(body.Removed) != 1 || body.Removed[0].ID != "p1" {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
 	}
 }

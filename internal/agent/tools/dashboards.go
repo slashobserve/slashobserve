@@ -36,6 +36,8 @@ const (
 	codeNotFound        = "not_found"
 	codeProposed        = "proposed"
 
+	codeProposalRequired = "proposal_required"
+
 	proposedStep    = "Proposed for an Editor to merge"
 	proposedMessage = "Nothing was saved to the dashboard: your change is a proposal waiting for someone who can edit it to merge."
 
@@ -298,6 +300,13 @@ type proposedOut struct {
 	Opened     bool   `json:"opened"`
 	URL        string `json:"url"`
 	Message    string `json:"message"`
+}
+
+type proposalRequiredOut struct {
+	Code      string            `json:"code"`
+	Message   string            `json:"message"`
+	Removed   []spec.UnitChange `json:"removed"`
+	Truncated bool              `json:"truncated,omitempty"`
 }
 
 type conflictOut struct {
@@ -634,7 +643,12 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 func saveFailure(err error) (Result, error) {
 	var invalidSpec *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
+	var proposalRequired *dashboards.ProposalRequiredError
 	switch {
+	case errors.As(err, &proposalRequired):
+		removed, truncated := fit(slices.Clone(proposalRequired.Removed), listBudget)
+		message := (&dashboards.ProposalRequiredError{Removed: removed}).Error()
+		return failure("Save rejected: "+codeProposalRequired, proposalRequiredOut{Code: codeProposalRequired, Message: message, Removed: removed, Truncated: truncated}), nil
 	case errors.As(err, &invalidSpec):
 		issues, truncated := fit(slices.Clone(invalidSpec.Issues), listBudget)
 		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil

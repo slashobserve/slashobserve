@@ -843,6 +843,59 @@ func TestSavesBecomeProposalsWhenTheCallerCannotEditDirectly(t *testing.T) {
 	})
 }
 
+func TestAProposeModeSaveThatRemovesAPanelAnswersProposalRequiredAndWritesNothing(t *testing.T) {
+	rig := newPanelsRig(t)
+	ctx := grantmode.With(auth.WithPrincipal(context.Background(), editorCaller), grantmode.Propose)
+	deleting := func(id string) string {
+		return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":1,"summary":"Remove","delete":["p2"]}`, id)
+	}
+	dropping := func(id string) string {
+		return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":1,"summary":"Remove","spec":%s}`, id, boardSpecOf(suggestStat("p1", "One", "count(up)", 0), rowPanel("r1", 8, suggestStat("p3", "Three", "max(up)", 9))))
+	}
+
+	for name, call := range map[string]struct {
+		tool  string
+		input func(id string) string
+	}{
+		"update_panels with a delete":                {nameUpdatePanels, deleting},
+		"update_dashboard without one of its panels": {nameUpdateDashboard, dropping},
+	} {
+		t.Run(name, func(t *testing.T) {
+			id := rig.seedStats(t)
+			res, _ := rig.as(ctx).run(t, call.tool, call.input(id))
+			out, ok := res.Content.(proposalRequiredOut)
+			if !res.IsError || !ok || out.Code != codeProposalRequired || len(out.Removed) != 1 || out.Removed[0].ID != "p2" || out.Removed[0].Kind != spec.UnitPanel {
+				t.Fatalf("res = %#v", res.Content)
+			}
+			if want := `This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove panel "p2"`; out.Message != want {
+				t.Errorf("message = %q, want %q", out.Message, want)
+			}
+			if res.Step != "Save rejected: proposal_required" {
+				t.Errorf("step = %q", res.Step)
+			}
+			if got := rig.latest(t, id).Number; got != 1 {
+				t.Fatalf("a refused save wrote version %d", got)
+			}
+		})
+	}
+
+	t.Run("the same caller changing a panel still proposes", func(t *testing.T) {
+		id := rig.seedStats(t)
+		res, _ := rig.as(ctx).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+suggestStat("p1", "Proposed", "count(up)", 0)+`]`))
+		if out, ok := res.Content.(proposedOut); res.IsError || !ok || out.Code != codeProposed {
+			t.Fatalf("res = %#v", res.Content)
+		}
+	})
+
+	t.Run("a commenter outside propose mode may still propose a removal", func(t *testing.T) {
+		id := rig.seedStats(t)
+		res, _ := rig.as(auth.WithPrincipal(context.Background(), commenterCaller)).run(t, nameUpdatePanels, deleting(id))
+		if out, ok := res.Content.(proposedOut); res.IsError || !ok || out.Code != codeProposed {
+			t.Fatalf("res = %#v", res.Content)
+		}
+	})
+}
+
 func mustPrincipal(ctx context.Context, t *testing.T) auth.Principal {
 	t.Helper()
 	p, ok := auth.FromContext(ctx)

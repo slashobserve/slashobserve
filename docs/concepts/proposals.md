@@ -16,6 +16,7 @@ The answer is `202` with the `proposal_id`, the `revision` and whether the save 
 Without `propose_if_needed`, the same save is refused with `403`.
 A Viewer can never propose.
 A connected agent in propose mode can never write a version directly, even when its person is an Editor.
+It also cannot remove panels or variables: such a save answers `proposal_required` and names them, and nothing is proposed, so the agent asks its person to remove them.
 
 ## One open proposal for each author
 

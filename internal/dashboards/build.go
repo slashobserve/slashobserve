@@ -270,6 +270,9 @@ func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, request
 }
 
 func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Build, access folders.DashboardAccess, deleteBuild func(q *dbsqlc.Queries) error) (Commit, error) {
+	if err := s.refuseRemovals(ctx, build.DashboardID, build.BaseVersion, build.Spec); err != nil {
+		return Commit{}, err
+	}
 	ref, err := s.proposer(ctx, by, ProposeInput{
 		DashboardID: build.DashboardID,
 		BaseVersion: build.BaseVersion,

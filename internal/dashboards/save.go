@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -68,6 +69,38 @@ func (s *Service) SetProposer(p Proposer) {
 	s.proposer = p
 }
 
+type ProposalRequiredError struct {
+	Removed []spec.UnitChange
+}
+
+func (e *ProposalRequiredError) Error() string {
+	units := make([]string, len(e.Removed))
+	for i, u := range e.Removed {
+		units[i] = fmt.Sprintf("%s %q", u.Kind, u.ID)
+	}
+	return "This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove " + strings.Join(units, ", ")
+}
+
+func (s *Service) refuseRemovals(ctx context.Context, id pgtype.UUID, base int, next *spec.Dashboard) error {
+	if grantmode.From(ctx) != grantmode.Propose {
+		return nil
+	}
+	parent, err := s.VersionSpec(ctx, id, base)
+	if err != nil {
+		return err
+	}
+	var removed []spec.UnitChange
+	for _, c := range spec.Changes(parent, next) {
+		if c.Change == spec.ChangeRemoved && (c.Kind == spec.UnitPanel || c.Kind == spec.UnitVariable) {
+			removed = append(removed, c)
+		}
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	return &ProposalRequiredError{Removed: removed}
+}
+
 type savedDocument struct {
 	summary   string
 	parsed    *spec.Dashboard
@@ -100,6 +133,9 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 	}
 	summary, parsed, _, err := validateSave(in.Spec, in.Summary, "")
 	if err != nil {
+		return SaveResult{}, err
+	}
+	if err := s.refuseRemovals(ctx, in.DashboardID, in.Parent, parsed); err != nil {
 		return SaveResult{}, err
 	}
 	ref, err := s.proposer(ctx, by, ProposeInput{
