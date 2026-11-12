@@ -88,6 +88,7 @@ type Props = {
   draft: string
   onDraftChange: (text: string) => void
   gate: AgentGate
+  canEdit: boolean
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
@@ -96,10 +97,6 @@ type Props = {
 }
 
 const counterThreshold = 3500
-const commands = availableCommands({
-  hasDashboard: true,
-  surface: "activity",
-})
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
   "The agent is no longer available. Your text is still here."
@@ -153,12 +150,18 @@ export function ActivityComposer({
   draft,
   onDraftChange,
   gate,
+  canEdit,
   placeholder,
   textareaRef,
   notice,
   runningRequestId,
   range,
 }: Props) {
+  const commands = availableCommands({
+    hasDashboard: true,
+    surface: "activity",
+    canInvestigate: canEdit,
+  })
   const counterId = useId()
   const textareaId = useId()
   const errorId = useId()

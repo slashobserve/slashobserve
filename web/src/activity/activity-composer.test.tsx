@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { useState } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ActivityComposer, type Target } from "./activity-composer"
+import { useActivityStore } from "./activity-store"
 import type { AgentGate } from "./agent-gate"
 
 const mutation = { mutate: vi.fn(), isPending: false }
@@ -44,7 +46,8 @@ const panels = [
 function renderComposer({
   gate = { kind: "allowed" },
   draft = "Raise the threshold",
-}: { gate?: AgentGate; draft?: string } = {}) {
+  canEdit = true,
+}: { gate?: AgentGate; draft?: string; canEdit?: boolean } = {}) {
   const onTargetChange = vi.fn<(target: Target) => void>()
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -57,6 +60,7 @@ function renderComposer({
         draft={draft}
         onDraftChange={vi.fn()}
         gate={gate}
+        canEdit={canEdit}
         placeholder="Write a comment"
         range={{ from: "now-1h", to: "now" }}
       />
@@ -69,6 +73,10 @@ function renderComposer({
 }
 
 describe("ActivityComposer", () => {
+  beforeEach(() => {
+    useActivityStore.getState().setAgentKind("revise")
+  })
+
   it("holds the target combobox, starting with the whole dashboard, and the mention picker", async () => {
     const user = userEvent.setup()
     const { form } = renderComposer()
@@ -118,6 +126,47 @@ describe("ActivityComposer", () => {
     ).not.toBeInTheDocument()
     expect(within(form).getByText(reason)).toBeVisible()
   })
+
+  it.each([
+    [true, "Investigate"],
+    [false, "Send to agent"],
+  ])(
+    "with Edit %s, typing /investigate makes the send button say %s",
+    async (canEdit, label) => {
+      const user = userEvent.setup()
+      function Harness() {
+        const [draft, setDraft] = useState("")
+        return (
+          <QueryClientProvider client={new QueryClient()}>
+            <ActivityComposer
+              dashboardId="dashboard"
+              latestVersion={3}
+              panels={panels}
+              target={{ kind: "dashboard" }}
+              onTargetChange={vi.fn()}
+              draft={draft}
+              onDraftChange={setDraft}
+              gate={{ kind: "allowed" }}
+              canEdit={canEdit}
+              placeholder="Write a comment"
+              range={{ from: "now-1h", to: "now" }}
+            />
+          </QueryClientProvider>
+        )
+      }
+      render(<Harness />)
+      await user.type(
+        screen.getByRole("textbox", { name: "Comment or request" }),
+        "/investigate why is latency up"
+      )
+      expect(screen.getByRole("button", { name: label })).toBeVisible()
+      expect(
+        screen.getByRole("textbox", { name: "Comment or request" })
+      ).toHaveValue(
+        canEdit ? "why is latency up" : "/investigate why is latency up"
+      )
+    }
+  )
 
   it("disables adding a comment while the draft is empty", () => {
     const { form } = renderComposer({ draft: "  " })

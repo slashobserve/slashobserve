@@ -428,6 +428,7 @@ export function ActivityFeed({
           draft={draft}
           onDraftChange={onDraftChange}
           gate={gate}
+          canEdit={permissions.edit}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
