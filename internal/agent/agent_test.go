@@ -2110,7 +2110,7 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 34 || len(offered) != len(registry.List())-35 {
+	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 35 || len(offered) != len(registry.List())-36 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }
