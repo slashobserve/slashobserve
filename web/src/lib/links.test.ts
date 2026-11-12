@@ -12,6 +12,8 @@ import {
   observationLink,
   observationPath,
   observationsLink,
+  proposalLink,
+  proposalPath,
   slugOf,
   traceLink,
   traceUrl,
@@ -142,5 +144,21 @@ describe("logs and trace addresses", () => {
     ).toBe(
       "/logs?ds=loki&q=%7Bservice_name%3D%22checkout%22%7D&from=now-1h&to=now"
     )
+  })
+})
+
+describe("proposal addresses", () => {
+  const id = "9a7b6c5d-4e3f-4a2b-8c1d-0e9f8a7b6c5d"
+
+  it("builds the proposal path and escapes the id", () => {
+    expect(proposalPath(id)).toBe(`/proposals/${id}`)
+    expect(proposalPath("a/b")).toBe("/proposals/a%2Fb")
+  })
+
+  it("gives the router the proposal id", () => {
+    expect(proposalLink(id)).toEqual({
+      to: "/proposals/$proposalId",
+      params: { proposalId: id },
+    })
   })
 })
