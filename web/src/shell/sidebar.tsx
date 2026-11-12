@@ -104,12 +104,15 @@ function UnreadMark({
     return (
       <span
         aria-hidden="true"
-        className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-foreground"
+        className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary"
       />
     )
   }
   return (
-    <span aria-hidden="true" className="ml-auto text-xs text-muted-foreground">
+    <span
+      aria-hidden="true"
+      className="ml-auto grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+    >
       {badge}
     </span>
   )

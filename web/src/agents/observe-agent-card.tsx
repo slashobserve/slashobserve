@@ -2,7 +2,7 @@ import { useId } from "react"
 import { Link } from "@tanstack/react-router"
 
 import { AuthorMark } from "@/components/author-mark"
-import { Badge } from "@/components/ui/badge"
+import { StatusLabel } from "@/components/status-label"
 import { markOf, type Actor } from "@/lib/author"
 
 import { agentLink } from "./agent-ref"
@@ -22,6 +22,16 @@ const observeActor: Pick<
 }
 
 export const observeAgentMark = markOf(observeActor)
+
+export function PowerState({ enabled }: { enabled: boolean }) {
+  return enabled ? (
+    <span className="text-[13px] font-medium">
+      <StatusLabel tone="ok">On</StatusLabel>
+    </span>
+  ) : (
+    <span className="text-[13px] text-muted-foreground">Off</span>
+  )
+}
 
 function modelLine(agent: AgentsOverview["observe_agent"]): string {
   return agent.model === null
@@ -50,9 +60,7 @@ export function ObserveAgentCard({
             Observe Agent
           </Link>
         </h2>
-        <Badge variant={agent.enabled ? "default" : "outline"}>
-          {agent.enabled ? "On" : "Off"}
-        </Badge>
+        <PowerState enabled={agent.enabled} />
         <span className="text-[13px] text-muted-foreground">
           {modelLine(agent)}
         </span>

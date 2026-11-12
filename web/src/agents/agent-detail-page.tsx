@@ -6,7 +6,6 @@ import { ApiError } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ModeSelect } from "@/connected-agents/mode-select"
@@ -16,7 +15,7 @@ import { sentence } from "@/observe/queries"
 
 import { findAgent, type AgentRef, type FoundAgent } from "./agent-ref"
 import { PresenceStatus, grantMark } from "./connected-table"
-import { observeAgentMark } from "./observe-agent-card"
+import { observeAgentMark, PowerState } from "./observe-agent-card"
 import { agentsQuery } from "./queries"
 import { accountMark } from "./service-accounts-table"
 import { scopeLine, statCells, type Stats } from "./stats"
@@ -92,11 +91,7 @@ function headerOf(found: FoundAgent, personName: string): Header {
         name: "Observe Agent",
         subtitle: "Runs for anyone who asks",
         controls: null,
-        status: (
-          <Badge variant={found.row.enabled ? "default" : "outline"}>
-            {found.row.enabled ? "On" : "Off"}
-          </Badge>
-        ),
+        status: <PowerState enabled={found.row.enabled} />,
       }
     case "grant":
       return {
