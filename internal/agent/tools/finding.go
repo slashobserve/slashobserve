@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -17,8 +16,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
-	"github.com/slashobserve/slashobserve/internal/logattrs"
-	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -45,6 +42,10 @@ const (
 	descMoveFinding = "Move a finding without a dashboard into another folder, which shares it with that folder's readers. Needs Edit on the finding and on the folder; a finding on a dashboard follows the dashboard."
 
 	schemaMoveFinding = `{"type":"object","properties":{"finding_id":{"type":"string","format":"uuid","description":"The finding to move, from list_findings."},"folder_id":{"type":"string","format":"uuid","description":"The folder to move it into, from list_folders. Not My Dashboards."}},"required":["finding_id","folder_id"],"additionalProperties":false}`
+
+	noticeListFindings  = "Deprecated: findings are observations now; use list_observations."
+	noticeCreateFinding = "Deprecated: findings are observations now; use create_observation, then add_block."
+	noticeMoveFinding   = "Deprecated: findings are observations now; moving is done in the web app or with POST /api/v1/observations/{id}/move."
 
 	propFindingsFolderID = `"folder_id":{"type":"string","format":"uuid","description":"Only findings filed in this folder, from list_folders."}`
 
@@ -93,8 +94,14 @@ type findingSavedOut struct {
 	Evidence  int    `json:"evidence"`
 }
 
+type findingCreatedOut struct {
+	findings.FindingJSON
+	Notice string `json:"notice"`
+}
+
 type findingItemOut struct {
 	ID                string   `json:"id"`
+	ObservationID     string   `json:"observation_id"`
 	Title             string   `json:"title"`
 	DashboardID       *string  `json:"dashboard_id"`
 	FolderID          *string  `json:"folder_id"`
@@ -110,6 +117,7 @@ type findingItemOut struct {
 type findingListOut struct {
 	Findings   []findingItemOut `json:"findings"`
 	NextCursor *string          `json:"next_cursor"`
+	Notice     string           `json:"notice"`
 }
 
 func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -147,29 +155,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	r.recordInObservation(ctx, principal, requestID, f)
-	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Finding(r.deps.PublicURL, f.ID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
-}
-
-func (r *Registry) recordInObservation(ctx context.Context, principal auth.Principal, requestID pgtype.UUID, f findings.Finding) {
-	if r.deps.Observations == nil || !requestID.Valid {
-		return
-	}
-	evidence := make([]json.RawMessage, 0, len(f.Evidence))
-	for _, panel := range f.Evidence {
-		raw, err := json.Marshal(panel)
-		if err != nil {
-			r.deps.Logger.ErrorContext(ctx, "record a run's result in its observation", logattrs.Failure("evidence_encode_failed", err, slog.String("agent_request_id", requestID.String()))...)
-			return
-		}
-		evidence = append(evidence, raw)
-	}
-	err := r.deps.Observations.RecordRunResult(ctx, principal, observations.RunResult{
-		RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: evidence, From: f.From, To: f.To,
-	})
-	if err != nil {
-		r.deps.Logger.ErrorContext(ctx, "record a run's result in its observation", logattrs.Failure("observation_write_failed", err, slog.String("agent_request_id", requestID.String()))...)
-	}
+	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
 }
 
 func (r *Registry) findingPlacement(ctx context.Context, dashboard, folder string) (dashboardID, folderID pgtype.UUID, res Result, ok bool, err error) {
@@ -226,12 +212,13 @@ func (r *Registry) createFinding(ctx context.Context, input json.RawMessage) (Re
 	case err != nil:
 		return Result{}, err
 	}
-	return success("Saved finding "+f.ID, findings.JSONOf(f, links.Finding(r.deps.PublicURL, f.ID))), nil
+	return success("Saved finding "+f.ID, findingCreatedOut{FindingJSON: findings.JSONOf(f, links.Observation(r.deps.PublicURL, f.ObservationID)), Notice: noticeCreateFinding}), nil
 }
 
 type findingMovedOut struct {
 	findingItemOut
 	Folder string `json:"folder"`
+	Notice string `json:"notice"`
 }
 
 func (r *Registry) moveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -272,7 +259,7 @@ func (r *Registry) moveFinding(ctx context.Context, input json.RawMessage) (Resu
 	case err != nil:
 		return Result{}, err
 	}
-	return success("Moved finding "+f.ID, findingMovedOut{findingItemOut: r.findingItem(f), Folder: f.Folder.Title}), nil
+	return success("Moved finding "+f.ID, findingMovedOut{findingItemOut: r.findingItem(f), Folder: f.Folder.Title, Notice: noticeMoveFinding}), nil
 }
 
 func (r *Registry) listFindings(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -337,7 +324,7 @@ func notFoundMessage(filter findings.ListFilter) string {
 }
 
 func (r *Registry) findingPage(list []findings.Finding, next string) (findingListOut, int, bool) {
-	out := findingListOut{Findings: make([]findingItemOut, 0, len(list))}
+	out := findingListOut{Findings: make([]findingItemOut, 0, len(list)), Notice: noticeListFindings}
 	if next != "" {
 		out.NextCursor = &next
 	}
@@ -359,6 +346,7 @@ func (r *Registry) findingItem(f findings.Finding) findingItemOut {
 	}
 	out := findingItemOut{
 		ID:                f.ID,
+		ObservationID:     f.ObservationID,
 		Title:             f.Title,
 		Markdown:          clip(f.Markdown, maxFindingOutBytes),
 		MarkdownTruncated: len(f.Markdown) > maxFindingOutBytes,
@@ -366,7 +354,7 @@ func (r *Registry) findingItem(f findings.Finding) findingItemOut {
 		From:              f.From.UTC().Format(time.RFC3339),
 		To:                f.To.UTC().Format(time.RFC3339),
 		CreatedAt:         f.CreatedAt.UTC().Format(time.RFC3339),
-		URL:               links.Finding(r.deps.PublicURL, f.ID),
+		URL:               links.Observation(r.deps.PublicURL, f.ObservationID),
 	}
 	if f.DashboardID != "" {
 		out.DashboardID = &f.DashboardID

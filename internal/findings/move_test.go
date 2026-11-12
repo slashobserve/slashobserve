@@ -28,12 +28,12 @@ func (r rig) general(t *testing.T) pgtype.UUID {
 	return mustUUID(t, raw)
 }
 
-func (r rig) appendThreadRow(t *testing.T, q *dbsqlc.Queries, finding pgtype.UUID) error {
+func (r rig) appendThreadRow(t *testing.T, q *dbsqlc.Queries, observation pgtype.UUID) error {
 	t.Helper()
 	_, err := activity.Append(t.Context(), q, activity.Entry{
 		Type:     activity.TypeThreadOpened,
 		TargetID: mustUUID(t, "5f3c1a52-8a0e-4b8c-9a55-0a6f3e4b7d10"),
-		Owner:    activity.OnFinding(finding),
+		Owner:    activity.OnObservation(observation),
 		Actor:    actor.Actor{Kind: auth.KindUser, ID: editor.ID, Name: editor.Name},
 	}, nil)
 	return err
@@ -58,7 +58,7 @@ func (r rig) movedRows(t *testing.T, by auth.Principal) []activity.Event {
 func TestMovingAFindingOutOfMyDashboardsSharesItWithTheTargetsReaders(t *testing.T) {
 	r := newRig(t)
 	saved := r.save(t, editor, findings.SaveInput{Title: "Slow pod"})
-	if err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error { return r.appendThreadRow(t, q, mustUUID(t, saved.ID)) }); err != nil {
+	if err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error { return r.appendThreadRow(t, q, mustUUID(t, saved.ObservationID)) }); err != nil {
 		t.Fatal(err)
 	}
 	personal := r.personalFolder(t, editor)
@@ -83,7 +83,8 @@ func TestMovingAFindingOutOfMyDashboardsSharesItWithTheTargetsReaders(t *testing
 	}
 
 	got := r.activityFor(t, viewer)
-	if want := []string{activity.TypeFindingCreated, activity.TypeThreadOpened, activity.TypeFindingMoved}; !slices.Equal(typesOf(got), want) {
+	want := []string{activity.TypeObservationCreated, activity.TypeObservationBlockAdded, activity.TypeFindingCreated, activity.TypeThreadOpened, activity.TypeObservationMoved, activity.TypeFindingMoved}
+	if !slices.Equal(typesOf(got), want) {
 		t.Fatalf("a viewer of the target sees %v, want %v", typesOf(got), want)
 	}
 	for _, e := range got {
@@ -91,26 +92,23 @@ func TestMovingAFindingOutOfMyDashboardsSharesItWithTheTargetsReaders(t *testing
 			t.Errorf("%s is in folder %s, want %s", e.Type, e.FolderID, shared)
 		}
 	}
-	data := dataOf(t, got[2])
+	data := dataOf(t, got[5])
 	if data["title"] != "Slow pod" || data["from_folder_id"] != personal.String() || data["to_folder_id"] != shared.String() {
 		t.Errorf("moved data = %v", data)
 	}
 }
 
-func TestMovingAnUnfiledFindingIntoGeneralMakesItReadableThere(t *testing.T) {
+func TestMovingAFindingOutOfGeneralRecordsGeneralAsWhereItCameFrom(t *testing.T) {
 	r := newRig(t)
-	saved := r.save(t, pipeline, findings.SaveInput{})
-	general := r.general(t)
+	saved := r.save(t, ciKey, findings.SaveInput{})
+	shared := r.folder(t, "Incidents")
 
-	moved, err := r.move(t, admin, saved, general)
+	moved, err := r.move(t, editor, saved, shared)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved.FolderID != general.String() || moved.Folder == nil || !moved.Folder.General {
+	if moved.FolderID != shared.String() || moved.Folder == nil || moved.Folder.General {
 		t.Fatalf("moved finding: %q %+v", moved.FolderID, moved.Folder)
-	}
-	if _, err := r.service.Get(t.Context(), viewer, mustUUID(t, saved.ID)); err != nil {
-		t.Fatalf("a General reader: %v", err)
 	}
 	rows := r.movedRows(t, viewer)
 	if len(rows) != 1 {
@@ -120,8 +118,8 @@ func TestMovingAnUnfiledFindingIntoGeneralMakesItReadableThere(t *testing.T) {
 	if err := json.Unmarshal(rows[0].Data, &data); err != nil {
 		t.Fatal(err)
 	}
-	if from, present := data["from_folder_id"]; !present || from != nil || data["to_folder_id"] != general.String() {
-		t.Errorf("moved data = %v, want a null from_folder_id", data)
+	if data["from_folder_id"] != r.general(t).String() || data["to_folder_id"] != shared.String() {
+		t.Errorf("moved data = %v", data)
 	}
 }
 

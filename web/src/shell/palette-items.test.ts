@@ -148,7 +148,9 @@ const everyKind: SearchResult[] = [
     thread_id: "t1",
     target: { kind: "dashboard", id: "d9", title: "Checkout latency" },
   }),
-  result("finding", "f1", "Slow pod"),
+  result("observation", "o1", "Slow pod", {
+    url: "https://observe.example.com/o/stale-address",
+  }),
   result("dashboard", "d1", "Checkout latency"),
 ]
 
@@ -168,11 +170,11 @@ describe("paletteGroups with search results", () => {
     )
   })
 
-  test("from two characters the groups follow Dashboards, Findings, Comments, Annotations, Saved searches", () => {
+  test("from two characters the groups follow Dashboards, Observations, Comments, Annotations, Saved searches", () => {
     const groups = paletteGroups("ch", [], everyKind, "admin")
     expect(groups.map((group) => group.value)).toEqual([
       "Dashboards",
-      "Findings",
+      "Observations",
       "Comments",
       "Annotations",
       "Saved searches",
@@ -255,7 +257,7 @@ describe("paletteGroups with search results", () => {
     const folder = [{ text: "Payments", match: false }]
     expect(secondary("Dashboards")).toEqual([folder])
     expect(secondary("Saved searches")).toEqual([folder])
-    expect(secondary("Findings")).toEqual([
+    expect(secondary("Observations")).toEqual([
       [{ text: "about Slow pod", match: false }],
     ])
   })
@@ -276,6 +278,20 @@ describe("paletteGroups with search results", () => {
     })
   })
 
+  test("an observation opens at its own page whatever address the server sent", () => {
+    const groups = paletteGroups("slow", [], everyKind, "admin")
+    expect(
+      groups.find((group) => group.value === "Observations")?.items
+    ).toEqual([
+      expect.objectContaining({
+        kind: "observation",
+        id: "observation:o1",
+        label: "Slow pod",
+        path: "/o/o1",
+      }),
+    ])
+  })
+
   test("a local dashboard opens at its own address", () => {
     const groups = paletteGroups(
       "checkout",
@@ -290,7 +306,7 @@ describe("paletteGroups with search results", () => {
     const groups = paletteGroups("sign", [], everyKind, "admin")
     expect(groups.map((group) => group.value)).toEqual([
       "Dashboards",
-      "Findings",
+      "Observations",
       "Comments",
       "Annotations",
       "Saved searches",

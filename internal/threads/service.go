@@ -17,7 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
-	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -40,15 +39,14 @@ type Service struct {
 	db           *db.DB
 	access       *folders.Access
 	dashboards   *dashboards.Service
-	findings     *findings.Service
 	annotations  *annotations.Service
 	observations *observations.Service
 	proposals    *proposals.Service
 	panelSets    *panelCache
 }
 
-func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, findings *findings.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {
-	return &Service{db: database, access: access, dashboards: dashboards, findings: findings, annotations: annotations, observations: observations, proposals: proposals, panelSets: newPanelCache()}
+func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {
+	return &Service{db: database, access: access, dashboards: dashboards, annotations: annotations, observations: observations, proposals: proposals, panelSets: newPanelCache()}
 }
 
 type OpenInput struct {
@@ -140,10 +138,12 @@ func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
 }
 
 func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hook func(*dbsqlc.Queries, Thread, Message) error) (Thread, Message, error) {
+	viaFinding := in.Target.Kind == KindFinding
 	sc, err := s.scopeOf(ctx, by, in.Target)
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
+	in.Target = sc.target
 	if !sc.abilities.Comment {
 		return Thread{}, Message{}, folders.ErrForbidden
 	}
@@ -185,7 +185,12 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		return hook(q, thread, message)
 	})
 	if isUniqueViolation(err, observationThreadIndex) {
-		return Thread{}, Message{}, s.existingObservationThread(ctx, in.Target.ID)
+		existing := s.existingObservationThread(ctx, in.Target.ID)
+		var exists *ObservationThreadExistsError
+		if viaFinding && errors.As(existing, &exists) {
+			return s.Reply(ctx, by, exists.ThreadID, in.Body)
+		}
+		return Thread{}, Message{}, existing
 	}
 	if err != nil {
 		return Thread{}, Message{}, targetGone(err)
@@ -350,8 +355,6 @@ func listParams(in ListQuery) (dbsqlc.ListThreadMessagesParams, error) {
 	switch in.Target.Kind {
 	case KindDashboard:
 		params.DashboardID = in.Target.ID
-	case KindFinding:
-		params.FindingID = in.Target.ID
 	case KindAnnotation:
 		params.AnnotationID = in.Target.ID
 	case KindObservation:
@@ -388,6 +391,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	in.Target = sc.target
 	params, err := listParams(in)
 	if err != nil {
 		return Page{}, err
@@ -526,8 +530,6 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 	switch t.Kind {
 	case KindDashboard:
 		params.DashboardID = t.ID
-	case KindFinding:
-		params.FindingID = t.ID
 	case KindAnnotation:
 		params.AnnotationID = t.ID
 	case KindObservation:

@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -33,14 +34,16 @@ var (
 	viewer      = auth.Principal{Kind: auth.KindUser, ID: "33333333-3333-4333-8333-333333333333", Name: "Vic", Role: auth.RoleViewer}
 	admin       = auth.Principal{Kind: auth.KindUser, ID: "55555555-5555-4555-8555-555555555555", Name: "Root", Role: auth.RoleAdmin}
 	pipeline    = auth.Principal{Kind: auth.KindServiceAccount, ID: "66666666-6666-4666-8666-666666666666", Name: "pipeline", Role: auth.RoleViewer}
+	ciKey       = auth.Principal{Kind: auth.KindServiceAccount, ID: "77777777-7777-4777-8777-777777777777", Name: "ci", Role: auth.RoleEditor}
 )
 
 var windowTo = time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
 
 type rig struct {
-	db      *dbtest.Database
-	service *findings.Service
-	open    pgtype.UUID
+	db           *dbtest.Database
+	service      *findings.Service
+	observations *observations.Service
+	open         pgtype.UUID
 }
 
 func newRig(t *testing.T) rig {
@@ -48,11 +51,18 @@ func newRig(t *testing.T) rig {
 	d := dbtest.New(t)
 	access := folders.NewAccess(d.DB)
 	logger := slog.New(slog.DiscardHandler)
-	r := rig{db: d, service: findings.New(d.DB, access, annotations.New(d.DB, access), nil, logger)}
+	obs := observations.New(d.DB, access, nil, nil, logger)
+	service, err := findings.New(d.DB, access, annotations.New(d.DB, access), nil, obs, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := rig{db: d, service: service, observations: obs}
 	for _, p := range []auth.Principal{editor, otherEditor, viewer, admin} {
 		r.user(t, p)
 	}
-	d.Exec(t, `INSERT INTO service_accounts (id, name) VALUES ($1::uuid, $2)`, pipeline.ID, pipeline.Name)
+	for _, key := range []auth.Principal{pipeline, ciKey} {
+		d.Exec(t, `INSERT INTO service_accounts (id, name) VALUES ($1::uuid, $2)`, key.ID, key.Name)
+	}
 	r.open = r.dashboard(t, "Checkout")
 	return r
 }
@@ -134,21 +144,23 @@ func TestFindingsAreReadableByWhoMayViewThem(t *testing.T) {
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
 	private := r.save(t, editor, findings.SaveInput{})
-	unfiled := r.save(t, pipeline, findings.SaveInput{})
+	inGeneral := r.save(t, ciKey, findings.SaveInput{})
+	moved := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, moved.ObservationID, foldertest.Restricted(t, r.db, "Incidents", payrollGroup))
 	cases := []struct {
 		name    string
 		by      auth.Principal
 		finding findings.Finding
 		visible bool
 	}{
+		{"a viewer when the observation sits in a hidden folder and the dashboard is visible", viewer, moved, false},
 		{"a viewer of the dashboard", viewer, onDashboard, true},
 		{"a viewer without access to the dashboard", viewer, onHidden, false},
 		{"the creator of a finding in their My Dashboards", editor, private, true},
 		{"an admin of a finding in someone's My Dashboards", admin, private, false},
 		{"another editor of a finding in someone's My Dashboards", otherEditor, private, false},
-		{"the creator of an unfiled finding", pipeline, unfiled, true},
-		{"an admin of an unfiled finding", admin, unfiled, true},
-		{"an editor of an unfiled finding", editor, unfiled, false},
+		{"a viewer of a finding a key filed in General", viewer, inGeneral, true},
+		{"an editor of a finding a key filed in General", editor, inGeneral, true},
 	}
 	for _, c := range cases {
 		_, err := r.service.Get(t.Context(), c.by, mustUUID(t, c.finding.ID))
@@ -229,7 +241,7 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 		made = append(made, r.save(t, editor, findings.SaveInput{DashboardID: dash}).ID)
 	}
 	r.save(t, otherEditor, findings.SaveInput{})
-	foldertest.Move(t, r.db, other, foldertest.Restricted(t, r.db, "Orders", payrollGroup))
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, made[2], foldertest.Restricted(t, r.db, "Orders", payrollGroup))
 
 	var walked []string
 	cursor := ""
@@ -311,7 +323,7 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
 	private := r.save(t, editor, findings.SaveInput{})
-	unfiled := r.save(t, pipeline, findings.SaveInput{})
+	inGeneral := r.save(t, ciKey, findings.SaveInput{})
 	cases := []struct {
 		name      string
 		by        auth.Principal
@@ -326,9 +338,9 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 		{"the creator of a finding in their My Dashboards", editor, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
 		{"an admin of a finding in someone's My Dashboards", admin, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
 		{"another editor of a finding in someone's My Dashboards", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
-		{"the creator of an unfiled finding", pipeline, unfiled, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
-		{"an admin of an unfiled finding", admin, unfiled, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
-		{"another editor of an unfiled finding", otherEditor, unfiled, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
+		{"the key that filed a finding in General", ciKey, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
+		{"an admin of a finding in General", admin, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
+		{"another editor of a finding in General", otherEditor, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
 	}
 	for _, c := range cases {
 		placement, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))

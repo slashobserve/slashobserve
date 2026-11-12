@@ -39,13 +39,13 @@ var (
 )
 
 type ObserveOptions struct {
-	Provider     string
-	Model        string
-	Effort       string
-	DashboardURL func(dashboardID, title string) string
-	FindingURL   func(findingID string) string
-	Finding      func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error)
-	LiveText     func(runID string, attempt int) (string, bool)
+	Provider       string
+	Model          string
+	Effort         string
+	DashboardURL   func(dashboardID, title string) string
+	ObservationURL func(observationID string) string
+	Finding        func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	LiveText       func(runID string, attempt int) (string, bool)
 }
 
 type ObserveHandler struct {
@@ -500,8 +500,8 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 			out.URL = &url
 		}
 	}
-	if out.Status == StatusSucceeded && row.FindingID.Valid && h.opts.FindingURL != nil {
-		url := h.opts.FindingURL(row.FindingID.String())
+	if out.Status == StatusSucceeded && row.FindingID.Valid && row.ObservationID.Valid && h.opts.ObservationURL != nil {
+		url := h.opts.ObservationURL(row.ObservationID.String())
 		out.URL = &url
 	}
 	if row.ResultVersion.Valid {

@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -25,16 +26,22 @@ import (
 
 const savedDashboardSummary = "Saved from a finding"
 
+var ErrNoObservations = errors.New("findings need an observation service")
+
 type Service struct {
-	store       *store
-	access      *folders.Access
-	annotations *annotations.Service
-	dashboards  *dashboards.Service
-	logger      *slog.Logger
+	store        *store
+	access       *folders.Access
+	annotations  *annotations.Service
+	dashboards   *dashboards.Service
+	observations Observations
+	logger       *slog.Logger
 }
 
-func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, logger *slog.Logger) *Service {
-	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, logger: logger}
+func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
+	if observations == nil {
+		return nil, ErrNoObservations
+	}
+	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
 }
 
 type SaveInput struct {
@@ -54,30 +61,17 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 		if err := s.viewable(ctx, by, in.DashboardID); err != nil {
 			return Finding{}, false, err
 		}
-	} else {
-		folder, err := s.creationFolder(ctx, by, in.FolderID)
-		if err != nil {
-			return Finding{}, false, err
-		}
-		in.FolderID = folder
 	}
 	if in.Evidence == nil {
 		in.Evidence = []spec.Panel{}
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in)
-}
-
-func (s *Service) creationFolder(ctx context.Context, by auth.Principal, requested pgtype.UUID) (pgtype.UUID, error) {
-	folder, err := s.access.CreationFolder(ctx, by, requested)
-	switch {
-	case errors.Is(err, folders.ErrNotFound):
-		return pgtype.UUID{}, ErrFolderNotFound
-	case errors.Is(err, folders.ErrForbidden) && !requested.Valid:
-		return pgtype.UUID{}, nil
-	case err != nil:
-		return pgtype.UUID{}, err
+	conclusion := Conclusion{
+		RunID: in.AgentRequestID, DashboardID: in.DashboardID, FolderID: in.FolderID,
+		Title: in.Title, Markdown: in.Markdown, Evidence: in.Evidence, From: in.From, To: in.To,
 	}
-	return folder.ID, nil
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		return s.observations.WriteConclusion(ctx, q, by, conclusion)
+	})
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
@@ -85,11 +79,11 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	if err != nil {
 		return Finding{}, err
 	}
-	where, err := s.locate(ctx, by, f)
+	folder, abilities, err := s.place(ctx, by, f)
 	if err != nil {
 		return Finding{}, err
 	}
-	f.Folder, f.Abilities = where.folder, where.abilities
+	f.Folder, f.Abilities = &folder, abilities
 	return f, nil
 }
 
@@ -118,32 +112,11 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
-	var rows []Finding
-	var err error
-	switch {
-	case filter.DashboardID.Valid:
-		if err := s.viewable(ctx, by, filter.DashboardID); err != nil {
-			return nil, "", err
-		}
-		rows, err = s.store.listByDashboard(ctx, filter.DashboardID, after, limit+1)
-	case filter.FolderID.Valid:
-		if _, _, err := s.access.Folder(ctx, by, filter.FolderID); err != nil {
-			if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrForbidden) {
-				return nil, "", ErrNotFound
-			}
-			return nil, "", err
-		}
-		rows, err = s.store.listInFolder(ctx, filter.FolderID, after, limit+1)
-	default:
-		var levels folders.Levels
-		levels, err = s.access.Levels(ctx, by)
-		if errors.Is(err, folders.ErrForbidden) {
-			return nil, "", ErrNotFound
-		}
-		if err == nil {
-			rows, err = s.store.listBy(ctx, by, levels.Visible(), after, limit+1)
-		}
+	visible, err := s.visibleFolders(ctx, by)
+	if err != nil {
+		return nil, "", err
 	}
+	rows, err := s.listRows(ctx, by, filter, visible, after, limit+1)
 	if err != nil {
 		return nil, "", err
 	}
@@ -153,6 +126,36 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 		next = httpapi.EncodeTimeCursor(rows[limit-1].CreatedAt, rows[limit-1].ID)
 	}
 	return rows, next, nil
+}
+
+func (s *Service) listRows(ctx context.Context, by auth.Principal, filter ListFilter, visible []pgtype.UUID, after *httpapi.TimeCursor, limit int) ([]Finding, error) {
+	switch {
+	case filter.DashboardID.Valid:
+		if err := s.viewable(ctx, by, filter.DashboardID); err != nil {
+			return nil, err
+		}
+		return s.store.listByDashboard(ctx, filter.DashboardID, visible, after, limit)
+	case filter.FolderID.Valid:
+		if _, _, err := s.access.Folder(ctx, by, filter.FolderID); err != nil {
+			if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrForbidden) {
+				return nil, ErrNotFound
+			}
+			return nil, err
+		}
+		return s.store.listInFolder(ctx, filter.FolderID, visible, after, limit)
+	}
+	return s.store.listBy(ctx, by, visible, after, limit)
+}
+
+func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgtype.UUID, error) {
+	levels, err := s.access.Levels(ctx, by)
+	if errors.Is(err, folders.ErrForbidden) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return levels.Visible(), nil
 }
 
 func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Finding, error) {
@@ -166,30 +169,19 @@ func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgty
 	if !f.Abilities.Edit {
 		return Finding{}, folders.ErrForbidden
 	}
-	target, abilities, err := s.access.Folder(ctx, by, folderID)
-	switch {
-	case errors.Is(err, folders.ErrNotFound):
-		return Finding{}, ErrFolderNotFound
-	case err != nil:
+	observationID, err := db.ParseUUID(f.ObservationID)
+	if err != nil {
 		return Finding{}, err
-	case !abilities.Edit:
-		return Finding{}, folders.ErrForbidden
-	case !folders.MayMoveInto(target):
-		return Finding{}, folders.ErrMoveIntoPersonal
-	case f.FolderID == target.ID.String():
-		return f, nil
 	}
-	var from pgtype.UUID
-	if f.FolderID != "" {
-		if from, err = db.ParseUUID(f.FolderID); err != nil {
-			return Finding{}, err
-		}
-	}
-	if err := s.store.move(ctx, id, from, folderID, actor.Of(by, origin.From(ctx), "")); err != nil {
+	who := actor.Of(by, origin.From(ctx), "")
+	err = s.observations.MoveForFinding(ctx, by, observationID, folderID, func(q *dbsqlc.Queries) error {
+		return appendMoved(ctx, q, who, f, folderID)
+	})
+	if err != nil {
 		return Finding{}, err
 	}
 	s.logger.InfoContext(ctx, "finding moved",
-		slog.String("actor_id", by.ID), slog.String("finding_id", f.ID), slog.String("folder_id", target.ID.String()))
+		slog.String("actor_id", by.ID), slog.String("finding_id", f.ID), slog.String("folder_id", folderID.String()))
 	return s.Get(ctx, by, id)
 }
 
@@ -226,7 +218,11 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	won, err := s.store.setAnnotation(ctx, actor.Of(by, origin.From(ctx), ""), id, dashboardID, annotationID)
+	observationID, err := db.ParseUUID(f.ObservationID)
+	if err != nil {
+		return annotations.Annotation{}, false, err
+	}
+	won, err := s.store.setAnnotation(ctx, actor.Of(by, origin.From(ctx), ""), id, dashboardID, observationID, annotationID)
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
@@ -282,7 +278,11 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return Placement{}, err
 	}
-	where, err := s.locate(ctx, by, f)
+	folder, abilities, err := s.place(ctx, by, f)
+	if err != nil {
+		return Placement{}, err
+	}
+	observationID, err := db.ParseUUID(f.ObservationID)
 	if err != nil {
 		return Placement{}, err
 	}
@@ -292,48 +292,15 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 			return Placement{}, err
 		}
 	}
-	return Placement{Dashboard: dashboardID, Folder: where.folder, Activity: activityOwner(dashboardID, id), Abilities: where.abilities}, nil
+	return Placement{Dashboard: dashboardID, Folder: &folder, Activity: activity.OnObservation(observationID), Abilities: abilities}, nil
 }
 
-type location struct {
-	folder    *folders.Folder
-	abilities folders.Abilities
-}
-
-func (s *Service) locate(ctx context.Context, by auth.Principal, f Finding) (location, error) {
-	switch {
-	case f.DashboardID != "":
-		dashboardID, err := db.ParseUUID(f.DashboardID)
-		if err != nil {
-			return location{}, err
-		}
-		access, err := s.dashboardAccess(ctx, by, dashboardID)
-		if err != nil {
-			return location{}, err
-		}
-		return location{folder: &access.Folder, abilities: access.Abilities}, nil
-	case f.FolderID != "":
-		folderID, err := db.ParseUUID(f.FolderID)
-		if err != nil {
-			return location{}, err
-		}
-		folder, abilities, err := s.access.Folder(ctx, by, folderID)
-		switch {
-		case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrForbidden):
-			return location{}, ErrNotFound
-		case err != nil:
-			return location{}, err
-		case !abilities.View:
-			return location{}, ErrNotFound
-		}
-		return location{folder: &folder, abilities: abilities}, nil
+func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (folders.Folder, folders.Abilities, error) {
+	observationID, err := db.ParseUUID(f.ObservationID)
+	if err != nil {
+		return folders.Folder{}, folders.Abilities{}, err
 	}
-	creator := string(by.Kind) == f.CreatedBy.Kind && by.ID == f.CreatedBy.ID
-	abilities := folders.Unfiled(by, creator)
-	if !abilities.View {
-		return location{}, ErrNotFound
-	}
-	return location{abilities: abilities}, nil
+	return s.observations.Placement(ctx, by, observationID)
 }
 
 func (s *Service) viewable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {

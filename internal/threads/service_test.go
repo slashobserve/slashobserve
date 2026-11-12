@@ -51,18 +51,19 @@ func TestEveryTargetOpensRepliesAndLists(t *testing.T) {
 	tests := []struct {
 		name   string
 		target Target
+		stored Target
 		owner  string
 	}{
-		{"dashboard", target(KindDashboard, dash), dash.String()},
-		{"finding on a dashboard", target(KindFinding, finding), dash.String()},
-		{"finding with no dashboard", target(KindFinding, detached), ""},
-		{"annotation on a dashboard", target(KindAnnotation, annotation), dash.String()},
-		{"global annotation", target(KindAnnotation, global), ""},
+		{"dashboard", target(KindDashboard, dash), target(KindDashboard, dash), dash.String()},
+		{"finding on a dashboard", target(KindFinding, finding), target(KindObservation, r.observationOf(t, finding)), ""},
+		{"finding with no dashboard", target(KindFinding, detached), target(KindObservation, r.observationOf(t, detached)), ""},
+		{"annotation on a dashboard", target(KindAnnotation, annotation), target(KindAnnotation, annotation), dash.String()},
+		{"global annotation", target(KindAnnotation, global), target(KindAnnotation, global), ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			thread, first := r.open(t, testUser, OpenInput{Target: tt.target, Body: "first"})
-			if thread.ID != first.ID || first.ThreadID != thread.ID || thread.Target != tt.target || thread.Status != StatusOpen {
+			if thread.ID != first.ID || first.ThreadID != thread.ID || thread.Target != tt.stored || thread.Status != StatusOpen {
 				t.Fatalf("thread %+v, first message %+v", thread, first)
 			}
 			if (tt.target.Kind == KindDashboard) != (thread.Version != nil) || (tt.target.Kind == KindDashboard) != (thread.DashboardID != "") {
@@ -149,10 +150,11 @@ func TestOpenOnADashboardAnchorsTheVersionAndPanel(t *testing.T) {
 func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	r := newRig(t)
 	hidden := r.createDashboard(t, "rps")
-	finding := r.createFinding(t, testUser, hidden)
 	annotation := r.createAnnotation(t, testUser, hidden)
 	thread, message := r.open(t, testUser, OpenInput{Target: target(KindDashboard, hidden), Body: "secret"})
-	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
+	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
+	foldertest.Move(t, r.db, hidden, restricted)
+	finding := r.createFindingIn(t, admin, restricted)
 
 	for _, tg := range []Target{target(KindDashboard, hidden), target(KindFinding, finding), target(KindAnnotation, annotation)} {
 		if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
@@ -182,25 +184,27 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	}
 }
 
-func TestAnUnfiledFindingIsPrivateToItsCreatorAndAdmins(t *testing.T) {
+func TestAFindingInARestrictedFolderIsPrivateToThatFoldersGroupAndAdmins(t *testing.T) {
 	r := newRig(t)
-	unfiled := r.createFinding(t, viewer, pgtype.UUID{})
-	tg := target(KindFinding, unfiled)
+	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
+	tg := target(KindFinding, r.createFindingIn(t, admin, restricted))
 
-	thread, _ := r.open(t, viewer, OpenInput{Target: tg, Body: "mine"})
+	thread, _ := r.open(t, admin, OpenInput{Target: tg, Body: "mine"})
 	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
 		t.Errorf("admin list: %v", err)
 	}
-	r.reply(t, admin, thread.ID, "an admin may comment")
-	for _, by := range []auth.Principal{testUser, commenter, {Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Ed", Role: auth.RoleEditor}} {
+	for _, by := range []auth.Principal{testUser, commenter, viewer, {Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Ed", Role: auth.RoleEditor}} {
 		if _, err := r.service.List(t.Context(), by, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("%s list: err = %v, want ErrTargetNotFound", by.Name, err)
 		}
+		if _, _, err := r.service.Reply(t.Context(), by, mustParse(t, thread.ID), "hi"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("%s reply: err = %v, want ErrNotFound", by.Name, err)
+		}
 	}
 
-	abilities, err := r.service.Abilities(t.Context(), viewer, tg)
-	if err != nil || !abilities.View || !abilities.Comment || !abilities.Edit || abilities.Manage {
-		t.Errorf("a creator's abilities = %+v, err %v, want view, comment and edit only", abilities, err)
+	abilities, err := r.service.Abilities(t.Context(), admin, tg)
+	if err != nil || !abilities.View || !abilities.Comment {
+		t.Errorf("an admin's abilities = %+v, err %v, want view and comment", abilities, err)
 	}
 }
 
@@ -570,30 +574,33 @@ func TestListPagesByMessageAndFilters(t *testing.T) {
 	}
 }
 
-func TestAThreadMessageOnAFindingWithNoDashboardIsOwnedByTheFinding(t *testing.T) {
+func TestAThreadMessageOnAFindingIsOwnedByItsObservationNotItsDashboard(t *testing.T) {
 	r := newRig(t)
 	detached := r.createFinding(t, testUser, pgtype.UUID{})
 	onDashboard := r.createFinding(t, testUser, r.createDashboard(t, "rps"))
 	r.open(t, testUser, OpenInput{Target: target(KindFinding, detached), Body: "who owns this"})
 	r.open(t, testUser, OpenInput{Target: target(KindFinding, onDashboard), Body: "and this"})
 
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(observation_id::text, ''), coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = rows.Close() }()
-	var findingIDs, dashboardIDs []string
+	var owners []string
 	for rows.Next() {
-		var finding, dashboard string
-		if err := rows.Scan(&finding, &dashboard); err != nil {
+		var observation, finding, dashboard string
+		if err := rows.Scan(&observation, &finding, &dashboard); err != nil {
 			t.Fatal(err)
 		}
-		findingIDs, dashboardIDs = append(findingIDs, finding), append(dashboardIDs, dashboard)
+		if finding != "" || dashboard != "" {
+			t.Errorf("thread opened with finding %q and dashboard %q, want only an observation owner", finding, dashboard)
+		}
+		owners = append(owners, observation)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(findingIDs) != 2 || findingIDs[0] != detached.String() || dashboardIDs[0] != "" || findingIDs[1] != "" || dashboardIDs[1] == "" {
-		t.Fatalf("finding ids %v and dashboard ids %v, want the detached finding owning its thread and the dashboard finding's thread owned by its dashboard", findingIDs, dashboardIDs)
+	if want := []string{r.observationOf(t, detached).String(), r.observationOf(t, onDashboard).String()}; strings.Join(owners, ",") != strings.Join(want, ",") {
+		t.Fatalf("owning observations %v, want %v", owners, want)
 	}
 }

@@ -4,12 +4,14 @@ findings:
     x-surfaces:
       mcp: [list_findings]
       cli: [observe findings list]
+    deprecated: true
     summary: List the findings the caller can read, newest first.
     description: >-
-      Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder.
+      Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view.
       With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
-      With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`.
+      With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`.
       `dashboard_id` and `folder_id` do not go together.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     parameters:
       - name: dashboard_id
         in: query
@@ -36,6 +38,9 @@ findings:
     responses:
       "200":
         description: One page of findings.
+        headers:
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:
@@ -58,15 +63,25 @@ findings-id:
         format: uuid
   get:
     operationId: getFinding
+    deprecated: true
     summary: Read one finding.
     description: >-
-      A finding on a dashboard follows that dashboard, and a finding without one follows the folder it is filed in: anyone who can view that folder may read it.
-      A finding in no folder is readable by the account that saved it and by Admins.
-      `folder` is the folder that decides access and `permissions` what the caller may do with the finding.
+      A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not.
+      `folder` is that folder and `permissions` what the caller may do with the finding.
       A finding the caller cannot read gives 404, never 403.
+      The `Link` header names the observation as the `successor-version`.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:
       "200":
         description: The finding.
+        headers:
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
+          Link:
+            required: true
+            description: '`</api/v1/observations/{observation_id}>; rel="successor-version"`'
+            schema:
+              type: string
         content:
           application/json:
             schema:
@@ -89,10 +104,12 @@ findings-id-pin:
         format: uuid
   post:
     operationId: pinFinding
+    deprecated: true
     summary: Pin a finding to its dashboard as an annotation.
     description: >-
       The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard.
       Pinning a finding that is already pinned answers 200 with the same annotation.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:
       "201":
         description: The annotation made for the finding.
@@ -101,12 +118,17 @@ findings-id-pin:
             required: true
             schema:
               type: string
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/Annotation"
       "200":
         description: The finding was already pinned; this is its annotation.
+        headers:
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:
@@ -137,10 +159,12 @@ findings-id-dashboard:
         format: uuid
   post:
     operationId: saveFindingAsDashboard
+    deprecated: true
     summary: Save a finding's evidence panels as a new dashboard.
     description: >-
       Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved.
       A finding without evidence gives 409 `finding_has_no_evidence`.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:
       "201":
         description: The new dashboard and its first version.
@@ -149,6 +173,8 @@ findings-id-dashboard:
             required: true
             schema:
               type: string
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:
@@ -181,16 +207,18 @@ findings-id-move:
         format: uuid
   post:
     operationId: moveFinding
+    deprecated: true
     x-surfaces:
       mcp: [move_finding]
       cli: [observe findings move]
     summary: Move a finding without a dashboard into another folder.
     description: >-
-      Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published.
-      It needs Edit on the finding and on the target folder, so a finding in no folder can be moved by the account that saved it or by an Admin.
-      A finding on a dashboard follows the dashboard and answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`.
+      Moving moves the finding's observation, which shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published.
+      It needs Edit on the finding and on the target folder.
+      A finding on a dashboard answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`.
       Moving a finding into the folder it is already in changes nothing.
-      The move is recorded as `finding.moved`, and the finding's earlier activity moves to the target folder with it.
+      The move is recorded as `finding.moved` beside the observation's `observation.moved`, and the finding's earlier activity moves to the target folder with it.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     requestBody:
       required: true
       content:
@@ -206,6 +234,9 @@ findings-id-move:
     responses:
       "200":
         description: The finding in its new folder.
+        headers:
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:
@@ -241,10 +272,12 @@ findings-id-panels-panel-id-data:
         type: string
   get:
     operationId: getFindingPanelData
+    deprecated: true
     summary: Run the queries of one evidence panel of a finding and return their frames.
     description: >-
       Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved.
       Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data.
+      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     parameters:
       - name: from
         in: query
@@ -274,6 +307,9 @@ findings-id-panels-panel-id-data:
     responses:
       "200":
         description: The frames the evidence panel's queries returned.
+        headers:
+          Deprecation:
+            $ref: "../openapi.yaml#/components/headers/Deprecation"
         content:
           application/json:
             schema:

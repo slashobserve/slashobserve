@@ -128,7 +128,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - The agent only ever outputs ObserveSpec JSON, and its text is never stored and never leaves a run as a result: only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
   While a run runs, the end of its text is shown as plain text (`live_text`, server memory only, never rendered as Markdown or HTML).
   No code path takes LLM-written HTML or JS into the UI.
-  The agent outputs ObserveSpec JSON or, in an investigate run or a chat request that only asks a question, a tool-saved finding; nothing else leaves a run.
+  The agent outputs ObserveSpec JSON or, in an investigate run or a chat request that only asks a question, a tool-saved finding, which is written into an observation; nothing else leaves a run.
 - The agent saves into a build one panel per save, and only the finished build becomes a version, one per request.
   Tool-saved Specs still are the only agent output that leaves a run; the agent's planned panel count is an integer and may be shown.
 - A build is visible only to the person who made the request, and for a revision only while they can still view the dashboard.
@@ -136,11 +136,13 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   HTML in markdown and html modes is sanitized by one schema (`web/src/panels/text/html.tsx`) before rendering, people may author it but the agent and MCP may not, variable values are escaped for the mode before parsing, and links and images are limited to http(s), mailto and same-origin URLs.
 - The agent and MCP clients never create or edit a placeholder panel (they come from Grafana imports), write HTML into a text panel, or add or change a canvas element's or field's `actions`; `internal/agent/tools/importonly.go` rejects these.
 - Datasource credentials never reach the browser.
-  All panel data goes through the query proxy, which only runs queries from a saved Spec; the five exceptions are the draft preview, the requester's own build under `GET /api/v1/observe/{id}/build/...`, the explore query `POST /api/v1/datasources/{uid}/query` behind the logs page and trace view, a finding's evidence under `GET /api/v1/findings/{id}/panels/{panel_id}/data`, and a public link's read-only view under `GET /api/v1/public/{token}/...` (`internal/queryproxy/proxyhttp/public.go`), all described in `internal/CLAUDE.md`.
+  All panel data goes through the query proxy, which only runs queries from a saved Spec; the five exceptions are the draft preview, the requester's own build under `GET /api/v1/observe/{id}/build/...`, the explore query `POST /api/v1/datasources/{uid}/query` behind the logs page and trace view, a finding's evidence under `GET /api/v1/findings/{id}/panels/{panel_id}/data` (read through the finding's observation), and a public link's read-only view under `GET /api/v1/public/{token}/...` (`internal/queryproxy/proxyhttp/public.go`), all described in `internal/CLAUDE.md`.
 - A public link is a person's decision: no agent or MCP tool creates, lists or revokes one, and that holds for the links to an RCA revision as well.
 - Five routes register on the public group `/api/v1/public`: the dashboard view, its panel data and its variable values, the RCA view and the RCA snapshot frames.
   An RCA link serves one stored revision and runs no query.
 - `internal/observations` is the one writer of `observations`, `observation_blocks`, `snapshots` and `observation_rcas`, and `internal/public` is the one writer of `public_links`.
+- A finding is an adapter over an observation for one release: every `findings` row has an `observation_id`, its text and evidence are the observation's blocks, and its placement and access come from that observation, so a finding has no folder of its own and an unfiled finding cannot exist.
+  The finding routes, the tools `create_finding`, `list_findings` and `move_finding` and `observe findings` keep their meaning, answer or print a deprecation notice, and are removed in the next release; a finding's address is `/o/<id>`, and a `finding` thread target or search kind means its observation.
 - A webhook is an Admin's decision: no agent or MCP tool reads, creates, changes, tests or deletes one.
 - Connecting an MCP client is a person's decision on the consent page: no agent, MCP tool or key approves, lists or disconnects one.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
@@ -148,7 +150,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   A run token (`sot_`) session on `/mcp` lists exactly the tools `OfferedIn` the run's mode with the agent wording, acts as the requester, records a step per call and passes every call through `internal/runsession`, which holds the guards and the build for the run (state in `run_sessions`), so connected agents meet the built-in agent's guards.
   The built-in agent's own sidecar claims over the same `/mcp` with a per-child `soa_` token accepted only from a loopback peer and listing only the four claim tools.
   No tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API, and delete also with the CLI.
-  `move_finding` is the one move tool, and only for a finding without a dashboard.
+  `move_finding` is the one move tool, deprecated with the other finding tools, and only for a finding without a dashboard.
 - The `/observe` guide for outside agents is `internal/agent/prompts/skill/observe/SKILL.md`, a complete Agent Skill: the MCP prompt `observe` serves its body, so the guide is one text; `internal/surface` fails when it names a tool MCP does not offer or an `observe` command the CLI lacks.
 - Every `/api/v1` operation names the MCP tools and `observe` commands that reach it under `x-surfaces` in `api/paths/`, or has a reason in `internal/surface/exceptions_test.go`; `TestEveryOperationReachesMCPAndTheCLI` fails otherwise.
   A reason quotes a rule the product already has; an operation with none takes `notBuilt`.

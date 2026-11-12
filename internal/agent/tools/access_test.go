@@ -74,8 +74,12 @@ func newAccessRig(t *testing.T) *accessRig {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
-	found := findings.New(database.DB, access, notes, service, logger)
-	commentThreads := threads.NewService(database.DB, access, service, found, notes, observations.New(database.DB, access, nil, nil, logger), proposals.New(database.DB, access, service, logger))
+	observationService := observations.New(database.DB, access, nil, nil, logger)
+	found, err := findings.New(database.DB, access, notes, service, observationService, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Folders: access, Annotations: notes, Logger: logger})
 	return &accessRig{registry: registry, service: service, threads: commentThreads, notes: notes, findings: found, db: database}
 }

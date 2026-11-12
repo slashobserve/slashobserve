@@ -16,23 +16,27 @@ import (
 const (
 	nameSearchWorkspace = "search_workspace"
 
-	descSearchWorkspace = "Search everything this key may read in the workspace by words: dashboards (title, tags, description, panel titles, query text), findings, annotations, comments and saved logs and trace searches. Every word must match, exactly or by its English stem; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix. Results are ranked by relevance, newer first among near-equals, each with a snippet and its url; read the object with its own tool for more. Page with next_cursor."
+	descSearchWorkspace = "Search everything this key may read in the workspace by words: dashboards (title, tags, description, panel titles, query text), observations with their findings, annotations, comments and saved logs and trace searches. Every word must match, exactly or by its English stem; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix. Results are ranked by relevance, newer first among near-equals, each with a snippet and its url; read the object with its own tool for more. Page with next_cursor."
 )
 
 var schemaSearchWorkspace = `{"type":"object","properties":{` +
 	`"q":{"type":"string","minLength":1,"maxLength":` + strconv.Itoa(search.MaxQueryRunes) + `,"description":"The words to search for, such as checkout latency or \"connection reset\" -staging."},` +
-	`"kinds":{"type":"array","maxItems":` + strconv.Itoa(len(search.Kinds())) + `,"items":{"type":"string","enum":["` + joinKinds(`","`) + `"]},"description":"Only results of any of these kinds. Default all."},` +
+	`"kinds":{"type":"array","maxItems":` + strconv.Itoa(len(kindNames())) + `,"items":{"type":"string","enum":["` + joinKinds(`","`) + `"]},"description":"Only results of any of these kinds. Default all. finding is a deprecated alias of observation."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":` + strconv.Itoa(search.MaxLimit) + `,"description":"Results per page. Default ` + strconv.Itoa(search.DefaultLimit) + `."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"required":["q"],"additionalProperties":false}`
 
 var errSearchNotConfigured = errors.New("search is not configured")
 
-func joinKinds(separator string) string {
-	names := make([]string, len(search.Kinds()))
-	for i, kind := range search.Kinds() {
-		names[i] = string(kind)
+func kindNames() []string {
+	names := make([]string, 0, len(search.Kinds())+1)
+	for _, kind := range search.Kinds() {
+		names = append(names, string(kind))
 	}
-	return strings.Join(names, separator)
+	return append(names, string(search.KindFinding))
+}
+
+func joinKinds(separator string) string {
+	return strings.Join(kindNames(), separator)
 }
 
 func init() { registerEntries((*Registry).searchEntries) }
@@ -94,7 +98,7 @@ func (r *Registry) searchWorkspace(ctx context.Context, input json.RawMessage) (
 	for i, name := range in.Kinds {
 		kinds[i] = search.Kind(name)
 		if !kinds[i].Valid() {
-			return invalid("kinds must each be one of %s", joinKinds(", ")), nil
+			return invalid("kinds must each be one of %s; finding is a deprecated alias of observation", joinKinds(", ")), nil
 		}
 	}
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {

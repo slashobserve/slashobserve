@@ -6,12 +6,11 @@ VALUES (
   @target_kind::text,
   @target_id::uuid,
   CASE WHEN @owner_kind::text = 'dashboard' THEN sqlc.narg('owner_id')::uuid END,
-  CASE WHEN @owner_kind::text = 'finding' THEN sqlc.narg('owner_id')::uuid END,
+  CASE WHEN @owner_kind::text = 'observation' AND @target_kind::text = 'finding' THEN @target_id::uuid END,
   CASE WHEN @owner_kind::text = 'saved_search' THEN sqlc.narg('owner_id')::uuid END,
   CASE WHEN @owner_kind::text = 'observation' THEN sqlc.narg('owner_id')::uuid END,
   CASE @owner_kind::text
     WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = sqlc.narg('owner_id')::uuid)
-    WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = sqlc.narg('owner_id')::uuid)
     WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = sqlc.narg('owner_id')::uuid)
     WHEN 'observation' THEN (SELECT o.folder_id FROM observations o WHERE o.id = sqlc.narg('owner_id')::uuid)
     WHEN 'general' THEN general_folder_id()
@@ -79,9 +78,6 @@ SELECT EXISTS (SELECT 1 FROM activity WHERE xid >= pg_snapshot_xmin(pg_current_s
 
 -- name: MoveDashboardActivity :execrows
 UPDATE activity SET folder_id = @folder_id WHERE dashboard_id = @dashboard_id;
-
--- name: MoveFindingActivity :execrows
-UPDATE activity SET folder_id = @folder_id WHERE finding_id = @finding_id;
 
 -- name: MoveSavedSearchActivity :execrows
 UPDATE activity SET folder_id = @folder_id WHERE saved_search_id = @saved_search_id;

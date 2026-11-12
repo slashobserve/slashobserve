@@ -208,7 +208,7 @@ func TestSearchWorkspaceRefusesBadInput(t *testing.T) {
 		{"only an exclusion", `{"q":"-staging"}`, "q needs a word to search for"},
 		{"limit 0", `{"q":"a","limit":0}`, "limit must be between 1 and 50"},
 		{"limit 51", `{"q":"a","limit":51}`, "limit must be between 1 and 50"},
-		{"unknown kind", `{"q":"a","kinds":["folder"]}`, "kinds must each be one of dashboard, finding, annotation, observation, comment, saved_search"},
+		{"unknown kind", `{"q":"a","kinds":["folder"]}`, "kinds must each be one of dashboard, annotation, observation, comment, saved_search, finding; finding is a deprecated alias of observation"},
 		{"cursor not a cursor", `{"q":"a","cursor":"nope"}`, "cursor is not valid"},
 		{"cursor too long", `{"q":"a","cursor":"` + strings.Repeat("c", maxNameBytes+1) + `"}`, "cursor must be at most 256 bytes"},
 	}
@@ -218,6 +218,36 @@ func TestSearchWorkspaceRefusesBadInput(t *testing.T) {
 		if !res.IsError || body.Code != codeInvalidRequest || body.Message != c.message {
 			t.Errorf("%s: error %v, %+v", c.name, res.IsError, body)
 		}
+	}
+}
+
+func TestSearchWorkspaceStillAcceptsTheFindingKind(t *testing.T) {
+	r := newWorkspaceRig(t)
+	var tool Tool
+	for _, candidate := range New(Deps{}).List() {
+		if candidate.Name == nameSearchWorkspace {
+			tool = candidate
+		}
+	}
+	var schema struct {
+		Properties struct {
+			Kinds struct {
+				Items struct {
+					Enum []string `json:"enum"`
+				} `json:"items"`
+				Description string `json:"description"`
+			} `json:"kinds"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(tool.InputSchema, &schema); err != nil {
+		t.Fatal(err)
+	}
+	kinds := schema.Properties.Kinds
+	if !slices.Contains(kinds.Items.Enum, "finding") || !slices.Contains(kinds.Items.Enum, "observation") || !strings.Contains(kinds.Description, "finding is a deprecated alias of observation") {
+		t.Errorf("kinds schema = %+v", kinds)
+	}
+	if _, res := r.search(t, viewerCaller, `{"q":"a","kinds":["finding"]}`); res.IsError {
+		t.Errorf("kinds finding = %+v", res)
 	}
 }
 

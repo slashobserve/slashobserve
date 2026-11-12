@@ -33,8 +33,11 @@ func investigate(t *testing.T, svc *revisions.Service, p revisions.InvestigatePa
 
 func insertFindingFor(t *testing.T, d *dbtest.Database, requestID pgtype.UUID) {
 	t.Helper()
-	d.Exec(t, `INSERT INTO findings (agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
-VALUES ($1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada')`, requestID, userID)
+	d.Exec(t, `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  VALUES (general_folder_id(), 'why', 'user', $2::uuid, 'Ada') RETURNING id),
+r AS (UPDATE agent_requests SET observation_id = (SELECT id FROM o) WHERE id = $1)
+INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+SELECT o.id, o.id, $1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada' FROM o`, requestID, userID)
 }
 
 func TestInvestigateStoresItsWindow(t *testing.T) {

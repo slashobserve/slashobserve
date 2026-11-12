@@ -12,99 +12,99 @@ import (
 )
 
 const getFinding = `-- name: GetFinding :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, r.context_to AS request_to
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, o.folder_id AS observation_folder_id, r.context_to AS request_to
 FROM findings f
+JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
 WHERE f.id = $1
 `
 
 type GetFindingRow struct {
-	ID             pgtype.UUID
-	AgentRequestID pgtype.UUID
-	DashboardID    pgtype.UUID
-	Title          string
-	Markdown       string
-	Evidence       []byte
-	TimeFrom       pgtype.Timestamptz
-	TimeTo         pgtype.Timestamptz
-	CreatedByKind  string
-	CreatedByID    pgtype.UUID
-	CreatedByName  string
-	AnnotationID   pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	FolderID       pgtype.UUID
-	RequestTo      pgtype.Timestamptz
+	Finding             Finding
+	ObservationFolderID pgtype.UUID
+	RequestTo           pgtype.Timestamptz
 }
 
 func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow, error) {
 	row := q.db.QueryRow(ctx, getFinding, id)
 	var i GetFindingRow
 	err := row.Scan(
-		&i.ID,
-		&i.AgentRequestID,
-		&i.DashboardID,
-		&i.Title,
-		&i.Markdown,
-		&i.Evidence,
-		&i.TimeFrom,
-		&i.TimeTo,
-		&i.CreatedByKind,
-		&i.CreatedByID,
-		&i.CreatedByName,
-		&i.AnnotationID,
-		&i.CreatedAt,
-		&i.Origin,
-		&i.OriginClient,
-		&i.FolderID,
+		&i.Finding.ID,
+		&i.Finding.AgentRequestID,
+		&i.Finding.DashboardID,
+		&i.Finding.Title,
+		&i.Finding.Markdown,
+		&i.Finding.Evidence,
+		&i.Finding.TimeFrom,
+		&i.Finding.TimeTo,
+		&i.Finding.CreatedByKind,
+		&i.Finding.CreatedByID,
+		&i.Finding.CreatedByName,
+		&i.Finding.AnnotationID,
+		&i.Finding.CreatedAt,
+		&i.Finding.Origin,
+		&i.Finding.OriginClient,
+		&i.Finding.FolderID,
+		&i.Finding.ObservationID,
+		&i.ObservationFolderID,
 		&i.RequestTo,
 	)
 	return i, err
 }
 
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id FROM findings WHERE agent_request_id = $1
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, o.folder_id AS observation_folder_id
+FROM findings f
+JOIN observations o ON o.id = f.observation_id
+WHERE f.agent_request_id = $1
 `
 
-func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID pgtype.UUID) (Finding, error) {
+type GetFindingByAgentRequestRow struct {
+	Finding             Finding
+	ObservationFolderID pgtype.UUID
+}
+
+func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID pgtype.UUID) (GetFindingByAgentRequestRow, error) {
 	row := q.db.QueryRow(ctx, getFindingByAgentRequest, agentRequestID)
-	var i Finding
+	var i GetFindingByAgentRequestRow
 	err := row.Scan(
-		&i.ID,
-		&i.AgentRequestID,
-		&i.DashboardID,
-		&i.Title,
-		&i.Markdown,
-		&i.Evidence,
-		&i.TimeFrom,
-		&i.TimeTo,
-		&i.CreatedByKind,
-		&i.CreatedByID,
-		&i.CreatedByName,
-		&i.AnnotationID,
-		&i.CreatedAt,
-		&i.Origin,
-		&i.OriginClient,
-		&i.FolderID,
+		&i.Finding.ID,
+		&i.Finding.AgentRequestID,
+		&i.Finding.DashboardID,
+		&i.Finding.Title,
+		&i.Finding.Markdown,
+		&i.Finding.Evidence,
+		&i.Finding.TimeFrom,
+		&i.Finding.TimeTo,
+		&i.Finding.CreatedByKind,
+		&i.Finding.CreatedByID,
+		&i.Finding.CreatedByName,
+		&i.Finding.AnnotationID,
+		&i.Finding.CreatedAt,
+		&i.Finding.Origin,
+		&i.Finding.OriginClient,
+		&i.Finding.FolderID,
+		&i.Finding.ObservationID,
+		&i.ObservationFolderID,
 	)
 	return i, err
 }
 
 const insertFinding = `-- name: InsertFinding :one
-INSERT INTO findings (agent_request_id, dashboard_id, folder_id, title, markdown, evidence, time_from, time_to,
+INSERT INTO findings (id, agent_request_id, dashboard_id, observation_id, title, markdown, evidence, time_from, time_to,
   created_by_kind, created_by_id, created_by_name, origin, origin_client)
-VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::jsonb,
-  $7, $8, $9, $10, $11,
-  $12::text, $13::text)
+VALUES (coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::uuid, $4,
+  $5, $6, $7::jsonb, $8, $9, $10, $11, $12,
+  $13::text, $14::text)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
-RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id
+RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id, observation_id
 `
 
 type InsertFindingParams struct {
+	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID
 	DashboardID    pgtype.UUID
-	FolderID       pgtype.UUID
+	ObservationID  pgtype.UUID
 	Title          string
 	Markdown       string
 	Evidence       []byte
@@ -119,9 +119,10 @@ type InsertFindingParams struct {
 
 func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (Finding, error) {
 	row := q.db.QueryRow(ctx, insertFinding,
+		arg.ID,
 		arg.AgentRequestID,
 		arg.DashboardID,
-		arg.FolderID,
+		arg.ObservationID,
 		arg.Title,
 		arg.Markdown,
 		arg.Evidence,
@@ -151,16 +152,17 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		&i.Origin,
 		&i.OriginClient,
 		&i.FolderID,
+		&i.ObservationID,
 	)
 	return i, err
 }
 
 const listFindingsBy = `-- name: ListFindingsBy :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id FROM findings f
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, o.folder_id AS observation_folder_id
+FROM findings f
+JOIN observations o ON o.id = f.observation_id
 WHERE f.created_by_kind = $1 AND f.created_by_id = $2
-  AND ((f.dashboard_id IS NULL AND f.folder_id IS NULL)
-    OR f.folder_id = ANY($3::uuid[])
-    OR f.dashboard_id IN (SELECT d.id FROM dashboards d WHERE d.folder_id = ANY($3::uuid[])))
+  AND o.folder_id = ANY($3::uuid[])
   AND ($4::timestamptz IS NULL
     OR (f.created_at, f.id) < ($4::timestamptz, $5::uuid))
 ORDER BY f.created_at DESC, f.id DESC
@@ -176,7 +178,12 @@ type ListFindingsByParams struct {
 	RowLimit        int32
 }
 
-func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) ([]Finding, error) {
+type ListFindingsByRow struct {
+	Finding             Finding
+	ObservationFolderID pgtype.UUID
+}
+
+func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) ([]ListFindingsByRow, error) {
 	rows, err := q.db.Query(ctx, listFindingsBy,
 		arg.CreatedByKind,
 		arg.CreatedByID,
@@ -189,26 +196,28 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Finding
+	var items []ListFindingsByRow
 	for rows.Next() {
-		var i Finding
+		var i ListFindingsByRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.AgentRequestID,
-			&i.DashboardID,
-			&i.Title,
-			&i.Markdown,
-			&i.Evidence,
-			&i.TimeFrom,
-			&i.TimeTo,
-			&i.CreatedByKind,
-			&i.CreatedByID,
-			&i.CreatedByName,
-			&i.AnnotationID,
-			&i.CreatedAt,
-			&i.Origin,
-			&i.OriginClient,
-			&i.FolderID,
+			&i.Finding.ID,
+			&i.Finding.AgentRequestID,
+			&i.Finding.DashboardID,
+			&i.Finding.Title,
+			&i.Finding.Markdown,
+			&i.Finding.Evidence,
+			&i.Finding.TimeFrom,
+			&i.Finding.TimeTo,
+			&i.Finding.CreatedByKind,
+			&i.Finding.CreatedByID,
+			&i.Finding.CreatedByName,
+			&i.Finding.AnnotationID,
+			&i.Finding.CreatedAt,
+			&i.Finding.Origin,
+			&i.Finding.OriginClient,
+			&i.Finding.FolderID,
+			&i.Finding.ObservationID,
+			&i.ObservationFolderID,
 		); err != nil {
 			return nil, err
 		}
@@ -221,24 +230,34 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 }
 
 const listFindingsByDashboard = `-- name: ListFindingsByDashboard :many
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id FROM findings
-WHERE dashboard_id = $1
-  AND ($2::timestamptz IS NULL
-    OR (created_at, id) < ($2::timestamptz, $3::uuid))
-ORDER BY created_at DESC, id DESC
-LIMIT $4
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, o.folder_id AS observation_folder_id
+FROM findings f
+JOIN observations o ON o.id = f.observation_id
+WHERE f.dashboard_id = $1
+  AND o.folder_id = ANY($2::uuid[])
+  AND ($3::timestamptz IS NULL
+    OR (f.created_at, f.id) < ($3::timestamptz, $4::uuid))
+ORDER BY f.created_at DESC, f.id DESC
+LIMIT $5
 `
 
 type ListFindingsByDashboardParams struct {
 	DashboardID     pgtype.UUID
+	Folders         []pgtype.UUID
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
 	RowLimit        int32
 }
 
-func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsByDashboardParams) ([]Finding, error) {
+type ListFindingsByDashboardRow struct {
+	Finding             Finding
+	ObservationFolderID pgtype.UUID
+}
+
+func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsByDashboardParams) ([]ListFindingsByDashboardRow, error) {
 	rows, err := q.db.Query(ctx, listFindingsByDashboard,
 		arg.DashboardID,
+		arg.Folders,
 		arg.CursorCreatedAt,
 		arg.CursorID,
 		arg.RowLimit,
@@ -247,26 +266,28 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Finding
+	var items []ListFindingsByDashboardRow
 	for rows.Next() {
-		var i Finding
+		var i ListFindingsByDashboardRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.AgentRequestID,
-			&i.DashboardID,
-			&i.Title,
-			&i.Markdown,
-			&i.Evidence,
-			&i.TimeFrom,
-			&i.TimeTo,
-			&i.CreatedByKind,
-			&i.CreatedByID,
-			&i.CreatedByName,
-			&i.AnnotationID,
-			&i.CreatedAt,
-			&i.Origin,
-			&i.OriginClient,
-			&i.FolderID,
+			&i.Finding.ID,
+			&i.Finding.AgentRequestID,
+			&i.Finding.DashboardID,
+			&i.Finding.Title,
+			&i.Finding.Markdown,
+			&i.Finding.Evidence,
+			&i.Finding.TimeFrom,
+			&i.Finding.TimeTo,
+			&i.Finding.CreatedByKind,
+			&i.Finding.CreatedByID,
+			&i.Finding.CreatedByName,
+			&i.Finding.AnnotationID,
+			&i.Finding.CreatedAt,
+			&i.Finding.Origin,
+			&i.Finding.OriginClient,
+			&i.Finding.FolderID,
+			&i.Finding.ObservationID,
+			&i.ObservationFolderID,
 		); err != nil {
 			return nil, err
 		}
@@ -279,24 +300,34 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 }
 
 const listFindingsInFolder = `-- name: ListFindingsInFolder :many
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id FROM findings
-WHERE folder_id = $1
-  AND ($2::timestamptz IS NULL
-    OR (created_at, id) < ($2::timestamptz, $3::uuid))
-ORDER BY created_at DESC, id DESC
-LIMIT $4
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, o.folder_id AS observation_folder_id
+FROM findings f
+JOIN observations o ON o.id = f.observation_id
+WHERE o.folder_id = $1 AND f.dashboard_id IS NULL
+  AND o.folder_id = ANY($2::uuid[])
+  AND ($3::timestamptz IS NULL
+    OR (f.created_at, f.id) < ($3::timestamptz, $4::uuid))
+ORDER BY f.created_at DESC, f.id DESC
+LIMIT $5
 `
 
 type ListFindingsInFolderParams struct {
 	FolderID        pgtype.UUID
+	Folders         []pgtype.UUID
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
 	RowLimit        int32
 }
 
-func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFolderParams) ([]Finding, error) {
+type ListFindingsInFolderRow struct {
+	Finding             Finding
+	ObservationFolderID pgtype.UUID
+}
+
+func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFolderParams) ([]ListFindingsInFolderRow, error) {
 	rows, err := q.db.Query(ctx, listFindingsInFolder,
 		arg.FolderID,
+		arg.Folders,
 		arg.CursorCreatedAt,
 		arg.CursorID,
 		arg.RowLimit,
@@ -305,26 +336,28 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Finding
+	var items []ListFindingsInFolderRow
 	for rows.Next() {
-		var i Finding
+		var i ListFindingsInFolderRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.AgentRequestID,
-			&i.DashboardID,
-			&i.Title,
-			&i.Markdown,
-			&i.Evidence,
-			&i.TimeFrom,
-			&i.TimeTo,
-			&i.CreatedByKind,
-			&i.CreatedByID,
-			&i.CreatedByName,
-			&i.AnnotationID,
-			&i.CreatedAt,
-			&i.Origin,
-			&i.OriginClient,
-			&i.FolderID,
+			&i.Finding.ID,
+			&i.Finding.AgentRequestID,
+			&i.Finding.DashboardID,
+			&i.Finding.Title,
+			&i.Finding.Markdown,
+			&i.Finding.Evidence,
+			&i.Finding.TimeFrom,
+			&i.Finding.TimeTo,
+			&i.Finding.CreatedByKind,
+			&i.Finding.CreatedByID,
+			&i.Finding.CreatedByName,
+			&i.Finding.AnnotationID,
+			&i.Finding.CreatedAt,
+			&i.Finding.Origin,
+			&i.Finding.OriginClient,
+			&i.Finding.FolderID,
+			&i.Finding.ObservationID,
+			&i.ObservationFolderID,
 		); err != nil {
 			return nil, err
 		}
@@ -334,39 +367,6 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 		return nil, err
 	}
 	return items, nil
-}
-
-const moveFinding = `-- name: MoveFinding :one
-UPDATE findings SET folder_id = $1 WHERE id = $2 AND dashboard_id IS NULL RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id
-`
-
-type MoveFindingParams struct {
-	FolderID pgtype.UUID
-	ID       pgtype.UUID
-}
-
-func (q *Queries) MoveFinding(ctx context.Context, arg MoveFindingParams) (Finding, error) {
-	row := q.db.QueryRow(ctx, moveFinding, arg.FolderID, arg.ID)
-	var i Finding
-	err := row.Scan(
-		&i.ID,
-		&i.AgentRequestID,
-		&i.DashboardID,
-		&i.Title,
-		&i.Markdown,
-		&i.Evidence,
-		&i.TimeFrom,
-		&i.TimeTo,
-		&i.CreatedByKind,
-		&i.CreatedByID,
-		&i.CreatedByName,
-		&i.AnnotationID,
-		&i.CreatedAt,
-		&i.Origin,
-		&i.OriginClient,
-		&i.FolderID,
-	)
-	return i, err
 }
 
 const setFindingAnnotation = `-- name: SetFindingAnnotation :execrows

@@ -2,10 +2,13 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -172,11 +175,55 @@ func TestFindingsCommands(t *testing.T) {
 			if tc.wantExact != nil && stdout.String() != *tc.wantExact {
 				t.Fatalf("stdout %q, want %q", stdout.String(), *tc.wantExact)
 			}
-			if tc.wantErr == "" && stderr.Len() > 0 {
-				t.Fatalf("unexpected stderr %q", stderr.String())
+			if tc.wantErr == "" && stderr.String() != findingsDeprecation(tc.args) {
+				t.Fatalf("stderr %q, want only the deprecation line", stderr.String())
 			}
 			if tc.wantErr != "" && !strings.Contains(stderr.String(), tc.wantErr) {
 				t.Fatalf("stderr %q lacks %q", stderr.String(), tc.wantErr)
+			}
+		})
+	}
+}
+
+func findingsDeprecation(args []string) string {
+	instead := "use observe o list"
+	if slices.Contains(args, "move") {
+		instead = "move the observation in the web app"
+	}
+	return "observe findings is deprecated and is removed in the next release; " + instead + "\n"
+}
+
+func TestFindingsCommandsPrintTheDeprecationFirstAndKeepJSONOutput(t *testing.T) {
+	body := `{"findings":[],"next_cursor":null}`
+	moved := `{"finding":` + findingRowJSON(testFinding, "Slow pod", "", testFolderTarget, "Ada") + `,"folder":null,"permissions":{}}`
+	cases := []struct {
+		name     string
+		args     []string
+		response string
+	}{
+		{"list", []string{"findings", "list", "--json"}, body},
+		{"list quiet", []string{"-q", "findings", "list", "--json"}, body},
+		{"move", []string{"findings", "move", "--json", testFinding, "--folder", testFolderTarget}, moved},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, tc.response)
+			}))
+			t.Cleanup(server.Close)
+
+			var stdout, stderr bytes.Buffer
+			args := append([]string{"--server", server.URL, "--token", "k"}, tc.args...)
+			if code := Main(args, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test"); code != 0 {
+				t.Fatalf("exit %d (stdout %q, stderr %q)", code, stdout.String(), stderr.String())
+			}
+			if stderr.String() != findingsDeprecation(tc.args) {
+				t.Errorf("stderr %q, want the deprecation line", stderr.String())
+			}
+			var got, want any
+			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || json.Unmarshal([]byte(tc.response), &want) != nil || !reflect.DeepEqual(got, want) {
+				t.Errorf("stdout %q is not the response body %s: %v", stdout.String(), tc.response, err)
 			}
 		})
 	}

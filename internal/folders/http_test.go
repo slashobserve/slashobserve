@@ -43,8 +43,10 @@ func TestDeletingAFolderThatHoldsAFindingOrASavedSearchIsRefused(t *testing.T) {
 	cases := []struct {
 		name, insert string
 	}{
-		{"finding", `INSERT INTO findings (folder_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
-VALUES ($1::uuid, 't', 'm', now() - interval '1 hour', now(), 'user', gen_random_uuid(), 'Ada')`},
+		{"finding", `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  VALUES ($1::uuid, 't', 'user', gen_random_uuid(), 'Ada') RETURNING id)
+INSERT INTO findings (id, observation_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+SELECT o.id, o.id, 't', 'm', now() - interval '1 hour', now(), 'user', gen_random_uuid(), 'Ada' FROM o`},
 		{"saved search", `INSERT INTO saved_searches (folder_id, kind, title, datasource_uid, query, time_from, time_to, created_by_kind, created_by_id, created_by_name)
 VALUES ($1::uuid, 'logs', 't', 'loki', '{app="x"}', 'now-1h', 'now', 'user', gen_random_uuid(), 'Ada')`},
 	}

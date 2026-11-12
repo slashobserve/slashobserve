@@ -147,7 +147,7 @@ The item is greyed, with "(uses dashboard variables)" after it, when a query or 
 ## Search
 
 Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the top bar, and type at least two characters.
-The command palette lists the pages and your dashboards that match, and after a short pause it adds what the server finds in the workspace: dashboards, findings, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
+The command palette lists the pages and your dashboards that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
 [Search](search.md) describes what each kind matches and how to write a query.

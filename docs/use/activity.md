@@ -15,8 +15,8 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Dashboard | `dashboard.created`, `dashboard.version_created`, `dashboard.restored` | A version is saved: the first one, a later one, or a restore of an older one. |
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
 | Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed. |
-| Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
-| Finding | `finding.moved` | A finding without a dashboard moves to another folder, which shares it with that folder's readers. |
+| Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
+| Finding | `finding.moved` | A finding without a dashboard moves to another folder through the deprecated finding API, which moves its observation. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
@@ -44,7 +44,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
-A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
+A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, where a thread on a finding is on its observation, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 
@@ -58,7 +58,8 @@ You see an event when any of these holds:
 
 An event takes the folder of its dashboard.
 A global annotation takes General, which everyone with a role can view, so everyone who can read global annotations sees its events.
-A finding without a dashboard and a saved search belong to their folder; an unfiled finding and a run whose dashboard does not exist yet belong to no folder.
+An observation, a finding without a dashboard and a saved search belong to their folder, and the discussion of a finding belongs to its observation; a run whose dashboard does not exist yet belongs to no folder.
+An unfiled finding no longer exists: the upgrade filed each existing one in the folder of the observation it became.
 
 When a dashboard moves, its earlier events move with it, so only the viewers of the new folder see them.
 When a dashboard is deleted, its events stay in the folder it was in.

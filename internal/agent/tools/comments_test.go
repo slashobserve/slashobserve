@@ -368,13 +368,13 @@ func TestCommentPageNamesWhatWasListed(t *testing.T) {
 	}
 }
 
-func (r *accessRig) privateFinding(t *testing.T, by auth.Principal) string {
+func (r *accessRig) privateFinding(t *testing.T, by auth.Principal) findings.Finding {
 	t.Helper()
 	f, _, err := r.findings.Save(t.Context(), by, findings.SaveInput{Title: "Checkout is slow", Markdown: "the 5xx rate rose", From: time.Now().Add(-time.Hour), To: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return f.ID
+	return f
 }
 
 func commentOutOf(t *testing.T, res Result) commentOut {
@@ -391,9 +391,10 @@ func commentOutOf(t *testing.T, res Result) commentOut {
 
 func TestCommentToolsWorkOnAFinding(t *testing.T) {
 	r := newAccessRig(t)
-	target := "finding:" + r.privateFinding(t, adminCaller)
+	finding := r.privateFinding(t, adminCaller)
+	target := "observation:" + finding.ObservationID
 
-	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"`+target+`","body":"is it the cache? @observe"}`))
+	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"finding:`+finding.ID+`","body":"is it the cache? @observe"}`))
 	if opened.Target != target || opened.Version != nil || opened.PanelID != nil || opened.ParentID != nil || opened.Status != threads.StatusOpen {
 		t.Fatalf("created = %+v", opened)
 	}
@@ -406,8 +407,8 @@ func TestCommentToolsWorkOnAFinding(t *testing.T) {
 		t.Fatalf("reply = %+v", reply)
 	}
 
-	listed, ok := r.call(t, adminCaller, nameListComments, `{"target":"`+target+`"}`).Content.(commentListOut)
-	if !ok || listed.Target != target || listed.DashboardID != "" || len(listed.Comments) != 2 || listed.Comments[0].ID != opened.ID || listed.Comments[1].ID != reply.ID {
+	listed, ok := r.call(t, adminCaller, nameListComments, `{"target":"finding:`+finding.ID+`"}`).Content.(commentListOut)
+	if !ok || listed.Target != "finding:"+finding.ID || listed.DashboardID != "" || len(listed.Comments) != 2 || listed.Comments[0].ID != opened.ID || listed.Comments[1].ID != reply.ID {
 		t.Fatalf("list_comments = %+v", listed)
 	}
 
@@ -498,9 +499,10 @@ func TestCommentToolsOnADashboardPanel(t *testing.T) {
 	}
 }
 
-func TestCommentToolsHideAnUnfiledFindingFromOthers(t *testing.T) {
+func TestCommentToolsHideAFindingInAPersonalFolderFromOthers(t *testing.T) {
 	r := newAccessRig(t)
-	id := r.privateFinding(t, commenterCaller)
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'cam', 'cam@example.com', 'Cam')`, commenterCaller.ID)
+	id := r.privateFinding(t, commenterCaller).ID
 	target := "finding:" + id
 	opened := commentOutOf(t, r.call(t, commenterCaller, nameCreateComment, `{"target":"`+target+`","body":"private note"}`))
 	calls := map[string]string{

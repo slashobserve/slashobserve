@@ -124,8 +124,12 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
-	found := findings.New(database.DB, access, notes, service, logger)
-	commentThreads := threads.NewService(database.DB, access, service, found, notes, observations.New(database.DB, access, nil, nil, logger), proposals.New(database.DB, access, service, logger))
+	observationService := observations.New(database.DB, access, nil, nil, logger)
+	found, err := findings.New(database.DB, access, notes, service, observationService, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	base, err := url.Parse(publicURL)
 	if err != nil {
 		t.Fatal(err)
@@ -422,7 +426,7 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 
 func TestMoveFindingFollowsWhoMayReadAndEditTheFinding(t *testing.T) {
 	f := newAccessFixture(t)
-	saved, _, err := f.findings.Save(t.Context(), viewerKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
+	saved, _, err := f.findings.Save(t.Context(), editorKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,15 +442,15 @@ func TestMoveFindingFollowsWhoMayReadAndEditTheFinding(t *testing.T) {
 		return map[string]any{"finding_id": saved.ID, "folder_id": folder.String()}
 	}
 
-	if res := f.as(t, editorKey, "move_finding", move(shared.ID)); !res.IsError || res.StructuredContent["code"] != "not_found" {
-		t.Errorf("an Editor key moving a finding in no folder that it did not save = %s, want not_found", text(res))
+	if res := f.as(t, viewerKey, "move_finding", move(shared.ID)); !res.IsError || res.StructuredContent["code"] != forbidden {
+		t.Errorf("a Viewer key moving a finding it can only read = %s, want %s", text(res), forbidden)
 	}
 	moved := f.as(t, adminKey, "move_finding", move(shared.ID))
 	if moved.IsError || moved.StructuredContent["folder"] != "Shared" || moved.StructuredContent["folder_id"] != shared.ID.String() {
 		t.Fatalf("an Admin key's move = %s", text(moved))
 	}
 	if res := f.as(t, editorKey, "move_finding", move(other.ID)); res.IsError || res.StructuredContent["folder"] != "Other" {
-		t.Errorf("an Editor key moving a finding filed in a folder it can edit = %s", text(res))
+		t.Errorf("an Editor key moving a finding in a folder it can edit = %s", text(res))
 	}
 }
 

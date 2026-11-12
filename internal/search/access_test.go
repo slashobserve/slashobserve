@@ -44,18 +44,18 @@ func buildWorld(t *testing.T) *world {
 	dRestricted := dashboard("restricted", hidden)
 	dMine := dashboard("mine", mine)
 
-	finding := func(name string, in findingIn) string {
-		in.title, in.markdown = "zebra finding "+name, "zebra evidence in "+name
+	converted := func(name string, in findingIn) string {
+		in.title, in.markdown = "zebra conclusion "+name, "zebra evidence in "+name
 		id := w.finding(t, in)
-		w.add("finding "+name, KindFinding, id, threads.Target{})
+		w.add("observation "+name, KindObservation, id, threads.Target{})
 		return id
 	}
-	fGeneral := finding("on general", findingIn{dashboard: dGeneral})
-	fRestricted := finding("on restricted", findingIn{dashboard: dRestricted})
-	fMine := finding("on mine", findingIn{dashboard: dMine, by: ada})
-	fShared := finding("in shared", findingIn{folder: shared})
-	fPersonal := finding("in personal", findingIn{folder: mine, by: ada})
-	fUnfiled := finding("unfiled", findingIn{by: keyS})
+	oGeneral := converted("on general", findingIn{dashboard: dGeneral})
+	oRestricted := converted("on restricted", findingIn{dashboard: dRestricted})
+	oMine := converted("on mine", findingIn{dashboard: dMine, by: ada})
+	oShared := converted("in shared", findingIn{folder: shared})
+	oPersonal := converted("in personal", findingIn{folder: mine, by: ada})
+	oKeyed := converted("saved by a key", findingIn{by: keyS})
 
 	aGlobal := w.annotation(t, "", "zebra annotation global")
 	w.add("annotation global", KindAnnotation, aGlobal, threads.Target{})
@@ -69,12 +69,12 @@ func buildWorld(t *testing.T) *world {
 	comment("dashboard general", threads.KindDashboard, dGeneral)
 	comment("dashboard restricted", threads.KindDashboard, dRestricted)
 	comment("dashboard mine", threads.KindDashboard, dMine)
-	comment("finding general", threads.KindFinding, fGeneral)
-	comment("finding restricted", threads.KindFinding, fRestricted)
-	comment("finding mine", threads.KindFinding, fMine)
-	comment("finding shared", threads.KindFinding, fShared)
-	comment("finding personal", threads.KindFinding, fPersonal)
-	comment("finding unfiled", threads.KindFinding, fUnfiled)
+	comment("observation general", threads.KindObservation, oGeneral)
+	comment("observation restricted", threads.KindObservation, oRestricted)
+	comment("observation mine", threads.KindObservation, oMine)
+	comment("observation shared", threads.KindObservation, oShared)
+	comment("observation personal", threads.KindObservation, oPersonal)
+	comment("observation saved by a key", threads.KindObservation, oKeyed)
 	comment("annotation global", threads.KindAnnotation, aGlobal)
 	comment("annotation restricted", threads.KindAnnotation, aRestricted)
 
@@ -94,8 +94,8 @@ func (w *world) openable(t *testing.T, by auth.Principal, f fixture, savedByRead
 			t.Fatalf("%s: %v", f.name, err)
 		}
 		return err == nil && got.Abilities.View
-	case KindFinding:
-		_, err := w.findings.Get(t.Context(), by, id)
+	case KindObservation:
+		_, err := w.observations.Get(t.Context(), by, id)
 		if err != nil && !isHidden(err) {
 			t.Fatalf("%s: %v", f.name, err)
 		}
@@ -137,11 +137,11 @@ func TestSearchShowsOnlyWhatTheReaderCanOpen(t *testing.T) {
 		count int
 	}{
 		{"an admin", admin, 17},
-		{"an editor with no grant on the restricted folder", editor, 9},
-		{"a viewer granted the restricted folder", payroll, 15},
-		{"the owner of My Dashboards", ada, 16},
-		{"the key that saved the unfiled finding", keyS, 11},
-		{"another key", keyT, 9},
+		{"an editor with no grant on the restricted folder", editor, 11},
+		{"a viewer granted the restricted folder", payroll, 17},
+		{"the owner of My Dashboards", ada, 18},
+		{"the key that saved an observation", keyS, 11},
+		{"another key", keyT, 11},
 	}
 	for _, reader := range readers {
 		t.Run(reader.name, func(t *testing.T) {

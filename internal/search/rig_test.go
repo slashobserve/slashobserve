@@ -14,7 +14,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
-	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -39,13 +38,13 @@ var (
 )
 
 type rig struct {
-	db          *dbtest.Database
-	service     *Service
-	access      *folders.Access
-	findings    *findings.Service
-	annotations *annotations.Service
-	threads     *threads.Service
-	saved       *savedsearches.Service
+	db           *dbtest.Database
+	service      *Service
+	access       *folders.Access
+	observations *observations.Service
+	annotations  *annotations.Service
+	threads      *threads.Service
+	saved        *savedsearches.Service
 }
 
 func newRig(t *testing.T) *rig {
@@ -55,15 +54,15 @@ func newRig(t *testing.T) *rig {
 	access := folders.NewAccess(d.DB)
 	annotationService := annotations.New(d.DB, access)
 	dashboardService := dashboards.New(d.DB, nil, access, logger)
-	findingService := findings.New(d.DB, access, annotationService, dashboardService, logger)
+	observationService := observations.New(d.DB, access, nil, nil, logger)
 	r := &rig{
-		db:          d,
-		service:     New(d.DB, access, &url.URL{Scheme: "https", Host: "observe.example.com"}),
-		access:      access,
-		findings:    findingService,
-		annotations: annotationService,
-		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observations.New(d.DB, access, nil, nil, logger), proposals.New(d.DB, access, dashboardService, logger)),
-		saved:       savedsearches.New(d.DB, access, nil, nil, logger),
+		db:           d,
+		service:      New(d.DB, access, &url.URL{Scheme: "https", Host: "observe.example.com"}),
+		access:       access,
+		observations: observationService,
+		annotations:  annotationService,
+		threads:      threads.NewService(d.DB, access, dashboardService, annotationService, observationService, proposals.New(d.DB, access, dashboardService, logger)),
+		saved:        savedsearches.New(d.DB, access, nil, nil, logger),
 	}
 	for _, p := range []auth.Principal{admin, editor, payroll, ada} {
 		d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $2)`, p.ID, p.Name)
@@ -116,6 +115,7 @@ VALUES ($1::uuid, $2, CASE WHEN $2 = 1 THEN NULL ELSE $2 - 1 END, jsonb_build_ob
 type findingIn struct {
 	title     string
 	markdown  string
+	summary   string
 	dashboard string
 	folder    pgtype.UUID
 	by        auth.Principal
@@ -131,9 +131,20 @@ func (r *rig) finding(t *testing.T, in findingIn) string {
 	if in.dashboard != "" {
 		dashboard = in.dashboard
 	}
-	return r.text(t, `INSERT INTO findings (dashboard_id, folder_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, created_at)
-VALUES ($1::uuid, $2::uuid, $3, $4, now() - interval '1 hour', now(), $5, $6::uuid, $7, now() - make_interval(days => $8))
-RETURNING id::text`, dashboard, in.folder, in.title, in.markdown, string(in.by.Kind), in.by.ID, in.by.Name, in.ageDays)
+	return r.text(t, `WITH o AS (
+  INSERT INTO observations (folder_id, title, state, summary, resolved_at, time_from, time_to, created_by_kind, created_by_id, created_by_name, created_at, updated_at)
+  SELECT coalesce($1::uuid, (SELECT folder_id FROM dashboards WHERE id = $2::uuid), general_folder_id()), $3,
+    CASE WHEN $4::text = '' THEN 'open' ELSE 'resolved' END, nullif($4::text, ''),
+    CASE WHEN $4::text = '' THEN NULL ELSE at END, at - interval '1 hour', at, $6, $7::uuid, $8, at, at
+  FROM (SELECT now() - make_interval(days => $9) AS at) clock
+  RETURNING id, created_at
+), blocks AS (
+  INSERT INTO observation_blocks (observation_id, kind, position, body, created_by_kind, created_by_id, created_by_name, created_at, updated_at)
+  SELECT id, 'text', 0, jsonb_build_object('markdown', $5::text), $6, $7::uuid, $8, created_at, created_at FROM o
+)
+INSERT INTO findings (id, dashboard_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, observation_id, created_at)
+SELECT id, $2::uuid, $3, $5, created_at - interval '1 hour', created_at, $6, $7::uuid, $8, id, created_at FROM o
+RETURNING id::text`, in.folder, dashboard, in.title, in.summary, in.markdown, string(in.by.Kind), in.by.ID, in.by.Name, in.ageDays)
 }
 
 func (r *rig) annotation(t *testing.T, dashboard, body string) string {
@@ -150,8 +161,6 @@ func (r *rig) comment(t *testing.T, kind Kind, target, body string) (thread, mes
 	switch kind {
 	case KindDashboard:
 		thread = r.text(t, `INSERT INTO threads (dashboard_id, dashboard_version) VALUES ($1::uuid, 1) RETURNING id::text`, target)
-	case KindFinding:
-		thread = r.text(t, `INSERT INTO threads (finding_id) VALUES ($1::uuid) RETURNING id::text`, target)
 	case KindObservation:
 		thread = r.text(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid) RETURNING id::text`, target)
 	default:
@@ -213,5 +222,5 @@ func mustUUID(t *testing.T, raw string) pgtype.UUID {
 
 func isHidden(err error) bool {
 	return errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) || errors.Is(err, folders.ErrForbidden) ||
-		errors.Is(err, findings.ErrNotFound) || errors.Is(err, annotations.ErrNotFound) || errors.Is(err, threads.ErrTargetNotFound)
+		errors.Is(err, observations.ErrNotFound) || errors.Is(err, annotations.ErrNotFound) || errors.Is(err, threads.ErrTargetNotFound)
 }

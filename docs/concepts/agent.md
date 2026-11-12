@@ -120,7 +120,7 @@ Two turns in a row in which every call was refused end the run with `no_progress
 ### Answers without a tool call
 
 If the model answers without a tool call while fewer panels than planned are built, its answer is dropped and its conversation is shortened the same way as after a cut-off, with a note that it is told once; its next answer without a tool call saves what is built.
-If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding` or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
+If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding`, which writes its answer into an observation, or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
 
 ### Cut-offs and shortened conversations
 
@@ -300,7 +300,7 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 The server has 24 tools: MCP clients get 23, and the built-in agent gets 18, the 17 it shares with MCP clients plus `save_finding`, which every run except a suggestion offers.
 The 17 shared tools are the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
 The comment tools, `list_folders` and `create_finding` are for MCP clients only, so the agent never writes or resolves a comment reply.
-The agent reads earlier findings with `list_findings`, as MCP clients do.
+The agent reads earlier answers with `list_findings`, as MCP clients do; MCP clients read observations with `list_observations`, and `create_finding` and `list_findings` are deprecated adapters over them.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.

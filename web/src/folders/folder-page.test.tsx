@@ -86,8 +86,8 @@ function json(body: unknown, status = 200): Response {
 const slowCheckout = {
   id: "6b1f8a52-0c1d-4e7a-9a43-2d5e8f0a1b3c",
   title: "Slow checkout after the deploy",
-  created_at: "2026-11-06T09:00:00Z",
-  actor: { label: "Ana" },
+  state: "open",
+  updated_at: "2026-11-06T09:00:00Z",
 }
 
 const errorSearch = {
@@ -104,7 +104,7 @@ const errorSearch = {
   updated_at: "2026-11-06T09:30:00Z",
 }
 
-type Extras = { findings?: unknown[]; searches?: unknown[] }
+type Extras = { observations?: unknown[]; searches?: unknown[] }
 
 function mockServer(
   shown: Folder | null,
@@ -118,8 +118,11 @@ function mockServer(
     vi.fn(async (request: Request) => {
       const url = new URL(request.url)
       requested.push(url)
-      if (url.pathname === "/api/v1/findings") {
-        return json({ findings: extras.findings ?? [], next_cursor: null })
+      if (url.pathname === "/api/v1/observations") {
+        return json({
+          observations: extras.observations ?? [],
+          next_cursor: null,
+        })
       }
       if (url.pathname === "/api/v1/saved-searches") {
         return json({
@@ -226,19 +229,19 @@ describe("FolderPage", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("lists the folder's findings and saved searches below its dashboards", async () => {
+  it("lists the folder's observations and saved searches below its dashboards", async () => {
     const listed = mockServer(folder(), [checkout], {
-      findings: [slowCheckout],
+      observations: [slowCheckout],
       searches: [errorSearch],
     })
     renderFolderPage()
 
-    const finding = await screen.findByRole("link", {
+    const observation = await screen.findByRole("link", {
       name: "Slow checkout after the deploy",
     })
-    expect(finding).toHaveAttribute("href", `/findings/${slowCheckout.id}`)
-    const findings = screen.getByRole("region", { name: "Findings" })
-    expect(within(findings).getByText("Ana")).toBeInTheDocument()
+    expect(observation).toHaveAttribute("href", `/o/${slowCheckout.id}`)
+    const observations = screen.getByRole("region", { name: "Observations" })
+    expect(within(observations).getByText("Open")).toBeInTheDocument()
 
     const search = await screen.findByRole("link", { name: "Checkout errors" })
     expect(search).toHaveAttribute(
@@ -256,7 +259,7 @@ describe("FolderPage", () => {
 
     const asked = (path: string) =>
       listed.requested.find((url) => url.pathname === path)
-    expect(asked("/api/v1/findings")?.searchParams.get("folder_id")).toBe(
+    expect(asked("/api/v1/observations")?.searchParams.get("folder_id")).toBe(
       folderId
     )
     expect(asked("/api/v1/saved-searches")?.searchParams.get("folder_id")).toBe(
@@ -264,17 +267,23 @@ describe("FolderPage", () => {
     )
   })
 
-  it("hides both sections while the folder has neither", async () => {
+  it("says the folder has no observations and hides the saved searches section", async () => {
     const listed = mockServer(folder(), [checkout])
     renderFolderPage()
 
     await screen.findByRole("link", { name: "Checkout service health" })
     await waitFor(() =>
       expect(listed.requested.map((url) => url.pathname)).toEqual(
-        expect.arrayContaining(["/api/v1/findings", "/api/v1/saved-searches"])
+        expect.arrayContaining([
+          "/api/v1/observations",
+          "/api/v1/saved-searches",
+        ])
       )
     )
-    expect(screen.queryByRole("region", { name: "Findings" })).toBeNull()
+    expect(
+      await screen.findByText("No observations in this folder")
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Observations" })).toBeNull()
     expect(screen.queryByRole("region", { name: "Saved searches" })).toBeNull()
   })
 

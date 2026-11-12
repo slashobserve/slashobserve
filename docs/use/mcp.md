@@ -83,6 +83,7 @@ The lowest role is the one the web app needs for the same work, and folder acces
 A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
 A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save directly; a save from a Commenter becomes a [proposal](../concepts/proposals.md).
 `create_finding` needs Editor, like Investigate.
+The finding tools `create_finding`, `list_findings` and `move_finding` are deprecated and are removed in the next release; the paragraphs on them below name what replaces each.
 
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.
@@ -163,14 +164,15 @@ It lists the folders the key can see, with `can_create` for each, and sets `trun
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
 No tool deletes, moves or duplicates a dashboard: people do that in the web app or through the HTTP API, and delete also with `observe dashboards delete`.
-`move_finding` is the one move tool, and only for a finding without a dashboard.
+`move_finding` is the one move tool and is deprecated: move an observation in the web app or with `POST /api/v1/observations/{id}/move`.
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
-Comments can sit on a dashboard, a finding, an annotation or a proposal.
+Comments can sit on a dashboard, an annotation, an observation or a proposal.
+A `finding:<uuid>` target is deprecated and means the discussion of the finding's observation, and a thread it opens or lists says `observation` as its target kind.
 A `proposal:<uuid>` target is read with View and written with Comment on the proposal's dashboard, and a comment on it has no `panel_id` or `version`.
-`list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `finding:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
+`list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
 Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
@@ -180,10 +182,17 @@ Write `@observe` to address the built-in agent: a mention is recorded and appear
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-`create_finding` saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
+`create_finding` is deprecated: use `create_observation` and then `add_block`.
+It saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
+The answer is written into an observation, and the result carries the finding's `observation_id` and its `url`, which is that observation's address.
 A finding without a `dashboard_id` is filed in `folder_id`, by default the key's My Dashboards when it has one, else General; `dashboard_id` and `folder_id` cannot go together.
-`list_findings` lists findings newest first, those on one dashboard with `dashboard_id`, those filed in one folder with `folder_id`, else the key's own.
-`move_finding` moves a finding without a dashboard into another folder, which shares it with that folder's readers.
+A finding on a dashboard is filed in the folder that dashboard is in when it is saved, and does not move when the dashboard does.
+
+`list_findings` is deprecated: use `list_observations`.
+It lists findings newest first, those on one dashboard with `dashboard_id`, those filed in one folder with `folder_id`, else the key's own.
+
+`move_finding` is deprecated: move the observation in the web app or with `POST /api/v1/observations/{id}/move`.
+It moves a finding without a dashboard into another folder, which shares it with that folder's readers.
 It takes `finding_id` and `folder_id` and returns the finding with the title of its folder; it needs Edit on the finding and on the folder, and a finding or folder the key cannot see answers `not_found`.
 A finding on a dashboard answers `invalid_request`, because it follows the dashboard, and so does a move into My Dashboards.
 
@@ -216,7 +225,7 @@ A transition the state does not allow, such as keeping a block that is already l
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked as `create_finding` checks its evidence: a panel whose query fails or returns no data in its range is refused with its issues.
 No tool removes a block, or moves, renames or reopens an observation: people do that in the web app or through the HTTP API.
 
-No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer with `create_finding`.
+No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
 
 `list_dashboard_health` is available over MCP only.
 It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
@@ -248,7 +257,7 @@ It lists only the events of folders the key may see, and it is over MCP only, so
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 
-`search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `finding`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
+`search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`; `finding` is deprecated and means `observation`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.
 It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
 

@@ -24,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -54,10 +55,13 @@ func newDocumented(t *testing.T) *documented {
 	}
 	access := folders.NewAccess(r.db.DB)
 	dash := dashboards.New(r.db.DB, queryproxy.NewRunner(registry, logger), access, logger)
-	r.service = findings.New(r.db.DB, access, annotations.New(r.db.DB, access), dash, logger)
+	r.service, err = findings.New(r.db.DB, access, annotations.New(r.db.DB, access), dash, observations.New(r.db.DB, access, nil, nil, logger), logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: r, engine: gin.New(), router: router, who: editor}
-	findings.NewHandler(r.service, func(id string) string { return "/findings/" + id }, logger).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
+	findings.NewHandler(r.service, func(f findings.Finding) string { return "/o/" + f.ObservationID }, logger).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
 	})))
 	return d
@@ -141,8 +145,11 @@ func TestFindingReadsMatchTheDocument(t *testing.T) {
 	d.call(t, viewer, http.MethodGet, "/api/v1/findings?dashboard_id="+d.open.String(), http.StatusOK)
 
 	get := d.call(t, viewer, http.MethodGet, "/api/v1/findings/"+shared.ID, http.StatusOK)
-	if !strings.Contains(get.Body.String(), `"url":"/findings/`+shared.ID+`"`) {
-		t.Fatalf("finding without its address: %s", get.Body)
+	if !strings.Contains(get.Body.String(), `"url":"/o/`+shared.ObservationID+`"`) || !strings.Contains(get.Body.String(), `"observation_id":"`+shared.ObservationID+`"`) {
+		t.Fatalf("finding without its observation: %s", get.Body)
+	}
+	if want := `</api/v1/observations/` + shared.ObservationID + `>; rel="successor-version"`; get.Header().Get("Link") != want {
+		t.Fatalf("Link %q, want %q", get.Header().Get("Link"), want)
 	}
 	var shown struct {
 		Finding struct {
@@ -225,4 +232,33 @@ func TestSavingAFindingAsADashboardMatchesTheDocument(t *testing.T) {
 	}
 	d.call(t, editor, http.MethodPost, "/api/v1/findings/"+broken.ID+"/dashboard", http.StatusUnprocessableEntity)
 	d.call(t, otherEditor, http.MethodPost, "/api/v1/findings/"+notes.ID+"/dashboard", http.StatusNotFound)
+}
+
+func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
+	d := newDocumented(t)
+	onDashboard := d.save(t, editor, findings.SaveInput{DashboardID: d.open})
+	own := d.save(t, editor, findings.SaveInput{})
+	shared := d.folder(t, "Incidents")
+	id := onDashboard.ID
+	routes := []struct {
+		name         string
+		method, path string
+		body         string
+		want         int
+	}{
+		{"list", http.MethodGet, "/api/v1/findings", "", http.StatusOK},
+		{"get", http.MethodGet, "/api/v1/findings/" + id, "", http.StatusOK},
+		{"get of a missing finding", http.MethodGet, "/api/v1/findings/99999999-9999-4999-8999-999999999999", "", http.StatusNotFound},
+		{"pin", http.MethodPost, "/api/v1/findings/" + id + "/pin", "", http.StatusCreated},
+		{"save as a dashboard", http.MethodPost, "/api/v1/findings/" + id + "/dashboard", "", http.StatusConflict},
+		{"move", http.MethodPost, "/api/v1/findings/" + own.ID + "/move", `{"folder_id":"` + shared.String() + `"}`, http.StatusOK},
+	}
+	for _, c := range routes {
+		t.Run(c.name, func(t *testing.T) {
+			rec := d.send(t, editor, c.method, c.path, c.body, c.want)
+			if got := rec.Header().Get("Deprecation"); got != "@1794355200" {
+				t.Fatalf("Deprecation %q, want @1794355200", got)
+			}
+		})
+	}
 }

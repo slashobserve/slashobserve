@@ -7,8 +7,8 @@ The chat on the **Observe** page turns a sentence into a saved dashboard.
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
-A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets a finding instead of a dashboard: the agent reads the data and replies with a short written answer.
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets a finding and leaves the dashboard as it is.
+A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
+A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
 ## Start a chat
@@ -27,7 +27,7 @@ Type the command and a space, and it turns into a chip above the box:
 
 | Command        | Chip        | What the send does                                              |
 | -------------- | ----------- | --------------------------------------------------------------- |
-| `/investigate` | Investigate | Asks a question and answers with a finding, see [Investigate](investigate.md). |
+| `/investigate` | Investigate | Asks a question and answers in an observation, see [Investigate](investigate.md). |
 | `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.            |
 | `/revise`      | Revise      | Changes the dashboard this chat is about.                       |
 
@@ -96,7 +96,7 @@ When a run stops early, the conversation ends with "The dashboard could not be b
 The new run is yours, whoever started the one you retry.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
-Only the server's step messages and errors are shown, and for an investigation the finding the agent saved.
+Only the server's step messages and errors are shown, and for an investigation the answer the agent saved into its observation.
 
 A dashboard has 2 to 8 panels unless you ask for another number, and the agent adds variables only when the request asks for a breakdown people will filter on.
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.

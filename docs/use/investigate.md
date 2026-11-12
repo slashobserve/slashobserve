@@ -1,24 +1,25 @@
 ---
 title: Investigate
-description: Ask the agent a question about your data and get a finding, a short written answer with up to four evidence panels, that you can pin to a dashboard or turn into one.
+description: Ask the agent a question about your data and get an answer in an observation, a short written conclusion with up to four evidence panels, that you can pin to a dashboard or turn into one.
 ---
 
 An investigation asks the agent a question instead of asking it for a dashboard, such as "why did checkout errors rise after 10:00?".
-The agent reads your datasources the way it does for a build, then ends by saving a finding.
+The agent reads your datasources the way it does for a build, then ends by saving its answer, a finding, into an [observation](observations.md).
 It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
-A plain question sent without the command, such as "how many pods are up?", is answered with a finding too, without building a dashboard.
+A plain question sent without the command, such as "how many pods are up?", is answered in an observation too, without building a dashboard.
 
 ## What a finding is
 
 A finding is the agent's answer, written as Markdown of at most 400 words.
 It carries up to four evidence panels, each a panel whose query the server ran and checked before the finding was saved.
 It covers one window of time, shown under the answer with when it was found.
-Every finding is saved with its own address, `/findings/<id>`, which you can share with anyone who can read the finding.
-A finding on a dashboard follows that dashboard, so anyone who can view the dashboard can read it.
-A finding that is not about a dashboard is filed in a folder, by default your My Dashboards, so only you can read it until it is moved to a shared folder.
-A finding that is in no folder, such as one a service account saved before findings had folders, is readable by that account and by Admins.
+The answer is saved into an observation, as a text block with the conclusion and one panel block for each evidence panel, so its address is the observation's, `/o/<id>`, which you can share with anyone who can read the observation.
+The observation is in a folder and follows that folder's access; see [Observations](observations.md#who-can-do-what).
+An investigation about a dashboard files its observation in that dashboard's folder when you can edit it, and otherwise in your My Dashboards, or in General when you have none.
+It stays there when the dashboard moves.
+The finding routes, tools and commands are deprecated and are removed in the next release; use the observation's own.
 
 ## Start an investigation
 
@@ -46,24 +47,20 @@ See [Investigations write into an observation](observations.md#investigations-wr
 ## Read the finding
 
 In the chat, an investigation's turn shows its steps like a build, with the status "Investigating" while it runs.
-When it ends, the turn shows the finding: the answer, the evidence panels, and when and over which window it was found.
-On a dashboard, your running investigations show in the activity pane as running entries, and each finding about the dashboard appears there as "Agent found" with the same card and an **Open finding** link to its page.
+When it ends, the turn shows the answer: the conclusion, the evidence panels, and when and over which window it was found.
+On a dashboard, your running investigations show in the activity pane as running entries, and each finding about the dashboard appears there as "Agent found" with the same card and an **Open observation** link to the observation it lives in.
 
-The finding page at `/findings/<id>` shows the title, who found it, the answer and the evidence, with links to the dashboard and to the chat that asked.
-Its header reads "Found by Observe Agent for Ishan" for a finding the agent saved and "Saved by Ishan (via Claude Code)" for one saved over MCP, with the same label every surface shows.
+The page is the observation at `/o/<id>`, with the conclusion and the evidence panels as blocks, the discussion and who wrote what; see [Observations](observations.md#open-an-observation).
 The evidence panels always show the finding's own window, not the dashboard's current range.
 
 ## Comment on a finding
 
-Under the finding on its page, **Comments** lists the finding's threads, each with its messages and who wrote them, and says "No comments yet." when there are none.
-Write in the box "Comment on this finding" and choose **Comment**, or press Cmd+Enter (Ctrl+Enter elsewhere), to start a thread.
-Each thread has **Reply**, **Resolve** and, once resolved, **Reopen**, and your own messages have **Edit**.
+The comments on an answer are the observation's discussion, one thread for the whole page, and you write in it as described in [Observations](observations.md#who-can-do-what).
 Mention people and the agent the way you do on a dashboard; see [Edit a comment and mention people](review.md#edit-a-comment-and-mention-people).
 A mention is recorded in the [activity log](activity.md) and starts no agent run.
-
-Commenting follows who can see the finding.
-A finding on a dashboard follows that dashboard's folder, and a finding without a dashboard follows the folder it is filed in, so you need Comment on that folder; a finding in no folder can be seen and commented on by the account that saved it, and by Admins.
-Anyone else who can read the finding sees its threads but no box and no buttons.
+Commenting follows who can see the observation: you need Comment on its folder, and anyone else who can read it sees the discussion but no box and no buttons.
+Threads that people opened on a finding before the discussion existed were merged into it when the server upgraded.
+The comment API still takes `finding:<id>` as a target for one release and resolves it to the discussion of the finding's observation.
 
 ## Pin it to the dashboard
 
@@ -74,14 +71,9 @@ Pinning needs Edit on the dashboard.
 
 ## Share a finding
 
-A finding without a dashboard is filed in a folder, and its page names that folder under the title.
-A finding you saved starts in your My Dashboards, where only you can read it.
-**Publish to folder** on such a finding, or **Move to folder** on one filed in a shared folder, moves it to another folder, and then everyone who can view that folder can read it.
-A finding on a dashboard follows the dashboard and has no folder of its own to move.
-
-Moving needs Edit on the finding and on the folder you move it to, and My Dashboards takes no moves.
-The move is recorded in the [activity log](activity.md) as `finding.moved`, and the finding's earlier activity moves to the new folder with it.
-From the command line, `bin/observe findings move <finding-id> --folder <folder-id>` does the same, and over [MCP](mcp.md) `move_finding` does.
+Move the observation to another folder to share it: **More actions**, then **Move to folder**, as described in [Observations](observations.md#rename-resolve-reopen-and-move).
+Everyone who can view that folder can then read the answer, and My Dashboards takes no moves.
+`finding.moved` and `move_finding`, `bin/observe findings move` and `POST /api/v1/findings/{id}/move` are deprecated and are removed in the next release.
 
 ## Make a dashboard from it
 
@@ -99,9 +91,10 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 ## Who can investigate
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
-Viewers can read the findings on dashboards they can view.
+Viewers can read the observations in the folders they can view.
 
 ## From an MCP client
 
 An agent in your own editor can do the same over [MCP](mcp.md).
-It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves a finding with the `create_finding` tool, reads the saved ones with `list_findings` and moves one to another folder with `move_finding`.
+It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves the answer into an observation with `create_observation` and `add_block`, and reads earlier ones with `list_observations`.
+`create_finding`, `list_findings` and `move_finding` still work and are deprecated.

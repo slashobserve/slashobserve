@@ -12,8 +12,10 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const evidencePanel = `{"type":"timeseries","title":"Rate","datasource":"prom","queries":[{"ref":"A","query":"sum(rate(http_requests_total[5m]))"}]}`
@@ -251,12 +253,15 @@ func TestAFullObservationTakesNoRunBlockAndNoError(t *testing.T) {
 	}
 }
 
-func recordInput(run dbsqlc.AgentRequest, panels ...string) observations.RunResult {
-	evidence := make([]json.RawMessage, len(panels))
+func recordInput(t *testing.T, run dbsqlc.AgentRequest, panels ...string) findings.Conclusion {
+	t.Helper()
+	evidence := make([]spec.Panel, len(panels))
 	for i, p := range panels {
-		evidence[i] = json.RawMessage(p)
+		if err := json.Unmarshal([]byte(p), &evidence[i]); err != nil {
+			t.Fatal(err)
+		}
 	}
-	return observations.RunResult{
+	return findings.Conclusion{
 		RunID: run.ID, Title: "Checkout 5xx", Markdown: "A deploy raised errors.", Evidence: evidence,
 		From: windowTo.Add(-time.Hour), To: windowTo,
 	}
@@ -277,8 +282,8 @@ func TestRecordingARunsResultWritesTextAndPanelsAndCitesThem(t *testing.T) {
 	run := r.run(t, editor, r.dashboardIn(t, r.shared), "Why?", nil, nil)
 	o := r.mustOpenForRun(t, observations.RunOpen{Run: run, By: editor, Strict: true})
 	r.link(t, run, o)
-	if err := r.service.RecordRunResult(t.Context(), editor, recordInput(run, evidencePanel, evidencePanel)); err != nil {
-		t.Fatal(err)
+	if id, created, err := r.conclude(t, editor, recordInput(t, run, evidencePanel, evidencePanel)); err != nil || created || id.String() != o.ID {
+		t.Fatalf("conclusion: %v, created %v, %v", id, created, err)
 	}
 	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
 	if err != nil {
@@ -325,25 +330,13 @@ func TestRecordingARunsResultTwiceWritesOnce(t *testing.T) {
 	o := r.mustOpenForRun(t, observations.RunOpen{Run: run, By: editor, Strict: true})
 	r.link(t, run, o)
 	for range 2 {
-		if err := r.service.RecordRunResult(t.Context(), editor, recordInput(run, evidencePanel)); err != nil {
+		if _, _, err := r.conclude(t, editor, recordInput(t, run, evidencePanel)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
 	if err != nil || len(got.Blocks) != 3 {
 		t.Errorf("blocks %d, %v", len(got.Blocks), err)
-	}
-}
-
-func TestARunWithoutAnObservationRecordsNothing(t *testing.T) {
-	r := newRig(t)
-	run := r.run(t, editor, pgtype.UUID{}, "Why?", nil, nil)
-	if err := r.service.RecordRunResult(t.Context(), editor, recordInput(run, evidencePanel)); err != nil {
-		t.Errorf("a run with no observation: %v", err)
-	}
-	unknown := observations.RunResult{RunID: mustUUID(t, "00000000-0000-4000-8000-000000000000"), Title: "t", Markdown: "m"}
-	if err := r.service.RecordRunResult(t.Context(), editor, unknown); err != nil {
-		t.Errorf("an unknown run: %v", err)
 	}
 }
 
@@ -354,7 +347,7 @@ func TestARequesterWhoLostEditGetsRequestedBlocks(t *testing.T) {
 	r.link(t, run, o)
 	demoted := editor
 	demoted.Role = auth.RoleCommenter
-	if err := r.service.RecordRunResult(t.Context(), demoted, recordInput(run, evidencePanel)); err != nil {
+	if _, _, err := r.conclude(t, demoted, recordInput(t, run, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
@@ -375,7 +368,7 @@ func TestARequesterWhoLostEditGetsRequestedBlocks(t *testing.T) {
 	r.link(t, again, second)
 	viewing := editor
 	viewing.Role = auth.RoleViewer
-	if err := r.service.RecordRunResult(t.Context(), viewing, recordInput(again)); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.conclude(t, viewing, recordInput(t, again)); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a requester who can only view: %v", err)
 	}
 }
@@ -386,7 +379,7 @@ func TestAnInvalidEvidencePanelIsSkippedAndTheRestIsKept(t *testing.T) {
 	o := r.mustOpenForRun(t, observations.RunOpen{Run: run, By: editor, Strict: true})
 	r.link(t, run, o)
 	notAPanel := `{"type":"text","title":"Notes"}`
-	if err := r.service.RecordRunResult(t.Context(), editor, recordInput(run, notAPanel, evidencePanel)); err != nil {
+	if _, _, err := r.conclude(t, editor, recordInput(t, run, notAPanel, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
@@ -403,7 +396,7 @@ func TestEvidenceStopsAtThePanelLimit(t *testing.T) {
 		r.addPanel(t, editor, o)
 	}
 	r.link(t, run, o)
-	if err := r.service.RecordRunResult(t.Context(), editor, recordInput(run, evidencePanel, evidencePanel, evidencePanel)); err != nil {
+	if _, _, err := r.conclude(t, editor, recordInput(t, run, evidencePanel, evidencePanel, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))

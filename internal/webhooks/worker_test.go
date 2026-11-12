@@ -275,8 +275,8 @@ func TestAnEventOfAFiledFindingOrSavedSearchFollowsItsFolder(t *testing.T) {
 	othersFinding, _ := r.findingInPersonalFolder(t, adminTwo.ID)
 	ownSearch := r.savedSearchInPersonalFolder(t, adminOne.ID)
 	othersSearch := r.savedSearchInPersonalFolder(t, adminTwo.ID)
-	wantFinding := r.appendOwned(t, activity.TypeFindingCreated, activity.OnFinding(ownFinding))
-	r.appendOwned(t, activity.TypeFindingCreated, activity.OnFinding(othersFinding))
+	wantFinding := r.appendOwned(t, activity.TypeFindingCreated, activity.OnObservation(ownFinding))
+	r.appendOwned(t, activity.TypeFindingCreated, activity.OnObservation(othersFinding))
 	wantSearch := r.appendOwned(t, activity.TypeSavedSearchCreated, activity.OnSavedSearch(ownSearch))
 	r.appendOwned(t, activity.TypeSavedSearchCreated, activity.OnSavedSearch(othersSearch))
 
@@ -301,9 +301,16 @@ func (r *rig) findingInPersonalFolder(t *testing.T, owner string) (id pgtype.UUI
 	t.Helper()
 	var raw string
 	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
-		INSERT INTO findings (title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, folder_id)
-		VALUES ('F', 'm', now() - interval '1 hour', now(), 'user', $1::uuid, 'Seed', (SELECT id FROM folders WHERE owner_id = $1::uuid))
-		RETURNING id::text, folder_id::text`, owner).Scan(&raw, &folder)
+		WITH o AS (
+			INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+			VALUES ((SELECT id FROM folders WHERE owner_id = $1::uuid), 'F', 'user', $1::uuid, 'Seed')
+			RETURNING id, folder_id
+		), f AS (
+			INSERT INTO findings (id, observation_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+			SELECT o.id, o.id, 'F', 'm', now() - interval '1 hour', now(), 'user', $1::uuid, 'Seed' FROM o
+			RETURNING id
+		)
+		SELECT f.id::text, o.folder_id::text FROM f, o`, owner).Scan(&raw, &folder)
 	if err != nil {
 		t.Fatal(err)
 	}

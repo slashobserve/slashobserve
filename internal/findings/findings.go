@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -39,11 +44,24 @@ var (
 	ErrOnDashboard    = errors.New("a finding on a dashboard follows the dashboard's folder")
 )
 
+type Conclusion struct {
+	RunID, DashboardID, FolderID pgtype.UUID
+	Title, Markdown              string
+	Evidence                     []spec.Panel
+	From, To                     time.Time
+}
+
+type Observations interface {
+	WriteConclusion(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, c Conclusion) (id pgtype.UUID, created bool, err error)
+	Placement(ctx context.Context, by auth.Principal, observationID pgtype.UUID) (folders.Folder, folders.Abilities, error)
+	MoveForFinding(ctx context.Context, by auth.Principal, observationID, folderID pgtype.UUID, inTx func(q *dbsqlc.Queries) error) error
+}
+
 type Author struct{ Kind, ID, Name string }
 
 type Finding struct {
 	ID, AgentRequestID, DashboardID, AnnotationID string
-	FolderID                                      string
+	ObservationID, FolderID                       string
 	Title, Markdown                               string
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time

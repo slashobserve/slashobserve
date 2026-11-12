@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -154,8 +155,15 @@ func TestSearchRouteMatchesTheDocument(t *testing.T) {
 		for _, r := range body.Results {
 			kinds[r.Kind]++
 		}
-		if len(body.Results) != 2 || kinds["finding"] != 1 || kinds["comment"] != 1 {
+		if len(body.Results) != 2 || kinds["observation"] != 1 || kinds["comment"] != 1 {
 			t.Fatalf("kinds %v", kinds)
+		}
+	})
+
+	t.Run("finding and observation together return the observation once", func(t *testing.T) {
+		body := decode(t, d.get(t, admin, "q=heron&kind=finding&kind=observation", http.StatusOK))
+		if len(body.Results) != 1 || body.Results[0].Kind != "observation" || body.Results[0].URL == nil || !strings.Contains(*body.Results[0].URL, "/o/") {
+			t.Fatalf("body %+v", body)
 		}
 	})
 
@@ -198,7 +206,7 @@ func TestSearchRouteAnswersEveryError(t *testing.T) {
 		{"a missing query", admin, "", http.StatusBadRequest, "invalid_request", "q must be 1 to 200 characters"},
 		{"a query with no word", admin, "q=--", http.StatusBadRequest, "invalid_request", "q needs a word to search for"},
 		{"a control character", admin, "q=a%00b", http.StatusBadRequest, "invalid_request", "q must not contain control characters"},
-		{"an unknown kind", admin, "q=heron&kind=folder", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, finding, annotation, observation, comment, saved_search"},
+		{"an unknown kind", admin, "q=heron&kind=folder", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, observation, annotation, comment, saved_search"},
 		{"a limit above the ceiling", admin, "q=heron&limit=51", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a limit of zero", admin, "q=heron&limit=0", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a cursor that is not ours", admin, "q=heron&cursor=garbage", http.StatusBadRequest, "invalid_request", "cursor is not valid"},

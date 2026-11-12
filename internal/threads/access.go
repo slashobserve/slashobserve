@@ -12,7 +12,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
-	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
@@ -25,20 +24,33 @@ type scope struct {
 	abilities folders.Abilities
 }
 
+func (s *Service) resolve(ctx context.Context, t Target) (Target, error) {
+	if t.Kind != KindFinding {
+		return t, nil
+	}
+	id, err := s.db.Queries().ObservationOfFinding(ctx, t.ID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return Target{}, ErrTargetNotFound
+	case err != nil:
+		return Target{}, fmt.Errorf("resolve finding target: %w", err)
+	}
+	return Target{Kind: KindObservation, ID: id}, nil
+}
+
 func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (scope, error) {
+	t, err := s.resolve(ctx, t)
+	if err != nil {
+		return scope{}, err
+	}
 	var dashboard pgtype.UUID
 	var owner activity.Owner
 	var abilities folders.Abilities
-	var err error
 	switch t.Kind {
 	case KindDashboard:
 		var found folders.DashboardAccess
 		found, err = s.access.Dashboard(ctx, by, t.ID)
 		dashboard, owner, abilities = t.ID, activity.OnDashboard(t.ID), found.Abilities
-	case KindFinding:
-		var placement findings.Placement
-		placement, err = s.findings.Access(ctx, by, t.ID)
-		dashboard, owner, abilities = placement.Dashboard, placement.Activity, placement.Abilities
 	case KindAnnotation:
 		dashboard, abilities, err = s.annotations.Access(ctx, by, t.ID)
 		owner = activity.General()
@@ -68,7 +80,7 @@ func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (sco
 
 func isHidden(err error) bool {
 	return errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) || errors.Is(err, folders.ErrForbidden) ||
-		errors.Is(err, findings.ErrNotFound) || errors.Is(err, annotations.ErrNotFound) || errors.Is(err, observations.ErrNotFound) || errors.Is(err, proposals.ErrNotFound)
+		errors.Is(err, annotations.ErrNotFound) || errors.Is(err, observations.ErrNotFound) || errors.Is(err, proposals.ErrNotFound)
 }
 
 func (s *Service) scopeOfThread(ctx context.Context, by auth.Principal, row dbsqlc.Thread) (scope, error) {
@@ -83,8 +95,6 @@ func targetOf(row dbsqlc.Thread) Target {
 	switch {
 	case row.DashboardID.Valid:
 		return Target{Kind: KindDashboard, ID: row.DashboardID}
-	case row.FindingID.Valid:
-		return Target{Kind: KindFinding, ID: row.FindingID}
 	case row.ObservationID.Valid:
 		return Target{Kind: KindObservation, ID: row.ObservationID}
 	case row.ProposalID.Valid:
@@ -101,8 +111,6 @@ func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope) error {
 	}
 	var err error
 	switch sc.target.Kind {
-	case KindFinding:
-		_, err = q.LockFindingKeyShare(ctx, sc.target.ID)
 	case KindAnnotation:
 		_, err = q.LockAnnotationKeyShare(ctx, sc.target.ID)
 	case KindObservation:

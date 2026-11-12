@@ -81,7 +81,12 @@ func (o findingListOptions) query() (url.Values, error) {
 	return query, nil
 }
 
+func (a *app) warnFindingsDeprecated(instead string) {
+	a.output().warn("observe findings is deprecated and is removed in the next release; %s", instead)
+}
+
 func (a *app) runFindingsList(cmd *cobra.Command, _ []string) error {
+	a.warnFindingsDeprecated("use observe o list")
 	query, err := a.findingList.query()
 	if err != nil {
 		return err
@@ -135,6 +140,7 @@ func (a *app) findingsMoveCommand() *cobra.Command {
 }
 
 func (a *app) runFindingsMove(cmd *cobra.Command, args []string) error {
+	a.warnFindingsDeprecated("move the observation in the web app")
 	id, err := parseID(args[0])
 	if err != nil {
 		return err

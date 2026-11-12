@@ -283,6 +283,15 @@ func TestCommentsCommands(t *testing.T) {
 			wantOut:    []string{`"can_comment":true`},
 		},
 		{
+			name:       "list on an observation sends its target",
+			args:       []string{"comments", "list", "--on", "observation:" + testFinding},
+			response:   threadsPage,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&status=open&target=observation%3A" + testFinding,
+			wantErr:    "more results: --cursor next",
+		},
+		{
 			name:     "list takes a dashboard id or --on",
 			args:     []string{"comments", "list"},
 			wantCode: 2,

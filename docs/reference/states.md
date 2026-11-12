@@ -15,7 +15,7 @@ A run is one agent request, started by `POST /observe`, a comment, a prompt, an 
 | `queued` | Waiting for a worker. | `cancel`, `pin`, `archive` |
 | `running` | A worker holds its lease and runs the agent. | `cancel`, `pin`, `archive` |
 | `canceling` | The requester canceled it and its worker is stopping. | `cancel`, `pin`, `archive` |
-| `succeeded` | It saved its result: a version, a suggestion or a finding. Final. | `retry`, `pin`, `archive` |
+| `succeeded` | It saved its result: a version, a suggestion or a finding saved into an observation. Final. | `retry`, `pin`, `archive` |
 | `failed` | It stopped without a result; a build it left can be kept or continued. Final. | `keep_build`, `continue`, `retry`, `pin`, `archive` |
 | `canceled` | The requester canceled it; a build it left can be kept or continued. Final. | `keep_build`, `continue`, `retry`, `pin`, `archive` |
 
@@ -38,7 +38,7 @@ A run is one agent request, started by `POST /observe`, a comment, a prompt, an 
 
 ## Comment thread
 
-A comment thread is a conversation on a dashboard, a finding or an annotation, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one.
+A comment thread is a conversation on a dashboard, an observation, an annotation or a proposal, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one.
 
 | State | Meaning | Actions |
 | --- | --- | --- |

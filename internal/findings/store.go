@@ -22,7 +22,9 @@ type store struct {
 	db *db.DB
 }
 
-func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Finding, bool, error) {
+type conclude func(q *dbsqlc.Queries) (id pgtype.UUID, created bool, err error)
+
+func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclude conclude) (Finding, bool, error) {
 	cols, err := by.Columns()
 	if err != nil {
 		return Finding{}, false, err
@@ -33,11 +35,19 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 	}
 	var row dbsqlc.Finding
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		var err error
+		observationID, created, err := conclude(q)
+		if err != nil {
+			return err
+		}
+		var id pgtype.UUID
+		if created {
+			id = observationID
+		}
 		row, err = q.InsertFinding(ctx, dbsqlc.InsertFindingParams{
+			ID:             id,
 			AgentRequestID: in.AgentRequestID,
 			DashboardID:    in.DashboardID,
-			FolderID:       in.FolderID,
+			ObservationID:  observationID,
 			Title:          in.Title,
 			Markdown:       in.Markdown,
 			Evidence:       evidence,
@@ -59,7 +69,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 		_, err = activity.Append(ctx, q, activity.Entry{
 			Type:     activity.TypeFindingCreated,
 			TargetID: row.ID,
-			Owner:    activityOwner(row.DashboardID, row.ID),
+			Owner:    activityOwner(row.DashboardID, row.ObservationID),
 			Actor:    by,
 			Data:     data,
 		}, nil)
@@ -77,7 +87,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput) (Findi
 	case err != nil:
 		return Finding{}, false, fmt.Errorf("insert finding: %w", err)
 	}
-	f, err := findingOf(row, pgtype.Timestamptz{})
+	f, err := s.get(ctx, row.ID)
 	return f, false, err
 }
 
@@ -89,12 +99,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 	case err != nil:
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
-	return findingOf(dbsqlc.Finding{
-		ID: row.ID, AgentRequestID: row.AgentRequestID, DashboardID: row.DashboardID, FolderID: row.FolderID, Title: row.Title, Markdown: row.Markdown,
-		Evidence: row.Evidence, TimeFrom: row.TimeFrom, TimeTo: row.TimeTo, CreatedByKind: row.CreatedByKind,
-		CreatedByID: row.CreatedByID, CreatedByName: row.CreatedByName, AnnotationID: row.AnnotationID, CreatedAt: row.CreatedAt,
-		Origin: row.Origin, OriginClient: row.OriginClient,
-	}, row.RequestTo)
+	return findingOf(row.Finding, row.ObservationFolderID, row.RequestTo)
 }
 
 func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding, bool, error) {
@@ -105,12 +110,12 @@ func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding,
 	case err != nil:
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
-	f, err := findingOf(row, pgtype.Timestamptz{})
+	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{})
 	return f, err == nil, err
 }
 
-func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
-	params := dbsqlc.ListFindingsByDashboardParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(rows)}
+func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, visible []pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
+	params := dbsqlc.ListFindingsByDashboardParams{DashboardID: dashboardID, Folders: visible, RowLimit: httpapi.Int32(rows)}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -119,11 +124,13 @@ func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, af
 	if err != nil {
 		return nil, fmt.Errorf("list findings of dashboard: %w", err)
 	}
-	return findingsOf(found)
+	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID) {
+		return r.Finding, r.ObservationFolderID
+	})
 }
 
-func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
-	params := dbsqlc.ListFindingsInFolderParams{FolderID: folderID, RowLimit: httpapi.Int32(rows)}
+func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, visible []pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
+	params := dbsqlc.ListFindingsInFolderParams{FolderID: folderID, Folders: visible, RowLimit: httpapi.Int32(rows)}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -132,7 +139,9 @@ func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, after *h
 	if err != nil {
 		return nil, fmt.Errorf("list findings of folder: %w", err)
 	}
-	return findingsOf(found)
+	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID) {
+		return r.Finding, r.ObservationFolderID
+	})
 }
 
 func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {
@@ -149,7 +158,9 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	if err != nil {
 		return nil, fmt.Errorf("list findings of creator: %w", err)
 	}
-	return findingsOf(found)
+	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID) {
+		return r.Finding, r.ObservationFolderID
+	})
 }
 
 type movedActivityFields struct {
@@ -158,43 +169,37 @@ type movedActivityFields struct {
 	ToFolderID   string  `json:"to_folder_id"`
 }
 
-func (s *store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
-	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		moved, err := q.MoveFinding(ctx, dbsqlc.MoveFindingParams{ID: id, FolderID: to})
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return ErrNotFound
-		case db.IsForeignKeyViolation(err):
-			return ErrFolderNotFound
-		case err != nil:
-			return fmt.Errorf("move finding: %w", err)
-		}
-		if err := activity.Move(ctx, q, activity.OnFinding(id), to); err != nil {
-			return err
-		}
-		data := movedActivityFields{Title: moved.Title, ToFolderID: to.String()}
-		if from.Valid {
-			data.FromFolderID = httpapi.OptionalString(from.String())
-		}
-		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:     activity.TypeFindingMoved,
-			TargetID: id,
-			Owner:    activity.OnFinding(id),
-			Actor:    by,
-			Data:     data,
-		}, nil)
+func appendMoved(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, f Finding, to pgtype.UUID) error {
+	id, err := db.ParseUUID(f.ID)
+	if err != nil {
 		return err
-	})
+	}
+	observationID, err := db.ParseUUID(f.ObservationID)
+	if err != nil {
+		return err
+	}
+	_, err = activity.Append(ctx, q, activity.Entry{
+		Type:     activity.TypeFindingMoved,
+		TargetID: id,
+		Owner:    activity.OnObservation(observationID),
+		Actor:    by,
+		Data: movedActivityFields{
+			Title:        f.Title,
+			FromFolderID: httpapi.OptionalString(f.FolderID),
+			ToFolderID:   to.String(),
+		},
+	}, nil)
+	return err
 }
 
-func activityOwner(dashboardID, findingID pgtype.UUID) activity.Owner {
+func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
 	if dashboardID.Valid {
 		return activity.OnDashboard(dashboardID)
 	}
-	return activity.OnFinding(findingID)
+	return activity.OnObservation(observationID)
 }
 
-func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, annotationID pgtype.UUID) (bool, error) {
+func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, observationID, annotationID pgtype.UUID) (bool, error) {
 	won := false
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		n, err := q.SetFindingAnnotation(ctx, dbsqlc.SetFindingAnnotationParams{ID: id, AnnotationID: annotationID})
@@ -205,7 +210,7 @@ func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboard
 		_, err = activity.Append(ctx, q, activity.Entry{
 			Type:     activity.TypeFindingPinned,
 			TargetID: id,
-			Owner:    activityOwner(dashboardID, id),
+			Owner:    activityOwner(dashboardID, observationID),
 			Actor:    by,
 			Data:     map[string]string{"annotation_id": annotationID.String()},
 		}, nil)
@@ -249,10 +254,11 @@ func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Ann
 	return a, nil
 }
 
-func findingsOf(rows []dbsqlc.Finding) ([]Finding, error) {
+func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID)) ([]Finding, error) {
 	out := make([]Finding, len(rows))
 	for i, r := range rows {
-		f, err := findingOf(r, pgtype.Timestamptz{})
+		row, folder := split(r)
+		f, err := findingOf(row, folder, pgtype.Timestamptz{})
 		if err != nil {
 			return nil, err
 		}
@@ -261,15 +267,16 @@ func findingsOf(rows []dbsqlc.Finding) ([]Finding, error) {
 	return out, nil
 }
 
-func findingOf(r dbsqlc.Finding, requestTo pgtype.Timestamptz) (Finding, error) {
+func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype.Timestamptz) (Finding, error) {
 	f := Finding{
-		ID:        r.ID.String(),
-		Title:     r.Title,
-		Markdown:  r.Markdown,
-		From:      r.TimeFrom.Time.UTC(),
-		To:        r.TimeTo.Time.UTC(),
-		CreatedAt: r.CreatedAt.Time.UTC(),
-		CreatedBy: Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
+		ID:            r.ID.String(),
+		ObservationID: r.ObservationID.String(),
+		Title:         r.Title,
+		Markdown:      r.Markdown,
+		From:          r.TimeFrom.Time.UTC(),
+		To:            r.TimeTo.Time.UTC(),
+		CreatedAt:     r.CreatedAt.Time.UTC(),
+		CreatedBy:     Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
 		Actor: actor.FromColumns(actor.Columns{
 			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
 			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,
@@ -283,9 +290,8 @@ func findingOf(r dbsqlc.Finding, requestTo pgtype.Timestamptz) (Finding, error) 
 	}
 	if r.DashboardID.Valid {
 		f.DashboardID = r.DashboardID.String()
-	}
-	if r.FolderID.Valid {
-		f.FolderID = r.FolderID.String()
+	} else if observationFolder.Valid {
+		f.FolderID = observationFolder.String()
 	}
 	if r.AnnotationID.Valid {
 		f.AnnotationID = r.AnnotationID.String()

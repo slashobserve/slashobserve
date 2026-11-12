@@ -51,10 +51,6 @@ export function findingPath(findingId: string): string {
   return path("findings", findingId)
 }
 
-export function findingLink(findingId: string) {
-  return { to: "/findings/$findingId", params: { findingId } } as const
-}
-
 export function observationPath(observationId: string): string {
   return path("o", observationId)
 }
