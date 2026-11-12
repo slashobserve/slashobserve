@@ -78,7 +78,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await form
           .getByRole("textbox", { name: "Comment or request" })
           .fill(ownComment)
-        await form.getByRole("button", { name: "Add comment" }).click()
+        await form.getByRole("button", { name: "Send", exact: true }).click()
 
         const own = thread(ownComment)
         await expect(own).toHaveCount(1)
@@ -108,11 +108,16 @@ for (const colorScheme of ["light", "dark"] as const) {
       await test.step("send the thread", async () => {
         await own.getByRole("button", { name: "Reply", exact: true }).click()
         const form = own.getByRole("form", { name: "Reply to this comment" })
-        await form.getByRole("textbox", { name: "Reply" }).fill(p99Prompt)
-        await form.getByRole("button", { name: "Send to agent" }).click()
+        await form
+          .getByRole("textbox", { name: "Reply" })
+          .fill(`@observe ${p99Prompt}`)
+        await form
+          .getByRole("button", { name: "Send and ask Observe Agent" })
+          .click()
 
-        await expect(form).toHaveCount(0)
-        await expect(own.getByText("Sent to the agent")).toBeVisible()
+        await expect(
+          form.getByText(/Observe Agent is working on it/)
+        ).toBeVisible()
         const running = entries(page).filter({
           has: page.getByText("is working on it", { exact: true }),
         })

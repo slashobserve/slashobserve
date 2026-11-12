@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Comment } from "@/comments/queries"
 
@@ -122,7 +122,39 @@ function renderThread(
   }
 }
 
+function json(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
 describe("ThreadEntry", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === "/api/v1/agent") {
+          return json({
+            available: true,
+            provider: "p",
+            model: "m",
+            effort: null,
+          })
+        }
+        if (pathname === "/api/v1/me/grants") {
+          return json({ grants: [], next_cursor: null })
+        }
+        return json({ service_accounts: [] })
+      })
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it("shows an open thread with its replies and actions", () => {
     renderThread("open")
     expect(screen.getByText("Open", { exact: true })).toBeInTheDocument()
