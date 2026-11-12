@@ -75,6 +75,8 @@ type VersionMeta struct {
 	Origin         string
 	OriginClient   string
 	AgentRequestID string
+
+	MergedProposalID string
 }
 
 type Version struct {
@@ -84,17 +86,18 @@ type Version struct {
 }
 
 type newVersion struct {
-	dashboardID  pgtype.UUID
-	parent       int
-	restoredFrom *int
-	spec         *spec.Dashboard
-	canonical    []byte
-	summary      string
-	author       Author
-	requestID    pgtype.UUID
-	origin       origin.Origin
-	unverified   Unverified
-	folder       folders.Folder
+	dashboardID    pgtype.UUID
+	parent         int
+	restoredFrom   *int
+	spec           *spec.Dashboard
+	canonical      []byte
+	summary        string
+	author         Author
+	requestID      pgtype.UUID
+	origin         origin.Origin
+	unverified     Unverified
+	folder         folders.Folder
+	mergedProposal pgtype.UUID
 }
 
 type store struct {
@@ -292,17 +295,18 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	}
 	originKind, originClient := in.origin.Columns()
 	params := dbsqlc.InsertDashboardVersionParams{
-		DashboardID:    in.dashboardID,
-		Version:        httpapi.Int32(number),
-		Spec:           in.canonical,
-		Summary:        in.summary,
-		AuthorKind:     in.author.Kind,
-		AuthorID:       authorID,
-		AuthorName:     in.author.Name,
-		AuthorEmail:    pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
-		AgentRequestID: in.requestID,
-		Origin:         originKind,
-		OriginClient:   originClient,
+		DashboardID:      in.dashboardID,
+		Version:          httpapi.Int32(number),
+		Spec:             in.canonical,
+		Summary:          in.summary,
+		AuthorKind:       in.author.Kind,
+		AuthorID:         authorID,
+		AuthorName:       in.author.Name,
+		AuthorEmail:      pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		AgentRequestID:   in.requestID,
+		Origin:           originKind,
+		OriginClient:     originClient,
+		MergedProposalID: in.mergedProposal,
 	}
 	if !in.unverified.Empty() {
 		params.Unverified, err = json.Marshal(in.unverified)
@@ -320,7 +324,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("insert dashboard version: %w", err)
 	}
-	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
+	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID, row.MergedProposalID)
 	ev := versionEvent(in.dashboardID, meta)
 	entry := activity.Entry{
 		Type:     versionActivityType(meta),
@@ -570,7 +574,7 @@ func (st store) listVersions(ctx context.Context, id pgtype.UUID, before, limit 
 	}
 	items := make([]VersionMeta, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, metaFromRow(r.Version, r.ParentVersion, r.RestoredFrom, r.Summary, authorFromRow(r.AuthorKind, r.AuthorID, r.AuthorName, r.AuthorEmail), r.CreatedAt, r.Origin, r.OriginClient, r.AgentRequestID))
+		items = append(items, metaFromRow(r.Version, r.ParentVersion, r.RestoredFrom, r.Summary, authorFromRow(r.AuthorKind, r.AuthorID, r.AuthorName, r.AuthorEmail), r.CreatedAt, r.Origin, r.OriginClient, r.AgentRequestID, r.MergedProposalID))
 	}
 	return items, nil
 }
@@ -604,7 +608,7 @@ func versionFromRow(row dbsqlc.DashboardVersion) (Version, error) {
 	if err != nil {
 		return Version{}, err
 	}
-	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
+	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID, row.MergedProposalID)
 	unverified, err := decodeUnverified(row.Unverified)
 	if err != nil {
 		return Version{}, err
@@ -623,7 +627,7 @@ func decodeUnverified(raw []byte) (Unverified, error) {
 	return u, nil
 }
 
-func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz, originKind, originClient pgtype.Text, agentRequestID pgtype.UUID) VersionMeta {
+func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz, originKind, originClient pgtype.Text, agentRequestID, mergedProposalID pgtype.UUID) VersionMeta {
 	return VersionMeta{
 		Number:         int(number),
 		ParentVersion:  optionalInt(parent),
@@ -634,6 +638,8 @@ func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, aut
 		Origin:         originKind.String,
 		OriginClient:   originClient.String,
 		AgentRequestID: agentRequestID.String(),
+
+		MergedProposalID: mergedProposalID.String(),
 	}
 }
 

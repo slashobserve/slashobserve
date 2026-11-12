@@ -69,13 +69,14 @@ func (s *Service) buildStates(ctx context.Context, ids []pgtype.UUID) (map[pgtyp
 	return states, nil
 }
 
-func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart bool) runFacts {
+func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart, mayEdit bool) runFacts {
 	f := runFacts{
 		state:       state,
 		source:      source,
 		onDashboard: dashboardID.Valid,
 		requester:   requester,
 		mayStart:    mayStart,
+		mayEdit:     mayEdit,
 		buildSaved:  buildSaved,
 		continued:   build.continuedBy != nil,
 	}
@@ -85,14 +86,15 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 	return f
 }
 
-func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart bool) runFacts {
-	return newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart)
+func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
+	return newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
 }
 
 type startChecks struct {
 	service *Service
 	by      auth.Principal
 	seen    map[startKey]bool
+	edits   map[pgtype.UUID]bool
 }
 
 type startKey struct {
@@ -101,7 +103,26 @@ type startKey struct {
 }
 
 func (s *Service) newStartChecks(by auth.Principal) *startChecks {
-	return &startChecks{service: s, by: by, seen: map[startKey]bool{}}
+	return &startChecks{service: s, by: by, seen: map[startKey]bool{}, edits: map[pgtype.UUID]bool{}}
+}
+
+func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgtype.UUID) (bool, error) {
+	if !dashboardID.Valid || !slices.Contains(RunMachine.From(ActionKeepBuild), string(state)) {
+		return true, nil
+	}
+	if may, ok := c.edits[dashboardID]; ok {
+		return may, nil
+	}
+	access, err := c.service.access.Dashboard(ctx, c.by, dashboardID)
+	switch {
+	case err == nil:
+		c.edits[dashboardID] = access.Abilities.Edit
+		return access.Abilities.Edit, nil
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
+		c.edits[dashboardID] = false
+		return false, nil
+	}
+	return false, err
 }
 
 func (c *startChecks) may(ctx context.Context, state State, source Source, dashboardID pgtype.UUID) (bool, error) {
@@ -127,8 +148,17 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, dashb
 	return false, err
 }
 
-func (s *Service) mayStart(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) (bool, error) {
-	return s.newStartChecks(by).may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+func (s *Service) factsFor(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) (runFacts, error) {
+	checks := s.newStartChecks(by)
+	mayStart, err := checks.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+	if err != nil {
+		return runFacts{}, err
+	}
+	mayEdit, err := checks.mayEdit(ctx, State(row.State), row.DashboardID)
+	if err != nil {
+		return runFacts{}, err
+	}
+	return factsOf(row, build, by, mayStart, mayEdit), nil
 }
 
 func (s *Service) continueBlocker(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) error {
@@ -136,7 +166,7 @@ func (s *Service) continueBlocker(ctx context.Context, row dbsqlc.AgentRequest, 
 	if err != nil {
 		return err
 	}
-	if !slices.Contains(allowedActions(factsOf(row, states[row.ID], by, false)), ActionContinue) {
+	if !slices.Contains(allowedActions(factsOf(row, states[row.ID], by, false, true)), ActionContinue) {
 		return ErrNotContinuable
 	}
 	return nil
@@ -168,7 +198,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !slices.Contains(allowedActions(factsOf(row, buildState{}, by, false)), ActionCancel) {
+	if !slices.Contains(allowedActions(factsOf(row, buildState{}, by, false, true)), ActionCancel) {
 		return canceledOrFinished(row)
 	}
 	requesterID, err := db.ParseUUID(by.ID)
@@ -289,8 +319,8 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 		return dbsqlc.AgentRequest{}, err
 	}
 	build := states[row.ID]
-	if !slices.Contains(allowedActions(factsOf(row, build, by, true)), ActionRetry) {
-		mayStart, err := s.mayStart(ctx, row, by)
+	if !slices.Contains(allowedActions(factsOf(row, build, by, true, true)), ActionRetry) {
+		facts, err := s.factsFor(ctx, row, build, by)
 		if err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
@@ -298,7 +328,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			Machine: RunMachine.Name,
 			State:   row.State,
 			Action:  string(ActionRetry),
-			Allowed: actionStrings(allowedActions(factsOf(row, build, by, mayStart))),
+			Allowed: actionStrings(allowedActions(facts)),
 		}
 	}
 	switch Source(row.Source) {

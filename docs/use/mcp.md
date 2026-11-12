@@ -27,12 +27,14 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `create_finding` | Editor |
 | `create_observation` | Viewer |
 | `discard_block` | Viewer |
+| `discard_proposal` | Viewer |
 | `draft_query` | Viewer |
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_observation` | Viewer |
 | `get_panels` | Viewer |
+| `get_proposal` | Viewer |
 | `get_run` | Viewer |
 | `get_run_brief` | Viewer |
 | `get_schema` | Viewer |
@@ -53,11 +55,13 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_labels` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
+| `list_proposals` | Viewer |
 | `list_saved_searches` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
+| `merge_proposal` | Viewer |
 | `move_finding` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
@@ -77,7 +81,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 
 The lowest role is the one the web app needs for the same work, and folder access decides the rest, as in the web app.
 A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
-A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save.
+A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save directly; a save from a Commenter becomes a [proposal](../concepts/proposals.md).
 `create_finding` needs Editor, like Investigate.
 
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
@@ -87,7 +91,12 @@ Each tool's description and input schema are the text the built-in agent reads, 
 `get_spec_guide` returns the core of the authoring guide plus one section per datasource type the server has configured, the text the built-in agent reads.
 
 `create_dashboard` and `update_dashboard` run every panel query before they save and reject a panel whose query fails or returns no data, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
-`update_dashboard` needs the `dashboard_id` and the `parent_version` you read, and sends the complete document; if a newer version has been saved since, it returns the tool error `version_conflict` with the latest version.
+`update_dashboard` needs the `dashboard_id` and the `parent_version` you read, and sends the complete document.
+If a newer version has been saved since and your save changed none of the panels, variables and settings that version changed, the server merges the two and the result carries `merged_from`, with the `base_version` you read and the `onto_version` it merged onto.
+If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`, one entry for each unit with its `kind`, `id`, `reason` and a `message`, so the client reads the latest version and applies its change again.
+`update_dashboard` and `update_panels` save a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
+The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
+A Viewer still gets `forbidden_role`.
 `get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
@@ -116,6 +125,14 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
+
+`list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
+`get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, and the `allowed_actions` of the caller, and answers `too_large` for a result over 128 KiB.
+`merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.
+It answers `proposal_changed` with the newest `revision` when the author added one, `version_conflict` with `conflicts` when a conflict has no choice, and `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
+
+`discard_proposal` takes the `proposal_id`, and its author or someone who may merge it can discard it.
+A caller without the access gets `forbidden_role`, and an unknown proposal or one on a dashboard the caller cannot see gets `not_found`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.
 With `scope` it answers every metric family in that scope in one result: the name, type, unit, label keys and series count of each family, `families_total`, and `grouped`, the families that share a name prefix such as `http_server`.
@@ -151,7 +168,8 @@ No tool deletes, moves or duplicates a dashboard: people do that in the web app 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
-Comments can sit on a dashboard, a finding or an annotation.
+Comments can sit on a dashboard, a finding, an annotation or a proposal.
+A `proposal:<uuid>` target is read with View and written with Comment on the proposal's dashboard, and a comment on it has no `panel_id` or `version`.
 `list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `finding:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
 Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
@@ -427,7 +445,7 @@ Its prompt list is empty, because the `observe` prompt is read on the first conn
 
 The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
-A run that saved a dashboard version or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
+A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no agent held for 10 minutes fails as `agent_unavailable`.
 
 ### The run session enforces the guards
@@ -450,7 +468,7 @@ Without the key, each call is its own turn, so the stalled-turn and one-save-per
 A key the server cannot trust (an empty or over-long id, more than 64 calls, or more saves than calls) is ignored.
 
 Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"settled", "build"}`.
-`settled` is `saved`, `finding` or `suggested` once the run has its result, `restarted` when a conflict restarted the run from the latest version, `ended` once the run has ended, and `null` otherwise.
+`settled` is `saved`, `proposed`, `finding` or `suggested` once the run has its result (`proposed` when the save became a proposal, which ends the run as succeeded with the result kind `proposal`), `restarted` when a conflict restarted the run from the latest version, `ended` once the run has ended, and `null` otherwise.
 `build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
 Some results also carry a note after the content, which an agent reads like any other tool text.
 
@@ -478,4 +496,8 @@ A `failure_code` with another outcome, a code outside the list, or `commit` with
 
 The `usage` of `finish_run` is shown on the run as the agent reports it.
 A connected agent or service account shows its presence, `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise, with `last_seen_at`; see [Agent presence](../reference/states.md#agent-presence).
-Every connection's `mode` is `direct`.
+A connection's `mode` is `direct` by default.
+Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`; it applies from the agent's next request, and no key or agent can change it.
+In propose mode `update_dashboard` and `update_panels` save a proposal and answer `proposed` even when the person is an Editor, `merge_proposal` answers `propose_mode`, and `discard_proposal` works only on a proposal the agent itself opened.
+A save that removes panels or variables answers `proposal_required` and names them, so the agent asks its person to remove them; the same holds when a run ends with `finish` on a build that removed any, and when `finish_run` with `commit` saves such a build, which stays so the agent can put the panels back and finish again.
+`create_dashboard` is not changed by the mode.

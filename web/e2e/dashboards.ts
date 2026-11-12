@@ -27,14 +27,24 @@ export async function expectNoAnimations(locator: Locator) {
     .toBe(0)
 }
 
-export async function startLayoutEditing(page: Page) {
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
-  await expect(
-    page.getByRole("button", { name: /^Move or resize / }).first()
-  ).toBeFocused()
+export async function selectPanel(page: Page, title: string) {
+  await panel(page, title)
+    .getByRole("button", { name: title, exact: true })
+    .click()
+  await expect(panel(page, title)).toHaveAttribute("data-selected", "")
+  await expect(panel(page, title)).toHaveAttribute("aria-current", "true")
   await expectNoAnimations(page.locator(".react-grid-item"))
+}
+
+export async function selectPanelToArrange(page: Page, title: string) {
+  await selectPanel(page, title)
+  await expect(
+    page.getByRole("button", { name: `Move or resize ${title}` })
+  ).toBeVisible()
+}
+
+export function unsavedLayout(page: Page) {
+  return page.getByRole("region", { name: "Unsaved layout" })
 }
 
 export async function openVersionsFromMenu(page: Page) {

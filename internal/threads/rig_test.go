@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -90,6 +91,7 @@ type rig struct {
 	findings     *findings.Service
 	annotations  *annotations.Service
 	observations *observations.Service
+	proposals    *proposals.Service
 }
 
 func newRig(t *testing.T) *rig {
@@ -115,7 +117,9 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	}
 	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	service := NewService(database.DB, access, dashboardService, findingService, annotationService, observationService)
+	proposalService := proposals.New(database.DB, access, dashboardService, logger)
+	dashboardService.SetProposer(proposalService.Propose)
+	service := NewService(database.DB, access, dashboardService, findingService, annotationService, observationService, proposalService)
 	return &rig{
 		db:           database,
 		service:      service,
@@ -125,6 +129,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 		findings:     findingService,
 		annotations:  annotationService,
 		observations: observationService,
+		proposals:    proposalService,
 	}
 }
 

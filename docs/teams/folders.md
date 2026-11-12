@@ -54,8 +54,8 @@ An entry can give a Viewer or Commenter more and never gives anyone less:
 | Level   | May                                                                                                                                                                                                |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | View    | See the folder and its dashboards.                                                                                                                                                                 |
-| Comment | Also comment and reply.                                                                                                                                                                            |
-| Edit    | Also change and restore dashboards, edit their details, run canvas actions, send requests to the agent, create, duplicate or import dashboards into the folder, and move or delete its dashboards. |
+| Comment | Also comment and reply, and send a request to the agent, whose change reaches the dashboard as a proposal.                                                                                         |
+| Edit    | Also change and restore dashboards, edit their details, run canvas actions, ask the agent to suggest a panel change, create, duplicate or import dashboards into the folder, and move or delete its dashboards. |
 | Admin   | Also rename the folder, delete it and change its list.                                                                                                                                             |
 
 Restricted folders on the Dashboards page show `Your access: <level>` in their header.
@@ -81,7 +81,7 @@ A key therefore sees a restricted folder only when its service account is an Adm
 To let automation work in a restricted folder, use a key of an Admin service account.
 
 The agent works as the person or key that asked.
-The request needs Edit on the dashboard, and the server checks it when the request is queued and again when a worker starts it.
+The request needs Comment on the dashboard's folder, and the server checks it when the request is queued and again when a worker starts it.
 A new dashboard from the chat goes to the requester's My Dashboards, or to General for a key.
 A request whose person lost access or was deleted in between fails with a message saying so.
 

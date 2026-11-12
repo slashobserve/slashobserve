@@ -2,6 +2,7 @@ import type { ApiIssue } from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import type { MergeConflict } from "@/proposals/queries"
 
 import type { JsonIssue } from "./panel-json"
 
@@ -10,7 +11,7 @@ const unknownDatasourceText =
   "A datasource this panel uses is not configured anymore."
 
 export type Problem =
-  | { kind: "conflict"; latest: number }
+  | { kind: "conflict"; latest: number; conflicts: MergeConflict[] }
   | { kind: "gone" }
   | {
       kind: "rejected"

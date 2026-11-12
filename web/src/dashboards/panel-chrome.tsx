@@ -73,6 +73,8 @@ type Props = {
   datasourceLabel?: string
   editing?: boolean
   highlighted?: boolean
+  selected?: boolean
+  onSelect?: () => void
   dragHandle?: boolean
   repeatOf?: string
   children?: ReactNode
@@ -91,16 +93,19 @@ export function PanelChrome({
   datasourceLabel,
   editing = false,
   highlighted = false,
+  selected = false,
+  onSelect,
   dragHandle = false,
   repeatOf,
   children,
 }: Props) {
   const titleId = useId()
   const title = panelTitle(panel)
-  const selected = editing || highlighted
+  const emphasized = editing || highlighted
   const timeOverride = isDataPanel(panel) ? timeOverrideLabel(panel) : null
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
   const transparent = "transparent" in panel && panel.transparent === true
+  const selectable = onSelect !== undefined && !titleHidden
   return (
     <article
       aria-labelledby={titleId}
@@ -108,12 +113,15 @@ export function PanelChrome({
       data-panel-id={panel.id}
       data-repeat-of={repeatOf}
       data-state={state}
-      data-highlighted={selected ? "" : undefined}
+      data-highlighted={emphasized ? "" : undefined}
+      data-selected={selected ? "" : undefined}
+      aria-current={selected ? "true" : undefined}
       className={cn(
         "relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
         transparent ? "border-transparent bg-transparent" : "bg-card",
-        selected &&
-          "border-foreground outline outline-1 -outline-offset-1 outline-foreground"
+        emphasized &&
+          "border-foreground outline outline-1 -outline-offset-1 outline-foreground",
+        selected && "ring-2 ring-ring"
       )}
     >
       <header
@@ -130,11 +138,23 @@ export function PanelChrome({
           id={titleId}
           title={title}
           className={cn(
-            "min-w-0 truncate text-[13px] font-semibold",
+            "min-w-0 text-[13px] font-semibold",
+            !selectable && "truncate",
             titleHidden && "sr-only"
           )}
         >
-          {title}
+          {selectable ? (
+            <button
+              type="button"
+              data-panel-title=""
+              className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={onSelect}
+            >
+              {title}
+            </button>
+          ) : (
+            title
+          )}
         </h2>
         {panel.description ? (
           <Tooltip>
@@ -224,7 +244,7 @@ export function PanelChrome({
           {menu}
         </div>
       </header>
-      <div className="min-h-0 flex-1">
+      <div data-panel-body="" className="min-h-0 flex-1">
         {state === "loading" ? <PanelSkeleton /> : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">

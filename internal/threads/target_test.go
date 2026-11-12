@@ -8,7 +8,7 @@ import (
 const sampleID = "7f0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b"
 
 func TestParseTargetRoundTrips(t *testing.T) {
-	for _, kind := range []Kind{KindDashboard, KindFinding, KindAnnotation} {
+	for _, kind := range []Kind{KindDashboard, KindFinding, KindAnnotation, KindObservation, KindProposal} {
 		raw := string(kind) + ":" + sampleID
 		got, err := ParseTarget(raw)
 		if err != nil {

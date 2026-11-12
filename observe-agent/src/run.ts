@@ -79,6 +79,7 @@ type TurnStep =
 const settledPriority = [
   "finding",
   "suggested",
+  "proposed",
   "saved",
   "restarted",
   "ended",
@@ -495,6 +496,7 @@ class RunLoop {
     }
     switch (settledOf(metas)) {
       case "saved":
+      case "proposed":
       case "finding":
       case "suggested":
         await this.finish({ outcome: "succeeded" })

@@ -5,6 +5,8 @@ import {
   connectPrompt,
   disconnectLabel,
   disconnectTitle,
+  modeChoices,
+  modeLabel,
   type ConnectedAgent,
 } from "./rows"
 import { claudeOAuthSnippet } from "./snippets"
@@ -48,6 +50,28 @@ describe("disconnect text", () => {
     expect(disconnectLabel(grant("Claude Code"), "all")).toBe(
       "Disconnect Claude Code of Ada Lovelace"
     )
+  })
+})
+
+describe("modeLabel", () => {
+  it("names both modes", () => {
+    expect(modeLabel("direct")).toBe("Direct")
+    expect(modeLabel("propose")).toBe("Propose")
+  })
+
+  it("offers direct first and explains each choice", () => {
+    expect(modeChoices).toEqual([
+      {
+        value: "direct",
+        label: "Direct",
+        description: "Saves change dashboards",
+      },
+      {
+        value: "propose",
+        label: "Propose",
+        description: "Saves become proposals an editor merges",
+      },
+    ])
   })
 })
 

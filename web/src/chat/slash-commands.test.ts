@@ -65,12 +65,26 @@ describe("withCommand", () => {
 
 describe("availableCommands", () => {
   it.each([
-    [{ hasDashboard: false, surface: "chat" }, ["investigate", "import"]],
     [
-      { hasDashboard: true, surface: "chat" },
+      { hasDashboard: false, surface: "chat", canInvestigate: true },
+      ["investigate", "import"],
+    ],
+    [
+      { hasDashboard: true, surface: "chat", canInvestigate: true },
       ["investigate", "import", "revise"],
     ],
-    [{ hasDashboard: true, surface: "activity" }, ["investigate", "revise"]],
+    [
+      { hasDashboard: true, surface: "activity", canInvestigate: true },
+      ["investigate", "revise"],
+    ],
+    [
+      { hasDashboard: true, surface: "activity", canInvestigate: false },
+      ["revise"],
+    ],
+    [
+      { hasDashboard: false, surface: "chat", canInvestigate: false },
+      ["import"],
+    ],
   ] as const)("offers the commands for %o", (input, expected) => {
     expect(availableCommands(input)).toEqual(expected)
   })

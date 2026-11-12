@@ -14,6 +14,7 @@ import (
 const (
 	codeVersionConflict = "version_conflict"
 	codeNotFound        = "not_found"
+	codeProposed        = "proposed"
 )
 
 var (
@@ -33,6 +34,7 @@ type Outcome struct {
 	Built      bool
 	Suggestion json.RawMessage
 	Finding    string
+	Proposal   string
 	Conflict   bool
 	NotFound   bool
 	Rejected   bool
@@ -54,6 +56,7 @@ type saveBody struct {
 	Replayed      *bool           `json:"replayed"`
 	Suggested     bool            `json:"suggested"`
 	FindingID     string          `json:"finding_id"`
+	ProposalID    string          `json:"proposal_id"`
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
 	Issues        []struct {
@@ -73,7 +76,7 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 		return Settled{}, err
 	}
 	out := settled.Outcome
-	s.Turn.Progress = out.Built || out.Saved != nil || out.Suggestion != nil || out.Finding != ""
+	s.Turn.Progress = out.Built || out.Saved != nil || out.Suggestion != nil || out.Finding != "" || out.Proposal != ""
 	s.Turn.Rejected = out.Rejected
 	return settled, nil
 }
@@ -95,6 +98,11 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{}, ErrMalformed
 	}
 	if !res.IsError {
+		if body.Code == codeProposed && body.ProposalID != "" && s.Mode == tools.ModeRevise {
+			s.Counts.BuildSaves++
+			s.Window = Window{}
+			return Settled{Outcome: Outcome{Proposal: body.ProposalID}}, nil
+		}
 		return s.classifyAccepted(c, res, body)
 	}
 	switch {

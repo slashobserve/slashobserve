@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
@@ -141,6 +142,7 @@ type Deps struct {
 	Runner        *queryproxy.Runner
 	Dashboards    *dashboards.Service
 	Threads       *threads.Service
+	Proposals     *proposals.Service
 	Imports       *imports.Service
 	Folders       *folders.Access
 	Findings      *findings.Service

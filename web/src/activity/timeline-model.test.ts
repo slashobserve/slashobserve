@@ -97,6 +97,7 @@ function version(n: number, createdAt: string): VersionMeta {
     origin: "web",
     origin_client: null,
     agent_request_id: null,
+    merged_proposal_id: null,
     actor: {
       kind: "user",
       id: "u1",

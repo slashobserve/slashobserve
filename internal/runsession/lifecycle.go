@@ -185,20 +185,30 @@ func (sess *session) rebase(ctx context.Context) (bool, error) {
 	return rebased, nil
 }
 
-func (sess *session) rebaseAndCommit(ctx context.Context) (version int, committed bool, err error) {
+func (sess *session) rebaseAndCommit(ctx context.Context) (commit dashboards.Commit, committed bool, err error) {
 	rebased, err := sess.rebase(ctx)
 	if err != nil || sess.ended || !rebased {
-		return 0, false, err
+		return dashboards.Commit{}, false, err
 	}
-	_, ver, _, err := sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
+	commit, err = sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
 	var conflict *dashboards.ConflictError
+	var required *dashboards.ProposalRequiredError
 	switch {
 	case errors.As(err, &conflict):
-		return 0, false, nil
+		return dashboards.Commit{}, false, nil
+	case errors.As(err, &required):
+		return dashboards.Commit{}, false, err
 	case err != nil:
-		return 0, false, sess.failed(ctx, "could not save the build", err)
+		return dashboards.Commit{}, false, sess.failed(ctx, "could not save the build", err)
 	}
-	return ver.Number, true, nil
+	return commit, true, nil
+}
+
+func settledByCommit(commit dashboards.Commit) Settled {
+	if commit.Proposal != nil {
+		return Settled{Kind: settledProposed}
+	}
+	return Settled{Kind: settledSaved, Version: commit.Version.Number}
 }
 
 func (sess *session) restartFromLatest(ctx context.Context) error {
@@ -224,12 +234,12 @@ func (sess *session) restartFromLatest(ctx context.Context) error {
 }
 
 func (sess *session) resolveConflict(ctx context.Context) (restarted bool, err error) {
-	version, committed, err := sess.rebaseAndCommit(ctx)
+	commit, committed, err := sess.rebaseAndCommit(ctx)
 	if err != nil || sess.ended {
 		return false, err
 	}
 	if committed {
-		sess.state.Settled = Settled{Kind: settledSaved, Version: version}
+		sess.state.Settled = settledByCommit(commit)
 		sess.state.Build = nil
 		return false, nil
 	}
@@ -240,15 +250,18 @@ func (sess *session) resolveConflict(ctx context.Context) (restarted bool, err e
 }
 
 func (sess *session) commit(ctx context.Context) (restarted bool, err error) {
-	_, ver, _, err := sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
+	commit, err := sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
 	var conflict *dashboards.ConflictError
+	var required *dashboards.ProposalRequiredError
 	switch {
 	case err == nil:
-		sess.state.Settled = Settled{Kind: settledSaved, Version: ver.Number}
+		sess.state.Settled = settledByCommit(commit)
 		sess.state.Build = nil
 		return false, nil
 	case errors.Is(err, dashboards.ErrBuildNotFound):
 		return false, nil
+	case errors.As(err, &required):
+		return false, err
 	case !errors.As(err, &conflict):
 		return false, sess.failed(ctx, "could not save the build", err)
 	}

@@ -43,6 +43,37 @@ me-grants-id:
       schema:
         type: string
         format: uuid
+  patch:
+    operationId: updateMyGrant
+    summary: Set how one of the signed-in person's MCP clients makes changes.
+    description: >-
+      `direct` is the default; `propose` makes the agent's dashboard writes proposals that someone who can edit merges.
+      The mode applies from the agent's next request.
+      Another person's connection, a connection already disconnected and one that does not exist all answer 404 `not_found`.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`, so no agent changes its own mode.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateConnectedAgentRequest"
+    responses:
+      "200":
+        description: The connection with its new mode.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ConnectedAgent"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: disconnectMyGrant
     summary: Disconnect one of the signed-in person's MCP clients.

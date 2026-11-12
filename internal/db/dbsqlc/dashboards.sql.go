@@ -217,7 +217,7 @@ func (q *Queries) DeleteDashboard(ctx context.Context, id pgtype.UUID) (int64, e
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, v.merged_proposal_id, f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -267,6 +267,7 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.DashboardVersion.OriginClient,
 		&i.DashboardVersion.DatasourceUids,
 		&i.DashboardVersion.Unverified,
+		&i.DashboardVersion.MergedProposalID,
 		&i.FolderTitle,
 		&i.FolderGeneral,
 		&i.FolderPersonal,
@@ -286,7 +287,7 @@ func (q *Queries) GetDashboardLatestVersion(ctx context.Context, id pgtype.UUID)
 }
 
 const getDashboardVersion = `-- name: GetDashboardVersion :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, v.merged_proposal_id,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
@@ -349,6 +350,7 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.DashboardVersion.OriginClient,
 		&i.DashboardVersion.DatasourceUids,
 		&i.DashboardVersion.Unverified,
+		&i.DashboardVersion.MergedProposalID,
 		&i.UpdatedByKind,
 		&i.UpdatedByID,
 		&i.UpdatedByName,
@@ -392,50 +394,72 @@ func (q *Queries) GetDashboardVersionUnverified(ctx context.Context, arg GetDash
 	return unverified, err
 }
 
+const getRunProposal = `-- name: GetRunProposal :one
+SELECT id, dashboard_id, revision FROM proposals
+WHERE run_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+type GetRunProposalRow struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	Revision    int32
+}
+
+func (q *Queries) GetRunProposal(ctx context.Context, runID pgtype.UUID) (GetRunProposalRow, error) {
+	row := q.db.QueryRow(ctx, getRunProposal, runID)
+	var i GetRunProposalRow
+	err := row.Scan(&i.ID, &i.DashboardID, &i.Revision)
+	return i, err
+}
+
 const insertDashboardVersion = `-- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client, unverified
+  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client, unverified, merged_proposal_id
 ) VALUES (
   $1, $2, $3, $4, $5, $6,
   $7, $8, $9, $10, $11,
-  $12::text, $13::text, $14::jsonb
+  $12::text, $13::text, $14::jsonb, $15::uuid
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at
 `
 
 type InsertDashboardVersionParams struct {
-	DashboardID    pgtype.UUID
-	Version        int32
-	ParentVersion  pgtype.Int4
-	RestoredFrom   pgtype.Int4
-	Spec           []byte
-	Summary        string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	AgentRequestID pgtype.UUID
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	Unverified     []byte
+	DashboardID      pgtype.UUID
+	Version          int32
+	ParentVersion    pgtype.Int4
+	RestoredFrom     pgtype.Int4
+	Spec             []byte
+	Summary          string
+	AuthorKind       string
+	AuthorID         pgtype.UUID
+	AuthorName       string
+	AuthorEmail      pgtype.Text
+	AgentRequestID   pgtype.UUID
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	Unverified       []byte
+	MergedProposalID pgtype.UUID
 }
 
 type InsertDashboardVersionRow struct {
-	DashboardID    pgtype.UUID
-	Version        int32
-	ParentVersion  pgtype.Int4
-	RestoredFrom   pgtype.Int4
-	Summary        string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	AgentRequestID pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
+	DashboardID      pgtype.UUID
+	Version          int32
+	ParentVersion    pgtype.Int4
+	RestoredFrom     pgtype.Int4
+	Summary          string
+	AuthorKind       string
+	AuthorID         pgtype.UUID
+	AuthorName       string
+	AuthorEmail      pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	AgentRequestID   pgtype.UUID
+	MergedProposalID pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboardVersionParams) (InsertDashboardVersionRow, error) {
@@ -454,6 +478,7 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 		arg.Origin,
 		arg.OriginClient,
 		arg.Unverified,
+		arg.MergedProposalID,
 	)
 	var i InsertDashboardVersionRow
 	err := row.Scan(
@@ -469,6 +494,7 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 		&i.Origin,
 		&i.OriginClient,
 		&i.AgentRequestID,
+		&i.MergedProposalID,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -511,7 +537,7 @@ func (q *Queries) ListDashboardTags(ctx context.Context, folders []pgtype.UUID) 
 
 const listDashboardVersions = `-- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = $1 AND ($2::int IS NULL OR version < $2::int)
 ORDER BY version DESC
@@ -525,19 +551,20 @@ type ListDashboardVersionsParams struct {
 }
 
 type ListDashboardVersionsRow struct {
-	DashboardID    pgtype.UUID
-	Version        int32
-	ParentVersion  pgtype.Int4
-	RestoredFrom   pgtype.Int4
-	Summary        string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	AgentRequestID pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
+	DashboardID      pgtype.UUID
+	Version          int32
+	ParentVersion    pgtype.Int4
+	RestoredFrom     pgtype.Int4
+	Summary          string
+	AuthorKind       string
+	AuthorID         pgtype.UUID
+	AuthorName       string
+	AuthorEmail      pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	AgentRequestID   pgtype.UUID
+	MergedProposalID pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVersionsParams) ([]ListDashboardVersionsRow, error) {
@@ -562,6 +589,7 @@ func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVe
 			&i.Origin,
 			&i.OriginClient,
 			&i.AgentRequestID,
+			&i.MergedProposalID,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

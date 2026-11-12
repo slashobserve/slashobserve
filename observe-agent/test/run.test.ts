@@ -101,6 +101,17 @@ describe("run loop success", () => {
     })
   })
 
+  test("a proposal finishes the run like a saved version", async () => {
+    const claim = new FakeClaim()
+    claim.tools.handler = async (call) =>
+      call.name === "create_dashboard"
+        ? reply({ meta: meta("proposed", progress(1)) })
+        : reply()
+    await drive(claim, claimed("create happy path"))
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
+  })
+
   test("the first brief has no reason and starts the session from it", async () => {
     const claim = new FakeClaim()
     claim.tools.handler = savedWith()

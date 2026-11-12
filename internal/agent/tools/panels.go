@@ -274,7 +274,16 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return Result{}, err
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.AddChangedVersion(ctx, principal, target.id, target.parent, raw, in.Summary, requestID)
+	res, err := r.deps.Dashboards.Save(ctx, principal, dashboards.SaveInput{
+		DashboardID:     target.id,
+		Parent:          target.parent,
+		Spec:            raw,
+		Summary:         in.Summary,
+		RequestID:       requestID,
+		Partial:         true,
+		Merge:           true,
+		ProposeIfNeeded: true,
+	})
 	var invalidSpec *dashboards.InvalidSpecError
 	if errors.As(err, &invalidSpec) {
 		return patchRejected(invalidSpec.Issues, panelIDsOf(merged)), nil
@@ -282,7 +291,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+	return r.saveSucceeded(ctx, res), nil
 }
 
 func patchSizeWithinLimits(p spec.PanelPatch) (Result, bool) {

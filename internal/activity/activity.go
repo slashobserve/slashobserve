@@ -40,6 +40,11 @@ const (
 	TypeObservationBlockDiscarded = "observation.block_discarded"
 	TypeObservationBlockRemoved   = "observation.block_removed"
 
+	TypeProposalOpened    = "proposal.opened"
+	TypeProposalUpdated   = "proposal.updated"
+	TypeProposalMerged    = "proposal.merged"
+	TypeProposalDiscarded = "proposal.discarded"
+
 	TypeThreadOpened    = "thread.opened"
 	TypeThreadReplied   = "thread.replied"
 	TypeThreadEdited    = "thread.edited"
@@ -84,6 +89,10 @@ var knownTypes = []string{
 	TypeObservationBlockKept,
 	TypeObservationBlockDiscarded,
 	TypeObservationBlockRemoved,
+	TypeProposalOpened,
+	TypeProposalUpdated,
+	TypeProposalMerged,
+	TypeProposalDiscarded,
 	TypeThreadOpened,
 	TypeThreadReplied,
 	TypeThreadEdited,

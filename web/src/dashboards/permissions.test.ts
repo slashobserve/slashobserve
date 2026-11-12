@@ -38,7 +38,7 @@ describe("readerNote", () => {
 
   it("names the folder in the comment-only note", () => {
     expect(readerNote("comment-only", "Payments")).toBe(
-      "You can view and comment in Payments. Someone with Edit on this folder can send your comment to the agent or change the panels."
+      "You can view and comment in Payments. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
     )
   })
 

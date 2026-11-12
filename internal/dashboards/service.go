@@ -44,7 +44,8 @@ var (
 )
 
 type ConflictError struct {
-	Latest int
+	Latest    int
+	Conflicts []spec.Conflict
 }
 
 func (e *ConflictError) Error() string {
@@ -72,6 +73,8 @@ type Service struct {
 	runner *queryproxy.Runner
 	access *folders.Access
 	logger *slog.Logger
+
+	proposer Proposer
 }
 
 func New(database *db.DB, runner *queryproxy.Runner, access *folders.Access, logger *slog.Logger) *Service {
@@ -83,17 +86,8 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
-	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, pgtype.UUID{}, s.checkSave)
-}
-
-// A request id makes the save exactly-once: a second save for the same id returns the version the first one
-// created, whatever spec or parent it carries.
-func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID, s.checkSave)
-}
-
-func (s *Service) AddChangedVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID, s.checkChangedSave)
+	res, err := s.Save(ctx, by, SaveInput{DashboardID: id, Parent: parent, Spec: rawSpec, Summary: summary})
+	return res.Dashboard, res.Version, res.Replayed, err
 }
 
 func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -191,59 +185,6 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	}
 	dash.Abilities = target.abilities
 	return dash, ver, nil
-}
-
-type saveCheck func(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, parsed *spec.Dashboard) (Unverified, error)
-
-func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID, check saveCheck) (Dashboard, Version, bool, error) {
-	access, err := s.need(ctx, by, id, folders.NeedEdit)
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	dash, ver, replayed, err := s.persistVersion(ctx, by, id, parent, rawSpec, summary, requestID, check)
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	return withAccess(dash, access), ver, replayed, nil
-}
-
-func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID, check saveCheck) (Dashboard, Version, bool, error) {
-	if requestID.Valid {
-		if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, id); err != nil || found {
-			return dash, ver, found, err
-		}
-	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, "")
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	latest, err := s.store.latestVersion(ctx, id)
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	if parent >= 1 && parent <= latest {
-		prev, err := s.VersionSpec(ctx, id, parent)
-		if err != nil {
-			return Dashboard{}, Version{}, false, err
-		}
-		if freezeResized(prev, parsed) {
-			if canonical, err = json.Marshal(parsed); err != nil {
-				return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)
-			}
-		}
-	}
-	if latest != parent {
-		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
-	}
-	carried, err := check(ctx, by, id, parent, parsed)
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: carried})
-	if errors.Is(err, errStaleParent) || errors.Is(err, errRequestSaved) {
-		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
-	}
-	return dash, ver, false, err
 }
 
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {

@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -23,13 +24,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { dashboardKeys } from "@/api/keys"
+import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator, type Dashboard } from "@/spec"
 
-import {
-  asDashboardSpec,
-  latestDashboardQuery,
-  useAddVersion,
-} from "../queries"
+import { useAddVersion } from "../queries"
+import { saveToast } from "../save-outcome"
 import {
   applyDetails,
   descriptionError,
@@ -40,6 +40,7 @@ import {
   titleError,
   type Details,
 } from "./details"
+import { MergeConflicts } from "./merge-conflicts"
 import { saveProblemFrom, type Problem } from "./save-problem"
 
 const rejectedHeading = "The server rejected these details:"
@@ -70,14 +71,14 @@ export function DetailsDialog({
   const titleId = `${ids}-title`
   const descriptionId = `${ids}-description`
   const tagsId = `${ids}-tags`
-  const conflictId = `${ids}-conflict`
   const titleRef = useRef<HTMLInputElement>(null)
-  const reapplyRef = useRef<HTMLButtonElement>(null)
+  const reloadRef = useRef<HTMLButtonElement>(null)
   const [edits, setEdits] = useState<Edits>({})
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [preparing, setPreparing] = useState(false)
   const pending = save.isPending || preparing
+  const titles = useMemo(() => panelTitles(spec), [spec])
 
   const current = detailsOf(spec)
   const title = edits.title ?? current.title
@@ -103,7 +104,7 @@ export function DetailsDialog({
 
   const conflicted = problem?.kind === "conflict"
   useEffect(() => {
-    if (conflicted) reapplyRef.current?.focus()
+    if (conflicted) reloadRef.current?.focus()
   }, [conflicted])
 
   function close() {
@@ -148,10 +149,11 @@ export function DetailsDialog({
         spec: checked.spec,
         summary: detailsSummary(detailsOf(base), details),
         parent_version: parent,
+        propose: false,
       },
       {
-        onSuccess: (saved) => {
-          toast.success(`Saved version ${saved.version.version}`)
+        onSuccess: (outcome) => {
+          toast.success(saveToast(outcome))
           close()
         },
         onError: (failure) =>
@@ -168,24 +170,11 @@ export function DetailsDialog({
     void send(next, spec, version)
   }
 
-  async function reapply() {
-    if (next === null) return
-    setPreparing(true)
-    try {
-      const latest = await queryClient.fetchQuery({
-        ...latestDashboardQuery(queryClient, dashboardId),
-        staleTime: 0,
-      })
-      setPreparing(false)
-      await send(
-        next,
-        asDashboardSpec(latest.version.spec),
-        latest.version.version
-      )
-    } catch (failure) {
-      setProblem(saveProblemFrom(failure, rejectedHeading))
-      setPreparing(false)
-    }
+  function reload() {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.latest(dashboardId),
+    })
+    close()
   }
 
   const spinner = pending ? (
@@ -206,28 +195,20 @@ export function DetailsDialog({
           <>
             <DialogHeader>
               <DialogTitle>Edit details</DialogTitle>
-              <DialogDescription id={conflictId}>
-                Version {problem.latest} was saved while you were editing.
+              <DialogDescription>
+                Your details were not saved.
               </DialogDescription>
             </DialogHeader>
+            <MergeConflicts
+              conflicts={problem.conflicts}
+              titles={titles}
+              latest={problem.latest}
+              onReload={reload}
+              reloadRef={reloadRef}
+            />
             <DialogFooter>
-              <Button
-                variant="outline"
-                disabled={pending}
-                onClick={() => changeOpen(false)}
-              >
+              <Button variant="outline" onClick={() => changeOpen(false)}>
                 Cancel
-              </Button>
-              <Button
-                ref={reapplyRef}
-                aria-describedby={conflictId}
-                focusableWhenDisabled
-                disabled={pending}
-                aria-busy={pending}
-                onClick={() => void reapply()}
-              >
-                {spinner}
-                Save on version {problem.latest}
               </Button>
             </DialogFooter>
           </>

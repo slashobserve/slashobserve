@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
@@ -63,5 +63,35 @@ describe("PanelChrome", () => {
     expect(
       await screen.findByRole("menuitem", { name: "Runbook" })
     ).toHaveAttribute("href", "https://example.com/rb")
+  })
+
+  it("selects the panel from its title button, and only when it can be selected", async () => {
+    const onSelect = vi.fn()
+    const { user, rerender } = renderWithProviders(
+      <PanelChrome panel={panel} state="ready" onSelect={onSelect} />
+    )
+    await user.click(screen.getByRole("button", { name: "Checkout latency" }))
+    expect(onSelect).toHaveBeenCalledTimes(1)
+
+    rerender(<PanelChrome panel={panel} state="ready" />)
+    expect(
+      screen.queryByRole("button", { name: "Checkout latency" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("marks the selected panel with data-selected and aria-current", () => {
+    const { rerender } = renderWithProviders(
+      <PanelChrome panel={panel} state="ready" selected />
+    )
+    const article = screen.getByRole("article", { name: "Checkout latency" })
+    expect(article).toHaveAttribute("data-selected")
+    expect(article).toHaveAttribute("aria-current", "true")
+
+    rerender(<PanelChrome panel={panel} state="ready" />)
+    const unselected = screen.getByRole("article", {
+      name: "Checkout latency",
+    })
+    expect(unselected).not.toHaveAttribute("data-selected")
+    expect(unselected).not.toHaveAttribute("aria-current")
   })
 })

@@ -20,7 +20,10 @@ func runAllowed(source Source, hasDashboard, canCreate bool, role auth.Role, a f
 		return role.AtLeast(auth.RoleEditor) && (!hasDashboard || a.View)
 	}
 	if hasDashboard {
-		return a.Edit
+		if source == SourceSuggest {
+			return a.Edit
+		}
+		return a.Comment
 	}
 	return source == SourceObserve && canCreate
 }

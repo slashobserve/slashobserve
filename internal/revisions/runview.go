@@ -56,11 +56,11 @@ func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller 
 	if err != nil {
 		return agentRequestJSON{}, err
 	}
-	mayStart, err := r.service.mayStart(ctx, row, caller)
+	facts, err := r.service.factsFor(ctx, row, states[row.ID], caller)
 	if err != nil {
 		return agentRequestJSON{}, err
 	}
-	allowed := allowedActions(factsOf(row, states[row.ID], caller, mayStart))
+	allowed := allowedActions(facts)
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err

@@ -245,7 +245,6 @@ export function BuildPage({ requestId }: { requestId: string }) {
       madeBy={null}
       versionControl={null}
       controls={[]}
-      editing={null}
       actions={[]}
     />
   )

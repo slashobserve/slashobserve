@@ -97,6 +97,7 @@ var exceptions = map[string]exception{
 	"resolveGrafanaUID":       {MCP: notBuilt},
 
 	"listMyGrants":      {MCP: connectedAgents, CLI: connectedAgents},
+	"updateMyGrant":     {MCP: connectedAgents, CLI: connectedAgents},
 	"disconnectMyGrant": {MCP: connectedAgents, CLI: connectedAgents},
 	"listGrants":        {MCP: connectedAgents, CLI: connectedAgents},
 	"disconnectGrant":   {MCP: connectedAgents, CLI: connectedAgents},

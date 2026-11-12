@@ -195,6 +195,9 @@ describe("protocol", () => {
         build: { saves: 1, panels: 2, planned_panels: 3 },
       }).build?.planned_panels
     ).toBe(3)
+    expect(runMeta.parse({ settled: "proposed", build: null }).settled).toBe(
+      "proposed"
+    )
     expect(runMeta.parse({ settled: null, build: null }).settled).toBeNull()
     expect(runMeta.safeParse({ settled: "done", build: null }).success).toBe(
       false

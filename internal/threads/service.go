@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -42,11 +43,12 @@ type Service struct {
 	findings     *findings.Service
 	annotations  *annotations.Service
 	observations *observations.Service
+	proposals    *proposals.Service
 	panelSets    *panelCache
 }
 
-func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, findings *findings.Service, annotations *annotations.Service, observations *observations.Service) *Service {
-	return &Service{db: database, access: access, dashboards: dashboards, findings: findings, annotations: annotations, observations: observations, panelSets: newPanelCache()}
+func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, findings *findings.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {
+	return &Service{db: database, access: access, dashboards: dashboards, findings: findings, annotations: annotations, observations: observations, proposals: proposals, panelSets: newPanelCache()}
 }
 
 type OpenInput struct {
@@ -354,6 +356,8 @@ func listParams(in ListQuery) (dbsqlc.ListThreadMessagesParams, error) {
 		params.AnnotationID = in.Target.ID
 	case KindObservation:
 		params.ObservationID = in.Target.ID
+	case KindProposal:
+		params.ProposalID = in.Target.ID
 	}
 	switch in.Status {
 	case StatusOpen, StatusResolved:
@@ -528,6 +532,8 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 		params.AnnotationID = t.ID
 	case KindObservation:
 		params.ObservationID = t.ID
+	case KindProposal:
+		params.ProposalID = t.ID
 	}
 	return params
 }

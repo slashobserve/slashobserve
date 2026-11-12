@@ -376,7 +376,7 @@ func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 const agentToolTextCap = 2000
 
 var agentToolTextAllowances = map[string]int{
-	nameListActivity: 2100,
+	nameListActivity: 2150,
 	nameUpdatePanels: 3700,
 }
 

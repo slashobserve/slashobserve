@@ -136,7 +136,7 @@ func TestAnAgentRequestGivesTheVersionRowARunID(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
 	request := r.queueRevision(t, dash)
-	if _, _, _, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "agent save", request); err != nil {
+	if _, _, _, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "agent save", request); err != nil {
 		t.Fatal(err)
 	}
 	rows := r.activityFor(t, dash)

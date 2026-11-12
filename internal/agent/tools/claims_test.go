@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"strings"
@@ -13,7 +14,9 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func callClaimTool(t *testing.T, claimer *claims.Claimer, name, input string) (Result, error) {
@@ -214,6 +217,18 @@ func TestClaimErrorsBecomeToolErrors(t *testing.T) {
 	boom := errors.New("boom")
 	if _, err := claimFailure(boom); !errors.Is(err, boom) {
 		t.Fatalf("an unknown error must be returned, got %v", err)
+	}
+}
+
+func TestAFinishRefusedForRemovalsInProposeModeIsAToolErrorNamingThem(t *testing.T) {
+	refusal := &dashboards.ProposalRequiredError{Removed: []spec.UnitChange{{Kind: spec.UnitPanel, ID: "a"}}}
+	res, err := claimFailure(fmt.Errorf("finish: %w", refusal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, ok := res.Content.(proposalRequiredOut)
+	if !res.IsError || !ok || body.Code != codeProposalRequired || len(body.Removed) != 1 || body.Removed[0].ID != "a" {
+		t.Fatalf("result = %+v", res)
 	}
 }
 

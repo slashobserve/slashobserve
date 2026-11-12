@@ -35,6 +35,8 @@ const (
 	userID  = "11111111-1111-4111-8111-111111111111"
 	grantID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 
+	proposalID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
 	dashboardJSON = `{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[{"id":"r1","type":"row","title":"R1","gridPos":{"x":0,"y":0,"w":24,"h":1},"panels":[{"id":"a","type":"stat","title":"A","gridPos":{"x":0,"y":1,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up"}]}]}]}`
 )
 
@@ -97,9 +99,13 @@ type store struct {
 	latest   int
 	build    *dashboards.Build
 	rebaseOK bool
-	commits  int
-	rebases  int
-	discards int
+
+	proposeCommits bool
+	proposalID     string
+	commitErr      error
+	commits        int
+	rebases        int
+	discards       int
 }
 
 func (s *store) parse() *spec.Dashboard {
@@ -135,20 +141,33 @@ func (s *store) Build(context.Context, pgtype.UUID) (dashboards.Build, bool, err
 	return *s.build, true, nil
 }
 
-func (s *store) CommitBuild(_ context.Context, _ auth.Principal, requestID pgtype.UUID, _ int) (dashboards.Dashboard, dashboards.Version, bool, error) {
+func (s *store) CommitBuild(_ context.Context, _ auth.Principal, requestID pgtype.UUID, _ int) (dashboards.Commit, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.build == nil {
-		return dashboards.Dashboard{}, dashboards.Version{}, false, dashboards.ErrBuildNotFound
+		return dashboards.Commit{}, dashboards.ErrBuildNotFound
+	}
+	if s.commitErr != nil {
+		return dashboards.Commit{}, s.commitErr
 	}
 	if s.build.BaseVersion != s.latest {
-		return dashboards.Dashboard{}, dashboards.Version{}, false, &dashboards.ConflictError{Latest: s.latest}
+		return dashboards.Commit{}, &dashboards.ConflictError{Latest: s.latest}
 	}
 	s.commits++
-	s.latest++
 	s.build = nil
+	if s.proposeCommits {
+		s.insertProposal(requestID)
+		return dashboards.Commit{Dashboard: dashboards.Dashboard{ID: s.dash.String()}, Proposal: &dashboards.ProposalRef{ID: s.proposalID, Revision: 1, Opened: true}}, nil
+	}
+	s.latest++
 	s.insertVersion(requestID)
-	return dashboards.Dashboard{}, dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: s.latest}}, false, nil
+	return dashboards.Commit{Version: dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: s.latest}}}, nil
+}
+
+func (s *store) insertProposal(requestID pgtype.UUID) {
+	author := mustUUID(s.t, userID)
+	s.d.Exec(s.t, `INSERT INTO proposals (id, dashboard_id, title, author_kind, author_id, author_name, origin, run_id) VALUES ($1, $2, 't', 'user', $3, 'Ada', 'mcp', $4)`,
+		mustUUID(s.t, s.proposalID), s.dash, author, requestID)
 }
 
 func (s *store) insertVersion(requestID pgtype.UUID) {
@@ -231,7 +250,7 @@ func newRig(t *testing.T, options ...rigOption) *rig {
 	claimsService := claims.New(claims.Config{DB: d.DB, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
 	r := &rig{t: t, d: d, runs: runs, claims: claimsService, steps: &stepLog{}}
 	r.dash = seedDashboard(t, d)
-	r.store = &store{t: t, d: d, dash: r.dash, latest: 1}
+	r.store = &store{t: t, d: d, dash: r.dash, latest: 1, proposalID: proposalID}
 	cfg := Config{
 		DB: d.DB, Runs: runs, Claims: claimsService, Builds: r.store, Dashboards: r.store, Imports: noImports{},
 		Statuses: healthy{}, Steps: r.steps, Logger: logger,

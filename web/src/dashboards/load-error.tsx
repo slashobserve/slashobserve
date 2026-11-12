@@ -19,7 +19,6 @@ export function DashboardLoadError({ title, error, retrying, onRetry }: Props) {
         madeBy={null}
         versionControl={null}
         controls={[]}
-        editing={null}
         actions={[<ThemeSwitch key="theme" />]}
       />
       <main className="mx-auto w-full max-w-lg p-6">

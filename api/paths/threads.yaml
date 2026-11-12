@@ -4,18 +4,18 @@ threads:
     x-surfaces:
       mcp: [list_comments]
       cli: [observe comments list]
-    summary: List the comment threads on a dashboard, a finding, an annotation or an observation.
+    summary: List the comment threads on a dashboard, a finding, an annotation, an observation or a proposal.
     description: >-
       Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to.
       `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page.
       `can_comment` says whether the caller may start threads and write messages on the target.
-      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, and an observation follows the folder it is in.
+      Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, an observation follows the folder it is in, and a proposal follows its dashboard.
       A target the caller cannot see answers 404, never 403.
     parameters:
       - name: target
         in: query
         required: true
-        description: "The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`."
+        description: "The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`."
         schema:
           type: string
       - name: status
@@ -68,7 +68,7 @@ threads:
     x-surfaces:
       mcp: [create_comment]
       cli: [observe comments add]
-    summary: Start a thread on a dashboard, a finding, an annotation or an observation.
+    summary: Start a thread on a dashboard, a finding, an annotation, an observation or a proposal.
     description: >-
       The first message of a thread has the id of the thread, so either id names it.
       A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves.
@@ -92,7 +92,7 @@ threads:
             properties:
               target:
                 type: string
-                description: "The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`."
+                description: "The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`."
               version:
                 type: integer
                 nullable: true

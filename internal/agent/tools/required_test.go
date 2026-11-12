@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
@@ -48,7 +49,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observationService)
+	commentThreads := threads.NewService(database.DB, access, service, findings.New(database.DB, access, notes, service, logger), notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{
 		Datasources:   datasources,
 		Runner:        runner,
@@ -58,6 +59,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Folders:       access,
 		Findings:      findings.New(database.DB, access, notes, service, logger),
 		Observations:  observationService,
+		Proposals:     proposals.New(database.DB, access, service, logger),
 		SavedSearches: savedsearches.New(database.DB, access, datasources, nil, logger),
 		Health:        health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
 		Annotations:   notes,
@@ -98,6 +100,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"finding_id":     json.RawMessage(`"` + dash.ID + `"`),
 		"observation_id": json.RawMessage(`"` + dash.ID + `"`),
 		"block_id":       json.RawMessage(`"` + dash.ID + `"`),
+		"proposal_id":    json.RawMessage(`"` + dash.ID + `"`),
+		"revision":       json.RawMessage(`1`),
 		"version":        json.RawMessage(`1`),
 		"folder_id":      json.RawMessage(`"` + dash.ID + `"`),
 		"parent_version": json.RawMessage(`1`),

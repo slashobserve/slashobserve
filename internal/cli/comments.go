@@ -12,7 +12,7 @@ import (
 
 const commentPreviewRunes = 80
 
-var commentTargetKinds = []string{"dashboard", "finding", "annotation"}
+var commentTargetKinds = []string{"dashboard", "finding", "annotation", "proposal"}
 
 type commentListOptions struct {
 	pageOptions
@@ -98,8 +98,8 @@ func (r commentRow) cells() []string {
 func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
-		Short: "Comment on dashboards, findings and annotations",
-		Long:  "comments works the comment threads on a dashboard, a finding or an annotation.\nA target is written <kind>:<id> with kind dashboard, finding or annotation, for example finding:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>) and the built-in agent as @observe; a mention is recorded in the activity log and starts no run.",
+		Short: "Comment on dashboards, findings, annotations and proposals",
+		Long:  "comments works the comment threads on a dashboard, a finding, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, finding, annotation or proposal, for example finding:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>) and the built-in agent as @observe; a mention is recorded in the activity log and starts no run.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -120,7 +120,7 @@ func parseOn(raw string) (string, error) {
 	}
 	kind, id, found := strings.Cut(raw, ":")
 	if !found || !slices.Contains(commentTargetKinds, kind) || !idPattern.MatchString(id) {
-		return "", usagef("--on %q is not <kind>:<id> with kind dashboard, finding or annotation", text(raw))
+		return "", usagef("--on %q is not <kind>:<id> with kind dashboard, finding, annotation or proposal", text(raw))
 	}
 	return raw, nil
 }
@@ -128,7 +128,7 @@ func parseOn(raw string) (string, error) {
 func (a *app) commentsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [<dashboard-id>] [--on <kind>:<id>]",
-		Short: "List the comments of a dashboard, finding or annotation, oldest first",
+		Short: "List the comments of a dashboard, finding, annotation or proposal, oldest first",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  a.runCommentsList,
 	}
@@ -270,8 +270,8 @@ func commentPreview(body string) string {
 func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
-		Short: "Start a comment thread on a dashboard, finding or annotation",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on a finding or an annotation.",
+		Short: "Start a comment thread on a dashboard, finding, annotation or proposal",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on a finding, an annotation or a proposal.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -325,7 +325,7 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, a finding or an annotation.\nWhen the first two arguments are both ids, the first is read as a dashboard id.",
+		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, a finding, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
@@ -459,7 +459,7 @@ func (a *app) commentsResolveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resolve [<dashboard-id>] <comment-id>",
 		Short: "Resolve a comment thread",
-		Long:  "The comment id can be any comment of the thread, on a dashboard, a finding or an annotation.\nWhen two ids are given, the first is read as a dashboard id.",
+		Long:  "The comment id can be any comment of the thread, on a dashboard, a finding, an annotation or a proposal.\nWhen two ids are given, the first is read as a dashboard id.",
 		Args:  rangeArgs(1, 2, "a comment id, after an optional dashboard id"),
 		RunE:  a.runCommentsResolve,
 	}

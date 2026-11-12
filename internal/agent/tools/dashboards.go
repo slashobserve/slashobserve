@@ -34,6 +34,12 @@ const (
 	codeInvalidSpec     = "invalid_spec"
 	codeVersionConflict = "version_conflict"
 	codeNotFound        = "not_found"
+	codeProposed        = "proposed"
+
+	codeProposalRequired = "proposal_required"
+
+	proposedStep    = "Proposed for an Editor to merge"
+	proposedMessage = "Nothing was saved to the dashboard: your change is a proposal waiting for someone who can edit it to merge."
 
 	defaultCreateSummary = "Create dashboard"
 	defaultUpdateSummary = "Update dashboard"
@@ -270,13 +276,14 @@ type panelOut struct {
 }
 
 type savedOut struct {
-	DashboardID      string     `json:"dashboard_id"`
-	Version          int        `json:"version"`
-	URL              string     `json:"url"`
-	Replayed         *bool      `json:"replayed,omitempty"`
-	Panels           []panelOut `json:"panels"`
-	Truncated        bool       `json:"truncated,omitempty"`
-	UnverifiedPanels []string   `json:"unverified_panels,omitempty"`
+	DashboardID      string                 `json:"dashboard_id"`
+	Version          int                    `json:"version"`
+	URL              string                 `json:"url"`
+	Replayed         *bool                  `json:"replayed,omitempty"`
+	MergedFrom       *dashboards.MergedFrom `json:"merged_from,omitempty"`
+	Panels           []panelOut             `json:"panels"`
+	Truncated        bool                   `json:"truncated,omitempty"`
+	UnverifiedPanels []string               `json:"unverified_panels,omitempty"`
 	advice
 }
 
@@ -286,9 +293,27 @@ type invalidSpecOut struct {
 	Truncated bool         `json:"truncated,omitempty"`
 }
 
+type proposedOut struct {
+	Code       string `json:"code"`
+	ProposalID string `json:"proposal_id"`
+	Revision   int    `json:"revision"`
+	Opened     bool   `json:"opened"`
+	URL        string `json:"url"`
+	Message    string `json:"message"`
+}
+
+type proposalRequiredOut struct {
+	Code      string            `json:"code"`
+	Message   string            `json:"message"`
+	Removed   []spec.UnitChange `json:"removed"`
+	Truncated bool              `json:"truncated,omitempty"`
+}
+
 type conflictOut struct {
-	Code          string `json:"code"`
-	LatestVersion int    `json:"latest_version"`
+	Code          string          `json:"code"`
+	LatestVersion int             `json:"latest_version"`
+	Conflicts     []spec.Conflict `json:"conflicts,omitempty"`
+	Truncated     bool            `json:"truncated,omitempty"`
 }
 
 type saveInput struct {
@@ -434,11 +459,48 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	} else if !ok {
 		return res, nil
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.AddRequestVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary), requestID)
+	saved, err := r.deps.Dashboards.Save(ctx, principal, dashboards.SaveInput{
+		DashboardID:     target.id,
+		Parent:          target.parent,
+		Spec:            in.Spec,
+		Summary:         summaryOr(in.Summary, defaultUpdateSummary),
+		RequestID:       requestID,
+		Merge:           true,
+		ProposeIfNeeded: true,
+	})
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+	return r.saveSucceeded(ctx, saved), nil
+}
+
+func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult) Result {
+	if saved.Proposal != nil {
+		return r.proposed(saved)
+	}
+	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
+	out.MergedFrom = saved.MergedFrom
+	return success(savedStep(saved), withAdvice(ctx, out, saved.Version.Spec))
+}
+
+func savedStep(saved dashboards.SaveResult) string {
+	step := "Saved version " + strconv.Itoa(saved.Version.Number)
+	if saved.MergedFrom != nil {
+		step += ", merged onto version " + strconv.Itoa(saved.MergedFrom.OntoVersion)
+	}
+	return step
+}
+
+func (r *Registry) proposed(saved dashboards.SaveResult) Result {
+	ref := saved.Proposal
+	return success(proposedStep, proposedOut{
+		Code:       codeProposed,
+		ProposalID: ref.ID,
+		Revision:   ref.Revision,
+		Opened:     ref.Opened,
+		URL:        links.Dashboard(r.deps.PublicURL, saved.Dashboard.ID, saved.Dashboard.Title),
+		Message:    proposedMessage,
+	})
 }
 
 func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
@@ -581,18 +643,51 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 func saveFailure(err error) (Result, error) {
 	var invalidSpec *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
+	var proposalRequired *dashboards.ProposalRequiredError
 	switch {
+	case errors.As(err, &proposalRequired):
+		removed, truncated := fit(slices.Clone(proposalRequired.Removed), listBudget)
+		message := (&dashboards.ProposalRequiredError{Removed: removed}).Error()
+		return failure("Save rejected: "+codeProposalRequired, proposalRequiredOut{Code: codeProposalRequired, Message: message, Removed: removed, Truncated: truncated}), nil
 	case errors.As(err, &invalidSpec):
 		issues, truncated := fit(slices.Clone(invalidSpec.Issues), listBudget)
 		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
 	case errors.As(err, &conflict):
-		return failure("Save rejected: version conflict", conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest}), nil
+		kept, truncated := fit(slices.Clone(conflict.Conflicts), listBudget)
+		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
 		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound}), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return failure("Save rejected: "+codeForbiddenRole, errorBody{Code: codeForbiddenRole, Message: roleDeniedMessage}), nil
 	}
 	return Result{}, err
+}
+
+func conflictStep(conflicts []spec.Conflict) string {
+	step := "Save rejected: version conflict"
+	units := []struct {
+		kind     spec.UnitKind
+		one, all string
+	}{{spec.UnitPanel, "panel", "panels"}, {spec.UnitVariable, "variable", "variables"}, {spec.UnitSetting, "setting", "settings"}}
+	var counted []string
+	for _, u := range units {
+		n := 0
+		for _, c := range conflicts {
+			if c.Kind == u.kind {
+				n++
+			}
+		}
+		if n > 0 {
+			counted = append(counted, plural(n, u.one, u.all))
+		}
+	}
+	switch len(counted) {
+	case 0:
+		return step
+	case 1:
+		return step + " on " + counted[0]
+	}
+	return step + " on " + strings.Join(counted[:len(counted)-1], ", ") + " and " + counted[len(counted)-1]
 }
 
 func saveRejectedStep(issues []spec.Issue) string {

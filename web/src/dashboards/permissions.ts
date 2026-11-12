@@ -31,7 +31,7 @@ export function readerNote(
     case "full":
       return null
     case "comment-only":
-      return `You can view and comment in ${folderTitle}. Someone with Edit on this folder can send your comment to the agent or change the panels.`
+      return `You can view and comment in ${folderTitle}. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges.`
     case "read-only":
       return `You can view dashboards in ${folderTitle}. Ask an Admin if you need to comment.`
   }

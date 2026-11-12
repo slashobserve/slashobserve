@@ -53,7 +53,7 @@ A comment is attached to the latest version when you write it.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
 Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
-With Comment but not Edit you see "You can view and comment in `<folder>`. Someone with Edit on this folder can send your comment to the agent or change the panels."
+With Comment but not Edit you see "You can view and comment in `<folder>`. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 ## Edit a comment and mention people
@@ -73,7 +73,8 @@ A mention is recorded and appears in the [activity log](activity.md); it does no
 
 ## Send a comment to the agent
 
-There are two ways to ask the agent for a change from the activity card, and both need Edit on the dashboard's folder.
+There are two ways to ask the agent for a change from the activity card, and both need Comment on the dashboard's folder.
+With Comment but not Edit, what the agent builds becomes a [proposal](../concepts/proposals.md) for someone who can edit to merge, and **Save what was built** is not offered.
 
 - **From the form.** Write what to change in the box and choose **Send to agent**.
   The request appears as an agent request entry, not a comment thread.
@@ -109,6 +110,8 @@ A thread has **Resolve** and, once resolved, **Reopen**.
 A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
 Over the API and MCP each thread carries `allowed_actions`, the actions the caller may take now (`reply`, `resolve` or `reopen`), which is empty for someone who may not comment; see [States](../reference/states.md).
+A thread can also be on a [proposal](../concepts/proposals.md), written `proposal:<id>` as the target of the threads API.
+It has no panel or version and follows the proposal's dashboard: View reads it and Comment writes to it.
 
 Replies sit under the comment they answer.
 With no model on the server, an open thread reads "Open, waiting for `<client>`", so the person or tool that will act on it is clear.

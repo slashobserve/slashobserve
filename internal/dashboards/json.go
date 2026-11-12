@@ -73,6 +73,8 @@ type versionMetaJSON struct {
 	OriginClient   *string    `json:"origin_client"`
 	AgentRequestID *string    `json:"agent_request_id"`
 	Actor          actor.JSON `json:"actor"`
+
+	MergedProposalID *string `json:"merged_proposal_id"`
 }
 
 type versionJSON struct {
@@ -107,6 +109,19 @@ type conflictJSON struct {
 	Error         string `json:"error"`
 	Code          string `json:"code"`
 	LatestVersion int    `json:"latest_version"`
+
+	Conflicts []spec.Conflict `json:"conflicts,omitempty"`
+}
+
+type versionSavedJSON struct {
+	DashboardVersionJSON
+	MergedFrom *MergedFrom `json:"merged_from,omitempty"`
+}
+
+type proposalCreatedJSON struct {
+	ProposalID string `json:"proposal_id"`
+	Revision   int    `json:"revision"`
+	Opened     bool   `json:"opened"`
 }
 
 func newAuthorJSON(a Author) authorJSON {
@@ -193,6 +208,8 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 		OriginClient:   httpapi.OptionalString(v.OriginClient),
 		AgentRequestID: httpapi.OptionalString(v.AgentRequestID),
 		Actor:          versionActor(v).JSON(),
+
+		MergedProposalID: httpapi.OptionalString(v.MergedProposalID),
 	}
 }
 

@@ -34,7 +34,7 @@ var (
 
 type Builds interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
-	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error)
+	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Commit, error)
 	DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error
 	RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (int, bool, error)
 }

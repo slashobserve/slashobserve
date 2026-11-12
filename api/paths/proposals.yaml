@@ -1,0 +1,182 @@
+dashboards-id-proposals:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listProposals
+    x-surfaces:
+      mcp: [list_proposals]
+      cli: [observe proposals list]
+    summary: List the proposals on a dashboard, newest first.
+    description: >-
+      Needs View on the dashboard.
+      A proposal is a change to a dashboard saved by someone who may comment but not edit, or by a connection in propose mode, for a person who can edit to merge or discard.
+      The list holds the open proposals unless `state` says otherwise.
+    parameters:
+      - name: state
+        in: query
+        schema:
+          type: string
+          enum: [open, merged, discarded, all]
+          default: open
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of proposals without their documents.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+proposals-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getProposal
+    x-surfaces:
+      mcp: [get_proposal]
+      cli: [observe proposals show]
+    summary: Get one proposal with its head revision's document, what it changes and what stops a merge.
+    description: >-
+      Needs View on the dashboard; a proposal on a dashboard the caller cannot see answers 404.
+      `changes` compares the head revision with `base_version`.
+      `conflicts` lists, while the proposal is open and behind, the units that the proposal and the newer versions both changed.
+    responses:
+      "200":
+        description: The proposal.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Proposal"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+proposals-id-merge:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: mergeProposal
+    x-surfaces:
+      mcp: [merge_proposal]
+      cli: [observe proposals merge]
+    summary: Save a proposal's head revision as the next version of its dashboard and close it as merged.
+    description: >-
+      Needs Edit on the dashboard and a connection that is not in propose mode.
+      The save runs the same checks as any other save, on top of the dashboard's latest version: a document that does not parse or whose queries fail answers 422.
+      When the dashboard has changed the same panels, variables or settings since the proposal's base, the answer is 409 `version_conflict` with `conflicts`, and the same request with a `choices` entry for each of them succeeds.
+      A merge whose result equals the latest version saves nothing and closes the proposal with `merged_version` null.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MergeProposalRequest"
+    responses:
+      "200":
+        description: The merged proposal.
+        headers:
+          Location:
+            description: The version the merge saved; absent when the merge saved nothing.
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalSummary"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/ProposalForbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ProposalMergeConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+proposals-id-discard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: discardProposal
+    x-surfaces:
+      mcp: [discard_proposal]
+      cli: [observe proposals discard]
+    summary: Close a proposal without saving it.
+    description: >-
+      The author of the proposal, or anyone who may merge it, may discard it.
+      The body is empty or an empty object.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+    responses:
+      "200":
+        description: The discarded proposal.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalSummary"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ProposalNotOpen"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

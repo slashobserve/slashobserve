@@ -244,6 +244,8 @@ func (sess *session) apply(ctx context.Context, out guard.Outcome) (restarted bo
 	case out.Suggestion != nil:
 		state.Suggestion = out.Suggestion
 		state.Settled = Settled{Kind: settledSuggested}
+	case out.Proposal != "":
+		state.Settled = Settled{Kind: settledProposed}
 	case out.Saved != nil:
 		state.Settled = Settled{Kind: settledSaved, Version: out.Saved.Version}
 	case out.Conflict:

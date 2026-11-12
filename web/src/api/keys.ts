@@ -393,3 +393,12 @@ export const rcaKeys = {
   publicSnapshot: (token: string, snapshotId: string) =>
     ["rca-public", token, "snapshots", snapshotId] as const,
 }
+
+export type ProposalState = "open" | "merged" | "discarded" | "all"
+
+export const proposalKeys = {
+  all: ["proposals"] as const,
+  list: (dashboardId: string, state: ProposalState) =>
+    ["proposals", "list", dashboardId, state] as const,
+  detail: (id: string) => ["proposals", "detail", id] as const,
+}

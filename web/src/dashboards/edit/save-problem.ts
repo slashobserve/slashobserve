@@ -1,10 +1,11 @@
 import { ApiError } from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
+import type { MergeConflict } from "@/proposals/queries"
 
 const transientText = "The panel queries could not be checked right now."
 
 export type Problem =
-  | { kind: "conflict"; latest: number }
+  | { kind: "conflict"; latest: number; conflicts: MergeConflict[] }
   | { kind: "invalid"; heading: string; lines: string[] }
   | { kind: "failed"; message: string }
 
@@ -17,7 +18,11 @@ export function saveProblemFrom(
       error.code === "version_conflict" &&
       error.latestVersion !== undefined
     ) {
-      return { kind: "conflict", latest: error.latestVersion }
+      return {
+        kind: "conflict",
+        latest: error.latestVersion,
+        conflicts: error.conflicts,
+      }
     }
     if (error.status === 422) {
       if (error.issues.length > 0 && error.issues.every(isTransient)) {

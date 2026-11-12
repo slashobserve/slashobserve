@@ -49,6 +49,7 @@ export type TurnMeta = z.infer<typeof turnMeta>
 
 export const settledKinds = [
   "saved",
+  "proposed",
   "finding",
   "suggested",
   "restarted",

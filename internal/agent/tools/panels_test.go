@@ -19,15 +19,18 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 type panelsRig struct {
-	registry *Registry
-	service  *dashboards.Service
-	database *dbtest.Database
-	ctx      context.Context
+	registry  *Registry
+	service   *dashboards.Service
+	proposals *proposals.Service
+	database  *dbtest.Database
+	ctx       context.Context
 
 	mu  sync.Mutex
 	ran []string
@@ -64,7 +67,9 @@ func newPanelsRig(t *testing.T) *panelsRig {
 	runner := queryproxy.NewRunner(datasources, logger)
 	access := folders.NewAccess(rig.database.DB)
 	rig.service = dashboards.New(rig.database.DB, runner, access, logger)
-	rig.registry = New(Deps{Datasources: datasources, Runner: runner, Dashboards: rig.service, Folders: access, Logger: logger})
+	rig.proposals = proposals.New(rig.database.DB, access, rig.service, logger)
+	rig.service.SetProposer(rig.proposals.Propose)
+	rig.registry = New(Deps{Datasources: datasources, Runner: runner, Dashboards: rig.service, Proposals: rig.proposals, Folders: access, Logger: logger})
 	return rig
 }
 
@@ -427,7 +432,7 @@ func TestUpdatePanelsRunScopeAndConflict(t *testing.T) {
 	if out := savedVersion(t, firstOf(rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,`+change+`}`))); out.Version != 2 {
 		t.Fatalf("saved = %+v", out)
 	}
-	stale := `"summary":"Change","upsert":[` + suggestStat("p2", "Two renamed", "sum(up)", 4) + `]`
+	stale := `"summary":"Change","upsert":[` + suggestStat("p1", "One renamed again", "count(up)", 0) + `]`
 	res, _ = rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,`+stale+`}`)
 	conflict, ok := res.Content.(conflictOut)
 	if !res.IsError || !ok || conflict.Code != codeVersionConflict || conflict.LatestVersion != 2 {
@@ -692,4 +697,210 @@ func TestOwningPanelIDPicksTheDeepestPanel(t *testing.T) {
 			t.Errorf("owningPanelID(%q) = %q, %v; want %q", path, got, ok, want)
 		}
 	}
+}
+
+func wholeBoard(p1Title string) string {
+	return boardSpecOf(suggestStat("p1", p1Title, "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), rowPanel("r1", 8, suggestStat("p3", "Three", "max(up)", 9)))
+}
+
+func updateDashboardInput(id string, parent int, p1Title string) string {
+	return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":%d,"summary":"Change","spec":%s}`, id, parent, wholeBoard(p1Title))
+}
+
+func TestStaleSavesMergeWhenTheyTouchOtherPanels(t *testing.T) {
+	rig := newPanelsRig(t)
+	id := rig.seedStats(t)
+	renamed := `"summary":"Rename","upsert":[` + suggestStat("p1", "Renamed", "count(up)", 0) + `]`
+	if out := savedVersion(t, firstOf(rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,`+renamed+`}`))); out.Version != 2 {
+		t.Fatalf("first save = %+v", out)
+	}
+
+	t.Run("update_panels on another panel", func(t *testing.T) {
+		other := `"summary":"Other","upsert":[` + suggestStat("p2", "Two renamed", "sum(up)", 4) + `]`
+		res, _ := rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,`+other+`}`)
+		out := savedVersion(t, res)
+		if out.Version != 3 || out.MergedFrom == nil || *out.MergedFrom != (dashboards.MergedFrom{BaseVersion: 1, OntoVersion: 2}) {
+			t.Fatalf("out = %+v", out)
+		}
+		if res.Step != "Saved version 3, merged onto version 2" {
+			t.Errorf("step = %q", res.Step)
+		}
+		titles := map[string]string{}
+		for _, p := range rig.latest(t, id).Spec.AllPanels() {
+			titles[p.Panel.ID] = p.Panel.Title
+		}
+		if titles["p1"] != "Renamed" || titles["p2"] != "Two renamed" {
+			t.Fatalf("titles = %v", titles)
+		}
+	})
+	t.Run("update_dashboard on another panel", func(t *testing.T) {
+		whole := boardSpecOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two renamed", "sum(up)", 4), rowPanel("r1", 8, suggestStat("p3", "Three changed", "max(up)", 9)))
+		res, _ := rig.as(rig.ctx).run(t, nameUpdateDashboard, fmt.Sprintf(`{"dashboard_id":%q,"parent_version":2,"summary":"Whole","spec":%s}`, id, whole))
+		out := savedVersion(t, res)
+		if out.Version != 4 || out.MergedFrom == nil || out.MergedFrom.OntoVersion != 3 {
+			t.Fatalf("out = %+v", out)
+		}
+	})
+}
+
+func TestStaleSavesOnTheSamePanelNameTheConflicts(t *testing.T) {
+	rig := newPanelsRig(t)
+	id := rig.seedStats(t)
+	rename := func(title string) string {
+		return `"summary":"Rename","upsert":[` + suggestStat("p1", title, "count(up)", 0) + `]`
+	}
+	savedVersion(t, firstOf(rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,`+rename("Mine")+`}`)))
+
+	for name, call := range map[string]struct{ tool, input string }{
+		nameUpdatePanels:    {nameUpdatePanels, `{"dashboard_id":"` + id + `","parent_version":1,` + rename("Theirs") + `}`},
+		nameUpdateDashboard: {nameUpdateDashboard, updateDashboardInput(id, 1, "Theirs")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, _ := rig.as(rig.ctx).run(t, call.tool, call.input)
+			out, ok := res.Content.(conflictOut)
+			if !res.IsError || !ok || out.Code != codeVersionConflict || out.LatestVersion != 2 {
+				t.Fatalf("res = %#v", res.Content)
+			}
+			if len(out.Conflicts) != 1 || out.Conflicts[0].Kind != spec.UnitPanel || out.Conflicts[0].ID != "p1" {
+				t.Fatalf("conflicts = %+v", out.Conflicts)
+			}
+			if res.Step != "Save rejected: version conflict on 1 panel" {
+				t.Errorf("step = %q", res.Step)
+			}
+		})
+	}
+}
+
+func TestConflictStepCountsEveryUnit(t *testing.T) {
+	panel := spec.Conflict{Kind: spec.UnitPanel, ID: "p"}
+	variable := spec.Conflict{Kind: spec.UnitVariable, ID: "v"}
+	setting := spec.Conflict{Kind: spec.UnitSetting, ID: "title"}
+	for name, tt := range map[string]struct {
+		conflicts []spec.Conflict
+		want      string
+	}{
+		"none":                  {nil, "Save rejected: version conflict"},
+		"one panel":             {[]spec.Conflict{panel}, "Save rejected: version conflict on 1 panel"},
+		"two panels":            {[]spec.Conflict{panel, panel}, "Save rejected: version conflict on 2 panels"},
+		"panels and a setting":  {[]spec.Conflict{panel, setting, panel}, "Save rejected: version conflict on 2 panels and 1 setting"},
+		"one of each":           {[]spec.Conflict{setting, variable, panel}, "Save rejected: version conflict on 1 panel, 1 variable and 1 setting"},
+		"variables and setting": {[]spec.Conflict{variable, variable, setting}, "Save rejected: version conflict on 2 variables and 1 setting"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := conflictStep(tt.conflicts); got != tt.want {
+				t.Errorf("step = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSavesBecomeProposalsWhenTheCallerCannotEditDirectly(t *testing.T) {
+	rig := newPanelsRig(t)
+	as := func(p auth.Principal) context.Context { return auth.WithPrincipal(context.Background(), p) }
+	propose := func(ctx context.Context) context.Context { return grantmode.With(ctx, grantmode.Propose) }
+	patch := func(id string) string {
+		return panelPatch(id, 1, `[`+suggestStat("p1", "Proposed", "count(up)", 0)+`]`)
+	}
+	whole := func(id string) string { return updateDashboardInput(id, 1, "Proposed") }
+
+	for name, call := range map[string]struct {
+		ctx   context.Context
+		tool  string
+		input func(id string) string
+	}{
+		"a commenter's update_panels":              {as(commenterCaller), nameUpdatePanels, patch},
+		"a commenter's update_dashboard":           {as(commenterCaller), nameUpdateDashboard, whole},
+		"a propose-mode editor's update_panels":    {propose(as(editorCaller)), nameUpdatePanels, patch},
+		"a propose-mode editor's update_dashboard": {propose(as(editorCaller)), nameUpdateDashboard, whole},
+	} {
+		t.Run(name, func(t *testing.T) {
+			id := rig.seedStats(t)
+			res, _ := rig.as(call.ctx).run(t, call.tool, call.input(id))
+			out, ok := res.Content.(proposedOut)
+			if res.IsError || !ok || out.Code != codeProposed || out.ProposalID == "" || out.Revision != 1 || !out.Opened {
+				t.Fatalf("res = %#v", res.Content)
+			}
+			if res.Step != "Proposed for an Editor to merge" || !strings.Contains(out.URL, id) || out.Message != proposedMessage {
+				t.Errorf("step = %q out = %+v", res.Step, out)
+			}
+			if _, err := rig.proposals.Get(call.ctx, mustPrincipal(call.ctx, t), mustUUID(t, out.ProposalID)); err != nil {
+				t.Errorf("the proposal cannot be read: %v", err)
+			}
+			if got := rig.latest(t, id).Number; got != 1 {
+				t.Fatalf("a proposal saved version %d", got)
+			}
+		})
+	}
+
+	t.Run("a viewer still gets forbidden_role", func(t *testing.T) {
+		id := rig.seedStats(t)
+		for tool, input := range map[string]string{nameUpdatePanels: patch(id), nameUpdateDashboard: whole(id)} {
+			res, _ := rig.as(as(viewerCaller)).run(t, tool, input)
+			if got := errorCodeOf(t, res); got != codeForbiddenRole {
+				t.Errorf("%s: code = %q", tool, got)
+			}
+		}
+	})
+}
+
+func TestAProposeModeSaveThatRemovesAPanelAnswersProposalRequiredAndWritesNothing(t *testing.T) {
+	rig := newPanelsRig(t)
+	ctx := grantmode.With(auth.WithPrincipal(context.Background(), editorCaller), grantmode.Propose)
+	deleting := func(id string) string {
+		return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":1,"summary":"Remove","delete":["p2"]}`, id)
+	}
+	dropping := func(id string) string {
+		return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":1,"summary":"Remove","spec":%s}`, id, boardSpecOf(suggestStat("p1", "One", "count(up)", 0), rowPanel("r1", 8, suggestStat("p3", "Three", "max(up)", 9))))
+	}
+
+	for name, call := range map[string]struct {
+		tool  string
+		input func(id string) string
+	}{
+		"update_panels with a delete":                {nameUpdatePanels, deleting},
+		"update_dashboard without one of its panels": {nameUpdateDashboard, dropping},
+	} {
+		t.Run(name, func(t *testing.T) {
+			id := rig.seedStats(t)
+			res, _ := rig.as(ctx).run(t, call.tool, call.input(id))
+			out, ok := res.Content.(proposalRequiredOut)
+			if !res.IsError || !ok || out.Code != codeProposalRequired || len(out.Removed) != 1 || out.Removed[0].ID != "p2" || out.Removed[0].Kind != spec.UnitPanel {
+				t.Fatalf("res = %#v", res.Content)
+			}
+			if want := `This connection is in propose mode, and a proposal cannot remove panels or variables; ask your person to remove panel "p2"`; out.Message != want {
+				t.Errorf("message = %q, want %q", out.Message, want)
+			}
+			if res.Step != "Save rejected: proposal_required" {
+				t.Errorf("step = %q", res.Step)
+			}
+			if got := rig.latest(t, id).Number; got != 1 {
+				t.Fatalf("a refused save wrote version %d", got)
+			}
+		})
+	}
+
+	t.Run("the same caller changing a panel still proposes", func(t *testing.T) {
+		id := rig.seedStats(t)
+		res, _ := rig.as(ctx).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+suggestStat("p1", "Proposed", "count(up)", 0)+`]`))
+		if out, ok := res.Content.(proposedOut); res.IsError || !ok || out.Code != codeProposed {
+			t.Fatalf("res = %#v", res.Content)
+		}
+	})
+
+	t.Run("a commenter outside propose mode may still propose a removal", func(t *testing.T) {
+		id := rig.seedStats(t)
+		res, _ := rig.as(auth.WithPrincipal(context.Background(), commenterCaller)).run(t, nameUpdatePanels, deleting(id))
+		if out, ok := res.Content.(proposedOut); res.IsError || !ok || out.Code != codeProposed {
+			t.Fatalf("res = %#v", res.Content)
+		}
+	})
+}
+
+func mustPrincipal(ctx context.Context, t *testing.T) auth.Principal {
+	t.Helper()
+	p, ok := auth.FromContext(ctx)
+	if !ok {
+		t.Fatal("no principal")
+	}
+	return p
 }

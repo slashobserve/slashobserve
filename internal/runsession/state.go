@@ -11,6 +11,7 @@ import (
 
 const (
 	settledSaved     = "saved"
+	settledProposed  = "proposed"
 	settledFinding   = "finding"
 	settledSuggested = "suggested"
 	settledRestarted = "restarted"

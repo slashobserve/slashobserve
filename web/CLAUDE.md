@@ -33,7 +33,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 
 - Server data goes through TanStack Query with keys from `web/src/api/keys.ts` only.
   The typed client is `api` from `web/src/api/client.ts`, and responses are unwrapped with `unwrap`, which throws `ApiError`.
-- Zustand holds UI-only state (theme, unsaved layout edits).
+- Zustand holds UI-only state (theme, unsaved layout edits, the selected panel and the canvas tool).
   Never copy server data into a store: events from `useDashboardEvents` only invalidate query keys.
 - The router uses plain `URLSearchParams` serialization (`web/src/lib/search.ts`).
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
@@ -47,7 +47,10 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `web/src/observe/request-actions.tsx` is the only place Cancel, Stop and Continue render.
   What a run allows comes from `allowed_actions` and `can_cancel`, and what it produced from `state` and `result_kind`; the browser never derives them from other fields.
   A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) and its `allowed_actions` from its summary, which the revision rows carry for the caller, so a turn whose request is not loaded still shows its build progress and its Try again.
-- A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, edit mode shows the saved layout, and the web never decides a freeze (the save funnel does).
+- A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, the layout session (a panel selected for arranging, or unsaved moves) shows the saved layout, and the web never decides a freeze (the save funnel does).
+- Editors arrange the selected panel directly; the layout session opens on load at the latest version (`ensure` in `web/src/dashboards/edit/layout-store.ts`, which also rebases it onto a newer version) and `UnsavedBar` saves it.
+  On the dashboard page `editing` means the session has unsaved moves, and it alone greys the other actions ("finish the layout first"); `arranging` means the Editor may move the selected panel now.
+  The selected panel (`web/src/dashboards/selection-store.ts`) shows `PanelToolbar`, whose buttons and the panel menu call the same helpers in `web/src/dashboards/panel-actions.ts`.
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.

@@ -17,6 +17,7 @@ describe("eventTypeGroups", () => {
       "finding",
       "saved_search",
       "observation",
+      "proposal",
       "thread",
       "run",
     ])
@@ -36,13 +37,14 @@ describe("eventTypeGroups", () => {
       "Findings",
       "Saved searches",
       "Observations",
+      "Proposals",
       "Comment threads",
       "Agent runs",
     ])
   })
 
   test("has a label for every type", () => {
-    expect(allEventTypes).toHaveLength(39)
+    expect(allEventTypes).toHaveLength(43)
     for (const type of allEventTypes) expect(eventTypeLabels[type]).not.toBe("")
   })
 })

@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -36,7 +37,7 @@ const (
 
 	descReportRun = "Keep the lease of a run you claimed and say what you are doing. The lease ends 60 seconds after the last call. The answer has the run's state and the saved panel progress; when stop is true the run was canceled or has ended: stop and call finish_run. Optional: text is the end of what your model is writing, shown as live text and never stored; usage is your cumulative model use, and the server stops the run at its cost limit."
 
-	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a dashboard version or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not do it. usage is your own model and cost, shown on the run as you report it. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
+	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a dashboard version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your own model and cost, shown on the run as you report it. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
 
 	descGetRunBrief = "Optional. The first message the server's own agent starts each model session with: the system text, the user message and the run's saved progress. Starting a session with it resets the read guard and pins the parent version; an agent that does not call it keeps working from claim_run's prompt."
 
@@ -324,7 +325,10 @@ func checkRunText(field, value string, maxRunes int) (Result, bool) {
 }
 
 func claimFailure(err error) (Result, error) {
+	var proposalRequired *dashboards.ProposalRequiredError
 	switch {
+	case errors.As(err, &proposalRequired):
+		return saveFailure(err)
 	case errors.Is(err, claims.ErrNotAWorker):
 		return toolError(codeNotAWorker, "this service account does not take runs; an admin can turn on takes_runs"), nil
 	case errors.Is(err, claims.ErrNotYourRun):

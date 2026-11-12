@@ -12,7 +12,8 @@ import {
   expectPanelsReady,
   openDashboard,
   panel,
-  startLayoutEditing,
+  selectPanelToArrange,
+  unsavedLayout,
   versionButton,
 } from "./dashboards"
 import {
@@ -389,7 +390,7 @@ test("applying my title keeps a panel query changed in the newer version", async
   expect(firstQuery(rps)).toBe(newerQuery)
 })
 
-test("moves focus to the conflict notice when a save hits a newer version", async ({
+test("moves focus to the conflict list when a save conflicts with a newer version", async ({
   page,
   request,
   consoleErrors,
@@ -400,13 +401,26 @@ test("moves focus to the conflict notice when a save hits a newer version", asyn
   await openFromMenu(page, rpsTitle)
   await replaceQuery(page, savedQuery)
 
-  await addVersion(request, id, { ...spec, title: `${spec.title} renamed` }, 1)
+  const newerQuery = 'sum(rate(http_requests_total{service="payments"}[1m]))'
+  await addVersion(
+    request,
+    id,
+    withRps(spec, { queries: [{ query: newerQuery }] }),
+    1
+  )
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  await expect(newerAlert(page)).toBeVisible()
-  await expect(newerAlert(page)).toBeFocused()
+  const conflicts = sheet(page)
+    .getByRole("alert")
+    .filter({ hasText: "Version 2 changed the same things" })
+  await expect(conflicts).toBeVisible()
+  await expect(conflicts).toBeFocused()
+  await expect(
+    conflicts.getByRole("button", { name: "Reload version 2" })
+  ).toBeVisible()
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
   expectLoggedOnce(consoleErrors, 409)
+  expect((await getDashboard(request, id)).latestVersion).toBe(2)
 })
 
 test("keeps an unsaved query when its panel is deleted in a newer version", async ({
@@ -837,38 +851,6 @@ test("leaves focus where it is when a newer version arrives inside the sheet", a
   await expect(note).toBeFocused()
 })
 
-test("asks before Edit layout drops an unsaved query draft", async ({
-  page,
-  request,
-}) => {
-  const { id } = await createOverview(request)
-  await page.setViewportSize({ width: 1700, height: 900 })
-  await openDashboard(page, id)
-  await openFromMenu(page, rpsTitle)
-  const title = sheet(page).getByRole("textbox", { name: "Title" })
-  await title.fill("Renamed before the layout edit")
-
-  const saveLayout = page.getByRole("button", { name: "Save layout" })
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
-  await expect(discardDialog(page)).toBeVisible()
-  await expect(saveLayout).toHaveCount(0)
-
-  await page.getByRole("button", { name: "Keep editing" }).click()
-  await expect(discardDialog(page)).toHaveCount(0)
-  await expect(saveLayout).toHaveCount(0)
-  await expect(page).toHaveURL(/panel=rps&edit=query/)
-  await expect(title).toHaveValue("Renamed before the layout edit")
-
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
-  await expect(discardDialog(page)).toBeVisible()
-  await page.getByRole("button", { name: "Discard" }).click()
-  await expect(saveLayout).toBeVisible()
-  await expect(sheet(page)).toHaveCount(0)
-  await expect(page).not.toHaveURL(/edit=query/)
-})
-
 test("asks before Back drops a draft made after opening the latest version", async ({
   page,
   request,
@@ -927,19 +909,20 @@ function moveHandle(page: Page, title: string) {
 }
 
 async function nudgeErrorRate(page: Page) {
+  await selectPanelToArrange(page, "Checkout error rate")
   await moveHandle(page, "Checkout error rate").focus()
   await page.keyboard.press("ArrowRight")
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 }
 
-test("keeps Edit disabled while the layout is being edited", async ({
+test("keeps Edit disabled while the layout has unsaved moves", async ({
   page,
   request,
 }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await nudgeErrorRate(page)
 
   await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
   await expect(
@@ -963,14 +946,13 @@ test("ignores a panel link reached with Back during a layout session", async ({
   await page.keyboard.press("Escape")
   await expect(sheet(page)).toHaveCount(0)
 
-  await startLayoutEditing(page)
   await nudgeErrorRate(page)
   await page.goBack()
 
   await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(sheet(page)).toHaveCount(0)
   await expect(page.getByRole("alertdialog")).toHaveCount(0)
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 })
 
 test("asks once when leaving the dashboard with an unsaved layout", async ({
@@ -980,7 +962,6 @@ test("asks once when leaving the dashboard with an unsaved layout", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
   await nudgeErrorRate(page)
 
   await versionButton(page).click()
@@ -1007,9 +988,10 @@ test("saves a query and then a layout on top of it", async ({
   await expect(sheet(page)).toHaveCount(0)
   await expectPanelsReady(page)
 
-  await startLayoutEditing(page)
   await nudgeErrorRate(page)
-  await page.getByRole("button", { name: "Save layout" }).click()
+  await unsavedLayout(page)
+    .getByRole("button", { name: "Save version 3" })
+    .click()
   await page
     .getByRole("dialog", { name: "Save layout" })
     .getByRole("button", { name: "Save", exact: true })

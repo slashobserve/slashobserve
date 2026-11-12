@@ -296,6 +296,27 @@ func TestSettleClassifiesASave(t *testing.T) {
 				t.Fatalf("got %+v, %v, state %+v", got, err, s)
 			}
 		}},
+		{"a proposed save", tools.ModeRevise, "update_dashboard", 3, func() (tools.Result, []byte) {
+			return ok(`{"code":"proposed","proposal_id":"p1","revision":1,"opened":true}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || got.Outcome.Proposal != "p1" || got.Outcome.Saved != nil || s.Counts.BuildSaves != 1 || !s.Turn.Progress {
+				t.Fatalf("got %+v, %v, state %+v", got, err, s)
+			}
+		}},
+		{"a proposed save without a proposal id", tools.ModeRevise, "update_dashboard", 3, func() (tools.Result, []byte) {
+			return ok(`{"code":"proposed"}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if !errors.Is(err, ErrMalformed) {
+				t.Fatalf("err = %v", err)
+			}
+		}},
+		{"a refusal to remove panels in propose mode is a rejection", tools.ModeRevise, "update_dashboard", 3, func() (tools.Result, []byte) {
+			return fail(`{"code":"proposal_required","message":"m","removed":[{"kind":"panel","id":"a"}]}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || !got.Outcome.Rejected || s.Rejections != 1 || !reflect.DeepEqual(got.Outcome.IssueCodes, []string{"proposal_required"}) {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		}},
 		{"a conflict on a newer version", tools.ModeRevise, "update_panels", 3, func() (tools.Result, []byte) {
 			return fail(`{"code":"version_conflict","latest_version":4}`)
 		}, func(t *testing.T, got Settled, err error, s *State) {

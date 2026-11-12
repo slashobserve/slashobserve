@@ -10,8 +10,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func floatPtr(v float64) *float64 { return &v }
@@ -335,6 +337,80 @@ func TestFinishWithCommitOnAStaleBuildRebasesOrRestartsTheRun(t *testing.T) {
 	}
 	if other.stored(stale).State != string(revisions.StateRunning) || other.store.discards != 1 {
 		t.Fatalf("state %s, discards %d", other.stored(stale).State, other.store.discards)
+	}
+}
+
+func proposedSave(context.Context) (tools.Result, error) {
+	return tools.Result{Content: map[string]any{"code": "proposed", "proposal_id": proposalID, "revision": 1, "opened": true}}, nil
+}
+
+func TestAProposedSaveSettlesTheRunAndFinishSucceedsWithTheProposal(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+
+	answer := r.call(req, "update_dashboard", `{"x":1}`, nil, proposedSave)
+	r.store.insertProposal(mustUUID(t, req.ID))
+
+	if settledOf(answer) != "proposed" || answer.IsError {
+		t.Fatalf("answer settled %q, error %v", settledOf(answer), answer.IsError)
+	}
+	out, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "succeeded"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.State != "succeeded" || out.ResultKind != "proposal" || out.ResultVersion != nil {
+		t.Fatalf("out %+v", out)
+	}
+}
+
+func TestFinishWithCommitOfARequesterWhoCannotEditSucceedsWithAProposal(t *testing.T) {
+	r := newRig(t)
+	r.store.proposeCommits = true
+	req := r.revise()
+	r.startBuild(req, "a")
+
+	out, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "succeeded", Commit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.State != "succeeded" || out.ResultKind != "proposal" || out.ResultVersion != nil || out.Restarted || r.store.commits != 1 {
+		t.Fatalf("out %+v, commits %d", out, r.store.commits)
+	}
+}
+
+func TestAConflictThatRebasesAndThenProposesSettlesTheRunAsProposed(t *testing.T) {
+	r := newRig(t)
+	r.store.proposeCommits = true
+	req := r.revise()
+	r.startBuild(req, "a")
+	r.store.bump()
+	r.store.rebaseOK = true
+
+	answer := r.call(req, "update_panels", `{"panel":"b"}`, nil, versionConflict(2))
+
+	if settledOf(answer) != "proposed" || r.store.commits != 1 || r.store.rebases != 1 {
+		t.Fatalf("settled %q, commits %d, rebases %d", settledOf(answer), r.store.commits, r.store.rebases)
+	}
+}
+
+func TestFinishWithCommitRefusedForRemovalsKeepsTheBuildAndTheRun(t *testing.T) {
+	r := newRig(t)
+	refusal := &dashboards.ProposalRequiredError{Removed: []spec.UnitChange{{Kind: spec.UnitPanel, ID: "a"}}}
+	r.store.commitErr = refusal
+	req := r.revise()
+	r.startBuild(req, "a")
+
+	_, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "succeeded", Commit: true})
+
+	var required *dashboards.ProposalRequiredError
+	if !errors.As(err, &required) {
+		t.Fatalf("err = %v, want the proposal_required refusal", err)
+	}
+	if _, found, _ := r.store.Build(context.Background(), mustUUID(t, req.ID)); !found || r.store.discards != 0 {
+		t.Fatalf("build found %v, discards %d", found, r.store.discards)
+	}
+	if r.stored(req).State != string(revisions.StateRunning) {
+		t.Fatalf("state %s", r.stored(req).State)
 	}
 }
 

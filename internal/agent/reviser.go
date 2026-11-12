@@ -28,7 +28,7 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 		}
 	}
 	out, err := r.agent.Run(ctx, task)
-	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion, FindingID: out.FindingID}
+	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion, FindingID: out.FindingID, ProposalID: out.ProposalID}
 	if out.Usage.Calls > 0 || out.FailedCalls > 0 {
 		result.Usage = &revisions.Usage{
 			Provider:         out.Provider,
