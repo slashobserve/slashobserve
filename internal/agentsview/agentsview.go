@@ -24,7 +24,6 @@ import (
 const (
 	scopeWorkspace = "workspace"
 	scopeYou       = "you"
-	runtimeGo      = "go"
 	sessionMessage = "the agents overview shows a person's own connected agents; service-account keys cannot read it"
 	anonymousName  = "MCP"
 )
@@ -33,6 +32,7 @@ type Observe struct {
 	Enabled  bool
 	Provider string
 	Model    string
+	Runtime  string
 }
 
 type Handler struct {
@@ -127,7 +127,7 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 			Enabled:  h.observe.Enabled,
 			Provider: httpapi.OptionalString(h.observe.Provider),
 			Model:    httpapi.OptionalString(h.observe.Model),
-			Runtime:  runtimeGo,
+			Runtime:  h.observe.Runtime,
 			Scope:    scopeYou,
 		},
 		Connected:       []connectedJSON{},

@@ -11,7 +11,7 @@ It is read-only: a connected agent's mode and its disconnect stay with `PATCH` a
 
 | Part | Shows |
 | --- | --- |
-| `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), and its runs of the last seven days. |
+| `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), its `runtime` (`sidecar`, the default, or `go`, from `SLASHOBSERVE_AGENT_RUNTIME`), and its runs of the last seven days. |
 | `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, whether it is present, when you connected it and what it did in the last seven days. |
 | `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name and whether it is present. |
 
@@ -30,4 +30,5 @@ A connected agent also has `writes_7d`, the changes you made through MCP under i
 ## Mentioning an agent
 
 A connected agent's `grant_id` and a service account's `id` are the ids a comment names to hand work over: `@[Name](grant:<grant_id>)` and `@[Name](service_account:<id>)`.
+The `@` picker of every web composer lists the Observe Agent while a model is connected, then your connected agents, then the service accounts that take runs, all from this one answer.
 [Connect your own agent](mcp.md#connect-your-own-agent) and the CLI's `observe comments` describe what a mention starts.

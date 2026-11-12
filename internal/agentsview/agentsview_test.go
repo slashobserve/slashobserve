@@ -176,16 +176,25 @@ func (r *rig) activity(t *testing.T, by auth.Principal, origin, client string, d
 
 func price(v float64) *float64 { return &v }
 
+func TestObserveAgentReportsTheConfiguredRuntime(t *testing.T) {
+	for _, runtime := range []string{"go", "sidecar"} {
+		r := newRig(t, Observe{Enabled: true, Runtime: runtime})
+		if got := r.overview(t, ada).ObserveAgent.Runtime; got != runtime {
+			t.Fatalf("runtime = %q, want the configured %q", got, runtime)
+		}
+	}
+}
+
 func TestAdminSeesWorkspaceScopeAndServiceAccountStats(t *testing.T) {
-	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5"})
+	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5", Runtime: "sidecar"})
 	account := r.serviceAccount(t, "nightly", true)
 	r.run(t, run{kind: "builtin", by: ada, state: "succeeded", cost: price(0.25), waitSeconds: 4})
 	r.run(t, run{kind: "builtin", by: bob, state: "failed", cost: price(0.5), waitSeconds: 8})
 	r.run(t, run{kind: "service_account", assignedID: account, by: ada, state: "succeeded", cost: price(1), waitSeconds: 2})
 
 	got := r.overview(t, root)
-	if o := got.ObserveAgent; !o.Enabled || o.Scope != "workspace" || o.Runtime != "go" || o.Provider == nil || *o.Provider != "anthropic" || o.Model == nil || *o.Model != "claude-sonnet-5-5" {
-		t.Fatalf("observe agent = %+v, want enabled anthropic claude-sonnet-5-5 in workspace scope on the go runtime", o)
+	if o := got.ObserveAgent; !o.Enabled || o.Scope != "workspace" || o.Runtime != "sidecar" || o.Provider == nil || *o.Provider != "anthropic" || o.Model == nil || *o.Model != "claude-sonnet-5-5" {
+		t.Fatalf("observe agent = %+v, want enabled anthropic claude-sonnet-5-5 in workspace scope on the sidecar runtime", o)
 	}
 	s := got.ObserveAgent.Last7Days
 	if s.Runs != 2 || s.Failed != 1 || s.CostUSD == nil || *s.CostUSD != 0.75 || s.MedianQueueWaitSeconds == nil || *s.MedianQueueWaitSeconds != 6 {
@@ -376,7 +385,7 @@ func (r *rig) validate(t *testing.T, rec *httptest.ResponseRecorder) {
 }
 
 func TestTheResponsesMatchTheDocument(t *testing.T) {
-	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5"})
+	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5", Runtime: "sidecar"})
 	grant := r.grant(t, root, "claude-code")
 	account := r.serviceAccount(t, "nightly", true)
 	r.run(t, run{kind: "builtin", by: root, state: "succeeded", cost: price(0.5), waitSeconds: 3})
