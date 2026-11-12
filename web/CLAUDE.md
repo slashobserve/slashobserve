@@ -97,7 +97,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   - the decimal count shared by values shown together: `commonDecimals`;
   - legend mode and order: `effectiveLegendMode` and `legendOrder`; tooltip rows: `tooltipRows`;
   - the panel editor draft: `draftReducer`, with `panelChanges` for the footer summary, default version summary, suggestion diff and reapply (`rebasePanel`), and `parsePanelJson` for JSON-view edits;
-  - actor text: the server's `actor.label` and `actor.client` (`internal/actor`) are the only display text for who made a change and for an MCP client name, and `web/src/lib/origin.ts` adds only the channel words Web, CLI and API, and `sendToAgentState` (`web/src/activity/agent-gate.ts`) is the only rule for when "Send to agent" shows.
+  - actor text: the server's `actor.label` and `actor.client` (`internal/actor`) are the only display text for who made a change and for an MCP client name, and `web/src/lib/origin.ts` adds only the channel words Web, CLI and API, and `sendToAgentState` (`web/src/activity/agent-gate.ts`) is the only rule for when a composer may ask an agent by mention.
 - Every time a renderer draws goes through `zonedDateTime`, `zonedDateTimeMs`, `zonedTimeValue`, `timeLabel` or `timeTicks` with the `zone` prop that `PanelBody` derives once with `displayZone`.
   The zone changes only what is drawn: relative times and the data request still resolve in the dashboard's zone.
 - A display key whose absent value must keep the old look has no entry in `spec/schema/defaults.json` (for example `wideLayout` and `detailsMode`), and the Grafana importer writes Grafana's value whenever Grafana has one.
