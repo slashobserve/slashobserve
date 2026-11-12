@@ -6,6 +6,7 @@ import {
   findMoreMenuButton,
   findMoveHandle,
   focusAfterLayoutChange,
+  isDirtyNow,
   useIsDirty,
   useLayoutStore,
 } from "./layout-store"
@@ -49,7 +50,9 @@ export function UnsavedBar({ dashboardId }: { dashboardId: string }) {
       />
       <DiscardLayoutDialog
         open={discardOpen}
-        finalFocus={() => findMoveHandle() ?? findMoreMenuButton()}
+        finalFocus={() =>
+          isDirtyNow() ? (findMoveHandle() ?? findMoreMenuButton()) : false
+        }
         onKeep={() => setDiscardOpen(false)}
         onDiscard={() => {
           setDiscardOpen(false)
