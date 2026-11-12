@@ -69,8 +69,12 @@ function fallbackVerb(type: string): string {
 export function itemText(item: InboxItem): ItemText {
   const actor = item.actor.label
   switch (item.type) {
-    case "proposal.opened":
-      return { actor, verb: "proposed a change to", object: "a dashboard" }
+    case "proposal.opened": {
+      const title = textField(item, "title")
+      return title === null
+        ? { actor, verb: "proposed a change to", object: "a dashboard" }
+        : { actor, verb: "proposed", object: title }
+    }
     case "observation.block_added":
       return {
         actor,
@@ -99,46 +103,52 @@ export function itemText(item: InboxItem): ItemText {
   }
 }
 
-function threadHref(item: InboxItem): string | null {
+export type ItemLink = { to: string; search?: { thread: string } }
+
+function page(to: string): ItemLink {
+  return { to }
+}
+
+function threadLink(item: InboxItem): ItemLink | null {
   const ref = objectRef(item)
   if (ref === null) return null
   switch (ref.kind) {
     case "dashboard":
-      return dashboardPath(ref.id)
+      return { to: dashboardPath(ref.id), search: { thread: item.target.id } }
     case "observation":
-      return observationPath(ref.id)
+      return page(observationPath(ref.id))
     case "proposal":
-      return proposalPath(ref.id)
+      return page(proposalPath(ref.id))
     case "finding":
-      return findingPath(ref.id)
+      return page(findingPath(ref.id))
     case "annotation":
       return item.dashboard_id === null
         ? null
-        : dashboardPath(item.dashboard_id)
+        : page(dashboardPath(item.dashboard_id))
     default:
       return null
   }
 }
 
-export function itemHref(item: InboxItem): string | null {
+export function itemLink(item: InboxItem): ItemLink | null {
   const { kind, id } = item.target
   switch (kind) {
     case "proposal":
-      return proposalPath(id)
+      return page(proposalPath(id))
     case "observation":
-      return observationPath(id)
+      return page(observationPath(id))
     case "run":
-      return chatPath(id)
+      return page(chatPath(id))
     case "finding":
-      return findingPath(id)
+      return page(findingPath(id))
     case "dashboard":
-      return dashboardPath(id, textField(item, "title") ?? undefined)
+      return page(dashboardPath(id, textField(item, "title") ?? undefined))
     case "thread":
-      return threadHref(item)
+      return threadLink(item)
     case "annotation":
       return item.dashboard_id === null
         ? null
-        : dashboardPath(item.dashboard_id)
+        : page(dashboardPath(item.dashboard_id))
     default:
       return null
   }

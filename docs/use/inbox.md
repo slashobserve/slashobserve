@@ -24,6 +24,12 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
 
+## Opening an item
+
+A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
+A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
+A failed run opens its chat.
+
 ## Views
 
 `view` chooses what the list holds, and `for_you` is the default.

@@ -241,7 +241,7 @@ describe("InboxPage", () => {
     renderPage()
 
     const link = await screen.findByRole("link", {
-      name: /proposed a change to/,
+      name: /proposed Checkout/,
     })
     expect(link.getAttribute("href")).toBe(`/proposals/${proposalId}`)
     expect(screen.queryByRole("region", { name: "Selected item" })).toBeNull()

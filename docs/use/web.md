@@ -10,7 +10,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/inbox` | Your inbox: what happened on your observations, dashboards and requests. `view` and `item` in the query string reopen a view and an open item. `/` opens it. |
 | `/ask` | The chat: ask the Observe Agent for a dashboard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
-| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history. |
+| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
 | `/f/<folder id>` | A folder's settings. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/b/<request id>` | The live view of an agent request's build. |

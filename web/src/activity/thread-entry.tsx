@@ -30,6 +30,7 @@ import { threadState, threadVerbText } from "./thread-view"
 type Props = {
   dashboardId: string
   entry: Extract<TimelineEntry, { kind: "thread" }>
+  focused?: boolean
   panelTitle: string | null
   onSelectPanel: (panelId: string) => void
   gate: AgentGate
@@ -44,6 +45,7 @@ function replyCount(count: number): string {
 export function ThreadEntry({
   dashboardId,
   entry,
+  focused,
   panelTitle,
   onSelectPanel,
   gate,
@@ -140,6 +142,7 @@ export function ThreadEntry({
       panel={panel}
       at={root.created_at}
       edited={root.edited_at !== null}
+      focused={focused}
     >
       <MessageText
         message={root}

@@ -15,7 +15,7 @@ import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { InboxDetail } from "./inbox-detail"
-import { groupItems, itemHref, type InboxItem } from "./inbox-item"
+import { groupItems, itemLink, type InboxItem } from "./inbox-item"
 import { InboxRow } from "./inbox-row"
 import { inboxInfiniteQuery, useInboxLive, useMarkInboxRead } from "./queries"
 
@@ -118,10 +118,10 @@ export function InboxPage({ view, selected, onChange }: Props) {
     const here = target === null ? -1 : rows.indexOf(target)
     if (here < 0) return
     if (key === "Enter") {
-      const href = wide ? itemHref(ordered[here]) : null
-      if (href === null) return
+      const link = wide ? itemLink(ordered[here]) : null
+      if (link === null) return
       event.preventDefault()
-      router.history.push(href)
+      void router.navigate(link)
       return
     }
     event.preventDefault()

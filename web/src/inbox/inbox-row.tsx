@@ -2,11 +2,11 @@ import { Link } from "@tanstack/react-router"
 
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
-import { Badge } from "@/components/ui/badge"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 
-import { itemHref, itemText, reasonLabel, type InboxItem } from "./inbox-item"
+import { itemLink, itemText, type InboxItem } from "./inbox-item"
+import { ReasonChip } from "./reason-chip"
 
 type Props = {
   item: InboxItem
@@ -36,9 +36,7 @@ function RowBody({ item }: { item: InboxItem }) {
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <ItemLine item={item} />
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          {item.reason === null ? null : (
-            <Badge variant="outline">{reasonLabel(item.reason)}</Badge>
-          )}
+          {item.reason === null ? null : <ReasonChip reason={item.reason} />}
           <RelativeTime iso={item.created_at} />
         </span>
       </span>
@@ -46,7 +44,7 @@ function RowBody({ item }: { item: InboxItem }) {
         <>
           <span
             aria-hidden="true"
-            className="size-[7px] flex-none rounded-full bg-foreground"
+            className="size-[7px] flex-none rounded-full bg-primary"
           />
           <span className="sr-only">Unread</span>
         </>
@@ -57,11 +55,12 @@ function RowBody({ item }: { item: InboxItem }) {
 
 export function InboxRow({ item, selected, tabStop, asLink, onSelect }: Props) {
   const className = cn(rowClass, selected && "bg-selection")
-  const href = itemHref(item)
-  if (asLink && href !== null) {
+  const link = itemLink(item)
+  if (asLink && link !== null) {
     return (
       <Link
-        to={href}
+        to={link.to}
+        search={link.search}
         data-inbox-row=""
         tabIndex={tabStop ? 0 : -1}
         className={className}

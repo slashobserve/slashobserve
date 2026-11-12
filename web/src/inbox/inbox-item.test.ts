@@ -2,11 +2,12 @@ import { describe, expect, test } from "vitest"
 
 import {
   groupItems,
-  itemHref,
+  itemLink,
   itemText,
   reasonLabel,
   unreadObservationIds,
   type InboxItem,
+  type ItemLink,
 } from "./inbox-item"
 
 const id = "3f2c8d1e-0b5a-4c7d-9e11-2a6b8c4d5e70"
@@ -43,11 +44,20 @@ function withData(data: Record<string, unknown>): InboxItem["data"] {
 describe("itemText", () => {
   test.each([
     {
-      name: "a proposal names a dashboard",
+      name: "a proposal names its title",
       over: {
         type: "proposal.opened",
         target: { kind: "proposal", id },
         data: withData({ title: "Tune the errors panel" }),
+      },
+      text: { actor: "Ada", verb: "proposed", object: "Tune the errors panel" },
+    },
+    {
+      name: "a proposal with no title names a dashboard",
+      over: {
+        type: "proposal.opened",
+        target: { kind: "proposal", id },
+        data: withData({}),
       },
       text: {
         actor: "Ada",
@@ -175,22 +185,22 @@ describe("itemText", () => {
   })
 })
 
-describe("itemHref", () => {
+describe("itemLink", () => {
   test.each([
     {
       name: "a proposal opens its page",
       over: { target: { kind: "proposal", id } },
-      href: `/proposals/${id}`,
+      link: { to: `/proposals/${id}` },
     },
     {
       name: "an observation opens its page",
       over: { target: { kind: "observation", id } },
-      href: `/o/${id}`,
+      link: { to: `/o/${id}` },
     },
     {
       name: "a run opens its chat",
       over: { target: { kind: "run", id } },
-      href: `/c/${id}`,
+      link: { to: `/c/${id}` },
     },
     {
       name: "a dashboard opens with its slug",
@@ -198,15 +208,15 @@ describe("itemHref", () => {
         target: { kind: "dashboard", id },
         data: withData({ title: "Checkout health" }),
       },
-      href: `/d/${id}/checkout-health`,
+      link: { to: `/d/${id}/checkout-health` },
     },
     {
-      name: "a thread on a dashboard opens the dashboard",
+      name: "a thread on a dashboard opens the dashboard on that thread",
       over: {
         target: { kind: "thread", id: other },
         data: withData({ object: { kind: "dashboard", id } }),
       },
-      href: `/d/${id}`,
+      link: { to: `/d/${id}`, search: { thread: other } },
     },
     {
       name: "a thread on an observation opens the observation",
@@ -214,7 +224,7 @@ describe("itemHref", () => {
         target: { kind: "thread", id: other },
         data: withData({ object: { kind: "observation", id } }),
       },
-      href: `/o/${id}`,
+      link: { to: `/o/${id}` },
     },
     {
       name: "a thread on a proposal opens the proposal",
@@ -222,7 +232,7 @@ describe("itemHref", () => {
         target: { kind: "thread", id: other },
         data: withData({ object: { kind: "proposal", id } }),
       },
-      href: `/proposals/${id}`,
+      link: { to: `/proposals/${id}` },
     },
     {
       name: "a thread on an annotation opens its dashboard",
@@ -231,24 +241,24 @@ describe("itemHref", () => {
         dashboard_id: id,
         data: withData({ object: { kind: "annotation", id: other } }),
       },
-      href: `/d/${id}`,
+      link: { to: `/d/${id}` },
     },
     {
       name: "a thread with no known object has no page",
       over: { target: { kind: "thread", id: other }, data: withData({}) },
-      href: null,
+      link: null,
     },
     {
       name: "a saved search has no page",
       over: { target: { kind: "saved_search", id } },
-      href: null,
+      link: null,
     },
   ] satisfies {
     name: string
     over: Partial<InboxItem>
-    href: string | null
-  }[])("$name", ({ over, href }) => {
-    expect(itemHref(item(over))).toBe(href)
+    link: ItemLink | null
+  }[])("$name", ({ over, link }) => {
+    expect(itemLink(item(over))).toEqual(link)
   })
 })
 

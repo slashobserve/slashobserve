@@ -402,8 +402,9 @@ function DashboardView({
     panelInUrl || search.share === true || editing || inspecting || kiosk
       ? undefined
       : search.chat
+  const threadInUrl = search.thread !== undefined
   const cardVisible =
-    (open || panelInUrl || search.share === true) &&
+    (open || panelInUrl || search.share === true || threadInUrl) &&
     !editing &&
     !inspecting &&
     !kiosk &&
@@ -605,7 +606,8 @@ function DashboardView({
       search.panel === undefined &&
       search.edit === undefined &&
       search.share !== true &&
-      search.chat === undefined
+      search.chat === undefined &&
+      search.thread === undefined
     ) {
       return
     }
@@ -615,8 +617,17 @@ function DashboardView({
       edit: undefined,
       share: false,
       chat: undefined,
+      thread: undefined,
     }))
-  }, [setOpen, setSearch, search.panel, search.edit, search.share, search.chat])
+  }, [
+    setOpen,
+    setSearch,
+    search.panel,
+    search.edit,
+    search.share,
+    search.chat,
+    search.thread,
+  ])
 
   const toggleCard = useCallback(() => {
     if (cardVisible) {

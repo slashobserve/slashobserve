@@ -92,7 +92,8 @@ function thread(
 function threadView(
   status: Comment["status"],
   client: QueryClient,
-  edits?: Parameters<typeof thread>[1]
+  edits?: Parameters<typeof thread>[1],
+  focused?: boolean
 ) {
   return (
     <QueryClientProvider client={client}>
@@ -100,6 +101,7 @@ function threadView(
         <ThreadEntry
           dashboardId="dashboard"
           entry={thread(status, edits)}
+          focused={focused}
           panelTitle={null}
           onSelectPanel={() => {}}
           gate={{ kind: "hidden" }}
@@ -113,10 +115,11 @@ function threadView(
 
 function renderThread(
   status: Comment["status"],
-  edits?: Parameters<typeof thread>[1]
+  edits?: Parameters<typeof thread>[1],
+  focused?: boolean
 ) {
   const client = new QueryClient()
-  const { rerender } = render(threadView(status, client, edits))
+  const { rerender } = render(threadView(status, client, edits, focused))
   return {
     rerender: (next: Comment["status"]) => rerender(threadView(next, client)),
   }
@@ -143,9 +146,6 @@ describe("ThreadEntry", () => {
             effort: null,
           })
         }
-        if (pathname === "/api/v1/me/grants") {
-          return json({ grants: [], next_cursor: null })
-        }
         return json({ service_accounts: [] })
       })
     )
@@ -161,6 +161,16 @@ describe("ThreadEntry", () => {
     expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument()
     expect(screen.getByText("Looking now")).toBeInTheDocument()
+  })
+
+  it("marks the thread a link opened on as the current item and scrolls to it", () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    renderThread("open", undefined, true)
+    const items = screen.getAllByRole("listitem")
+    expect(items[0]).toHaveAttribute("aria-current", "true")
+    expect(items[1]).not.toHaveAttribute("aria-current")
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
   })
 
   it("shows Reply and no Resolve when the server offers only reply", () => {

@@ -15,7 +15,8 @@ import { ProposalBody } from "@/proposals/proposal-body"
 import type { Picks } from "@/proposals/proposal-view"
 import { proposalQuery } from "@/proposals/queries"
 
-import { itemHref, itemText, reasonLabel, type InboxItem } from "./inbox-item"
+import { itemLink, itemText, type InboxItem } from "./inbox-item"
+import { ReasonChip } from "./reason-chip"
 
 const linkClass = "w-fit text-[13px] underline underline-offset-4"
 
@@ -77,7 +78,7 @@ function ProposalDetail({ proposalId }: { proposalId: string }) {
 
 function ItemDetail({ item }: { item: InboxItem }) {
   const { actor, verb, object } = itemText(item)
-  const href = itemHref(item)
+  const link = itemLink(item)
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold wrap-anywhere">
@@ -85,12 +86,13 @@ function ItemDetail({ item }: { item: InboxItem }) {
         {verb} {object}
       </h2>
       <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-        {item.reason === null ? null : <span>{reasonLabel(item.reason)}</span>}
+        {item.reason === null ? null : <ReasonChip reason={item.reason} />}
         <RelativeTime iso={item.created_at} />
       </p>
-      {href === null ? null : (
+      {link === null ? null : (
         <Link
-          to={href}
+          to={link.to}
+          search={link.search}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "w-fit no-underline"
