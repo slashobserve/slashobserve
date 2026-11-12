@@ -71,7 +71,7 @@ The comment threads of a finding are merged into one discussion on its observati
 Take the backup first.
 Stop every old server before the first new one starts, because an older server saves findings without an observation and opens threads on a finding, which the new schema refuses.
 
-To go back, run `goose down-to 39` against the database before starting an older binary.
+To go back, run `goose down-to 40` against the database before starting an older binary.
 The down section has costs:
 
 - Threads that were merged stay merged, and are not split into their original threads again.
