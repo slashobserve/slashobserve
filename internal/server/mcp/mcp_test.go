@@ -28,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -42,6 +43,7 @@ const (
 	unnamedOAuth = "Bearer oauth-unnamed"
 	takesRuns    = "Bearer takes-runs"
 	oauthTakes   = "Bearer oauth-takes-runs"
+	oauthPropose = "Bearer oauth-propose"
 	publicURL    = "http://observe.test:8080"
 	metadataURL  = publicURL + "/.well-known/oauth-protected-resource/mcp"
 )
@@ -64,6 +66,8 @@ func (f *fakeAuth) Authenticate(_ context.Context, header string) (Credential, b
 		return Credential{Principal: auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other", Role: auth.RoleEditor}}, true, nil
 	case namedOAuth:
 		return Credential{Principal: oauthPerson, OAuth: true, Client: "Claude Code"}, true, nil
+	case oauthPropose:
+		return Credential{Principal: oauthPerson, OAuth: true, Client: "Claude Code", Mode: grantmode.Propose}, true, nil
 	case unnamedOAuth:
 		return Credential{Principal: oauthPerson, OAuth: true}, true, nil
 	case takesRuns:
@@ -1243,6 +1247,36 @@ func TestToolCallRecordsTheMCPClient(t *testing.T) {
 			}
 			if got.Kind != origin.MCP || got.Client != tt.want {
 				t.Errorf("origin %+v, want mcp client %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToolCallCarriesTheModeOfTheCredential(t *testing.T) {
+	tests := []struct {
+		name          string
+		authorization string
+		want          grantmode.Mode
+	}{
+		{"a propose grant", oauthPropose, grantmode.Propose},
+		{"a direct grant", namedOAuth, grantmode.Direct},
+		{"a service-account key", goodKey, grantmode.Direct},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			var got grantmode.Mode
+			f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got = grantmode.From(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			params := map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}
+			rec := f.post(rpc(1, "tools/call", params), map[string]string{"Authorization": tt.authorization})
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if got != tt.want {
+				t.Errorf("mode %q, want %q", got, tt.want)
 			}
 		})
 	}

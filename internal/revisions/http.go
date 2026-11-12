@@ -84,7 +84,7 @@ type listJSON struct {
 
 func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/revisions")
-	g.POST("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedEdit), s.createRevision)
+	g.POST("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedComment), s.createRevision)
 	g.GET("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.listRevisions)
 	g.GET("/:revision_id", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.getRevision)
 	api.POST("/dashboards/:id/suggestions", auth.RoleViewer, s.access.RequireDashboard(folders.NeedEdit), s.createSuggestion)
@@ -244,7 +244,11 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("check who may start a revision again: %w", err)
 		}
-		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart)
+		mayEdit, err := starts.mayEdit(ctx, rev.State, dashboardID)
+		if err != nil {
+			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
+		}
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart, mayEdit)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 	}
 	return views, nil

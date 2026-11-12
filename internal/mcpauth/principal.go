@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
@@ -19,6 +20,7 @@ type Access struct {
 	Principal auth.Principal
 	Client    string
 	GrantID   string
+	Mode      grantmode.Mode
 }
 
 func (s *Server) Authenticate(ctx context.Context, header string) (Access, bool, error) {
@@ -43,7 +45,7 @@ func (s *Server) Authenticate(ctx context.Context, header string) (Access, bool,
 	if !row.LastUsedAt.Valid || time.Since(row.LastUsedAt.Time) > grantTouchInterval {
 		s.touch(ctx, row.ID)
 	}
-	return Access{Principal: principal, Client: row.Name.String, GrantID: row.ID.String()}, true, nil
+	return Access{Principal: principal, Client: row.Name.String, GrantID: row.ID.String(), Mode: grantmode.Parse(row.Mode)}, true, nil
 }
 
 func (s *Server) touch(ctx context.Context, grantID pgtype.UUID) {

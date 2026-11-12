@@ -1,13 +1,11 @@
 package dashboards
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -66,7 +64,7 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 	revision := in.DashboardID.Valid
 	fallback := defaultCreateSummary
 	if revision {
-		if _, err := s.need(ctx, by, in.DashboardID, folders.NeedEdit); err != nil {
+		if _, err := s.need(ctx, by, in.DashboardID, folders.NeedComment); err != nil {
 			return Build{}, err
 		}
 		fallback = defaultUpdateSummary
@@ -207,25 +205,45 @@ func (s *Service) ViewBuild(ctx context.Context, by auth.Principal, requestID pg
 	return build, nil
 }
 
-func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Dashboard, Version, bool, error) {
-	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	if saved {
-		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
-			return Dashboard{}, Version{}, false, err
-		}
-		return dash, ver, true, nil
+type Commit struct {
+	Dashboard Dashboard
+	Version   Version
+	Replayed  bool
+	Proposal  *ProposalRef
+}
+
+func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, error) {
+	if commit, replayed, err := s.replayedCommit(ctx, by, requestID, attempt); err != nil || replayed {
+		return commit, err
 	}
 	build, found, err := s.Build(ctx, requestID)
 	if err != nil {
-		return Dashboard{}, Version{}, false, err
+		return Commit{}, err
 	}
 	if !found {
-		return Dashboard{}, Version{}, false, ErrBuildNotFound
+		return Commit{}, ErrBuildNotFound
 	}
-	return s.commitBuild(ctx, by, build, build.Summary, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
+	deleteBuild := deleteBuildFenced(ctx, requestID, attempt)
+	if build.DashboardID.Valid {
+		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
+		if err != nil {
+			return Commit{}, err
+		}
+		if mustPropose(ctx, access.Abilities) && access.Abilities.Comment && s.proposer != nil {
+			return s.proposeBuild(ctx, by, build, access, deleteBuild)
+		}
+	}
+	dash, ver, replayed, err := s.commitBuild(ctx, by, build, build.Summary, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
+		return deleteBuild(q)
+	})
+	if err != nil {
+		return Commit{}, err
+	}
+	return Commit{Dashboard: dash, Version: ver, Replayed: replayed}, nil
+}
+
+func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, attempt int) func(q *dbsqlc.Queries) error {
+	return func(q *dbsqlc.Queries) error {
 		n, err := q.DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, Attempt: httpapi.Int32(attempt)})
 		if err != nil {
 			return fmt.Errorf("delete agent request build: %w", err)
@@ -234,7 +252,66 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 			return ErrBuildLost
 		}
 		return nil
+	}
+}
+
+func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
+	if err != nil {
+		return Commit{}, false, err
+	}
+	if saved {
+		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+			return Commit{}, false, err
+		}
+		return Commit{Dashboard: dash, Version: ver, Replayed: true}, true, nil
+	}
+	return s.proposedByRun(ctx, by, requestID, attempt)
+}
+
+func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Build, access folders.DashboardAccess, deleteBuild func(q *dbsqlc.Queries) error) (Commit, error) {
+	if err := s.refuseRemovals(ctx, build.DashboardID, build.BaseVersion, build.Spec); err != nil {
+		return Commit{}, err
+	}
+	ref, err := s.proposer(ctx, by, ProposeInput{
+		DashboardID: build.DashboardID,
+		BaseVersion: build.BaseVersion,
+		Spec:        build.Spec,
+		Summary:     build.Summary,
+		RequestID:   build.RequestID,
+		Partial:     true,
+		InTx:        deleteBuild,
 	})
+	if err != nil {
+		return Commit{}, err
+	}
+	dash, _, err := s.store.latest(ctx, build.DashboardID)
+	if err != nil {
+		return Commit{}, err
+	}
+	return Commit{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+}
+
+func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+	row, err := s.store.db.Queries().GetRunProposal(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Commit{}, false, nil
+	}
+	if err != nil {
+		return Commit{}, false, fmt.Errorf("get run proposal: %w", err)
+	}
+	access, err := s.need(ctx, by, row.DashboardID, folders.NeedView)
+	if err != nil {
+		return Commit{}, false, err
+	}
+	dash, _, err := s.store.latest(ctx, row.DashboardID)
+	if err != nil {
+		return Commit{}, false, err
+	}
+	if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+		return Commit{}, false, err
+	}
+	return Commit{Dashboard: withAccess(dash, access), Proposal: &ProposalRef{ID: row.ID.String(), Revision: int(row.Revision)}}, true, nil
 }
 
 func (s *Service) DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error {
@@ -261,10 +338,11 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 	if err != nil {
 		return 0, false, err
 	}
-	merged, ok, err := rebaseSpec(base, build.Spec, latest.Spec)
-	if err != nil || !ok {
+	merge, err := spec.Merge3(base, latest.Spec, build.Spec)
+	if err != nil || len(merge.Conflicts) > 0 {
 		return 0, false, err
 	}
+	merged := merge.Dashboard
 	carried, err := s.verify(ctx, by, latest.Spec, latest.Unverified, merged, true)
 	var invalid *InvalidSpecError
 	if errors.As(err, &invalid) {
@@ -278,155 +356,6 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 		return 0, false, err
 	}
 	return latest.Number, true, nil
-}
-
-func rebaseSpec(base, build, latest *spec.Dashboard) (*spec.Dashboard, bool, error) {
-	sameFields, err := sameDashboardFields(base, build)
-	if err != nil || !sameFields {
-		return nil, false, err
-	}
-	baseStates, err := panelStates(base)
-	if err != nil {
-		return nil, false, err
-	}
-	buildStates, err := panelStates(build)
-	if err != nil {
-		return nil, false, err
-	}
-	latestStates, err := panelStates(latest)
-	if err != nil {
-		return nil, false, err
-	}
-	ours := changedPanelIDs(baseStates, buildStates, panelState.samePlaced)
-	if len(ours) == 0 {
-		return latest, true, nil
-	}
-	theirs := changedPanelIDs(baseStates, latestStates, panelState.sameContent)
-	for id := range ours {
-		if theirs[id] {
-			return nil, false, nil
-		}
-	}
-	patch, err := replayPatch(build, baseStates, buildStates, ours)
-	if err != nil {
-		return nil, false, err
-	}
-	merged, err := spec.ApplyPanelPatch(latest, patch)
-	var conflicting *spec.PatchError
-	if errors.As(err, &conflicting) {
-		return nil, false, nil
-	}
-	return merged, err == nil, err
-}
-
-func sameDashboardFields(a, b *spec.Dashboard) (bool, error) {
-	withoutPanels := func(d *spec.Dashboard) ([]byte, error) {
-		fields := *d
-		fields.Panels = nil
-		return json.Marshal(fields)
-	}
-	left, err := withoutPanels(a)
-	if err != nil {
-		return false, err
-	}
-	right, err := withoutPanels(b)
-	return string(left) == string(right), err
-}
-
-type panelState struct {
-	content string
-	grid    spec.GridPos
-}
-
-func (p panelState) sameContent(other panelState) bool {
-	return p.content == other.content
-}
-
-func (p panelState) samePlaced(other panelState) bool {
-	return p == other
-}
-
-func panelStates(d *spec.Dashboard) (map[string]panelState, error) {
-	states := map[string]panelState{}
-	for _, e := range d.AllPanels() {
-		body, err := panelBody(*e.Panel)
-		if err != nil {
-			return nil, err
-		}
-		delete(body, "gridPos")
-		row := ""
-		if e.Row != nil {
-			row = e.Row.ID
-		}
-		content, err := json.Marshal(map[string]any{"row": row, "panel": body})
-		if err != nil {
-			return nil, err
-		}
-		states[e.Panel.ID] = panelState{content: string(content), grid: e.Panel.GridPos}
-	}
-	return states, nil
-}
-
-func panelBody(p spec.Panel) (map[string]any, error) {
-	p.Panels, p.Responsive = nil, nil
-	raw, err := json.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var body map[string]any
-	err = dec.Decode(&body)
-	return body, err
-}
-
-func changedPanelIDs(from, to map[string]panelState, same func(panelState, panelState) bool) map[string]bool {
-	changed := map[string]bool{}
-	for id, was := range from {
-		if now, ok := to[id]; !ok || !same(was, now) {
-			changed[id] = true
-		}
-	}
-	for id := range to {
-		if _, ok := from[id]; !ok {
-			changed[id] = true
-		}
-	}
-	return changed
-}
-
-func replayPatch(build *spec.Dashboard, baseStates, buildStates map[string]panelState, changed map[string]bool) (spec.PanelPatch, error) {
-	var patch spec.PanelPatch
-	for _, e := range build.AllPanels() {
-		id := e.Panel.ID
-		if !changed[id] {
-			continue
-		}
-		body, err := panelBody(*e.Panel)
-		if err != nil {
-			return spec.PanelPatch{}, err
-		}
-		if was, ok := baseStates[id]; ok && was.grid == buildStates[id].grid {
-			delete(body, "gridPos")
-		}
-		raw, err := json.Marshal(body)
-		if err != nil {
-			return spec.PanelPatch{}, err
-		}
-		row := ""
-		if e.Row != nil {
-			row = e.Row.ID
-		}
-		patch.Upsert = append(patch.Upsert, raw)
-		patch.Layout = append(patch.Layout, spec.PanelPlacement{ID: id, Row: &row})
-	}
-	for id := range baseStates {
-		if _, kept := buildStates[id]; !kept {
-			patch.Delete = append(patch.Delete, id)
-		}
-	}
-	slices.Sort(patch.Delete)
-	return patch, nil
 }
 
 func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Dashboard, Version, bool, error) {

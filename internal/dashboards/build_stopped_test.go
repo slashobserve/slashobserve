@@ -77,7 +77,8 @@ func TestTwoBuildSavesAndACommitMakeOneVersionWithBothPanels(t *testing.T) {
 		t.Fatalf("build found = %v, err %v", found, err)
 	}
 
-	dash, ver, replayed, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	dash, ver, replayed := commit.Dashboard, commit.Version, commit.Replayed
 	if err != nil || replayed || ver.Number != 1 || len(ver.Spec.Panels) != 2 {
 		t.Fatalf("commit: version %d, panels %d, replayed %v, err %v", ver.Number, len(ver.Spec.Panels), replayed, err)
 	}
@@ -93,12 +94,14 @@ func TestACommitOfAnAlreadyCommittedRequestReplaysItsVersion(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
-	_, first, _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	firstCommit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	first := firstCommit.Version
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, again, replayed, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	againCommit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	again, replayed := againCommit.Version, againCommit.Replayed
 	if err != nil || !replayed || again.Number != first.Number {
 		t.Fatalf("second commit: version %d, replayed %v, err %v", again.Number, replayed, err)
 	}
@@ -108,7 +111,7 @@ func TestACommitWithoutABuildIsNotFound(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
 
-	if _, _, _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt); !errors.Is(err, ErrBuildNotFound) {
+	if _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt); !errors.Is(err, ErrBuildNotFound) {
 		t.Fatalf("err = %v, want ErrBuildNotFound", err)
 	}
 }
@@ -252,7 +255,8 @@ func TestACommittedCreateBuildClosesItsLines(t *testing.T) {
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 
-	_, ver, _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	ver := commit.Version
 	if err != nil || len(ver.Spec.Panels) != 1 || ver.Spec.Panels[0].GridPos.W != 24 {
 		t.Fatalf("commit: panels %+v, err %v, want one panel 24 wide", ver.Spec.Panels, err)
 	}

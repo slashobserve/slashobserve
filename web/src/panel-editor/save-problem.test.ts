@@ -217,7 +217,9 @@ describe("showsProblem", () => {
 
   it("leaves a conflict to the notice and shows every other problem", () => {
     expect(showsProblem(null)).toBe(false)
-    expect(showsProblem({ kind: "conflict", latest: 3 })).toBe(false)
+    expect(showsProblem({ kind: "conflict", latest: 3, conflicts: [] })).toBe(
+      false
+    )
     expect(showsProblem({ kind: "gone" })).toBe(true)
     expect(showsProblem({ kind: "transient" })).toBe(true)
     expect(showsProblem({ kind: "failed", message: "x" })).toBe(true)

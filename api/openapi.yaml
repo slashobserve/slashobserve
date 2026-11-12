@@ -76,6 +76,14 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-duplicate"
   /dashboards/{id}/diff:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
+  /dashboards/{id}/proposals:
+    $ref: "./paths/proposals.yaml#/dashboards-id-proposals"
+  /proposals/{id}:
+    $ref: "./paths/proposals.yaml#/proposals-id"
+  /proposals/{id}/merge:
+    $ref: "./paths/proposals.yaml#/proposals-id-merge"
+  /proposals/{id}/discard:
+    $ref: "./paths/proposals.yaml#/proposals-id-discard"
   /dashboards/{id}/views:
     $ref: "./paths/dashboards.yaml#/dashboards-id-views"
   /dashboards/{id}/import:
@@ -689,7 +697,7 @@ components:
         mode:
           type: string
           enum: [direct, propose]
-          description: How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+          description: How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
         presence:
           type: string
           enum: [working, listening, offline]
@@ -699,6 +707,14 @@ components:
           format: date-time
           nullable: true
           description: When it last asked for work or reported on a run; null when it never did.
+    UpdateConnectedAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [direct, propose]
     ConnectedAgentList:
       type: object
       additionalProperties: false
@@ -1138,7 +1154,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1159,11 +1175,11 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
             id:
               type: string
               format: uuid
-              description: The id of the dashboard, annotation, finding, saved search, observation, comment thread or agent request the event is about.
+              description: The id of the dashboard, annotation, finding, saved search, observation, proposal, comment thread or agent request the event is about.
         dashboard_id:
           type: string
           format: uuid
@@ -1401,7 +1417,7 @@ components:
     VersionMeta:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor, merged_proposal_id]
       properties:
         version:
           type: integer
@@ -1438,10 +1454,15 @@ components:
           description: The agent request that saved this version; null for a version saved directly.
         actor:
           $ref: "#/components/schemas/Actor"
+        merged_proposal_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The proposal whose merge saved this version; null for any other version.
     Version:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor, spec, unverified]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, actor, merged_proposal_id, spec, unverified]
       properties:
         version:
           type: integer
@@ -1478,6 +1499,11 @@ components:
           description: The agent request that saved this version; null for a version saved directly.
         actor:
           $ref: "#/components/schemas/Actor"
+        merged_proposal_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The proposal whose merge saved this version; null for any other version.
         spec:
           type: object
           additionalProperties: true
@@ -1534,6 +1560,31 @@ components:
           $ref: "#/components/schemas/DashboardSummary"
         version:
           $ref: "#/components/schemas/Version"
+    DashboardVersionSaved:
+      type: object
+      additionalProperties: false
+      required: [dashboard, version]
+      properties:
+        dashboard:
+          $ref: "#/components/schemas/DashboardSummary"
+        version:
+          $ref: "#/components/schemas/Version"
+        merged_from:
+          $ref: "#/components/schemas/MergedFrom"
+    MergedFrom:
+      type: object
+      additionalProperties: false
+      required: [base_version, onto_version]
+      description: Present when a stale save was merged on the server.
+      properties:
+        base_version:
+          type: integer
+          minimum: 1
+          description: The `parent_version` the caller sent.
+        onto_version:
+          type: integer
+          minimum: 1
+          description: The latest version the save was merged onto.
     SpecChange:
       type: object
       additionalProperties: false
@@ -1563,6 +1614,296 @@ components:
         latest_version:
           type: integer
           minimum: 1
+        conflicts:
+          type: array
+          description: >-
+            Present when a save asked for `merge: auto` and the newer versions changed the same panels, variables or settings.
+          items:
+            $ref: "#/components/schemas/MergeConflict"
+    MergeConflict:
+      type: object
+      additionalProperties: false
+      required: [kind, id, reason, message]
+      properties:
+        kind:
+          type: string
+          enum: [panel, variable, setting]
+        id:
+          type: string
+        reason:
+          type: string
+          enum: [both_changed, changed_and_removed, invalid]
+        message:
+          type: string
+    ProposalSummary:
+      type: object
+      additionalProperties: false
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      description: A proposed change to a dashboard, without its document.
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [open, merged, discarded]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The summary of the first revision, cut to 200 characters.
+        revision:
+          type: integer
+          minimum: 1
+          description: The head revision; every save by the author while the proposal is open adds one.
+        base_version:
+          type: integer
+          minimum: 1
+          description: The version of the dashboard the head revision builds on.
+        summary:
+          type: string
+          description: The head revision's summary.
+        author:
+          $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request whose saves the proposal holds; null for a proposal made by a person or an MCP client.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_by:
+          allOf:
+            - $ref: "#/components/schemas/Author"
+          nullable: true
+          description: Who merged or discarded the proposal; null while it is open.
+        merged_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard.
+        behind:
+          type: boolean
+          description: True when `latest_version` is newer than `base_version`. Computed on every read.
+        latest_version:
+          type: integer
+          minimum: 1
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [update, merge, discard]
+          description: >-
+            What the caller may do now. `update` means saving again to add a revision and has no route of its own;
+            `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
+            See docs/reference/states.md.
+    Proposal:
+      type: object
+      additionalProperties: false
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      description: A proposed change to a dashboard with its head revision's document and what it changes.
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [open, merged, discarded]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The summary of the first revision, cut to 200 characters.
+        revision:
+          type: integer
+          minimum: 1
+          description: The head revision; every save by the author while the proposal is open adds one.
+        base_version:
+          type: integer
+          minimum: 1
+          description: The version of the dashboard the head revision builds on.
+        summary:
+          type: string
+          description: The head revision's summary.
+        author:
+          $ref: "#/components/schemas/Author"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request whose saves the proposal holds; null for a proposal made by a person or an MCP client.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_by:
+          allOf:
+            - $ref: "#/components/schemas/Author"
+          nullable: true
+          description: Who merged or discarded the proposal; null while it is open.
+        merged_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard.
+        behind:
+          type: boolean
+          description: True when `latest_version` is newer than `base_version`. Computed on every read.
+        latest_version:
+          type: integer
+          minimum: 1
+        allowed_actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [update, merge, discard]
+          description: >-
+            What the caller may do now. `update` means saving again to add a revision and has no route of its own;
+            `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
+            See docs/reference/states.md.
+        spec:
+          type: object
+          additionalProperties: true
+          description: The ObserveSpec document of the head revision.
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProposalChange"
+          description: What the head revision adds, changes, removes or moves compared with `base_version`.
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MergeConflict"
+          description: >-
+            While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise.
+    ProposalChange:
+      type: object
+      additionalProperties: false
+      required: [kind, id, change]
+      properties:
+        kind:
+          type: string
+          enum: [panel, variable, setting]
+        id:
+          type: string
+        change:
+          type: string
+          enum: [added, changed, removed, moved]
+    ProposalList:
+      type: object
+      additionalProperties: false
+      required: [proposals, next_cursor]
+      properties:
+        proposals:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ProposalSummary"
+        next_cursor:
+          type: string
+          nullable: true
+    ProposalCreated:
+      type: object
+      additionalProperties: false
+      required: [proposal_id, revision, opened]
+      description: The answer to a save that became a proposal.
+      properties:
+        proposal_id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+          description: The revision this save added.
+        opened:
+          type: boolean
+          description: True when the save opened the proposal, false when it added a revision to the caller's open one.
+    MergeChoice:
+      type: object
+      additionalProperties: false
+      required: [kind, id, take]
+      properties:
+        kind:
+          type: string
+          enum: [panel, variable, setting]
+        id:
+          type: string
+        take:
+          type: string
+          enum: [ours, theirs]
+          description: "`ours` keeps the dashboard's newer version of the unit, `theirs` takes the proposal's."
+    MergeProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [revision]
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          description: The head revision the caller read; a newer one answers 409 `proposal_changed`.
+        choices:
+          type: array
+          maxItems: 400
+          items:
+            $ref: "#/components/schemas/MergeChoice"
+          description: One choice for each unit in `conflicts`. Without it a proposal with conflicts answers 409 `version_conflict`.
+    ProposalChanged:
+      type: object
+      additionalProperties: false
+      required: [error, code, revision]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [proposal_changed]
+        revision:
+          type: integer
+          minimum: 1
+          description: The proposal's head revision now.
     Comment:
       type: object
       additionalProperties: false
@@ -1728,7 +2069,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, finding, annotation, observation]
+              enum: [dashboard, finding, annotation, observation, proposal]
             id:
               type: string
               format: uuid
@@ -4213,7 +4554,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 39
+          maxItems: 43
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -4283,7 +4624,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 39
+          maxItems: 43
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -4302,7 +4643,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 39
+          maxItems: 43
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5559,6 +5900,33 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    ProposalForbidden:
+      description: >-
+        The caller may not merge: `forbidden_role` for a role or folder level that is too low, or `propose_mode` for a connected agent in propose mode that tried to merge.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ProposalMergeConflict:
+      description: >-
+        The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`),
+        the proposal has a newer revision than the one named (`proposal_changed`),
+        or the proposal is no longer open (`invalid_transition`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/VersionConflict"
+              - $ref: "#/components/schemas/ProposalChanged"
+              - $ref: "#/components/schemas/InvalidTransition"
+    ProposalNotOpen:
+      description: The proposal is no longer open (`invalid_transition`, with its `state` and `allowed_actions`), or the dashboard changed under a discard (`proposal_changed`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ProposalChanged"
+              - $ref: "#/components/schemas/InvalidTransition"
     ThreadRefused:
       description: >-
         The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec) or `unknown_version` (the version does not exist on the dashboard).

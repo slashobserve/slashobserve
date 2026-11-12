@@ -4,6 +4,29 @@ export type ConnectedAgent = components["schemas"]["ConnectedAgent"]
 
 export type GrantScope = "mine" | "all"
 
+export type GrantMode = ConnectedAgent["mode"]
+
+export const modeChoices: {
+  value: GrantMode
+  label: string
+  description: string
+}[] = [
+  {
+    value: "direct",
+    label: "Direct",
+    description: "Saves change dashboards",
+  },
+  {
+    value: "propose",
+    label: "Propose",
+    description: "Saves become proposals an editor merges",
+  },
+]
+
+export function modeLabel(mode: GrantMode): string {
+  return modeChoices.find((choice) => choice.value === mode)?.label ?? mode
+}
+
 export function agentName(name: string | null): string {
   return name ?? "Unnamed MCP client"
 }

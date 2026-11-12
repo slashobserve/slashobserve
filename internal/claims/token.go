@@ -8,32 +8,38 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-func (s *Service) Authenticate(ctx context.Context, header string) (revisions.Request, bool, error) {
+type RunAccess struct {
+	Request revisions.Request
+	Mode    grantmode.Mode
+}
+
+func (s *Service) Authenticate(ctx context.Context, header string) (RunAccess, bool, error) {
 	scheme, token, found := strings.Cut(header, " ")
 	if !found || !strings.EqualFold(scheme, "Bearer") || !opaquetoken.Shaped(token, tokenPrefix) {
-		return revisions.Request{}, false, nil
+		return RunAccess{}, false, nil
 	}
 	held, err := s.db.Queries().GetRunTokenRun(ctx, opaquetoken.Hash(token))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return revisions.Request{}, false, nil
+		return RunAccess{}, false, nil
 	}
 	if err != nil {
-		return revisions.Request{}, false, err
+		return RunAccess{}, false, err
 	}
 	requester, err := s.runs.Requester(ctx, held.AgentRequest)
 	if errors.Is(err, auth.ErrPrincipalGone) {
-		return revisions.Request{}, false, nil
+		return RunAccess{}, false, nil
 	}
 	if err != nil {
-		return revisions.Request{}, false, err
+		return RunAccess{}, false, err
 	}
 	req := revisions.RequestOf(held.AgentRequest)
 	req.RequestedBy = requester
-	return req, true, nil
+	return RunAccess{Request: req, Mode: grantmode.Parse(held.GrantMode)}, true, nil
 }
 
 func (s *Service) RecordStep(ctx context.Context, req revisions.Request, st revisions.Step) {

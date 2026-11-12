@@ -436,20 +436,26 @@ func TestReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
 	}
 }
 
-func TestRequestingARevisionNeedsEditAccess(t *testing.T) {
+func TestRequestingARevisionNeedsCommentAccess(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
-	commenter := auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Bo", Role: auth.RoleCommenter}
+	viewer := auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Bo", Role: auth.RoleViewer}
+	commenter := auth.Principal{Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Cy", Role: auth.RoleCommenter}
 
-	_, err := r.comments.Create(t.Context(), commenter, dash, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
+	_, err := r.comments.Create(t.Context(), viewer, dash, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
 	if !errors.Is(err, folders.ErrForbidden) {
-		t.Fatalf("a commenter requesting a revision gave %v, want folders.ErrForbidden", err)
+		t.Fatalf("a viewer requesting a revision gave %v, want folders.ErrForbidden", err)
 	}
 	if listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 0 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
+	}
+
+	comment, err := r.comments.Create(t.Context(), commenter, dash, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
+	if err != nil || comment.Revision == nil {
+		t.Fatalf("a commenter requesting a revision gave %+v, %v; want a queued revision", comment, err)
 	}
 
 	missing := mustParse(t, "55555555-5555-4555-8555-555555555555")

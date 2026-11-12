@@ -29,10 +29,14 @@ func newRouter(svc *revisions.Service) *gin.Engine {
 }
 
 func newRouterAs(svc *revisions.Service, caller auth.Principal) *gin.Engine {
+	return newRouterWithRole(svc, withRole(caller))
+}
+
+func newRouterWithRole(svc *revisions.Service, caller auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	svc.Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(caller)))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
 	})))
 	return r
 }
@@ -236,7 +240,7 @@ func TestAnObserveRequestOfAHiddenDashboardIsNotFound(t *testing.T) {
 	}
 }
 
-func TestRevisionRoutesAnswerForbiddenRoleWithoutEdit(t *testing.T) {
+func TestRevisionRoutesAnswerForbiddenRoleWithoutComment(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	body := `{"prompt":"go","base_version":1}`
@@ -248,14 +252,15 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutEdit(t *testing.T) {
 		body   string
 		want   int
 	}{
-		"Viewer reads the list":                       {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
-		"Viewer may not send a prompt":                {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
-		"Commenter may not send a prompt":             {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
-		"Editor sends a prompt":                       {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
-		"Viewer may not follow up through observe":    {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
-		"Commenter may not start a new dashboard":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
-		"Viewer may not start a new dashboard":        {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
-		"Commenter may not follow up through observe": {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Viewer reads the list":                    {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
+		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
+		"Commenter sends a prompt":                 {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
+		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
+		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+		"Viewer may not start a new dashboard":     {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+		"Commenter follows up through observe":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusAccepted},
+		"Commenter may not ask for a suggestion":   {auth.RoleCommenter, http.MethodPost, "/api/v1/dashboards/" + dash.String() + "/suggestions", `{"prompt":"go","base_version":1,"panel_id":"p1"}`, http.StatusForbidden},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := gin.New()
@@ -292,21 +297,27 @@ func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
 	cases := []struct {
 		name   string
 		caller auth.Principal
+		router func(*revisions.Service, auth.Principal) *gin.Engine
 		want   map[string][]string
 	}{
-		{"requester", user, map[string][]string{
+		{"requester", user, newRouterAs, map[string][]string{
 			failed.ID:  {"retry", "pin", "archive"},
 			stopped.ID: {"keep_build", "continue", "retry", "pin", "archive"},
 			queued.ID:  {"cancel", "pin", "archive"},
 		}},
-		{"another editor", otherUser, map[string][]string{
+		{"requester who can only comment", asRole(auth.RoleCommenter), newRouterWithRole, map[string][]string{
+			failed.ID:  {"retry", "pin", "archive"},
+			stopped.ID: {"continue", "retry", "pin", "archive"},
+			queued.ID:  {"cancel", "pin", "archive"},
+		}},
+		{"another editor", otherUser, newRouterAs, map[string][]string{
 			failed.ID:  {"retry"},
 			stopped.ID: {"retry"},
 			queued.ID:  {},
 		}},
 	}
 	for _, c := range cases {
-		r := newRouterAs(svc, c.caller)
+		r := c.router(svc, c.caller)
 		var page struct {
 			Revisions []struct {
 				ID             string   `json:"id"`

@@ -398,7 +398,12 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 			h.service.fail(c, "check who may start a listed agent request again", err, principalAttrs(c)...)
 			return
 		}
-		facts := newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], true, mayStart)
+		mayEdit, err := starts.mayEdit(c.Request.Context(), State(row.State), row.DashboardID)
+		if err != nil {
+			h.service.fail(c, "check who may keep a listed agent request's build", err, principalAttrs(c)...)
+			return
+		}
+		facts := newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], true, mayStart, mayEdit)
 		body.Requests[i] = h.summary(row, states[row.ID], allowedActions(facts))
 	}
 	if next != "" {

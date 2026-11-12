@@ -153,6 +153,7 @@ export function ChatComposer({
   const available = availableCommands({
     hasDashboard: dashboardId !== undefined,
     surface: "chat",
+    canInvestigate: true,
   })
   const matches = matchingCommands(prompt, available)
   const agentOff = agent.data?.available === false

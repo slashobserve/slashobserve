@@ -20,6 +20,7 @@ These all save a version:
 - A restore of an older version.
 
 Moving a dashboard to another folder saves no version.
+A [proposal](proposals.md) saves none either until a person who can edit merges it.
 
 ## What a version records
 
@@ -41,6 +42,9 @@ The **Made by** filter lists each person with their email, and the dashboard hea
 
 A save names the version it builds on.
 If someone saved a newer version in the meantime, the save is refused with `409` and the code `version_conflict`, and the response gives `latest_version`.
+With `"merge": "auto"` in the request, the server merges a stale save instead when it changed different panels, variables or settings than the newer versions.
+It saves the merged document on top of the latest version after its queries run, and the response carries `merged_from` with the version the save was based on and the version it was merged onto.
+When the newer versions changed the same panel, variable or setting, the save is refused with `409` and the response lists them under `conflicts`.
 
 ## Compare versions
 

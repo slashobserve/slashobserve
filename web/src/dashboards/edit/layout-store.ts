@@ -25,10 +25,13 @@ type LayoutSession = {
 
 type LayoutState = {
   session: LayoutSession | null
-  start: (dashboardId: string, baseVersion: number, baseSpec: Dashboard) => void
+  ensure: (
+    dashboardId: string,
+    baseVersion: number,
+    baseSpec: Dashboard
+  ) => void
   setLayout: (layout: Layout) => void
   commitLayout: (layout: Layout, announcement: string) => void
-  rebase: (baseVersion: number, baseSpec: Dashboard) => void
   end: () => void
 }
 
@@ -72,24 +75,54 @@ function mergeEdits(
   )
 }
 
+function openSession(
+  dashboardId: string,
+  baseVersion: number,
+  baseSpec: Dashboard
+): LayoutSession {
+  const membership = membershipOf(baseSpec)
+  const baseline = baselineOf(baseSpec, membership)
+  return {
+    dashboardId,
+    baseVersion,
+    baseSpec,
+    membership,
+    baseline,
+    layout: baseline,
+    announcement: "",
+    announcementCount: 0,
+  }
+}
+
+function rebasedSession(
+  session: LayoutSession,
+  baseVersion: number,
+  baseSpec: Dashboard
+): LayoutSession {
+  const membership = membershipOf(baseSpec)
+  const baseline = baselineOf(baseSpec, membership)
+  return {
+    ...session,
+    baseVersion,
+    baseSpec,
+    membership,
+    baseline,
+    layout: mergeEdits(session.baseline, session.layout, baseline, membership),
+    announcement: "",
+  }
+}
+
 export const useLayoutStore = create<LayoutState>()((set) => ({
   session: null,
-  start: (dashboardId, baseVersion, baseSpec) => {
-    const membership = membershipOf(baseSpec)
-    const baseline = baselineOf(baseSpec, membership)
-    set({
-      session: {
-        dashboardId,
-        baseVersion,
-        baseSpec,
-        membership,
-        baseline,
-        layout: baseline,
-        announcement: "",
-        announcementCount: 0,
-      },
-    })
-  },
+  ensure: (dashboardId, baseVersion, baseSpec) =>
+    set((state) => {
+      const { session } = state
+      if (session?.dashboardId !== dashboardId) {
+        return { session: openSession(dashboardId, baseVersion, baseSpec) }
+      }
+      if (baseVersion <= session.baseVersion) return state
+      return { session: rebasedSession(session, baseVersion, baseSpec) }
+    }),
   setLayout: (layout) =>
     set((state) =>
       state.session && !sameLayout(layout, state.session.layout)
@@ -109,29 +142,6 @@ export const useLayoutStore = create<LayoutState>()((set) => ({
           }
         : state
     ),
-  rebase: (baseVersion, baseSpec) =>
-    set((state) => {
-      if (!state.session) return state
-      const membership = membershipOf(baseSpec)
-      const baseline = baselineOf(baseSpec, membership)
-      const layout = mergeEdits(
-        state.session.baseline,
-        state.session.layout,
-        baseline,
-        membership
-      )
-      return {
-        session: {
-          ...state.session,
-          baseVersion,
-          baseSpec,
-          membership,
-          baseline,
-          layout,
-          announcement: "",
-        },
-      }
-    }),
   end: () => set({ session: null }),
 }))
 
@@ -170,9 +180,9 @@ export function useGridEditable(ref: RefObject<HTMLElement | null>): boolean {
   return editable
 }
 
-export const editLayoutButtonId = "edit-layout-button"
+export const moreMenuButtonId = "dashboard-more-button"
 
-export function focusWhenIdle(find: () => HTMLElement | null) {
+function focusWhenIdle(find: () => HTMLElement | null) {
   requestAnimationFrame(() => {
     const active = document.activeElement
     if (active && active !== document.body) return
@@ -180,6 +190,16 @@ export function focusWhenIdle(find: () => HTMLElement | null) {
   })
 }
 
-export function focusEditLayoutButton() {
-  focusWhenIdle(() => document.getElementById(editLayoutButtonId))
+export function findMoveHandle(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    "article[data-selected] button.panel-drag-handle"
+  )
+}
+
+export function findMoreMenuButton(): HTMLElement | null {
+  return document.getElementById(moreMenuButtonId)
+}
+
+export function focusAfterLayoutChange() {
+  focusWhenIdle(() => findMoveHandle() ?? findMoreMenuButton())
 }

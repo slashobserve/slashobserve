@@ -175,7 +175,8 @@ func TestACommittedRevisionBuildFreezesAResizedPanel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ver, _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	ver := commit.Version
 	if err != nil {
 		t.Fatal(err)
 	}

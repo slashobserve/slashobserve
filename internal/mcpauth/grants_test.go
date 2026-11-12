@@ -309,6 +309,90 @@ func TestAdminListsEveryonesGrantsAndDisconnectsAny(t *testing.T) {
 	}
 }
 
+func TestPersonSwitchesTheirOwnGrantBetweenDirectAndPropose(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	got := r.connect(t, ada, clientID)
+	id := r.grantOf(t, ada, clientID)
+	modeOfToken := func() string {
+		t.Helper()
+		access, ok, err := r.server.Authenticate(t.Context(), "Bearer "+got.Access)
+		if err != nil || !ok {
+			t.Fatalf("Authenticate = %v, %v", ok, err)
+		}
+		return string(access.Mode)
+	}
+
+	for _, mode := range []string{"propose", "direct"} {
+		rec := r.apiJSON(ada, http.MethodPatch, "/me/grants/"+id, `{"mode":"`+mode+`"}`)
+		assertStatus(t, rec, http.StatusOK)
+		var body listedGrant
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if body.ID != id || body.Mode != mode || body.Person.ID != ada.ID || body.Client.ID != clientID || body.State != "active" {
+			t.Fatalf("answer after switching to %s = %+v", mode, body)
+		}
+		if listed := r.grants(t, ada, "/me/grants").Grants[0]; listed.Mode != mode {
+			t.Fatalf("the list shows mode %q after switching to %s", listed.Mode, mode)
+		}
+		if got := modeOfToken(); got != mode {
+			t.Fatalf("the access token authenticates with mode %q after switching to %s", got, mode)
+		}
+	}
+}
+
+func TestOnlyTheGrantsPersonSetsItsMode(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	r.connect(t, ada, clientID)
+	id := r.grantOf(t, ada, clientID)
+	path := "/me/grants/" + id
+	const propose = `{"mode":"propose"}`
+
+	assertStatus(t, r.apiJSON(bob, http.MethodPatch, path, propose), http.StatusNotFound)
+	assertStatus(t, r.apiJSON(root, http.MethodPatch, path, propose), http.StatusNotFound)
+	assertStatus(t, r.apiJSON(bot, http.MethodPatch, path, propose), http.StatusForbidden)
+	assertStatus(t, r.apiJSON(ada, http.MethodPatch, "/me/grants/00000000-0000-4000-8000-000000000000", propose), http.StatusNotFound)
+	if g := r.grants(t, ada, "/me/grants").Grants[0]; g.Mode != "direct" {
+		t.Fatalf("a refused call changed the mode to %q", g.Mode)
+	}
+
+	r.db.Exec(t, `UPDATE oauth_grants SET revoked_at = now(), revoked_reason = 'person' WHERE id = $1`, id)
+	assertStatus(t, r.apiJSON(ada, http.MethodPatch, path, propose), http.StatusNotFound)
+	r.db.Exec(t, `UPDATE oauth_grants SET revoked_at = NULL, revoked_reason = NULL, expires_at = now() - interval '1 minute' WHERE id = $1`, id)
+	assertStatus(t, r.apiJSON(ada, http.MethodPatch, path, propose), http.StatusNotFound)
+}
+
+func TestGrantModeRefusesAnyOtherBody(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	r.connect(t, ada, clientID)
+	id := r.grantOf(t, ada, clientID)
+
+	for name, body := range map[string]string{
+		"another value":  `{"mode":"other"}`,
+		"upper case":     `{"mode":"PROPOSE"}`,
+		"empty value":    `{"mode":""}`,
+		"missing mode":   `{}`,
+		"unknown field":  `{"mode":"propose","state":"active"}`,
+		"not an object":  `"propose"`,
+		"not json":       `mode=propose`,
+		"two documents":  `{"mode":"propose"}{"mode":"direct"}`,
+		"a number value": `{"mode":1}`,
+	} {
+		if rec := r.apiJSON(ada, http.MethodPatch, "/me/grants/"+id, body); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status %d, want 400: %s", name, rec.Code, rec.Body.String())
+		}
+	}
+	if rec := r.apiJSON(ada, http.MethodPatch, "/me/grants/not-a-uuid", `{"mode":"propose"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("a path that is not a uuid: status %d, want 400", rec.Code)
+	}
+	if g := r.grants(t, ada, "/me/grants").Grants[0]; g.Mode != "direct" {
+		t.Fatalf("a refused body changed the mode to %q", g.Mode)
+	}
+}
+
 func TestAdminGrantRoutesAreForAdminPeopleOnly(t *testing.T) {
 	r := newRig(t)
 	clientID := r.registerClient(t, "claude-code")

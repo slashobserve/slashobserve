@@ -48,14 +48,49 @@ function pos(layout: Layout, id: string) {
 
 beforeEach(() => state().end())
 
-describe("rebase", () => {
+describe("ensure", () => {
+  it("keeps the layout when asked again for the same version", () => {
+    const base = specOf(["a", 0, 0, 12, 4], ["b", 12, 0, 12, 4])
+    state().ensure("d1", 1, base)
+    const edited = settle(
+      session().layout.map((entry) =>
+        entry.i === "b" ? { ...entry, h: 6 } : entry
+      ),
+      session().membership
+    )
+    state().commitLayout(edited, "b")
+
+    state().ensure("d1", 1, base)
+
+    expect(session().layout).toBe(edited)
+    expect(isDirtyNow()).toBe(true)
+  })
+
+  it("starts a fresh session for another dashboard", () => {
+    state().ensure("d1", 1, specOf(["a", 0, 0, 12, 4]))
+    state().commitLayout(moveItem(session().layout, "a", 2, 0), "a")
+
+    state().ensure("d2", 5, specOf(["z", 0, 0, 8, 4]))
+
+    expect(session().dashboardId).toBe("d2")
+    expect(session().baseVersion).toBe(5)
+    expect(isDirtyNow()).toBe(false)
+  })
+
+  it("ignores an older version than the one it holds", () => {
+    state().ensure("d1", 3, specOf(["a", 0, 0, 12, 4]))
+    state().ensure("d1", 2, specOf(["a", 0, 0, 8, 4]))
+    expect(session().baseVersion).toBe(3)
+    expect(pos(session().layout, "a").w).toBe(12)
+  })
+
   it("keeps the other version's change to a panel the user did not touch", () => {
     const base = specOf(
       ["a", 0, 0, 12, 4],
       ["b", 12, 0, 12, 4],
       ["c", 0, 4, 24, 4]
     )
-    state().start("d1", 1, base)
+    state().ensure("d1", 1, base)
     state().commitLayout(
       settle(
         session().layout.map((entry) =>
@@ -66,7 +101,8 @@ describe("rebase", () => {
       "c"
     )
 
-    state().rebase(
+    state().ensure(
+      "d1",
       2,
       specOf(["a", 0, 0, 16, 4], ["b", 16, 0, 8, 4], ["c", 0, 4, 24, 4])
     )
@@ -79,7 +115,7 @@ describe("rebase", () => {
   })
 
   it("keeps the other version's width of a panel that only shifted down", () => {
-    state().start(
+    state().ensure(
       "d1",
       1,
       specOf(["a", 0, 0, 24, 4], ["b", 0, 4, 12, 4], ["c", 12, 4, 12, 4])
@@ -95,7 +131,8 @@ describe("rebase", () => {
     )
     expect(pos(session().layout, "c")).toEqual({ x: 12, y: 6, w: 12, h: 4 })
 
-    state().rebase(
+    state().ensure(
+      "d1",
       2,
       specOf(["a", 0, 0, 24, 4], ["b", 0, 4, 12, 4], ["c", 12, 4, 8, 4])
     )
@@ -111,10 +148,11 @@ describe("rebase", () => {
       ["b", 12, 0, 6, 4],
       ["c", 0, 4, 24, 4]
     )
-    state().start("d1", 1, base)
+    state().ensure("d1", 1, base)
     state().commitLayout(moveItem(session().layout, "b", 2, 0), "b")
 
-    state().rebase(
+    state().ensure(
+      "d1",
       2,
       specOf(
         ["banner", 0, 0, 24, 3],
@@ -143,16 +181,16 @@ describe("rebase", () => {
   })
 
   it("drops edits to panels the other version removed", () => {
-    state().start("d1", 1, specOf(["a", 0, 0, 12, 4], ["b", 12, 0, 12, 4]))
+    state().ensure("d1", 1, specOf(["a", 0, 0, 12, 4], ["b", 12, 0, 12, 4]))
     state().commitLayout(moveItem(session().layout, "b", -2, 0), "b")
-    state().rebase(2, specOf(["a", 0, 0, 12, 4]))
+    state().ensure("d1", 2, specOf(["a", 0, 0, 12, 4]))
     expect(session().layout.map((entry) => entry.i)).toEqual(["a"])
     expect(isDirtyNow()).toBe(false)
   })
 
   it("is clean when the user changed nothing", () => {
-    state().start("d1", 1, specOf(["a", 0, 0, 12, 4]))
-    state().rebase(2, specOf(["a", 0, 0, 16, 4]))
+    state().ensure("d1", 1, specOf(["a", 0, 0, 12, 4]))
+    state().ensure("d1", 2, specOf(["a", 0, 0, 16, 4]))
     expect(pos(session().layout, "a").w).toBe(16)
     expect(isDirtyNow()).toBe(false)
   })
@@ -160,7 +198,7 @@ describe("rebase", () => {
 
 describe("dirty state", () => {
   it("compares against the compacted starting layout of a Spec with gaps", () => {
-    state().start("d1", 1, specOf(["a", 0, 0, 12, 4], ["b", 0, 10, 12, 4]))
+    state().ensure("d1", 1, specOf(["a", 0, 0, 12, 4], ["b", 0, 10, 12, 4]))
     expect(pos(session().layout, "b").y).toBe(4)
     expect(isDirtyNow()).toBe(false)
 
@@ -173,7 +211,7 @@ describe("dirty state", () => {
 })
 
 describe("announcements", () => {
-  beforeEach(() => state().start("d1", 1, specOf(["a", 0, 0, 12, 4])))
+  beforeEach(() => state().ensure("d1", 1, specOf(["a", 0, 0, 12, 4])))
 
   it("keeps the announcement when the grid echoes the same layout", () => {
     state().commitLayout(moveItem(session().layout, "a", 1, 0), "moved")

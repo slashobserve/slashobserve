@@ -21,6 +21,8 @@ import {
   expectPanelsReady,
   openDashboard,
   panel,
+  selectPanelToArrange,
+  unsavedLayout,
   versionButton,
 } from "./dashboards"
 import { expect, test } from "./fixtures"
@@ -512,11 +514,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page).not.toHaveURL(/version=/)
       await expect(card(page).getByText(olderVersionNote)).toHaveCount(0)
 
-      await page.getByRole("button", { name: /^More/ }).click()
-      await page.getByRole("menuitem", { name: "Edit layout" }).click()
-      await expect(
-        page.getByRole("button", { name: "Save layout" })
-      ).toBeVisible()
+      await selectPanelToArrange(page, rpsTitle)
+      await page
+        .getByRole("button", { name: `Move or resize ${rpsTitle}` })
+        .focus()
+      await page.keyboard.press("ArrowRight")
+      await expect(unsavedLayout(page)).toBeVisible()
       await expect(card(page)).toHaveCount(0)
       await expect(toggle(page)).toBeDisabled()
     })

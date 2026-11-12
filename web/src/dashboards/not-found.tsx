@@ -29,7 +29,6 @@ export function DashboardNotice({
         madeBy={null}
         versionControl={null}
         controls={[]}
-        editing={null}
         actions={[
           <ThemeSwitch key="theme" />,
           ...(roleAtLeast(principal.role, "admin")

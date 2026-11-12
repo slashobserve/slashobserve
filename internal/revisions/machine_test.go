@@ -69,7 +69,7 @@ func TestRunMachineOffersOnlyWhatTheWireDocuments(t *testing.T) {
 
 func TestAllowedActions(t *testing.T) {
 	base := func(mod func(*runFacts)) runFacts {
-		f := runFacts{state: StateFailed, source: SourcePrompt, onDashboard: true, requester: true, mayStart: true, buildPanels: 3}
+		f := runFacts{state: StateFailed, source: SourcePrompt, onDashboard: true, requester: true, mayStart: true, mayEdit: true, buildPanels: 3}
 		mod(&f)
 		return f
 	}
@@ -102,6 +102,7 @@ func TestAllowedActions(t *testing.T) {
 			f.buildPanels = 0
 			f.requester = false
 		}), []Action{}},
+		{"failed prompt with an unsaved build for a requester who cannot edit", base(func(f *runFacts) { f.mayEdit = false }), []Action{ActionContinue, ActionRetry, ActionPin, ActionArchive}},
 		{"failed with the build saved", base(func(f *runFacts) { f.buildSaved = true }), []Action{ActionRetry, ActionPin, ActionArchive}},
 		{"failed prompt without a dashboard", base(func(f *runFacts) { f.onDashboard = false; f.buildPanels = 0 }), []Action{ActionPin, ActionArchive}},
 		{"succeeded observe retries", base(func(f *runFacts) { f.state = StateSucceeded; f.source = SourceObserve; f.buildPanels = 0 }), []Action{ActionRetry, ActionPin, ActionArchive}},

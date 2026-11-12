@@ -2,14 +2,17 @@ package mcpauth
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/presence"
@@ -18,6 +21,7 @@ import (
 const (
 	defaultGrantLimit = 50
 	maxGrantLimit     = 200
+	maxGrantBodyBytes = 1 << 10
 	reasonPerson      = "person"
 	reasonAdmin       = "admin"
 )
@@ -176,6 +180,45 @@ func (s *Server) disconnectMine(c *gin.Context) {
 	}
 	n, err := s.db.Queries().RevokeUserOAuthGrant(c.Request.Context(), dbsqlc.RevokeUserOAuthGrantParams{UserID: userID, ID: id})
 	s.finishDisconnect(c, id, reasonPerson, n, err)
+}
+
+type setGrantModeRequest struct {
+	Mode string `json:"mode"`
+}
+
+func (s *Server) updateMine(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var body setGrantModeRequest
+	if !httpapi.DecodeBody(c, &body, maxGrantBodyBytes) {
+		return
+	}
+	if body.Mode != string(grantmode.Direct) && body.Mode != string(grantmode.Propose) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "mode must be direct or propose")
+		return
+	}
+	caller := httpapi.Caller(c)
+	userID, err := db.ParseUUID(caller.ID)
+	if err != nil {
+		s.abortInternal(c, "update connected agent", err)
+		return
+	}
+	row, err := s.db.Queries().SetMyOAuthGrantMode(c.Request.Context(), dbsqlc.SetMyOAuthGrantModeParams{Mode: body.Mode, ID: id, UserID: userID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "connected agent not found")
+		return
+	}
+	if err != nil {
+		s.abortInternal(c, "update connected agent", err)
+		return
+	}
+	s.logger.InfoContext(c.Request.Context(), "oauth grant mode set",
+		slog.String("grant_id", id.String()),
+		slog.String("mode", body.Mode),
+		slog.String("actor_id", caller.ID))
+	c.JSON(http.StatusOK, newGrantJSON(dbsqlc.ListOAuthGrantsRow(row)))
 }
 
 func (s *Server) disconnectAny(c *gin.Context) {

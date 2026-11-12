@@ -37,7 +37,7 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     action: "close",
     keys: ["Escape"],
     description:
-      "Close the panel view or Inspect, or leave TV mode and full screen",
+      "Close the panel view or Inspect, leave TV mode and full screen, go back from the Comment tool, or clear the selected panel",
   },
   {
     action: "zoomOut",

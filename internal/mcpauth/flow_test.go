@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 )
 
 func TestFlowIssuesTokensThatAuthenticateAsThePerson(t *testing.T) {
@@ -54,6 +56,28 @@ func TestAuthenticateNamesTheGrantOfTheToken(t *testing.T) {
 	}
 	if got.GrantID != want {
 		t.Fatalf("GrantID = %q, want the grant %q", got.GrantID, want)
+	}
+}
+
+func TestAuthenticateCarriesTheModeOfTheGrantAndRereadsItOnEveryRequest(t *testing.T) {
+	r := newRig(t)
+	clientID := r.registerClient(t, "claude-code")
+	first := r.connect(t, ada, clientID)
+	modeOf := func() grantmode.Mode {
+		t.Helper()
+		got, ok, err := r.server.Authenticate(t.Context(), "Bearer "+first.Access)
+		if err != nil || !ok {
+			t.Fatalf("Authenticate = %v, %v", ok, err)
+		}
+		return got.Mode
+	}
+
+	if got := modeOf(); got != grantmode.Direct {
+		t.Fatalf("a fresh grant authenticates with mode %q, want direct", got)
+	}
+	r.db.Exec(t, `UPDATE oauth_grants SET mode = 'propose' WHERE client_id = $1`, clientID)
+	if got := modeOf(); got != grantmode.Propose {
+		t.Fatalf("a propose grant authenticates with mode %q, want propose", got)
 	}
 }
 

@@ -1,9 +1,7 @@
-import { useRef } from "react"
 import {
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
-  LayoutGridIcon,
   PencilIcon,
   TvIcon,
   TvMinimalPlayIcon,
@@ -28,18 +26,13 @@ import type { CursorSync } from "@/panels/shared-cursor"
 
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 
-import { findFirstMoveHandle } from "./edit/edit-controls"
-import { editLayoutButtonId } from "./edit/layout-store"
+import { moreMenuButtonId } from "./edit/layout-store"
 
 type Props = {
   mayEdit: boolean
-  canEditLayout: boolean
-  layoutBlockedByActivity: boolean
-  pinned: boolean
   detailsBlockedBy: string | null
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
-  onEditLayout: () => void
   onEditDetails: () => void
   onDuplicate: (() => void) | null
   onDelete: () => void
@@ -52,13 +45,9 @@ type Props = {
 
 export function MoreMenu({
   mayEdit,
-  canEditLayout,
-  layoutBlockedByActivity,
-  pinned,
   detailsBlockedBy,
   duplicateBlockedBy,
   deleteBlockedBy,
-  onEditLayout,
   onEditDetails,
   onDuplicate,
   onDelete,
@@ -68,15 +57,14 @@ export function MoreMenu({
   cursorSync,
   onCursorSyncChange,
 }: Props) {
-  const startedLayout = useRef(false)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        id={editLayoutButtonId}
+        id={moreMenuButtonId}
         render={
           <button
             type="button"
-            aria-label="More: edit layout, edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -86,31 +74,10 @@ export function MoreMenu({
       <DropdownMenuContent
         align="end"
         className="min-w-max"
-        finalFocus={() => {
-          const started = startedLayout.current
-          startedLayout.current = false
-          if (focusMovedOutOfMenu(document.activeElement, document.body)) {
-            return false
-          }
-          return (started && findFirstMoveHandle()) || true
-        }}
+        finalFocus={() =>
+          !focusMovedOutOfMenu(document.activeElement, document.body)
+        }
       >
-        {mayEdit && (canEditLayout || layoutBlockedByActivity) ? (
-          <DropdownMenuItem
-            disabled={pinned || !canEditLayout}
-            onClick={() => {
-              startedLayout.current = true
-              onEditLayout()
-            }}
-          >
-            <LayoutGridIcon aria-hidden="true" />
-            {pinned
-              ? "Edit layout (open the latest version first)"
-              : canEditLayout
-                ? "Edit layout"
-                : "Edit layout (close activity first)"}
-          </DropdownMenuItem>
-        ) : null}
         {mayEdit ? (
           <DropdownMenuItem
             disabled={detailsBlockedBy !== null}

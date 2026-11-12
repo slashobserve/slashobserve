@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, toApiError } from "@/api/errors"
 
 import { saveProblemFrom } from "./save-problem"
 
@@ -18,6 +18,27 @@ describe("saveProblemFrom", () => {
     expect(saveProblemFrom(error, heading)).toEqual({
       kind: "conflict",
       latest: 7,
+      conflicts: [],
+    })
+  })
+
+  it("carries the overlapping units of a 409 body", () => {
+    const conflict = {
+      kind: "panel",
+      id: "latency",
+      reason: "both_changed",
+      message: "Both changed the query",
+    }
+    const error = toApiError(new Response(null, { status: 409 }), {
+      error: "the dashboard changed",
+      code: "version_conflict",
+      latest_version: 7,
+      conflicts: [conflict],
+    })
+    expect(saveProblemFrom(error, heading)).toEqual({
+      kind: "conflict",
+      latest: 7,
+      conflicts: [conflict],
     })
   })
 

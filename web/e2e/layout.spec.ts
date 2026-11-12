@@ -13,7 +13,9 @@ import {
   expectPanelsReady,
   openDashboard,
   panel,
-  startLayoutEditing,
+  selectPanel,
+  selectPanelToArrange,
+  unsavedLayout,
   versionButton,
 } from "./dashboards"
 import { expect, test } from "./fixtures"
@@ -48,8 +50,8 @@ function liveRegion(page: Page) {
   return page.locator('div[aria-live="polite"].sr-only')
 }
 
-function editLayoutButton(page: Page) {
-  return page.getByRole("button", { name: /^More/ })
+function moreButton(page: Page) {
+  return page.getByRole("button", { name: /^More:/ })
 }
 
 async function recordAnnouncements(page: Page) {
@@ -98,13 +100,19 @@ function gridItem(page: Page, panelId: string) {
   })
 }
 
-async function saveLayout(page: Page, summary?: string) {
-  await page.getByRole("button", { name: "Save layout" }).click()
+async function saveLayout(page: Page, version: number, summary?: string) {
+  await unsavedLayout(page)
+    .getByRole("button", { name: `Save version ${version}` })
+    .click()
   const dialog = page.getByRole("dialog", { name: "Save layout" })
   if (summary !== undefined) {
     await dialog.getByRole("textbox", { name: "Summary" }).fill(summary)
   }
   await dialog.getByRole("button", { name: "Save", exact: true }).click()
+}
+
+function stallEvents(page: Page) {
+  return page.route(/\/api\/v1\/dashboards\/[^/]+\/events$/, () => undefined)
 }
 
 function expectConflictLogged(consoleErrors: string[]) {
@@ -122,7 +130,7 @@ test("drags and resizes a panel and saves a new version", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   const handle = await box(
     page.locator('article[data-panel-id="error_rate"] button.panel-drag-handle')
@@ -133,9 +141,10 @@ test("drags and resizes a panel and saves a new version", async ({
     { x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 },
     { x: logs.x + 12, y: logs.y + 6 }
   )
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
   await expectNoAnimations(page.locator(".react-grid-item"))
 
+  await selectPanelToArrange(page, "Checkout requests per second")
   const resize = await box(
     gridItem(page, "rps").locator(".react-resizable-handle")
   )
@@ -146,7 +155,7 @@ test("drags and resizes a panel and saves a new version", async ({
     { x: resize.x + resize.width / 2 - rps.width / 4, y: resize.y + 10 }
   )
 
-  await saveLayout(page, "Move panels")
+  await saveLayout(page, 2, "Move panels")
   await expect(page.getByText("Saved version 2")).toBeVisible()
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   await expect(versionButton(page)).toHaveText(/v2$/)
@@ -160,14 +169,15 @@ test("drags and resizes a panel and saves a new version", async ({
     w: 6,
     h: 4,
   })
-  await expect(editLayoutButton(page)).toBeVisible()
+  await expect(unsavedLayout(page)).toHaveCount(0)
+  await expect(moreButton(page)).toBeVisible()
 })
 
 test("moves and resizes with the keyboard", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("Shift+ArrowLeft")
@@ -178,9 +188,9 @@ test("moves and resizes with the keyboard", async ({ page, request }) => {
     `${errorRateTitle}: column 14, row 1, 5 by 5`
   )
 
-  await saveLayout(page)
+  await saveLayout(page, 2)
   await expect(page.getByText("Saved version 2")).toBeVisible()
-  await expect(editLayoutButton(page)).toBeFocused()
+  await expect(moveHandle(page, errorRateTitle)).toBeFocused()
   const saved = await getDashboard(request, id)
   expect(gridPos(saved.spec, "error_rate")).toEqual({
     x: 13,
@@ -189,9 +199,8 @@ test("moves and resizes with the keyboard", async ({ page, request }) => {
     h: 5,
   })
 
-  await startLayoutEditing(page)
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeDisabled()
+  await expect(unsavedLayout(page)).toHaveCount(0)
 })
 
 test("moves a panel below and back above another with the keyboard", async ({
@@ -202,7 +211,7 @@ test("moves a panel below and back above another with the keyboard", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   const handle = moveHandle(page, errorRateTitle)
   await handle.focus()
@@ -217,7 +226,7 @@ test("moves a panel below and back above another with the keyboard", async ({
     `${errorRateTitle}: column 13, row 1, 6 by 4`
   )
   await expect(handle).toBeFocused()
-  await expect(page.getByText("Unsaved changes")).toHaveCount(0)
+  await expect(unsavedLayout(page)).toHaveCount(0)
   expect(await announcements(page)).toEqual([
     `${errorRateTitle}: column 13, row 17, 6 by 4`,
     `${errorRateTitle}: column 13, row 1, 6 by 4`,
@@ -232,14 +241,14 @@ test("announces when a key press changes nothing and clears after a mouse drag",
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
-
   const rpsTitle = "Checkout requests per second"
+  await selectPanelToArrange(page, rpsTitle)
+
   await moveHandle(page, rpsTitle).focus()
   await page.keyboard.press("ArrowLeft")
   await expect(liveRegion(page)).toHaveText(`${rpsTitle}: can't move further`)
   await page.keyboard.press("ArrowLeft")
-  await expect(page.getByText("Unsaved changes")).toHaveCount(0)
+  await expect(unsavedLayout(page)).toHaveCount(0)
 
   await page.keyboard.press("ArrowRight")
   await expect(liveRegion(page)).toHaveText(
@@ -265,7 +274,7 @@ test("pushes a neighbour down when a keyboard move overlaps it", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   const handle = moveHandle(page, errorRateTitle)
   await handle.focus()
@@ -284,15 +293,16 @@ test("pushes a neighbour down when a keyboard move overlaps it", async ({
   await expect(handle).toBeFocused()
 })
 
-test("reapplies the layout after a conflict", async ({
+test("lists the conflicts and reloads when another version moved the same panel", async ({
   page,
   request,
   consoleErrors,
 }) => {
   const { id, spec } = await createOverview(request)
+  await stallEvents(page)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
@@ -301,53 +311,48 @@ test("reapplies the layout after a conflict", async ({
     `${errorRateTitle}: column 15, row 1, 6 by 4`
   )
 
-  const title = uniqueTitle("E2E layout renamed")
-  await addVersion(request, id, { ...spec, title }, 1, "Rename")
-  await expect(
-    page.getByText("Version 2 was saved while you were editing. Saving will")
-  ).toBeVisible()
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
+  const other = structuredClone(spec)
+  const errorRate = other.panels.find((item) => item.id === "error_rate")
+  if (!errorRate) throw new Error("error_rate panel is missing")
+  errorRate.gridPos = { x: 12, y: 0, w: 6, h: 6 }
+  await addVersion(request, id, other, 1, "Resize the error rate")
 
-  await saveLayout(page)
+  await saveLayout(page, 2)
   const dialog = page.getByRole("dialog", { name: "Save layout" })
   await expect(
-    dialog.getByText("Version 2 was saved while you were editing.")
+    dialog.getByText("Version 2 changed the same things")
   ).toBeVisible()
+  await expect(
+    dialog.getByRole("listitem").filter({ hasText: "Requests by pod" })
+  ).toHaveCount(1)
   expectConflictLogged(consoleErrors)
-  const reapply = dialog.getByRole("button", {
-    name: "Reapply my layout to version 2",
-  })
-  await expect(reapply).toBeFocused()
-  await expect(reapply).toHaveAccessibleDescription(
-    "Version 2 was saved while you were editing."
-  )
+  await expect(
+    dialog.getByRole("button", { name: "Reapply my layout to version 2" })
+  ).toHaveCount(0)
+  await expect(
+    dialog.getByRole("button", { name: "Save on version 2" })
+  ).toHaveCount(0)
+  const reload = dialog.getByRole("button", { name: "Reload version 2" })
+  await expect(reload).toBeFocused()
   await expect(dialog.getByRole("alert")).toHaveCount(0)
 
-  await reapply.click()
-  await expect(page.getByText("Saved version 3")).toBeVisible()
-
-  const saved = await getDashboard(request, id)
-  expect(saved.latestVersion).toBe(3)
-  expect(saved.title).toBe(title)
-  expect(gridPos(saved.spec, "error_rate")).toEqual({
-    x: 14,
-    y: 0,
-    w: 6,
-    h: 4,
-  })
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(title)
+  await reload.click()
+  await expect(dialog).toHaveCount(0)
+  await expect(unsavedLayout(page)).toHaveCount(0)
+  expect((await getDashboard(request, id)).latestVersion).toBe(2)
+  await expect(versionButton(page)).toHaveText(/v2$/)
 })
 
 test("asks before discarding unsaved changes", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
+  await selectPanelToArrange(page, errorRateTitle)
   const before = await box(panel(page, errorRateTitle))
-  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 
   await page.getByRole("link", { name: "/observe home" }).click()
   const dialog = page.getByRole("alertdialog", {
@@ -360,14 +365,14 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   await dialog.getByRole("button", { name: "Keep editing" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 
-  await page.getByRole("button", { name: "Cancel" }).click()
+  await unsavedLayout(page).getByRole("button", { name: "Discard" }).click()
   await expect(dialog).toBeVisible()
   await dialog.getByRole("button", { name: "Discard" }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(editLayoutButton(page)).toBeFocused()
-  await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
+  await expect(moveHandle(page, errorRateTitle)).toBeFocused()
+  await expect(unsavedLayout(page)).toHaveCount(0)
   await expect
     .poll(async () => (await box(panel(page, errorRateTitle))).x)
     .toBeCloseTo(before.x, 0)
@@ -376,17 +381,22 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   expect(gridPos(saved.spec, "error_rate")).toMatchObject({ x: 12, y: 0 })
 })
 
-test("is unavailable on a pinned old version", async ({ page, request }) => {
+test("offers no move handle on a pinned old version", async ({
+  page,
+  request,
+}) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id, "?version=1")
+  await expectPanelsReady(page)
 
-  await editLayoutButton(page).click()
+  await selectPanel(page, errorRateTitle)
   await expect(
-    page.getByRole("menuitem", {
-      name: "Edit layout (open the latest version first)",
-    })
-  ).toHaveAttribute("aria-disabled", "true")
+    page.getByRole("toolbar", { name: `Actions for ${errorRateTitle}` })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /^Move or resize / })
+  ).toHaveCount(0)
 })
 
 test("locks the version menu while editing", async ({ page, request }) => {
@@ -394,7 +404,10 @@ test("locks the version menu while editing", async ({ page, request }) => {
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
+  await moveHandle(page, errorRateTitle).focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(unsavedLayout(page)).toBeVisible()
 
   await versionButton(page).click()
   const menu = page.getByRole("menu", { name: "Versions" })
@@ -410,7 +423,7 @@ test("locks the version menu while editing", async ({ page, request }) => {
   await rows.nth(1).click({ force: true })
   await expect(page).toHaveURL(url)
   await expect(versionButton(page)).toHaveText(/^(Live|Connecting) · v2$/)
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 })
 
 test("does not block time range changes while editing", async ({
@@ -420,43 +433,30 @@ test("does not block time range changes while editing", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 
   await page.getByRole("button", { name: /^Time range/ }).click()
   await page.getByRole("button", { name: "Last 1 hour", exact: true }).click()
   await expect(page).toHaveURL(/from=now-1h&to=now/)
   await expect(page.getByRole("alertdialog")).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(
+    unsavedLayout(page).getByRole("button", { name: "Save version 2" })
+  ).toBeEnabled()
+  await expect(unsavedLayout(page)).toBeVisible()
 })
 
-test("returns focus to Edit layout after cancelling a clean session", async ({
+test("keeps the other version's layout changes when a newer version arrives", async ({
   page,
   request,
-}) => {
-  const { id } = await createOverview(request)
-  await openDashboard(page, id)
-  await expectPanelsReady(page)
-  await startLayoutEditing(page)
-
-  await page.getByRole("button", { name: "Cancel" }).click()
-  await expect(editLayoutButton(page)).toBeFocused()
-  await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
-})
-
-test("keeps the other version's layout changes when reapplying", async ({
-  page,
-  request,
-  consoleErrors,
 }) => {
   const { id, spec } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("Shift+ArrowDown")
@@ -472,16 +472,13 @@ test("keeps the other version's layout changes when reapplying", async ({
   if (!rps) throw new Error("rps panel is missing")
   rps.gridPos = { x: 0, y: 0, w: 12, h: 6 }
   await addVersion(request, id, other, 1, "Resize panels")
+  await expect(page.getByText("Updated to version 2")).toBeVisible()
 
-  await saveLayout(page)
-  const dialog = page.getByRole("dialog", { name: "Save layout" })
-  await dialog
-    .getByRole("button", { name: "Reapply my layout to version 2" })
-    .click()
+  await saveLayout(page, 3)
   await expect(page.getByText("Saved version 3")).toBeVisible()
-  expectConflictLogged(consoleErrors)
 
   const saved = await getDashboard(request, id)
+  expect(saved.latestVersion).toBe(3)
   expect(gridPos(saved.spec, "error_rate")).toEqual({
     x: 12,
     y: 0,
@@ -492,7 +489,7 @@ test("keeps the other version's layout changes when reapplying", async ({
   expect(gridPos(saved.spec, "logs").h).toBe(12)
 })
 
-test("keeps the edits when Back is refused and shows no edit controls on the pinned version after discarding", async ({
+test("keeps the edits when Back is refused and shows no layout controls on the pinned version after discarding", async ({
   page,
   request,
 }) => {
@@ -502,11 +499,11 @@ test("keeps the edits when Back is refused and shows no edit controls on the pin
   await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(unsavedLayout(page)).toBeVisible()
 
   const dialog = page.getByRole("alertdialog", {
     name: "Discard unsaved layout changes?",
@@ -516,31 +513,24 @@ test("keeps the edits when Back is refused and shows no edit controls on the pin
   await dialog.getByRole("button", { name: "Keep editing" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page).not.toHaveURL(/version=1/)
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expect(
+    unsavedLayout(page).getByRole("button", { name: "Save version 3" })
+  ).toBeEnabled()
+  await expect(unsavedLayout(page)).toBeVisible()
 
   await page.goBack()
   await expect(dialog).toBeVisible()
   await dialog.getByRole("button", { name: "Discard" }).click()
   await expect(page).toHaveURL(/version=1/)
   await expect(versionButton(page)).toHaveText("v1 of 2")
-  await editLayoutButton(page).click()
-  const edit = page.getByRole("menuitem", {
-    name: "Edit layout (open the latest version first)",
-  })
-  await expect(edit).toBeVisible()
-  await expect(page.getByRole("menu")).toBeFocused()
-  await expect(edit).toHaveAttribute("aria-disabled", "true")
-  await page.keyboard.press("Escape")
-  await expect(edit).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
-  await expect(page.getByText("Unsaved changes")).toHaveCount(0)
+  await expect(unsavedLayout(page)).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: /^Move or resize / })
+  ).toHaveCount(0)
 
   await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
-  await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
-  await expect(page.getByText("Unsaved changes")).toHaveCount(0)
+  await expect(unsavedLayout(page)).toHaveCount(0)
 })
 
 test("offers Try again when the server cannot check the layout right now", async ({
@@ -551,7 +541,7 @@ test("offers Try again when the server cannot check the layout right now", async
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
 
@@ -578,7 +568,7 @@ test("offers Try again when the server cannot check the layout right now", async
       }),
     })
   })
-  await saveLayout(page)
+  await saveLayout(page, 2)
   const dialog = page.getByRole("dialog", { name: "Save layout" })
   await expect(
     dialog.getByText("The panel queries could not be checked right now.")
@@ -604,7 +594,7 @@ test("lists each rejected layout issue once", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, errorRateTitle)
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
 
@@ -625,7 +615,7 @@ test("lists each rejected layout issue once", async ({
       }),
     })
   })
-  await saveLayout(page)
+  await saveLayout(page, 2)
   const dialog = page.getByRole("dialog", { name: "Save layout" })
   await expect(
     dialog.getByText("The server rejected this layout:")
@@ -640,48 +630,11 @@ test("lists each rejected layout issue once", async ({
   consoleErrors.splice(consoleErrors.indexOf(failed[0]), 1)
 })
 
-test("does not flash the newer version notice on its own save", async ({
-  page,
-  request,
-}) => {
-  await page.addInitScript(() => {
-    Object.assign(window, { noticeSeen: false })
-    new MutationObserver(() => {
-      if (
-        document.documentElement.textContent?.includes(
-          "was saved while you were editing"
-        )
-      ) {
-        Object.assign(window, { noticeSeen: true })
-      }
-    }).observe(document, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-    })
-  })
-  const { id } = await createOverview(request)
-  await openDashboard(page, id)
-  await expectPanelsReady(page)
-  await startLayoutEditing(page)
-  await moveHandle(page, errorRateTitle).focus()
-  await page.keyboard.press("ArrowRight")
-
-  await saveLayout(page)
-  await expect(page.getByText("Saved version 2")).toBeVisible()
-  await expect(editLayoutButton(page)).toBeFocused()
-  expect(
-    await page.evaluate(
-      () => (window as unknown as { noticeSeen: boolean }).noticeSeen
-    )
-  ).toBe(false)
-})
-
 test("shows a single resize grip on hover", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, "Checkout requests per second")
 
   const item = gridItem(page, "rps")
   await item.hover()
@@ -738,13 +691,13 @@ test("saves a layout change on a dashboard with an expanded row", async ({
   await expect(
     page.getByRole("heading", { name: "Prometheus", level: 2 })
   ).toBeVisible()
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, "Log rows")
 
   await moveHandle(page, "Log rows").focus()
   await page.keyboard.press("ArrowRight")
   await expect(moveHandle(page, "Log rows")).toBeFocused()
 
-  await saveLayout(page)
+  await saveLayout(page, 2)
   await expect(page.getByText("Saved version 2")).toBeVisible()
   const saved = await getDashboard(request, id)
   expect(gridPos(saved.spec, "p_logs")).toMatchObject({ x: 1, y: 0 })

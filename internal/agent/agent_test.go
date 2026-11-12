@@ -841,6 +841,42 @@ func TestReviseHappyPath(t *testing.T) {
 	}
 }
 
+const proposalID = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"
+
+func proposedResult() tools.Result {
+	return tools.Result{
+		Content: map[string]any{"code": "proposed", "proposal_id": proposalID, "revision": 1, "opened": true, "url": "/dashboards/" + dashID, "message": "waiting"},
+		Step:    "Proposed for an Editor to merge",
+	}
+}
+
+func TestAReviseRunWhoseFinishSaveBecameAProposalEndsWithTheProposal(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"finish":true}`))))
+	r.tools.onSave("update_panels", proposedResult())
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ProposalID != proposalID || out.Version != 0 || out.BuildSaves != 1 || r.builds.commits != 0 {
+		t.Fatalf("outcome = %+v, commits %d", out, r.builds.commits)
+	}
+}
+
+func TestAReviseRunWhoseCommitBecameAProposalEndsWithTheProposalAndNoVersion(t *testing.T) {
+	r := newRig(t, session(stopTurn(llm.StopEndTurn)))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.proposal = &dashboards.ProposalRef{ID: proposalID, Revision: 1, Opened: true}
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ProposalID != proposalID || out.Version != 0 || out.DashboardID != dashID || r.builds.commits != 1 {
+		t.Fatalf("outcome = %+v, commits %d", out, r.builds.commits)
+	}
+}
+
 func TestReviseCommentOnPanelMissingFromLatestVersion(t *testing.T) {
 	r := newRig(t, session(toolTurn(call("c1", "update_dashboard", `{}`))))
 	r.tools.onSave("update_dashboard", savedResult(dashID, 4))
@@ -2069,12 +2105,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: offered in create = %v, offered to the model = %v", tool.Name, tool.OfferedIn(tools.ModeCreate), offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "list_folders", "create_comment", "edit_comment", "reopen_comment", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity", "get_run", "search_workspace", "move_finding", "save_search", "list_saved_searches", "claim_run", "report_run", "finish_run", "create_observation", "get_observation", "list_observations", "add_block", "update_block", "resolve_observation", "keep_block", "discard_block", "publish_rca"} {
+	for _, name := range []string{"list_comments", "list_folders", "create_comment", "edit_comment", "reopen_comment", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity", "get_run", "search_workspace", "move_finding", "save_search", "list_saved_searches", "claim_run", "report_run", "finish_run", "create_observation", "get_observation", "list_observations", "add_block", "update_block", "resolve_observation", "keep_block", "discard_block", "publish_rca", "list_proposals", "get_proposal", "merge_proposal", "discard_proposal"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 29 || len(offered) != len(registry.List())-30 {
+	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 33 || len(offered) != len(registry.List())-34 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }
@@ -2342,6 +2378,7 @@ type fakeBuilds struct {
 	mu         sync.Mutex
 	build      *dashboards.Build
 	commitErr  []error
+	proposal   *dashboards.ProposalRef
 	commits    int
 	discards   int
 	attempts   []int
@@ -2358,7 +2395,7 @@ func (f *fakeBuilds) Build(context.Context, pgtype.UUID) (dashboards.Build, bool
 	return *f.build, true, nil
 }
 
-func (f *fakeBuilds) CommitBuild(_ context.Context, _ auth.Principal, _ pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error) {
+func (f *fakeBuilds) CommitBuild(_ context.Context, _ auth.Principal, _ pgtype.UUID, attempt int) (dashboards.Commit, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.attempts = append(f.attempts, attempt)
@@ -2366,12 +2403,15 @@ func (f *fakeBuilds) CommitBuild(_ context.Context, _ auth.Principal, _ pgtype.U
 		err := f.commitErr[0]
 		f.commitErr = f.commitErr[1:]
 		if err != nil {
-			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+			return dashboards.Commit{}, err
 		}
 	}
 	f.commits++
 	f.build = nil
-	return dashboards.Dashboard{ID: dashID}, dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 1}}, false, nil
+	if f.proposal != nil {
+		return dashboards.Commit{Dashboard: dashboards.Dashboard{ID: dashID}, Proposal: f.proposal}, nil
+	}
+	return dashboards.Commit{Dashboard: dashboards.Dashboard{ID: dashID}, Version: dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 1}}}, nil
 }
 
 func (f *fakeBuilds) DiscardBuild(_ context.Context, _ pgtype.UUID, attempt int) error {

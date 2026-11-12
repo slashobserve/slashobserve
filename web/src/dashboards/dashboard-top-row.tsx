@@ -20,7 +20,6 @@ type Props = {
   madeBy: string | null
   versionControl: ReactNode
   controls: ReactNode[]
-  editing: ReactNode
   actions: ReactNode[]
 }
 
@@ -58,13 +57,11 @@ export function DashboardTopRow({
   madeBy,
   versionControl,
   controls,
-  editing,
   actions,
 }: Props) {
   const narrow = useNarrow()
   const tools = (
     <>
-      {editing}
       <AnnotationFilter />
       <Items nodes={controls} />
       <Items nodes={actions} />

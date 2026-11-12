@@ -70,6 +70,33 @@ describe("toApiError", () => {
     }
   })
 
+  test("reads the merge conflicts of a stale save", () => {
+    const conflict = {
+      kind: "panel",
+      id: "latency",
+      reason: "both_changed",
+      message: "Both changed the query",
+    }
+    const error = toApiError(response(409), {
+      error: "stale",
+      code: "version_conflict",
+      latest_version: 4,
+      conflicts: [
+        conflict,
+        { kind: "panel" },
+        "x",
+        { ...conflict, kind: "row" },
+      ],
+    })
+    expect(error.conflicts).toEqual([conflict])
+  })
+
+  test("has no conflicts when the field is missing or not a list", () => {
+    for (const conflicts of [undefined, null, "x", {}]) {
+      expect(toApiError(response(409), { conflicts }).conflicts).toEqual([])
+    }
+  })
+
   test("converts Retry-After seconds to milliseconds", () => {
     expect(
       toApiError(response(429, { "Retry-After": "3" }), {}).retryAfterMs

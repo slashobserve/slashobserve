@@ -19,14 +19,16 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
-	runToken       = "Bearer run-token"
-	requesterToken = "Bearer requester"
-	runRequestID   = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+	runToken        = "Bearer run-token"
+	requesterToken  = "Bearer requester"
+	proposeRunToken = "Bearer propose-run-token"
+	runRequestID    = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 )
 
 var requester = auth.Principal{Kind: auth.KindUser, ID: "u-requester", Name: "Rae", Role: auth.RoleViewer}
@@ -38,6 +40,9 @@ func (a runAuth) Authenticate(_ context.Context, header string) (Credential, boo
 	case runToken:
 		req := a.req
 		return Credential{Principal: requester, Run: &req}, true, nil
+	case proposeRunToken:
+		req := a.req
+		return Credential{Principal: requester, Run: &req, Mode: grantmode.Propose}, true, nil
 	case requesterToken:
 		return Credential{Principal: requester}, true, nil
 	}
@@ -250,6 +255,24 @@ func TestRunSessionCallActsForTheRequesterInsideTheRunAndRecordsAStep(t *testing
 	}
 	if !strings.Contains(f.logs.String(), "agent_request_id="+runRequestID) {
 		t.Errorf("the call log lacks the run id: %s", f.logs.String())
+	}
+}
+
+func TestRunSessionCallCarriesTheModeOfTheGrantTheRunIsAssignedTo(t *testing.T) {
+	for token, want := range map[string]grantmode.Mode{runToken: grantmode.Direct, proposeRunToken: grantmode.Propose} {
+		f := newRunFixture(t, tools.ModeRevise)
+		var got grantmode.Mode
+		f.handler.call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+			got = grantmode.From(ctx)
+			return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+		}
+		rec := f.post(token, rpc(1, "tools/call", map[string]any{"name": "lint_query", "arguments": map[string]any{}}))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+		}
+		if got != want {
+			t.Errorf("%s: mode %q, want %q", token, got, want)
+		}
 	}
 }
 

@@ -171,6 +171,13 @@ func (s *Service) savedOutcome(ctx context.Context, row dbsqlc.AgentRequest, usa
 		found, err := s.hasFinding(ctx, row)
 		return finding, found, err
 	}
+	proposed, err := s.hasProposal(ctx, row)
+	if err != nil {
+		return outcome{}, false, err
+	}
+	if proposed {
+		return outcome{proposal: true, usage: usage}, true, nil
+	}
 	version, found, err := s.existingVersion(ctx, row)
 	if err != nil {
 		return outcome{}, false, err

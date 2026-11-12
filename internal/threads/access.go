@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 )
 
 type scope struct {
@@ -48,8 +49,11 @@ func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (sco
 		var placement observations.Placement
 		placement, err = s.observations.Access(ctx, by, t.ID)
 		owner, abilities = placement.Activity, placement.Abilities
+	case KindProposal:
+		dashboard, abilities, err = s.proposals.Access(ctx, by, t.ID)
+		owner = activity.OnDashboard(dashboard)
 	default:
-		return scope{}, invalidTarget("target kind must be dashboard, finding or annotation, or observation")
+		return scope{}, invalidTarget("target kind must be dashboard, finding or annotation, observation or proposal")
 	}
 	switch {
 	case isHidden(err):
@@ -64,7 +68,7 @@ func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (sco
 
 func isHidden(err error) bool {
 	return errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) || errors.Is(err, folders.ErrForbidden) ||
-		errors.Is(err, findings.ErrNotFound) || errors.Is(err, annotations.ErrNotFound) || errors.Is(err, observations.ErrNotFound)
+		errors.Is(err, findings.ErrNotFound) || errors.Is(err, annotations.ErrNotFound) || errors.Is(err, observations.ErrNotFound) || errors.Is(err, proposals.ErrNotFound)
 }
 
 func (s *Service) scopeOfThread(ctx context.Context, by auth.Principal, row dbsqlc.Thread) (scope, error) {
@@ -83,6 +87,8 @@ func targetOf(row dbsqlc.Thread) Target {
 		return Target{Kind: KindFinding, ID: row.FindingID}
 	case row.ObservationID.Valid:
 		return Target{Kind: KindObservation, ID: row.ObservationID}
+	case row.ProposalID.Valid:
+		return Target{Kind: KindProposal, ID: row.ProposalID}
 	}
 	return Target{Kind: KindAnnotation, ID: row.AnnotationID}
 }
@@ -101,6 +107,8 @@ func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope) error {
 		_, err = q.LockAnnotationKeyShare(ctx, sc.target.ID)
 	case KindObservation:
 		_, err = q.LockObservationKeyShare(ctx, sc.target.ID)
+	case KindProposal:
+		_, err = q.LockProposalKeyShare(ctx, sc.target.ID)
 	}
 	return lockFailure(err)
 }

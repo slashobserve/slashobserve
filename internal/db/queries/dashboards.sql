@@ -13,14 +13,14 @@ RETURNING *;
 -- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client, unverified
+  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client, unverified, merged_proposal_id
 ) VALUES (
   @dashboard_id, @version, @parent_version, @restored_from, @spec, @summary,
   @author_kind, @author_id, @author_name, @author_email, @agent_request_id,
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('unverified')::jsonb
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('unverified')::jsonb, sqlc.narg('merged_proposal_id')::uuid
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at;
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at;
 
 -- name: BumpDashboardVersion :one
 UPDATE dashboards
@@ -151,7 +151,7 @@ LIMIT 500;
 
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, merged_proposal_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = @id AND (sqlc.narg('before')::int IS NULL OR version < sqlc.narg('before')::int)
 ORDER BY version DESC
@@ -174,3 +174,9 @@ UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
 
 -- name: NotifyEvent :exec
 SELECT pg_notify(@channel::text, @payload::text);
+
+-- name: GetRunProposal :one
+SELECT id, dashboard_id, revision FROM proposals
+WHERE run_id = @run_id
+ORDER BY created_at DESC, id DESC
+LIMIT 1;

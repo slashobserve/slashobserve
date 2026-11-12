@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -42,6 +43,7 @@ type Credential struct {
 	Client    string
 	Claimer   *claims.Claimer
 	Run       *revisions.Request
+	Mode      grantmode.Mode
 }
 
 type Authenticator interface {
@@ -134,6 +136,7 @@ func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 		mcpserver.WithStreamableHTTPLogger(h.logger),
 		mcpserver.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = origin.With(ctx, origin.From(r.Context()))
+			ctx = grantmode.With(ctx, grantmode.From(r.Context()))
 			if hasRegisteredClient(r.Context()) {
 				ctx = withRegisteredClient(ctx)
 			}
@@ -290,6 +293,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ctx = origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: client})
 			if cred.OAuth {
 				ctx = withRegisteredClient(ctx)
+			}
+			if cred.Mode != "" {
+				ctx = grantmode.With(ctx, cred.Mode)
 			}
 			if cred.Claimer != nil {
 				claimer := *cred.Claimer

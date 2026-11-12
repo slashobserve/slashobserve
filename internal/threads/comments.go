@@ -75,7 +75,7 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 		if err != nil {
 			return Comment{}, legacyError(err)
 		}
-		if !abilities.Edit {
+		if !abilities.Comment {
 			return Comment{}, folders.ErrForbidden
 		}
 	}

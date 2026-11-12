@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs"
 import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createComment, createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  panel,
+  selectPanel,
+} from "./dashboards"
 import { signInThroughDex } from "./dex"
 import { expect, test } from "./fixtures"
 
@@ -241,25 +246,23 @@ test("clears a posted draft after the dashboard was left", async ({
   await expect(composer()).toHaveValue("")
 })
 
-test("explains why Edit layout is unavailable while activity is open", async ({
+test("offers a move handle only once closing activity widens the grid", async ({
   page,
   request,
 }) => {
   const { id } = await createPageDashboard(request)
   await page.setViewportSize({ width: 1000, height: 800 })
   await openDashboard(page, id)
+  await expectPanelsReady(page)
 
-  await moreButton(page).click()
-  const item = page.getByRole("menuitem", { name: /^Edit layout/ })
-  await expect(item).toHaveAttribute("aria-disabled", "true")
-  await expect(item).toHaveText("Edit layout (close activity first)")
-  await page.keyboard.press("Escape")
+  const handle = page.getByRole("button", {
+    name: `Move or resize ${rpsTitle}`,
+  })
+  await selectPanel(page, rpsTitle)
+  await expect(handle).toHaveCount(0)
 
   await page.getByRole("button", { name: "Activity", exact: true }).click()
-  await moreButton(page).click()
-  await expect(
-    page.getByRole("menuitem", { name: "Edit layout" })
-  ).not.toHaveAttribute("aria-disabled", "true")
+  await expect(handle).toBeVisible()
 })
 
 test("resizes the activity card from the keyboard and remembers its width", async ({

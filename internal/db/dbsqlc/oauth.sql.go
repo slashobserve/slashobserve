@@ -206,7 +206,7 @@ func (q *Queries) DeleteExpiredOAuthRequests(ctx context.Context) error {
 }
 
 const getOAuthAccess = `-- name: GetOAuthAccess :one
-SELECT g.id, g.user_id, g.last_used_at, c.name
+SELECT g.id, g.user_id, g.last_used_at, g.mode, c.name
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 JOIN oauth_clients c ON c.id = g.client_id
@@ -227,6 +227,7 @@ type GetOAuthAccessRow struct {
 	ID         pgtype.UUID
 	UserID     pgtype.UUID
 	LastUsedAt pgtype.Timestamptz
+	Mode       string
 	Name       pgtype.Text
 }
 
@@ -237,6 +238,7 @@ func (q *Queries) GetOAuthAccess(ctx context.Context, arg GetOAuthAccessParams) 
 		&i.ID,
 		&i.UserID,
 		&i.LastUsedAt,
+		&i.Mode,
 		&i.Name,
 	)
 	return i, err
@@ -749,6 +751,73 @@ UPDATE oauth_tokens SET rotated_at = now() WHERE token_hash = $1
 func (q *Queries) RotateOAuthRefresh(ctx context.Context, tokenHash []byte) error {
 	_, err := q.db.Exec(ctx, rotateOAuthRefresh, tokenHash)
 	return err
+}
+
+const setMyOAuthGrantMode = `-- name: SetMyOAuthGrantMode :one
+WITH g AS (
+  UPDATE oauth_grants og SET mode = $1
+  WHERE og.id = $2 AND og.user_id = $3 AND og.revoked_at IS NULL AND og.expires_at > now()
+  RETURNING og.id, og.client_id, og.user_id, og.resource, og.created_at, og.expires_at, og.last_used_at, og.revoked_at, og.revoked_reason, og.revoked_by, og.mode
+)
+SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
+       g.user_id, u.name AS user_name, u.email AS user_email,
+       g.created_at, g.last_used_at, g.expires_at,
+       g.mode,
+       w.seen_at AS worker_seen_at,
+       EXISTS (
+         SELECT 1 FROM agent_requests r
+         WHERE r.status = 'running' AND r.claimed_by = 'grant:' || g.id::text AND r.lease_until > clock_timestamp()
+       ) AS worker_working,
+       clock_timestamp()::timestamptz AS checked_at
+FROM g
+JOIN oauth_clients c ON c.id = g.client_id
+JOIN users u ON u.id = g.user_id
+LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
+`
+
+type SetMyOAuthGrantModeParams struct {
+	Mode   string
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+type SetMyOAuthGrantModeRow struct {
+	ID                 pgtype.UUID
+	ClientID           string
+	ClientName         pgtype.Text
+	ClientRedirectUris []string
+	UserID             pgtype.UUID
+	UserName           string
+	UserEmail          string
+	CreatedAt          pgtype.Timestamptz
+	LastUsedAt         pgtype.Timestamptz
+	ExpiresAt          pgtype.Timestamptz
+	Mode               string
+	WorkerSeenAt       pgtype.Timestamptz
+	WorkerWorking      bool
+	CheckedAt          pgtype.Timestamptz
+}
+
+func (q *Queries) SetMyOAuthGrantMode(ctx context.Context, arg SetMyOAuthGrantModeParams) (SetMyOAuthGrantModeRow, error) {
+	row := q.db.QueryRow(ctx, setMyOAuthGrantMode, arg.Mode, arg.ID, arg.UserID)
+	var i SetMyOAuthGrantModeRow
+	err := row.Scan(
+		&i.ID,
+		&i.ClientID,
+		&i.ClientName,
+		&i.ClientRedirectUris,
+		&i.UserID,
+		&i.UserName,
+		&i.UserEmail,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+		&i.ExpiresAt,
+		&i.Mode,
+		&i.WorkerSeenAt,
+		&i.WorkerWorking,
+		&i.CheckedAt,
+	)
+	return i, err
 }
 
 const setOAuthGrantExpiry = `-- name: SetOAuthGrantExpiry :exec

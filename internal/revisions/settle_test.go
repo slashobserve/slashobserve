@@ -63,3 +63,12 @@ func TestAnInvestigationSucceedsOnlyWithAFinding(t *testing.T) {
 		t.Errorf("a new dashboard = %+v", o)
 	}
 }
+
+func TestAResultWithAProposalSucceedsAsAProposalAndNeverAsAVersion(t *testing.T) {
+	if o := successOutcome(SourcePrompt, Result{ProposalID: "p1"}); !o.proposal || o.version != nil || o.finding || o.failure != "" {
+		t.Errorf("a proposed dashboard prompt = %+v", o)
+	}
+	if o := successOutcome(SourceComment, Result{ProposalID: "p1", Version: 0}); !o.proposal || o.version != nil {
+		t.Errorf("a proposed comment = %+v", o)
+	}
+}

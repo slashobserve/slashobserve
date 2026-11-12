@@ -54,6 +54,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/prompts"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -307,6 +308,8 @@ func run() error {
 
 	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
+	proposalsService := proposals.New(database, folderAccess, dashboardsService, logger)
+	dashboardsService.SetProposer(proposalsService.Propose)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
@@ -323,7 +326,7 @@ func run() error {
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService)
+	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService, proposalsService)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		FindingURL:   findingURL,
@@ -345,6 +348,7 @@ func run() error {
 		Runner:        runner,
 		Dashboards:    dashboardsService,
 		Threads:       threadsService,
+		Proposals:     proposalsService,
 		Imports:       importsService,
 		Folders:       folderAccess,
 		Findings:      findingsService,
@@ -449,6 +453,7 @@ func run() error {
 		API: []server.Registrar{
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
+			proposals.NewHandler(proposalsService, folderAccess.RequireDashboard(folders.NeedView), logger),
 			imports.NewHandler(importsService, folderAccess),
 			grafanaconn.NewHandler(grafanaService),
 			webhooks.NewHandler(webhooksService, logger),
@@ -598,15 +603,15 @@ func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Cr
 		}
 		return cred, ok, err
 	}
-	if req, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
-		return mcp.Credential{Principal: req.RequestedBy, Run: &req}, ok, err
+	if run, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
+		return mcp.Credential{Principal: run.Request.RequestedBy, Run: &run.Request, Mode: run.Mode}, ok, err
 	}
 	access, ok, err := m.oauth.Authenticate(ctx, header)
 	if err != nil || !ok {
 		return mcp.Credential{}, ok, err
 	}
 	claimer := &claims.Claimer{Kind: revisions.AssignGrant, ID: access.GrantID, Person: access.Principal.ID, Client: access.Client}
-	return mcp.Credential{Principal: access.Principal, OAuth: true, Client: access.Client, Claimer: claimer}, true, nil
+	return mcp.Credential{Principal: access.Principal, OAuth: true, Client: access.Client, Claimer: claimer, Mode: access.Mode}, true, nil
 }
 
 func oauthMounts(oauthServer *mcpauth.Server) []server.Mount {

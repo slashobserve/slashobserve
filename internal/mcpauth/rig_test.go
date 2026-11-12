@@ -107,6 +107,15 @@ func (r *rig) api(by auth.Principal, method, path string) *httptest.ResponseReco
 	return rec
 }
 
+func (r *rig) apiJSON(by auth.Principal, method, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, "/api/v1"+path, strings.NewReader(body))
+	req.Header.Set("X-Test-Principal", by.ID)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.engine.ServeHTTP(rec, req)
+	return rec
+}
+
 func (r *rig) registerClient(t *testing.T, name string, redirectURIs ...string) string {
 	t.Helper()
 	if len(redirectURIs) == 0 {

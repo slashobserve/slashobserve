@@ -67,6 +67,14 @@ export function observationsLink(search?: { new?: "1" }) {
   return { to: "/observations", search: search ?? {} } as const
 }
 
+export function proposalPath(proposalId: string): string {
+  return path("proposals", proposalId)
+}
+
+export function proposalLink(proposalId: string) {
+  return { to: "/proposals/$proposalId", params: { proposalId } } as const
+}
+
 export type LogsLinkSearch = {
   ds?: string
   q?: string

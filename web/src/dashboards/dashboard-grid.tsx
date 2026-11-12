@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react"
+import { useCallback, useMemo, type KeyboardEvent, type ReactNode } from "react"
 import { GridLayout, useContainerWidth, type Layout } from "react-grid-layout"
 import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
@@ -19,6 +19,11 @@ import {
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
+import {
+  isSelectionKey,
+  nextSelection,
+  useSelectionStore,
+} from "./selection-store"
 import {
   gridRowHeight,
   pixelHeight,
@@ -42,6 +47,7 @@ type Props = {
   editable?: boolean
   layout?: Layout
   onLayoutChange?: (layout: Layout) => void
+  selectedId?: string | null
   newPanelIds?: ReadonlySet<string>
 }
 
@@ -61,6 +67,7 @@ export function DashboardGrid({
   editable = false,
   layout,
   onLayoutChange,
+  selectedId = null,
   newPanelIds,
 }: Props) {
   const { width, mounted, containerRef } = useContainerWidth({
@@ -106,7 +113,15 @@ export function DashboardGrid({
           }
         : item
     )
-    if (editing && !stacked) return items
+    if (editing && !stacked) {
+      return editable
+        ? items.map((item) =>
+            item.static || item.i === selectedId
+              ? item
+              : { ...item, isDraggable: false, isResizable: false }
+          )
+        : items
+    }
     const minimum = new Map(
       ordered.map(({ entry, item }) => [
         item.i,
@@ -130,10 +145,63 @@ export function DashboardGrid({
           )
     )
     return fitLayout(items, minimum, fixed)
-  }, [editing, stacked, ordered, width])
+  }, [editing, editable, selectedId, stacked, ordered, width])
+
+  const panelOrder = useMemo(
+    () =>
+      ordered.flatMap(({ entry }) =>
+        entry.kind === "panel" && entry.first ? [entry.panel.id] : []
+      ),
+    [ordered]
+  )
+
+  const reportLayout = useCallback(
+    (next: Layout) => {
+      if (!layout || !onLayoutChange) return
+      const given = new Map(layout.map((item) => [item.i, item]))
+      onLayoutChange(
+        next.map((item) => {
+          const original = given.get(item.i)
+          return original
+            ? { ...original, x: item.x, y: item.y, w: item.w, h: item.h }
+            : item
+        })
+      )
+    },
+    [layout, onLayoutChange]
+  )
+
+  function moveSelection(event: KeyboardEvent<HTMLDivElement>) {
+    const title = event.target
+    if (
+      !(title instanceof HTMLElement) ||
+      !title.hasAttribute("data-panel-title") ||
+      !isSelectionKey(event.key) ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    ) {
+      return
+    }
+    const current =
+      title.closest<HTMLElement>("[data-panel-id]")?.dataset.panelId ?? null
+    const next = nextSelection(panelOrder, current, event.key)
+    if (next === null) return
+    event.preventDefault()
+    useSelectionStore.getState().select(dashboardId, next)
+    const grid = event.currentTarget
+    requestAnimationFrame(() =>
+      grid
+        .querySelector<HTMLElement>(
+          `[data-panel-id="${CSS.escape(next)}"] [data-panel-title]`
+        )
+        ?.focus()
+    )
+  }
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} className="w-full" onKeyDown={moveSelection}>
       {mounted ? (
         <GridLayout
           width={width}
@@ -151,10 +219,19 @@ export function DashboardGrid({
             threshold: 3,
           }}
           resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
-          onLayoutChange={stacked ? undefined : onLayoutChange}
+          onLayoutChange={stacked ? undefined : reportLayout}
         >
           {ordered.map(({ entry }, index) => (
-            <div key={entry.key}>
+            <div
+              key={entry.key}
+              className={
+                entry.kind === "panel" &&
+                entry.first &&
+                entry.panel.id === selectedId
+                  ? "z-10"
+                  : undefined
+              }
+            >
               {entry.kind === "row" ? (
                 <RowHeader
                   rowId={entry.row.id}

@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/presence"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -32,6 +33,7 @@ func statesReference() string {
 		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, a finding or an annotation, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
+		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
@@ -142,6 +144,28 @@ func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 	}
 	if got := enumOf(t, doc, "InvalidTransition", "code"); !slices.Equal(got, []string{"invalid_transition"}) {
 		t.Errorf("InvalidTransition.code enum = %v", got)
+	}
+}
+
+func TestProposalEnumsMatchTheMachine(t *testing.T) {
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states, offered []string
+	for _, s := range proposals.ProposalMachine.States {
+		states = append(states, string(s))
+	}
+	for _, a := range proposals.ProposalMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	for _, schema := range []string{"Proposal", "ProposalSummary"} {
+		if got := enumOf(t, doc, schema, "state"); !slices.Equal(got, states) {
+			t.Errorf("%s.state enum = %v, want %v", schema, got, states)
+		}
+		if got := enumOf(t, doc, schema, "allowed_actions"); !slices.Equal(got, offered) {
+			t.Errorf("%s.allowed_actions items enum = %v, want %v", schema, got, offered)
+		}
 	}
 }
 

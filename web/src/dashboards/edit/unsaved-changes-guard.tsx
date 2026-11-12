@@ -15,7 +15,7 @@ import { isDirtyNow, useLayoutStore } from "./layout-store"
 
 type DiscardDialogProps = {
   open: boolean
-  finalFocus?: () => HTMLElement | null
+  finalFocus?: () => HTMLElement | boolean | null
   onKeep: () => void
   onDiscard: () => void
 }

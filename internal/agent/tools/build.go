@@ -197,11 +197,14 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 }
 
 func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep string) (Result, error) {
-	dash, ver, replayed, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.Attempt)
+	commit, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.Attempt)
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success(finishStep(saveStep, in.changes, ver.Number, versionShape(ver.Spec)), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+	if commit.Proposal != nil {
+		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
+	}
+	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)), nil
 }
 
 func finishStep(saveStep string, changes panelChanges, version int, shape string) string {

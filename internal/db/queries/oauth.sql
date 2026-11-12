@@ -99,7 +99,7 @@ FOR UPDATE OF t, g;
 UPDATE oauth_tokens SET rotated_at = now() WHERE token_hash = $1;
 
 -- name: GetOAuthAccess :one
-SELECT g.id, g.user_id, g.last_used_at, c.name
+SELECT g.id, g.user_id, g.last_used_at, g.mode, c.name
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 JOIN oauth_clients c ON c.id = g.client_id
@@ -154,6 +154,27 @@ WHERE g.user_id = @user_id
        OR (g.created_at, g.id) < (sqlc.narg('before_created')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY g.created_at DESC, g.id DESC
 LIMIT @lim;
+
+-- name: SetMyOAuthGrantMode :one
+WITH g AS (
+  UPDATE oauth_grants og SET mode = @mode
+  WHERE og.id = @id AND og.user_id = @user_id AND og.revoked_at IS NULL AND og.expires_at > now()
+  RETURNING og.*
+)
+SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
+       g.user_id, u.name AS user_name, u.email AS user_email,
+       g.created_at, g.last_used_at, g.expires_at,
+       g.mode,
+       w.seen_at AS worker_seen_at,
+       EXISTS (
+         SELECT 1 FROM agent_requests r
+         WHERE r.status = 'running' AND r.claimed_by = 'grant:' || g.id::text AND r.lease_until > clock_timestamp()
+       ) AS worker_working,
+       clock_timestamp()::timestamptz AS checked_at
+FROM g
+JOIN oauth_clients c ON c.id = g.client_id
+JOIN users u ON u.id = g.user_id
+LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text;
 
 -- name: ListOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,

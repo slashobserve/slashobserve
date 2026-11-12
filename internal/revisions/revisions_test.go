@@ -1310,7 +1310,7 @@ func asRole(role auth.Role) auth.Principal {
 	return p
 }
 
-func TestRequestsNeedEditOnTheDashboardOrEditorForANewOne(t *testing.T) {
+func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	open := seedDashboard(t, d, 1)
 	hidden := seedDashboard(t, d, 1)
@@ -1325,7 +1325,7 @@ func TestRequestsNeedEditOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	}{
 		{"Editor edits a dashboard in General", open, asRole(auth.RoleEditor), nil},
 		{"Viewer without a grant may not", open, asRole(auth.RoleViewer), revisions.ErrForbidden},
-		{"Commenter without a grant may not", open, asRole(auth.RoleCommenter), revisions.ErrForbidden},
+		{"Commenter may ask for a change", open, asRole(auth.RoleCommenter), nil},
 		{"a dashboard in a folder the caller cannot see is not found", hidden, asRole(auth.RoleEditor), revisions.ErrDashboardNotFound},
 		{"a missing dashboard is not found", missing, asRole(auth.RoleEditor), revisions.ErrDashboardNotFound},
 		{"Admin sees every folder", hidden, asRole(auth.RoleAdmin), nil},

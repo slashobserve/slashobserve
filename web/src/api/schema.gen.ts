@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation or observation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`; `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -627,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
-         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`. A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries (every field, with the datasource each query uses) and every variable they reach are unchanged; the new version lists it again with the new issues. Any other failing query is a 422 `invalid_spec` that lists only the blocking issues.
+         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`. A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries (every field, with the datasource each query uses) and every variable they reach are unchanged; the new version lists it again with the new issues. Any other failing query is a 422 `invalid_spec` that lists only the blocking issues. With `merge: auto`, a stale save that changed other panels, variables or settings than the newer versions is merged and saved on top of the latest, and the reply has `merged_from`; an overlap answers 409 with `conflicts`. With `propose_if_needed`, a caller who can comment but not edit, or whose connection is in propose mode, gets a proposal and a 202 instead of a 403. Without it, such a caller is refused with 403.
          */
         post: operations["createDashboardVersion"];
         delete?: never;
@@ -714,6 +714,94 @@ export interface paths {
         get: operations["diffDashboardVersions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the proposals on a dashboard, newest first.
+         * @description Needs View on the dashboard. A proposal is a change to a dashboard saved by someone who may comment but not edit, or by a connection in propose mode, for a person who can edit to merge or discard. The list holds the open proposals unless `state` says otherwise.
+         */
+        get: operations["listProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proposals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get one proposal with its head revision's document, what it changes and what stops a merge.
+         * @description Needs View on the dashboard; a proposal on a dashboard the caller cannot see answers 404. `changes` compares the head revision with `base_version`. `conflicts` lists, while the proposal is open and behind, the units that the proposal and the newer versions both changed.
+         */
+        get: operations["getProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proposals/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a proposal's head revision as the next version of its dashboard and close it as merged.
+         * @description Needs Edit on the dashboard and a connection that is not in propose mode. The save runs the same checks as any other save, on top of the dashboard's latest version: a document that does not parse or whose queries fail answers 422. When the dashboard has changed the same panels, variables or settings since the proposal's base, the answer is 409 `version_conflict` with `conflicts`, and the same request with a `choices` entry for each of them succeeds. A merge whose result equals the latest version saves nothing and closes the proposal with `merged_version` null.
+         */
+        post: operations["mergeProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proposals/{id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close a proposal without saving it.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an empty object.
+         */
+        post: operations["discardProposal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -865,13 +953,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the comment threads on a dashboard, a finding, an annotation or an observation.
-         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, and an observation follows the folder it is in. A target the caller cannot see answers 404, never 403.
+         * List the comment threads on a dashboard, a finding, an annotation, an observation or a proposal.
+         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, an observation follows the folder it is in, and a proposal follows its dashboard. A target the caller cannot see answers 404, never 403.
          */
         get: operations["listThreads"];
         put?: never;
         /**
-         * Start a thread on a dashboard, a finding, an annotation or an observation.
+         * Start a thread on a dashboard, a finding, an annotation, an observation or a proposal.
          * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding, an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)` and the built-in agent with `@observe`, at most 20 mentions in a message. A mention is recorded and shows in the activity log; it starts no agent run and notifies no one. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread never queues an agent revision; send a comment with `request_revision` to a dashboard for that. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
@@ -3137,7 +3225,11 @@ export interface paths {
         delete: operations["disconnectMyGrant"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set how one of the signed-in person's MCP clients makes changes.
+         * @description `direct` is the default; `propose` makes the agent's dashboard writes proposals that someone who can edit merges. The mode applies from the agent's next request. Another person's connection, a connection already disconnected and one that does not exist all answer 404 `not_found`. Only signed-in people may call it: a service-account key gets 403 `forbidden`, so no agent changes its own mode.
+         */
+        patch: operations["updateMyGrant"];
         trace?: never;
     };
     "/grants": {
@@ -3376,7 +3468,7 @@ export interface components {
              */
             state: "revoked" | "active";
             /**
-             * @description How the agent's changes land. Every connected agent is direct today; propose arrives later and is not settable yet.
+             * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
              */
             mode: "direct" | "propose";
@@ -3390,6 +3482,10 @@ export interface components {
              * @description When it last asked for work or reported on a run; null when it never did.
              */
             last_seen_at: string | null;
+        };
+        UpdateConnectedAgentRequest: {
+            /** @enum {string} */
+            mode: "direct" | "propose";
         };
         ConnectedAgentList: {
             grants: components["schemas"]["ConnectedAgent"][];
@@ -3620,7 +3716,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -3631,10 +3727,10 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "thread" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run";
                 /**
                  * Format: uuid
-                 * @description The id of the dashboard, annotation, finding, saved search, observation, comment thread or agent request the event is about.
+                 * @description The id of the dashboard, annotation, finding, saved search, observation, proposal, comment thread or agent request the event is about.
                  */
                 id: string;
             };
@@ -3791,6 +3887,11 @@ export interface components {
              */
             agent_request_id: string | null;
             actor: components["schemas"]["Actor"];
+            /**
+             * Format: uuid
+             * @description The proposal whose merge saved this version; null for any other version.
+             */
+            merged_proposal_id: string | null;
         };
         Version: {
             version: number;
@@ -3813,6 +3914,11 @@ export interface components {
              */
             agent_request_id: string | null;
             actor: components["schemas"]["Actor"];
+            /**
+             * Format: uuid
+             * @description The proposal whose merge saved this version; null for any other version.
+             */
+            merged_proposal_id: string | null;
             /** @description The ObserveSpec document, validated against its own schema. */
             spec: {
                 [key: string]: unknown;
@@ -3836,6 +3942,18 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
         };
+        DashboardVersionSaved: {
+            dashboard: components["schemas"]["DashboardSummary"];
+            version: components["schemas"]["Version"];
+            merged_from?: components["schemas"]["MergedFrom"];
+        };
+        /** @description Present when a stale save was merged on the server. */
+        MergedFrom: {
+            /** @description The `parent_version` the caller sent. */
+            base_version: number;
+            /** @description The latest version the save was merged onto. */
+            onto_version: number;
+        };
         SpecChange: {
             /** @enum {string} */
             op: "add" | "remove" | "replace" | "reorder";
@@ -3850,6 +3968,151 @@ export interface components {
             error: string;
             code: string;
             latest_version: number;
+            /** @description Present when a save asked for `merge: auto` and the newer versions changed the same panels, variables or settings. */
+            conflicts?: components["schemas"]["MergeConflict"][];
+        };
+        MergeConflict: {
+            /** @enum {string} */
+            kind: "panel" | "variable" | "setting";
+            id: string;
+            /** @enum {string} */
+            reason: "both_changed" | "changed_and_removed" | "invalid";
+            message: string;
+        };
+        /** @description A proposed change to a dashboard, without its document. */
+        ProposalSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @enum {string} */
+            state: "open" | "merged" | "discarded";
+            /** @description The summary of the first revision, cut to 200 characters. */
+            title: string;
+            /** @description The head revision; every save by the author while the proposal is open adds one. */
+            revision: number;
+            /** @description The version of the dashboard the head revision builds on. */
+            base_version: number;
+            /** @description The head revision's summary. */
+            summary: string;
+            author: components["schemas"]["Author"];
+            actor: components["schemas"]["Actor"];
+            /** @enum {string|null} */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            origin_client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request whose saves the proposal holds; null for a proposal made by a person or an MCP client.
+             */
+            run_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
+            /** @description Who merged or discarded the proposal; null while it is open. */
+            closed_by: components["schemas"]["Author"] | null;
+            /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
+            merged_version: number | null;
+            /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
+            behind: boolean;
+            latest_version: number;
+            /** @description What the caller may do now. `update` means saving again to add a revision and has no route of its own; `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge. See docs/reference/states.md. */
+            allowed_actions: ("update" | "merge" | "discard")[];
+        };
+        /** @description A proposed change to a dashboard with its head revision's document and what it changes. */
+        Proposal: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @enum {string} */
+            state: "open" | "merged" | "discarded";
+            /** @description The summary of the first revision, cut to 200 characters. */
+            title: string;
+            /** @description The head revision; every save by the author while the proposal is open adds one. */
+            revision: number;
+            /** @description The version of the dashboard the head revision builds on. */
+            base_version: number;
+            /** @description The head revision's summary. */
+            summary: string;
+            author: components["schemas"]["Author"];
+            actor: components["schemas"]["Actor"];
+            /** @enum {string|null} */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            origin_client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request whose saves the proposal holds; null for a proposal made by a person or an MCP client.
+             */
+            run_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
+            /** @description Who merged or discarded the proposal; null while it is open. */
+            closed_by: components["schemas"]["Author"] | null;
+            /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
+            merged_version: number | null;
+            /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
+            behind: boolean;
+            latest_version: number;
+            /** @description What the caller may do now. `update` means saving again to add a revision and has no route of its own; `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge. See docs/reference/states.md. */
+            allowed_actions: ("update" | "merge" | "discard")[];
+            /** @description The ObserveSpec document of the head revision. */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** @description What the head revision adds, changes, removes or moves compared with `base_version`. */
+            changes: components["schemas"]["ProposalChange"][];
+            /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
+            conflicts: components["schemas"]["MergeConflict"][];
+        };
+        ProposalChange: {
+            /** @enum {string} */
+            kind: "panel" | "variable" | "setting";
+            id: string;
+            /** @enum {string} */
+            change: "added" | "changed" | "removed" | "moved";
+        };
+        ProposalList: {
+            proposals: components["schemas"]["ProposalSummary"][];
+            next_cursor: string | null;
+        };
+        /** @description The answer to a save that became a proposal. */
+        ProposalCreated: {
+            /** Format: uuid */
+            proposal_id: string;
+            /** @description The revision this save added. */
+            revision: number;
+            /** @description True when the save opened the proposal, false when it added a revision to the caller's open one. */
+            opened: boolean;
+        };
+        MergeChoice: {
+            /** @enum {string} */
+            kind: "panel" | "variable" | "setting";
+            id: string;
+            /**
+             * @description `ours` keeps the dashboard's newer version of the unit, `theirs` takes the proposal's.
+             * @enum {string}
+             */
+            take: "ours" | "theirs";
+        };
+        MergeProposalRequest: {
+            /** @description The head revision the caller read; a newer one answers 409 `proposal_changed`. */
+            revision: number;
+            /** @description One choice for each unit in `conflicts`. Without it a proposal with conflicts answers 409 `version_conflict`. */
+            choices?: components["schemas"]["MergeChoice"][];
+        };
+        ProposalChanged: {
+            error: string;
+            /** @enum {string} */
+            code: "proposal_changed";
+            /** @description The proposal's head revision now. */
+            revision: number;
         };
         Comment: {
             /** Format: uuid */
@@ -3923,7 +4186,7 @@ export interface components {
             id: string;
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "finding" | "annotation" | "observation";
+                kind: "dashboard" | "finding" | "annotation" | "observation" | "proposal";
                 /** Format: uuid */
                 id: string;
             };
@@ -5980,6 +6243,33 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The caller may not merge: `forbidden_role` for a role or folder level that is too low, or `propose_mode` for a connected agent in propose mode that tried to merge. */
+        ProposalForbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). */
+        ProposalMergeConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["VersionConflict"] | components["schemas"]["ProposalChanged"] | components["schemas"]["InvalidTransition"];
+            };
+        };
+        /** @description The proposal is no longer open (`invalid_transition`, with its `state` and `allowed_actions`), or the dashboard changed under a discard (`proposal_changed`). */
+        ProposalNotOpen: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ProposalChanged"] | components["schemas"]["InvalidTransition"];
+            };
+        };
         /** @description The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec) or `unknown_version` (the version does not exist on the dashboard). */
         ThreadRefused: {
             headers: {
@@ -7577,6 +7867,16 @@ export interface operations {
                     };
                     summary: string;
                     parent_version: number;
+                    /**
+                     * @description Merge a stale save onto the latest version on the server instead of answering 409 when nothing overlaps.
+                     * @enum {string}
+                     */
+                    merge?: "auto";
+                    /**
+                     * @description Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+                     * @default false
+                     */
+                    propose_if_needed?: boolean;
                 };
             };
         };
@@ -7588,7 +7888,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             /** @description The new version. */
@@ -7598,7 +7898,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The change became a proposal, or a revision of the caller's open one; no version was saved. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -7754,6 +8064,131 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listProposals: {
+        parameters: {
+            query?: {
+                state?: "open" | "merged" | "discarded" | "all";
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of proposals without their documents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The proposal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    mergeProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeProposalRequest"];
+            };
+        };
+        responses: {
+            /** @description The merged proposal. */
+            200: {
+                headers: {
+                    /** @description The version the merge saved; absent when the merge saved nothing. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["ProposalForbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProposalMergeConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    discardProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The discarded proposal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProposalNotOpen"];
             500: components["responses"]["Internal"];
         };
     };
@@ -8124,7 +8559,7 @@ export interface operations {
     listThreads: {
         parameters: {
             query: {
-                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`. */
+                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`. */
                 target: string;
                 status?: "open" | "resolved" | "all";
                 /** @description Only threads on this panel; dashboards only. */
@@ -8172,7 +8607,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`. */
+                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`. */
                     target: string;
                     /** @description The dashboard version to anchor to; the latest when absent. Dashboards only. */
                     version?: number | null;
@@ -13836,6 +14271,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateMyGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConnectedAgentRequest"];
+            };
+        };
+        responses: {
+            /** @description The connection with its new mode. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectedAgent"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

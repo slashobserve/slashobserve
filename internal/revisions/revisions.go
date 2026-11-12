@@ -211,6 +211,7 @@ type Result struct {
 	Version     int
 	Suggestion  json.RawMessage
 	FindingID   string
+	ProposalID  string
 	Usage       *Usage
 	FailureCode FailureCode
 }

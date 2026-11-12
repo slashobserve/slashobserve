@@ -617,6 +617,7 @@ type outcome struct {
 	version    *int
 	suggestion json.RawMessage
 	finding    bool
+	proposal   bool
 	message    string
 	code       string
 	failure    FailureCode
@@ -651,6 +652,10 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			})
 		case o.finding:
 			row, err = q.SucceedFindingRequest(ctx, dbsqlc.SucceedFindingRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
+			})
+		case o.proposal:
+			row, err = q.SucceedProposalRequest(ctx, dbsqlc.SucceedProposalRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
 			})
 		case o.version != nil:
@@ -742,6 +747,14 @@ func (s *Service) hasFinding(ctx context.Context, claimed dbsqlc.AgentRequest) (
 		return false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	return true, nil
+}
+
+func (s *Service) hasProposal(ctx context.Context, claimed dbsqlc.AgentRequest) (bool, error) {
+	found, err := s.db.Queries().RunHasProposal(ctx, claimed.ID)
+	if err != nil {
+		return false, fmt.Errorf("check proposal of agent request: %w", err)
+	}
+	return found, nil
 }
 
 func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {

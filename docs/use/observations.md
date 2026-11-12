@@ -111,7 +111,7 @@ The message stays in the discussion as well.
 ### Add to an observation from a panel or from Logs
 
 **Add to observation** in a dashboard panel's menu copies that panel into an observation.
-The item shows for every data panel while the layout is not being edited, and it is greyed with "(uses dashboard variables)" after it when the panel cannot be copied.
+The item shows for every data panel while you have no unsaved layout changes, and it is greyed with "(uses dashboard variables)" after it when the panel cannot be copied.
 A panel cannot be copied when a query, or the panel's datasource, holds `$name` or `${name`, where the name starts with a letter or an underscore.
 That includes the built-in names such as `$__interval`.
 A `$` before a digit or on its own does not count, and a variable in the panel's title does not either.

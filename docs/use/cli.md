@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `findings`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -232,13 +232,13 @@ The kind, datasource, query and range of a saved search never change: save a new
 
 ## Comments
 
-Comments on a dashboard, a finding or an annotation can be worked from the terminal.
-A target is written `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`, for example `finding:0a1b2c3d-0000-4000-8000-000000000001`.
+Comments on a dashboard, a finding, an annotation or a proposal can be worked from the terminal.
+A target is written `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `proposal`, for example `finding:0a1b2c3d-0000-4000-8000-000000000001`.
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
   `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
-  On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on a finding or an annotation.
+  On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on a finding, an annotation or a proposal.
   Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--json` and `-q` must come before it.
   A thread started this way never queues an agent revision.
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
@@ -257,6 +257,26 @@ Mention a person in the text as `@[Name](user:<id>)` and the built-in agent as `
 A mention shows in the [activity log](activity.md) and starts no agent run.
 
 Add `--json` to any of them to print the API response unchanged.
+
+## Proposals
+
+A proposal is a change that someone who cannot edit a dashboard, or whose connection is in propose mode, saved for a person who can edit to merge; see [Proposals](../concepts/proposals.md).
+
+`bin/observe proposals list <dashboard-id>` prints the open proposals of a dashboard, newest first, with their id, state, revision, `behind main` when the dashboard has a newer version than the one the proposal builds on, and title.
+`--state merged`, `--state discarded` or `--state all` shows the closed ones, and `--limit` and `--cursor` page through the result.
+
+`bin/observe proposals show <proposal-id>` prints the proposal's summary, then `Changes`, one line for each panel, variable or setting it adds, changes, removes or moves, such as `added panel p4`, then `Conflicts` with the units a merge onto the latest version would hit, and the actions you may take now.
+
+`bin/observe proposals merge <proposal-id> --revision <n>` merges the proposal as the next version of its dashboard and prints `Merged as version <n>`, or `Already in the dashboard` when the dashboard already held its change.
+`--revision` is the revision `show` printed, and a proposal that gained a newer one is refused with `proposal_changed`.
+For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `ours` keeping the dashboard's unit and `theirs` taking the proposal's, and it repeats: `--take panel:p1=theirs --take setting:title=ours`.
+A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
+Merging needs Edit on the dashboard and a connection that is not in propose mode, and it runs the queries of the panels it changes like any save.
+
+`bin/observe proposals discard <proposal-id>` closes the proposal without saving it and prints `Discarded`.
+Its author may discard it, and so may anyone who may merge it.
+
+`-q` hides the confirmation of `merge` and `discard`, and `--json` prints the API response unchanged.
 
 ## Annotations
 

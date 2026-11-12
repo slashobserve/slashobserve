@@ -18,7 +18,8 @@ import {
   latestDashboardQuery,
   useAddVersion,
 } from "@/dashboards/queries"
-import { dashboardLink } from "@/lib/links"
+import { saveToast } from "@/dashboards/save-outcome"
+import { dashboardLink, proposalLink } from "@/lib/links"
 import { SidePanel } from "@/shell/side-panel"
 
 import { appendLogsPanel } from "./add-panel"
@@ -104,17 +105,28 @@ function AddButton({
         datasource,
         query,
       })
-      await addVersion.mutateAsync({
+      const outcome = await addVersion.mutateAsync({
         spec,
         summary: "Add a logs panel from the logs page",
         parent_version: latest.version.version,
+        propose: false,
       })
-      toast.success(`Added the panel to ${target.title}`, {
-        action: {
-          label: "Open dashboard",
-          onClick: () => void navigate(dashboardLink(target.id, target.title)),
-        },
-      })
+      if (outcome.kind === "proposed") {
+        toast.success(saveToast(outcome), {
+          action: {
+            label: "View proposal",
+            onClick: () => void navigate(proposalLink(outcome.proposalId)),
+          },
+        })
+      } else {
+        toast.success(`Added the panel to ${target.title}`, {
+          action: {
+            label: "Open dashboard",
+            onClick: () =>
+              void navigate(dashboardLink(target.id, target.title)),
+          },
+        })
+      }
       onAdded()
     } catch (error) {
       onProblem(addProblem(error))

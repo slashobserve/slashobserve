@@ -24,7 +24,6 @@ import {
   TableIcon,
 } from "lucide-react"
 
-import { useActivityStore } from "@/activity/activity-store"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -49,6 +48,7 @@ import {
 } from "@/spec"
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
+import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
 import { useSetDashboardSearch, validateDashboardSearch } from "./search"
 
 type Props = {
@@ -63,6 +63,7 @@ type Props = {
   canEdit: boolean
   onToggleResponsive?: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
+  inToolbar?: boolean
 }
 
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
@@ -89,6 +90,7 @@ export function PanelMenu({
   canEdit,
   onToggleResponsive,
   composerRef,
+  inToolbar = false,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
@@ -110,8 +112,7 @@ export function PanelMenu({
       disabled: !idle,
       onSelect: () => {
         focusAfterClose = "composer"
-        useActivityStore.getState().setOpen(true)
-        setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
+        commentOnPanel(setSearch, panel.id)
       },
     })
   }
@@ -124,10 +125,7 @@ export function PanelMenu({
       disabled: !idle,
       onSelect: () => {
         focusAfterClose = "composer"
-        const activity = useActivityStore.getState()
-        activity.setOpen(true)
-        activity.setAgentKind("investigate")
-        setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
+        askAboutPanel(setSearch, panel.id)
       },
     })
   }
@@ -146,16 +144,17 @@ export function PanelMenu({
       },
     })
   }
-  if (canEdit && isEditablePanel(panel)) {
+  const canPropose = canComment && !canEdit
+  if ((canEdit || canPropose) && isEditablePanel(panel)) {
+    const name = canEdit ? "Edit" : "Suggest an edit"
     items.push({
       id: "edit",
-      label: idle ? "Edit" : "Edit (finish the layout first)",
+      label: idle ? name : `${name} (finish the layout first)`,
       icon: <PencilIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
         focusAfterClose = "none"
-        useActivityStore.getState().setOpen(true)
-        setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
+        editPanelQuery(setSearch, panel.id)
       },
       shortcut: shortcutText("edit"),
     })
@@ -268,16 +267,28 @@ export function PanelMenu({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              ref={menuButton}
-              variant="ghost"
-              className="size-[26px] text-muted-foreground"
-              aria-label={`Panel menu: ${panelTitle(panel)}`}
-              data-panel-menu={panel.id}
-            />
+            inToolbar ? (
+              <Button
+                ref={menuButton}
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`More actions for ${panelTitle(panel)}`}
+              />
+            ) : (
+              <Button
+                ref={menuButton}
+                variant="ghost"
+                className="size-[26px] text-muted-foreground"
+                aria-label={`Panel menu: ${panelTitle(panel)}`}
+                data-panel-menu={panel.id}
+              />
+            )
           }
         >
-          <EllipsisIcon aria-hidden="true" className="size-3.5" />
+          <EllipsisIcon
+            aria-hidden="true"
+            className={inToolbar ? "size-4" : "size-3.5"}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"

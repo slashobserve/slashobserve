@@ -80,7 +80,7 @@ type ImportReader interface {
 
 type BuildStore interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
-	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error)
+	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Commit, error)
 	DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error
 	RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (int, bool, error)
 }
@@ -131,6 +131,7 @@ type Outcome struct {
 	Version             int
 	Suggestion          json.RawMessage
 	FindingID           string
+	ProposalID          string
 	Replayed            bool
 	RepairRounds        int
 	Usage               llm.Usage
@@ -754,6 +755,9 @@ func (r *runner) settle(outcome turnOutcome) (sessionEnd, bool, error) {
 	case outcome.suggestion != nil:
 		r.out.Suggestion = outcome.suggestion
 		return sessionEnd{}, true, nil
+	case outcome.proposal != "":
+		r.out.ProposalID = outcome.proposal
+		return sessionEnd{}, true, nil
 	case outcome.saved != nil:
 		r.out.DashboardID = outcome.saved.dashboardID
 		r.out.Version = outcome.saved.version
@@ -810,7 +814,7 @@ func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResu
 }
 
 func (r *runner) commit(ctx context.Context) (sessionEnd, error) {
-	dash, ver, replayed, err := r.agent.builds.CommitBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
+	commit, err := r.agent.builds.CommitBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
 	var conflict *dashboards.ConflictError
 	switch {
 	case errors.As(err, &conflict):
@@ -820,9 +824,13 @@ func (r *runner) commit(ctx context.Context) (sessionEnd, error) {
 	case err != nil:
 		return sessionEnd{}, r.agent.buildStoreError(ctx, "could not save the build", err, r.task.RequestID)
 	}
-	r.out.DashboardID = dash.ID
-	r.out.Version = ver.Number
-	r.out.Replayed = replayed
+	r.out.DashboardID = commit.Dashboard.ID
+	if commit.Proposal != nil {
+		r.out.ProposalID = commit.Proposal.ID
+		return sessionEnd{}, nil
+	}
+	r.out.Version = commit.Version.Number
+	r.out.Replayed = commit.Replayed
 	return sessionEnd{}, nil
 }
 

@@ -37,6 +37,7 @@ const (
 	codeInvalidRequest  = "invalid_request"
 	codeVersionConflict = "version_conflict"
 	codeNotFound        = "not_found"
+	codeProposed        = "proposed"
 
 	internalStep     = "internal error"
 	stopTool         = "agent"
@@ -73,6 +74,7 @@ type turnOutcome struct {
 	built      bool
 	suggestion json.RawMessage
 	finding    string
+	proposal   string
 	conflict   bool
 	notFound   bool
 	rejected   bool
@@ -174,7 +176,7 @@ func (s *runState) restart() {
 }
 
 func (s *runState) nudge(results []llm.ToolResult, outcome turnOutcome) {
-	if len(results) == 0 || outcome.built || outcome.saved != nil || outcome.suggestion != nil || outcome.finding != "" {
+	if len(results) == 0 || outcome.built || outcome.saved != nil || outcome.suggestion != nil || outcome.finding != "" || outcome.proposal != "" {
 		return
 	}
 	if note := nudgeFor(s.mode, s.window); note != "" {
@@ -463,6 +465,7 @@ type saveBody struct {
 	Replayed      *bool           `json:"replayed"`
 	Suggested     bool            `json:"suggested"`
 	FindingID     string          `json:"finding_id"`
+	ProposalID    string          `json:"proposal_id"`
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
 	Issues        []struct {
@@ -476,6 +479,11 @@ func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome
 		return turnOutcome{}, s.malformed(ctx, slot)
 	}
 	if !slot.result.IsError {
+		if body.Code == codeProposed && body.ProposalID != "" && s.mode == tools.ModeRevise {
+			s.buildSaves++
+			s.window = saveWindow{}
+			return turnOutcome{proposal: body.ProposalID}, nil
+		}
 		return s.classifyAccepted(ctx, slot, body)
 	}
 	switch {

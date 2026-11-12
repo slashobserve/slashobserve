@@ -196,22 +196,23 @@ type DashboardStar struct {
 }
 
 type DashboardVersion struct {
-	DashboardID    pgtype.UUID
-	Version        int32
-	ParentVersion  pgtype.Int4
-	RestoredFrom   pgtype.Int4
-	Spec           []byte
-	Summary        string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	AgentRequestID pgtype.UUID
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	DatasourceUids []string
-	Unverified     []byte
+	DashboardID      pgtype.UUID
+	Version          int32
+	ParentVersion    pgtype.Int4
+	RestoredFrom     pgtype.Int4
+	Spec             []byte
+	Summary          string
+	AuthorKind       string
+	AuthorID         pgtype.UUID
+	AuthorName       string
+	AuthorEmail      pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	AgentRequestID   pgtype.UUID
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	DatasourceUids   []string
+	Unverified       []byte
+	MergedProposalID pgtype.UUID
 }
 
 type DashboardView struct {
@@ -469,6 +470,35 @@ type OutboundDomain struct {
 	CreatedByName string
 }
 
+type Proposal struct {
+	ID           pgtype.UUID
+	DashboardID  pgtype.UUID
+	State        string
+	Title        string
+	Revision     int32
+	AuthorKind   string
+	AuthorID     pgtype.UUID
+	AuthorName   string
+	Origin       pgtype.Text
+	OriginClient pgtype.Text
+	RunID        pgtype.UUID
+	ClosedAt     pgtype.Timestamptz
+	ClosedByKind pgtype.Text
+	ClosedByID   pgtype.UUID
+	ClosedByName pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type ProposalRevision struct {
+	ProposalID  pgtype.UUID
+	Revision    int32
+	BaseVersion int32
+	Spec        []byte
+	Summary     string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type ProvisionError struct {
 	Path    string
 	Message string
@@ -612,6 +642,7 @@ type Thread struct {
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
 	ObservationID        pgtype.UUID
+	ProposalID           pgtype.UUID
 }
 
 type ThreadMention struct {
