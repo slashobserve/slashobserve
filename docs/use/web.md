@@ -105,6 +105,12 @@ The PNG is the panel's body at twice the screen's pixel density, on the page's b
 **Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
 The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
 
+## Add to an observation
+
+**Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.
+The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is missing while you edit the layout.
+[Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs) describes the side panel and the range the block takes.
+
 ## Search
 
 Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the top bar, and type at least two characters.

@@ -53,7 +53,7 @@ On Loki the query must start with a stream selector.
 When a run fails, the box says "No results." with the time and size of the last good run, and on Elasticsearch and OpenSearch a **Check the datasource** link.
 When the page shows 1,000 lines it adds the note "Showing the newest 1,000 lines. Narrow the query or the time range."
 The results have no page bar and no way to load older lines, so narrow the query or the time range to reach them.
-**Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
+**Live tail**, **Add to dashboard** and **Add to observation** stay disabled until a query has run, and say "Run a query first."
 
 ### Results toolbar and columns
 
@@ -251,6 +251,13 @@ You need Edit on the target dashboard.
 The panel is full width and goes at the bottom of the dashboard, inside the last row when that row is collapsed, and the save makes a new version.
 The save runs the query over the dashboard's time range and refuses a panel that returns no lines there.
 The panel's menu offers the way back with **Open in Logs** or **Open in Traces**, which opens the explorer with the panel's query and the dashboard's time range.
+
+## Add to an observation
+
+**Add to observation** copies the search you ran into an [observation](observations.md) as a logs panel named Logs, with the datasource, the query and the time range the page shows.
+The side panel offers an open observation or a new one, the same as **Add to observation** in a dashboard panel's menu, and describes what is added and what is refused in [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs).
+When the page was opened from **Logs** in an observation's row of **Add a block**, its address carries `observation=<id>`, and that observation is preselected when it is open.
+The block stays live on the page, so it runs the query when the page is open.
 
 ## Trace view
 
