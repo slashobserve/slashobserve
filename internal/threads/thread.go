@@ -95,6 +95,7 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 			Name:   row.AuthorName,
 			Origin: row.Origin,
 			Client: row.OriginClient,
+			RunID:  row.RunID,
 		}),
 		AuthorEmail: row.AuthorEmail.String,
 		CreatedAt:   row.CreatedAt.Time.UTC(),

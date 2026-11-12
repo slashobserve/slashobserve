@@ -141,7 +141,7 @@ func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
 type Threads interface {
 	ForRun(ctx context.Context, dashboardID, commentID pgtype.UUID) (threadID pgtype.UUID, panelID string, err error)
-	ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
+	RunEnded(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
 }
 
 type RunObservationOpen struct {
@@ -204,6 +204,8 @@ type Request struct {
 
 	Continues    bool
 	ContinueNote string
+
+	ThreadContext string
 
 	From, To *time.Time
 }

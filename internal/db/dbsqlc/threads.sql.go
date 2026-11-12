@@ -187,6 +187,17 @@ func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (ThreadMessage
 	return i, err
 }
 
+const getRunProposalTitle = `-- name: GetRunProposalTitle :one
+SELECT title FROM proposals WHERE run_id = $1 ORDER BY created_at DESC, id LIMIT 1
+`
+
+func (q *Queries) GetRunProposalTitle(ctx context.Context, runID pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getRunProposalTitle, runID)
+	var title string
+	err := row.Scan(&title)
+	return title, err
+}
+
 const getThread = `-- name: GetThread :one
 SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id FROM threads WHERE id = $1
 `
@@ -307,6 +318,55 @@ func (q *Queries) InsertMention(ctx context.Context, arg InsertMentionParams) er
 		arg.Name,
 	)
 	return err
+}
+
+const insertRunReply = `-- name: InsertRunReply :one
+INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id)
+SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
+  $6::text, $7::text, $8::uuid
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id
+`
+
+type InsertRunReplyParams struct {
+	ThreadID     pgtype.UUID
+	Body         string
+	AuthorKind   string
+	AuthorID     pgtype.UUID
+	AuthorName   string
+	Origin       pgtype.Text
+	OriginClient pgtype.Text
+	RunID        pgtype.UUID
+}
+
+func (q *Queries) InsertRunReply(ctx context.Context, arg InsertRunReplyParams) (ThreadMessage, error) {
+	row := q.db.QueryRow(ctx, insertRunReply,
+		arg.ThreadID,
+		arg.Body,
+		arg.AuthorKind,
+		arg.AuthorID,
+		arg.AuthorName,
+		arg.Origin,
+		arg.OriginClient,
+		arg.RunID,
+	)
+	var i ThreadMessage
+	err := row.Scan(
+		&i.ID,
+		&i.ThreadID,
+		&i.Body,
+		&i.AuthorKind,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorEmail,
+		&i.Origin,
+		&i.OriginClient,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.EditedAt,
+		&i.RunID,
+	)
+	return i, err
 }
 
 const listMentions = `-- name: ListMentions :many
@@ -475,6 +535,17 @@ SELECT id FROM observations WHERE id = $1 FOR KEY SHARE
 
 func (q *Queries) LockObservationKeyShare(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockObservationKeyShare, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockObservationKeyShareSkipLocked = `-- name: LockObservationKeyShareSkipLocked :one
+SELECT id FROM observations WHERE id = $1 FOR KEY SHARE SKIP LOCKED
+`
+
+func (q *Queries) LockObservationKeyShareSkipLocked(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockObservationKeyShareSkipLocked, id)
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err

@@ -187,6 +187,8 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread as the person who asked, with the run's byline; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
+
 `create_finding` is deprecated: use `create_observation` and then `add_block`.
 It saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
 The answer is written into an observation, and the result carries the finding's `observation_id` and its `url`, which is that observation's address.
@@ -447,6 +449,8 @@ The loop of an agent that takes runs:
 1. Call `claim_run`, which waits up to `wait_seconds` (30 by default) and answers `run: null` when nothing is waiting.
    Call it again.
 2. A claimed run holds its `id`, `attempt`, `kind`, `prompt` and target, a `session` with a `url` and a `token`, and the `observe` prompt to read with the run's `kind`.
+   When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
+   The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.

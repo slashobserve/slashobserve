@@ -26,7 +26,7 @@ func (r *rig) runFor(t *testing.T, dash pgtype.UUID, comment Comment, resultVers
 func (r *rig) resolveForRun(t *testing.T, run dbsqlc.AgentRequest) error {
 	t.Helper()
 	return r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).ResolveForRun(t.Context(), q, run)
+		return NewRuns(r.db.DB).RunEnded(t.Context(), q, run)
 	})
 }
 

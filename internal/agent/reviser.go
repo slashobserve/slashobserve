@@ -68,7 +68,7 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 
 func taskFor(req revisions.Request) Task {
 	task := Task{
-		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote,
+		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext,
 		DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy,
 		Investigate: req.Source == revisions.SourceInvestigate, From: req.From, To: req.To,
 	}

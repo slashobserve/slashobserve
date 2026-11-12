@@ -230,13 +230,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		if updated.AgentRequest.State == updated.PriorState {
 			return nil
 		}
-		if err := recordRun(ctx, q, updated.AgentRequest, ActionCancel); err != nil {
-			return err
-		}
-		if State(updated.AgentRequest.State) == StateSucceeded {
-			s.resolveThread(ctx, savepoint, updated.AgentRequest)
-		}
-		return nil
+		return s.recordEnded(ctx, q, savepoint, updated.AgentRequest, ActionCancel)
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -264,6 +258,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 			return err
 		}
 		var err error
+		threadMessage, threadContext := threadOf(row)
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
@@ -275,6 +270,9 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				By:           by,
 				ContinuesID:  row.ID,
 				ContinueNote: note,
+
+				ThreadMessageID: threadMessage,
+				ThreadContext:   threadContext,
 			})
 		} else {
 			next, err = s.enqueueObserve(ctx, q, by, row.Prompt, row.ID, note)
@@ -331,6 +329,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			Allowed: actionStrings(allowedActions(facts)),
 		}
 	}
+	threadMessage, threadContext := threadOf(row)
 	switch Source(row.Source) {
 	case SourceObserve:
 		return s.SubmitObserve(ctx, by, row.Prompt)
@@ -345,10 +344,26 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 
 			ObservationID:    row.ObservationID,
 			ReuseObservation: true,
+
+			ThreadMessageID: threadMessage,
+			ThreadContext:   threadContext,
 		})
 	default:
-		return s.SubmitFollowUp(ctx, row.DashboardID, nil, "", row.Prompt, by)
+		return s.submitFollowUp(ctx, EnqueueParams{
+			DashboardID:     row.DashboardID,
+			Prompt:          row.Prompt,
+			By:              by,
+			ThreadMessageID: threadMessage,
+			ThreadContext:   threadContext,
+		}, nil)
 	}
+}
+
+func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
+	if !row.ThreadMessageID.Valid {
+		return pgtype.UUID{}, ""
+	}
+	return row.ThreadMessageID, row.ThreadContext.String
 }
 
 func checkContinuable(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {

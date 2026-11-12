@@ -41,11 +41,24 @@ SELECT observation_id FROM findings WHERE id = @id;
 -- name: LockObservationKeyShare :one
 SELECT id FROM observations WHERE id = @id FOR KEY SHARE;
 
+-- name: LockObservationKeyShareSkipLocked :one
+SELECT id FROM observations WHERE id = @id FOR KEY SHARE SKIP LOCKED;
+
 -- name: LockProposalKeyShare :one
 SELECT id FROM proposals WHERE id = @id FOR KEY SHARE;
 
 -- name: LockAnnotationKeyShare :one
 SELECT id FROM annotations WHERE id = @id FOR KEY SHARE;
+
+-- name: InsertRunReply :one
+INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id)
+SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
+RETURNING *;
+
+-- name: GetRunProposalTitle :one
+SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id LIMIT 1;
 
 -- name: GetMessage :one
 SELECT * FROM thread_messages WHERE id = @id;

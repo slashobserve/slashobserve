@@ -142,7 +142,7 @@ func TestDeleteWaitsForARunResolvingItsThread(t *testing.T) {
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
 	run := r.runFor(t, dash, comment, 2)
 	resolving := r.hold(t, func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).ResolveForRun(t.Context(), q, run)
+		return NewRuns(r.db.DB).RunEnded(t.Context(), q, run)
 	})
 
 	deleted := make(chan error, 1)

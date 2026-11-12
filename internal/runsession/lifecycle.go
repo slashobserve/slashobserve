@@ -271,7 +271,7 @@ func (sess *session) commit(ctx context.Context) (restarted bool, err error) {
 func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 	return brief.Task{
 		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
-		From: req.From, To: req.To, ContinueNote: req.ContinueNote, Continues: req.Continues, Attempt: req.Attempt,
+		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
 	}
 }
 

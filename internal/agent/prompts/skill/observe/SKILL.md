@@ -58,6 +58,8 @@ create_comment opens a thread on a dashboard, a finding or an annotation, edit_c
 A comment that mentions @observe addresses SlashObserve's own agent, and the mention is recorded in the activity log and by default starts no run.
 Set start_runs on create_comment or reply_to_comment, with exactly one agent mentioned, to start a run for it: @observe, one of your own connected agents or a service account that takes runs, written as the token the person gave you.
 A thread on a dashboard starts a comment run; a thread on an observation stores the message and starts nothing, because a person starts investigations in the web app or the CLI; the result's run_refusal says why none started.
+A run you claim that a message started carries thread_context, the earlier messages of that thread, oldest first: read it before you answer.
+The server posts the run's status in the thread when it ends, so do not reply there to say you are done.
 
 ## Limits
 

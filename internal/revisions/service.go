@@ -176,26 +176,24 @@ func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, SourcePrompt, dashboardID, by); err != nil {
+	return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, PanelID: panelID, Prompt: prompt, By: by}, baseVersion)
+}
+
+func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
+	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	latest, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
+	latest, base, err := s.baseVersionFor(ctx, p.DashboardID, baseVersion)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if panelID != "" {
-		if err := s.checkPanel(ctx, dashboardID, latest, panelID); err != nil {
+	if p.PanelID != "" {
+		if err := s.checkPanel(ctx, p.DashboardID, latest, p.PanelID); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
 	}
-	return s.submit(ctx, EnqueueParams{
-		DashboardID: dashboardID,
-		Source:      SourcePrompt,
-		Prompt:      prompt,
-		PanelID:     panelID,
-		BaseVersion: base,
-		By:          by,
-	})
+	p.Source, p.BaseVersion = SourcePrompt, base
+	return s.submit(ctx, p)
 }
 
 func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
@@ -718,13 +716,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return fmt.Errorf("finish agent request: %w", err)
 		}
 		finished = true
-		if err := recordRun(ctx, q, row, action); err != nil {
-			return err
-		}
-		if State(row.State) == StateSucceeded {
-			s.resolveThread(ctx, savepoint, row)
-		}
-		return nil
+		return s.recordEnded(ctx, q, savepoint, row, action)
 	})
 	return finished, err
 }
@@ -754,13 +746,7 @@ func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, chec
 			return fmt.Errorf("settle released agent request: %w", err)
 		}
 		released = true
-		if err := recordRun(ctx, q, row, ActionSettle); err != nil {
-			return err
-		}
-		if State(row.State) == StateSucceeded {
-			s.resolveThread(ctx, savepoint, row)
-		}
-		return nil
+		return s.recordEnded(ctx, q, savepoint, row, ActionSettle)
 	})
 	return released, err
 }
@@ -795,13 +781,21 @@ func (s *Service) hasProposal(ctx context.Context, claimed dbsqlc.AgentRequest) 
 	return found, nil
 }
 
-func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
-	if s.threads == nil {
+func (s *Service) recordEnded(ctx context.Context, q *dbsqlc.Queries, savepoint db.Savepoint, row dbsqlc.AgentRequest, action Action) error {
+	if err := recordRun(ctx, q, row, action); err != nil {
+		return err
+	}
+	s.runEnded(ctx, savepoint, row)
+	return nil
+}
+
+func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
+	if s.threads == nil || !State(row.State).Terminal() {
 		return
 	}
-	err := savepoint(func(q *dbsqlc.Queries) error { return s.threads.ResolveForRun(ctx, q, row) })
+	err := savepoint(func(q *dbsqlc.Queries) error { return s.threads.RunEnded(ctx, q, row) })
 	if err != nil {
-		s.logger.WarnContext(ctx, "resolve comment thread of a succeeded agent request", logattrs.Failure("agent_request_thread_resolve_failed", err, slog.String("agent_request_id", row.ID.String()))...)
+		s.logger.WarnContext(ctx, "answer in the thread of an ended agent request", logattrs.Failure("agent_request_thread_end_failed", err, slog.String("agent_request_id", row.ID.String()))...)
 	}
 }
 

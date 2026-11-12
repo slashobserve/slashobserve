@@ -28,11 +28,8 @@ func (s *Service) sweep(ctx context.Context, q *dbsqlc.Queries, savepoint db.Sav
 		action Action
 	}{{exhausted, ActionExhaust}, {settled, ActionSettle}, {expired, ActionExpire}} {
 		for _, row := range group.rows {
-			if err := recordRun(ctx, q, row, group.action); err != nil {
+			if err := s.recordEnded(ctx, q, savepoint, row, group.action); err != nil {
 				return err
-			}
-			if State(row.State) == StateSucceeded {
-				s.resolveThread(ctx, savepoint, row)
 			}
 		}
 	}
