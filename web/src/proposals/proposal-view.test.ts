@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest"
 
 import type { MergeConflict, Proposal, ProposalSummary } from "./queries"
-import {
-  changeRows,
-  choicesFrom,
-  proposalActor,
-  stateLine,
-  unitKey,
-} from "./proposal-view"
+import { changeRows, choicesFrom, stateLine, unitKey } from "./proposal-view"
 
 const ada = {
   kind: "user" as const,
   id: "5f0a8e3c-2b7d-4e0b-a1c4-7d6f0e9b2c11",
   name: "Ada",
+}
+
+const adaActor = {
+  ...ada,
+  origin: "web" as const,
+  client: null,
+  run_id: null,
+  label: "Ada",
 }
 
 function summary(over: Partial<ProposalSummary> = {}): ProposalSummary {
@@ -25,6 +27,7 @@ function summary(over: Partial<ProposalSummary> = {}): ProposalSummary {
     base_version: 3,
     summary: "",
     author: ada,
+    actor: adaActor,
     origin: "web",
     origin_client: null,
     run_id: null,
@@ -210,34 +213,5 @@ describe("stateLine", () => {
     ],
   ])("reads %#", (item, expected) => {
     expect(stateLine(item)).toBe(expected)
-  })
-})
-
-describe("proposalActor", () => {
-  it("labels a run's proposal as Observe Agent for the person", () => {
-    expect(
-      proposalActor(summary({ run_id: "7c1f0a52-9d3e-4a8b-8f2c-1e6d5b4a3c90" }))
-    ).toMatchObject({
-      label: "Observe Agent for Ada",
-      run_id: "7c1f0a52-9d3e-4a8b-8f2c-1e6d5b4a3c90",
-    })
-  })
-
-  it("labels an MCP proposal with its client, or MCP when it sent none", () => {
-    expect(
-      proposalActor(summary({ origin: "mcp", origin_client: "Claude Code" }))
-        .label
-    ).toBe("Ada (via Claude Code)")
-    expect(proposalActor(summary({ origin: "mcp" })).label).toBe(
-      "Ada (via MCP)"
-    )
-  })
-
-  it("uses the plain name for a person on the web", () => {
-    expect(proposalActor(summary())).toMatchObject({
-      label: "Ada",
-      client: null,
-      origin: "web",
-    })
   })
 })

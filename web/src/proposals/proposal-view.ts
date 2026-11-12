@@ -1,5 +1,4 @@
 import { panelTitles } from "@/history/diff-groups"
-import type { Actor } from "@/lib/author"
 
 import type {
   MergeChoice,
@@ -120,28 +119,5 @@ export function stateLine(proposal: ProposalSummary): string {
       return proposal.closed_by === null
         ? "Discarded"
         : `Discarded by ${proposal.closed_by.name}`
-  }
-}
-
-export function proposalActor(
-  proposal: Pick<
-    ProposalSummary,
-    "author" | "origin" | "origin_client" | "run_id"
-  >
-): Actor {
-  const { author, origin, origin_client, run_id } = proposal
-  let label = author.name
-  if (run_id !== null) label = `Observe Agent for ${author.name}`
-  else if (origin === "mcp") {
-    label = `${author.name} (via ${origin_client ?? "MCP"})`
-  }
-  return {
-    kind: author.kind,
-    id: author.id,
-    name: author.name,
-    origin,
-    client: origin === "mcp" ? origin_client : null,
-    run_id,
-    label,
   }
 }

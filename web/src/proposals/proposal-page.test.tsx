@@ -22,6 +22,8 @@ const ada = {
   name: "Ada",
 }
 
+const runId = "7c1f0a52-9d3e-4a8b-8f2c-1e6d5b4a3c90"
+
 const clash: MergeConflict = {
   kind: "panel",
   id: "p-errors",
@@ -39,9 +41,16 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     base_version: 3,
     summary: "Raises the threshold",
     author: ada,
+    actor: {
+      ...ada,
+      origin: "web",
+      client: null,
+      run_id: runId,
+      label: "Observe Agent for Ada",
+    },
     origin: "web",
     origin_client: null,
-    run_id: null,
+    run_id: runId,
     created_at: "2026-11-11T10:00:00Z",
     updated_at: "2026-11-11T10:00:00Z",
     closed_at: null,
@@ -143,6 +152,7 @@ describe("ProposalPage", () => {
         "Open, based on version 3. The dashboard is now at version 4."
       )
     ).toBeTruthy()
+    expect(screen.getByText("Observe Agent for Ada")).toBeTruthy()
     expect(screen.getByText("Errors")).toBeTruthy()
     expect(
       screen.getByText("Both you and the proposal changed Errors.")

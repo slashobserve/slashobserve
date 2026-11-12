@@ -10,7 +10,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { proposalLink } from "@/lib/links"
-import { proposalActor } from "@/proposals/proposal-view"
 import { dashboardProposalsQuery } from "@/proposals/queries"
 
 export function ProposalsButton({ dashboardId }: { dashboardId: string }) {
@@ -37,7 +36,7 @@ export function ProposalsButton({ dashboardId }: { dashboardId: string }) {
                   {proposal.title}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                  <span>{proposalActor(proposal).label}</span>
+                  <span>{proposal.actor.label}</span>
                   <RelativeTime iso={proposal.created_at} />
                   {proposal.behind ? <span>Behind</span> : null}
                 </span>

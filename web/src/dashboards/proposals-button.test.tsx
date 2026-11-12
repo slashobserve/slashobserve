@@ -17,6 +17,15 @@ function proposal(id: string, over: object = {}) {
     base_version: 3,
     summary: "",
     author: { kind: "user", id: "u1", name: "Ada" },
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "mcp",
+      client: "Claude Code",
+      run_id: null,
+      label: "Ada (via Claude Code)",
+    },
     origin: "web",
     origin_client: null,
     run_id: null,
@@ -68,7 +77,7 @@ describe("ProposalsButton", () => {
       "/proposals/p1",
       "/proposals/p2",
     ])
-    expect(links[0]?.textContent).toContain("Ada")
+    expect(links[0]?.textContent).toContain("Ada (via Claude Code)")
     expect(links[0]?.textContent).not.toContain("Behind")
     expect(links[1]?.textContent).toContain("Behind")
   })

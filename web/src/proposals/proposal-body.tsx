@@ -12,7 +12,6 @@ import { dashboardLink } from "@/lib/links"
 import { ConflictChoices, type Side } from "./conflict-choices"
 import {
   changeRows,
-  proposalActor,
   stateLine,
   type ChangeRow,
   type Picks,
@@ -79,7 +78,7 @@ export function ProposalBody({
     () => changeRows(proposal, panelTitles(latestSpec)),
     [proposal, latestSpec]
   )
-  const actor = proposalActor(proposal)
+  const { actor } = proposal
   return (
     <div className="flex flex-col gap-4">
       <Heading className="text-xl font-semibold wrap-anywhere">
