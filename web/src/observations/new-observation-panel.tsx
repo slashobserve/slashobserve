@@ -1,5 +1,4 @@
 import { useId, useRef, useState, type FormEvent, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 
@@ -7,18 +6,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { foldersQuery } from "@/folders/queries"
 import { observationLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
+import { FolderSelect } from "./folder-select"
 import { useCreateObservation } from "./queries"
 
 type Props = {
@@ -38,20 +30,12 @@ export function NewObservationPanel({ onClose, trigger }: Props) {
   const ids = useId()
   const titleInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const folders = useQuery(foldersQuery())
   const create = useCreateObservation()
   const [title, setTitle] = useState("")
   const [folderId, setFolderId] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
-  const folderItems = (folders.data ?? [])
-    .filter((folder) => folder.permissions.edit)
-    .toSorted((a, b) => Number(b.personal) - Number(a.personal))
-    .map((folder) => ({
-      value: folder.id,
-      label: folder.personal ? "My Dashboards" : folder.title,
-    }))
   const invalid = titleError(title)
   const showError = invalid !== null && (submitted || title.length > 0)
   const errorId = `${ids}-title-error`
@@ -140,23 +124,12 @@ export function NewObservationPanel({ onClose, trigger }: Props) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${ids}-folder`}>Folder</Label>
-          <Select
-            items={folderItems}
+          <FolderSelect
+            id={`${ids}-folder`}
             value={folderId}
             disabled={create.isPending}
-            onValueChange={setFolderId}
-          >
-            <SelectTrigger id={`${ids}-folder`} className="w-full">
-              <SelectValue placeholder="Default folder" />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} align="start">
-              {folderItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={setFolderId}
+          />
         </div>
         {problem !== null ? (
           <Alert variant="destructive">
