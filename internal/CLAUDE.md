@@ -26,7 +26,7 @@ This lists only the packages whose purpose the name does not make obvious.
   A limit is divided among servers with `Share` only when it caps a total over every caller of a resource all servers share that has no backpressure (datasource calls); a per-caller limit or a limit on the process's own capacity stays per process.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
-  A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.
+  A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; `TestMCPOnlyTools` pins the list of MCP-only tools and `TestAgentDoesNotOfferMCPOnlyTools` (`internal/agent/agent_test.go`) their count, so a new MCP-only tool updates both.
   `docs/use/mcp.md` has one row per MCP tool with its lowest role, and `docs_test.go` fails when a tool has no row or the wrong role.
 - `agent/prompts/skill`: the `/observe` skill file and its body, a leaf package so the CLI can embed it without the Spec; the MCP prompt `observe` serves its body.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
@@ -47,7 +47,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `dashboard_comments` is frozen after migration 00028: nothing reads or writes it, and the migration's Down rebuilds it from threads.
 - `mcpauth`: the OAuth 2.1 authorization server for MCP clients: metadata, dynamic registration, authorize, token, revoke, the consent and connected-agent API, and `Authenticate`, the only reader of OAuth access tokens; `cmd/slashobserve-server/main.go` composes it with service-account keys for `/mcp`, so `auth` never imports it.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
-- `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
+- `public`: public links to a dashboard or to one revision of an RCA, their tokens, the public Spec without query text, the frozen and free variable rule (`EffectiveSelections`) and the stored RCA view with its snapshot frames, which never touch the live observation; `proxyhttp` imports it, never the reverse.
 - `health`: the `dashboard_health` job, registered hourly in `cmd/slashobserve-server/main.go`, the `/health` routes and dashboard opens (`dashboard_views`, written by `POST /dashboards/{id}/views` for people only).
   `Service` holds the job, the list and views and is built before the tool registry; `Repairs` takes the revisions service.
   A run stops after 8 minutes, under the scheduler's 10 minute lease, checks 2 dashboards at once with `CheckSpec` over the last 7 days and no user, and skips dashboards checked in the last 23 hours, so each is checked about once a day.
@@ -84,15 +84,17 @@ This lists only the packages whose purpose the name does not make obvious.
   The services' folder checks decide the rest.
   `MinRole` is checked when the tool is called, not when tools are listed, and not inside agent runs.
   `TestToolRoles` enforces the rule.
+  The observation tools and `publish_rca` are therefore Viewer tools, and the observation's folder decides what a call may do.
+  An agent or MCP block write goes through the same evidence checks as a finding's panels (`checkPanel`), and a snapshot or an RCA never carries query text (`withoutQueries`).
 - Every `/api/v1` route except `/api/v1/auth/*` and `/api/v1/public/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
   Feature packages register through `Register(api auth.Routes)`; in `queryproxy/proxyhttp` each handler file registers its routes with `registerRoutes` in its own `init`, and `Register` only replays them.
   They never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
-  Only `public.Handler` and `proxyhttp.PublicData` register there.
+  Only `public.Handler` (the dashboard view, the RCA view and the RCA snapshot frames) and `proxyhttp.PublicData` (panel data and variable values) register there.
   Handlers never check roles.
   `auth.RequireUser` is a separate principal-kind check after the role, so a key cannot manage keys whatever its role.
 - The OIDC `groups` scope is requested only when discovery lists it in `scopes_supported`.
 - Sessions, keys, public link tokens and OAuth codes, access and refresh tokens are opaque random tokens made by `opaquetoken.New` and stored only as SHA-256.
-  Request and panic logs pass the path through `loggedPath`, which replaces the token of `/api/v1/public/<token>` and `/p/<token>` with `:token`.
+  Request and panic logs pass the path through `loggedPath`, which replaces the token of `/api/v1/public/<token>`, `/p/<token>` and `/rca/<token>` with `:token`.
 - Creating, listing and revoking a public link needs Manage on the dashboard's folder; the routes declare `RequireDashboard(NeedView)` and `public.Service` decides, so a dashboard in a personal folder answers 409 `personal_folder` and one whose latest version reads `${__user.*}` answers 422 `user_scoped`.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
 - Origin, an actor and its label are display only and never an access decision; access always reads `auth.Principal`.
