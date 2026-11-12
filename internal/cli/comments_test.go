@@ -65,7 +65,7 @@ func TestCommentsCommands(t *testing.T) {
 		threadJSON(testReply, "dashboard", testDashboard, testPanel, false, "resolved", "2"),
 	}, ",") + `],"messages":[` + strings.Join([]string{
 		messageJSON(testThread, testThread, "Ada", "is this real?"),
-		messageJSON("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", testThread, "/observe for Sam", "yes, see the finding"),
+		messageJSON("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", testThread, "Observe Agent for Sam", "yes, see the finding"),
 		messageJSON(testReply, testReply, "Eve\u202eevil", "gone panel"),
 	}, ",") + `],"next_cursor":"next","can_comment":true}`
 	threadResolved := func(version string) string {
@@ -259,7 +259,7 @@ func TestCommentsCommands(t *testing.T) {
 			wantQuery:  "limit=50&status=open&target=finding%3A" + testFinding,
 			wantOut: []string{
 				testThread + " - finding open Ada",
-				"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee " + testThread + " finding open /observe for Sam",
+				"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee " + testThread + " finding open Observe Agent for Sam",
 				testReply + " - " + testPanel + " (removed) resolved Eve evil",
 			},
 			wantNotOut: []string{"\u202e"},
