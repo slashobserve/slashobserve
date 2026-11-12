@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding or annotation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation or observation it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -817,12 +817,15 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List the comments of a dashboard across all versions, oldest first. */
+        /**
+         * List the comments of a dashboard across all versions, oldest first.
+         * @description Each thread's first comment carries `allowed_actions`, what the caller may do with the thread now, and a reply carries none.
+         */
         get: operations["listDashboardComments"];
         put?: never;
         /**
          * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `/observe for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -862,14 +865,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the comment threads on a dashboard, a finding or an annotation.
-         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins. A target the caller cannot see answers 404, never 403.
+         * List the comment threads on a dashboard, a finding, an annotation or an observation.
+         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, a finding or annotation on a dashboard follows that dashboard, a global annotation follows the General folder, and a finding without a dashboard follows the folder it is filed in, and one in no folder is visible to its creator and to Admins, and an observation follows the folder it is in. A target the caller cannot see answers 404, never 403.
          */
         get: operations["listThreads"];
         put?: never;
         /**
-         * Start a thread on a dashboard, a finding or an annotation.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding or an annotation. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)` and the built-in agent with `@observe`, at most 20 mentions in a message. A mention is recorded and shows in the activity log; it starts no agent run and notifies no one. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread never queues an agent revision; send a comment with `request_revision` to a dashboard for that. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * Start a thread on a dashboard, a finding, an annotation or an observation.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding, an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)` and the built-in agent with `@observe`, at most 20 mentions in a message. A mention is recorded and shows in the activity log; it starts no agent run and notifies no one. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread never queues an agent revision; send a comment with `request_revision` to a dashboard for that. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1495,7 +1498,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -1816,6 +1819,357 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the observations in the folders the caller can see, most recently changed first.
+         * @description Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404. The items carry no blocks; read one observation for them.
+         */
+        get: operations["listObservations"];
+        put?: never;
+        /**
+         * Start an observation, a page of blocks in a folder.
+         * @description Needs Edit on the folder; without `folder_id` it is filed in the caller's My Dashboards, then General. `first_block` writes a text or panel block in the same transaction. The observation is `open`, has no discussion thread until someone opens one, and is found by search by its title, summary and text blocks.
+         */
+        post: operations["createObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one observation with its blocks.
+         * @description Anyone who can view the observation's folder reads every block, requested ones included. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
+         */
+        get: operations["getObservation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change an observation's title or time range.
+         * @description Needs Edit on the folder. Allowed whether the observation is open or resolved.
+         */
+        patch: operations["updateObservation"];
+        trace?: never;
+    };
+    "/observations/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move an observation to another folder.
+         * @description Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`). Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing. There is no delete route: moving is the way out of a folder.
+         */
+        post: operations["moveObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close an open observation with a one-line summary.
+         * @description Needs Edit on the folder. A resolved observation answers 409 `invalid_transition`.
+         */
+        post: operations["resolveObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a resolved observation.
+         * @description Needs Edit on the folder. The summary is kept. An open observation answers 409 `invalid_transition`.
+         */
+        post: operations["reopenObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a block to an observation.
+         * @description With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403. A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's. Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data. An observation holds at most 100 blocks and 24 panel and snapshot blocks together.
+         */
+        post: operations["addObservationBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a live block.
+         * @description Needs Edit on the folder and the block's current `version`, as a query parameter. A requested block is kept or discarded instead (409 `invalid_transition`). The blocks after it close the gap.
+         */
+        delete: operations["removeObservationBlock"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a block's body, width or position.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A `position` moves the block and shifts the blocks between, which keep their versions.
+         */
+        patch: operations["updateObservationBlock"];
+        trace?: never;
+    };
+    "/blocks/{id}/keep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep a requested block, which makes it live.
+         * @description Needs Edit on the folder and the block's current `version`. A live block answers 409 `invalid_transition`.
+         */
+        post: operations["keepObservationBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard a requested block.
+         * @description Needs Edit on the folder, or being the person or key that asked for the block. A live block answers 409 `invalid_transition`.
+         */
+        post: operations["discardObservationBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the query of a panel block and return its frames.
+         * @description Runs a panel block's stored queries under the draft query limits, never cached. Only browser sessions may call it; a key gets 403 `user_session_required`. Anyone who can view the observation's folder may call it, and `from` and `to` default to the block's range, then the observation's, then the last hour. The response has the shape of panel data.
+         */
+        get: operations["observationBlockData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/snapshots/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the frozen data of a snapshot block.
+         * @description Anyone who can view the observation's folder may read it. `data` is exactly what the panel data route returned when the snapshot was taken, and `query` the frozen panel's queries, which stay inside the workspace.
+         */
+        get: operations["getSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/rcas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the published revisions of an observation's RCA, newest first.
+         * @description Anyone who can view the observation's folder may list them.
+         */
+        get: operations["listRcas"];
+        put?: never;
+        /**
+         * Publish an observation as the next revision of its RCA.
+         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
+         */
+        post: operations["publishRca"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/rcas/{revision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one published revision of an observation's RCA.
+         * @description Anyone who can view the observation's folder may read it.
+         */
+        get: operations["getRca"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/rcas/{revision}/public-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the public links of one revision of an RCA.
+         * @description Lists the links newest first, without their tokens. Only someone who manages the observation's folder may list them.
+         */
+        get: operations["listRcaPublicLinks"];
+        put?: never;
+        /**
+         * Create a public link that shows one revision of an RCA without sign-in.
+         * @description Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403). The link shows the frozen revision with its snapshots, never a live panel or a query. The response carries the token and the link's URL once. An observation keeps at most 20 links across all its revisions (409 `too_many_links`). A revision with a snapshot of data that depends on who is viewing cannot be shared (422 `user_scoped`).
+         */
+        post: operations["createRcaPublicLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/public-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a public link of an RCA.
+         * @description Deletes the link, so its URL stops working at once. Needs Manage on the observation's folder, like creating it.
+         */
+        delete: operations["deleteRcaPublicLink"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2571,6 +2925,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/{token}/rca": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the RCA revision a public link shows.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the frozen revision with the name of whoever published it; no observation id, actor id, query or datasource uid is part of it. A token that is malformed, unknown, revoked or expired answers 404 `not_found`.
+         */
+        get: operations["viewPublicRca"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}/rca/snapshots/{snapshot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the frozen data of a snapshot of the RCA a public link shows.
+         * @description Needs no session or key: the token in the path is the only credential. Answers only for a snapshot that is part of the link's revision, with the data as it was frozen and no query. Anything else, including a token that is malformed, unknown, revoked or expired, answers 404 `not_found`.
+         */
+        get: operations["viewPublicRcaSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3215,11 +3616,11 @@ export interface components {
              * @description The agent request when the built-in agent made the change for this person or key; else null.
              */
             run_id: string | null;
-            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `/observe for <name>` when the built-in agent acted. */
+            /** @description The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted. */
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -3230,10 +3631,10 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "thread" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "thread" | "run";
                 /**
                  * Format: uuid
-                 * @description The id of the dashboard, annotation, finding, saved search, comment thread or agent request the event is about.
+                 * @description The id of the dashboard, annotation, finding, saved search, observation, comment thread or agent request the event is about.
                  */
                 id: string;
             };
@@ -3271,14 +3672,14 @@ export interface components {
         /** @description What a comment is on; null for every other kind. */
         SearchTarget: {
             /** @enum {string} */
-            kind: "dashboard" | "finding" | "annotation";
+            kind: "dashboard" | "finding" | "annotation" | "observation";
             /** Format: uuid */
             id: string;
             title: string;
         } | null;
         SearchResult: {
             /** @enum {string} */
-            kind: "dashboard" | "finding" | "annotation" | "comment" | "saved_search";
+            kind: "dashboard" | "finding" | "annotation" | "observation" | "comment" | "saved_search";
             /**
              * Format: uuid
              * @description The id of the object, or of the message for a comment.
@@ -3469,6 +3870,8 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "resolved";
+            /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
+            allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
             author: components["schemas"]["Author"];
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
@@ -3483,7 +3886,7 @@ export interface components {
             /** Format: date-time */
             resolved_at: string | null;
             resolved_by: components["schemas"]["Author"] | null;
-            /** @description Who resolved the thread, with the one `label` to show; `/observe for <name>` when an agent run did. Null on a reply and on an open thread. */
+            /** @description Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread. */
             resolved_actor: components["schemas"]["Actor"] | null;
             /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
             resolved_by_version: number | null;
@@ -3520,7 +3923,7 @@ export interface components {
             id: string;
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "finding" | "annotation";
+                kind: "dashboard" | "finding" | "annotation" | "observation";
                 /** Format: uuid */
                 id: string;
             };
@@ -3545,7 +3948,7 @@ export interface components {
             updated_at: string;
             /** Format: date-time */
             resolved_at: string | null;
-            /** @description Who resolved the thread, `/observe for <name>` when an agent run did; null while it is open. */
+            /** @description Who resolved the thread, `Observe Agent for <name>` when an agent run did; null while it is open. */
             resolved_actor: components["schemas"]["Actor"] | null;
             /** @description The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded. */
             resolved_by_version: number | null;
@@ -4255,6 +4658,11 @@ export interface components {
              * @description The end of the window an investigation was asked to look at; null when none was given.
              */
             to: string | null;
+            /**
+             * Format: uuid
+             * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
+             */
+            observation_id: string | null;
             /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
             finding: components["schemas"]["Finding"] | null;
         };
@@ -4321,6 +4729,11 @@ export interface components {
             continued_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
+            /**
+             * Format: uuid
+             * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
+             */
+            observation_id: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -5196,8 +5609,340 @@ export interface components {
             code: "cannot_translate";
             reason: string;
         };
+        /**
+         * @description See `docs/reference/states.md`.
+         * @enum {string}
+         */
+        ObservationState: "open" | "resolved";
+        /**
+         * @description An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
+         * @enum {string}
+         */
+        ObservationAction: "update" | "move" | "resolve" | "reopen" | "publish";
+        /** @enum {string} */
+        ObservationBlockKind: "text" | "panel" | "snapshot" | "run";
+        /**
+         * @description A block is deleted when it is removed or discarded, so `deleted` is never stored or returned. See `docs/reference/states.md`.
+         * @enum {string}
+         */
+        ObservationBlockState: "live" | "requested";
+        /**
+         * @description An action the caller may take on the block in its state.
+         * @enum {string}
+         */
+        ObservationBlockAction: "update" | "keep" | "discard" | "remove";
+        /** @enum {string} */
+        ObservationBlockWidth: "full" | "half";
+        Observation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            folder_id: string;
+            title: string;
+            state: components["schemas"]["ObservationState"];
+            /** @description The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve. */
+            summary: string | null;
+            /**
+             * Format: date-time
+             * @description The start of the time range the observation is about, with `to`; both or neither.
+             */
+            from: string | null;
+            /** Format: date-time */
+            to: string | null;
+            /**
+             * Format: uuid
+             * @description The observation's one discussion thread, once someone has opened it.
+             */
+            thread_id: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request that made the observation, when one did.
+             */
+            run_id: string | null;
+            /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */
+            url: string;
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the observation or any of its blocks last changed.
+             */
+            updated_at: string;
+            /** Format: date-time */
+            resolved_at: string | null;
+            allowed_actions: components["schemas"]["ObservationAction"][];
+            /** @description The blocks in page order; present when one observation is read, absent from lists. */
+            blocks?: components["schemas"]["ObservationBlock"][];
+        };
+        ObservationBlock: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            observation_id: string;
+            kind: components["schemas"]["ObservationBlockKind"];
+            state: components["schemas"]["ObservationBlockState"];
+            /** @description Zero-based and dense, so the blocks of an observation hold 0 to n-1. */
+            position: number;
+            width: components["schemas"]["ObservationBlockWidth"];
+            /** @description Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read. */
+            version: number;
+            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
+            body: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: uuid
+             * @description The frozen data of a `snapshot` block, read with `GET /snapshots/{id}`.
+             */
+            snapshot_id: string | null;
+            /** Format: uuid */
+            run_id: string | null;
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            allowed_actions: components["schemas"]["ObservationBlockAction"][];
+        };
+        ObservationEnvelope: {
+            observation: components["schemas"]["Observation"];
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+        };
+        ObservationList: {
+            observations: components["schemas"]["Observation"][];
+            next_cursor: string | null;
+        };
+        BlockEnvelope: {
+            block: components["schemas"]["ObservationBlock"];
+        };
+        /** @description The answer to a write that names a block version other than the current one. */
+        BlockConflict: {
+            error: string;
+            /** @enum {string} */
+            code: "version_conflict";
+            current: components["schemas"]["ObservationBlock"];
+        };
+        CreateObservationRequest: {
+            /** @description Trimmed, 1 to 200 characters. */
+            title: string;
+            /**
+             * Format: uuid
+             * @description The folder to file it in; absent means the caller's My Dashboards, then General. Needs Edit on the folder.
+             */
+            folder_id?: string;
+            /** Format: date-time */
+            from?: string;
+            /** Format: date-time */
+            to?: string;
+            /** @description A text or panel block written in the same transaction as the observation. */
+            first_block?: {
+                /** @enum {string} */
+                kind: "text" | "panel";
+                body?: {
+                    [key: string]: unknown;
+                };
+                width?: components["schemas"]["ObservationBlockWidth"];
+            };
+        };
+        /** @description At least one field. `from` and `to` are set together, or both null to clear the range. */
+        UpdateObservationRequest: {
+            title?: string;
+            /** Format: date-time */
+            from?: string | null;
+            /** Format: date-time */
+            to?: string | null;
+        };
+        MoveObservationRequest: {
+            /** Format: uuid */
+            folder_id: string;
+        };
+        ResolveObservationRequest: {
+            /** @description Trimmed, one line of 1 to 500 characters. */
+            summary: string;
+        };
+        AddObservationBlockRequest: {
+            /**
+             * @description `run` is never added through the API (`kind_not_addable`).
+             * @enum {string}
+             */
+            kind: "text" | "panel" | "snapshot";
+            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. */
+            body?: {
+                [key: string]: unknown;
+            };
+            width?: components["schemas"]["ObservationBlockWidth"];
+            /** @description Where to insert it; clamped to the end, and the blocks after it shift. Absent means the end. */
+            position?: number;
+            /**
+             * Format: uuid
+             * @description A `snapshot` block freezes this panel block of the same observation now.
+             */
+            from_block_id?: string;
+        };
+        UpdateObservationBlockRequest: {
+            version: number;
+            /** @description Only for `text` and `panel` blocks (`body_not_editable` otherwise). */
+            body?: {
+                [key: string]: unknown;
+            };
+            width?: components["schemas"]["ObservationBlockWidth"];
+            /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
+            position?: number;
+        };
+        KeepObservationBlockRequest: {
+            version: number;
+        };
+        Snapshot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            observation_id: string;
+            /** @description The frozen panel without its `queries`, enough to draw `data`. */
+            panel: {
+                [key: string]: unknown;
+            };
+            /** @description The frozen panel's `queries`, kept for provenance inside the workspace; never part of an RCA. */
+            query: {
+                [key: string]: unknown;
+            }[];
+            data: components["schemas"]["PanelData"];
+            /** @description True when the queries read the viewer's identity, so the data is the freezing person's view. */
+            user_scoped: boolean;
+            /** Format: date-time */
+            time_from: string;
+            /** Format: date-time */
+            time_to: string;
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description One block of a published RCA, in page order. */
+        RCABlock: {
+            /** @enum {string} */
+            kind: "text";
+            markdown: string;
+            width: components["schemas"]["ObservationBlockWidth"];
+        } | {
+            /** @enum {string} */
+            kind: "snapshot";
+            /** Format: uuid */
+            snapshot_id: string;
+            title: string;
+            /** @description The stored `panel` of the snapshot, which has no `queries`. */
+            panel: {
+                [key: string]: unknown;
+            };
+            width: components["schemas"]["ObservationBlockWidth"];
+        };
+        ObservationRCA: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            observation_id: string;
+            /** @description Numbered per observation from 1; a published revision never changes. */
+            revision: number;
+            title: string;
+            summary: string | null;
+            observation_state: components["schemas"]["ObservationState"];
+            /** Format: date-time */
+            from: string | null;
+            /** Format: date-time */
+            to: string | null;
+            blocks: components["schemas"]["RCABlock"][];
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ObservationRCASummary: {
+            /** Format: uuid */
+            id: string;
+            revision: number;
+            title: string;
+            summary: string | null;
+            observation_state: components["schemas"]["ObservationState"];
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        RCAPublicLink: {
+            /** Format: uuid */
+            id: string;
+            /** @description The RCA revision the link shows. */
+            revision: number;
+            /** @description The first 12 characters of the token; the token itself is never shown again. */
+            prefix: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            created_by: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_viewed_at: string | null;
+            expired: boolean;
+            /** @enum {string} */
+            state: "expired" | "active";
+        };
+        CreateRCAPublicLinkRequest: {
+            /**
+             * Format: date-time
+             * @description When the link stops working; null or absent for no expiry.
+             */
+            expires_at?: string | null;
+        };
+        CreatedRCAPublicLink: {
+            link: components["schemas"]["RCAPublicLink"];
+            /** @description `pub_` plus 43 base64url characters, returned only in this response. */
+            token: string;
+            /** @description The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/rca/<token>`. */
+            url: string;
+        };
+        /** @description A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids. */
+        PublicRCA: {
+            revision: number;
+            title: string;
+            summary: string | null;
+            observation_state: components["schemas"]["ObservationState"];
+            /** Format: date-time */
+            from: string | null;
+            /** Format: date-time */
+            to: string | null;
+            blocks: components["schemas"]["RCABlock"][];
+            /** @description The name of whoever published it. */
+            published_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
     };
     responses: {
+        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
+        ObservationInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ValidationError"];
+            };
+        };
+        /** @description The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`). */
+        ObservationConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"] | components["schemas"]["InvalidTransition"];
+            };
+        };
+        /** @description The block's version is not the one named (`version_conflict`, with the current block), or the action is not allowed in the block's state (`invalid_transition`). */
+        BlockWriteConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["BlockConflict"] | components["schemas"]["InvalidTransition"];
+            };
+        };
         /** @description The request is malformed or fails validation. */
         BadRequest: {
             headers: {
@@ -6118,7 +6863,7 @@ export interface operations {
                 /** @description One to 200 characters with at least one letter or digit outside a `-` term and no control characters. */
                 q: string;
                 /** @description Only results of these kinds; repeat the parameter for several. */
-                kind?: ("dashboard" | "finding" | "annotation" | "comment" | "saved_search")[];
+                kind?: ("dashboard" | "finding" | "annotation" | "observation" | "comment" | "saved_search")[];
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
@@ -7379,7 +8124,7 @@ export interface operations {
     listThreads: {
         parameters: {
             query: {
-                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`. */
+                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`. */
                 target: string;
                 status?: "open" | "resolved" | "all";
                 /** @description Only threads on this panel; dashboards only. */
@@ -7427,7 +8172,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding` or `annotation`. */
+                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation` or `observation`. */
                     target: string;
                     /** @description The dashboard version to anchor to; the latest when absent. Dashboards only. */
                     version?: number | null;
@@ -7451,6 +8196,24 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The observation already has its discussion (`observation_thread_exists`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                        /** @enum {string} */
+                        code: "observation_thread_exists";
+                        /**
+                         * Format: uuid
+                         * @description The existing thread of the observation.
+                         */
+                        thread_id: string;
+                    };
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["ThreadRefused"];
             500: components["responses"]["Internal"];
@@ -9420,6 +10183,11 @@ export interface operations {
                     from?: string;
                     /** @description The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds. */
                     to?: string;
+                    /**
+                     * Format: uuid
+                     * @description Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
+                     */
+                    observation_id?: string;
                 };
             };
         };
@@ -10227,6 +10995,743 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
+        };
+    };
+    listObservations: {
+        parameters: {
+            query?: {
+                folder_id?: string;
+                state?: components["schemas"]["ObservationState"];
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of observations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/observations/{id}` of the new observation. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The folder does not exist or the caller cannot see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The observation, its folder and the caller's permissions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    moveObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation in its new folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The observation or the target folder does not exist for the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            409: components["responses"]["ObservationConflict"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    resolveObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The resolved observation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ObservationConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reopenObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The reopened observation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ObservationConflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    addObservationBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddObservationBlockRequest"];
+            };
+        };
+        responses: {
+            /** @description The block. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            /** @description The refusals of `ObservationInvalid`, or a query of a snapshot's panel cannot run, with the codes of panel data (`query_invalid`, `query_forbidden`, `limit_exceeded`, `unknown_datasource`, `variable_empty`, `expression_error`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            /** @description A datasource is unavailable (`datasource_unavailable`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout (`query_timeout`). */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    removeObservationBlock: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The block is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["BlockWriteConflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateObservationBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObservationBlockRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated block. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["BlockWriteConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    keepObservationBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeepObservationBlockRequest"];
+            };
+        };
+        responses: {
+            /** @description The live block. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["BlockWriteConflict"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    discardObservationBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The block is gone. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["BlockWriteConflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    observationBlockData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the panel block's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such panel block for the caller (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, with the codes of panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listRcas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The revisions without their blocks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rcas: components["schemas"]["ObservationRCASummary"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    publishRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new revision. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rca: components["schemas"]["ObservationRCA"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The revision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rca: components["schemas"]["ObservationRCA"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listRcaPublicLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The links. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_links: components["schemas"]["RCAPublicLink"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createRcaPublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRCAPublicLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The link is created. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/observations/{id}/public-links/{link_id}` of the new link. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedRCAPublicLink"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation already has the most links it may keep (`too_many_links`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description `expires_at` is not in the future (`invalid_expiry`), or a snapshot of the revision shows data that depends on who is viewing (`user_scoped`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteRcaPublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link is revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     listSavedSearches: {
@@ -12030,6 +13535,57 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
+        };
+    };
+    viewPublicRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The RCA to render. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicRCA"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    viewPublicRcaSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frozen frames. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     listDashboardHealth: {

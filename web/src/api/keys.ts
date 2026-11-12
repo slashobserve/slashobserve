@@ -365,3 +365,31 @@ export const publicKeys = {
   ) =>
     ["public", token, "versions", version, "variables", name, params] as const,
 }
+
+export type ObservationListFilters = {
+  state?: "open" | "resolved"
+  folderId?: string
+}
+
+export const observationKeys = {
+  all: ["observations"] as const,
+  lists: () => ["observations", "list"] as const,
+  list: (filters: ObservationListFilters, limit: number) =>
+    ["observations", "list", filters, limit] as const,
+  one: (id: string) => ["observations", id] as const,
+  blockData: (blockId: string, params: PanelDataParams) =>
+    ["observations", "blocks", blockId, "data", params] as const,
+  snapshot: (snapshotId: string) =>
+    ["observations", "snapshots", snapshotId] as const,
+  rcas: (id: string) => ["observations", id, "rcas"] as const,
+  rca: (id: string, revision: number) =>
+    ["observations", id, "rcas", revision] as const,
+  rcaLinks: (id: string, revision: number) =>
+    ["observations", id, "rcas", revision, "links"] as const,
+}
+
+export const rcaKeys = {
+  publicView: (token: string) => ["rca-public", token] as const,
+  publicSnapshot: (token: string, snapshotId: string) =>
+    ["rca-public", token, "snapshots", snapshotId] as const,
+}

@@ -260,7 +260,10 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 		return
 	}
 	var invalid *InvalidInputError
+	var exists *ObservationThreadExistsError
 	switch {
+	case errors.As(err, &exists):
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": exists.Error(), "code": CodeObservationThreadExists, "thread_id": exists.ThreadID.String()})
 	case errors.Is(err, ErrNotAuthor):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotAuthor, err.Error())
 	case errors.As(err, &invalid) && invalid.Code != "":

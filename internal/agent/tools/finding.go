@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,6 +17,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -144,7 +147,29 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
+	r.recordInObservation(ctx, principal, requestID, f)
 	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Finding(r.deps.PublicURL, f.ID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+}
+
+func (r *Registry) recordInObservation(ctx context.Context, principal auth.Principal, requestID pgtype.UUID, f findings.Finding) {
+	if r.deps.Observations == nil || !requestID.Valid {
+		return
+	}
+	evidence := make([]json.RawMessage, 0, len(f.Evidence))
+	for _, panel := range f.Evidence {
+		raw, err := json.Marshal(panel)
+		if err != nil {
+			r.deps.Logger.ErrorContext(ctx, "record a run's result in its observation", logattrs.Failure("evidence_encode_failed", err, slog.String("agent_request_id", requestID.String()))...)
+			return
+		}
+		evidence = append(evidence, raw)
+	}
+	err := r.deps.Observations.RecordRunResult(ctx, principal, observations.RunResult{
+		RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: evidence, From: f.From, To: f.To,
+	})
+	if err != nil {
+		r.deps.Logger.ErrorContext(ctx, "record a run's result in its observation", logattrs.Failure("observation_write_failed", err, slog.String("agent_request_id", requestID.String()))...)
+	}
 }
 
 func (r *Registry) findingPlacement(ctx context.Context, dashboard, folder string) (dashboardID, folderID pgtype.UUID, res Result, ok bool, err error) {

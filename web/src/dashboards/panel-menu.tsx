@@ -1,4 +1,10 @@
-import { useMemo, type ReactNode, type RefObject } from "react"
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
@@ -11,6 +17,7 @@ import {
   InfoIcon,
   Maximize2Icon,
   MessageSquarePlusIcon,
+  NotebookTextIcon,
   PencilIcon,
   PinIcon,
   SearchIcon,
@@ -30,6 +37,8 @@ import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useAgentInfo } from "@/observe/queries"
+import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
+import { panelUsesVariables } from "@/observations/panel-input"
 import { isRenderable } from "@/panels"
 import { shortcutText } from "@/shortcuts/chords"
 import {
@@ -90,6 +99,8 @@ export function PanelMenu({
   )
   const datasources = useDatasources().data
   const agentAvailable = useAgentInfo().data?.available === true
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const [addingToObservation, setAddingToObservation] = useState(false)
   const items: MenuItem[] = []
   if (canComment) {
     items.push({
@@ -117,6 +128,21 @@ export function PanelMenu({
         activity.setOpen(true)
         activity.setAgentKind("investigate")
         setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
+      },
+    })
+  }
+  if (data && idle) {
+    const usesVariables = panelUsesVariables(panel)
+    items.push({
+      id: "observation",
+      label: usesVariables
+        ? "Add to observation (uses dashboard variables)"
+        : "Add to observation",
+      icon: <NotebookTextIcon aria-hidden="true" />,
+      disabled: usesVariables,
+      onSelect: () => {
+        focusAfterClose = "none"
+        setAddingToObservation(true)
       },
     })
   }
@@ -238,46 +264,58 @@ export function PanelMenu({
     })
   }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            className="size-[26px] text-muted-foreground"
-            aria-label={`Panel menu: ${panelTitle(panel)}`}
-            data-panel-menu={panel.id}
-          />
-        }
-      >
-        <EllipsisIcon aria-hidden="true" className="size-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="min-w-max"
-        finalFocus={() => {
-          const next = focusAfterClose
-          focusAfterClose = null
-          if (next === "composer") return composerRef.current ?? true
-          if (next === "none") return false
-          return !focusMovedOutOfMenu(document.activeElement, document.body)
-        }}
-      >
-        {items.map((item) => (
-          <DropdownMenuItem
-            key={item.id}
-            disabled={item.disabled}
-            onClick={item.onSelect}
-          >
-            {item.icon}
-            {item.label}
-            {item.shortcut ? (
-              <DropdownMenuShortcut aria-hidden="true">
-                {item.shortcut}
-              </DropdownMenuShortcut>
-            ) : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              ref={menuButton}
+              variant="ghost"
+              className="size-[26px] text-muted-foreground"
+              aria-label={`Panel menu: ${panelTitle(panel)}`}
+              data-panel-menu={panel.id}
+            />
+          }
+        >
+          <EllipsisIcon aria-hidden="true" className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="min-w-max"
+          finalFocus={() => {
+            const next = focusAfterClose
+            focusAfterClose = null
+            if (next === "composer") return composerRef.current ?? true
+            if (next === "none") return false
+            return !focusMovedOutOfMenu(document.activeElement, document.body)
+          }}
+        >
+          {items.map((item) => (
+            <DropdownMenuItem
+              key={item.id}
+              disabled={item.disabled}
+              onClick={item.onSelect}
+            >
+              {item.icon}
+              {item.label}
+              {item.shortcut ? (
+                <DropdownMenuShortcut aria-hidden="true">
+                  {item.shortcut}
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {addingToObservation && data ? (
+        <AddToObservationPanel
+          panel={panel}
+          from={dashboardSearch.from}
+          to={dashboardSearch.to}
+          trigger={menuButton}
+          onClose={() => setAddingToObservation(false)}
+        />
+      ) : null}
+    </>
   )
 }

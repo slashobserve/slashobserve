@@ -9,6 +9,7 @@ const (
 	ownerDashboard   ownerKind = "dashboard"
 	ownerFinding     ownerKind = "finding"
 	ownerSavedSearch ownerKind = "saved_search"
+	ownerObservation ownerKind = "observation"
 	ownerGeneral     ownerKind = "general"
 )
 
@@ -23,6 +24,8 @@ func OnFinding(id pgtype.UUID) Owner { return ownerOf(ownerFinding, id) }
 
 func OnSavedSearch(id pgtype.UUID) Owner { return ownerOf(ownerSavedSearch, id) }
 
+func OnObservation(id pgtype.UUID) Owner { return ownerOf(ownerObservation, id) }
+
 func General() Owner { return Owner{kind: ownerGeneral} }
 
 func ownerOf(kind ownerKind, id pgtype.UUID) Owner {
@@ -33,5 +36,5 @@ func ownerOf(kind ownerKind, id pgtype.UUID) Owner {
 }
 
 func (o Owner) locks() bool {
-	return o.kind == ownerDashboard || o.kind == ownerFinding || o.kind == ownerSavedSearch
+	return o.kind == ownerDashboard || o.kind == ownerFinding || o.kind == ownerSavedSearch || o.kind == ownerObservation
 }

@@ -63,8 +63,10 @@ func TestPublicRoutesNeedNoSession(t *testing.T) {
 	}
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/p/"+token, nil))
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/rca/"+token, nil))
 	logs.AssertAbsent(t, token)
-	if !strings.Contains(logs.String(), `"/api/v1/public/:token"`) || !strings.Contains(logs.String(), `"/p/:token"`) {
+	if !strings.Contains(logs.String(), `"/api/v1/public/:token"`) || !strings.Contains(logs.String(), `"/p/:token"`) || !strings.Contains(logs.String(), `"/rca/:token"`) {
 		t.Fatalf("request log does not name the redacted paths: %s", logs.String())
 	}
 }
@@ -77,6 +79,10 @@ func TestLoggedPathHidesPublicTokens(t *testing.T) {
 		{"/api/v1/public/", "/api/v1/public/"},
 		{"/p/pub_abc", "/p/:token"},
 		{"/p/pub_abc/", "/p/:token/"},
+		{"/rca/pub_abc", "/rca/:token"},
+		{"/rca/pub_abc/", "/rca/:token/"},
+		{"/api/v1/public/pub_abc/rca/snapshots/s1", "/api/v1/public/:token/rca/snapshots/s1"},
+		{"/rcas", "/rcas"},
 		{"/prompts", "/prompts"},
 		{"/api/v1/dashboards/d1", "/api/v1/dashboards/d1"},
 		{"/api/v1/publicity", "/api/v1/publicity"},

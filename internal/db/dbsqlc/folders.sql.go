@@ -64,6 +64,7 @@ WHERE folders.id = $1 AND NOT folders.general
   AND NOT EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = folders.id)
   AND NOT EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = folders.id)
   AND NOT EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = folders.id)
+  AND NOT EXISTS (SELECT 1 FROM observations o WHERE o.folder_id = folders.id)
 `
 
 func (q *Queries) DeleteFolderIfEmpty(ctx context.Context, id pgtype.UUID) (int64, error) {
@@ -163,7 +164,8 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 const folderHasContents = `-- name: FolderHasContents :one
 SELECT (EXISTS (SELECT 1 FROM dashboards d WHERE d.folder_id = $1)
   OR EXISTS (SELECT 1 FROM findings f WHERE f.folder_id = $1)
-  OR EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = $1))::boolean
+  OR EXISTS (SELECT 1 FROM saved_searches s WHERE s.folder_id = $1)
+  OR EXISTS (SELECT 1 FROM observations o WHERE o.folder_id = $1))::boolean
 `
 
 func (q *Queries) FolderHasContents(ctx context.Context, id pgtype.UUID) (bool, error) {

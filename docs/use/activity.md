@@ -3,7 +3,7 @@ title: Activity
 description: Read and follow what changed in your workspace, from dashboard saves to agent runs, through the HTTP API and MCP, with each person seeing only the folders they can view.
 ---
 
-The activity log records every change to a dashboard, annotation or finding, and every agent run, in the order it happened.
+The activity log records every change to a dashboard, annotation, finding, saved search or observation, and every agent run, in the order it happened.
 Each change appends one event in the same transaction as the change, so the log never shows something that did not happen and never misses something that did.
 You read it as a list with `GET /api/v1/activity` and follow it live as Server-Sent Events with `GET /api/v1/activity/stream`.
 Both need the Viewer role or higher, and both work with a session or a service-account key.
@@ -18,6 +18,13 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. |
 | Finding | `finding.moved` | A finding without a dashboard moves to another folder, which shares it with that folder's readers. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
+| Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
+| Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
+| Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
+| Observation | `observation.published` | An RCA is published from an observation. |
+| Observation | `observation.block_added`, `observation.block_updated` | A block is added to an observation's page, or one changes or moves. |
+| Observation | `observation.block_kept`, `observation.block_discarded` | An editor keeps a block someone requested, or discards it; its author may discard it too. |
+| Observation | `observation.block_removed` | A block is taken off an observation's page. |
 | Run | `run.queued`, `run.started`, `run.released` | An [agent request](chat.md) is queued, a worker starts it, or a stopping server hands it back to the queue. |
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
@@ -33,8 +40,9 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
 A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
+An observation event adds its `title`, and a block event the `block_id` and `block_kind`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
-A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding or annotation the thread is on, as `{"kind": "dashboard", "id": "..."}`.
+A thread event's `target` is the thread, and its `data` has `object`, the dashboard, finding, annotation or observation the thread is on, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 

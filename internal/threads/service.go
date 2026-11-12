@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -29,20 +30,23 @@ const (
 	maxInt32     = 1<<31 - 1
 
 	resolvedByVersionConstraint = "threads_resolved_by_version_fkey"
+	observationThreadIndex      = "threads_observation_idx"
 	foreignKeyViolationCode     = "23503"
+	uniqueViolationCode         = "23505"
 )
 
 type Service struct {
-	db          *db.DB
-	access      *folders.Access
-	dashboards  *dashboards.Service
-	findings    *findings.Service
-	annotations *annotations.Service
-	panelSets   *panelCache
+	db           *db.DB
+	access       *folders.Access
+	dashboards   *dashboards.Service
+	findings     *findings.Service
+	annotations  *annotations.Service
+	observations *observations.Service
+	panelSets    *panelCache
 }
 
-func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, findings *findings.Service, annotations *annotations.Service) *Service {
-	return &Service{db: database, access: access, dashboards: dashboards, findings: findings, annotations: annotations, panelSets: newPanelCache()}
+func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, findings *findings.Service, annotations *annotations.Service, observations *observations.Service) *Service {
+	return &Service{db: database, access: access, dashboards: dashboards, findings: findings, annotations: annotations, observations: observations, panelSets: newPanelCache()}
 }
 
 type OpenInput struct {
@@ -178,10 +182,21 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		}
 		return hook(q, thread, message)
 	})
+	if isUniqueViolation(err, observationThreadIndex) {
+		return Thread{}, Message{}, s.existingObservationThread(ctx, in.Target.ID)
+	}
 	if err != nil {
 		return Thread{}, Message{}, targetGone(err)
 	}
 	return thread, message, nil
+}
+
+func (s *Service) existingObservationThread(ctx context.Context, observationID pgtype.UUID) error {
+	id, err := s.db.Queries().ObservationThread(ctx, observationID)
+	if err != nil {
+		return threadLookup(err)
+	}
+	return &ObservationThreadExistsError{ThreadID: id}
 }
 
 func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, body string) (Thread, Message, error) {
@@ -337,6 +352,8 @@ func listParams(in ListQuery) (dbsqlc.ListThreadMessagesParams, error) {
 		params.FindingID = in.Target.ID
 	case KindAnnotation:
 		params.AnnotationID = in.Target.ID
+	case KindObservation:
+		params.ObservationID = in.Target.ID
 	}
 	switch in.Status {
 	case StatusOpen, StatusResolved:
@@ -509,6 +526,8 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 		params.FindingID = t.ID
 	case KindAnnotation:
 		params.AnnotationID = t.ID
+	case KindObservation:
+		params.ObservationID = t.ID
 	}
 	return params
 }
@@ -709,6 +728,11 @@ func threadGone(err error) error {
 		return ErrNotFound
 	}
 	return err
+}
+
+func isUniqueViolation(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == constraint
 }
 
 func isConstraintViolation(err error, constraint string) bool {

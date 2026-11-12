@@ -51,6 +51,8 @@ func TestAddresses(t *testing.T) {
 		{"build", Build(nil, id), "/b/" + id},
 		{"finding", Finding(public, "abc"), "https://observe.example/team/findings/abc"},
 		{"relative finding", Finding(nil, "abc"), "/findings/abc"},
+		{"observation", Observation(public, "abc"), "https://observe.example/team/o/abc"},
+		{"relative observation", Observation(nil, "abc"), "/o/abc"},
 		{"logs search", Logs(public, url.Values{"ds": {"loki"}, "q": {`{app="shop"}`}}), "https://observe.example/team/logs?ds=loki&q=%7Bapp%3D%22shop%22%7D"},
 		{"relative logs search", Logs(nil, url.Values{"cols": {"service,message"}, "from": {"now-1h"}}), "/logs?cols=service%2Cmessage&from=now-1h"},
 		{"logs without a search", Logs(nil, nil), "/logs"},

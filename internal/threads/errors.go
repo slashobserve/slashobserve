@@ -1,6 +1,10 @@
 package threads
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 var (
 	ErrNotFound       = errors.New("comment not found")
@@ -9,6 +13,14 @@ var (
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )
+
+type ObservationThreadExistsError struct {
+	ThreadID pgtype.UUID
+}
+
+func (e *ObservationThreadExistsError) Error() string {
+	return "this observation already has a discussion"
+}
 
 type InvalidInputError struct {
 	Code    string
@@ -29,4 +41,6 @@ const (
 	CodeNotAuthor       = "not_author"
 	CodeUnknownPanel    = "unknown_panel"
 	CodeUnknownVersion  = "unknown_version"
+
+	CodeObservationThreadExists = "observation_thread_exists"
 )

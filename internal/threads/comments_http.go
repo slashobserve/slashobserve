@@ -3,6 +3,7 @@ package threads
 import (
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 
@@ -53,6 +54,7 @@ type commentJSON struct {
 	PanelID           *string              `json:"panel_id"`
 	Body              string               `json:"body"`
 	Status            string               `json:"status"`
+	AllowedActions    []string             `json:"allowed_actions"`
 	Author            authorJSON           `json:"author"`
 	Actor             actor.JSON           `json:"actor"`
 	CreatedAt         string               `json:"created_at"`
@@ -125,7 +127,7 @@ func (cm *Comments) createComment(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/dashboards/"+comment.DashboardID+"/comments/"+comment.ID)
-	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
+	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
 }
 
 func (cm *Comments) listComments(c *gin.Context) {
@@ -151,8 +153,9 @@ func (cm *Comments) listComments(c *gin.Context) {
 		return
 	}
 	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
+	canComment := folders.DashboardFrom(c).Abilities.Comment
 	for _, item := range items {
-		body.Comments = append(body.Comments, newCommentJSON(item))
+		body.Comments = append(body.Comments, newCommentJSON(item, canComment))
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -179,7 +182,7 @@ func (cm *Comments) patchComment(c *gin.Context) {
 		cm.fail(c, "set comment status", err)
 		return
 	}
-	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
+	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
 }
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
@@ -201,7 +204,18 @@ func newAuthorJSON(a Author) authorJSON {
 	return authorJSON(a)
 }
 
-func newCommentJSON(c Comment) commentJSON {
+func commentAllowedActions(c Comment, canComment bool) []string {
+	if c.ParentID != "" {
+		return []string{}
+	}
+	allowed := allowedActions(c.Status, canComment)
+	if c.Revision == nil || (c.Revision.Status != "queued" && c.Revision.Status != "running") {
+		return allowed
+	}
+	return slices.DeleteFunc(allowed, func(a string) bool { return a == string(ActionResolve) })
+}
+
+func newCommentJSON(c Comment, canComment bool) commentJSON {
 	out := commentJSON{
 		ID:                c.ID,
 		DashboardID:       c.DashboardID,
@@ -210,6 +224,7 @@ func newCommentJSON(c Comment) commentJSON {
 		PanelID:           httpapi.OptionalString(c.PanelID),
 		Body:              c.Body,
 		Status:            c.Status,
+		AllowedActions:    commentAllowedActions(c, canComment),
 		Author:            newAuthorJSON(c.Author),
 		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),

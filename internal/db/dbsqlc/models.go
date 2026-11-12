@@ -26,6 +26,7 @@ type Activity struct {
 	CreatedAt     pgtype.Timestamptz
 	FindingID     pgtype.UUID
 	SavedSearchID pgtype.UUID
+	ObservationID pgtype.UUID
 }
 
 type AgentRequest struct {
@@ -74,6 +75,7 @@ type AgentRequest struct {
 	AssignedKind      string
 	AssignedID        pgtype.UUID
 	ClaimedBy         pgtype.Text
+	ObservationID     pgtype.UUID
 }
 
 type AgentRequestBuild struct {
@@ -394,6 +396,64 @@ type OauthToken struct {
 	RotatedAt pgtype.Timestamptz
 }
 
+type Observation struct {
+	ID            pgtype.UUID
+	FolderID      pgtype.UUID
+	Title         string
+	State         string
+	Summary       pgtype.Text
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	RunID         pgtype.UUID
+	ResolvedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type ObservationBlock struct {
+	ID            pgtype.UUID
+	ObservationID pgtype.UUID
+	Kind          string
+	State         string
+	Position      int32
+	Width         string
+	Version       int32
+	Body          []byte
+	SnapshotID    pgtype.UUID
+	RunID         pgtype.UUID
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type ObservationRca struct {
+	ID               pgtype.UUID
+	ObservationID    pgtype.UUID
+	Revision         int32
+	Title            string
+	Summary          pgtype.Text
+	ObservationState string
+	TimeFrom         pgtype.Timestamptz
+	TimeTo           pgtype.Timestamptz
+	Content          []byte
+	CreatedByKind    string
+	CreatedByID      pgtype.UUID
+	CreatedByName    string
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	RunID            pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+}
+
 type OidcLoginState struct {
 	StateHash    []byte
 	Nonce        string
@@ -437,6 +497,7 @@ type PublicLink struct {
 	CreatedByName string
 	CreatedAt     pgtype.Timestamptz
 	LastViewedAt  pgtype.Timestamptz
+	RcaID         pgtype.UUID
 }
 
 type RunToken struct {
@@ -514,6 +575,24 @@ type Session struct {
 	ExpiresAt pgtype.Timestamptz
 }
 
+type Snapshot struct {
+	ID            pgtype.UUID
+	ObservationID pgtype.UUID
+	Panel         []byte
+	Query         []byte
+	Frames        []byte
+	UserScoped    bool
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	RunID         pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Thread struct {
 	ID                   pgtype.UUID
 	DashboardID          pgtype.UUID
@@ -532,6 +611,7 @@ type Thread struct {
 	ResolvedByVersion    pgtype.Int4
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
+	ObservationID        pgtype.UUID
 }
 
 type ThreadMention struct {

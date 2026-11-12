@@ -19,13 +19,13 @@ Without a model on the server it reads "Comments and saved versions."
 Entries are sorted by time and come in four kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
-  The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by /observe for Ishan".
+  The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
-- **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "/observe for Ishan saved", then "Version N" with its summary, or "No summary".
+- **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.

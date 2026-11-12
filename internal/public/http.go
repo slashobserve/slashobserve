@@ -1,6 +1,7 @@
 package public
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -8,13 +9,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -90,10 +94,15 @@ func (h *Handler) Register(api auth.Routes) {
 	g.GET("", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.list)
 	g.POST("", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.create)
 	g.DELETE("/:link_id", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.remove)
+	api.GET("/observations/:id/rcas/:revision/public-links", auth.RoleViewer, h.listRCALinks)
+	api.POST("/observations/:id/rcas/:revision/public-links", auth.RoleViewer, h.createRCALink)
+	api.DELETE("/observations/:id/public-links/:link_id", auth.RoleViewer, h.removeRCALink)
 }
 
 func (h *Handler) RegisterPublic(g *gin.RouterGroup) {
 	g.GET("/:token", h.view)
+	g.GET("/:token/rca", h.viewRCA)
+	g.GET("/:token/rca/snapshots/:snapshot_id", h.viewRCASnapshot)
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -253,4 +262,201 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	}
 	h.logger.ErrorContext(c.Request.Context(), action, logattrs.Failure("internal", err)...)
 	httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
+}
+
+type rcaLinkJSON struct {
+	ID           string     `json:"id"`
+	Revision     int        `json:"revision"`
+	Prefix       string     `json:"prefix"`
+	ExpiresAt    *string    `json:"expires_at"`
+	CreatedBy    actor.JSON `json:"created_by"`
+	CreatedAt    string     `json:"created_at"`
+	LastViewedAt *string    `json:"last_viewed_at"`
+	Expired      bool       `json:"expired"`
+	State        string     `json:"state"`
+}
+
+type rcaLinksJSON struct {
+	PublicLinks []rcaLinkJSON `json:"public_links"`
+}
+
+type createdRCAJSON struct {
+	Link  rcaLinkJSON `json:"link"`
+	Token string      `json:"token"`
+	URL   string      `json:"url"`
+}
+
+type createRCARequest struct {
+	ExpiresAt *string `json:"expires_at"`
+}
+
+type publicRCAJSON struct {
+	Revision         int             `json:"revision"`
+	Title            string          `json:"title"`
+	Summary          *string         `json:"summary"`
+	ObservationState string          `json:"observation_state"`
+	From             *string         `json:"from"`
+	To               *string         `json:"to"`
+	Blocks           json.RawMessage `json:"blocks"`
+	PublishedBy      string          `json:"published_by"`
+	CreatedAt        string          `json:"created_at"`
+}
+
+func rcaLinkJSONOf(link RCALink) rcaLinkJSON {
+	return rcaLinkJSON{
+		ID:           link.ID,
+		Revision:     link.Revision,
+		Prefix:       link.Prefix,
+		ExpiresAt:    optionalTime(link.ExpiresAt),
+		CreatedBy:    link.CreatedBy.JSON(),
+		CreatedAt:    httpapi.FormatTime(link.CreatedAt),
+		LastViewedAt: optionalTime(link.LastViewedAt),
+		Expired:      link.Expired,
+		State:        linkState(link.Expired),
+	}
+}
+
+func (h *Handler) listRCALinks(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	revision, ok := observations.RevisionParam(c)
+	if !ok {
+		return
+	}
+	found, err := h.links.ListRCALinks(c.Request.Context(), httpapi.Caller(c), id, revision)
+	if h.refuseRCA(c, err) {
+		return
+	}
+	if err != nil {
+		h.fail(c, "list RCA public links", err)
+		return
+	}
+	body := rcaLinksJSON{PublicLinks: make([]rcaLinkJSON, len(found))}
+	for i, link := range found {
+		body.PublicLinks[i] = rcaLinkJSONOf(link)
+	}
+	c.JSON(http.StatusOK, body)
+}
+
+func (h *Handler) createRCALink(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	revision, ok := observations.RevisionParam(c)
+	if !ok {
+		return
+	}
+	var req createRCARequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	var in CreateRCAInput
+	if req.ExpiresAt != nil {
+		at, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "expires_at must be an RFC 3339 time")
+			return
+		}
+		in.ExpiresAt = &at
+	}
+	caller := httpapi.Caller(c)
+	ctx := c.Request.Context()
+	created, err := h.links.CreateRCALink(ctx, caller, id, revision, in)
+	if h.refuseRCA(c, err) {
+		return
+	}
+	if err != nil {
+		h.fail(c, "create an RCA public link", err)
+		return
+	}
+	h.logger.InfoContext(ctx, "created an RCA public link", slog.String("actor_id", caller.ID), slog.String("observation_id", id.String()), slog.Int("revision", revision), slog.String("public_link_id", created.Link.ID))
+	c.Header("Location", "/api/v1/observations/"+id.String()+"/public-links/"+created.Link.ID)
+	c.JSON(http.StatusCreated, createdRCAJSON{Link: rcaLinkJSONOf(created.Link), Token: created.Token, URL: created.URL})
+}
+
+func (h *Handler) removeRCALink(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	linkID, ok := httpapi.UUIDParam(c, "link_id")
+	if !ok {
+		return
+	}
+	caller := httpapi.Caller(c)
+	ctx := c.Request.Context()
+	err := h.links.DeleteRCALink(ctx, caller, id, linkID)
+	if h.refuseRCA(c, err) {
+		return
+	}
+	if err != nil {
+		h.fail(c, "delete an RCA public link", err)
+		return
+	}
+	h.logger.InfoContext(ctx, "deleted an RCA public link", slog.String("actor_id", caller.ID), slog.String("observation_id", id.String()), slog.String("public_link_id", linkID.String()))
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) viewRCA(c *gin.Context) {
+	v, err := h.links.ViewRCA(c.Request.Context(), c.Param("token"))
+	if errors.Is(err, ErrNotFound) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
+		return
+	}
+	if err != nil {
+		h.fail(c, "open an RCA public link", err)
+		return
+	}
+	c.JSON(http.StatusOK, publicRCAJSON{
+		Revision:         v.Revision,
+		Title:            v.Title,
+		Summary:          httpapi.OptionalString(v.Summary),
+		ObservationState: v.State,
+		From:             optionalTime(v.From),
+		To:               optionalTime(v.To),
+		Blocks:           v.Blocks,
+		PublishedBy:      v.PublishedBy,
+		CreatedAt:        httpapi.FormatTime(v.CreatedAt),
+	})
+}
+
+func (h *Handler) viewRCASnapshot(c *gin.Context) {
+	snapshotID, err := db.ParseUUID(c.Param("snapshot_id"))
+	if err != nil {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
+		return
+	}
+	frames, err := h.links.ViewRCASnapshot(c.Request.Context(), c.Param("token"), snapshotID)
+	if errors.Is(err, ErrNotFound) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
+		return
+	}
+	if err != nil {
+		h.fail(c, "open an RCA snapshot", err)
+		return
+	}
+	c.Data(http.StatusOK, gin.MIMEJSON, frames)
+}
+
+func (h *Handler) refuseRCA(c *gin.Context, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, observations.ErrNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", observations.ErrNotFound.Error())
+	case errors.Is(err, observations.ErrRevisionNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", observations.ErrRevisionNotFound.Error())
+	case errors.Is(err, ErrRCAPersonalFolder):
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, err.Error())
+	case errors.Is(err, ErrRCAUserScoped):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "user_scoped", err.Error())
+	case errors.Is(err, ErrTooManyRCALinks):
+		httpapi.AbortError(c, http.StatusConflict, "too_many_links", err.Error())
+	default:
+		return h.refuse(c, err)
+	}
+	return true
 }

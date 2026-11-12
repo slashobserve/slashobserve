@@ -729,20 +729,25 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       const entry = entryWith(page, "Looks high")
-      await entry.getByRole("button", { name: "Resolve", exact: true }).click()
+      const resolve = entry.getByRole("button", {
+        name: "Resolve",
+        exact: true,
+      })
+      await resolve.click()
       await firstPatch
-      const reopen = entry.getByRole("button", { name: "Reopen", exact: true })
-      await expect(reopen).toHaveAttribute("aria-disabled", "true")
-      await reopen.focus()
+      await expect(resolve).toHaveAttribute("aria-disabled", "true")
+      await resolve.focus()
       await page.keyboard.press("Enter")
       await page.evaluate(
         (url) => fetch(url, { method: "PATCH" }),
         `/api/v1/dashboards/${id}/comments/barrier`
       )
-      await expect(reopen).toBeFocused()
+      await expect(resolve).toBeFocused()
       expect(patches).toBe(1)
 
       release()
+      const reopen = entry.getByRole("button", { name: "Reopen", exact: true })
+      await expect(reopen).toBeVisible()
       await expect(reopen).not.toHaveAttribute("aria-disabled", "true")
       expect(patches).toBe(1)
     })

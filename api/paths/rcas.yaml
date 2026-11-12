@@ -1,0 +1,300 @@
+observations-id-rcas:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: publishRca
+    x-surfaces:
+      mcp: [publish_rca]
+      cli: [observe o publish]
+    summary: Publish an observation as the next revision of its RCA.
+    description: >-
+      Needs Edit on the folder, and the folder cannot be a personal one.
+      The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out.
+      A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`).
+      A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
+    responses:
+      "201":
+        description: The new revision.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rca]
+              properties:
+                rca:
+                  $ref: "../openapi.yaml#/components/schemas/ObservationRCA"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listRcas
+    summary: List the published revisions of an observation's RCA, newest first.
+    description: Anyone who can view the observation's folder may list them.
+    responses:
+      "200":
+        description: The revisions without their blocks.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rcas]
+              properties:
+                rcas:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/ObservationRCASummary"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-rcas-revision:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: revision
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  get:
+    operationId: getRca
+    summary: Read one published revision of an observation's RCA.
+    description: Anyone who can view the observation's folder may read it.
+    responses:
+      "200":
+        description: The revision.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rca]
+              properties:
+                rca:
+                  $ref: "../openapi.yaml#/components/schemas/ObservationRCA"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-rcas-revision-public-links:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: revision
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  get:
+    operationId: listRcaPublicLinks
+    summary: List the public links of one revision of an RCA.
+    description: >-
+      Lists the links newest first, without their tokens.
+      Only someone who manages the observation's folder may list them.
+    responses:
+      "200":
+        description: The links.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [public_links]
+              properties:
+                public_links:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/RCAPublicLink"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createRcaPublicLink
+    summary: Create a public link that shows one revision of an RCA without sign-in.
+    description: >-
+      Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403).
+      The link shows the frozen revision with its snapshots, never a live panel or a query.
+      The response carries the token and the link's URL once.
+      An observation keeps at most 20 links across all its revisions (409 `too_many_links`).
+      A revision with a snapshot of data that depends on who is viewing cannot be shared (422 `user_scoped`).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateRCAPublicLinkRequest"
+    responses:
+      "201":
+        description: The link is created.
+        headers:
+          Location:
+            required: true
+            description: "`/api/v1/observations/{id}/public-links/{link_id}` of the new link."
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CreatedRCAPublicLink"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation already has the most links it may keep (`too_many_links`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: "`expires_at` is not in the future (`invalid_expiry`), or a snapshot of the revision shows data that depends on who is viewing (`user_scoped`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-public-links-link-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: link_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deleteRcaPublicLink
+    summary: Revoke a public link of an RCA.
+    description: Deletes the link, so its URL stops working at once. Needs Manage on the observation's folder, like creating it.
+    responses:
+      "204":
+        description: The link is revoked.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+public-token-rca:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      description: The public link's token, the only credential of this request.
+      schema:
+        type: string
+  get:
+    operationId: viewPublicRca
+    summary: Read the RCA revision a public link shows.
+    security: []
+    description: >-
+      Needs no session or key: the token in the path is the only credential.
+      Returns the frozen revision with the name of whoever published it; no observation id, actor id, query or datasource uid is part of it.
+      A token that is malformed, unknown, revoked or expired answers 404 `not_found`.
+    responses:
+      "200":
+        description: The RCA to render.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PublicRCA"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+public-token-rca-snapshots-snapshot-id:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      description: The public link's token, the only credential of this request.
+      schema:
+        type: string
+    - name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: viewPublicRcaSnapshot
+    summary: Read the frozen data of a snapshot of the RCA a public link shows.
+    security: []
+    description: >-
+      Needs no session or key: the token in the path is the only credential.
+      Answers only for a snapshot that is part of the link's revision, with the data as it was frozen and no query.
+      Anything else, including a token that is malformed, unknown, revoked or expired, answers 404 `not_found`.
+    responses:
+      "200":
+        description: The frozen frames.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

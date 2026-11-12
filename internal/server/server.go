@@ -139,7 +139,7 @@ func logRequests(logger *slog.Logger) gin.HandlerFunc {
 
 const publicPrefix = "/public"
 
-var tokenPathPrefixes = []string{apiPrefix + publicPrefix + "/", "/p/"}
+var tokenPathPrefixes = []string{apiPrefix + publicPrefix + "/", "/p/", "/rca/"}
 
 func loggedPath(urlPath string) string {
 	for _, prefix := range tokenPathPrefixes {

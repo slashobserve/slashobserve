@@ -97,7 +97,9 @@ observe:
       A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null.
       With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`).
       A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`).
-      `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`.
+      Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null.
+      A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`).
+      `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`.
       The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
       A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`).
@@ -137,6 +139,10 @@ observe:
               to:
                 type: string
                 description: The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds.
+              observation_id:
+                type: string
+                format: uuid
+                description: Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
     responses:
       "202":
         description: The queued agent request.

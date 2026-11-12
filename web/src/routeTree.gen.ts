@@ -13,6 +13,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
 import { Route as PTokenRouteImport } from './routes/p/$token'
+import { Route as RcaTokenRouteImport } from './routes/rca/$token'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/health'
@@ -32,6 +33,8 @@ import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shel
 import { Route as AuthedShellFindingsFindingIdRouteImport } from './routes/_authed/_shell/findings/$findingId'
 import { Route as AuthedShellImportIndexRouteImport } from './routes/_authed/_shell/import/index'
 import { Route as AuthedShellImportRepairRouteImport } from './routes/_authed/_shell/import/repair'
+import { Route as AuthedShellOObservationIdRouteImport } from './routes/_authed/_shell/o/$observationId'
+import { Route as AuthedShellObservationsIndexRouteImport } from './routes/_authed/_shell/observations/index'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
 import { Route as AuthedShellSettingsGrafanaRouteImport } from './routes/_authed/_shell/settings/grafana'
 import { Route as AuthedShellSettingsKeysRouteImport } from './routes/_authed/_shell/settings/keys'
@@ -58,6 +61,11 @@ const AuthedShellRoute = AuthedShellRouteImport.update({
 const PTokenRoute = PTokenRouteImport.update({
   id: '/p/$token',
   path: '/p/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RcaTokenRoute = RcaTokenRouteImport.update({
+  id: '/rca/$token',
+  path: '/rca/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
@@ -156,6 +164,18 @@ const AuthedShellImportRepairRoute = AuthedShellImportRepairRouteImport.update({
   path: '/import/repair',
   getParentRoute: () => AuthedShellRoute,
 } as any)
+const AuthedShellOObservationIdRoute =
+  AuthedShellOObservationIdRouteImport.update({
+    id: '/o/$observationId',
+    path: '/o/$observationId',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellObservationsIndexRoute =
+  AuthedShellObservationsIndexRouteImport.update({
+    id: '/observations/',
+    path: '/observations/',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellSettingsIndexRoute =
   AuthedShellSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -213,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
+  '/rca/$token': typeof RcaTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/keys': typeof AuthedShellKeysRoute
@@ -228,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
+  '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -236,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/import/': typeof AuthedShellImportIndexRoute
+  '/observations/': typeof AuthedShellObservationsIndexRoute
   '/settings/': typeof AuthedShellSettingsIndexRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
@@ -244,6 +267,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
+  '/rca/$token': typeof RcaTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/keys': typeof AuthedShellKeysRoute
@@ -259,6 +283,7 @@ export interface FileRoutesByTo {
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
+  '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -267,6 +292,7 @@ export interface FileRoutesByTo {
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
   '/import': typeof AuthedShellImportIndexRoute
+  '/observations': typeof AuthedShellObservationsIndexRoute
   '/settings': typeof AuthedShellSettingsIndexRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
@@ -277,6 +303,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
   '/p/$token': typeof PTokenRoute
+  '/rca/$token': typeof RcaTokenRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/health': typeof AuthedShellHealthRoute
@@ -293,6 +320,7 @@ export interface FileRoutesById {
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
+  '/_authed/_shell/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/_authed/_shell/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/_authed/_shell/t/$traceId': typeof AuthedShellTTraceIdRoute
@@ -302,6 +330,7 @@ export interface FileRoutesById {
   '/_authed/_shell/_chat/': typeof AuthedShellChatIndexRoute
   '/_authed/_shell/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/_authed/_shell/import/': typeof AuthedShellImportIndexRoute
+  '/_authed/_shell/observations/': typeof AuthedShellObservationsIndexRoute
   '/_authed/_shell/settings/': typeof AuthedShellSettingsIndexRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/_authed/_shell/_chat/c/$requestId': typeof AuthedShellChatCRequestIdRoute
@@ -312,6 +341,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/p/$token'
+    | '/rca/$token'
     | '/datasources'
     | '/health'
     | '/keys'
@@ -327,6 +357,7 @@ export interface FileRouteTypes {
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
+    | '/o/$observationId'
     | '/settings/grafana'
     | '/settings/keys'
     | '/t/$traceId'
@@ -335,6 +366,7 @@ export interface FileRouteTypes {
     | '/dashboards/$dashboardId/versions'
     | '/dashboards/'
     | '/import/'
+    | '/observations/'
     | '/settings/'
     | '/dashboards/$dashboardId/'
     | '/c/$requestId'
@@ -343,6 +375,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/p/$token'
+    | '/rca/$token'
     | '/datasources'
     | '/health'
     | '/keys'
@@ -358,6 +391,7 @@ export interface FileRouteTypes {
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
+    | '/o/$observationId'
     | '/settings/grafana'
     | '/settings/keys'
     | '/t/$traceId'
@@ -366,6 +400,7 @@ export interface FileRouteTypes {
     | '/dashboards/$dashboardId/versions'
     | '/dashboards'
     | '/import'
+    | '/observations'
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/c/$requestId'
@@ -375,6 +410,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/_shell'
     | '/p/$token'
+    | '/rca/$token'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/health'
@@ -391,6 +427,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/f/$folderId'
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
+    | '/_authed/_shell/o/$observationId'
     | '/_authed/_shell/settings/grafana'
     | '/_authed/_shell/settings/keys'
     | '/_authed/_shell/t/$traceId'
@@ -400,6 +437,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/_chat/'
     | '/_authed/_shell/dashboards/'
     | '/_authed/_shell/import/'
+    | '/_authed/_shell/observations/'
     | '/_authed/_shell/settings/'
     | '/_authed/dashboards/$dashboardId/'
     | '/_authed/_shell/_chat/c/$requestId'
@@ -409,6 +447,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
   PTokenRoute: typeof PTokenRoute
+  RcaTokenRoute: typeof RcaTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -439,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$token'
       fullPath: '/p/$token'
       preLoaderRoute: typeof PTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rca/$token': {
+      id: '/rca/$token'
+      path: '/rca/$token'
+      fullPath: '/rca/$token'
+      preLoaderRoute: typeof RcaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/_shell/_chat': {
@@ -574,6 +620,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellImportRepairRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/o/$observationId': {
+      id: '/_authed/_shell/o/$observationId'
+      path: '/o/$observationId'
+      fullPath: '/o/$observationId'
+      preLoaderRoute: typeof AuthedShellOObservationIdRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/observations/': {
+      id: '/_authed/_shell/observations/'
+      path: '/observations'
+      fullPath: '/observations/'
+      preLoaderRoute: typeof AuthedShellObservationsIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/settings/': {
       id: '/_authed/_shell/settings/'
       path: '/settings'
@@ -665,11 +725,13 @@ interface AuthedShellRouteChildren {
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
+  AuthedShellOObservationIdRoute: typeof AuthedShellOObservationIdRoute
   AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellTTraceIdRoute: typeof AuthedShellTTraceIdRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellImportIndexRoute: typeof AuthedShellImportIndexRoute
+  AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
 }
 
@@ -684,11 +746,13 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,
+  AuthedShellOObservationIdRoute: AuthedShellOObservationIdRoute,
   AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellTTraceIdRoute: AuthedShellTTraceIdRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellImportIndexRoute: AuthedShellImportIndexRoute,
+  AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
 }
 
@@ -733,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
   PTokenRoute: PTokenRoute,
+  RcaTokenRoute: RcaTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

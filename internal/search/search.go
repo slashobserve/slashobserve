@@ -26,6 +26,7 @@ const (
 	KindDashboard   Kind = "dashboard"
 	KindFinding     Kind = "finding"
 	KindAnnotation  Kind = "annotation"
+	KindObservation Kind = "observation"
 	KindComment     Kind = "comment"
 	KindSavedSearch Kind = "saved_search"
 )
@@ -39,7 +40,7 @@ const (
 )
 
 func Kinds() []Kind {
-	return []Kind{KindDashboard, KindFinding, KindAnnotation, KindComment, KindSavedSearch}
+	return []Kind{KindDashboard, KindFinding, KindAnnotation, KindObservation, KindComment, KindSavedSearch}
 }
 
 func (k Kind) Valid() bool {
@@ -187,6 +188,8 @@ func (s *Service) addressOf(row dbsqlc.SearchWorkspaceRow) (string, error) {
 		return links.Finding(s.publicURL, row.SubjectID.String()), nil
 	case KindAnnotation:
 		return s.annotationURL(row), nil
+	case KindObservation:
+		return links.Observation(s.publicURL, row.SubjectID.String()), nil
 	}
 	return s.savedSearchURL(row)
 }

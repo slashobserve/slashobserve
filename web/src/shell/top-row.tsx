@@ -40,7 +40,7 @@ export function TopRow({
       </div>
       <div className="flex items-center gap-1.5">
         <div ref={setActionsHost} className="flex items-center gap-1.5" />
-        <PaletteButton />
+        <PaletteButton variant="top" />
       </div>
     </header>
   )

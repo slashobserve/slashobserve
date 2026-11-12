@@ -16,7 +16,7 @@ export function freePanelId(spec: Dashboard, base = "logs"): string {
   return `${base}-${n}`
 }
 
-function logsPanelFor({
+export function logsPanelFor({
   id,
   title,
   datasource,

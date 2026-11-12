@@ -12,6 +12,7 @@ export type LogsSearch = {
   line?: string
   view?: "patterns"
   tail?: "1"
+  observation?: string
 }
 
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
@@ -20,6 +21,8 @@ const maxAskLength = 2000
 const controlCharacter = /\p{Cc}/u
 const pillsPattern = /^[A-Za-z0-9_-]{1,4000}$/
 const linePattern = /^\d{1,20}:[A-Za-z0-9_-]{1,64}$/
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const maxColumns = 20
 const maxColumnLength = 256
 
@@ -91,6 +94,11 @@ function validLine(value: unknown): string | undefined {
   return line !== undefined && linePattern.test(line) ? line : undefined
 }
 
+function validObservation(value: unknown): string | undefined {
+  const id = firstString(value)
+  return id !== undefined && uuidPattern.test(id) ? id : undefined
+}
+
 export function validRange(raw: Record<string, unknown>): {
   from: string | undefined
   to: string | undefined
@@ -116,6 +124,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     line: validLine(raw.line),
     view: firstString(raw.view) === "patterns" ? "patterns" : undefined,
     tail: firstString(raw.tail) === "1" ? "1" : undefined,
+    observation: validObservation(raw.observation),
   }
 }
 

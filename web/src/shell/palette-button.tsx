@@ -1,27 +1,53 @@
 import { SearchIcon } from "lucide-react"
 
 import { modChordLabel } from "@/lib/shortcuts"
+import { cn } from "@/lib/utils"
 
 import { usePaletteStore } from "./palette-store"
 
-export function PaletteButton() {
+type Props =
+  | { variant: "top" }
+  | { variant: "sidebar"; collapsed: boolean; onNavigate?: () => void }
+
+const label = "Search or jump to"
+const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+export function PaletteButton(props: Props) {
   const setOpen = usePaletteStore((state) => state.setOpen)
+  const sidebar = props.variant === "sidebar" ? props : null
+  const collapsed = sidebar?.collapsed ?? false
   return (
     <button
       type="button"
-      aria-label="Search or jump to"
+      aria-label={label}
       aria-keyshortcuts="Meta+K Control+K"
-      onClick={() => setOpen(true)}
-      className="flex h-[30px] w-[220px] max-w-[46vw] items-center gap-2 rounded-[7px] border bg-background pr-1.5 pl-[9px] text-left text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      title={collapsed ? label : undefined}
+      onClick={() => {
+        sidebar?.onNavigate?.()
+        setOpen(true)
+      }}
+      className={cn(
+        "items-center gap-2 rounded-control border bg-background text-left text-[13px] text-muted-foreground hover:text-foreground",
+        focusRing,
+        sidebar === null
+          ? "hidden h-[30px] w-[220px] max-w-[46vw] pr-1.5 pl-[9px] narrow:flex"
+          : cn("flex h-8 w-full", collapsed ? "justify-center" : "px-2.5")
+      )}
     >
-      <SearchIcon aria-hidden="true" className="size-3.5" strokeWidth={2} />
-      <span className="flex-1 truncate">Search or jump to</span>
-      <kbd
+      <SearchIcon
         aria-hidden="true"
-        className="rounded-[4px] border px-[5px] font-[inherit] text-[11px] narrow:hidden"
-      >
-        {modChordLabel(navigator.userAgent, "K")}
-      </kbd>
+        className="size-3.5 flex-none"
+        strokeWidth={2}
+      />
+      {collapsed ? null : <span className="flex-1 truncate">{label}</span>}
+      {sidebar === null || collapsed ? null : (
+        <kbd
+          aria-hidden="true"
+          className="rounded-[4px] border px-[5px] font-[inherit] text-xs"
+        >
+          {modChordLabel(navigator.userAgent, "K")}
+        </kbd>
+      )}
     </button>
   )
 }

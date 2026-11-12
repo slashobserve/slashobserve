@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"testing"
@@ -23,6 +22,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -33,12 +34,15 @@ type findingRig struct {
 	findings   *findings.Service
 	dashboards *dashboards.Service
 	db         *dbtest.Database
+
+	observations *observations.Service
+	logs         *logtest.Capture
 }
 
 func newFindingRig(t *testing.T) *findingRig {
 	t.Helper()
 	database := dbtest.New(t)
-	logger := slog.New(slog.DiscardHandler)
+	logger, logs := logtest.New()
 	frames := func(q datasource.Query) ([]datasource.Frame, error) {
 		if strings.Contains(q.Text, "empty") {
 			return nil, nil
@@ -61,8 +65,9 @@ func newFindingRig(t *testing.T) *findingRig {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	found := findings.New(database.DB, access, annotations.New(database.DB, access), service, logger)
-	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Folders: access, Findings: found, Logger: logger})
-	return &findingRig{registry: registry, findings: found, dashboards: service, db: database}
+	obs := observations.New(database.DB, access, snapshotFreezer{}, nil, logger)
+	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Folders: access, Findings: found, Observations: obs, Logger: logger})
+	return &findingRig{registry: registry, findings: found, dashboards: service, db: database, observations: obs, logs: logs}
 }
 
 func investigateRun(from, to time.Time) Run {
@@ -411,5 +416,121 @@ func TestMoveFindingSharesAFindingWithAnotherFolder(t *testing.T) {
 	}
 	if again := move(editorCaller, nil, filed.ID, target.ID.String()); again.IsError {
 		t.Errorf("moving into the folder it is in: %#v", again.Content)
+	}
+}
+
+func (r *findingRig) investigation(t *testing.T, by auth.Principal, from, to time.Time) (Run, dbsqlc.AgentRequest) {
+	t.Helper()
+	byID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := r.db.Queries().EnqueueInvestigateRequest(t.Context(), dbsqlc.EnqueueInvestigateRequestParams{
+		Prompt: "why are checkout errors up\nsince the deploy", RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
+	})
+	if err != nil {
+		t.Fatalf("enqueue investigation: %v", err)
+	}
+	err = r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		id, err := r.observations.OpenForRun(t.Context(), q, observations.RunOpen{Run: row, By: by, Strict: true})
+		if err != nil {
+			return err
+		}
+		row, err = q.SetRequestObservation(t.Context(), dbsqlc.SetRequestObservationParams{ID: row.ID, ObservationID: id})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("open observation: %v", err)
+	}
+	run := investigateRun(from, to)
+	run.RequestID = row.ID.String()
+	return run, row
+}
+
+func TestSaveFindingWritesTheConclusionIntoTheRunsObservation(t *testing.T) {
+	r := newFindingRig(t)
+	from := findingWindowTo.Add(-2 * time.Hour)
+	run, row := r.investigation(t, editorCaller, from, findingWindowTo)
+	body := findingBody("checkout-0 throws 5xx since 09:12", evidencePanel("Errors", "sum(rate(errors[5m]))"), evidencePanel("Latency", "histogram_quantile(0.99, x)"))
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, body)
+	saved, ok := res.Content.(findingSavedOut)
+	if res.IsError || !ok || saved.Replayed || saved.Evidence != 2 {
+		t.Fatalf("save: %#v", res.Content)
+	}
+	o, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := make([]observations.Kind, len(o.Blocks))
+	for i, b := range o.Blocks {
+		kinds[i] = b.Kind
+	}
+	if want := []observations.Kind{observations.KindRun, observations.KindText, observations.KindPanel, observations.KindPanel}; !slices.Equal(kinds, want) {
+		t.Fatalf("kinds %v, want %v", kinds, want)
+	}
+	var text observations.TextBody
+	if err := json.Unmarshal(o.Blocks[1].Body, &text); err != nil || text.Markdown != "## why are checkout errors up\n\ncheckout-0 throws 5xx since 09:12" {
+		t.Errorf("text %q, %v", text.Markdown, err)
+	}
+	var panel observations.PanelBody
+	if err := json.Unmarshal(o.Blocks[2].Body, &panel); err != nil || panel.From == nil || !panel.From.Equal(from) || !panel.To.Equal(findingWindowTo) {
+		t.Errorf("panel %s, %v", o.Blocks[2].Body, err)
+	}
+	var cited struct {
+		RunID string   `json:"run_id"`
+		Cites []string `json:"cites"`
+	}
+	if err := json.Unmarshal(o.Blocks[0].Body, &cited); err != nil || cited.RunID != row.ID.String() || !slices.Equal(cited.Cites, []string{o.Blocks[1].ID, o.Blocks[2].ID, o.Blocks[3].ID}) {
+		t.Errorf("run block %s, %v", o.Blocks[0].Body, err)
+	}
+	for _, b := range o.Blocks[1:] {
+		if b.State != observations.BlockLive || b.RunID != row.ID.String() {
+			t.Errorf("block %+v", b)
+		}
+	}
+
+	again := r.callIn(t, &run, editorCaller, nameSaveFinding, body)
+	if replayed, ok := again.Content.(findingSavedOut); again.IsError || !ok || !replayed.Replayed || replayed.FindingID != saved.FindingID {
+		t.Fatalf("second save: %#v", again.Content)
+	}
+	after, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	if err != nil || len(after.Blocks) != 4 {
+		t.Errorf("a second save left %d blocks, %v", len(after.Blocks), err)
+	}
+}
+
+func TestSaveFindingAnswersTheSameWhenTheObservationCannotBeWritten(t *testing.T) {
+	r := newFindingRig(t)
+	run, row := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
+	hidden := foldertest.Restricted(t, r.db, "Payroll", "payroll-team")
+	r.db.Exec(t, `UPDATE observations SET folder_id = $1 WHERE id = $2`, hidden, row.ObservationID)
+
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx", evidencePanel("Errors", "sum(rate(errors[5m]))")))
+	saved, ok := res.Content.(findingSavedOut)
+	if res.IsError || !ok || saved.Code != "saved" || saved.Replayed || saved.Evidence != 1 || res.Step != "Saved finding "+saved.FindingID {
+		t.Fatalf("save: %#v", res)
+	}
+	if record := r.logs.Find(t, "record a run's result in its observation"); record["level"] != "ERROR" || record["agent_request_id"] != row.ID.String() {
+		t.Errorf("log record %v", record)
+	}
+	o, err := r.observations.Get(t.Context(), adminCaller, row.ObservationID)
+	if err != nil || len(o.Blocks) != 1 {
+		t.Errorf("blocks %d, %v", len(o.Blocks), err)
+	}
+	if strings.Contains(r.logs.String(), "checkout-0 throws") {
+		t.Error("the finding text was logged")
+	}
+}
+
+func TestSaveFindingInARunWithoutAnObservationIsUnchanged(t *testing.T) {
+	r := newFindingRig(t)
+	run, row := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
+	r.db.Exec(t, `UPDATE agent_requests SET observation_id = NULL WHERE id = $1`, row.ID)
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx"))
+	if saved, ok := res.Content.(findingSavedOut); res.IsError || !ok || saved.Code != "saved" {
+		t.Fatalf("save: %#v", res)
+	}
+	if strings.Contains(r.logs.String(), "record a run's result") {
+		t.Errorf("logs: %s", r.logs.String())
 	}
 }

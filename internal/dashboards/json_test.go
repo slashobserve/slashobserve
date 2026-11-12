@@ -10,7 +10,7 @@ func TestVersionActorLabels(t *testing.T) {
 		wantLabel  string
 		wantClient string
 	}{
-		{"saved by the agent", VersionMeta{Author: author, Origin: "web", AgentRequestID: "22222222-2222-4222-8222-222222222222"}, "/observe for Ada", ""},
+		{"saved by the agent", VersionMeta{Author: author, Origin: "web", AgentRequestID: "22222222-2222-4222-8222-222222222222"}, "Observe Agent for Ada", ""},
 		{"saved over mcp", VersionMeta{Author: author, Origin: "mcp", OriginClient: "claude-code"}, "Ada (via Claude Code)", "Claude Code"},
 		{"saved on the web", VersionMeta{Author: author, Origin: "web"}, "Ada", ""},
 		{"saved by an author with only an email", VersionMeta{Author: Author{Kind: "user", ID: author.ID, Email: "ada@example.com"}, Origin: "web"}, "ada@example.com", ""},
@@ -38,7 +38,7 @@ func TestCreatorActorLabels(t *testing.T) {
 		creator Creator
 		want    string
 	}{
-		{"created by the agent", Creator{Author: author, Origin: "api", RunID: "22222222-2222-4222-8222-222222222222"}, "/observe for ci-deploys"},
+		{"created by the agent", Creator{Author: author, Origin: "api", RunID: "22222222-2222-4222-8222-222222222222"}, "Observe Agent for ci-deploys"},
 		{"created over mcp", Creator{Author: author, Origin: "mcp", OriginClient: "cursor"}, "ci-deploys (via Cursor)"},
 		{"created through the api", Creator{Author: author, Origin: "api"}, "ci-deploys"},
 	}

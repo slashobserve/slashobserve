@@ -10,6 +10,26 @@ export type MentionSegment =
 
 export type MentionPerson = { id: string; name: string }
 
+export type MentionAgent = {
+  handle: string
+  name: string
+  kind: "observe-agent" | "outside-agent"
+}
+
+export type MentionOption = {
+  value: string
+  label: string
+  token: string
+  agent: boolean
+  hint: string | null
+}
+
+export const observeAgent: MentionAgent = {
+  handle: "observe",
+  name: "Observe Agent",
+  kind: "observe-agent",
+}
+
 const agentMention: MentionRef = { kind: "agent", id: "observe" }
 
 const uuid =
@@ -43,6 +63,39 @@ export function mentionSegments(body: string): MentionSegment[] {
 export function mentionToken(person: MentionPerson): string {
   const name = person.name.replace(/[[\]\n\r]/g, "").trim()
   return `@[${name === "" ? "user" : name}](user:${person.id})`
+}
+
+function agentOption(agent: MentionAgent): MentionOption {
+  return {
+    value: `agent:${agent.handle}`,
+    label: agent.name,
+    token: `@${agent.handle}`,
+    agent: true,
+    hint: `@${agent.handle}`,
+  }
+}
+
+export function mentionOptions(
+  people: readonly MentionPerson[],
+  agents: readonly MentionAgent[]
+): MentionOption[] {
+  return [
+    agentOption(observeAgent),
+    ...agents.map(agentOption),
+    ...people.map((person) => ({
+      value: `user:${person.id}`,
+      label: person.name === "" ? "Unnamed" : person.name,
+      token: mentionToken(person),
+      agent: false,
+      hint: null,
+    })),
+  ]
+}
+
+export function mentionTriggerAt(value: string, caret: number): number | null {
+  if (caret < 1 || value[caret - 1] !== "@") return null
+  const before = value[caret - 2]
+  return before === undefined || /\s/.test(before) ? caret - 1 : null
 }
 
 export function insertMention(

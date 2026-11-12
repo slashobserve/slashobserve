@@ -76,7 +76,7 @@ describe("ActivityComposer", () => {
     expect(comboboxes).toHaveLength(2)
     expect(comboboxes[0]).toHaveAccessibleName("On")
     expect(comboboxes[0]).toHaveTextContent("The whole dashboard")
-    expect(comboboxes[1]).toHaveAccessibleName("Mention")
+    expect(comboboxes[1]).toHaveAccessibleName("Mention a person or an agent")
     await user.click(comboboxes[0])
     const options = await screen.findAllByRole("option")
     expect(options.map((option) => option.textContent)).toEqual([

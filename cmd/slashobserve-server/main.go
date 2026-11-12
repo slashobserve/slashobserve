@@ -52,6 +52,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/prompts"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/public"
@@ -317,11 +318,12 @@ func run() error {
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
-	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService)
+	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		FindingURL:   findingURL,
@@ -331,6 +333,7 @@ func run() error {
 		revisions.WithPanels(dashboardsService),
 		revisions.WithSpecs(dashboardsService),
 		revisions.WithBuilds(buildStore{dashboardsService}),
+		revisions.WithObservations(runObservations{observationsService}),
 		revisions.WithPrincipals(authService),
 		revisions.WithAccess(folderAccess),
 		revisions.WithThreads(threads.NewRuns(database)),
@@ -345,6 +348,7 @@ func run() error {
 		Imports:       importsService,
 		Folders:       folderAccess,
 		Findings:      findingsService,
+		Observations:  observationsService,
 		SavedSearches: savedSearchesService,
 		Health:        healthService,
 		Annotations:   annotationsService,
@@ -459,8 +463,11 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
+			observations.NewHandler(observationsService, logger),
+			observations.NewRCAHandler(observationsService, logger),
 			savedsearches.NewHandler(savedSearchesService, logger),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
+			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
 			outbound,
 			prompts.NewHandler(database, logger),
@@ -546,6 +553,18 @@ func (b buildStore) SaveStoppedBuild(ctx context.Context, by auth.Principal, req
 		return revisions.SavedBuild{}, revisionsBuildError(err)
 	}
 	return revisions.SavedBuild{DashboardID: dash.ID, Version: ver.Number, Replayed: replayed}, nil
+}
+
+type runObservations struct {
+	service *observations.Service
+}
+
+func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in revisions.RunObservationOpen) (pgtype.UUID, error) {
+	id, err := r.service.OpenForRun(ctx, q, observations.RunOpen{Run: in.Run, By: in.By, ObservationID: in.ObservationID, Strict: in.Strict})
+	if errors.Is(err, observations.ErrNotFound) {
+		return pgtype.UUID{}, revisions.ErrObservationNotFound
+	}
+	return id, err
 }
 
 func revisionsBuildError(err error) error {

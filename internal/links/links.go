@@ -50,6 +50,10 @@ func Folder(base *url.URL, id string) string {
 	return join(base, "f", id)
 }
 
+func Observation(base *url.URL, id string) string {
+	return join(base, "o", id)
+}
+
 func Chat(base *url.URL, requestID string) string {
 	return join(base, "c", requestID)
 }
@@ -72,6 +76,10 @@ func Traces(base *url.URL, query url.Values) string {
 
 func Public(base *url.URL, token string) string {
 	return join(base, "p", token)
+}
+
+func RCA(base *url.URL, token string) string {
+	return join(base, "rca", token)
 }
 
 func withQuery(address string, query url.Values) string {

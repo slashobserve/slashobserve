@@ -10,7 +10,7 @@ import {
 import { ApiError } from "@/api/errors"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
-import { MessageForm } from "@/comments/message-form"
+import { Composer } from "@/comments/composer"
 import { MessageText } from "@/comments/message-text"
 import { threadParticipants, type MentionPerson } from "@/comments/mentions"
 import {
@@ -73,9 +73,9 @@ function ThreadView({
       </ol>
       {canReply && replying ? (
         <div className="pb-2">
-          <MessageForm
+          <Composer
             label="Reply"
-            submitLabel="Reply"
+            placeholder="Reply, or type @ to ask an agent"
             people={people}
             autoFocus
             onSubmit={async (body) => {
@@ -185,10 +185,9 @@ export function FindingComments({ findingId }: { findingId: string }) {
             </ul>
           )}
           {canComment ? (
-            <MessageForm
+            <Composer
               label="Comment on this finding"
-              submitLabel="Comment"
-              placeholder="Write a comment"
+              placeholder="Write a comment, or type @ to ask an agent"
               people={people}
               onSubmit={(body) => open.mutateAsync({ body })}
             />

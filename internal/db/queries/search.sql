@@ -24,6 +24,27 @@ visible_annotations AS NOT MATERIALIZED (
   WHERE (a.dashboard_id IS NULL OR d.id IS NOT NULL)
     AND coalesce(d.folder_id, general_folder_id()) = ANY(@folders::uuid[])
 ),
+visible_observations AS NOT MATERIALIZED (
+  SELECT o.id, o.folder_id, o.updated_at
+  FROM observations o
+  WHERE o.folder_id = ANY(@folders::uuid[])
+),
+observation_matches AS NOT MATERIALIZED (
+  SELECT o.id AS observation_id,
+    ts_rank_cd(observation_search_vector(o.title, o.summary), search_query(@words::text, sqlc.narg('prefix')::text), 1) AS rank
+  FROM observations o
+  JOIN visible_observations vo ON vo.id = o.id
+  WHERE 'observation' = ANY(@kinds::text[])
+    AND observation_search_vector(o.title, o.summary) @@ search_query(@words::text, sqlc.narg('prefix')::text)
+  UNION ALL
+  SELECT b.observation_id,
+    ts_rank_cd(observation_block_search_vector(b.body), search_query(@words::text, sqlc.narg('prefix')::text), 1) AS rank
+  FROM observation_blocks b
+  JOIN visible_observations vo ON vo.id = b.observation_id
+  WHERE 'observation' = ANY(@kinds::text[])
+    AND b.kind = 'text' AND b.state = 'live'
+    AND observation_block_search_vector(b.body) @@ search_query(@words::text, sqlc.narg('prefix')::text)
+),
 hits AS (
   (SELECT 'dashboard'::text AS kind, v.dashboard_id AS id, d.updated_at AS changed_at, d.folder_id AS folder_id,
       'dashboard'::text AS subject_kind, v.dashboard_id AS subject_id,
@@ -56,10 +77,18 @@ hits AS (
     ORDER BY score DESC, changed_at DESC, id
     LIMIT @row_window::integer)
   UNION ALL
+  (SELECT 'observation'::text AS kind, vo.id AS id, vo.updated_at AS changed_at, vo.folder_id AS folder_id, 'observation'::text AS subject_kind, vo.id AS subject_id,
+      max(om.rank) * search_recency(vo.updated_at, @as_of::timestamptz) AS score
+    FROM observation_matches om
+    JOIN visible_observations vo ON vo.id = om.observation_id
+    GROUP BY vo.id, vo.updated_at, vo.folder_id
+    ORDER BY score DESC, changed_at DESC, id
+    LIMIT @row_window::integer)
+  UNION ALL
   (SELECT 'comment'::text AS kind, m.id AS id, coalesce(m.edited_at, m.created_at) AS changed_at,
-      coalesce(vd.folder_id, vf.folder_id, va.folder_id) AS folder_id,
-      CASE WHEN t.dashboard_id IS NOT NULL THEN 'dashboard' WHEN t.finding_id IS NOT NULL THEN 'finding' ELSE 'annotation' END AS subject_kind,
-      coalesce(t.dashboard_id, t.finding_id, t.annotation_id) AS subject_id,
+      coalesce(vd.folder_id, vf.folder_id, va.folder_id, vo.folder_id) AS folder_id,
+      CASE WHEN t.dashboard_id IS NOT NULL THEN 'dashboard' WHEN t.finding_id IS NOT NULL THEN 'finding' WHEN t.observation_id IS NOT NULL THEN 'observation' ELSE 'annotation' END AS subject_kind,
+      coalesce(t.dashboard_id, t.finding_id, t.annotation_id, t.observation_id) AS subject_id,
       ts_rank_cd(message_search_vector(m.body), search_query(@words::text, sqlc.narg('prefix')::text), 1)
         * search_recency(coalesce(m.edited_at, m.created_at), @as_of::timestamptz) AS score
     FROM thread_messages m
@@ -67,9 +96,10 @@ hits AS (
     LEFT JOIN visible_dashboards vd ON vd.id = t.dashboard_id
     LEFT JOIN visible_findings vf ON vf.id = t.finding_id
     LEFT JOIN visible_annotations va ON va.id = t.annotation_id
+    LEFT JOIN visible_observations vo ON vo.id = t.observation_id
     WHERE 'comment' = ANY(@kinds::text[])
       AND message_search_vector(m.body) @@ search_query(@words::text, sqlc.narg('prefix')::text)
-      AND (vd.id IS NOT NULL OR vf.id IS NOT NULL OR va.id IS NOT NULL)
+      AND (vd.id IS NOT NULL OR vf.id IS NOT NULL OR va.id IS NOT NULL OR vo.id IS NOT NULL)
     ORDER BY score DESC, changed_at DESC, id
     LIMIT @row_window::integer)
   UNION ALL
@@ -96,6 +126,7 @@ SELECT p.kind, p.id, p.score::float8 AS score, p.changed_at, p.folder_id, fo.tit
     WHEN 'dashboard' THEN sd.title
     WHEN 'finding' THEN sf.title
     WHEN 'annotation' THEN split_part(sa.text, E'\n', 1)
+    WHEN 'observation' THEN so.title
     ELSE ss.title
   END::text AS title,
   ts_headline('english',
@@ -104,6 +135,10 @@ SELECT p.kind, p.id, p.score::float8 AS score, p.changed_at, p.folder_id, fo.tit
       WHEN 'finding' THEN sf.markdown
       WHEN 'annotation' THEN sa.text
       WHEN 'comment' THEN message_search_text(m.body)
+      WHEN 'observation' THEN concat_ws(E'\n', so.summary, (
+        SELECT string_agg(b.body ->> 'markdown', E'\n' ORDER BY b.position)
+        FROM observation_blocks b
+        WHERE b.observation_id = so.id AND b.kind = 'text' AND b.state = 'live'))
       ELSE coalesce(ss.query, '')
     END, chr(2) || chr(3), ''),
     search_query(@words::text, sqlc.narg('prefix')::text),
@@ -126,6 +161,7 @@ LEFT JOIN dashboard_versions sv ON p.kind = 'dashboard' AND sv.dashboard_id = sd
 LEFT JOIN findings sf ON p.subject_kind = 'finding' AND sf.id = p.subject_id
 LEFT JOIN annotations sa ON p.subject_kind = 'annotation' AND sa.id = p.subject_id
 LEFT JOIN dashboards ad ON ad.id = sa.dashboard_id
+LEFT JOIN observations so ON p.subject_kind = 'observation' AND so.id = p.subject_id
 LEFT JOIN saved_searches ss ON p.subject_kind = 'saved_search' AND ss.id = p.subject_id
 LEFT JOIN thread_messages m ON p.kind = 'comment' AND m.id = p.id
 ORDER BY p.score DESC, p.changed_at DESC, p.kind, p.id;

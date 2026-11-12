@@ -13,10 +13,12 @@ describe("paletteGroups", () => {
     expect(groups.map((group) => group.value)).toEqual([
       "Pages",
       "Dashboards",
+      "Actions",
       "Account",
     ])
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
       "Observe",
+      "Observations",
       "Dashboards",
       "Health",
       "Logs",
@@ -30,6 +32,11 @@ describe("paletteGroups", () => {
       thirty.slice(0, 8).map((dashboard) => dashboard.id)
     )
     expect(groups[2]?.items.map((entry) => entry.label)).toEqual([
+      "New observation",
+      "Ask Observe Agent",
+      "Import a dashboard",
+    ])
+    expect(groups[3]?.items.map((entry) => entry.label)).toEqual([
       "Switch theme",
       "Sign out",
     ])
@@ -89,6 +96,7 @@ describe("paletteGroups", () => {
     )
     expect(labels).toEqual([
       "Observe",
+      "Observations",
       "Dashboards",
       "Health",
       "Logs",
@@ -96,6 +104,16 @@ describe("paletteGroups", () => {
       "Settings",
     ])
     expect(paletteGroups("people", [], [], "viewer")).toEqual([])
+  })
+
+  test("a query finds the New actions by their words", () => {
+    const groups = paletteGroups("import", [], [], "viewer")
+    expect(groups.map((group) => group.value)).toEqual(["Actions"])
+    expect(groups[0]?.items).toEqual([
+      { kind: "action", id: "action:import", label: "Import a dashboard" },
+    ])
+    const agent = paletteGroups("agent", [], [], "viewer")
+    expect(agent[0]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
   })
 
   test("a query matching nothing returns no groups", () => {
@@ -137,7 +155,11 @@ const everyKind: SearchResult[] = [
 describe("paletteGroups with search results", () => {
   test("below two characters the results are ignored", () => {
     const groups = paletteGroups("d", thirty, everyKind, "admin")
-    expect(groups.map((group) => group.value)).toEqual(["Pages", "Dashboards"])
+    expect(groups.map((group) => group.value)).toEqual([
+      "Pages",
+      "Dashboards",
+      "Actions",
+    ])
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(
       thirty.slice(0, 20).map((dashboard) => dashboard.id)
     )

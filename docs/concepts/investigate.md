@@ -13,11 +13,14 @@ Start an investigation with `POST /api/v1/observe` and `kind` set to `investigat
 `dashboard_id` names the dashboard the question is about, and `panel_id` one of its panels, which needs `dashboard_id`.
 `from` and `to` set the window the agent looks at, as relative times or epoch milliseconds, at most 400 days apart.
 Without them the agent looks at the last hour.
+`observation_id` names an existing [observation](../use/observations.md) to write into: the answer is 404 `not_found` when you cannot see it and 403 `forbidden_role` when you cannot comment on it.
+Without it the server starts a new observation, and the request carries the id of either one as `observation_id`, or null when no folder allowed a new observation.
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard when one is named.
 A caller may have 3 investigations queued or running at once, and the instance 10.
 Investigations do not wait for other requests on the same dashboard, because they never change it.
 The request lists with `source` `investigate`, and `GET /api/v1/observe/{id}` returns its finding once it succeeds.
+When the finding is saved, its conclusion and evidence panels are also written into the observation, as described in [Observations](../use/observations.md#investigations-write-into-an-observation).
 
 ## The finding
 

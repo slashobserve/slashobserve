@@ -10,12 +10,13 @@ import (
 const sourceInvestigate = "investigate"
 
 type investigateOptions struct {
-	dashboard string
-	panel     string
-	from      string
-	to        string
-	noWait    bool
-	timeout   time.Duration
+	dashboard   string
+	panel       string
+	observation string
+	from        string
+	to          string
+	noWait      bool
+	timeout     time.Duration
 }
 
 type findingSummary struct {
@@ -32,13 +33,15 @@ func (a *app) investigateCommand() *cobra.Command {
 		Long: "investigate asks the agent a question, follows it while it reads your datasources, then prints the finding: its title, its answer and its address.\n" +
 			"With --dashboard the question is about that dashboard, and --panel narrows it to one of its panels.",
 		Example: "  observe investigate why did checkout errors rise after 10:00\n" +
-			"  observe investigate --dashboard <id> --panel <panel-id> --from now-6h --to now what changed",
+			"  observe investigate --dashboard <id> --panel <panel-id> --from now-6h --to now what changed\n" +
+			"  observe investigate --observation <id> why did checkout errors rise",
 		Args: minimumArgs(1, "a question"),
 		RunE: a.runInvestigate,
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&a.investigating.dashboard, "dashboard", "", "the dashboard the question is about")
 	flags.StringVar(&a.investigating.panel, "panel", "", "one panel of --dashboard the question is about")
+	flags.StringVar(&a.investigating.observation, "observation", "", "the observation to write into, by id; without it a new observation is made")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")
 	flags.BoolVar(&a.investigating.noWait, "no-wait", false, "print the request id and exit without waiting")
@@ -81,6 +84,13 @@ func investigatePayload(args []string, o investigateOptions) (map[string]any, er
 	}
 	if o.panel != "" {
 		payload["panel_id"] = o.panel
+	}
+	if o.observation != "" {
+		id, err := parseID(o.observation)
+		if err != nil {
+			return nil, err
+		}
+		payload["observation_id"] = id
 	}
 	if o.from != "" {
 		payload["from"], payload["to"] = o.from, o.to

@@ -4,7 +4,7 @@ import type { Comment } from "@/comments/queries"
 import type { Revision } from "@/revisions/queries"
 
 import type { AgentGate } from "./agent-gate"
-import { canResolveThread, threadState, threadVerbText } from "./thread-view"
+import { threadState, threadVerbText } from "./thread-view"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
 const actor = {
@@ -36,6 +36,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     panel_id: null,
     body: "text",
     status: "open",
+    allowed_actions: ["reply", "resolve"],
     author,
     actor,
     created_at: at(0),
@@ -173,19 +174,6 @@ describe("threadState", () => {
       kind: "resolved",
       text: "Resolved by someone",
     })
-  })
-})
-
-describe("canResolveThread", () => {
-  it("hides Resolve while the request is queued or running", () => {
-    expect(canResolveThread(request({ status: "queued" }))).toBe(false)
-    expect(canResolveThread(request({ status: "running" }))).toBe(false)
-  })
-
-  it("shows Resolve with no request or a finished one", () => {
-    expect(canResolveThread(null)).toBe(true)
-    expect(canResolveThread(request({ status: "succeeded" }))).toBe(true)
-    expect(canResolveThread(request({ status: "failed" }))).toBe(true)
   })
 })
 

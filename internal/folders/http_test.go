@@ -13,7 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
-const deleteRefusal = "move or delete the dashboards, findings and saved searches in this folder first"
+const deleteRefusal = "move or delete the dashboards, findings, saved searches and observations in this folder first"
 
 func newFolder(t *testing.T, d *dbtest.Database, title string) string {
 	t.Helper()

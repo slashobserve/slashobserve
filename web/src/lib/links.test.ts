@@ -9,6 +9,9 @@ import {
   findingPath,
   folderPath,
   logsUrl,
+  observationLink,
+  observationPath,
+  observationsLink,
   slugOf,
   traceLink,
   traceUrl,
@@ -71,6 +74,30 @@ describe("dashboard addresses", () => {
     expect(findingLink(id)).toEqual({
       to: "/findings/$findingId",
       params: { findingId: id },
+    })
+  })
+})
+
+describe("observation addresses", () => {
+  const id = "5d1c3e0a-2f64-4b7e-8a19-3c6d7e8f9a01"
+
+  it("builds the observation path and escapes the id", () => {
+    expect(observationPath(id)).toBe(`/o/${id}`)
+    expect(observationPath("a/b")).toBe("/o/a%2Fb")
+  })
+
+  it("gives the router the observation id", () => {
+    expect(observationLink(id)).toEqual({
+      to: "/o/$observationId",
+      params: { observationId: id },
+    })
+  })
+
+  it("builds the list address with or without the new panel", () => {
+    expect(observationsLink()).toEqual({ to: "/observations", search: {} })
+    expect(observationsLink({ new: "1" })).toEqual({
+      to: "/observations",
+      search: { new: "1" },
     })
   })
 })

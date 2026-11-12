@@ -99,13 +99,20 @@ type Service struct {
 	publicURL  *url.URL
 	logger     *slog.Logger
 	now        func() time.Time
+	rcas       RCAs
 }
 
-func New(database *db.DB, access *folders.Access, dashboardService *dashboards.Service, registry *datasource.Registry, publicURL *url.URL, logger *slog.Logger) *Service {
+type Option func(*Service)
+
+func New(database *db.DB, access *folders.Access, dashboardService *dashboards.Service, registry *datasource.Registry, publicURL *url.URL, logger *slog.Logger, opts ...Option) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Service{db: database, access: access, dashboards: dashboardService, registry: registry, publicURL: publicURL, logger: logger, now: time.Now}
+	s := &Service{db: database, access: access, dashboards: dashboardService, registry: registry, publicURL: publicURL, logger: logger, now: time.Now}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *Service) manage(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {

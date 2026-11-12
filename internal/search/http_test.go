@@ -198,7 +198,7 @@ func TestSearchRouteAnswersEveryError(t *testing.T) {
 		{"a missing query", admin, "", http.StatusBadRequest, "invalid_request", "q must be 1 to 200 characters"},
 		{"a query with no word", admin, "q=--", http.StatusBadRequest, "invalid_request", "q needs a word to search for"},
 		{"a control character", admin, "q=a%00b", http.StatusBadRequest, "invalid_request", "q must not contain control characters"},
-		{"an unknown kind", admin, "q=heron&kind=folder", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, finding, annotation, comment, saved_search"},
+		{"an unknown kind", admin, "q=heron&kind=folder", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, finding, annotation, observation, comment, saved_search"},
 		{"a limit above the ceiling", admin, "q=heron&limit=51", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a limit of zero", admin, "q=heron&limit=0", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a cursor that is not ours", admin, "q=heron&cursor=garbage", http.StatusBadRequest, "invalid_request", "cursor is not valid"},

@@ -12,6 +12,7 @@ import {
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
+  NotebookTextIcon,
   SettingsIcon,
   TerminalIcon,
   UsersIcon,
@@ -34,6 +35,9 @@ import {
   type NavItem,
   type NavPath,
 } from "./nav"
+import { NewMenu } from "./new-menu"
+import { OpenObservations } from "./open-observations"
+import { PaletteButton } from "./palette-button"
 import { useSidebarStore } from "./sidebar-store"
 import {
   clampSidebarWidth,
@@ -42,9 +46,11 @@ import {
   sidebarMaxWidth,
   sidebarMinWidth,
 } from "./sidebar-width"
+import { useFoldedByWidth } from "./use-folded"
 
 const icons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
+  "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/health": HeartPulseIcon,
   "/logs": LogsIcon,
@@ -75,9 +81,9 @@ function HomeLink({
       aria-label="/observe home"
       aria-current={undefined}
       className={cn(
-        "mb-3.5 flex items-center rounded-control no-underline",
+        "flex items-center rounded-control no-underline",
         focusRing,
-        collapsed ? "h-8 justify-center" : "min-h-[34px] px-2.5"
+        collapsed ? "h-8 flex-1 justify-center" : "min-h-[34px] px-2.5"
       )}
     >
       {collapsed ? <Mark size={16} /> : <Wordmark size={17} />}
@@ -103,7 +109,7 @@ function NavLink({
     activeOptions: { exact: true },
     "aria-current": active ? ("page" as const) : undefined,
     className: cn(
-      "flex h-8 items-center gap-2.5 rounded-[7px] border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
+      "flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
       focusRing,
       collapsed && "justify-center px-0"
     ),
@@ -254,9 +260,20 @@ export function SidebarContent({
 
   return (
     <>
-      <HomeLink collapsed={collapsed} onNavigate={onNavigate} />
+      <div className="mb-2.5 flex items-center justify-between">
+        <HomeLink collapsed={collapsed} onNavigate={onNavigate} />
+        <NewMenu collapsed={collapsed} onNavigate={onNavigate} />
+      </div>
+      <div className="mb-3.5">
+        <PaletteButton
+          variant="sidebar"
+          collapsed={collapsed}
+          onNavigate={onNavigate}
+        />
+      </div>
       <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
         {renderItems(main)}
+        <OpenObservations collapsed={collapsed} onNavigate={onNavigate} />
         {collapsed ? (
           <div
             role="group"
@@ -290,7 +307,8 @@ export function SidebarContent({
 export function Sidebar({ rail = false }: { rail?: boolean }) {
   const width = useSidebarStore((state) => state.width)
   const storedCollapsed = useSidebarStore((state) => state.collapsed)
-  const collapsed = rail || storedCollapsed
+  const folded = useFoldedByWidth()
+  const collapsed = rail || storedCollapsed || folded
   const [dragWidth, setDragWidth] = useState<number | null>(null)
   const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
 

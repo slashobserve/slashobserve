@@ -203,11 +203,11 @@ func TestFindingSavedInARunLabelsTheAgent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if label := got.Actor.Label(); label != "/observe for Eve" {
-		t.Fatalf("label %q, want %q", label, "/observe for Eve")
+	if label := got.Actor.Label(); label != "Observe Agent for Eve" {
+		t.Fatalf("label %q, want %q", label, "Observe Agent for Eve")
 	}
-	if saved.Actor.Label() != "/observe for Eve" {
-		t.Fatalf("label of the saved finding %q, want %q", saved.Actor.Label(), "/observe for Eve")
+	if saved.Actor.Label() != "Observe Agent for Eve" {
+		t.Fatalf("label of the saved finding %q, want %q", saved.Actor.Label(), "Observe Agent for Eve")
 	}
 }
 

@@ -55,6 +55,18 @@ export function findingLink(findingId: string) {
   return { to: "/findings/$findingId", params: { findingId } } as const
 }
 
+export function observationPath(observationId: string): string {
+  return path("o", observationId)
+}
+
+export function observationLink(observationId: string) {
+  return { to: "/o/$observationId", params: { observationId } } as const
+}
+
+export function observationsLink(search?: { new?: "1" }) {
+  return { to: "/observations", search: search ?? {} } as const
+}
+
 export type LogsLinkSearch = {
   ds?: string
   q?: string

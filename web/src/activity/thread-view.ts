@@ -52,7 +52,3 @@ export function threadState(input: {
   }
   return { kind: "note", text: "Open" }
 }
-
-export function canResolveThread(request: Revision | null): boolean {
-  return request === null || !isActive(request.status)
-}

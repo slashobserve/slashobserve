@@ -1,0 +1,620 @@
+observations:
+  post:
+    operationId: createObservation
+    x-surfaces:
+      mcp: [create_observation]
+      cli: [observe o new]
+    summary: Start an observation, a page of blocks in a folder.
+    description: >-
+      Needs Edit on the folder; without `folder_id` it is filed in the caller's My Dashboards, then General.
+      `first_block` writes a text or panel block in the same transaction.
+      The observation is `open`, has no discussion thread until someone opens one, and is found by search by its title, summary and text blocks.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateObservationRequest"
+    responses:
+      "201":
+        description: The observation.
+        headers:
+          Location:
+            required: true
+            description: "`/api/v1/observations/{id}` of the new observation."
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The folder does not exist or the caller cannot see it.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listObservations
+    x-surfaces:
+      mcp: [list_observations]
+      cli: [observe o list]
+    summary: List the observations in the folders the caller can see, most recently changed first.
+    description: >-
+      Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404.
+      The items carry no blocks; read one observation for them.
+    parameters:
+      - name: folder_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        schema:
+          $ref: "../openapi.yaml#/components/schemas/ObservationState"
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of observations.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getObservation
+    x-surfaces:
+      mcp: [get_observation]
+      cli: [observe o show]
+    summary: Read one observation with its blocks.
+    description: >-
+      Anyone who can view the observation's folder reads every block, requested ones included.
+      `allowed_actions` on the observation and on each block say what the caller may do now.
+      An observation the caller cannot see gives 404, never 403.
+    responses:
+      "200":
+        description: The observation, its folder and the caller's permissions.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  patch:
+    operationId: updateObservation
+    summary: Change an observation's title or time range.
+    description: Needs Edit on the folder. Allowed whether the observation is open or resolved.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateObservationRequest"
+    responses:
+      "200":
+        description: The observation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-move:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: moveObservation
+    summary: Move an observation to another folder.
+    description: >-
+      Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`).
+      Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing.
+      There is no delete route: moving is the way out of a folder.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MoveObservationRequest"
+    responses:
+      "200":
+        description: The observation in its new folder.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The observation or the target folder does not exist for the caller.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-resolve:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: resolveObservation
+    x-surfaces:
+      mcp: [resolve_observation]
+      cli: [observe o resolve]
+    summary: Close an open observation with a one-line summary.
+    description: Needs Edit on the folder. A resolved observation answers 409 `invalid_transition`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ResolveObservationRequest"
+    responses:
+      "200":
+        description: The resolved observation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-reopen:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: reopenObservation
+    summary: Reopen a resolved observation.
+    description: Needs Edit on the folder. The summary is kept. An open observation answers 409 `invalid_transition`.
+    responses:
+      "200":
+        description: The reopened observation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-blocks:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: addObservationBlock
+    x-surfaces:
+      mcp: [add_block]
+      cli: [observe o add]
+    summary: Add a block to an observation.
+    description: >-
+      With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403.
+      A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's.
+      Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data.
+      An observation holds at most 100 blocks and 24 panel and snapshot blocks together.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/AddObservationBlockRequest"
+    responses:
+      "201":
+        description: The block.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/BlockEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The refusals of `ObservationInvalid`, or a query of a snapshot's panel cannot run, with the codes of panel data
+          (`query_invalid`, `query_forbidden`, `limit_exceeded`, `unknown_datasource`, `variable_empty`, `expression_error`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/ValidationError"
+                - $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: A datasource is unavailable (`datasource_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout (`query_timeout`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+blocks-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  patch:
+    operationId: updateObservationBlock
+    x-surfaces:
+      mcp: [update_block]
+    summary: Change a block's body, width or position.
+    description: >-
+      Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
+      Only the body of a text or panel block can change (`body_not_editable`).
+      A `position` moves the block and shifts the blocks between, which keep their versions.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateObservationBlockRequest"
+    responses:
+      "200":
+        description: The updated block.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/BlockEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: removeObservationBlock
+    summary: Remove a live block.
+    description: >-
+      Needs Edit on the folder and the block's current `version`, as a query parameter.
+      A requested block is kept or discarded instead (409 `invalid_transition`).
+      The blocks after it close the gap.
+    parameters:
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    responses:
+      "204":
+        description: The block is removed.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+blocks-id-keep:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: keepObservationBlock
+    x-surfaces:
+      mcp: [keep_block]
+      cli: [observe o keep]
+    summary: Keep a requested block, which makes it live.
+    description: Needs Edit on the folder and the block's current `version`. A live block answers 409 `invalid_transition`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/KeepObservationBlockRequest"
+    responses:
+      "200":
+        description: The live block.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/BlockEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+blocks-id-discard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: discardObservationBlock
+    x-surfaces:
+      mcp: [discard_block]
+      cli: [observe o discard]
+    summary: Discard a requested block.
+    description: >-
+      Needs Edit on the folder, or being the person or key that asked for the block.
+      A live block answers 409 `invalid_transition`.
+    responses:
+      "204":
+        description: The block is gone.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+blocks-id-data:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: observationBlockData
+    summary: Run the query of a panel block and return its frames.
+    description: >-
+      Runs a panel block's stored queries under the draft query limits, never cached.
+      Only browser sessions may call it; a key gets 403 `user_session_required`.
+      Anyone who can view the observation's folder may call it, and `from` and `to` default to the block's range, then the observation's, then the last hour.
+      The response has the shape of panel data.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: max_data_points
+        in: query
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 11000
+          default: 1000
+    responses:
+      "200":
+        description: The frames the panel block's queries returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed or fails validation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: There is no such panel block for the caller (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: A query or a variable cannot run, with the codes of panel data.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+snapshots-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getSnapshot
+    summary: Read the frozen data of a snapshot block.
+    description: >-
+      Anyone who can view the observation's folder may read it.
+      `data` is exactly what the panel data route returned when the snapshot was taken, and `query` the frozen panel's queries, which stay inside the workspace.
+    responses:
+      "200":
+        description: The snapshot.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Snapshot"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

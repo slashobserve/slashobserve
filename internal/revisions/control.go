@@ -312,6 +312,9 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			PanelID:     row.PanelID.String,
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
+
+			ObservationID:    row.ObservationID,
+			ReuseObservation: true,
 		})
 	default:
 		return s.SubmitFollowUp(ctx, row.DashboardID, nil, "", row.Prompt, by)

@@ -445,7 +445,11 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 }
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, sourcePanel string) {
-	c.JSON(http.StatusOK, dataResponse{
+	c.JSON(http.StatusOK, dataBody(e, cached, executedAt, sourcePanel))
+}
+
+func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string) dataResponse {
+	return dataResponse{
 		Frames:    e.frames,
 		Exemplars: e.exemplars,
 		Meta: dataMeta{
@@ -470,7 +474,7 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, s
 			Bytes:          e.meta.bytes,
 			Page:           e.meta.page,
 		},
-	})
+	}
 }
 
 func (h *Handler) values(c *gin.Context) {
