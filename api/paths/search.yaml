@@ -4,10 +4,11 @@ search:
     x-surfaces:
       mcp: [search_workspace]
       cli: [observe search]
-    summary: Search dashboards, findings, annotations, comments and saved searches by words.
+    summary: Search dashboards, observations, annotations, comments and saved searches by words.
     description: >-
       Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals.
-      A caller finds only what it can open: a dashboard and its annotations, findings and comments through the dashboard's folder, a finding filed in a folder and a saved search through that folder, a global annotation and its comments through General, and a finding in no folder only for the person or key that saved it and for Admins.
+      A caller finds only what it can open: a dashboard and its annotations and comments through the dashboard's folder, an observation, its comments and a saved search through the folder each is in, and a global annotation and its comments through General.
+      A finding's text lives in its observation, so a finding is found as that observation.
       Only the latest version of a dashboard is searched.
       `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space.
       Results stop after 200 per query; refine the words to see more.
@@ -22,7 +23,7 @@ search:
           maxLength: 200
       - name: kind
         in: query
-        description: Only results of these kinds; repeat the parameter for several.
+        description: "Only results of these kinds; repeat the parameter for several. `finding` is deprecated and is no longer produced as a result kind: it means `observation`, and a request that names both returns each observation once."
         style: form
         explode: true
         schema:

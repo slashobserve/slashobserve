@@ -1226,7 +1226,7 @@ components:
       additionalProperties: false
       required: [id, title]
       nullable: true
-      description: The folder the result is read through; null for a finding in no folder.
+      description: The folder the result is read through.
       properties:
         id:
           type: string
@@ -1255,6 +1255,7 @@ components:
       properties:
         kind:
           type: string
+          description: "`finding` is never returned any more: a finding is found as its observation."
           enum: [dashboard, finding, annotation, observation, comment, saved_search]
         id:
           type: string

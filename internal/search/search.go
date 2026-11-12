@@ -40,11 +40,24 @@ const (
 )
 
 func Kinds() []Kind {
-	return []Kind{KindDashboard, KindFinding, KindAnnotation, KindObservation, KindComment, KindSavedSearch}
+	return []Kind{KindDashboard, KindAnnotation, KindObservation, KindComment, KindSavedSearch}
 }
 
 func (k Kind) Valid() bool {
-	return slices.Contains(Kinds(), k)
+	return k == KindFinding || slices.Contains(Kinds(), k)
+}
+
+func normalize(kinds []Kind) []Kind {
+	out := make([]Kind, 0, len(kinds))
+	for _, k := range kinds {
+		if k == KindFinding {
+			k = KindObservation
+		}
+		if !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 type Request struct {
@@ -117,17 +130,14 @@ func (s *Service) Search(ctx context.Context, by auth.Principal, r Request) (Pag
 		return Page{}, err
 	}
 	rows, err := s.db.Queries().SearchWorkspace(ctx, dbsqlc.SearchWorkspaceParams{
-		Words:      query.Words,
-		Prefix:     pgtype.Text{String: query.Prefix, Valid: query.Prefix != ""},
-		Folders:    audience.Folders,
-		Admin:      audience.Admin,
-		ReaderKind: audience.ReaderKind,
-		ReaderID:   audience.ReaderID,
-		AsOf:       pgtype.Timestamptz{Time: asOf, Valid: true},
-		Kinds:      kindNames(r.Kinds),
-		RowWindow:  httpapi.Int32(offset + limit + 1),
-		RowOffset:  httpapi.Int32(offset),
-		RowLimit:   httpapi.Int32(limit + 1),
+		Words:     query.Words,
+		Prefix:    pgtype.Text{String: query.Prefix, Valid: query.Prefix != ""},
+		Folders:   audience.Folders,
+		AsOf:      pgtype.Timestamptz{Time: asOf, Valid: true},
+		Kinds:     kindNames(r.Kinds),
+		RowWindow: httpapi.Int32(offset + limit + 1),
+		RowOffset: httpapi.Int32(offset),
+		RowLimit:  httpapi.Int32(limit + 1),
 	})
 	if err != nil {
 		return Page{}, fmt.Errorf("search workspace: %w", err)
@@ -150,6 +160,7 @@ func kindNames(kinds []Kind) []string {
 	if len(kinds) == 0 {
 		kinds = Kinds()
 	}
+	kinds = normalize(kinds)
 	names := make([]string, len(kinds))
 	for i, k := range kinds {
 		names[i] = string(k)
@@ -184,8 +195,6 @@ func (s *Service) addressOf(row dbsqlc.SearchWorkspaceRow) (string, error) {
 	switch Kind(row.SubjectKind) {
 	case KindDashboard:
 		return links.Dashboard(s.publicURL, row.SubjectID.String(), row.Title), nil
-	case KindFinding:
-		return links.Finding(s.publicURL, row.SubjectID.String()), nil
 	case KindAnnotation:
 		return s.annotationURL(row), nil
 	case KindObservation:

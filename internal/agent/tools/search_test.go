@@ -208,7 +208,7 @@ func TestSearchWorkspaceRefusesBadInput(t *testing.T) {
 		{"only an exclusion", `{"q":"-staging"}`, "q needs a word to search for"},
 		{"limit 0", `{"q":"a","limit":0}`, "limit must be between 1 and 50"},
 		{"limit 51", `{"q":"a","limit":51}`, "limit must be between 1 and 50"},
-		{"unknown kind", `{"q":"a","kinds":["folder"]}`, "kinds must each be one of dashboard, finding, annotation, observation, comment, saved_search"},
+		{"unknown kind", `{"q":"a","kinds":["folder"]}`, "kinds must each be one of dashboard, annotation, observation, comment, saved_search"},
 		{"cursor not a cursor", `{"q":"a","cursor":"nope"}`, "cursor is not valid"},
 		{"cursor too long", `{"q":"a","cursor":"` + strings.Repeat("c", maxNameBytes+1) + `"}`, "cursor must be at most 256 bytes"},
 	}

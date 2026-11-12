@@ -17,17 +17,6 @@ WITH visible_dashboards AS NOT MATERIALIZED (
   FROM dashboards d
   WHERE d.folder_id = ANY($3::uuid[])
 ),
-visible_findings AS NOT MATERIALIZED (
-  SELECT f.id, f.created_at,
-    CASE WHEN f.dashboard_id IS NOT NULL THEN d.folder_id ELSE f.folder_id END AS folder_id
-  FROM findings f
-  LEFT JOIN dashboards d ON d.id = f.dashboard_id
-  WHERE CASE
-    WHEN f.dashboard_id IS NOT NULL THEN d.folder_id = ANY($3::uuid[])
-    WHEN f.folder_id IS NOT NULL THEN f.folder_id = ANY($3::uuid[])
-    ELSE $4::boolean OR (f.created_by_kind = $5::text AND f.created_by_id = $6::uuid)
-  END
-),
 visible_annotations AS NOT MATERIALIZED (
   SELECT a.id, a.created_at, coalesce(d.folder_id, general_folder_id()) AS folder_id
   FROM annotations a
@@ -45,14 +34,14 @@ observation_matches AS NOT MATERIALIZED (
     ts_rank_cd(observation_search_vector(o.title, o.summary), search_query($1::text, $2::text), 1) AS rank
   FROM observations o
   JOIN visible_observations vo ON vo.id = o.id
-  WHERE 'observation' = ANY($7::text[])
+  WHERE 'observation' = ANY($4::text[])
     AND observation_search_vector(o.title, o.summary) @@ search_query($1::text, $2::text)
   UNION ALL
   SELECT b.observation_id,
     ts_rank_cd(observation_block_search_vector(b.body), search_query($1::text, $2::text), 1) AS rank
   FROM observation_blocks b
   JOIN visible_observations vo ON vo.id = b.observation_id
-  WHERE 'observation' = ANY($7::text[])
+  WHERE 'observation' = ANY($4::text[])
     AND b.kind = 'text' AND b.state = 'live'
     AND observation_block_search_vector(b.body) @@ search_query($1::text, $2::text)
 ),
@@ -60,82 +49,70 @@ hits AS (
   (SELECT 'dashboard'::text AS kind, v.dashboard_id AS id, d.updated_at AS changed_at, d.folder_id AS folder_id,
       'dashboard'::text AS subject_kind, v.dashboard_id AS subject_id,
       ts_rank_cd(dashboard_search_vector(v.spec), search_query($1::text, $2::text), 1)
-        * search_recency(d.updated_at, $8::timestamptz) AS score
+        * search_recency(d.updated_at, $5::timestamptz) AS score
     FROM dashboard_versions v
     JOIN visible_dashboards d ON d.id = v.dashboard_id AND v.version = d.latest_version
-    WHERE 'dashboard' = ANY($7::text[])
+    WHERE 'dashboard' = ANY($4::text[])
       AND dashboard_search_vector(v.spec) @@ search_query($1::text, $2::text)
     ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
-  UNION ALL
-  (SELECT 'finding'::text AS kind, f.id AS id, f.created_at AS changed_at, vf.folder_id AS folder_id, 'finding'::text AS subject_kind, f.id AS subject_id,
-      ts_rank_cd(finding_search_vector(f.title, f.markdown, f.evidence), search_query($1::text, $2::text), 1)
-        * search_recency(f.created_at, $8::timestamptz) AS score
-    FROM findings f
-    JOIN visible_findings vf ON vf.id = f.id
-    WHERE 'finding' = ANY($7::text[])
-      AND finding_search_vector(f.title, f.markdown, f.evidence) @@ search_query($1::text, $2::text)
-    ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
+    LIMIT $6::integer)
   UNION ALL
   (SELECT 'annotation'::text AS kind, a.id AS id, a.created_at AS changed_at, va.folder_id AS folder_id, 'annotation'::text AS subject_kind, a.id AS subject_id,
       ts_rank_cd(annotation_search_vector(a.text, a.tags), search_query($1::text, $2::text), 1)
-        * search_recency(a.created_at, $8::timestamptz) AS score
+        * search_recency(a.created_at, $5::timestamptz) AS score
     FROM annotations a
     JOIN visible_annotations va ON va.id = a.id
-    WHERE 'annotation' = ANY($7::text[])
+    WHERE 'annotation' = ANY($4::text[])
       AND annotation_search_vector(a.text, a.tags) @@ search_query($1::text, $2::text)
     ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
+    LIMIT $6::integer)
   UNION ALL
   (SELECT 'observation'::text AS kind, vo.id AS id, vo.updated_at AS changed_at, vo.folder_id AS folder_id, 'observation'::text AS subject_kind, vo.id AS subject_id,
-      max(om.rank) * search_recency(vo.updated_at, $8::timestamptz) AS score
+      max(om.rank) * search_recency(vo.updated_at, $5::timestamptz) AS score
     FROM observation_matches om
     JOIN visible_observations vo ON vo.id = om.observation_id
     GROUP BY vo.id, vo.updated_at, vo.folder_id
     ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
+    LIMIT $6::integer)
   UNION ALL
   (SELECT 'comment'::text AS kind, m.id AS id, coalesce(m.edited_at, m.created_at) AS changed_at,
-      coalesce(vd.folder_id, vf.folder_id, va.folder_id, vo.folder_id) AS folder_id,
-      CASE WHEN t.dashboard_id IS NOT NULL THEN 'dashboard' WHEN t.finding_id IS NOT NULL THEN 'finding' WHEN t.observation_id IS NOT NULL THEN 'observation' ELSE 'annotation' END AS subject_kind,
-      coalesce(t.dashboard_id, t.finding_id, t.annotation_id, t.observation_id) AS subject_id,
+      coalesce(vd.folder_id, va.folder_id, vo.folder_id) AS folder_id,
+      CASE WHEN t.dashboard_id IS NOT NULL THEN 'dashboard' WHEN t.observation_id IS NOT NULL THEN 'observation' ELSE 'annotation' END AS subject_kind,
+      coalesce(t.dashboard_id, t.annotation_id, t.observation_id) AS subject_id,
       ts_rank_cd(message_search_vector(m.body), search_query($1::text, $2::text), 1)
-        * search_recency(coalesce(m.edited_at, m.created_at), $8::timestamptz) AS score
+        * search_recency(coalesce(m.edited_at, m.created_at), $5::timestamptz) AS score
     FROM thread_messages m
     JOIN threads t ON t.id = m.thread_id
     LEFT JOIN visible_dashboards vd ON vd.id = t.dashboard_id
-    LEFT JOIN visible_findings vf ON vf.id = t.finding_id
     LEFT JOIN visible_annotations va ON va.id = t.annotation_id
     LEFT JOIN visible_observations vo ON vo.id = t.observation_id
-    WHERE 'comment' = ANY($7::text[])
+    WHERE 'comment' = ANY($4::text[])
       AND message_search_vector(m.body) @@ search_query($1::text, $2::text)
-      AND (vd.id IS NOT NULL OR vf.id IS NOT NULL OR va.id IS NOT NULL OR vo.id IS NOT NULL)
+      AND (vd.id IS NOT NULL OR va.id IS NOT NULL OR vo.id IS NOT NULL)
     ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
+    LIMIT $6::integer)
   UNION ALL
   (SELECT 'saved_search'::text AS kind, s.id AS id, s.updated_at AS changed_at, s.folder_id AS folder_id, 'saved_search'::text AS subject_kind, s.id AS subject_id,
       ts_rank_cd(saved_search_search_vector(s.title, s.query, s.filters), search_query($1::text, $2::text), 1)
-        * search_recency(s.updated_at, $8::timestamptz) AS score
+        * search_recency(s.updated_at, $5::timestamptz) AS score
     FROM saved_searches s
-    WHERE 'saved_search' = ANY($7::text[])
+    WHERE 'saved_search' = ANY($4::text[])
       AND s.folder_id = ANY($3::uuid[])
       AND saved_search_search_vector(s.title, s.query, s.filters) @@ search_query($1::text, $2::text)
     ORDER BY score DESC, changed_at DESC, id
-    LIMIT $9::integer)
+    LIMIT $6::integer)
 ),
 page AS (
   SELECT h.kind, h.id, h.changed_at, h.folder_id, h.subject_kind, h.subject_id, h.score
   FROM hits h
   ORDER BY h.score DESC, h.changed_at DESC, h.kind, h.id
-  OFFSET $10::integer
-  LIMIT $11::integer
+  OFFSET $7::integer
+  LIMIT $8::integer
 )
 SELECT p.kind, p.id, p.score::float8 AS score, p.changed_at, p.folder_id, fo.title AS folder_title,
   p.subject_kind, p.subject_id,
   CASE p.subject_kind
     WHEN 'dashboard' THEN sd.title
-    WHEN 'finding' THEN sf.title
     WHEN 'annotation' THEN split_part(sa.text, E'\n', 1)
     WHEN 'observation' THEN so.title
     ELSE ss.title
@@ -143,7 +120,6 @@ SELECT p.kind, p.id, p.score::float8 AS score, p.changed_at, p.folder_id, fo.tit
   ts_headline('english',
     translate(CASE p.kind
       WHEN 'dashboard' THEN observespec_search_text(sv.spec)
-      WHEN 'finding' THEN sf.markdown
       WHEN 'annotation' THEN sa.text
       WHEN 'comment' THEN message_search_text(m.body)
       WHEN 'observation' THEN concat_ws(E'\n', so.summary, (
@@ -169,7 +145,6 @@ FROM page p
 LEFT JOIN folders fo ON fo.id = p.folder_id
 LEFT JOIN dashboards sd ON p.subject_kind = 'dashboard' AND sd.id = p.subject_id
 LEFT JOIN dashboard_versions sv ON p.kind = 'dashboard' AND sv.dashboard_id = sd.id AND sv.version = sd.latest_version
-LEFT JOIN findings sf ON p.subject_kind = 'finding' AND sf.id = p.subject_id
 LEFT JOIN annotations sa ON p.subject_kind = 'annotation' AND sa.id = p.subject_id
 LEFT JOIN dashboards ad ON ad.id = sa.dashboard_id
 LEFT JOIN observations so ON p.subject_kind = 'observation' AND so.id = p.subject_id
@@ -179,17 +154,14 @@ ORDER BY p.score DESC, p.changed_at DESC, p.kind, p.id
 `
 
 type SearchWorkspaceParams struct {
-	Words      string
-	Prefix     pgtype.Text
-	Folders    []pgtype.UUID
-	Admin      bool
-	ReaderKind string
-	ReaderID   pgtype.UUID
-	Kinds      []string
-	AsOf       pgtype.Timestamptz
-	RowWindow  int32
-	RowOffset  int32
-	RowLimit   int32
+	Words     string
+	Prefix    pgtype.Text
+	Folders   []pgtype.UUID
+	Kinds     []string
+	AsOf      pgtype.Timestamptz
+	RowWindow int32
+	RowOffset int32
+	RowLimit  int32
 }
 
 type SearchWorkspaceRow struct {
@@ -223,9 +195,6 @@ func (q *Queries) SearchWorkspace(ctx context.Context, arg SearchWorkspaceParams
 		arg.Words,
 		arg.Prefix,
 		arg.Folders,
-		arg.Admin,
-		arg.ReaderKind,
-		arg.ReaderID,
 		arg.Kinds,
 		arg.AsOf,
 		arg.RowWindow,

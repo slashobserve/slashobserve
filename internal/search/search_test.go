@@ -8,7 +8,7 @@ import (
 )
 
 func TestSearchFollowsEveryChangeAtOnce(t *testing.T) {
-	t.Run("a dashboard moved into a restricted folder disappears with its findings, annotations and comments", func(t *testing.T) {
+	t.Run("a dashboard moved into a restricted folder takes its annotations and comments but not an observation filed beside it", func(t *testing.T) {
 		r := newRig(t)
 		dashboard := r.dashboard(t, "quokka dashboard", mustUUID(t, r.text(t, `SELECT general_folder_id()::text`)), "")
 		r.finding(t, findingIn{title: "quokka finding", markdown: "quokka", dashboard: dashboard})
@@ -21,22 +21,22 @@ func TestSearchFollowsEveryChangeAtOnce(t *testing.T) {
 
 		r.db.Exec(t, `UPDATE dashboards SET folder_id = $1 WHERE id = $2::uuid`, r.restricted(t, "Payroll"), dashboard)
 
-		if got := r.search(t, editor, "quokka"); len(got) != 0 {
-			t.Fatalf("after the move the editor finds %v", titles(got))
+		if got := r.search(t, editor, "quokka"); len(got) != 1 || got[0].Kind != KindObservation {
+			t.Fatalf("after the move the editor finds %v, want only the observation", titles(got))
 		}
 		if got := len(r.search(t, payroll, "quokka")); got != 5 {
 			t.Fatalf("the folder's viewer finds %d results, want 5", got)
 		}
 	})
 
-	t.Run("a finding moved into a shared folder is found by that folder's viewers", func(t *testing.T) {
+	t.Run("an observation moved into a shared folder is found by that folder's viewers", func(t *testing.T) {
 		r := newRig(t)
-		finding := r.finding(t, findingIn{title: "quokka finding", markdown: "quokka", folder: r.restricted(t, "Payroll")})
+		observation := r.finding(t, findingIn{title: "quokka finding", markdown: "quokka", folder: r.restricted(t, "Payroll")})
 		if got := r.search(t, editor, "quokka"); len(got) != 0 {
 			t.Fatalf("before the move the editor finds %v", titles(got))
 		}
 
-		r.db.Exec(t, `UPDATE findings SET folder_id = $1 WHERE id = $2::uuid`, r.folder(t, "Incidents"), finding)
+		r.db.Exec(t, `UPDATE observations SET folder_id = $1 WHERE id = $2::uuid`, r.folder(t, "Incidents"), observation)
 
 		got := r.search(t, editor, "quokka")
 		if len(got) != 1 || got[0].Folder == nil || got[0].Folder.Title != "Incidents" {
@@ -44,7 +44,7 @@ func TestSearchFollowsEveryChangeAtOnce(t *testing.T) {
 		}
 	})
 
-	t.Run("a deleted dashboard takes everything about it out of the results", func(t *testing.T) {
+	t.Run("a deleted dashboard takes its annotations and comments out of the results and leaves the observation", func(t *testing.T) {
 		r := newRig(t)
 		dashboard := r.dashboard(t, "quokka dashboard", mustUUID(t, r.text(t, `SELECT general_folder_id()::text`)), "")
 		r.finding(t, findingIn{title: "quokka finding", markdown: "quokka", dashboard: dashboard})
@@ -53,8 +53,8 @@ func TestSearchFollowsEveryChangeAtOnce(t *testing.T) {
 
 		r.db.Exec(t, `DELETE FROM dashboards WHERE id = $1::uuid`, dashboard)
 
-		if got := r.search(t, admin, "quokka"); len(got) != 0 {
-			t.Fatalf("found %v after the delete", titles(got))
+		if got := r.search(t, admin, "quokka"); len(got) != 1 || got[0].Kind != KindObservation {
+			t.Fatalf("found %v after the delete, want only the observation", titles(got))
 		}
 	})
 
@@ -118,7 +118,7 @@ func TestSearchRanksTitlesAboveBodiesAndNewerAboveOlder(t *testing.T) {
 		r.finding(t, findingIn{title: "kestrel", markdown: "nest"})
 		var rank float64
 		err := r.db.SQLDB(t).QueryRowContext(t.Context(),
-			`SELECT ts_rank_cd(finding_search_vector(title, markdown, evidence), search_query('kest', 'kest'), 1) FROM findings`).Scan(&rank)
+			`SELECT ts_rank_cd(observation_search_vector(title, summary), search_query('kest', 'kest'), 1) FROM observations`).Scan(&rank)
 		if err != nil || rank <= 0 {
 			t.Fatalf("rank %v, %v", rank, err)
 		}
@@ -173,7 +173,9 @@ func TestSearchKindFilter(t *testing.T) {
 		want  int
 	}{
 		{[]Kind{KindDashboard}, 2},
+		{[]Kind{KindObservation}, 4},
 		{[]Kind{KindFinding}, 4},
+		{[]Kind{KindFinding, KindObservation}, 4},
 		{[]Kind{KindAnnotation}, 2},
 		{[]Kind{KindComment}, 8},
 		{[]Kind{KindSavedSearch}, 1},
@@ -338,8 +340,8 @@ func TestSearchResultsCarryTheirPlaceAndAddress(t *testing.T) {
 	global := r.annotation(t, "", "heron global")
 	onDashboard := r.annotation(t, dashboard, "heron on dashboard")
 	finding := r.finding(t, findingIn{title: "heron finding", markdown: "text", dashboard: dashboard})
-	thread, message := r.comment(t, KindFinding, finding, "heron comment")
-	unfiled := r.finding(t, findingIn{title: "heron unfiled", markdown: "text", by: keyS})
+	thread, message := r.comment(t, KindObservation, finding, "heron comment")
+	keyed := r.finding(t, findingIn{title: "heron keyed", markdown: "text", by: keyS})
 	logs := `{app="x"} |= "heron"`
 	saved := r.savedSearch(t, "logs", "heron logs", &logs, general)
 	r.db.Exec(t, `UPDATE annotations SET time_from = '2026-11-01T10:00:00Z', time_to = '2026-11-01T10:30:00Z' WHERE id = $1::uuid`, onDashboard)
@@ -362,10 +364,10 @@ func TestSearchResultsCarryTheirPlaceAndAddress(t *testing.T) {
 		{"a global annotation has no page", global, "", "General", nil, "", KindAnnotation, false},
 		{"an annotation on a dashboard opens its window", onDashboard,
 			"https://observe.example.com/d/" + dashboard + "/checkout-overview?from=1793526300000&to=1793529900000", "General", nil, "", KindAnnotation, true},
-		{"a finding opens its page", finding, "https://observe.example.com/findings/" + finding, "General", nil, "", KindFinding, true},
-		{"a comment points at what it is on", message, "https://observe.example.com/findings/" + finding, "General",
-			&Target{Kind: KindFinding, ID: finding, Title: "heron finding"}, thread, KindComment, true},
-		{"an unfiled finding has no folder", unfiled, "https://observe.example.com/findings/" + unfiled, "", nil, "", KindFinding, true},
+		{"a converted finding opens its observation", finding, "https://observe.example.com/o/" + finding, "General", nil, "", KindObservation, true},
+		{"a comment points at what it is on", message, "https://observe.example.com/o/" + finding, "General",
+			&Target{Kind: KindObservation, ID: finding, Title: "heron finding"}, thread, KindComment, true},
+		{"an observation saved by a key is filed in General", keyed, "https://observe.example.com/o/" + keyed, "General", nil, "", KindObservation, true},
 		{"a saved search opens its page", saved, "https://observe.example.com/logs?ds=loki&from=now-1h&q=%7Bapp%3D%22x%22%7D+%7C%3D+%22heron%22&to=now", "General", nil, "", KindSavedSearch, true},
 	}
 	for _, tt := range cases {
@@ -384,5 +386,49 @@ func TestSearchResultsCarryTheirPlaceAndAddress(t *testing.T) {
 				t.Fatalf("target %+v, want %+v", got.Target, tt.target)
 			}
 		})
+	}
+}
+
+func TestAFindingKindMeansObservation(t *testing.T) {
+	r := newRig(t)
+	converted := r.finding(t, findingIn{title: "marmot burrow", markdown: "marmot tunnels under the road\nsecond line", summary: "marmot tunnels under the road"})
+	r.finding(t, findingIn{title: "other", markdown: "nothing relevant"})
+
+	cases := []struct {
+		name  string
+		kinds []Kind
+	}{
+		{"no kinds", nil},
+		{"observation", []Kind{KindObservation}},
+		{"finding", []Kind{KindFinding}},
+		{"finding and observation", []Kind{KindFinding, KindObservation}},
+		{"observation twice and finding", []Kind{KindObservation, KindFinding, KindObservation}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := r.search(t, admin, "marmot", tt.kinds...)
+			if len(got) != 1 || got[0].Kind != KindObservation || got[0].ID != converted || got[0].URL != "https://observe.example.com/o/"+converted {
+				t.Fatalf("results %+v, want the observation %s once", got, converted)
+			}
+		})
+	}
+
+	t.Run("a finding kind alone does not also search the other kinds", func(t *testing.T) {
+		r.dashboard(t, "marmot dashboard", mustUUID(t, r.text(t, `SELECT general_folder_id()::text`)), "")
+		if got := r.search(t, admin, "marmot", KindFinding); len(got) != 1 || got[0].ID != converted {
+			t.Fatalf("results %v", titles(got))
+		}
+	})
+}
+
+func TestTheDefaultSearchNeverReturnsTheFindingKind(t *testing.T) {
+	w := buildWorld(t)
+	for _, result := range w.search(t, admin, "zebra") {
+		if result.Kind == KindFinding {
+			t.Errorf("result %s has the finding kind", result.ID)
+		}
+	}
+	if slices.Contains(Kinds(), KindFinding) || !KindFinding.Valid() || Kind("folder").Valid() {
+		t.Errorf("kinds %v, finding valid %v, folder valid %v", Kinds(), KindFinding.Valid(), Kind("folder").Valid())
 	}
 }
