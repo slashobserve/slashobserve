@@ -100,6 +100,7 @@ type runFacts struct {
 	onDashboard bool
 	requester   bool
 	mayStart    bool
+	mayEdit     bool
 	buildPanels int
 	buildSaved  bool
 	continued   bool
@@ -115,7 +116,7 @@ func (f runFacts) refuses(a Action) bool {
 	case ActionCancel:
 		return f.source == SourceSuggest
 	case ActionKeepBuild:
-		return !hasBuild
+		return !hasBuild || !f.mayEdit
 	case ActionContinue:
 		return f.source == SourceInvestigate || !hasBuild || f.continued
 	case ActionRetry:

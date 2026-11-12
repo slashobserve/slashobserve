@@ -277,7 +277,10 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
-A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key; a follow-up or revision needs Edit on the dashboard's folder (see [Folders and access](../teams/folders.md)).
+A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key.
+A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
+A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
+These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
@@ -289,7 +292,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 The proposal belongs to the run, so a second attempt of the same run adds a revision to it and does not open another.
 The run succeeds with `result_kind: proposal` and no `result_version`, and the comment that asked for it stays open, because nothing was saved.
 Someone who can edit the dashboard merges or discards the proposal; the run's last step says "Proposed for an Editor to merge".
-**Save what was built** still needs Edit.
+**Save what was built** still needs Edit, so it is not offered to a requester who can only comment.
 
 ### Tools in a run
 

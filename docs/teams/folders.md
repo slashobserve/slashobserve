@@ -54,8 +54,8 @@ An entry can give a Viewer or Commenter more and never gives anyone less:
 | Level   | May                                                                                                                                                                                                |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | View    | See the folder and its dashboards.                                                                                                                                                                 |
-| Comment | Also comment and reply.                                                                                                                                                                            |
-| Edit    | Also change and restore dashboards, edit their details, run canvas actions, send requests to the agent, create, duplicate or import dashboards into the folder, and move or delete its dashboards. |
+| Comment | Also comment and reply, and send a request to the agent, whose change reaches the dashboard as a proposal.                                                                                         |
+| Edit    | Also change and restore dashboards, edit their details, run canvas actions, ask the agent to suggest a panel change, create, duplicate or import dashboards into the folder, and move or delete its dashboards. |
 | Admin   | Also rename the folder, delete it and change its list.                                                                                                                                             |
 
 Restricted folders on the Dashboards page show `Your access: <level>` in their header.

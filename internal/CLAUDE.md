@@ -197,6 +197,9 @@ This lists only the packages whose purpose the name does not make obvious.
   Add no way for anyone else to stop a run.
 - A run's `state` changes only through `revisions.RunMachine` moves, and each queue query is fenced by `RunMachine.From(action)`; `docs/reference/states.md` is generated from the machine by `make generate`.
   Retry (`POST /api/v1/observe/{id}/retry`) is open to anyone who can see the run and may start that kind, and the new run is the caller's.
+- `runAllowed` is the one rule for who may start a run: on a dashboard an observe, prompt or comment run needs Comment, so a Commenter's run commits as a proposal, and a suggest run needs Edit.
+  `keep_build` needs Edit because it saves a version, so `runFacts.mayEdit` drops it from `allowedActions` for a requester who cannot edit; the `MaxActive` per-dashboard cap applies to Commenters as to anyone.
+  `POST /dashboards/{id}/revisions` and a comment with `request_revision` check Comment, and `POST /dashboards/{id}/suggestions` still checks Edit.
 - Continue (`POST /api/v1/observe/{id}/continue`) is a new request with `continues_id` set, and the stopped build moves to it with `MoveAgentRequestBuild` in the same transaction as the insert; the stopped request stays `failed`, so attempts only grow and every fenced write keeps working.
   The build row is the token that keeps Continue and save exclusive: `MoveAgentRequestBuild` needs `build_saved_at IS NULL`, `SaveStoppedBuild` returns `ErrBuildNotSavable` unless its delete removes exactly one build row, and the loser answers 409 `not_continuable` for Continue after a save, or 404 for a save after Continue because the build moved.
   A unique index on `continues_id` allows one continuation, and a revision whose dashboard has a newer version than the build's base answers 409 `version_conflict`.
