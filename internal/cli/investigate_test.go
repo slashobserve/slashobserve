@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const observationID = "cccccccc-0000-4000-8000-000000000001"
+
 const investigationID = "bbbbbbbb-0000-4000-8000-000000000001"
 
 func TestInvestigatePayloadCarriesTheQuestionAndTarget(t *testing.T) {
@@ -31,6 +33,27 @@ func TestInvestigatePayloadCarriesTheQuestionAndTarget(t *testing.T) {
 	}
 }
 
+func TestInvestigatePayloadNamesTheObservationOnlyWhenGiven(t *testing.T) {
+	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"kind":"investigate","observation_id":"`+observationID+`","prompt":"why"}` {
+		t.Errorf("payload = %s", raw)
+	}
+}
+
+func TestInvestigateSendsTheObservationFlag(t *testing.T) {
+	server, requests := investigationServer(t, findingJSON)
+	_, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "investigate", "--observation", observationID, "why", "did", "errors", "rise")
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if sent := (*requests)[0]; sent.path != "/api/v1/observe" || sent.body != `{"kind":"investigate","observation_id":"`+observationID+`","prompt":"why did errors rise"}` {
+		t.Errorf("request = %+v", sent)
+	}
+}
+
 func TestInvestigateFlagRulesAreUsageErrors(t *testing.T) {
 	cases := map[string][]string{
 		"panel without dashboard": {"investigate", "why", "--panel", "p1"},
@@ -39,6 +62,7 @@ func TestInvestigateFlagRulesAreUsageErrors(t *testing.T) {
 		"empty question":          {"investigate", "  "},
 		"no question":             {"investigate"},
 		"bad dashboard id":        {"investigate", "why", "--dashboard", "checkout"},
+		"bad observation id":      {"investigate", "why", "--observation", "weekly-review"},
 		"zero timeout":            {"investigate", "why", "--timeout", "0s"},
 	}
 	for name, args := range cases {

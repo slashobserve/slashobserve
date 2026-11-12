@@ -91,7 +91,7 @@ A revision with a snapshot of data that depends on who is viewing, from `${__use
 An [investigation](investigate.md) opens an observation when it is queued, and its run shows there as a `run` block while the agent works.
 `POST /api/v1/observe` with `kind` `investigate`, and `observe investigate`, both do this.
 
-`POST /api/v1/observe` takes an optional `observation_id` for an investigation, the observation to write into.
+`POST /api/v1/observe` takes an optional `observation_id` for an investigation, the observation to write into, and `observe investigate` takes it as `--observation`.
 It must be an observation you can see, or the answer is 404 `not_found`, and one you may comment on, or the answer is 403 `forbidden_role`.
 An investigation that names an observation with 100 blocks already gets no run block and no `observation_id`, because the page has no room.
 
@@ -114,7 +114,7 @@ A failure writing these blocks never changes the finding or the investigation's 
 A server error while the observation is opened queues nothing and answers the request with that error.
 
 `observation_id` on a run is the observation it writes into, and `GET /api/v1/observe/{id}` and `observe investigate --json` carry it.
-`observe investigate` has no flag to name an observation, so a terminal always starts a new one.
+`observe investigate --observation <id>` names the observation to write into, and without it a terminal starts a new one.
 
 Starting an investigation again, with `POST /api/v1/observe/{id}/retry` or `observe retry`, writes into the observation of the run when you may comment on it.
 Otherwise, or when that run had none, the rules for a new observation apply to you.

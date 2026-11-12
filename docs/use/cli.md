@@ -157,13 +157,16 @@ A key never sees private prompts, so share a prompt from the chat home before ru
 ```sh
 bin/observe investigate why did checkout errors rise after 10:00
 bin/observe investigate --dashboard <dashboard-id> --panel <panel-id> --from now-6h --to now what changed
+bin/observe investigate --observation <observation-id> why did checkout errors rise
 ```
 
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
-`--panel` without `--dashboard`, or one of `--from` and `--to` alone, exits 2.
+`--observation` names an existing observation to write into, by its id.
+`--panel` without `--dashboard`, or one of `--from` and `--to` alone, or an `--observation` that is not an id, exits 2.
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
-Each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
-`bin/observe investigate` has no flag to write into an existing observation; the `observation_id` field of `POST /api/v1/observe` does that.
+Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
+With `--observation` the run and the conclusion go into that observation.
+It must be one you can see, or the server answers `not_found`, and one you may comment on, or it answers `forbidden_role`.
 
 `--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
 It exits 1 when the investigation fails or ends without a finding.
