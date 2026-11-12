@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
-import { sentence } from "@/observe/queries"
+import { sentence, useObserveRequest } from "@/observe/queries"
 
 import type { SentMessage } from "./thread-queries"
 
@@ -26,12 +26,31 @@ export function RunStarted({ run, refusal, agentName }: RunStartedProps) {
       </p>
     )
   }
+  return <BuiltinRun id={run.id} sentStatus={run.status} />
+}
+
+const runLines = {
+  queued: "Observe Agent is working on it.",
+  running: "Observe Agent is working on it.",
+  succeeded: "Observe Agent finished.",
+  failed: "Observe Agent could not finish.",
+}
+
+function BuiltinRun({
+  id,
+  sentStatus,
+}: {
+  id: string
+  sentStatus: keyof typeof runLines
+}) {
+  const request = useObserveRequest(id)
+  const status = request.data?.status ?? sentStatus
   return (
     <p role="status" className="text-xs text-muted-foreground">
-      Observe Agent is working on it.{" "}
+      {runLines[status]}{" "}
       <Link
         to="/c/$requestId"
-        params={{ requestId: run.id }}
+        params={{ requestId: id }}
         className="underline underline-offset-2 hover:text-foreground"
       >
         View the run

@@ -457,6 +457,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           thread.getByText("Saved version 2 of this dashboard.")
         ).toBeVisible({ timeout: agentTimeout })
+        await expect(thread.getByText("Observe Agent finished.")).toBeVisible()
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, p99Prompt).filter({
