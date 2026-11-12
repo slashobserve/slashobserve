@@ -333,6 +333,7 @@ func run() error {
 		revisions.WithPanels(dashboardsService),
 		revisions.WithSpecs(dashboardsService),
 		revisions.WithBuilds(buildStore{dashboardsService}),
+		revisions.WithObservations(runObservations{observationsService}),
 		revisions.WithPrincipals(authService),
 		revisions.WithAccess(folderAccess),
 		revisions.WithThreads(threads.NewRuns(database)),
@@ -552,6 +553,18 @@ func (b buildStore) SaveStoppedBuild(ctx context.Context, by auth.Principal, req
 		return revisions.SavedBuild{}, revisionsBuildError(err)
 	}
 	return revisions.SavedBuild{DashboardID: dash.ID, Version: ver.Number, Replayed: replayed}, nil
+}
+
+type runObservations struct {
+	service *observations.Service
+}
+
+func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in revisions.RunObservationOpen) (pgtype.UUID, error) {
+	id, err := r.service.OpenForRun(ctx, q, observations.RunOpen{Run: in.Run, By: in.By, ObservationID: in.ObservationID, Strict: in.Strict})
+	if errors.Is(err, observations.ErrNotFound) {
+		return pgtype.UUID{}, revisions.ErrObservationNotFound
+	}
+	return id, err
 }
 
 func revisionsBuildError(err error) error {

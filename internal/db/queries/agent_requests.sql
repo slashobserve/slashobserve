@@ -245,7 +245,7 @@ WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
-  r.title, r.pinned_at,
+  r.title, r.pinned_at, r.observation_id,
   d.title AS dashboard_title,
   f.id AS finding_id
 FROM agent_requests r
@@ -375,3 +375,7 @@ WHERE r.id = e.id
   AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
   AND greatest(r.created_at, coalesce(r.lease_until, r.created_at)) < clock_timestamp() - make_interval(secs => @unclaimed_seconds::double precision)
 RETURNING r.*;
+
+-- name: SetRequestObservation :one
+UPDATE agent_requests SET observation_id = @observation_id WHERE id = @id
+RETURNING *;

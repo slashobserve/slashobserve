@@ -1363,7 +1363,7 @@ const listAgentRequestsBy = `-- name: ListAgentRequestsBy :many
 SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
-  r.title, r.pinned_at,
+  r.title, r.pinned_at, r.observation_id,
   d.title AS dashboard_title,
   f.id AS finding_id
 FROM agent_requests r
@@ -1421,6 +1421,7 @@ type ListAgentRequestsByRow struct {
 	ContinueNote   pgtype.Text
 	Title          pgtype.Text
 	PinnedAt       pgtype.Timestamptz
+	ObservationID  pgtype.UUID
 	DashboardTitle pgtype.Text
 	FindingID      pgtype.UUID
 }
@@ -1470,6 +1471,7 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.ContinueNote,
 			&i.Title,
 			&i.PinnedAt,
+			&i.ObservationID,
 			&i.DashboardTitle,
 			&i.FindingID,
 		); err != nil {
@@ -1611,6 +1613,70 @@ func (q *Queries) RenewAgentRequestLease(ctx context.Context, arg RenewAgentRequ
 	var cancel_requested_at pgtype.Timestamptz
 	err := row.Scan(&cancel_requested_at)
 	return cancel_requested_at, err
+}
+
+const setRequestObservation = `-- name: SetRequestObservation :one
+UPDATE agent_requests SET observation_id = $1 WHERE id = $2
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id
+`
+
+type SetRequestObservationParams struct {
+	ObservationID pgtype.UUID
+	ID            pgtype.UUID
+}
+
+func (q *Queries) SetRequestObservation(ctx context.Context, arg SetRequestObservationParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, setRequestObservation, arg.ObservationID, arg.ID)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+		&i.FailureCode,
+		&i.BuildSavedAt,
+		&i.CancelRequestedAt,
+		&i.CanceledByKind,
+		&i.CanceledByID,
+		&i.CanceledByName,
+		&i.ContinuesID,
+		&i.ContinueNote,
+		&i.ContextFrom,
+		&i.ContextTo,
+		&i.Title,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.Trigger,
+		&i.State,
+		&i.ResultKind,
+		&i.AssignedKind,
+		&i.AssignedID,
+		&i.ClaimedBy,
+		&i.ObservationID,
+	)
+	return i, err
 }
 
 const settleAgentRequest = `-- name: SettleAgentRequest :one

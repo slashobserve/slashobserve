@@ -2940,6 +2940,7 @@ components:
         - archived_at
         - from
         - to
+        - observation_id
         - finding
       properties:
         id:
@@ -3134,6 +3135,11 @@ components:
           format: date-time
           nullable: true
           description: The end of the window an investigation was asked to look at; null when none was given.
+        observation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
         finding:
           nullable: true
           allOf:
@@ -3166,6 +3172,7 @@ components:
         - continues_id
         - continued_by
         - continue_note
+        - observation_id
         - origin
         - origin_client
         - created_at
@@ -3263,6 +3270,11 @@ components:
           type: string
           nullable: true
           description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
+        observation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
         origin:
           type: string
           enum: [web, cli, mcp, api]
@@ -5456,7 +5468,7 @@ components:
           description: "`pub_` plus 43 base64url characters, returned only in this response."
         url:
           type: string
-          description: The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`.
+          description: The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/rca/<token>`.
     PublicRCA:
       type: object
       additionalProperties: false

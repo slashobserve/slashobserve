@@ -148,6 +148,8 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		ArchivedAt: formatOptionalTime(optionalTime(row.ArchivedAt)),
 		From:       formatOptionalTime(optionalTime(row.ContextFrom)),
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
+
+		ObservationID: optionalUUID(row.ObservationID),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}

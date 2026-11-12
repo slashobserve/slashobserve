@@ -38,9 +38,10 @@ type Service struct {
 	builds  Builds
 	threads Threads
 
-	principals Principals
-	access     *folders.Access
-	leaseTTL   time.Duration
+	observations RunObservations
+	principals   Principals
+	access       *folders.Access
+	leaseTTL     time.Duration
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
@@ -270,6 +271,9 @@ type InvestigateParams struct {
 	Prompt      string
 	From, To    *time.Time
 	By          auth.Principal
+
+	ObservationID    pgtype.UUID
+	ReuseObservation bool
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -322,6 +326,9 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 			return err
 		}
+		if row, err = s.openObservation(ctx, q, row, p); err != nil {
+			return err
+		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 			return fmt.Errorf("notify workers: %w", err)
 		}
@@ -331,6 +338,26 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
 	}
 	return row, err
+}
+
+func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, p InvestigateParams) (dbsqlc.AgentRequest, error) {
+	if s.observations == nil {
+		return row, nil
+	}
+	id, err := s.observations.OpenForRun(ctx, q, RunObservationOpen{Run: row, By: p.By, ObservationID: p.ObservationID, Strict: !p.ReuseObservation})
+	switch {
+	case errors.Is(err, folders.ErrForbidden):
+		return row, ErrForbidden
+	case err != nil:
+		return row, err
+	case !id.Valid:
+		return row, nil
+	}
+	linked, err := q.SetRequestObservation(ctx, dbsqlc.SetRequestObservationParams{ID: row.ID, ObservationID: id})
+	if err != nil {
+		return row, fmt.Errorf("link run to observation: %w", err)
+	}
+	return linked, nil
 }
 
 func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {

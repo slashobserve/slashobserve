@@ -95,6 +95,7 @@ var (
 	ErrDraftBodyTooLarge  = draftBodyTooLargeError{}
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
+	ErrObservationNotFound      = errors.New("observation not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
 
@@ -143,6 +144,17 @@ type Threads interface {
 	ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
 }
 
+type RunObservationOpen struct {
+	Run           dbsqlc.AgentRequest
+	By            auth.Principal
+	ObservationID pgtype.UUID
+	Strict        bool
+}
+
+type RunObservations interface {
+	OpenForRun(ctx context.Context, q *dbsqlc.Queries, in RunObservationOpen) (pgtype.UUID, error)
+}
+
 type Principals interface {
 	Principal(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error)
 }
@@ -167,6 +179,10 @@ func WithSpecs(r SpecReader) Option {
 
 func WithBuilds(b Builds) Option {
 	return func(s *Service) { s.builds = b }
+}
+
+func WithObservations(o RunObservations) Option {
+	return func(s *Service) { s.observations = o }
 }
 
 func WithThreads(t Threads) Option {

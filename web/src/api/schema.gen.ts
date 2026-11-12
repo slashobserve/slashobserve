@@ -1498,7 +1498,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -4658,6 +4658,11 @@ export interface components {
              * @description The end of the window an investigation was asked to look at; null when none was given.
              */
             to: string | null;
+            /**
+             * Format: uuid
+             * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
+             */
+            observation_id: string | null;
             /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
             finding: components["schemas"]["Finding"] | null;
         };
@@ -4724,6 +4729,11 @@ export interface components {
             continued_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
+            /**
+             * Format: uuid
+             * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
+             */
+            observation_id: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -5885,7 +5895,7 @@ export interface components {
             link: components["schemas"]["RCAPublicLink"];
             /** @description `pub_` plus 43 base64url characters, returned only in this response. */
             token: string;
-            /** @description The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`. */
+            /** @description The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/rca/<token>`. */
             url: string;
         };
         /** @description A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids. */
@@ -10173,6 +10183,11 @@ export interface operations {
                     from?: string;
                     /** @description The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds. */
                     to?: string;
+                    /**
+                     * Format: uuid
+                     * @description Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
+                     */
+                    observation_id?: string;
                 };
             };
         };

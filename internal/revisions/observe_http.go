@@ -65,6 +65,8 @@ type observeRequest struct {
 	PanelID     *string `json:"panel_id"`
 	From        *string `json:"from"`
 	To          *string `json:"to"`
+
+	ObservationID *string `json:"observation_id"`
 }
 
 type patchObserveRequest struct {
@@ -121,11 +123,12 @@ type agentRequestJSON struct {
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
 
-	PinnedAt   *string         `json:"pinned_at"`
-	ArchivedAt *string         `json:"archived_at"`
-	From       *string         `json:"from"`
-	To         *string         `json:"to"`
-	Finding    json.RawMessage `json:"finding"`
+	PinnedAt      *string         `json:"pinned_at"`
+	ArchivedAt    *string         `json:"archived_at"`
+	From          *string         `json:"from"`
+	To            *string         `json:"to"`
+	ObservationID *string         `json:"observation_id"`
+	Finding       json.RawMessage `json:"finding"`
 }
 
 type assigneeJSON struct {
@@ -164,6 +167,7 @@ type requestSummaryJSON struct {
 	ContinuedBy  *string            `json:"continued_by"`
 	ContinueNote *string            `json:"continue_note"`
 
+	ObservationID  *string  `json:"observation_id"`
 	AllowedActions []string `json:"allowed_actions"`
 }
 
@@ -230,6 +234,10 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
 		return
 	}
+	if req.ObservationID != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "observation_id goes with kind investigate")
+		return
+	}
 	if req.DashboardID == nil && req.BaseVersion != nil {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version needs dashboard_id")
 		return
@@ -283,6 +291,14 @@ func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest,
 			return
 		}
 		params.PanelID = *req.PanelID
+	}
+	if req.ObservationID != nil {
+		id, err := db.ParseUUID(*req.ObservationID)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "observation_id must be a UUID")
+			return
+		}
+		params.ObservationID = id
 	}
 	var err error
 	if params.From, params.To, err = investigateWindow(req.From, req.To, time.Now()); err != nil {
@@ -465,6 +481,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		ContinuedBy:  state.continuedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
+		ObservationID:  optionalUUID(row.ObservationID),
 		AllowedActions: actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {
