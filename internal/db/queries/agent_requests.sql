@@ -100,7 +100,7 @@ WITH target AS (
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
   WHERE r.id = @id AND r.attempts = @attempts AND r.state = ANY(@from_states::text[]) AND r.cancel_requested_at IS NOT NULL
-  FOR UPDATE OF r
+  FOR NO KEY UPDATE OF r
 )
 UPDATE agent_requests
 SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
