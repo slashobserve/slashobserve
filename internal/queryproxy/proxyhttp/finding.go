@@ -34,6 +34,7 @@ func (d *FindingData) Register(api auth.Routes) {
 }
 
 func (d *FindingData) data(c *gin.Context) {
+	findings.MarkDeprecated(c)
 	query, ok := d.h.readQuery(c)
 	if !ok {
 		return

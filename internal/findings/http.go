@@ -26,6 +26,7 @@ const (
 	maxLimit     = 100
 
 	maxMoveBodyBytes        = 1 << 10
+	deprecationValue        = "@1794355200"
 	moveIntoPersonalMessage = "a finding cannot move into My Dashboards"
 )
 
@@ -37,6 +38,7 @@ type FindingAuthorJSON struct {
 
 type FindingJSON struct {
 	ID             string            `json:"id"`
+	ObservationID  string            `json:"observation_id"`
 	AgentRequestID *string           `json:"agent_request_id"`
 	DashboardID    *string           `json:"dashboard_id"`
 	FolderID       *string           `json:"folder_id"`
@@ -85,6 +87,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 	}
 	return FindingJSON{
 		ID:             f.ID,
+		ObservationID:  f.ObservationID,
 		AgentRequestID: httpapi.OptionalString(f.AgentRequestID),
 		DashboardID:    httpapi.OptionalString(f.DashboardID),
 		FolderID:       httpapi.OptionalString(f.FolderID),
@@ -103,11 +106,15 @@ func JSONOf(f Finding, url string) FindingJSON {
 
 type Handler struct {
 	service    *Service
-	findingURL func(id string) string
+	findingURL func(f Finding) string
 	logger     *slog.Logger
 }
 
-func NewHandler(service *Service, findingURL func(id string) string, logger *slog.Logger) *Handler {
+func MarkDeprecated(c *gin.Context) {
+	c.Header("Deprecation", deprecationValue)
+}
+
+func NewHandler(service *Service, findingURL func(f Finding) string, logger *slog.Logger) *Handler {
 	return &Handler{service: service, findingURL: findingURL, logger: logger}
 }
 
@@ -120,10 +127,11 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 func (h *Handler) render(f Finding) FindingJSON {
-	return JSONOf(f, h.findingURL(f.ID))
+	return JSONOf(f, h.findingURL(f))
 }
 
 func (h *Handler) list(c *gin.Context) {
+	MarkDeprecated(c)
 	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
@@ -160,6 +168,7 @@ func (h *Handler) list(c *gin.Context) {
 }
 
 func (h *Handler) get(c *gin.Context) {
+	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
@@ -169,10 +178,12 @@ func (h *Handler) get(c *gin.Context) {
 		h.fail(c, "get finding", err)
 		return
 	}
+	c.Header("Link", "</api/v1/observations/"+f.ObservationID+">; rel=\"successor-version\"")
 	c.JSON(http.StatusOK, envelopeOf(h.render(f), f.Folder, f.Abilities))
 }
 
 func (h *Handler) pin(c *gin.Context) {
+	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
@@ -195,6 +206,7 @@ type moveRequest struct {
 }
 
 func (h *Handler) move(c *gin.Context) {
+	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
@@ -217,6 +229,7 @@ func (h *Handler) move(c *gin.Context) {
 }
 
 func (h *Handler) saveDashboard(c *gin.Context) {
+	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return

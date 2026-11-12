@@ -318,19 +318,22 @@ func run() error {
 	annotationsHandler := annotations.NewHandler(annotationsService, logger)
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
-	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
-	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
 	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
+	if err != nil {
+		return described("findings_setup_failed", err)
+	}
+	findingURL := func(f findings.Finding) string { return links.Observation(cfg.PublicURL, f.ObservationID) }
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, findingsService, annotationsService, observationsService, proposalsService)
 	observeOpts := revisions.ObserveOptions{
-		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
-		FindingURL:   findingURL,
-		Finding:      findingOfRequest(findingsService, findingURL),
+		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
+		ObservationURL: func(id string) string { return links.Observation(cfg.PublicURL, id) },
+		Finding:        findingOfRequest(findingsService, findingURL),
 	}
 	revisionOpts := []revisions.Option{
 		revisions.WithPanels(dashboardsService),
@@ -513,13 +516,13 @@ func run() error {
 	return nil
 }
 
-func findingOfRequest(service *findings.Service, findingURL func(id string) string) func(context.Context, pgtype.UUID) (json.RawMessage, bool, error) {
+func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, pgtype.UUID) (json.RawMessage, bool, error) {
 	return func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error) {
 		f, found, err := service.ForRequest(ctx, requestID)
 		if err != nil || !found {
 			return nil, found, err
 		}
-		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f.ID)))
+		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f)))
 		return raw, err == nil, err
 	}
 }

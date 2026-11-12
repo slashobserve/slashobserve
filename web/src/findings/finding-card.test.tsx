@@ -17,6 +17,7 @@ const text = "The error rate **doubled** at 10:02."
 function finding(): Finding {
   return {
     id: "f1",
+    observation_id: "f1",
     agent_request_id: "r1",
     dashboard_id: null,
     folder_id: null,

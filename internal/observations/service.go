@@ -292,25 +292,37 @@ func checkedUpdate(in UpdateInput) (string, error) {
 }
 
 func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Observation, error) {
-	current, _, abilities, err := s.open(ctx, by, id)
+	moved, err := s.move(ctx, by, id, folderID, nil)
 	if err != nil {
 		return Observation{}, err
 	}
+	if moved {
+		s.logger.InfoContext(ctx, "observation moved",
+			slog.String("actor_id", by.ID), slog.String("observation_id", id.String()), slog.String("folder_id", folderID.String()))
+	}
+	return s.Get(ctx, by, id)
+}
+
+func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID, inTx func(q *dbsqlc.Queries) error) (bool, error) {
+	current, _, abilities, err := s.open(ctx, by, id)
+	if err != nil {
+		return false, err
+	}
 	if err := permit(Machine, State(current.State), ActionMove, can(abilities, false)); err != nil {
-		return Observation{}, err
+		return false, err
 	}
 	target, targetAbilities, err := s.access.Folder(ctx, by, folderID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound):
-		return Observation{}, ErrFolderNotFound
+		return false, ErrFolderNotFound
 	case err != nil:
-		return Observation{}, err
+		return false, err
 	case !targetAbilities.Edit:
-		return Observation{}, folders.ErrForbidden
+		return false, folders.ErrForbidden
 	case !folders.MayMoveInto(target):
-		return Observation{}, folders.ErrMoveIntoPersonal
+		return false, folders.ErrMoveIntoPersonal
 	case current.FolderID == target.ID:
-		return s.Get(ctx, by, id)
+		return false, nil
 	}
 	err = s.write(ctx, by, id, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(Machine, State(row.State), ActionMove, can(abilities, false)); err != nil {
@@ -326,15 +338,14 @@ func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgty
 		if err := activity.Move(ctx, q, activity.OnObservation(id), target.ID); err != nil {
 			return err
 		}
-		return appendEvent(ctx, q, activity.TypeObservationMoved, who, id,
+		err = appendEvent(ctx, q, activity.TypeObservationMoved, who, id,
 			movedEventData{Title: moved.Title, FromFolderID: row.FolderID.String(), ToFolderID: target.ID.String()})
+		if err != nil || inTx == nil {
+			return err
+		}
+		return inTx(q)
 	})
-	if err != nil {
-		return Observation{}, err
-	}
-	s.logger.InfoContext(ctx, "observation moved",
-		slog.String("actor_id", by.ID), slog.String("observation_id", id.String()), slog.String("folder_id", target.ID.String()))
-	return s.Get(ctx, by, id)
+	return err == nil, err
 }
 
 func (s *Service) Resolve(ctx context.Context, by auth.Principal, id pgtype.UUID, summary string) (Observation, error) {

@@ -47,8 +47,8 @@ func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Princip
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	opts := revisions.ObserveOptions{
-		FindingURL: func(id string) string { return "/findings/" + id },
-		Finding:    finding,
+		ObservationURL: func(id string) string { return "/o/" + id },
+		Finding:        finding,
 	}
 	revisions.NewObserveHandler(svc, opts).Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(who)))
@@ -239,8 +239,8 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 	t.Helper()
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
-	var findingID string
-	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID); err != nil {
+	var findingID, observationID string
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
 		t.Fatal(err)
 	}
 	finding := func(_ context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error) {
@@ -250,6 +250,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 		now := time.Now()
 		return mustMarshal(t, findings.JSONOf(findings.Finding{
 			ID:             findingID,
+			ObservationID:  observationID,
 			AgentRequestID: row.ID.String(),
 			Title:          "why",
 			Markdown:       "checkout-0 errors",
@@ -258,7 +259,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 			CreatedAt:      now,
 			CreatedBy:      findings.Author{Kind: "user", ID: userID, Name: "Ada"},
 			Actor:          actor.Actor{Kind: auth.KindUser, ID: userID, Name: "Ada"},
-		}, "/findings/"+findingID)), true, nil
+		}, "/o/"+observationID)), true, nil
 	}
 	return findingID, finding
 }
@@ -294,12 +295,12 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Request.Kind != "investigate" || got.Request.Finding == nil || got.Request.Finding.ID != findingID || got.Request.URL != "/findings/"+findingID {
+	if got.Request.Kind != "investigate" || got.Request.Finding == nil || got.Request.Finding.ID != findingID || got.Request.URL != "/o/"+findingID {
 		t.Fatalf("GET of a succeeded investigation: %s", rec.Body)
 	}
 
 	list := h.call(t, http.MethodGet, "/api/v1/observe?source=investigate&q="+url.QueryEscape("errors"), "", http.StatusOK)
-	if !strings.Contains(list.Body.String(), `"url":"/findings/`+findingID+`"`) {
+	if !strings.Contains(list.Body.String(), `"url":"/o/`+findingID+`"`) {
 		t.Fatalf("the list does not link the finding: %s", list.Body)
 	}
 }
@@ -319,7 +320,7 @@ func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) 
 		t.Fatal(err)
 	}
 	r := got.Request
-	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "/findings/"+findingID || r.DashboardID != nil || r.ResultVersion != nil {
+	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "/o/"+findingID || r.DashboardID != nil || r.ResultVersion != nil {
 		t.Fatalf("GET of an answered observe request: %s", rec.Body)
 	}
 }
@@ -340,7 +341,7 @@ func TestAnAnsweredDashboardPromptShowsItsFindingAsTheDocumentSays(t *testing.T)
 		t.Fatal(err)
 	}
 	r := got.Request
-	if r.Finding == nil || r.Finding.ID != findingID || r.URL != "/findings/"+findingID || r.DashboardID == nil || *r.DashboardID != dash.String() || r.ResultVersion != nil {
+	if r.Finding == nil || r.Finding.ID != findingID || r.URL != "/o/"+findingID || r.DashboardID == nil || *r.DashboardID != dash.String() || r.ResultVersion != nil {
 		t.Fatalf("GET of an answered dashboard prompt: %s", rec.Body)
 	}
 }

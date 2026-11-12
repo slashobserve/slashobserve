@@ -3688,6 +3688,7 @@ components:
       additionalProperties: false
       required:
         - id
+        - observation_id
         - agent_request_id
         - dashboard_id
         - folder_id
@@ -3705,6 +3706,10 @@ components:
         id:
           type: string
           format: uuid
+        observation_id:
+          type: string
+          format: uuid
+          description: The observation this finding lives in
         agent_request_id:
           type: string
           format: uuid
@@ -3719,7 +3724,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The folder a finding without a dashboard is filed in; null when it is on a dashboard, which it follows, or in no folder.
+          description: The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
         title:
           type: string
           minLength: 1
@@ -3757,7 +3762,7 @@ components:
           format: date-time
         url:
           type: string
-          description: The address of the finding, empty when the server has no public URL configured.
+          description: Opens the finding's observation; empty when the server has no public URL configured.
     FindingEnvelope:
       type: object
       additionalProperties: false
@@ -3769,7 +3774,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/DashboardFolder"
-          description: The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder.
+          description: The folder of the finding's observation, whose access rule decides who reads the finding.
         permissions:
           $ref: "#/components/schemas/Permissions"
     SavedSearchFilters:
@@ -5844,6 +5849,14 @@ components:
         created_at:
           type: string
           format: date-time
+  headers:
+    Deprecation:
+      description: >-
+        The date the operation was deprecated as an RFC 9745 structured date (`@1794355200`, 2026-11-11T00:00:00Z).
+        Findings are observations now, and the finding operations are removed in the release after this one.
+      required: true
+      schema:
+        type: string
   responses:
     ObservationInvalid:
       description: >-

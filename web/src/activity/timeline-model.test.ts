@@ -164,6 +164,7 @@ function imported(
 function finding(id: string, createdAt: string): Finding {
   return {
     id,
+    observation_id: id,
     agent_request_id: null,
     dashboard_id: "d1",
     folder_id: null,

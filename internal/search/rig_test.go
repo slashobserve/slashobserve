@@ -55,14 +55,18 @@ func newRig(t *testing.T) *rig {
 	access := folders.NewAccess(d.DB)
 	annotationService := annotations.New(d.DB, access)
 	dashboardService := dashboards.New(d.DB, nil, access, logger)
-	findingService := findings.New(d.DB, access, annotationService, dashboardService, logger)
+	observationService := observations.New(d.DB, access, nil, nil, logger)
+	findingService, err := findings.New(d.DB, access, annotationService, dashboardService, observationService, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := &rig{
 		db:          d,
 		service:     New(d.DB, access, &url.URL{Scheme: "https", Host: "observe.example.com"}),
 		access:      access,
 		findings:    findingService,
 		annotations: annotationService,
-		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observations.New(d.DB, access, nil, nil, logger), proposals.New(d.DB, access, dashboardService, logger)),
+		threads:     threads.NewService(d.DB, access, dashboardService, findingService, annotationService, observationService, proposals.New(d.DB, access, dashboardService, logger)),
 		saved:       savedsearches.New(d.DB, access, nil, nil, logger),
 	}
 	for _, p := range []auth.Principal{admin, editor, payroll, ada} {

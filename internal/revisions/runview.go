@@ -95,16 +95,10 @@ func (r *RunReader) attachFinding(ctx context.Context, row dbsqlc.AgentRequest, 
 		return err
 	}
 	out.Finding = raw
-	if out.Status != StatusSucceeded || r.opts.FindingURL == nil {
+	if out.Status != StatusSucceeded || !row.ObservationID.Valid || r.opts.ObservationURL == nil {
 		return nil
 	}
-	var finding struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(raw, &finding); err != nil {
-		return fmt.Errorf("read finding id: %w", err)
-	}
-	url := r.opts.FindingURL(finding.ID)
+	url := r.opts.ObservationURL(row.ObservationID.String())
 	out.URL = &url
 	return nil
 }

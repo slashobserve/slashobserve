@@ -61,12 +61,11 @@ VALUES (
   $2::text,
   $3::uuid,
   CASE WHEN $4::text = 'dashboard' THEN $5::uuid END,
-  CASE WHEN $4::text = 'finding' THEN $5::uuid END,
+  CASE WHEN $4::text = 'observation' AND $2::text = 'finding' THEN $3::uuid END,
   CASE WHEN $4::text = 'saved_search' THEN $5::uuid END,
   CASE WHEN $4::text = 'observation' THEN $5::uuid END,
   CASE $4::text
     WHEN 'dashboard' THEN (SELECT d.folder_id FROM dashboards d WHERE d.id = $5::uuid)
-    WHEN 'finding' THEN (SELECT f.folder_id FROM findings f WHERE f.id = $5::uuid)
     WHEN 'saved_search' THEN (SELECT s.folder_id FROM saved_searches s WHERE s.id = $5::uuid)
     WHEN 'observation' THEN (SELECT o.folder_id FROM observations o WHERE o.id = $5::uuid)
     WHEN 'general' THEN general_folder_id()
@@ -307,23 +306,6 @@ type MoveDashboardActivityParams struct {
 
 func (q *Queries) MoveDashboardActivity(ctx context.Context, arg MoveDashboardActivityParams) (int64, error) {
 	result, err := q.db.Exec(ctx, moveDashboardActivity, arg.FolderID, arg.DashboardID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
-const moveFindingActivity = `-- name: MoveFindingActivity :execrows
-UPDATE activity SET folder_id = $1 WHERE finding_id = $2
-`
-
-type MoveFindingActivityParams struct {
-	FolderID  pgtype.UUID
-	FindingID pgtype.UUID
-}
-
-func (q *Queries) MoveFindingActivity(ctx context.Context, arg MoveFindingActivityParams) (int64, error) {
-	result, err := q.db.Exec(ctx, moveFindingActivity, arg.FolderID, arg.FindingID)
 	if err != nil {
 		return 0, err
 	}

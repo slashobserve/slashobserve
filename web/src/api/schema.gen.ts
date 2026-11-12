@@ -1790,7 +1790,8 @@ export interface paths {
         };
         /**
          * List the findings the caller can read, newest first.
-         * @description Without a filter the caller's own findings are listed: those on a dashboard they can view, those filed in a folder they can view, and those in no folder. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings filed in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together.
+         * @deprecated
+         * @description Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["listFindings"];
         put?: never;
@@ -1812,7 +1813,8 @@ export interface paths {
         };
         /**
          * Read one finding.
-         * @description A finding on a dashboard follows that dashboard, and a finding without one follows the folder it is filed in: anyone who can view that folder may read it. A finding in no folder is readable by the account that saved it and by Admins. `folder` is the folder that decides access and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403.
+         * @deprecated
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The `Link` header names the observation as the `successor-version`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFinding"];
         put?: never;
@@ -1836,7 +1838,8 @@ export interface paths {
         put?: never;
         /**
          * Pin a finding to its dashboard as an annotation.
-         * @description The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard. Pinning a finding that is already pinned answers 200 with the same annotation.
+         * @deprecated
+         * @description The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard. Pinning a finding that is already pinned answers 200 with the same annotation. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["pinFinding"];
         delete?: never;
@@ -1858,7 +1861,8 @@ export interface paths {
         put?: never;
         /**
          * Save a finding's evidence panels as a new dashboard.
-         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`.
+         * @deprecated
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["saveFindingAsDashboard"];
         delete?: never;
@@ -1880,7 +1884,8 @@ export interface paths {
         put?: never;
         /**
          * Move a finding without a dashboard into another folder.
-         * @description Moving shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published. It needs Edit on the finding and on the target folder, so a finding in no folder can be moved by the account that saved it or by an Admin. A finding on a dashboard follows the dashboard and answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`. Moving a finding into the folder it is already in changes nothing. The move is recorded as `finding.moved`, and the finding's earlier activity moves to the target folder with it.
+         * @deprecated
+         * @description Moving moves the finding's observation, which shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published. It needs Edit on the finding and on the target folder. A finding on a dashboard answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`. Moving a finding into the folder it is already in changes nothing. The move is recorded as `finding.moved` beside the observation's `observation.moved`, and the finding's earlier activity moves to the target folder with it. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["moveFinding"];
         delete?: never;
@@ -1901,7 +1906,8 @@ export interface paths {
         };
         /**
          * Run the queries of one evidence panel of a finding and return their frames.
-         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data.
+         * @deprecated
+         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFindingPanelData"];
         put?: never;
@@ -5036,6 +5042,11 @@ export interface components {
             id: string;
             /**
              * Format: uuid
+             * @description The observation this finding lives in
+             */
+            observation_id: string;
+            /**
+             * Format: uuid
              * @description The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
              */
             agent_request_id: string | null;
@@ -5046,7 +5057,7 @@ export interface components {
             dashboard_id: string | null;
             /**
              * Format: uuid
-             * @description The folder a finding without a dashboard is filed in; null when it is on a dashboard, which it follows, or in no folder.
+             * @description The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
              */
             folder_id: string | null;
             title: string;
@@ -5073,12 +5084,12 @@ export interface components {
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
-            /** @description The address of the finding, empty when the server has no public URL configured. */
+            /** @description Opens the finding's observation; empty when the server has no public URL configured. */
             url: string;
         };
         FindingEnvelope: {
             finding: components["schemas"]["Finding"];
-            /** @description The folder whose access rule decides who reads the finding, the dashboard's folder for a finding on a dashboard; null for a finding in no folder. */
+            /** @description The folder of the finding's observation, whose access rule decides who reads the finding. */
             folder: components["schemas"]["DashboardFolder"] | null;
             permissions: components["schemas"]["Permissions"];
         };
@@ -6364,7 +6375,10 @@ export interface components {
     };
     parameters: never;
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description The date the operation was deprecated as an RFC 9745 structured date (`@1794355200`, 2026-11-11T00:00:00Z). Findings are observations now, and the finding operations are removed in the release after this one. */
+        Deprecation: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -11174,6 +11188,7 @@ export interface operations {
             /** @description One page of findings. */
             200: {
                 headers: {
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -11200,6 +11215,9 @@ export interface operations {
             /** @description The finding. */
             200: {
                 headers: {
+                    Deprecation: components["headers"]["Deprecation"];
+                    /** @description `</api/v1/observations/{observation_id}>; rel="successor-version"` */
+                    Link: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11226,6 +11244,7 @@ export interface operations {
             /** @description The finding was already pinned; this is its annotation. */
             200: {
                 headers: {
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -11236,6 +11255,7 @@ export interface operations {
             201: {
                 headers: {
                     Location: string;
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -11273,6 +11293,7 @@ export interface operations {
             201: {
                 headers: {
                     Location: string;
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -11317,6 +11338,7 @@ export interface operations {
             /** @description The finding in its new folder. */
             200: {
                 headers: {
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -11359,6 +11381,7 @@ export interface operations {
             /** @description The frames the evidence panel's queries returned. */
             200: {
                 headers: {
+                    Deprecation: components["headers"]["Deprecation"];
                     [name: string]: unknown;
                 };
                 content: {

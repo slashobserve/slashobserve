@@ -49,23 +49,16 @@ func TestAFindingOnADashboardKeepsNoFolderOfItsOwn(t *testing.T) {
 	}
 }
 
-func TestAFindingFromAnAccountThatCannotCreateAnywhereIsUnfiled(t *testing.T) {
+func TestAFindingFromAnAccountThatCannotCreateAnywhereIsRefused(t *testing.T) {
 	r := newRig(t)
-	saved := r.save(t, pipeline, findings.SaveInput{})
-	got, err := r.service.Get(t.Context(), pipeline, mustUUID(t, saved.ID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if saved.FolderID != "" || got.Folder != nil || got.Abilities != folders.AbilitiesFor(folders.LevelEdit) {
-		t.Fatalf("folder %q and %+v, abilities %+v", saved.FolderID, got.Folder, got.Abilities)
+	if err := r.saveErr(t, pipeline, findings.SaveInput{}); !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("save by a viewer key: %v", err)
 	}
 }
 
 func TestAnEditorKeyWithNoMyDashboardsFilesInGeneral(t *testing.T) {
 	r := newRig(t)
-	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "77777777-7777-4777-8777-777777777777", Name: "ci", Role: auth.RoleEditor}
-	r.db.Exec(t, `INSERT INTO service_accounts (id, name) VALUES ($1::uuid, 'ci')`, key.ID)
-	saved := r.save(t, key, findings.SaveInput{})
+	saved := r.save(t, ciKey, findings.SaveInput{})
 	got, err := r.service.Get(t.Context(), viewer, mustUUID(t, saved.ID))
 	if err != nil || got.Folder == nil || !got.Folder.General || got.Abilities != folders.AbilitiesFor(folders.LevelView) {
 		t.Fatalf("a viewer reads a key's finding in General: folder %+v, abilities %+v, %v", got.Folder, got.Abilities, err)
@@ -147,7 +140,7 @@ func TestFindingEnvelopeNamesTheFolderAndWhatTheCallerMayDo(t *testing.T) {
 	shared := d.folder(t, "Incidents")
 	filed := d.save(t, editor, findings.SaveInput{FolderID: shared})
 	onDashboard := d.save(t, editor, findings.SaveInput{DashboardID: d.open})
-	unfiled := d.save(t, pipeline, findings.SaveInput{})
+	inGeneral := d.save(t, ciKey, findings.SaveInput{})
 	personal := d.save(t, editor, findings.SaveInput{})
 
 	type envelope struct {
@@ -184,14 +177,13 @@ func TestFindingEnvelopeNamesTheFolderAndWhatTheCallerMayDo(t *testing.T) {
 	if got := read(viewer, onDashboard.ID); got.Finding.FolderID != nil || got.Finding.DashboardID == nil || got.Folder == nil || !got.Folder.General {
 		t.Errorf("a finding on a dashboard: %+v", got)
 	}
-	if got := read(admin, unfiled.ID); got.Folder != nil || got.Finding.FolderID != nil || !got.Permissions.Edit {
-		t.Errorf("an unfiled finding read by an admin: %+v", got)
+	if got := read(admin, inGeneral.ID); got.Folder == nil || !got.Folder.General || got.Finding.FolderID == nil || !got.Permissions.Edit {
+		t.Errorf("a finding a key filed in General, read by an admin: %+v", got)
 	}
 	if got := read(editor, personal.ID); got.Folder == nil || !got.Folder.Personal {
 		t.Errorf("a finding in My Dashboards: %+v", got)
 	}
 	d.call(t, admin, http.MethodGet, "/api/v1/findings/"+personal.ID, http.StatusNotFound)
-	d.call(t, otherEditor, http.MethodGet, "/api/v1/findings/"+unfiled.ID, http.StatusNotFound)
 }
 
 func TestListingFindingsByFolderOverHTTP(t *testing.T) {

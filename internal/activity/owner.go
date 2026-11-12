@@ -7,7 +7,6 @@ type ownerKind string
 const (
 	ownerNone        ownerKind = ""
 	ownerDashboard   ownerKind = "dashboard"
-	ownerFinding     ownerKind = "finding"
 	ownerSavedSearch ownerKind = "saved_search"
 	ownerObservation ownerKind = "observation"
 	ownerGeneral     ownerKind = "general"
@@ -19,8 +18,6 @@ type Owner struct {
 }
 
 func OnDashboard(id pgtype.UUID) Owner { return ownerOf(ownerDashboard, id) }
-
-func OnFinding(id pgtype.UUID) Owner { return ownerOf(ownerFinding, id) }
 
 func OnSavedSearch(id pgtype.UUID) Owner { return ownerOf(ownerSavedSearch, id) }
 
@@ -36,5 +33,5 @@ func ownerOf(kind ownerKind, id pgtype.UUID) Owner {
 }
 
 func (o Owner) locks() bool {
-	return o.kind == ownerDashboard || o.kind == ownerFinding || o.kind == ownerSavedSearch || o.kind == ownerObservation
+	return o.kind == ownerDashboard || o.kind == ownerSavedSearch || o.kind == ownerObservation
 }

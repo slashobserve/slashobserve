@@ -110,13 +110,16 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	access := folders.NewAccess(database.DB)
 	dashboardService := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	annotationService := annotations.New(database.DB, access)
-	findingService := findings.New(database.DB, access, annotationService, dashboardService, logger)
+	observationService := observations.New(database.DB, access, nil, nil, logger)
+	findingService, err := findings.New(database.DB, access, annotationService, dashboardService, observationService, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var reviser revisions.Reviser
 	if agent {
 		reviser = noopReviser{}
 	}
 	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
-	observationService := observations.New(database.DB, access, nil, nil, logger)
 	proposalService := proposals.New(database.DB, access, dashboardService, logger)
 	dashboardService.SetProposer(proposalService.Propose)
 	service := NewService(database.DB, access, dashboardService, findingService, annotationService, observationService, proposalService)

@@ -498,8 +498,9 @@ func TestCommentToolsOnADashboardPanel(t *testing.T) {
 	}
 }
 
-func TestCommentToolsHideAnUnfiledFindingFromOthers(t *testing.T) {
+func TestCommentToolsHideAFindingInAPersonalFolderFromOthers(t *testing.T) {
 	r := newAccessRig(t)
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'cam', 'cam@example.com', 'Cam')`, commenterCaller.ID)
 	id := r.privateFinding(t, commenterCaller)
 	target := "finding:" + id
 	opened := commentOutOf(t, r.call(t, commenterCaller, nameCreateComment, `{"target":"`+target+`","body":"private note"}`))

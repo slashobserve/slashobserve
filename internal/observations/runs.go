@@ -31,12 +31,12 @@ type RunOpen struct {
 	Strict        bool
 }
 
-type RunResult struct {
-	RunID    pgtype.UUID
-	Title    string
-	Markdown string
-	Evidence []json.RawMessage
-	From, To time.Time
+type conclusion struct {
+	runID    pgtype.UUID
+	title    string
+	markdown string
+	evidence []json.RawMessage
+	from, to time.Time
 }
 
 type runBody struct {
@@ -109,13 +109,9 @@ func (s *Service) placeRun(ctx context.Context, in RunOpen) (runPlace, bool, err
 		}
 	}
 	if in.Run.DashboardID.Valid {
-		access, err := s.access.Dashboard(ctx, in.By, in.Run.DashboardID)
-		switch {
-		case err == nil && access.Abilities.Edit:
-			return runPlace{folder: access.Folder.ID, abilities: access.Abilities}, true, nil
-		case err == nil, errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
-		default:
-			return runPlace{}, false, err
+		place, ok, err := s.dashboardPlace(ctx, in.By, in.Run.DashboardID)
+		if err != nil || ok {
+			return place, ok, err
 		}
 	}
 	folder, err := s.access.CreationFolder(ctx, in.By, pgtype.UUID{})
@@ -130,6 +126,17 @@ func (s *Service) placeRun(ctx context.Context, in RunOpen) (runPlace, bool, err
 		return runPlace{}, false, err
 	}
 	return runPlace{folder: folder.ID, abilities: abilities}, true, nil
+}
+
+func (s *Service) dashboardPlace(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (runPlace, bool, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
+	switch {
+	case err == nil && access.Abilities.Edit:
+		return runPlace{folder: access.Folder.ID, abilities: access.Abilities}, true, nil
+	case err == nil, errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		return runPlace{}, false, nil
+	}
+	return runPlace{}, false, err
 }
 
 func (s *Service) runParent(ctx context.Context, q *dbsqlc.Queries, in RunOpen, place runPlace, who actor.Actor) (dbsqlc.Observation, error) {
@@ -186,43 +193,34 @@ func cutRunes(s string, n int) string {
 	return string([]rune(s)[:n])
 }
 
-func (s *Service) RecordRunResult(ctx context.Context, by auth.Principal, in RunResult) error {
-	observationID, err := s.store.db.Queries().RunObservation(ctx, in.RunID)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return nil
-	case err != nil:
-		return fmt.Errorf("read run observation: %w", err)
-	case !observationID.Valid:
-		return nil
-	}
-	return s.write(ctx, by, observationID, in.RunID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
-		written, err := q.RunHasTextBlock(ctx, dbsqlc.RunHasTextBlockParams{ObservationID: parent.ID, RunID: in.RunID})
+func (s *Service) writeConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, abilities folders.Abilities, who actor.Actor, in conclusion) error {
+	if in.runID.Valid {
+		written, err := q.RunHasTextBlock(ctx, dbsqlc.RunHasTextBlockParams{ObservationID: parent.ID, RunID: in.runID})
 		if err != nil {
 			return fmt.Errorf("check run result: %w", err)
 		}
 		if written {
 			return nil
 		}
-		state, ok := addedState(abilities)
-		if !ok {
-			return folders.ErrForbidden
-		}
-		added, err := s.insertRunBlocks(ctx, q, parent, in, state, who)
-		if err != nil {
-			return err
-		}
-		return citeBlocks(ctx, q, parent, in.RunID, added, who)
-	})
+	}
+	state, ok := addedState(abilities)
+	if !ok {
+		return folders.ErrForbidden
+	}
+	added, err := s.insertConclusionBlocks(ctx, q, parent, in, state, who)
+	if err != nil || !in.runID.Valid {
+		return err
+	}
+	return citeBlocks(ctx, q, parent, in.runID, added, who)
 }
 
-func (s *Service) insertRunBlocks(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, in RunResult, state BlockState, who actor.Actor) ([]string, error) {
-	text, err := json.Marshal(TextBody{Markdown: cutRunes("## "+in.Title+"\n\n"+in.Markdown, MaxTextRunes)})
+func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, in conclusion, state BlockState, who actor.Actor) ([]string, error) {
+	text, err := json.Marshal(TextBody{Markdown: cutRunes("## "+in.title+"\n\n"+in.markdown, MaxTextRunes)})
 	if err != nil {
 		return nil, fmt.Errorf("encode text block: %w", err)
 	}
 	blocks := []preparedBlock{{kind: KindText, body: text, width: WidthFull}}
-	blocks = append(blocks, s.runPanels(ctx, in)...)
+	blocks = append(blocks, s.conclusionPanels(ctx, in)...)
 	var added []string
 	for _, b := range blocks {
 		row, err := insertBlock(ctx, q, parent, b, state, who)
@@ -232,7 +230,7 @@ func (s *Service) insertRunBlocks(ctx context.Context, q *dbsqlc.Queries, parent
 				return nil, err
 			}
 			s.logger.WarnContext(ctx, "run evidence not added: the observation is full",
-				slog.String("agent_request_id", in.RunID.String()), slog.String("observation_id", parent.ID.String()))
+				slog.String("agent_request_id", in.runID.String()), slog.String("observation_id", parent.ID.String()))
 			return added, nil
 		case err != nil:
 			return nil, err
@@ -242,16 +240,16 @@ func (s *Service) insertRunBlocks(ctx context.Context, q *dbsqlc.Queries, parent
 	return added, nil
 }
 
-func (s *Service) runPanels(ctx context.Context, in RunResult) []preparedBlock {
+func (s *Service) conclusionPanels(ctx context.Context, in conclusion) []preparedBlock {
 	var out []preparedBlock
-	for i, panel := range in.Evidence {
-		raw, err := json.Marshal(PanelBody{Panel: panel, From: &in.From, To: &in.To})
+	for i, panel := range in.evidence {
+		raw, err := json.Marshal(PanelBody{Panel: panel, From: &in.from, To: &in.to})
 		if err == nil {
 			raw, err = normalBody(KindPanel, raw)
 		}
 		if err != nil {
 			s.logger.WarnContext(ctx, "run evidence panel skipped",
-				logattrs.Failure("invalid_panel", err, slog.String("agent_request_id", in.RunID.String()), slog.Int("evidence", i))...)
+				logattrs.Failure("invalid_panel", err, slog.String("agent_request_id", in.runID.String()), slog.Int("evidence", i))...)
 			continue
 		}
 		out = append(out, preparedBlock{kind: KindPanel, body: raw, width: WidthFull})
