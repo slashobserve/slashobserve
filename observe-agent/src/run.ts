@@ -178,6 +178,7 @@ class RunLoop {
   private answerNudged = false
   private pendingNudged = false
   private modelCalls = 0
+  private failedCalls = 0
   private retries = 0
   private compactions = 0
   private renewals = 0
@@ -409,7 +410,6 @@ class RunLoop {
     results: ToolResult[] | undefined
   ): Promise<TurnStep> {
     await this.reporter.report(this.usageBody())
-    this.modelCalls++
     const started = Date.now()
     let answer
     try {
@@ -420,6 +420,7 @@ class RunLoop {
     } catch (error) {
       this.modelMs += Date.now() - started
       this.throwIfQuiet(error)
+      this.failedCalls++
       if (error instanceof CallError) {
         log(
           "warn",
@@ -437,6 +438,7 @@ class RunLoop {
       throw new Failure(sessionFailure(error))
     }
     this.modelMs += Date.now() - started
+    this.modelCalls++
     this.retries += Math.max(0, answer.attempts - 1)
     const { turn } = answer
     this.inputTokens += turn.usage.inputTokens
@@ -465,6 +467,7 @@ class RunLoop {
       this.tools,
       turn.toolCalls,
       randomUUID(),
+      this.usageBody(),
       this.cancel.signal
     ).catch((error: unknown) => {
       this.throwIfQuiet(error)
@@ -572,6 +575,7 @@ class RunLoop {
       cache_read_tokens: this.cacheReadTokens,
       cache_write_tokens: this.cacheWriteTokens,
       model_calls: this.modelCalls,
+      failed_calls: this.failedCalls,
       retries: this.retries,
       compactions: this.compactions,
       renewals: this.renewals,

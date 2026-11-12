@@ -1,8 +1,25 @@
 import { describe, expect, test } from "bun:test"
 import { executeTurn, maxParallelTools } from "../src/turn"
+import type { Usage } from "../src/protocol"
 import { meta, progress, reply, FakeTools } from "./harness"
 
 const signal = new AbortController().signal
+
+const usage: Usage = {
+  provider: "replay",
+  model: "replay",
+  input_tokens: 0,
+  output_tokens: 7,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  model_calls: 1,
+  failed_calls: 0,
+  retries: 0,
+  compactions: 0,
+  renewals: 0,
+  model_ms: 0,
+  max_save_output_tokens: 0,
+}
 
 function calls(...names: string[]) {
   return names.map((name, i) => ({ id: `replay_0_${i}`, name, input: "{}" }))
@@ -16,6 +33,7 @@ describe("executeTurn", () => {
       tools,
       calls("create_dashboard", "list_metrics", "update_panels", "lint_query"),
       "turn-1",
+      usage,
       signal
     )
     expect(tools.calls.map((c) => c.name)).toEqual([
@@ -41,6 +59,7 @@ describe("executeTurn", () => {
       tools,
       calls(...Array.from({ length: 9 }, () => "list_metrics")),
       "turn-1",
+      usage,
       signal
     )
     expect(maxParallelTools).toBe(4)
@@ -63,6 +82,7 @@ describe("executeTurn", () => {
       tools,
       calls("update_panels", "update_panels", "update_panels"),
       "turn-1",
+      usage,
       signal
     )
     expect(peak).toBe(1)
@@ -74,10 +94,11 @@ describe("executeTurn", () => {
       tools,
       calls("list_metrics", "save_finding", "update_panels"),
       "turn-9",
+      usage,
       signal
     )
     for (const call of tools.calls) {
-      expect(call.turn).toEqual({ id: "turn-9", calls: 3, saves: 2 })
+      expect(call.turn).toEqual({ id: "turn-9", calls: 3, saves: 2, usage })
     }
   })
 
@@ -93,6 +114,7 @@ describe("executeTurn", () => {
       tools,
       calls("slow_read", "fast_read", "create_dashboard"),
       "t",
+      usage,
       signal
     )
     expect(out.results.map((r) => r.content)).toEqual([
@@ -119,6 +141,7 @@ describe("executeTurn", () => {
         "import_grafana_dashboard"
       ),
       "t",
+      usage,
       signal
     )
     expect(out.results.map((r) => r.prunable)).toEqual([
@@ -141,7 +164,7 @@ describe("executeTurn", () => {
       call.name === "a"
         ? reply({ meta: meta("saved", progress(2)) })
         : reply({ meta: meta(null, progress(1)) })
-    const out = await executeTurn(tools, calls("a", "b"), "t", signal)
+    const out = await executeTurn(tools, calls("a", "b"), "t", usage, signal)
     expect(out.metas.map((m) => m.build?.saves)).toEqual([2, 1])
   })
 
@@ -155,6 +178,7 @@ describe("executeTurn", () => {
         { id: "x2", name: "lint_query", input: "{}" },
       ],
       "t",
+      usage,
       signal
     )
     expect(tools.calls.map((c) => c.name)).toEqual(["lint_query"])
@@ -173,7 +197,13 @@ describe("executeTurn", () => {
       }
       return reply()
     }
-    const out = await executeTurn(tools, calls("broken", "fine"), "t", signal)
+    const out = await executeTurn(
+      tools,
+      calls("broken", "fine"),
+      "t",
+      usage,
+      signal
+    )
     expect(out.results[0]).toMatchObject({ isError: true, prunable: false })
     expect(JSON.parse(out.results[0]?.content ?? "")).toEqual({
       code: "tool_unavailable",
@@ -191,7 +221,7 @@ describe("executeTurn", () => {
       throw new Error("aborted")
     }
     await expect(
-      executeTurn(tools, calls("list_metrics"), "t", controller.signal)
+      executeTurn(tools, calls("list_metrics"), "t", usage, controller.signal)
     ).rejects.toThrow("aborted")
   })
 })

@@ -24,6 +24,7 @@ func cleanUsage(u revisions.Usage) revisions.Usage {
 		CacheReadTokens:     max(u.CacheReadTokens, 0),
 		CacheWriteTokens:    max(u.CacheWriteTokens, 0),
 		ModelCalls:          max(u.ModelCalls, 0),
+		FailedCalls:         max(u.FailedCalls, 0),
 		Retries:             max(u.Retries, 0),
 		Compactions:         max(u.Compactions, 0),
 		Renewals:            max(u.Renewals, 0),
@@ -51,6 +52,7 @@ func (s *State) noteModel(u revisions.Usage) {
 	have.CacheReadTokens = max(have.CacheReadTokens, u.CacheReadTokens)
 	have.CacheWriteTokens = max(have.CacheWriteTokens, u.CacheWriteTokens)
 	have.ModelCalls = max(have.ModelCalls, u.ModelCalls)
+	have.FailedCalls = max(have.FailedCalls, u.FailedCalls)
 	have.Retries = max(have.Retries, u.Retries)
 	have.Compactions = max(have.Compactions, u.Compactions)
 	have.Renewals = max(have.Renewals, u.Renewals)
@@ -76,7 +78,7 @@ func (s *State) usage() revisions.Usage {
 
 func (s *State) storedUsage(prices pricing.Table) *revisions.Usage {
 	u := s.usage()
-	if u.ToolCalls == 0 && u.ModelCalls == 0 && u.InputTokens == 0 && u.OutputTokens == 0 && u.CostUSD == nil {
+	if u.ToolCalls == 0 && u.ModelCalls == 0 && u.FailedCalls == 0 && u.InputTokens == 0 && u.OutputTokens == 0 && u.CostUSD == nil {
 		return nil
 	}
 	if u.CostUSD == nil {

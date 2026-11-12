@@ -334,6 +334,22 @@ func TestRunSessionPassesTheTurnKeyAndIgnoresMalformedOnes(t *testing.T) {
 	}
 }
 
+func TestRunSessionPassesTheUsageOfTheTurn(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	meta := map[string]any{"id": "t1", "calls": 1, "saves": 0, "usage": map[string]any{"model_calls": 4, "failed_calls": 1, "output_tokens": 90}}
+	f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "lint_query", "arguments": map[string]any{}, "_meta": map[string]any{turnMetaKey: meta}}))
+	calls := f.runs.recorded()
+	if len(calls) != 1 || calls[0].call.Turn == nil || calls[0].call.Turn.Usage == nil {
+		t.Fatalf("calls = %+v", calls)
+	}
+	if got := calls[0].call.Turn.Usage; got.ModelCalls != 4 || got.FailedCalls != 1 || got.OutputTokens != 90 {
+		t.Fatalf("usage = %+v", got)
+	}
+}
+
 func TestRunSessionResultCarriesTheRunKeyAndTheNotesButNotInItsStructuredContent(t *testing.T) {
 	f := newRunFixture(t, tools.ModeRevise)
 	settled := "saved"

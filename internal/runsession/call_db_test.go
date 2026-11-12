@@ -165,6 +165,37 @@ func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
 	}
 }
 
+func TestTheUsageOfATurnIsStoredWhenItsResultEndsTheRun(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	for n := range guard.MaxRejectionsInRow {
+		turn := &Turn{ID: "turn-" + strconv.Itoa(n+1), Calls: 1, Saves: 1, Usage: &revisions.Usage{ModelCalls: n + 1, OutputTokens: int64(100 * (n + 1))}}
+		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, turn, rejectedSave)
+	}
+	var usage revisions.Usage
+	if err := json.Unmarshal(r.stored(req).RunUsage, &usage); err != nil {
+		t.Fatal(err)
+	}
+	if usage.ModelCalls != guard.MaxRejectionsInRow || usage.OutputTokens != int64(100*guard.MaxRejectionsInRow) {
+		t.Fatalf("usage = %+v, want the %d model calls of the turns that ended the run", usage, guard.MaxRejectionsInRow)
+	}
+}
+
+func TestToolErrorsAreNotFailedModelCalls(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	for n := range guard.MaxRejectionsInRow {
+		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, nil, rejectedSave)
+	}
+	var usage revisions.Usage
+	if err := json.Unmarshal(r.stored(req).RunUsage, &usage); err != nil {
+		t.Fatal(err)
+	}
+	if usage.FailedCalls != 0 || usage.ToolCalls != guard.MaxRejectionsInRow {
+		t.Fatalf("usage = %+v, want no failed calls and %d tool calls", usage, guard.MaxRejectionsInRow)
+	}
+}
+
 func TestTwoStalledTurnsEndTheRunNoProgress(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()

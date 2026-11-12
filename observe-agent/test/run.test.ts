@@ -131,6 +131,21 @@ describe("run loop success", () => {
       provider: "replay",
     })
   })
+
+  test("every tool call of a turn carries the usage including that turn's model call", async () => {
+    const claim = new FakeClaim()
+    claim.tools.handler = async () => reply({ meta: meta("ended") })
+    await drive(claim, claimed("create happy path"))
+    const inputs = ["{}", '{ "datasource": "prom" }', '{ "title": "t" }']
+    expect(claim.tools.calls.length).toBeGreaterThan(0)
+    for (const call of claim.tools.calls) {
+      expect(call.turn?.usage).toMatchObject({
+        model_calls: 1,
+        failed_calls: 0,
+        output_tokens: estimateOutputTokens(inputs),
+      })
+    }
+  })
 })
 
 describe("cut-offs", () => {
@@ -180,7 +195,8 @@ describe("cut-offs", () => {
     ])
     expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
     expect(claim.finishes[0]?.usage).toMatchObject({
-      model_calls: 3,
+      model_calls: 2,
+      failed_calls: 1,
       compactions: 1,
       renewals: 0,
     })
@@ -398,6 +414,15 @@ describe("model failures", () => {
       expect(claim.finishes[0]?.message).toBeUndefined()
     })
   }
+
+  test("a failed model call counts in failed_calls and not in model_calls", async () => {
+    const claim = new FakeClaim()
+    await drive(claim, claimed("rate limited"))
+    expect(claim.finishes[0]?.usage).toMatchObject({
+      model_calls: 0,
+      failed_calls: 1,
+    })
+  })
 
   test("a provider without a session fails internal", async () => {
     const claim = new FakeClaim()

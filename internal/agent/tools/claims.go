@@ -37,19 +37,19 @@ const (
 
 	descReportRun = "Keep the lease of a run you claimed and say what you are doing. The lease ends 60 seconds after the last call. The answer has the run's state and the saved panel progress; when stop is true the run was canceled or has ended: stop and call finish_run. Optional: text is the end of what your model is writing, shown as live text and never stored; usage is your cumulative model use, and the server stops the run at its cost limit."
 
-	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a dashboard version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your own model and cost, shown on the run as you report it. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
+	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your model use, shown on the run. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
 
 	descGetRunBrief = "Optional. The first message the server's own agent starts each model session with: the system text, the user message and the run's saved progress. Starting a session with it resets the read guard and pins the parent version; an agent that does not call it keeps working from claim_run's prompt."
 
 	schemaClaimRun = `{"type":"object","properties":{` +
 		`"wait_seconds":{"type":"integer","minimum":0,"maximum":30,"description":"How long to wait for a run, 0 to 30 seconds. Default 30."}},"additionalProperties":false}`
 
-	schemaRunUsage = `{"type":"object","description":"Your cumulative model use for this run.","properties":{` +
+	schemaRunUsage = `{"type":"object","description":"Your cumulative model use.","properties":{` +
 		`"provider":{"type":"string"},"model":{"type":"string"},` +
 		`"input_tokens":{"type":"integer","minimum":0},"output_tokens":{"type":"integer","minimum":0},` +
 		`"cache_read_tokens":{"type":"integer","minimum":0},"cache_write_tokens":{"type":"integer","minimum":0},` +
 		`"cost_usd":{"type":"number","minimum":0},` +
-		`"model_calls":{"type":"integer","minimum":0},"retries":{"type":"integer","minimum":0},` +
+		`"model_calls":{"type":"integer","minimum":0},"failed_calls":{"type":"integer","minimum":0},"retries":{"type":"integer","minimum":0},` +
 		`"compactions":{"type":"integer","minimum":0},"renewals":{"type":"integer","minimum":0},` +
 		`"model_ms":{"type":"integer","minimum":0},` +
 		`"max_save_output_tokens":{"type":"integer","minimum":0}},"additionalProperties":false}`
@@ -118,6 +118,7 @@ type runUsage struct {
 	CacheWriteTokens    int64    `json:"cache_write_tokens"`
 	CostUSD             *float64 `json:"cost_usd"`
 	ModelCalls          int      `json:"model_calls"`
+	FailedCalls         int      `json:"failed_calls"`
 	Retries             int      `json:"retries"`
 	Compactions         int      `json:"compactions"`
 	Renewals            int      `json:"renewals"`
@@ -132,7 +133,7 @@ func (u *runUsage) reported() *revisions.Usage {
 	return &revisions.Usage{
 		Provider: u.Provider, Model: u.Model, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
 		CacheReadTokens: u.CacheReadTokens, CacheWriteTokens: u.CacheWriteTokens, CostUSD: u.CostUSD,
-		ModelCalls: u.ModelCalls, Retries: u.Retries, Compactions: u.Compactions, Renewals: u.Renewals,
+		ModelCalls: u.ModelCalls, FailedCalls: u.FailedCalls, Retries: u.Retries, Compactions: u.Compactions, Renewals: u.Renewals,
 		ModelMS: u.ModelMS, MaxSaveOutputTokens: u.MaxSaveOutputTokens,
 	}
 }

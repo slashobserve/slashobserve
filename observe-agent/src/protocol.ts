@@ -40,13 +40,6 @@ export const buildProgress = z.object({
 })
 export type BuildProgress = z.infer<typeof buildProgress>
 
-export const turnMeta = z.strictObject({
-  id: z.string().min(1),
-  calls: z.number().int().min(1),
-  saves: count,
-})
-export type TurnMeta = z.infer<typeof turnMeta>
-
 export const settledKinds = [
   "saved",
   "proposed",
@@ -160,6 +153,7 @@ export const usage = z.strictObject({
   cache_write_tokens: count,
   cost_usd: z.number().nonnegative().optional(),
   model_calls: count,
+  failed_calls: count,
   retries: count,
   compactions: count,
   renewals: count,
@@ -167,6 +161,14 @@ export const usage = z.strictObject({
   max_save_output_tokens: count,
 })
 export type Usage = z.infer<typeof usage>
+
+export const turnMeta = z.strictObject({
+  id: z.string().min(1),
+  calls: z.number().int().min(1),
+  saves: count,
+  usage: usage.optional(),
+})
+export type TurnMeta = z.infer<typeof turnMeta>
 
 export const claimInput = z.strictObject({
   wait_seconds: z.number().int().min(0).max(30),

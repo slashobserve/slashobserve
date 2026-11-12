@@ -1,6 +1,6 @@
 import { type RunTools, type ToolReply } from "./mcp"
 import { isSave } from "./phase"
-import { type RunMeta, type TurnMeta } from "./protocol"
+import { type RunMeta, type TurnMeta, type Usage } from "./protocol"
 import type { ToolCall, ToolResult } from "./session/types"
 
 export const maxParallelTools = 4
@@ -51,6 +51,7 @@ export async function executeTurn(
   tools: RunTools,
   calls: ToolCall[],
   turnId: string,
+  usage: Usage,
   signal: AbortSignal
 ): Promise<Executed> {
   const results: Array<ToolResult | undefined> = calls.map(() => undefined)
@@ -72,6 +73,7 @@ export async function executeTurn(
     id: turnId,
     calls: dispatches.length,
     saves: dispatches.filter((d) => isSave(d.call.name)).length,
+    usage,
   }
 
   const dispatch = async ({ index, call, args }: Dispatch): Promise<void> => {

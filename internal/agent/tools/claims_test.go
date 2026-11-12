@@ -286,7 +286,7 @@ func TestReportRunSendsTextUsageAndAnswersTheBuild(t *testing.T) {
 	rs := &fakeRunSessions{progress: &BuildProgress{Saves: 1, Panels: 2, PlannedPanels: 5}}
 	live := &fakeLiveText{}
 	deps := Deps{Claims: fc, RunSessions: rs, LiveText: live}
-	input := `{"run_id":"` + strings.ToUpper(runID) + `","attempt":2,"note":"n","text":"thinking","usage":{"provider":"p","model":"m","input_tokens":10,"output_tokens":4,"cache_read_tokens":3,"cache_write_tokens":2,"cost_usd":0.5,"model_calls":3,"retries":1,"compactions":2,"renewals":1,"model_ms":900,"max_save_output_tokens":77}}`
+	input := `{"run_id":"` + strings.ToUpper(runID) + `","attempt":2,"note":"n","text":"thinking","usage":{"provider":"p","model":"m","input_tokens":10,"output_tokens":4,"cache_read_tokens":3,"cache_write_tokens":2,"cost_usd":0.5,"model_calls":3,"failed_calls":2,"retries":1,"compactions":2,"renewals":1,"model_ms":900,"max_save_output_tokens":77}}`
 
 	res, err := callClaimToolWith(t, deps, outsideClaimer, nameReportRun, input)
 	if err != nil {
@@ -301,7 +301,7 @@ func TestReportRunSendsTextUsageAndAnswersTheBuild(t *testing.T) {
 		t.Fatalf("live text = %v %v %v", live.runs, live.attempts, live.texts)
 	}
 	cost := 0.5
-	want := revisions.Usage{Provider: "p", Model: "m", InputTokens: 10, OutputTokens: 4, CacheReadTokens: 3, CacheWriteTokens: 2, CostUSD: &cost, ModelCalls: 3, Retries: 1, Compactions: 2, Renewals: 1, ModelMS: 900, MaxSaveOutputTokens: 77}
+	want := revisions.Usage{Provider: "p", Model: "m", InputTokens: 10, OutputTokens: 4, CacheReadTokens: 3, CacheWriteTokens: 2, CostUSD: &cost, ModelCalls: 3, FailedCalls: 2, Retries: 1, Compactions: 2, Renewals: 1, ModelMS: 900, MaxSaveOutputTokens: 77}
 	if len(rs.noted) != 1 || !reflect.DeepEqual(rs.noted[0], want) {
 		t.Fatalf("noted usage = %+v", rs.noted)
 	}

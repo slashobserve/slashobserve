@@ -466,6 +466,8 @@ Every call may carry `_meta["slashobserve.com/turn"]` with `{"id", "calls", "sav
 The server treats the calls with one id as one turn.
 Without the key, each call is its own turn, so the stalled-turn and one-save-per-turn guards judge one call at a time.
 A key the server cannot trust (an empty or over-long id, more than 64 calls, or more saves than calls) is ignored.
+The key may also carry `usage`, the same cumulative object as `report_run`, counting the model call that made the turn, so a run the server ends on the result of that turn stores the usage including it.
+The cost limit is checked only on `report_run` and `finish_run`.
 
 Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"settled", "build"}`.
 `settled` is `saved`, `proposed`, `finding` or `suggested` once the run has its result (`proposed` when the save became a proposal, which ends the run as succeeded with the result kind `proposal`), `restarted` when a conflict restarted the run from the latest version, `ended` once the run has ended, and `null` otherwise.
@@ -483,7 +485,7 @@ It answers `run_ended` for a run that has ended.
 `report_run` also takes, all optional:
 
 - `text`, at most 4,000 characters: the end of what the model is writing, shown on the run as live text while the run is running and never stored.
-- `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
+- `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
 
 Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress.
 

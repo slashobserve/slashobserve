@@ -5,6 +5,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -16,6 +17,8 @@ type Turn struct {
 	ID    string `json:"id"`
 	Calls int    `json:"calls"`
 	Saves int    `json:"saves"`
+
+	Usage *revisions.Usage `json:"usage"`
 }
 
 func (t *Turn) valid() *Turn {

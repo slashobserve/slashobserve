@@ -116,6 +116,25 @@ func TestNoteModelKeepsTheLargestOfEachCumulativeCount(t *testing.T) {
 	}
 }
 
+func TestNoteModelKeepsTheLargestFailedCalls(t *testing.T) {
+	var s State
+	s.noteModel(revisions.Usage{FailedCalls: 2})
+	s.noteModel(revisions.Usage{FailedCalls: 1})
+	s.noteModel(revisions.Usage{FailedCalls: -4})
+	if s.Usage.FailedCalls != 2 {
+		t.Fatalf("failed calls = %d, want 2", s.Usage.FailedCalls)
+	}
+}
+
+func TestStoredUsageKeepsARunWhoseOnlyModelCallFailed(t *testing.T) {
+	var s State
+	s.noteModel(revisions.Usage{Provider: "p", Model: "m", FailedCalls: 1})
+	got := s.storedUsage(pricing.Table{})
+	if got == nil || got.FailedCalls != 1 || got.ModelCalls != 0 {
+		t.Fatalf("usage = %+v, want failed_calls 1 and model_calls 0", got)
+	}
+}
+
 func TestStoredUsageIsNilForARunThatDidNothingAndCarriesGuardCounts(t *testing.T) {
 	var s State
 	if s.storedUsage(pricing.Table{}) != nil {

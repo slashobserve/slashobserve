@@ -110,6 +110,9 @@ func (sess *session) endedAnswer(notes []string) Answer {
 
 func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admitted, error) {
 	var out admitted
+	if turn != nil && turn.Usage != nil {
+		sess.state.noteModel(*turn.Usage)
+	}
 	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
 		nudge, err := sess.closeTurn(ctx)
 		if err != nil {
@@ -162,14 +165,12 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	state.Usage.ToolMS += d.took.Milliseconds()
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
 	if d.err != nil {
-		state.Usage.FailedCalls++
 		step.Status, step.Message = "error", internalStep
 		sess.record(step)
 		_, err := sess.complete(ctx, a.seq)
 		return Answer{}, err
 	}
 	if d.res.IsError {
-		state.Usage.FailedCalls++
 		step.Status = "error"
 	}
 	switch {

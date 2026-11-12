@@ -30,6 +30,7 @@ const noUsage: Usage = {
   cache_read_tokens: 0,
   cache_write_tokens: 0,
   model_calls: 0,
+  failed_calls: 0,
   retries: 0,
   compactions: 0,
   renewals: 0,
