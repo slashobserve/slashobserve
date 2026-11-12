@@ -283,3 +283,56 @@ func TestARevisionRunFromACommentStillResolvesAndPostsNothing(t *testing.T) {
 		t.Fatalf("%d run replies, want none", got)
 	}
 }
+
+func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
+	r := newAgentRig(t, true)
+	grant := r.connectedAgent(t, testUser)
+	account := r.serviceAccount(t, "ci-bot", true)
+	tests := []struct {
+		name      string
+		mention   string
+		wantLabel string
+		wantKind  string
+		wantID    string
+	}{
+		{"a connected agent", grantToken(grant), "Ada (via Codex)", "user", testUserID},
+		{"a service account", accountToken(account), "ci-bot (via MCP)", "service_account", account.String()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dash := r.createDashboard(t, "rps", "errors")
+			opened, _, started, refusal := r.openWithRun(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: new("errors"), Body: tt.mention + " look at this"})
+			if started == nil || refusal != nil {
+				t.Fatalf("started = %+v, refusal = %+v", started, refusal)
+			}
+			run, err := r.db.Queries().GetAgentRequestByID(t.Context(), mustParse(t, started.ID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {
+				t.Fatal(err)
+			}
+
+			replies := r.runReplies(t, opened.ID)
+			if len(replies) != 1 {
+				t.Fatalf("replies = %+v, want one", replies)
+			}
+			stored, err := r.db.Queries().GetMessage(t.Context(), mustParse(t, replies[0].ID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			author := messageOf(stored, nil, testUser, true).Author
+			if author.Label() != tt.wantLabel || author.RunID != "" || string(author.Kind) != tt.wantKind || author.ID != tt.wantID {
+				t.Fatalf("reply author = %+v label %q, want label %q, no run, %s %s", author, author.Label(), tt.wantLabel, tt.wantKind, tt.wantID)
+			}
+			var actorKind, actorID string
+			err = r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT actor_kind, actor_id::text FROM activity WHERE type = 'thread.replied' AND data->>'message_id' = $1`, replies[0].ID).Scan(&actorKind, &actorID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if actorKind != tt.wantKind || actorID != tt.wantID {
+				t.Fatalf("thread.replied actor = %s %s, want %s %s", actorKind, actorID, tt.wantKind, tt.wantID)
+			}
+		})
+	}
+}

@@ -271,10 +271,11 @@ You can mention only your own connected agents and service accounts that take ru
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
 
-When the run ends, it posts one reply in the same thread, by you with the run's byline "Observe Agent for <your name>", and never resolves the thread or reopens a resolved one.
+When the run ends, it posts one reply in the same thread and never resolves the thread or reopens a resolved one.
+The reply reads "Observe Agent for <your name>" when the built-in agent took the run, "<your name> (via <client>)" when one of your connected agents did, and the service account's own name when a service account did.
 The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was canceled.`
 The run's own page has the detail.
-A retry or a continuation of the run answers in the same thread.
+A retry or a continuation of the run answers in the same thread and goes to the same agent; when that connected agent was revoked, has expired or is not yours, or the service account no longer takes runs, the command fails with `assignee_unavailable` and starts nothing.
 
 Add `--json` to any of them to print the API response unchanged.
 

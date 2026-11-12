@@ -132,6 +132,8 @@ func buildReplyFor(err error) (buildReply, bool) {
 		return buildReply{status: http.StatusConflict, code: "build_not_savable", message: ErrBuildNotSavable.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
 		return buildReply{status: http.StatusConflict, code: "not_continuable", message: ErrNotContinuable.Error()}, true
+	case errors.Is(err, ErrAssigneeUnavailable):
+		return buildReply{status: http.StatusConflict, code: "assignee_unavailable", message: ErrAssigneeUnavailable.Error()}, true
 	case errors.Is(err, ErrRequestFinished):
 		return buildReply{status: http.StatusConflict, code: "request_finished", message: ErrRequestFinished.Error()}, true
 	case errors.Is(err, ErrNotRequester):

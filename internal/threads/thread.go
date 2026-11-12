@@ -4,10 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -95,7 +98,7 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 			Name:   row.AuthorName,
 			Origin: row.Origin,
 			Client: row.OriginClient,
-			RunID:  row.RunID,
+			RunID:  builtinRunID(row),
 		}),
 		AuthorEmail: row.AuthorEmail.String,
 		CreatedAt:   row.CreatedAt.Time.UTC(),
@@ -108,6 +111,13 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 		m.EditedAt = &at
 	}
 	return m
+}
+
+func builtinRunID(row dbsqlc.ThreadMessage) pgtype.UUID {
+	if row.RunAssignedKind.String != string(revisions.AssignBuiltin) {
+		return pgtype.UUID{}
+	}
+	return row.RunID
 }
 
 func actorOf(ctx context.Context, by auth.Principal) actor.Actor {

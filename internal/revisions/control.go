@@ -239,12 +239,13 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 }
 
 func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principal, note string) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
-		return dbsqlc.AgentRequest{}, ErrUnavailable
-	}
 	row, err := s.requesterRow(ctx, id, by)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
+	}
+	assignee := assigneeOf(row)
+	if assignee.builtin() && !s.Available() {
+		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if err := s.continueBlocker(ctx, row, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -255,6 +256,9 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	var next dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := checkContinuable(ctx, q, row); err != nil {
+			return err
+		}
+		if err := checkAssignee(ctx, q, assignee, by); err != nil {
 			return err
 		}
 		var err error
@@ -271,6 +275,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				ContinuesID:  row.ID,
 				ContinueNote: note,
 
+				Assignee:        assignee,
 				ThreadMessageID: threadMessage,
 				ThreadContext:   threadContext,
 			})
@@ -289,28 +294,34 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		}
 		return notifyRevision(ctx, q, row)
 	})
-	var pgErr *pgconn.PgError
-	switch {
-	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == continuesKeyIndex:
-		return dbsqlc.AgentRequest{}, ErrNotContinuable
-	case db.IsForeignKeyViolation(err):
-		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
-	case err != nil:
-		return dbsqlc.AgentRequest{}, err
+	if err != nil {
+		return dbsqlc.AgentRequest{}, continueFailure(err)
 	}
 	return next, nil
 }
 
-func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
-		return dbsqlc.AgentRequest{}, ErrUnavailable
+func continueFailure(err error) error {
+	var pgErr *pgconn.PgError
+	switch {
+	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == continuesKeyIndex:
+		return ErrNotContinuable
+	case db.IsForeignKeyViolation(err):
+		return ErrDashboardNotFound
 	}
+	return err
+}
+
+func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, error) {
 	row, err := s.GetObserve(ctx, id, by)
 	if err == nil {
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
+	}
+	assignee := assigneeOf(row)
+	if assignee.builtin() && !s.Available() {
+		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	states, err := s.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
@@ -329,6 +340,9 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			Allowed: actionStrings(allowedActions(facts)),
 		}
 	}
+	if err := checkAssignee(ctx, s.db.Queries(), assignee, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	threadMessage, threadContext := threadOf(row)
 	switch Source(row.Source) {
 	case SourceObserve:
@@ -345,6 +359,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			ObservationID:    row.ObservationID,
 			ReuseObservation: true,
 
+			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 		})
@@ -353,6 +368,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			DashboardID:     row.DashboardID,
 			Prompt:          row.Prompt,
 			By:              by,
+			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 		}, nil)

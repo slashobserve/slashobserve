@@ -95,7 +95,7 @@ func (s *Service) submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequ
 }
 
 func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
+	if p.Assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	return s.enqueue(ctx, q, p)
@@ -298,7 +298,7 @@ type InvestigateParams struct {
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
+	if p.Assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if err := s.checkInvestigate(ctx, p); err != nil {

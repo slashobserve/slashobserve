@@ -187,7 +187,7 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread as the person who asked, with the run's byline; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
 
 `create_finding` is deprecated: use `create_observation` and then `add_block`.
 It saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.

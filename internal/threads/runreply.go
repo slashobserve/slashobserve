@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -39,7 +40,10 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	if err != nil {
 		return err
 	}
-	author := revisions.RunActor(run)
+	author, err := replyAuthor(ctx, q, run)
+	if err != nil {
+		return err
+	}
 	columns, err := author.Columns()
 	if err != nil {
 		return err
@@ -53,6 +57,8 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 		Origin:       columns.Origin,
 		OriginClient: columns.Client,
 		RunID:        run.ID,
+
+		RunAssignedKind: run.AssignedKind,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -61,6 +67,17 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 		return fmt.Errorf("insert run reply: %w", err)
 	}
 	return emitter{scope: sc, thread: thread, actor: author}.replied(ctx, q, message, nil)
+}
+
+func replyAuthor(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) (actor.Actor, error) {
+	if revisions.AssigneeKind(run.AssignedKind) == revisions.AssignBuiltin {
+		return revisions.AssigneeActor(run, ""), nil
+	}
+	name, err := q.GetAssigneeName(ctx, dbsqlc.GetAssigneeNameParams{Kind: run.AssignedKind, ID: run.AssignedID})
+	if err != nil {
+		return actor.Actor{}, fmt.Errorf("read the agent that took the run: %w", err)
+	}
+	return revisions.AssigneeActor(run, name), nil
 }
 
 func lockForReply(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread) (sc scope, held bool, err error) {
