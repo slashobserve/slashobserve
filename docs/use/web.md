@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
+description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -73,6 +73,39 @@ Recently viewed dashboards stay in this browser's local storage, at most 20, and
 TV mode shows a dashboard on a wall screen with nothing but its panels, and can cycle through its rows or its folder's dashboards.
 [Show it on a wall](public-links.md#show-it-on-a-wall) describes how to start it, the address keys that open a TV straight into it, and how it fits with public links.
 
+## Select a panel
+
+A dashboard is a canvas: select a panel, then act on it.
+Click the panel's title bar, or Tab to its title and press Enter, and the panel gets a ring and a small toolbar above its top right corner.
+`Esc` clears the selection, and with the title focused `↑`, `↓`, `Home` and `End` move it through the panels in reading order.
+The toolbar shows only what you may do:
+
+- **Comment**, when you can comment, starts a comment on the panel.
+- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target.
+- **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
+- **Add to observation** is described in [Add to an observation](#add-to-an-observation).
+- **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
+
+The arrow keys move between the toolbar's buttons, and `Home` and `End` go to the first and last.
+While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
+
+At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone and in TV mode.
+With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
+**Ask** opens the activity pane in investigate mode for the whole dashboard.
+
+### Arrange panels
+
+There is no edit mode.
+When you can edit the dashboard, are on its latest version and the dashboard area is at least 768 pixels wide, the selected panel shows a grip in its title bar and a handle in its corner: drag the title bar to move the panel and the corner to resize it.
+With the grip focused, the arrow keys move the panel and `Shift` with an arrow resizes it.
+While a panel is selected for arranging, the grid shows the saved layout, so a repeated panel shows once and a row cannot be collapsed until you clear the selection.
+
+After the first move a bar at the bottom of the screen says "Your layout changes are not saved".
+**Save version N** asks for a summary and saves the layout as the next version, and **Discard** drops the moves.
+When someone else saves a version, your moves stay on top of it; a panel you did not touch takes the other version's size and place.
+Leaving the dashboard, or opening an older version, with unsaved moves asks first.
+While you have unsaved moves, the actions that would change the dashboard in another way, such as Edit details, Duplicate, Delete, Inspect and View, say "finish the layout first".
+
 ## One panel at full size
 
 **View** in a panel's menu, or `v` over a panel, shows that panel alone in the whole dashboard area.
@@ -84,7 +117,7 @@ The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Inspect** in a panel's menu, or `i` over a panel, opens a pane in the place of the activity card.
 The address carries `inspect=<panel id>` and, for the second and third tab, `inspectTab=query` or `inspectTab=stats`.
 `Esc` or the close button closes it.
-`viewPanel` and `inspect` are dropped while you edit the dashboard.
+`viewPanel` and `inspect` are dropped while you have unsaved layout changes or the panel editor is open.
 
 The pane has three tabs:
 
@@ -108,7 +141,7 @@ The item is greyed, with the reason after it, when the panel has several queries
 ## Add to an observation
 
 **Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.
-The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is missing while you edit the layout.
+The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
 [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs) describes the side panel and the range the block takes.
 
 ## Search

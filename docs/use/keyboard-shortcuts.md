@@ -11,7 +11,7 @@ Press `?` on a dashboard to see them all in the app.
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
-| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen. |
+| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
 | `t` then `→` | Move the time range forward by half its length. |
@@ -41,7 +41,7 @@ They do nothing on a dashboard that hides the time picker.
 ## When keys are ignored
 
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
-`e` also does nothing while you edit the layout.
+`e` also does nothing while you have unsaved layout changes.
 
 ## Logs page keys
 
