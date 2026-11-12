@@ -12,10 +12,9 @@ import {
 } from "./use-mentionable-agents"
 
 const grantId = "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d"
-const accountId = "b1f0e2d3-4c5b-4a6d-9e7f-8a9b0c1d2e3f"
 
 describe("mentionableAgents", () => {
-  it("lists the Observe Agent, then connected agents, then service accounts", () => {
+  it("lists the Observe Agent, then connected agents", () => {
     expect(
       mentionableAgents({
         observeAvailable: true,
@@ -23,13 +22,11 @@ describe("mentionableAgents", () => {
           { id: grantId, client: { name: "Claude Code" } },
           { id: "g2", client: { name: null } },
         ],
-        serviceAccounts: [{ id: accountId, name: "Deploy bot" }],
       })
     ).toEqual([
       observeAgent,
       { kind: "grant", id: grantId, name: "Claude Code" },
       { kind: "grant", id: "g2", name: "Unnamed MCP client" },
-      { kind: "service_account", id: accountId, name: "Deploy bot" },
     ])
   })
 
@@ -41,7 +38,6 @@ describe("mentionableAgents", () => {
           { id: grantId, client: { name: "Claude Code" } },
           { id: grantId, client: { name: "Claude Code" } },
         ],
-        serviceAccounts: [],
       })
     ).toEqual([{ kind: "grant", id: grantId, name: "Claude Code" }])
   })
@@ -54,7 +50,8 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function stubServer(agents: () => Response) {
+function stubServer() {
+  const requested: string[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request | string) => {
@@ -62,6 +59,7 @@ function stubServer(agents: () => Response) {
         typeof request === "string" ? request : request.url,
         "http://x"
       )
+      requested.push(url.pathname)
       switch (url.pathname) {
         case "/api/v1/agent":
           return json({
@@ -86,10 +84,11 @@ function stubServer(agents: () => Response) {
             next_cursor: null,
           })
         default:
-          return agents()
+          return json({ error: "not found", code: "not_found" }, 404)
       }
     })
   )
+  return requested
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -105,25 +104,8 @@ afterEach(() => {
 })
 
 describe("useMentionableAgents", () => {
-  it("adds the service accounts GET /agents lists", async () => {
-    stubServer(() =>
-      json({
-        connected: [],
-        service_accounts: [{ id: accountId, name: "Deploy bot" }],
-      })
-    )
-    const { result } = renderHook(() => useMentionableAgents(), { wrapper })
-    await waitFor(() =>
-      expect(result.current.map((agent) => agent.name)).toEqual([
-        "Observe Agent",
-        "Claude Code",
-        "Deploy bot",
-      ])
-    )
-  })
-
-  it("still offers the Observe Agent and the connected agents when GET /agents is missing", async () => {
-    stubServer(() => json({ error: "not found", code: "not_found" }, 404))
+  it("offers the Observe Agent and the connected agents without asking for a route the server lacks", async () => {
+    const requested = stubServer()
     const { result } = renderHook(() => useMentionableAgents(), { wrapper })
     await waitFor(() =>
       expect(result.current.map((agent) => agent.name)).toEqual([
@@ -131,5 +113,6 @@ describe("useMentionableAgents", () => {
         "Claude Code",
       ])
     )
+    expect(requested).not.toContain("/api/v1/agents")
   })
 })
