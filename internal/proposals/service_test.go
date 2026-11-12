@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
@@ -144,13 +145,14 @@ func TestAnotherCommenterOpensASeparateProposal(t *testing.T) {
 	}
 }
 
-func TestConcurrentFirstProposalsByOneAuthorOpenOneProposal(t *testing.T) {
+func TestConcurrentSavesByOneAuthorFoldIntoOneProposal(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady, second)
 
+	const saves = 12
 	var wg sync.WaitGroup
-	refs := make([]dashboards.ProposalRef, 4)
-	errs := make([]error, 4)
+	refs := make([]dashboards.ProposalRef, saves)
+	errs := make([]error, saves)
 	for i := range refs {
 		wg.Add(1)
 		go func() {
@@ -178,8 +180,40 @@ func TestConcurrentFirstProposalsByOneAuthorOpenOneProposal(t *testing.T) {
 			opened++
 		}
 	}
-	if opened != 1 || page.Items[0].Revision != 4 {
-		t.Fatalf("opened = %d, head revision = %d, want 1 and 4", opened, page.Items[0].Revision)
+	if opened != 1 || page.Items[0].Revision != saves {
+		t.Fatalf("opened = %d, head revision = %d, want 1 and %d", opened, page.Items[0].Revision, saves)
+	}
+}
+
+func TestConcurrentSavesByTwoAuthorsOpenOneProposalEach(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+
+	authors := []auth.Principal{commenter, otherCommenter}
+	const savesEach = 4
+	var wg sync.WaitGroup
+	errs := make([]error, len(authors)*savesEach)
+	for i := range errs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = r.save(t.Context(), authors[i%len(authors)], id, 1, changed, panel{id: "b", query: "q" + strconv.Itoa(i)})
+		}()
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("save %d: %v", i, err)
+		}
+	}
+	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id})
+	if err != nil || len(page.Items) != len(authors) {
+		t.Fatalf("list = %+v, %v, want one proposal per author", page, err)
+	}
+	for _, item := range page.Items {
+		if item.Revision != savesEach {
+			t.Fatalf("proposal %s revision = %d, want %d", item.ID, item.Revision, savesEach)
+		}
 	}
 }
 

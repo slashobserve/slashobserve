@@ -56,52 +56,6 @@ func (q *Queries) CloseProposal(ctx context.Context, arg CloseProposalParams) (i
 	return result.RowsAffected(), nil
 }
 
-const findOpenProposalForAuthor = `-- name: FindOpenProposalForAuthor :one
-SELECT id, revision FROM proposals
-WHERE dashboard_id = $1 AND state = 'open' AND run_id IS NULL
-  AND author_kind = $2 AND author_id = $3
-`
-
-type FindOpenProposalForAuthorParams struct {
-	DashboardID pgtype.UUID
-	AuthorKind  string
-	AuthorID    pgtype.UUID
-}
-
-type FindOpenProposalForAuthorRow struct {
-	ID       pgtype.UUID
-	Revision int32
-}
-
-func (q *Queries) FindOpenProposalForAuthor(ctx context.Context, arg FindOpenProposalForAuthorParams) (FindOpenProposalForAuthorRow, error) {
-	row := q.db.QueryRow(ctx, findOpenProposalForAuthor, arg.DashboardID, arg.AuthorKind, arg.AuthorID)
-	var i FindOpenProposalForAuthorRow
-	err := row.Scan(&i.ID, &i.Revision)
-	return i, err
-}
-
-const findOpenProposalForRun = `-- name: FindOpenProposalForRun :one
-SELECT id, revision FROM proposals
-WHERE dashboard_id = $1 AND state = 'open' AND run_id = $2
-`
-
-type FindOpenProposalForRunParams struct {
-	DashboardID pgtype.UUID
-	RunID       pgtype.UUID
-}
-
-type FindOpenProposalForRunRow struct {
-	ID       pgtype.UUID
-	Revision int32
-}
-
-func (q *Queries) FindOpenProposalForRun(ctx context.Context, arg FindOpenProposalForRunParams) (FindOpenProposalForRunRow, error) {
-	row := q.db.QueryRow(ctx, findOpenProposalForRun, arg.DashboardID, arg.RunID)
-	var i FindOpenProposalForRunRow
-	err := row.Scan(&i.ID, &i.Revision)
-	return i, err
-}
-
 const getProposal = `-- name: GetProposal :one
 SELECT p.id, p.dashboard_id, p.state, p.title, p.revision, p.author_kind, p.author_id, p.author_name, p.origin, p.origin_client, p.run_id, p.closed_at, p.closed_by_kind, p.closed_by_id, p.closed_by_name, p.created_at, p.updated_at, r.base_version, r.summary, r.spec, v.version AS merged_version
 FROM proposals p
@@ -344,4 +298,18 @@ func (q *Queries) LockOpenProposalForRun(ctx context.Context, arg LockOpenPropos
 	var i LockOpenProposalForRunRow
 	err := row.Scan(&i.ID, &i.Revision)
 	return i, err
+}
+
+const lockProposalSlot = `-- name: LockProposalSlot :exec
+SELECT pg_advisory_xact_lock(hashtextextended('proposals:' || CAST($1::uuid AS text) || ':' || $2::text, 0))
+`
+
+type LockProposalSlotParams struct {
+	DashboardID pgtype.UUID
+	Slot        string
+}
+
+func (q *Queries) LockProposalSlot(ctx context.Context, arg LockProposalSlotParams) error {
+	_, err := q.db.Exec(ctx, lockProposalSlot, arg.DashboardID, arg.Slot)
+	return err
 }

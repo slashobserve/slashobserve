@@ -114,44 +114,35 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 	if err != nil {
 		return dashboards.ProposalRef{}, err
 	}
-	for range maxProposeTrials {
-		ref, err := s.proposeOnce(ctx, in, saveBase, who, cols)
-		if !errors.Is(err, errRetry) {
-			return ref, err
-		}
-	}
-	return dashboards.ProposalRef{}, fmt.Errorf("proposal on dashboard %s kept changing: %w", in.DashboardID, errRetry)
-}
-
-type revisionContent struct {
-	spec    []byte
-	base    int
-	summary string
-}
-
-func (s *Service) proposeOnce(ctx context.Context, in dashboards.ProposeInput, saveBase *spec.Dashboard, who actor.Actor, cols actor.Columns) (dashboards.ProposalRef, error) {
-	next, observed, err := s.contentFor(ctx, in, saveBase, cols)
+	raw, err := json.Marshal(in.Spec)
 	if err != nil {
-		return dashboards.ProposalRef{}, err
+		return dashboards.ProposalRef{}, fmt.Errorf("marshal proposed spec: %w", err)
 	}
 	var ref dashboards.ProposalRef
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		locked, found, err := lockOpen(ctx, q, in.DashboardID, cols)
-		switch {
-		case err != nil:
+		if err := lockSlot(ctx, q, in.DashboardID, cols); err != nil {
 			return err
-		case !found && observed == nil:
+		}
+		locked, found, err := lockOpen(ctx, q, in.DashboardID, cols)
+		if err != nil {
+			return err
+		}
+		next := revisionContent{spec: raw, base: in.BaseVersion, summary: in.Summary}
+		if !found {
 			ref, err = insertProposal(ctx, q, in, next, who, cols)
 			return err
-		case !found || observed == nil || locked.revision != observed.row.Revision:
-			return errRetry
 		}
-		ref, err = addRevision(ctx, q, locked.id, observed.row.Title, in.DashboardID, next, who)
+		h, err := readHead(ctx, q, locked.id)
+		if err != nil {
+			return err
+		}
+		if next.spec, next.base, err = foldOnto(ctx, q, in, saveBase, h); err != nil {
+			return err
+		}
+		ref, err = addRevision(ctx, q, locked.id, h.row.Title, in.DashboardID, next, who)
 		return err
 	})
 	switch {
-	case isUniqueViolation(err):
-		return dashboards.ProposalRef{}, errRetry
 	case isForeignKey(err, dashboardForeignKey):
 		return dashboards.ProposalRef{}, dashboards.ErrNotFound
 	case err != nil:
@@ -163,47 +154,37 @@ func (s *Service) proposeOnce(ctx context.Context, in dashboards.ProposeInput, s
 	return ref, nil
 }
 
-func (s *Service) contentFor(ctx context.Context, in dashboards.ProposeInput, saveBase *spec.Dashboard, cols actor.Columns) (revisionContent, *head, error) {
-	raw, err := json.Marshal(in.Spec)
-	if err != nil {
-		return revisionContent{}, nil, fmt.Errorf("marshal proposed spec: %w", err)
-	}
-	next := revisionContent{spec: raw, base: in.BaseVersion, summary: in.Summary}
-	found, ok, err := s.findOpen(ctx, in.DashboardID, cols)
-	if err != nil || !ok {
-		return next, nil, err
-	}
-	h, err := s.head(ctx, found.id)
-	if err != nil {
-		return revisionContent{}, nil, err
-	}
-	if State(h.row.State) != StateOpen {
-		return revisionContent{}, nil, errRetry
-	}
-	folded, base, err := s.foldOnto(ctx, in, saveBase, h)
-	if err != nil {
-		return revisionContent{}, nil, err
-	}
-	if next.spec, err = json.Marshal(folded); err != nil {
-		return revisionContent{}, nil, fmt.Errorf("marshal folded spec: %w", err)
-	}
-	next.base = base
-	return next, &h, nil
+type revisionContent struct {
+	spec    []byte
+	base    int
+	summary string
 }
 
-func (s *Service) foldOnto(ctx context.Context, in dashboards.ProposeInput, saveBase *spec.Dashboard, h head) (*spec.Dashboard, int, error) {
+func foldOnto(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, saveBase *spec.Dashboard, h head) ([]byte, int, error) {
 	var headSpec spec.Dashboard
 	if err := json.Unmarshal(h.spec, &headSpec); err != nil {
 		return nil, 0, fmt.Errorf("decode proposal spec: %w", err)
 	}
 	headBase := saveBase
 	if h.baseVersion != in.BaseVersion {
-		var err error
-		if headBase, err = s.dashboards.VersionSpec(ctx, in.DashboardID, h.baseVersion); err != nil {
-			return nil, 0, err
+		raw, err := q.GetDashboardVersionSpec(ctx, dbsqlc.GetDashboardVersionSpecParams{ID: in.DashboardID, Version: httpapi.Int32(h.baseVersion)})
+		if err != nil {
+			return nil, 0, fmt.Errorf("get proposal base version spec: %w", err)
+		}
+		headBase = &spec.Dashboard{}
+		if err := json.Unmarshal(raw, headBase); err != nil {
+			return nil, 0, fmt.Errorf("decode proposal base version spec: %w", err)
 		}
 	}
-	return fold(headBase, &headSpec, saveBase, in.Spec, h.baseVersion, in.BaseVersion)
+	folded, base, err := fold(headBase, &headSpec, saveBase, in.Spec, h.baseVersion, in.BaseVersion)
+	if err != nil {
+		return nil, 0, err
+	}
+	raw, err := json.Marshal(folded)
+	if err != nil {
+		return nil, 0, fmt.Errorf("marshal folded spec: %w", err)
+	}
+	return raw, base, nil
 }
 
 func insertProposal(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, next revisionContent, who actor.Actor, cols actor.Columns) (dashboards.ProposalRef, error) {

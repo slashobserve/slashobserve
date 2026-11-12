@@ -8,14 +8,8 @@ RETURNING *;
 INSERT INTO proposal_revisions (proposal_id, revision, base_version, spec, summary)
 VALUES (@proposal_id, @revision, @base_version, @spec, @summary);
 
--- name: FindOpenProposalForAuthor :one
-SELECT id, revision FROM proposals
-WHERE dashboard_id = @dashboard_id AND state = 'open' AND run_id IS NULL
-  AND author_kind = @author_kind AND author_id = @author_id;
-
--- name: FindOpenProposalForRun :one
-SELECT id, revision FROM proposals
-WHERE dashboard_id = @dashboard_id AND state = 'open' AND run_id = @run_id;
+-- name: LockProposalSlot :exec
+SELECT pg_advisory_xact_lock(hashtextextended('proposals:' || CAST(@dashboard_id::uuid AS text) || ':' || @slot::text, 0));
 
 -- name: LockOpenProposalForAuthor :one
 SELECT id, revision FROM proposals

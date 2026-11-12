@@ -16,12 +16,8 @@ import (
 )
 
 const (
-	uniqueViolation     = "23505"
 	foreignKeyViolation = "23503"
-	openAuthorKey       = "proposals_open_author_key"
-	openRunKey          = "proposals_open_run_key"
 	maxTitleRunes       = 200
-	maxProposeTrials    = 3
 )
 
 type Author struct {
@@ -65,18 +61,17 @@ type openProposal struct {
 	revision int32
 }
 
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && (pgErr.ConstraintName == openAuthorKey || pgErr.ConstraintName == openRunKey)
-}
-
 func isForeignKey(err error, constraint string) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == constraint
 }
 
 func (s *Service) head(ctx context.Context, id pgtype.UUID) (head, error) {
-	row, err := s.db.Queries().GetProposal(ctx, id)
+	return readHead(ctx, s.db.Queries(), id)
+}
+
+func readHead(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (head, error) {
+	row, err := q.GetProposal(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return head{}, ErrNotFound
 	}
@@ -86,14 +81,18 @@ func (s *Service) head(ctx context.Context, id pgtype.UUID) (head, error) {
 	return head{row: row.Proposal, baseVersion: int(row.BaseVersion), summary: row.Summary, spec: row.Spec, merged: row.MergedVersion}, nil
 }
 
-func (s *Service) findOpen(ctx context.Context, dashboardID pgtype.UUID, cols actor.Columns) (openProposal, bool, error) {
-	q := s.db.Queries()
+func slotOf(cols actor.Columns) string {
 	if cols.RunID.Valid {
-		row, err := q.FindOpenProposalForRun(ctx, dbsqlc.FindOpenProposalForRunParams{DashboardID: dashboardID, RunID: cols.RunID})
-		return openFrom(row.ID, row.Revision, err)
+		return "run:" + cols.RunID.String()
 	}
-	row, err := q.FindOpenProposalForAuthor(ctx, dbsqlc.FindOpenProposalForAuthorParams{DashboardID: dashboardID, AuthorKind: cols.Kind, AuthorID: cols.ID})
-	return openFrom(row.ID, row.Revision, err)
+	return "author:" + cols.Kind + ":" + cols.ID.String()
+}
+
+func lockSlot(ctx context.Context, q *dbsqlc.Queries, dashboardID pgtype.UUID, cols actor.Columns) error {
+	if err := q.LockProposalSlot(ctx, dbsqlc.LockProposalSlotParams{DashboardID: dashboardID, Slot: slotOf(cols)}); err != nil {
+		return fmt.Errorf("lock proposal slot: %w", err)
+	}
+	return nil
 }
 
 func lockOpen(ctx context.Context, q *dbsqlc.Queries, dashboardID pgtype.UUID, cols actor.Columns) (openProposal, bool, error) {

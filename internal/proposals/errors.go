@@ -12,7 +12,6 @@ var (
 	ErrForbidden   = folders.ErrForbidden
 	ErrProposeMode = errors.New("this connection is in propose mode, so it cannot merge")
 
-	errRetry     = errors.New("proposal changed while it was being saved")
 	errLostClose = errors.New("proposal changed before it could be closed")
 )
 
