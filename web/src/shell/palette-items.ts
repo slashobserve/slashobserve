@@ -1,5 +1,5 @@
 import type { components } from "@/api/schema.gen"
-import { dashboardPath } from "@/lib/links"
+import { dashboardPath, observationPath } from "@/lib/links"
 import type { Role } from "@/lib/roles"
 
 import { visibleNavItems, type NavPath } from "./nav"
@@ -36,7 +36,7 @@ export type PaletteGroup = {
   value:
     | "Pages"
     | "Dashboards"
-    | "Findings"
+    | "Observations"
     | "Comments"
     | "Annotations"
     | "Saved searches"
@@ -78,7 +78,7 @@ const dashboardLimitWithoutQuery = 8
 export const minSearchLength = 2
 
 const serverGroups = [
-  { value: "Findings", kind: "finding" },
+  { value: "Observations", kind: "observation" },
   { value: "Comments", kind: "comment" },
   { value: "Annotations", kind: "annotation" },
   { value: "Saved searches", kind: "saved_search" },
@@ -113,6 +113,14 @@ function serverEntry(result: SearchResult, address: string): ResultEntry {
         label: result.title,
         secondary: folderText(result),
         path,
+      }
+    case "observation":
+      return {
+        kind: "observation",
+        id: `observation:${result.id}`,
+        label: result.title,
+        secondary: result.snippet,
+        path: observationPath(result.id),
       }
     case "comment":
       return {
