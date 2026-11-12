@@ -7,12 +7,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/netip"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -51,7 +53,7 @@ func runAttrs(ctx context.Context) []any {
 }
 
 func (h *handler) callRunTool(name string) mcpserver.ToolHandlerFunc {
-	return h.invoke(name, true)
+	return h.invoke(name, callInsideRun)
 }
 
 func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credential) {
@@ -76,6 +78,20 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 				return nil, nil, errNoRunTransport
 			}
 			return withRunRequest(tools.WithRun(ctx, scope), req), transport, nil
+		},
+	})
+}
+
+func isLoopbackPeer(remoteAddr string) bool {
+	addr, err := netip.ParseAddrPort(remoteAddr)
+	return err == nil && addr.Addr().Unmap().IsLoopback()
+}
+
+func (h *handler) serveClaimOnly(w http.ResponseWriter, r *http.Request, claimer claims.Claimer) {
+	h.serve(w, r, serving{
+		key: "claim:" + string(claimer.Kind),
+		prepare: func(ctx context.Context) (context.Context, http.Handler, error) {
+			return claims.WithClaimer(origin.With(ctx, origin.Origin{Kind: origin.MCP}), claimer), h.claimTransport, nil
 		},
 	})
 }

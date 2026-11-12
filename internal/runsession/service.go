@@ -29,8 +29,6 @@ import (
 const maxRestarts = 1
 
 var (
-	ErrRunEnded = errors.New("the run has ended")
-
 	errRunNotRunning = errors.New("the run is not running at this attempt")
 )
 
@@ -256,7 +254,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 		return nil
 	})
 	if errors.Is(err, errRunNotRunning) || (err == nil && ended) {
-		return tools.Run{}, ErrRunEnded
+		return tools.Run{}, tools.ErrRunEnded
 	}
 	return run, err
 }

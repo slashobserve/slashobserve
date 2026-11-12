@@ -2,10 +2,18 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+)
+
+var (
+	ErrInvalidReason      = errors.New("reason is not one the brief knows")
+	ErrInvalidFailureCode = errors.New("failure_code is not one the agent loop reports")
+	ErrCommitNeedsSuccess = errors.New("commit applies only to a succeeded outcome")
+	ErrRunEnded           = errors.New("the run has ended")
 )
 
 type BuildProgress struct {

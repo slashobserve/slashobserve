@@ -21,7 +21,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -100,6 +99,7 @@ type Tool struct {
 	ReadOnly    bool
 	MCPOnly     bool
 	AgentOnly   bool
+	Claim       bool
 	MinRole     auth.Role
 
 	InvestigateOnly bool
@@ -149,8 +149,9 @@ type Deps struct {
 	Annotations   *annotations.Service
 	Activity      *activity.Store
 	Runs          RunReader
-	Claims        *claims.Service
+	Claims        ClaimService
 	RunSessions   RunSessions
+	LiveText      LiveText
 	Search        *search.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL
@@ -315,8 +316,16 @@ func roleRefusal(p auth.Principal, tool string) string {
 }
 
 func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage) (Result, error) {
+	return r.call(ctx, name, input, false)
+}
+
+func (r *Registry) CallClaim(ctx context.Context, name string, input json.RawMessage) (Result, error) {
+	return r.call(ctx, name, input, true)
+}
+
+func (r *Registry) call(ctx context.Context, name string, input json.RawMessage, claimOnly bool) (Result, error) {
 	e, ok := r.entries[name]
-	if !ok {
+	if !ok || (claimOnly && !e.tool.Claim) {
 		res := toolError(codeUnknownTool, fmt.Sprintf("unknown tool %q", clip(name, maxStepNameBytes)))
 		res.Step = "Rejected an unknown tool"
 		return res, nil
@@ -326,7 +335,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if inRun && !hasPrincipal {
 		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
 	}
-	if !allowed(principal, inRun, e.tool.MinRole) {
+	if !claimOnly && !allowed(principal, inRun, e.tool.MinRole) {
 		res := toolError(codeForbiddenRole, roleRefusal(principal, name))
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
@@ -338,14 +347,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if err != nil {
 		return Result{}, err
 	}
-	if eb, ok := res.Content.(errorBody); ok && eb.unknownField {
-		fields := r.fields[name].mcp
-		if inRun {
-			fields = r.fields[name].agent
-		}
-		eb.Message += "; " + name + " takes " + fieldList(fields)
-		res.Content = eb
-	}
+	res = r.namingFields(name, inRun, res)
 	if res, err = r.capped(ctx, name, res); err != nil {
 		return Result{}, err
 	}
@@ -353,6 +355,20 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		res.Step = callErrorStep(name, eb)
 	}
 	return res, nil
+}
+
+func (r *Registry) namingFields(name string, inRun bool, res Result) Result {
+	eb, ok := res.Content.(errorBody)
+	if !ok || !eb.unknownField {
+		return res
+	}
+	fields := r.fields[name].mcp
+	if inRun {
+		fields = r.fields[name].agent
+	}
+	eb.Message += "; " + name + " takes " + fieldList(fields)
+	res.Content = eb
+	return res
 }
 
 func (r *Registry) handle(ctx context.Context, e entry, name string, input json.RawMessage) (res Result, err error) {

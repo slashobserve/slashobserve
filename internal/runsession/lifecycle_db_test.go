@@ -103,8 +103,8 @@ func TestBriefAnswersTheSystemTextTheMessageAndTheReason(t *testing.T) {
 	if got.System == "" || !strings.Contains(got.Message, "add a latency panel") || got.Reason != "" || got.Build != nil {
 		t.Fatalf("brief = %+v", got)
 	}
-	if _, err := r.svc.Brief(context.Background(), req, "nonsense"); !errors.Is(err, ErrInvalidReason) {
-		t.Fatalf("err = %v, want ErrInvalidReason", err)
+	if _, err := r.svc.Brief(context.Background(), req, "nonsense"); !errors.Is(err, tools.ErrInvalidReason) {
+		t.Fatalf("err = %v, want tools.ErrInvalidReason", err)
 	}
 }
 
@@ -153,8 +153,8 @@ func TestBriefEndsTheRunWhenTheBuildIsStaleAgainAfterItsRestart(t *testing.T) {
 	}
 	r.startBuild(req, "b")
 	r.store.bump()
-	if _, err := r.svc.Brief(context.Background(), req, ""); !errors.Is(err, ErrRunEnded) {
-		t.Fatalf("err = %v, want ErrRunEnded", err)
+	if _, err := r.svc.Brief(context.Background(), req, ""); !errors.Is(err, tools.ErrRunEnded) {
+		t.Fatalf("err = %v, want tools.ErrRunEnded", err)
 	}
 	if row := r.stored(req); row.FailureCode.String != string(revisions.FailureConflict) {
 		t.Fatalf("failure = %q", row.FailureCode.String)
@@ -167,8 +167,8 @@ func TestBriefOfAnEndedRunIsRunEnded(t *testing.T) {
 	if _, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "failed", Message: "no"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.svc.Brief(context.Background(), req, ""); !errors.Is(err, ErrRunEnded) {
-		t.Fatalf("err = %v, want ErrRunEnded", err)
+	if _, err := r.svc.Brief(context.Background(), req, ""); !errors.Is(err, tools.ErrRunEnded) {
+		t.Fatalf("err = %v, want tools.ErrRunEnded", err)
 	}
 }
 
@@ -240,9 +240,9 @@ func TestFinishRefusesInputTheLoopNeverSends(t *testing.T) {
 		want error
 	}{
 		{"unknown outcome", tools.RunFinish{Outcome: "done"}, claims.ErrInvalidOutcome},
-		{"code with a success", tools.RunFinish{Outcome: "succeeded", FailureCode: "refused"}, ErrInvalidFailureCode},
-		{"code the loop never reports", tools.RunFinish{Outcome: "failed", FailureCode: "conflict"}, ErrInvalidFailureCode},
-		{"commit with a failure", tools.RunFinish{Outcome: "failed", Commit: true}, ErrCommitNeedsSuccess},
+		{"code with a success", tools.RunFinish{Outcome: "succeeded", FailureCode: "refused"}, tools.ErrInvalidFailureCode},
+		{"code the loop never reports", tools.RunFinish{Outcome: "failed", FailureCode: "conflict"}, tools.ErrInvalidFailureCode},
+		{"commit with a failure", tools.RunFinish{Outcome: "failed", Commit: true}, tools.ErrCommitNeedsSuccess},
 	}
 	for _, tc := range cases {
 		if _, err := r.svc.Finish(context.Background(), req, tc.in); !errors.Is(err, tc.want) {
@@ -348,6 +348,25 @@ func TestFinishAfterTheRunEndedAnswersTheSettledState(t *testing.T) {
 	second, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "succeeded"})
 	if err != nil || second.State != first.State || *second.FailureCode != *first.FailureCode {
 		t.Fatalf("second finish = %+v, %v; first %+v", second, err, first)
+	}
+}
+
+func TestFinishOfACancelingRunSettlesItCanceled(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	id := mustUUID(t, req.ID)
+	if _, err := r.runs.Cancel(context.Background(), id, ada); err != nil {
+		t.Fatal(err)
+	}
+	if row := r.stored(req); row.State != string(revisions.StateCanceling) {
+		t.Fatalf("state before finish = %q, want canceling", row.State)
+	}
+	out, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "failed", FailureCode: "provider_error"})
+	if err != nil || out.State != string(revisions.StateCanceled) || out.FailureCode == nil || *out.FailureCode != "canceled" {
+		t.Fatalf("out %+v, err %v", out, err)
+	}
+	if n := r.tokenCount(req); n != 0 {
+		t.Fatalf("%d run tokens remain", n)
 	}
 }
 

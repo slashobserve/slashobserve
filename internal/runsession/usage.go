@@ -2,9 +2,8 @@ package runsession
 
 import (
 	"math"
-	"strings"
-	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -16,18 +15,10 @@ const (
 	silentFailure     = "the agent did not say why"
 )
 
-func cleanText(s string, maxRunes int) string {
-	s = strings.TrimSpace(strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), ""))
-	if utf8.RuneCountInString(s) > maxRunes {
-		return string([]rune(s)[:maxRunes])
-	}
-	return s
-}
-
 func cleanUsage(u revisions.Usage) revisions.Usage {
 	clean := revisions.Usage{
-		Provider:            cleanText(u.Provider, maxUsageTextRunes),
-		Model:               cleanText(u.Model, maxUsageTextRunes),
+		Provider:            claims.CleanText(u.Provider, maxUsageTextRunes),
+		Model:               claims.CleanText(u.Model, maxUsageTextRunes),
 		InputTokens:         max(u.InputTokens, 0),
 		OutputTokens:        max(u.OutputTokens, 0),
 		CacheReadTokens:     max(u.CacheReadTokens, 0),

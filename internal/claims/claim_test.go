@@ -133,3 +133,22 @@ func TestOfferWithoutARunEncodesOnlyTheRetryHint(t *testing.T) {
 		t.Fatalf("encoded empty offer = %s", encoded)
 	}
 }
+
+func TestCleanTextCutsAtRunesAndDropsInvalidBytes(t *testing.T) {
+	for name, tc := range map[string]struct {
+		in   string
+		max  int
+		want string
+	}{
+		"trims":            {"  hi  ", 10, "hi"},
+		"cuts by rune":     {"héllo wörld", 5, "héllo"},
+		"drops NUL":        {"a\x00b", 10, "ab"},
+		"drops bad UTF-8":  {"a\xffb", 10, "ab"},
+		"only whitespace":  {" \n\t ", 10, ""},
+		"exactly at limit": {"abcde", 5, "abcde"},
+	} {
+		if got := CleanText(tc.in, tc.max); got != tc.want {
+			t.Errorf("%s: CleanText(%q, %d) = %q, want %q", name, tc.in, tc.max, got, tc.want)
+		}
+	}
+}

@@ -192,6 +192,77 @@ func (q *Queries) InsertRunToken(ctx context.Context, arg InsertRunTokenParams) 
 	return err
 }
 
+const listHeldAgentRequests = `-- name: ListHeldAgentRequests :many
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id FROM agent_requests WHERE claimed_by = $1 AND status = 'running'
+`
+
+func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Text) ([]AgentRequest, error) {
+	rows, err := q.db.Query(ctx, listHeldAgentRequests, claimedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AgentRequest
+	for rows.Next() {
+		var i AgentRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.DashboardID,
+			&i.Source,
+			&i.CommentID,
+			&i.Prompt,
+			&i.PanelID,
+			&i.BaseVersion,
+			&i.Status,
+			&i.Attempts,
+			&i.CheckFailures,
+			&i.LeaseUntil,
+			&i.ResultVersion,
+			&i.Error,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
+			&i.RequestedByEmail,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Steps,
+			&i.RunUsage,
+			&i.Origin,
+			&i.OriginClient,
+			&i.Draft,
+			&i.Suggestion,
+			&i.FailureCode,
+			&i.BuildSavedAt,
+			&i.CancelRequestedAt,
+			&i.CanceledByKind,
+			&i.CanceledByID,
+			&i.CanceledByName,
+			&i.ContinuesID,
+			&i.ContinueNote,
+			&i.ContextFrom,
+			&i.ContextTo,
+			&i.Title,
+			&i.PinnedAt,
+			&i.ArchivedAt,
+			&i.Trigger,
+			&i.State,
+			&i.ResultKind,
+			&i.AssignedKind,
+			&i.AssignedID,
+			&i.ClaimedBy,
+			&i.ObservationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pruneAgentWorkers = `-- name: PruneAgentWorkers :execrows
 DELETE FROM agent_workers w
 WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND g.revoked_at IS NULL))

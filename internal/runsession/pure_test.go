@@ -116,15 +116,6 @@ func TestNoteModelKeepsTheLargestOfEachCumulativeCount(t *testing.T) {
 	}
 }
 
-func TestCleanTextStripsNullsInvalidBytesAndLongTails(t *testing.T) {
-	if got := cleanText("  a\x00b\xff c  ", 100); got != "ab c" {
-		t.Fatalf("clean = %q", got)
-	}
-	if got := cleanText(strings.Repeat("é", 10), 4); got != "éééé" {
-		t.Fatalf("clean = %q", got)
-	}
-}
-
 func TestStoredUsageIsNilForARunThatDidNothingAndCarriesGuardCounts(t *testing.T) {
 	var s State
 	if s.storedUsage(pricing.Table{}) != nil {

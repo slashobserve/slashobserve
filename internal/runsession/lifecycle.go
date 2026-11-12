@@ -28,10 +28,6 @@ const (
 )
 
 var (
-	ErrInvalidReason      = errors.New("reason is not one the brief knows")
-	ErrInvalidFailureCode = errors.New("failure_code is not one the agent loop reports")
-	ErrCommitNeedsSuccess = errors.New("commit applies only to a succeeded outcome")
-
 	loopFailures = []revisions.FailureCode{
 		revisions.FailureCallTimeout, revisions.FailureRateLimited, revisions.FailureProviderError, revisions.FailureOutputLimit,
 		revisions.FailureNoToolCall, revisions.FailureNoFinding, revisions.FailureRefused, revisions.FailureNoFixture, revisions.FailureInternal,
@@ -269,7 +265,7 @@ func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 func (s *Service) Brief(ctx context.Context, req revisions.Request, reason string) (tools.BriefAnswer, error) {
 	why, ok := brief.ParseReason(reason)
 	if !ok {
-		return tools.BriefAnswer{}, ErrInvalidReason
+		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
 	var answer tools.BriefAnswer
 	ended := false
@@ -280,7 +276,7 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 		return err
 	})
 	if errors.Is(err, errRunNotRunning) || (err == nil && ended) {
-		return tools.BriefAnswer{}, ErrRunEnded
+		return tools.BriefAnswer{}, tools.ErrRunEnded
 	}
 	return answer, err
 }
@@ -361,9 +357,9 @@ func (s *Service) Finish(ctx context.Context, req revisions.Request, in tools.Ru
 	case in.Outcome != outcomeDone && in.Outcome != outcomeFailed:
 		return tools.RunFinished{}, claims.ErrInvalidOutcome
 	case failure != "" && (in.Outcome != outcomeFailed || !slices.Contains(loopFailures, failure)):
-		return tools.RunFinished{}, ErrInvalidFailureCode
+		return tools.RunFinished{}, tools.ErrInvalidFailureCode
 	case in.Commit && in.Outcome != outcomeDone:
-		return tools.RunFinished{}, ErrCommitNeedsSuccess
+		return tools.RunFinished{}, tools.ErrCommitNeedsSuccess
 	}
 	var out tools.RunFinished
 	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {
@@ -430,7 +426,7 @@ func (sess *session) endingOf(failure revisions.FailureCode, in tools.RunFinish)
 		ending.Failure, ending.Message = failure, revisions.FailureMessage(failure, sess.req.Source)
 	case in.Outcome == outcomeFailed:
 		ending.Failure = revisions.FailureAgentFailed
-		if ending.Message = cleanText(in.Message, maxMessageRunes); ending.Message == "" {
+		if ending.Message = claims.CleanText(in.Message, maxMessageRunes); ending.Message == "" {
 			ending.Message = silentFailure
 		}
 	case sess.state.Guard.Mode == tools.ModeSuggest:

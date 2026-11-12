@@ -32,3 +32,6 @@ ON CONFLICT (id) DO UPDATE SET client = EXCLUDED.client, seen_at = EXCLUDED.seen
 DELETE FROM agent_workers w
 WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND g.revoked_at IS NULL))
    OR (w.principal_kind = 'service_account' AND NOT EXISTS (SELECT 1 FROM service_accounts s WHERE s.id = w.principal_id));
+
+-- name: ListHeldAgentRequests :many
+SELECT * FROM agent_requests WHERE claimed_by = @claimed_by AND status = 'running';
