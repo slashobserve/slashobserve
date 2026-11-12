@@ -70,6 +70,7 @@
   --color-primary-container: var(--primary-container);
   --color-on-primary-container: var(--on-primary-container);
   --color-selection-strong: var(--selection-strong);
+  --color-mark-slash: var(--mark-slash);
   --color-nav-active: var(--nav-active);
   --color-person-1: var(--person-1);
   --color-person-1-foreground: var(--person-1-foreground);
@@ -131,8 +132,8 @@
   --radius: 0.625rem;
   --series-1: #2a78d6;
   --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
+  --series-3: #19a472;
+  --series-4: #c28400;
   --series-5: #c2409b;
   --series-6: #7b61d1;
   --series-7: #7c8594;
@@ -170,6 +171,7 @@
   --primary-container: #e0f4f4;
   --on-primary-container: #086a70;
   --selection-strong: #0a7f86;
+  --mark-slash: #0a7f86;
   --nav-active: #ffffff;
   --status-ok-container: #eaf5dc;
   --status-warning-container: #fbf0d6;
@@ -255,6 +257,7 @@
   --primary-container: #12302f;
   --on-primary-container: #5fd6d0;
   --selection-strong: #5fd6d0;
+  --mark-slash: #0a7f86;
   --nav-active: #212327;
   --status-ok-container: #1c2e10;
   --status-warning-container: #3a2c0a;

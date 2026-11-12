@@ -303,7 +303,7 @@ test("draws both themes and fits a phone", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" })
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
-  await expect(card).toHaveCSS("background-color", "rgb(17, 17, 19)")
+  await expect(card).toHaveCSS("background-color", "rgb(19, 20, 23)")
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(card).toBeVisible()

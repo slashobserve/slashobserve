@@ -58,7 +58,7 @@ test("menus are flat with a border and focus is a solid ring", async ({
   await expect(menuButton).toBeFocused()
   await expect
     .poll(() => menuButton.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("10, 10, 10")
+    .toContain("10, 127, 134")
 })
 
 test("header buttons use the 6px radius and 13px text", async ({
@@ -109,7 +109,7 @@ test("a focused multi-value variable control has a 2px ring", async ({
   await expect(input).toBeFocused()
   await expect
     .poll(() => chips.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("10, 10, 10")
+    .toContain("10, 127, 134")
   const shadow = await chips.evaluate((el) => getComputedStyle(el).boxShadow)
   expect(shadow).toContain("0px 0px 0px 2px")
 })
@@ -136,5 +136,5 @@ test("a destructive button focused by keyboard shows the ring", async ({
   await expect(revoke).toBeFocused()
   await expect
     .poll(() => revoke.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("10, 10, 10")
+    .toContain("10, 127, 134")
 })
