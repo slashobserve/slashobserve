@@ -37,6 +37,57 @@ afterEach(() => {
 })
 
 describe("StepTimeline", () => {
+  it("shows the live text under the working row while working", () => {
+    render(
+      <StepTimeline
+        steps={steps}
+        working
+        reconnecting={false}
+        liveText={"Checking the p99\nlatency of checkout"}
+      />
+    )
+    const text = screen.getByText(/Checking the p99/)
+    expect(text.tagName).toBe("P")
+    expect(text).toHaveTextContent("latency of checkout")
+    expect(text).toHaveAttribute("aria-live", "off")
+  })
+
+  it("hides the live text when the run is not working or has none", () => {
+    const { rerender } = render(
+      <StepTimeline
+        steps={steps}
+        working={false}
+        reconnecting={false}
+        liveText="stale text"
+      />
+    )
+    expect(screen.queryByText("stale text")).toBeNull()
+    rerender(
+      <StepTimeline
+        steps={steps}
+        working
+        reconnecting={false}
+        liveText={null}
+      />
+    )
+    expect(screen.queryByText("stale text")).toBeNull()
+    expect(document.querySelectorAll("p")).toHaveLength(0)
+  })
+
+  it("renders markup in the live text as literal text", () => {
+    const markup = '<img src=x onerror="alert(1)"> **bold** <b>tag</b>'
+    const { container } = render(
+      <StepTimeline
+        steps={steps}
+        working
+        reconnecting={false}
+        liveText={markup}
+      />
+    )
+    expect(screen.getByText(markup)).toBeInTheDocument()
+    expect(container.querySelector("img, b, strong")).toBeNull()
+  })
+
   it("renders one item per phase run with its label and tool counts", () => {
     render(<StepTimeline steps={steps} working={false} reconnecting={false} />)
     const items = within(screen.getByRole("list", { name: "Progress" }))
