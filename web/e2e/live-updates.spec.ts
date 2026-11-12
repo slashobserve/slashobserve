@@ -4,7 +4,8 @@ import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
 import {
   expectPanelsReady,
   openDashboard,
-  startLayoutEditing,
+  selectPanelToArrange,
+  unsavedLayout,
   versionButton,
 } from "./dashboards"
 import { expect, test } from "./fixtures"
@@ -132,12 +133,14 @@ test("does not toast the author's own save", async ({ page, request }) => {
   await openDashboard(page, id)
   await expect(indicator(page, "Live")).toBeVisible()
 
-  await startLayoutEditing(page)
+  await selectPanelToArrange(page, "Checkout error rate")
   await page
     .getByRole("button", { name: "Move or resize Checkout error rate" })
     .focus()
   await page.keyboard.press("ArrowRight")
-  await page.getByRole("button", { name: "Save layout" }).click()
+  await unsavedLayout(page)
+    .getByRole("button", { name: "Save version 2" })
+    .click()
   await page
     .getByRole("dialog", { name: "Save layout" })
     .getByRole("button", { name: "Save", exact: true })
