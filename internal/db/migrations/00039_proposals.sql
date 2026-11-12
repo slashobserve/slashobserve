@@ -48,12 +48,12 @@ CREATE UNIQUE INDEX dashboard_versions_merged_proposal_key ON dashboard_versions
 ALTER TABLE threads ADD COLUMN proposal_id UUID REFERENCES proposals (id) ON DELETE CASCADE;
 ALTER TABLE threads DROP CONSTRAINT threads_target_check;
 ALTER TABLE threads ADD CONSTRAINT threads_target_check
-  CHECK (num_nonnulls(dashboard_id, finding_id, annotation_id, proposal_id) = 1);
+  CHECK (num_nonnulls(dashboard_id, finding_id, annotation_id, observation_id, proposal_id) = 1);
 CREATE INDEX threads_proposal_idx ON threads (proposal_id) WHERE proposal_id IS NOT NULL;
 
 ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
 ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check
-  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search', 'proposal'));
+  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search', 'observation', 'proposal'));
 
 ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_succeeded_check;
 ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_succeeded_check
@@ -78,11 +78,12 @@ ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_succeeded_check
 DELETE FROM activity WHERE target_kind = 'proposal';
 ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
 ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check
-  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search'));
+  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search', 'observation'));
 DELETE FROM threads WHERE proposal_id IS NOT NULL;
 ALTER TABLE threads DROP CONSTRAINT threads_target_check;
 ALTER TABLE threads DROP COLUMN proposal_id;
-ALTER TABLE threads ADD CONSTRAINT threads_target_check CHECK (num_nonnulls(dashboard_id, finding_id, annotation_id) = 1);
+ALTER TABLE threads ADD CONSTRAINT threads_target_check
+  CHECK (num_nonnulls(dashboard_id, finding_id, annotation_id, observation_id) = 1);
 ALTER TABLE dashboard_versions DROP COLUMN merged_proposal_id;
 DROP TABLE proposal_revisions;
 DROP TABLE proposals;
