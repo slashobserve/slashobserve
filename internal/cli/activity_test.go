@@ -228,6 +228,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"thread.opened", `{"object":{"kind":"finding","id":"f"}}`, `commented on a finding`},
 		{"thread.opened", `{"object":{"kind":"dashboard","id":"d"},"version":3,"panel_id":"p1"}`, `commented on a dashboard`},
 		{"thread.opened", `{"object":{"kind":"annotation","id":"a"}}`, `commented on an annotation`},
+		{"thread.opened", `{"object":{"kind":"proposal","id":"p"}}`, `commented on a proposal`},
 		{"thread.opened", `{}`, `commented on an object`},
 		{"thread.replied", `{"object":{"kind":"finding","id":"f"},"message_id":"m"}`, `replied to a thread`},
 		{"thread.edited", `{"object":{"kind":"finding","id":"f"},"message_id":"m"}`, `edited a comment`},
@@ -239,6 +240,12 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"thread.mentioned", `{"mentioned":{"kind":"user","id":"u","name":""}}`, `mentioned someone`},
 		{"thread.mentioned", `{"mentioned":{"kind":"agent","id":"observe","name":"observe"}}`, `mentioned @observe`},
 		{"thread.deleted", `{}`, `thread.deleted`},
+		{"proposal.opened", `{"title":"Rename the errors panel","revision":1,"base_version":3}`, `opened the proposal "Rename the errors panel"`},
+		{"proposal.opened", `{}`, `opened a proposal`},
+		{"proposal.updated", `{"title":"Rename the errors panel","revision":2}`, `updated the proposal "Rename the errors panel" (revision 2)`},
+		{"proposal.merged", `{"title":"Rename the errors panel","revision":2,"version":6}`, `merged the proposal "Rename the errors panel" as version 6`},
+		{"proposal.merged", `{"title":"Rename the errors panel","revision":2,"version":null}`, `merged the proposal "Rename the errors panel", already in the dashboard`},
+		{"proposal.discarded", `{"title":"Evil\u001b[31m","revision":1}`, `discarded the proposal "Evil [31m"`},
 		{"dashboard.created", `{"title":"Evil\u001b[31m"}`, `created "Evil [31m"`},
 	}
 	for _, tc := range cases {

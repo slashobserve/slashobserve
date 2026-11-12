@@ -49,6 +49,7 @@ type activityData struct {
 	Kind          string   `json:"kind"`
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
+	Revision      int      `json:"revision"`
 	FailureCode   string   `json:"failure_code"`
 	Object        struct {
 		Kind string `json:"kind"`
@@ -266,7 +267,35 @@ func describe(e activityEvent) string {
 	if phrase, ok := describeThread(e); ok {
 		return phrase
 	}
+	if phrase, ok := describeProposal(e); ok {
+		return phrase
+	}
 	return text(e.Type)
+}
+
+func quotedProposal(title string) string {
+	if title == "" {
+		return "a proposal"
+	}
+	return "the proposal " + `"` + text(title) + `"`
+}
+
+func describeProposal(e activityEvent) (string, bool) {
+	d := e.Data
+	switch e.Type {
+	case "proposal.opened":
+		return "opened " + quotedProposal(d.Title), true
+	case "proposal.updated":
+		return fmt.Sprintf("updated %s (revision %d)", quotedProposal(d.Title), d.Revision), true
+	case "proposal.merged":
+		if d.Version > 0 {
+			return fmt.Sprintf("merged %s as version %d", quotedProposal(d.Title), d.Version), true
+		}
+		return "merged " + quotedProposal(d.Title) + ", already in the dashboard", true
+	case "proposal.discarded":
+		return "discarded " + quotedProposal(d.Title), true
+	}
+	return "", false
 }
 
 func describeSavedSearch(e activityEvent) (string, bool) {
@@ -361,7 +390,7 @@ func describeThread(e activityEvent) (string, bool) {
 
 func objectPhrase(kind string) string {
 	switch kind {
-	case "dashboard", "finding":
+	case "dashboard", "finding", "proposal":
 		return "a " + kind
 	case "annotation":
 		return "an annotation"

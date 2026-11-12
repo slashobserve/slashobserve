@@ -100,7 +100,8 @@ const ServerInstructions = "SlashObserve stores each dashboard as an ObserveSpec
 	"check the query with lint_query, and run it with query_range, or with query_instant for an instant query or a table. " +
 	"Save a new dashboard with create_dashboard; list_folders gives a folder_id. " +
 	"To change a dashboard, read it with get_dashboard, or only the panels you need with get_panels, and send just the change with update_panels; update_dashboard rewrites a whole dashboard. " +
-	"Saves take the version you read as parent_version and answer version_conflict when someone saved since: read the latest version and apply your change again. " +
+	"Saves take the version you read as parent_version; a save on an older version merges when it changed other panels, and answers version_conflict naming the conflicts when it changed the same ones: read the latest version and apply your change again. " +
+	"A save you may not make directly becomes a proposal for an Editor; list_proposals and get_proposal show it. " +
 	"A save rejects panels whose queries fail or return no data and names them; fix only those and save again. " +
 	"List tools page with next_offset or next_cursor. " +
 	"For feedback, read list_comments, fix the dashboard, then reply_to_comment and resolve_comment with the version you saved. " +

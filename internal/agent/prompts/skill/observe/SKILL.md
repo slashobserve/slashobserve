@@ -30,7 +30,9 @@ list_activity shows what changed recently and who changed it.
 ## Change a dashboard
 
 Read it with get_dashboard, or only the panels you need with get_panels, and send just the change with update_panels.
-Pass the version you read as parent_version; on version_conflict, read the latest version and apply your change again.
+Pass the version you read as parent_version.
+A save on an older version merges when it changed other panels; when it changed the same ones it answers version_conflict with the conflicts, so read the latest version and apply your change again.
+A save you may not make directly becomes a proposal for an Editor: the result says proposed, and list_proposals and get_proposal show it.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
 

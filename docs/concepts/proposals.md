@@ -66,4 +66,8 @@ Deleting the dashboard deletes its proposals.
 - `POST /api/v1/proposals/{id}/merge` merges it.
 - `POST /api/v1/proposals/{id}/discard` discards it.
 
-MCP and the CLI have no proposal tools or commands yet.
+## MCP and the CLI
+
+The MCP tools `update_dashboard` and `update_panels` save a proposal in the cases above and answer `proposed` with the `proposal_id`, and a save on an older version merges onto the latest one when it changed none of the panels, variables and settings that the newer versions changed.
+`list_proposals`, `get_proposal`, `merge_proposal` and `discard_proposal` are the routes above as tools; see [MCP](../use/mcp.md).
+`observe proposals list`, `show`, `merge` and `discard` do the same from the command line; see [the CLI](../use/cli.md#proposals).

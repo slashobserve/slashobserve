@@ -8,6 +8,9 @@ dashboards-id-proposals:
         format: uuid
   get:
     operationId: listProposals
+    x-surfaces:
+      mcp: [list_proposals]
+      cli: [observe proposals list]
     summary: List the proposals on a dashboard, newest first.
     description: >-
       Needs View on the dashboard.
@@ -58,6 +61,9 @@ proposals-id:
         format: uuid
   get:
     operationId: getProposal
+    x-surfaces:
+      mcp: [get_proposal]
+      cli: [observe proposals show]
     summary: Get one proposal with its head revision's document, what it changes and what stops a merge.
     description: >-
       Needs View on the dashboard; a proposal on a dashboard the caller cannot see answers 404.
@@ -88,6 +94,9 @@ proposals-id-merge:
         format: uuid
   post:
     operationId: mergeProposal
+    x-surfaces:
+      mcp: [merge_proposal]
+      cli: [observe proposals merge]
     summary: Save a proposal's head revision as the next version of its dashboard and close it as merged.
     description: >-
       Needs Edit on the dashboard and a connection that is not in propose mode.
@@ -138,6 +147,9 @@ proposals-id-discard:
         format: uuid
   post:
     operationId: discardProposal
+    x-surfaces:
+      mcp: [discard_proposal]
+      cli: [observe proposals discard]
     summary: Close a proposal without saving it.
     description: >-
       The author of the proposal, or anyone who may merge it, may discard it.
