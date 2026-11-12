@@ -67,7 +67,6 @@ var exceptions = map[string]exception{
 	"removeObservationBlock": {MCP: noObservationMoves, CLI: notBuilt},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
 	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
-	"publishRca":             {MCP: notBuilt, CLI: notBuilt},
 	"listRcas":               {MCP: notBuilt, CLI: notBuilt},
 	"getRca":                 {MCP: notBuilt, CLI: notBuilt},
 	"listRcaPublicLinks":     {MCP: publicLink, CLI: publicLink},

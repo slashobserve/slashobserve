@@ -43,6 +43,13 @@ type observationListBody struct {
 	NextCursor   *string          `json:"next_cursor"`
 }
 
+type rcaEnvelope struct {
+	RCA struct {
+		Revision int    `json:"revision"`
+		Title    string `json:"title"`
+	} `json:"rca"`
+}
+
 type blockEnvelope struct {
 	Block observationBlockRow `json:"block"`
 }
@@ -79,7 +86,7 @@ func (a *app) observationsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand())
 	return cmd
 }
 
@@ -455,6 +462,29 @@ func (a *app) observationDiscardCommand() *cobra.Command {
 			}
 			return a.observationCall(cmd, http.MethodPost, "blocks/"+id+"/discard", nil, func(out *output, _ []byte) error {
 				out.confirm("Discarded block %s", id)
+				return nil
+			})
+		},
+	}
+}
+
+func (a *app) observationPublishCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "publish <observation-id>",
+		Short: "Publish an observation as the next RCA revision",
+		Long:  "publish freezes the live blocks of an observation into the next immutable RCA revision and prints its number.\nIt never creates a public link; a person does that in the web app.\nAn observation in My Dashboards is private and cannot be published until it is moved to a shared folder.",
+		Args:  exactArgs(1, "one observation id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodPost, "observations/"+id+"/rcas", nil, func(out *output, data []byte) error {
+				published, err := decode[rcaEnvelope](data)
+				if err != nil {
+					return err
+				}
+				out.confirm("Published revision %d of %s", published.RCA.Revision, text(published.RCA.Title))
 				return nil
 			})
 		},

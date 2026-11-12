@@ -58,6 +58,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
 | `move_finding` | Viewer |
+| `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
 | `reopen_comment` | Viewer |
@@ -186,6 +187,9 @@ An observation is a page of blocks about one question: Markdown text, panels tha
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
 Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
+
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+It never creates a public link: a person does that, and no tool lists or revokes one either.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
 A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.

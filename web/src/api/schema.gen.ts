@@ -2143,7 +2143,7 @@ export interface paths {
         put?: never;
         /**
          * Create a public link that shows one revision of an RCA without sign-in.
-         * @description Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403). The link shows the frozen revision with its snapshots, never a live panel or a query. The response carries the token and the link's URL once. A revision keeps a limited number of links (409 `too_many_links`).
+         * @description Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403). The link shows the frozen revision with its snapshots, never a live panel or a query. The response carries the token and the link's URL once. An observation keeps at most 20 links across all its revisions (409 `too_many_links`). A revision with a snapshot of data that depends on who is viewing cannot be shared (422 `user_scoped`).
          */
         post: operations["createRcaPublicLink"];
         delete?: never;
@@ -11568,7 +11568,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), or its folder is My Dashboards (`personal_folder`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11671,7 +11671,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The revision already has the most links it may keep (`too_many_links`). */
+            /** @description The observation already has the most links it may keep (`too_many_links`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11681,7 +11681,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description `expires_at` is not in the future (`invalid_expiry`). */
+            /** @description `expires_at` is not in the future (`invalid_expiry`), or a snapshot of the revision shows data that depends on who is viewing (`user_scoped`). */
             422: {
                 headers: {
                     [name: string]: unknown;

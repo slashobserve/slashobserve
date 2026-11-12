@@ -162,6 +162,7 @@ bin/observe investigate --dashboard <dashboard-id> --panel <panel-id> --from now
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--panel` without `--dashboard`, or one of `--from` and `--to` alone, exits 2.
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
+`--json` prints the finished request, which carries the `observation_id` of the observation the investigation wrote into (see [Observations](observations.md#investigations-write-into-an-observation)).
 
 `--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
 It exits 1 when the investigation fails or ends without a finding.
@@ -193,6 +194,9 @@ Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <pa
 `--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
+
+`bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
+It needs Edit on the observation's folder, and it never creates a public link.
 
 `bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
 

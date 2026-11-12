@@ -47,6 +47,7 @@ func TestObservationCommands(t *testing.T) {
 	listed := `{"observations":[` + observationJSON("") + `],"next_cursor":"more"}`
 	added := `{"block":` + blockJSON(testBlock, "text", "live", 0, `{"markdown":"x"}`) + `}`
 	requested := `{"block":` + blockJSON(testBlock, "text", "requested", 0, `{"markdown":"x"}`) + `}`
+	published := `{"rca":{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","observation_id":"` + testObservation + `","revision":2,"title":"Checkout 5xx","summary":null,"observation_state":"open","from":null,"to":null,"blocks":[],"created_by":{},"created_at":"2026-01-02T03:04:05Z"}}`
 	textFile := writeTemp(t, "note.md", "From a file")
 	panelFile := writeTemp(t, "panel.json", `{"type":"timeseries","title":"Errors"}`)
 	notAnObject := writeTemp(t, "panel.json", `[1]`)
@@ -308,10 +309,38 @@ func TestObservationCommands(t *testing.T) {
 			wantExact:  new("\n"),
 		},
 		{
-			name:     "an unknown subcommand is a usage error",
+			name:       "publish posts to the RCAs of the observation and names the revision",
+			args:       []string{"o", "publish", testObservation},
+			response:   published,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/observations/" + testObservation + "/rcas",
+			wantOut:    []string{"Published revision 2 of Checkout 5xx"},
+		},
+		{
+			name:       "publish with --json prints the response unchanged",
+			args:       []string{"o", "publish", testObservation, "--json"},
+			response:   published,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/observations/" + testObservation + "/rcas",
+			wantExact:  new(published + "\n"),
+		},
+		{
+			name:     "publish needs one observation id",
 			args:     []string{"o", "publish"},
 			wantCode: 2,
-			wantErr:  `unknown command "publish" for observe o`,
+			wantErr:  "o publish takes one observation id",
+		},
+		{
+			name:     "publish refuses an id that is not a UUID",
+			args:     []string{"o", "publish", "checkout"},
+			wantCode: 2,
+			wantErr:  `"checkout" is not a valid id`,
+		},
+		{
+			name:     "an unknown subcommand is a usage error",
+			args:     []string{"o", "frobnicate"},
+			wantCode: 2,
+			wantErr:  `unknown command "frobnicate" for observe o`,
 		},
 	}
 	for _, tc := range cases {

@@ -8,6 +8,9 @@ observations-id-rcas:
         format: uuid
   post:
     operationId: publishRca
+    x-surfaces:
+      mcp: [publish_rca]
+      cli: [observe o publish]
     summary: Publish an observation as the next revision of its RCA.
     description: >-
       Needs Edit on the folder, and the folder cannot be a personal one.
@@ -35,7 +38,7 @@ observations-id-rcas:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation already has the most revisions it may keep (`rca_limit`), or its folder is My Dashboards (`personal_folder`).
+        description: The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`).
         content:
           application/json:
             schema:
@@ -159,7 +162,8 @@ observations-id-rcas-revision-public-links:
       Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403).
       The link shows the frozen revision with its snapshots, never a live panel or a query.
       The response carries the token and the link's URL once.
-      A revision keeps a limited number of links (409 `too_many_links`).
+      An observation keeps at most 20 links across all its revisions (409 `too_many_links`).
+      A revision with a snapshot of data that depends on who is viewing cannot be shared (422 `user_scoped`).
     requestBody:
       required: true
       content:
@@ -188,7 +192,7 @@ observations-id-rcas-revision-public-links:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The revision already has the most links it may keep (`too_many_links`).
+        description: The observation already has the most links it may keep (`too_many_links`).
         content:
           application/json:
             schema:
@@ -196,7 +200,7 @@ observations-id-rcas-revision-public-links:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: "`expires_at` is not in the future (`invalid_expiry`)."
+        description: "`expires_at` is not in the future (`invalid_expiry`), or a snapshot of the revision shows data that depends on who is viewing (`user_scoped`)."
         content:
           application/json:
             schema:
