@@ -53,6 +53,7 @@ import { FindingEntry } from "./finding-entry"
 import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
+import { ShowFilter, TimelineFilters } from "./show-filter"
 import { ThreadEntry } from "./thread-entry"
 import {
   buildTimeline,
@@ -192,7 +193,6 @@ export function ActivityFeed({
   }).requests
   useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
-  const showId = useId()
   const scopeId = useId()
 
   const panelList = useMemo(() => panels ?? [], [panels])
@@ -352,28 +352,8 @@ export function ActivityFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-2">
-        <label htmlFor={showId} className="text-xs text-muted-foreground">
-          Show
-        </label>
-        <Select
-          items={showOptions}
-          value={show}
-          onValueChange={(next) => {
-            if (next !== null) setShow(next)
-          }}
-        >
-          <SelectTrigger id={showId} size="sm" aria-label="Show">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start">
-            {showOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <TimelineFilters>
+        <ShowFilter options={showOptions} value={show} onChange={setShow} />
         <label htmlFor={scopeId} className="text-xs text-muted-foreground">
           Panel
         </label>
@@ -401,7 +381,7 @@ export function ActivityFeed({
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </TimelineFilters>
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         <TimelineList
           entries={entries}

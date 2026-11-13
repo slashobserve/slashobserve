@@ -54,7 +54,7 @@ export const panelLinkClass =
 const avatarShape: Record<EntryAvatar["kind"], string> = {
   person: "rounded-full border bg-background text-foreground",
   service: "rounded-control border bg-muted text-foreground",
-  agent: "rounded-control bg-primary text-primary-foreground",
+  agent: "rounded-full bg-primary text-primary-foreground",
 }
 
 export function EntryFrame({
