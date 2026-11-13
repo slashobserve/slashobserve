@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { dashboardLink } from "@/lib/links"
 
 import { useDashboardSearch, useFirstDashboards } from "./queries"
-import { useRecentDashboards } from "./recent"
+import { useRecent } from "./recent"
 import { isEmptySearch, parseHomeQuery, rankResults } from "./search"
 
 type ListItem = components["schemas"]["DashboardListItem"]
@@ -29,7 +29,7 @@ const searchDelayMs = 200
 
 export function DashboardsSection() {
   const headingId = useId()
-  const recent = useRecentDashboards()
+  const recent = useRecent("dashboard")
   const recentRows = recent.slice(0, recentShown)
   const nothingPersonal = recent.length === 0
   const first = useFirstDashboards(nothingPersonal)

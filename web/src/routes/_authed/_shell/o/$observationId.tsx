@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { useRecordRecent } from "@/home/recent"
 import { ObservationPage } from "@/observations/observation-page"
+import { useObservation } from "@/observations/queries"
 
 type ObservationSearch = { rca?: "1" }
 
@@ -21,6 +23,8 @@ function ObservationRoute() {
   const { observationId } = Route.useParams()
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
+  const title = useObservation(observationId).data?.observation.title
+  useRecordRecent("observation", observationId, title)
   return (
     <ObservationPage
       key={observationId}
