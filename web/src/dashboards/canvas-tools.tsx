@@ -39,9 +39,12 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
   const setTool = useCanvasTool((state) => state.setTool)
   const setSearch = useSetDashboardSearch()
   const agentAvailable = useAgentInfo().data?.available === true
+  const mayAsk = permissions.edit && agentAvailable
   const commenting = permissions.comment && idle && tool === "comment"
 
   useEffect(() => () => setTool("select"), [setTool])
+
+  if (!permissions.comment && !mayAsk) return null
 
   return (
     <div
@@ -72,7 +75,7 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
           Comment
         </Button>
       ) : null}
-      {permissions.edit && agentAvailable ? (
+      {mayAsk ? (
         <Button
           variant="ghost"
           size="sm"

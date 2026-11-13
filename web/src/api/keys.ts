@@ -337,9 +337,9 @@ export const searchKeys = {
   results: (q: string) => ["search", "results", q] as const,
 }
 
-export const starKeys = {
-  all: ["stars"] as const,
-  list: () => ["stars", "list"] as const,
+export const pinKeys = {
+  all: ["pins"] as const,
+  list: () => ["pins", "list"] as const,
 }
 
 export const homeKeys = {

@@ -26,15 +26,18 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `create_dashboard` | Viewer |
 | `create_finding` | Editor |
 | `create_observation` | Viewer |
+| `diff_dashboard_versions` | Viewer |
 | `discard_block` | Viewer |
 | `discard_proposal` | Viewer |
 | `draft_query` | Viewer |
+| `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_observation` | Viewer |
 | `get_panels` | Viewer |
 | `get_proposal` | Viewer |
+| `get_rca` | Viewer |
 | `get_run` | Viewer |
 | `get_run_brief` | Viewer |
 | `get_schema` | Viewer |
@@ -47,6 +50,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_annotations` | Viewer |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
+| `list_dashboard_versions` | Viewer |
 | `list_dashboards` | Viewer |
 | `list_datasources` | Viewer |
 | `list_findings` | Viewer |
@@ -56,28 +60,37 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_labels` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
+| `list_pinned_dashboards` | Viewer |
 | `list_proposals` | Viewer |
+| `list_rcas` | Viewer |
 | `list_saved_searches` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
 | `merge_proposal` | Viewer |
+| `move_dashboard` | Viewer |
 | `move_finding` | Viewer |
+| `move_observation` | Viewer |
+| `pin_dashboard` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
 | `reopen_comment` | Viewer |
+| `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |
 | `report_run` | Viewer |
 | `resolve_comment` | Viewer |
 | `resolve_observation` | Viewer |
+| `restore_dashboard_version` | Viewer |
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `trace_stats` | Viewer |
+| `unpin_dashboard` | Viewer |
 | `update_block` | Viewer |
 | `update_dashboard` | Viewer |
+| `update_observation` | Viewer |
 | `update_panels` | Viewer |
 
 The lowest role is the one the web app needs for the same work, and folder access decides the rest, as in the web app.
@@ -164,7 +177,12 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
-No tool deletes, moves or duplicates a dashboard: people do that in the web app or through the HTTP API, and delete also with `observe dashboards delete`.
+`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it.
+No tool deletes a dashboard: people do that in the web app, through the HTTP API or with `observe dashboards delete`.
+A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
+
+`pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
+They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
 `move_finding` is the one move tool and is deprecated: move an observation in the web app or with `POST /api/v1/observations/{id}/move`.
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
@@ -226,12 +244,14 @@ Every write answers `code: ok` with the ids, the `state` of what it changed, the
 
 `publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
+`list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
 A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked as `create_finding` checks its evidence: a panel whose query fails or returns no data in its range is refused with its issues.
-No tool removes a block, or moves, renames or reopens an observation: people do that in the web app or through the HTTP API.
+`update_observation` changes the title or range, `move_observation` moves it to another folder and `reopen_observation` reopens a resolved one.
+No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
 
@@ -455,9 +475,9 @@ Two kinds of credential can claim:
 
 - A connected agent, signed in over OAuth, claims the runs assigned to its own connection.
   It works only for the person who connected it, and the run's writes carry that connection's `direct` or `propose` mode.
-- A service account claims the runs assigned to it with its key, after an Admin turns on `takes_runs`, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
+- A service account claims the runs assigned to it with its key, after an Admin turns on **Takes agent runs** for it in the Create key panel or sets `takes_runs` through the API, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
   Its runs always use the direct mode.
-  Without `takes_runs`, `claim_run` answers `not_a_worker`.
+  With **Takes agent runs** off, or `takes_runs` false, `claim_run` answers `not_a_worker`.
 
 The claim tools are `claim_run`, `report_run`, `finish_run` and `get_run_brief`; MCP lists them like any other tool.
 Connect as in [Connect your own agent](#connect-your-own-agent) or [Keys for bots](#keys-for-bots), and poll with `claim_run` while the agent is idle.

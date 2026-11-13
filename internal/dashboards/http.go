@@ -292,7 +292,7 @@ func (s *Service) moveDashboard(c *gin.Context) {
 	if !ok {
 		return
 	}
-	dash, ver, err := s.move(c.Request.Context(), httpapi.Caller(c), id, folderID)
+	dash, ver, err := s.Move(c.Request.Context(), httpapi.Caller(c), id, folderID)
 	if err != nil {
 		s.fail(c, "move dashboard", err)
 		return

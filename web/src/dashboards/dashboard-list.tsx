@@ -237,12 +237,14 @@ function FolderHeaderRow({
   folder,
   collapsed,
   continued,
+  count,
   columnCount,
   onToggle,
 }: {
   folder: Folder
   collapsed: boolean
   continued: boolean
+  count: number | null
   columnCount: number
   onToggle: () => void
 }) {
@@ -274,9 +276,11 @@ function FolderHeaderRow({
             )}
           </Button>
           <span className="font-semibold wrap-anywhere">{folder.title}</span>
-          <span className="text-xs text-muted-foreground">
-            {dashboardCountText(folder.dashboard_count)}
-          </span>
+          {count === null ? null : (
+            <span className="text-xs text-muted-foreground">
+              {dashboardCountText(count)}
+            </span>
+          )}
           {continued ? (
             <span className="text-xs text-muted-foreground">
               Continued from the previous page
@@ -324,6 +328,7 @@ function sectionRows(
         folder={section.folder}
         collapsed={isCollapsed}
         continued={section.continued}
+        count={section.count}
         columnCount={columnCount}
         onToggle={() => toggle(section.folder.id)}
       />

@@ -86,7 +86,7 @@ func (a *app) observationsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationRCAsCommand())
 	return cmd
 }
 
