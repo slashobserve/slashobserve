@@ -22,10 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { roleDescriptions, roleLabels, type Role } from "@/lib/roles"
 import { RoleSelect } from "@/people/role-select"
 import { SidePanel } from "@/shell/side-panel"
 
+import { accountChanges } from "./account-changes"
 import {
   accountNameError,
   defaultExpiry,
@@ -39,7 +41,7 @@ import {
   serviceAccountsQuery,
   useCreateKey,
   useCreateServiceAccount,
-  useSetServiceAccountRole,
+  useUpdateServiceAccount,
   type ServiceAccount,
 } from "./queries"
 
@@ -75,7 +77,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const accountsQuery = useQuery(serviceAccountsQuery())
   const createAccount = useCreateServiceAccount()
-  const setAccountRole = useSetServiceAccountRole()
+  const updateAccount = useUpdateServiceAccount()
   const createKey = useCreateKey()
   const ids = useId()
   const newAccountInput = useRef<HTMLInputElement>(null)
@@ -88,6 +90,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   )
   const [newAccountName, setNewAccountName] = useState("")
   const [roleChoice, setRoleChoice] = useState<Role | null>(null)
+  const [takesRunsChoice, setTakesRunsChoice] = useState<boolean | null>(null)
   const [issuedFor, setIssuedFor] = useState<{
     accountName: string
     role: Role
@@ -118,13 +121,18 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   const pending =
     submitting ||
     createAccount.isPending ||
-    setAccountRole.isPending ||
+    updateAccount.isPending ||
     createKey.isPending
   const chosenAccount = accounts.find((account) => account.id === choice)
   const accountRole = creating
     ? newAccountRole
     : (chosenAccount?.role ?? newAccountRole)
   const role = roleChoice ?? accountRole
+  const accountTakesRuns = creating
+    ? false
+    : (chosenAccount?.takes_runs ?? false)
+  const takesRuns = takesRunsChoice ?? accountTakesRuns
+  const takesRunsLocked = !creating && chosenAccount?.provisioned === true
 
   useEffect(() => {
     if (phase === "created") copyButton.current?.focus()
@@ -163,6 +171,13 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
         accountName = account.name
         setCreatedAccount(account)
         setAccountChoice(account.id)
+        if (takesRuns) {
+          const updated = await updateAccount.mutateAsync({
+            id: account.id,
+            takes_runs: true,
+          })
+          setCreatedAccount(updated)
+        }
       } catch (error) {
         setProblem(
           problemText(error, { accountName: newAccountName, what: "account" })
@@ -170,9 +185,12 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
         setSubmitting(false)
         return
       }
-    } else if (chosenAccount !== undefined && role !== chosenAccount.role) {
+    } else if (chosenAccount !== undefined) {
+      const changes = accountChanges(chosenAccount, { role, takesRuns })
       try {
-        await setAccountRole.mutateAsync({ id: chosenAccount.id, role })
+        if (changes !== null) {
+          await updateAccount.mutateAsync({ id: chosenAccount.id, ...changes })
+        }
       } catch (error) {
         setProblem(problemText(error, { what: "account" }))
         setSubmitting(false)
@@ -282,6 +300,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
               if (next === null) return
               setAccountChoice(next)
               setRoleChoice(null)
+              setTakesRunsChoice(null)
             }}
           >
             <SelectTrigger
@@ -347,6 +366,27 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
           />
           <p className="text-xs text-muted-foreground">
             {roleDescriptions[role]}
+            {creating ? "" : " Applies to every key of this service account."}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor={`${ids}-takes-runs`}>Takes agent runs</Label>
+            <Switch
+              id={`${ids}-takes-runs`}
+              checked={takesRuns}
+              disabled={locked || pending || loadingAccounts || takesRunsLocked}
+              aria-describedby={`${ids}-takes-runs-hint`}
+              onCheckedChange={setTakesRunsChoice}
+            />
+          </div>
+          <p
+            id={`${ids}-takes-runs-hint`}
+            className="text-xs text-muted-foreground"
+          >
+            {takesRunsLocked
+              ? "Set in the service-accounts file."
+              : "Lets this account claim the runs assigned to it over MCP."}
             {creating ? "" : " Applies to every key of this service account."}
           </p>
         </div>

@@ -3289,7 +3289,7 @@ export interface paths {
         };
         /**
          * List who can do work for the signed-in person.
-         * @description Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read. `observe_agent` names the configured provider and model (never an address or a key); `provider` and `model` are null while the agent is off. `runtime` is the configured agent runtime, `sidecar` (the `observe-agent` process, the default) or `go` (the in-process loop). Its `last_7_days` covers every built-in run of the workspace for an Admin (`scope` is `workspace`) and only the caller's own runs for anyone else (`scope` is `you`). `connected` lists only the caller's own live connections, newest first and at most 100. `grant_id` is the id a mention names as `@[Name](grant:<grant_id>)`, and a service account's `id` is the one in `@[Name](service_account:<id>)`. `service_accounts` lists every account that takes runs, ordered by name and at most 100, with `last_7_days` for an Admin and null for anyone else, because a person needs the names to mention them. `present` is true while the agent holds a run or asked for work in the last 40 seconds; see `docs/reference/states.md`. Each `last_7_days` counts the runs created in the last seven days assigned to that agent: `failed` leaves out canceled runs, `cost_usd` is the sum of the recorded run costs and null when a finished run has none, because an unknown price is never counted as zero, and `median_queue_wait_seconds` is the median time from request to start over the runs that started, null when none did. `writes_7d` counts the activity rows of the last seven days written by the caller over MCP under the connection's client name, so two connections of one client name share the count. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read. `observe_agent` names the configured provider and model (never an address or a key); `provider` and `model` are null while the agent is off. `runtime` is the configured agent runtime, `sidecar` (the `observe-agent` process, the default) or `go` (the in-process loop). Its `last_7_days` covers every built-in run of the workspace for an Admin (`scope` is `workspace`) and only the caller's own runs for anyone else (`scope` is `you`). `connected` lists only the caller's own live connections, newest first and at most 100. `grant_id` is the id a mention names as `@[Name](grant:<grant_id>)`, and a service account's `id` is the one in `@[Name](service_account:<id>)`. `service_accounts` lists every account that takes runs, ordered by name and at most 100, with `last_7_days` for an Admin and null for anyone else, because a person needs the names to mention them. `present` is true while the agent holds a run or asked for work in the last 40 seconds, and `presence` says which: `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise; see `docs/reference/states.md`. Each `last_7_days` counts the runs created in the last seven days assigned to that agent: `failed` leaves out canceled runs, `cost_usd` is the sum of the recorded run costs and null when a finished run has none, because an unknown price is never counted as zero, and `median_queue_wait_seconds` is the median time from request to start over the runs that started, null when none did. `writes_7d` counts the activity rows of the last seven days written by the caller over MCP under the connection's client name, so two connections of one client name share the count. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         get: operations["listAgents"];
         put?: never;
@@ -3583,7 +3583,13 @@ export interface components {
                 client_name: string;
                 /** @enum {string} */
                 mode: "direct" | "propose";
+                /** @description true while `presence` is `working` or `listening`. */
                 present: boolean;
+                /**
+                 * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                presence: "working" | "listening" | "offline";
                 /** Format: date-time */
                 last_seen_at: string | null;
                 /** Format: date-time */
@@ -3595,7 +3601,13 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 name: string;
+                /** @description true while `presence` is `working` or `listening`. */
                 present: boolean;
+                /**
+                 * @description working while it holds a run it claimed, listening when it asked for work in the last 40 seconds, otherwise offline. See `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                presence: "working" | "listening" | "offline";
                 /** Format: date-time */
                 last_seen_at: string | null;
                 /** @description Null unless the caller is an Admin. */

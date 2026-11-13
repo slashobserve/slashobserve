@@ -9,7 +9,7 @@ import { markOf } from "@/lib/author"
 
 import { agentLink } from "./agent-ref"
 import type { ConnectedRow } from "./queries"
-import { presenceLabel } from "./stats"
+import { presenceLabel, type Presence } from "./stats"
 
 type Props = {
   rows: readonly ConnectedRow[]
@@ -17,21 +17,21 @@ type Props = {
 }
 
 export function PresenceStatus({
-  present,
+  presence,
   lastSeenAt,
 }: {
-  present: boolean
+  presence: Presence
   lastSeenAt: string | null
 }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      {present ? (
+      {presence !== "offline" ? (
         <span
           aria-hidden="true"
           className="size-1.5 flex-none rounded-full bg-status-ok"
         />
       ) : null}
-      {presenceLabel(present, lastSeenAt)}
+      {presenceLabel(presence, lastSeenAt)}
     </span>
   )
 }
@@ -92,7 +92,7 @@ export function ConnectedTable({ rows, onConnect }: Props) {
                 </Cell>
                 <Cell className="text-muted-foreground">
                   <PresenceStatus
-                    present={row.present}
+                    presence={row.presence}
                     lastSeenAt={row.last_seen_at}
                   />
                 </Cell>

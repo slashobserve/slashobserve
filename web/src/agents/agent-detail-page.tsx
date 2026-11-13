@@ -116,7 +116,7 @@ function headerOf(found: FoundAgent, personName: string): Header {
         ),
         status: (
           <PresenceStatus
-            present={found.row.present}
+            presence={found.row.presence}
             lastSeenAt={found.row.last_seen_at}
           />
         ),
@@ -129,7 +129,7 @@ function headerOf(found: FoundAgent, personName: string): Header {
         controls: null,
         status: (
           <PresenceStatus
-            present={found.row.present}
+            presence={found.row.presence}
             lastSeenAt={found.row.last_seen_at}
           />
         ),

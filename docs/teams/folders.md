@@ -61,6 +61,8 @@ An entry can give a Viewer or Commenter more and never gives anyone less:
 
 Restricted folders on the Dashboards page show `Your access: <level>` in their header.
 The Dashboards page shows 50 dashboards per page; a folder that runs onto the next page repeats its header there, marked "Continued from the previous page".
+A folder header counts the folder's dashboards while no search or filter is set.
+With a search or filter, it counts the folder's matching dashboards only when all matches fit on the one page, and shows no count otherwise.
 Folder settings tells a person who cannot manage the folder `Your access to this folder is <level>. Only folder Admins can change it.`
 
 Some rules that follow:

@@ -44,6 +44,7 @@ type overview struct {
 		ClientName  string  `json:"client_name"`
 		Mode        string  `json:"mode"`
 		Present     bool    `json:"present"`
+		Presence    string  `json:"presence"`
 		LastSeenAt  *string `json:"last_seen_at"`
 		ConnectedAt string  `json:"connected_at"`
 		Writes7d    int     `json:"writes_7d"`
@@ -53,6 +54,7 @@ type overview struct {
 		ID         string  `json:"id"`
 		Name       string  `json:"name"`
 		Present    bool    `json:"present"`
+		Presence   string  `json:"presence"`
 		LastSeenAt *string `json:"last_seen_at"`
 		Last7Days  *stats  `json:"last_7_days"`
 	} `json:"service_accounts"`
@@ -307,23 +309,28 @@ func TestPresenceFollowsTheAgentWorkerAndHeldRuns(t *testing.T) {
 	r := newRig(t, Observe{})
 	grant := r.grant(t, ada, "claude-code")
 	account := r.serviceAccount(t, "nightly", true)
-	present := func() (bool, bool, *string) {
-		got := r.overview(t, ada)
-		return got.Connected[0].Present, got.ServiceAccounts[0].Present, got.Connected[0].LastSeenAt
+	type seen struct {
+		presence string
+		present  bool
 	}
-	if g, s, seen := present(); g || s || seen != nil {
-		t.Fatalf("fresh agents present = %v, %v seen %v, want neither present nor seen", g, s, seen)
+	read := func() (grantSeen, accountSeen seen, lastSeen *string) {
+		got := r.overview(t, ada)
+		c, a := got.Connected[0], got.ServiceAccounts[0]
+		return seen{c.Presence, c.Present}, seen{a.Presence, a.Present}, c.LastSeenAt
+	}
+	if g, a, last := read(); g != (seen{"offline", false}) || a != (seen{"offline", false}) || last != nil {
+		t.Fatalf("fresh agents = %+v, %+v last seen %v, want offline, not present and never seen", g, a, last)
 	}
 
 	r.db.Exec(t, `INSERT INTO agent_workers (id, principal_kind, principal_id, seen_at) VALUES ('grant:' || $1, 'grant', $1::uuid, now()), ('service_account:' || $2, 'service_account', $2::uuid, now() - interval '5 minutes')`, grant, account)
-	if g, s, seen := present(); !g || s || seen == nil {
-		t.Fatalf("after the grant asked for work present = %v, %v seen %v, want only the grant present", g, s, seen)
+	if g, a, last := read(); g != (seen{"listening", true}) || a != (seen{"offline", false}) || last == nil {
+		t.Fatalf("after the grant asked for work = %+v, %+v last seen %v, want the grant listening and present, the account offline", g, a, last)
 	}
 
 	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, lease_until, assigned_kind, assigned_id, claimed_by)
 		VALUES ('observe', 'p', 'user', $1::uuid, 'Ada', 'running', 'running', now() + interval '1 minute', 'service_account', $2::uuid, 'service_account:' || $2)`, ada.ID, account)
-	if _, s, _ := present(); !s {
-		t.Fatal("a service account holding a run is not present")
+	if _, a, _ := read(); a != (seen{"working", true}) {
+		t.Fatalf("a service account holding a run = %+v, want working and present", a)
 	}
 }
 

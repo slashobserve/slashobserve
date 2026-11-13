@@ -20,7 +20,9 @@ The page also shows ready-made client setup snippets for your server's address; 
 Only a signed-in Admin can create service accounts and keys, and only an Admin sees the API keys page; a service-account key cannot create more keys, whatever its role.
 A key acts with its service account's role, which starts as Editor for a new account.
 Choosing another role for an existing account in the Create key panel changes the role of every key of that account.
-An account takes runs only when an Admin turns on `takes_runs` with `PATCH /api/v1/service-accounts/{id}`; the account then lists as `listening` or `working` while it asks for work.
+
+An account takes runs only when an Admin turns on **Takes agent runs** in the Create key panel, or sets `takes_runs` with `PATCH /api/v1/service-accounts/{id}`; the account then lists as `listening` or `working` while it asks for work.
+The switch applies to every key of the account, like the role, and is saved when you create the key.
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
 A key has no My Dashboards folder.
 A service account that takes runs works under the same guards as the built-in agent, enforced by the server on every call of the run's session; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
@@ -52,7 +54,8 @@ It keeps the key from `keyFile` as the account's one active key named `From file
 The server refuses to start when the file is invalid, or when an account with a listed name already exists but was created in the web app or the API, because it never takes over such an account.
 
 A provisioned account is managed through the file only.
-Changing its role or `takes_runs` in the web app or with `PATCH /api/v1/service-accounts/{id}` answers 409 `provisioned`, and so does revoking one of its keys.
+Changing its role in the web app, or its role or `takes_runs` with `PATCH /api/v1/service-accounts/{id}`, answers 409 `provisioned`, and so does revoking one of its keys.
+The web app locks its **Takes agent runs** switch.
 To rotate the file key, write a new key to its file and restart the server: the old file key is revoked and the new one replaces it.
 A key that was revoked before cannot come back; write a fresh one.
 Removing an account from the file leaves it and its key in place.
