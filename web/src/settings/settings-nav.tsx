@@ -10,7 +10,7 @@ const placements = {
     link: "",
   },
   top: {
-    nav: "mb-4 flex gap-1 overflow-x-auto xl:hidden",
+    nav: "mb-4 flex flex-wrap gap-1 xl:hidden",
     link: "flex-none whitespace-nowrap focus-visible:ring-inset",
   },
 }
