@@ -69,7 +69,9 @@ It checks the dashboards that are due, as the hourly run does, and when a run is
 ## API
 
 `GET /api/v1/health` lists the dashboards with a problem in folders the caller can see.
-It takes `folder_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
+It takes `folder_id`, `dashboard_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
+`dashboard_id` repeats up to 50 times and lists only those dashboards, still only the ones with a problem, with `summary` null on every page.
+`GET /api/v1/dashboards?problem=<kind or any>` narrows the dashboards list to the dashboards with that problem by the same rules, keeping its order, paging and `total_count`.
 
 The list is ranked, so the dashboards most worth fixing come first:
 
@@ -171,7 +173,7 @@ Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows t
 
 ## From MCP clients
 
-MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
+MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
 The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).
