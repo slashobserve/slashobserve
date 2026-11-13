@@ -481,14 +481,33 @@ export function ActivityComposer({
               replaceFrom={null}
               disabled={pending}
             />
-            {model !== null ? (
-              <span className="truncate text-xs text-muted-foreground">
-                {model}
-              </span>
+            {runningRequestId !== undefined ? (
+              <StopRequestButton requestId={runningRequestId} />
             ) : null}
+            {investigating && gate.kind === "allowed" ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={cannotSubmit}
+                aria-disabled={pending || undefined}
+                aria-busy={pendingInvestigation || undefined}
+                onClick={investigateNow}
+              >
+                Investigate
+              </Button>
+            ) : (
+              <SendButton
+                body={trimmed}
+                disabled={cannotSend}
+                busy={pendingComment}
+              />
+            )}
           </div>
         </div>
       </div>
+      {model !== null ? (
+        <span className="truncate text-xs text-muted-foreground">{model}</span>
+      ) : null}
       {showCounter ? (
         <span
           id={counterId}
@@ -520,28 +539,6 @@ export function ActivityComposer({
           agentName={started.agentName}
         />
       )}
-      <div className="flex items-center justify-end gap-2">
-        {runningRequestId !== undefined ? (
-          <StopRequestButton requestId={runningRequestId} />
-        ) : null}
-        {investigating && gate.kind === "allowed" ? (
-          <Button
-            type="button"
-            disabled={cannotSubmit}
-            aria-disabled={pending || undefined}
-            aria-busy={pendingInvestigation || undefined}
-            onClick={investigateNow}
-          >
-            Investigate
-          </Button>
-        ) : (
-          <SendButton
-            body={trimmed}
-            disabled={cannotSend}
-            busy={pendingComment}
-          />
-        )}
-      </div>
       <span role="status" className="sr-only">
         {liveRegionText(note.text, note.count)}
       </span>
