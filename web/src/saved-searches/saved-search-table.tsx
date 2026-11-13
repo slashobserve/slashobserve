@@ -10,11 +10,11 @@ import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { FolderHeaderRow } from "@/folders/folder-header-row"
+import { countText, groupByFolder } from "@/folders/group-by-folder"
 import { foldersQuery } from "@/folders/queries"
 import { markOf } from "@/lib/author"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { groupSavedSearches, savedSearchCountText } from "./folder-groups"
 import { savedSearchLocation } from "./links"
 import {
   savedSearchesPage,
@@ -150,7 +150,7 @@ export function SavedSearchTable({
     () =>
       searches === undefined || folders === undefined
         ? null
-        : groupSavedSearches(folders, searches),
+        : groupByFolder(folders, searches, (saved) => saved.folder.id),
     [searches, folders]
   )
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
@@ -201,7 +201,13 @@ export function SavedSearchTable({
                     folder={folder}
                     collapsed={isCollapsed}
                     countText={
-                      truncated ? null : savedSearchCountText(rows.length)
+                      truncated
+                        ? null
+                        : countText(
+                            rows.length,
+                            "saved search",
+                            "saved searches"
+                          )
                     }
                     columnCount={columnCount}
                     onToggle={() => toggle(folder.id)}
