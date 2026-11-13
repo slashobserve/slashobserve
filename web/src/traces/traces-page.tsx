@@ -1,18 +1,39 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { CircleAlertIcon } from "lucide-react"
+import {
+  BookmarkIcon,
+  CircleAlertIcon,
+  FolderSearchIcon,
+  MoreHorizontalIcon,
+} from "lucide-react"
 
 import { AskField } from "@/ask/ask-field"
 import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
+import { AgentMark } from "@/components/agent-mark"
 import { PageBar } from "@/components/page-bar"
 import { LoadProblem } from "@/components/load-problem"
 import { StatusLabel } from "@/components/status-label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -36,12 +57,18 @@ import { isModEnter } from "@/lib/shortcuts"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
 import { usePageCursors } from "@/lib/use-page-cursors"
+import { cn } from "@/lib/utils"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
+import { ExploreFailure } from "@/logs/explore-failure"
+import { usePhone } from "@/logs/logs-results"
 import { useAgentInfo } from "@/observe/queries"
 import { tracesDraft } from "@/saved-searches/draft"
+import { savedSearchLocation } from "@/saved-searches/links"
+import { savedSearchesQuery } from "@/saved-searches/queries"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
+import { TopRowActions } from "@/shell/top-row-actions"
 
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
@@ -54,6 +81,7 @@ import {
   traceSearchParamsWithCursor,
   traceStatsFilter,
 } from "./search-query"
+import { traceFilterChips } from "./trace-filters"
 import { TraceSearchForm } from "./trace-search-form"
 import { countText, durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
@@ -169,18 +197,12 @@ export function TracesPage({ uid }: { uid: string }) {
     <div className="flex h-full min-h-0 flex-col">
       <h1 className="sr-only">Traces in {datasource.name}</h1>
       <SourceTitle kind="traces" source={datasource} />
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-        <TimeRangeControl value={range} onChange={update} />
-        <SavedSearchesMenu kind="traces" />
-        <Button
-          ref={saveTrigger}
-          type="button"
-          variant="outline"
-          onClick={() => setSaving(true)}
-        >
-          Save search
-        </Button>
-      </div>
+      <TraceSearchActions
+        range={range}
+        onRangeChange={update}
+        saveTrigger={saveTrigger}
+        onSave={() => setSaving(true)}
+      />
       <SaveSearchDialog
         draft={tracesDraft({
           uid: datasource.uid,
@@ -201,6 +223,102 @@ export function TracesPage({ uid }: { uid: string }) {
         />
       </div>
     </div>
+  )
+}
+
+function SavedSearchItems() {
+  const navigate = useNavigate()
+  const query = useQuery(savedSearchesQuery({ kind: "traces" }))
+  const items = query.data?.saved_searches ?? []
+  if (query.isPending) {
+    return <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+  }
+  if (query.isError) {
+    return (
+      <DropdownMenuItem disabled>
+        {loadProblemText(query.error)}
+      </DropdownMenuItem>
+    )
+  }
+  if (items.length === 0) {
+    return <DropdownMenuItem disabled>No saved searches yet.</DropdownMenuItem>
+  }
+  return items.map((saved) => (
+    <DropdownMenuItem
+      key={saved.id}
+      onClick={() => void navigate(savedSearchLocation(saved))}
+    >
+      <span className="min-w-0 flex-1 truncate">{saved.title}</span>
+    </DropdownMenuItem>
+  ))
+}
+
+function TraceSearchActions({
+  range,
+  onRangeChange,
+  saveTrigger,
+  onSave,
+}: {
+  range: { from: string; to: string }
+  onRangeChange: UpdateSearch
+  saveTrigger: RefObject<HTMLButtonElement | null>
+  onSave: () => void
+}) {
+  const phone = usePhone()
+  return (
+    <TopRowActions>
+      <div className="flex items-center gap-2">
+        <span className={cn("contents", phone && "[&_button]:h-11")}>
+          <TimeRangeControl value={range} onChange={onRangeChange} />
+        </span>
+        {phone ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  ref={saveTrigger}
+                  variant="ghost"
+                  size="icon"
+                  aria-label="More actions"
+                  className="size-11"
+                />
+              }
+            >
+              <MoreHorizontalIcon aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem className="min-h-11" onClick={onSave}>
+                <BookmarkIcon aria-hidden="true" />
+                Save search
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="min-h-11">
+                  <FolderSearchIcon aria-hidden="true" />
+                  Saved searches
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-64">
+                  <SavedSearchItems />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <>
+            <span aria-hidden="true" className="h-5 w-px bg-border" />
+            <SavedSearchesMenu kind="traces" />
+            <Button
+              ref={saveTrigger}
+              type="button"
+              variant="ghost"
+              onClick={onSave}
+            >
+              <BookmarkIcon aria-hidden="true" />
+              Save search
+            </Button>
+          </>
+        )}
+      </div>
+    </TopRowActions>
   )
 }
 
@@ -286,120 +404,168 @@ function TraceSearchWorkspace({
 
   const answered = ask.answer !== null || ask.fromQuestion !== null
 
+  const chips = traceFilterChips(search)
+  const explanation = ask.answer?.explanation ?? ""
+  const askRow = mode === "ask"
+
   return (
     <>
-      <div className="flex h-8 shrink-0 items-center gap-2">
-        <InputModeToggle
-          mode={mode}
-          modes={traceModes}
-          labels={traceModeLabels}
-          agentAvailable={agentAvailable}
-          onChange={switchMode}
-        />
-      </div>
-      {mode === "ask" ? (
-        <div className="w-full shrink-0 [&_textarea]:pr-2.5">
-          <AskField
-            ref={askFieldRef}
-            signal="traces"
-            value={ask.question}
-            onChange={ask.setQuestion}
-            onAsk={ask.ask}
-            pending={ask.asking}
-            onCancel={ask.cancel}
-            placeholder={askPlaceholder}
+      <section
+        aria-label="Query"
+        className="flex shrink-0 flex-col rounded-card border bg-card"
+      >
+        <div
+          className={cn(
+            "flex items-start gap-2 px-4 pt-3 narrow:flex-col narrow:items-stretch",
+            askRow && !answered && "pb-3"
+          )}
+        >
+          <InputModeToggle
+            mode={mode}
+            modes={traceModes}
+            labels={traceModeLabels}
+            agentAvailable={agentAvailable}
+            onChange={switchMode}
           />
-        </div>
-      ) : (
-        <>
-          <div className="shrink-0" onKeyDownCapture={submitOnModEnter}>
-            <TraceSearchForm
-              key={JSON.stringify([
-                search.service,
-                search.span,
-                search.min,
-                search.max,
-                search.errors,
-                search.q,
-                search.ask,
-              ])}
-              id={formId}
-              type={type}
-              uid={uid}
-              value={search}
-              onSubmit={(next) => {
-                ask.clearProblem()
-                update(next)
-              }}
-              serviceRef={serviceRef}
-            />
-          </div>
-          <div className="flex h-8 shrink-0 items-center gap-3">
-            <Button
-              type="submit"
-              form={formId}
-              title="Search traces (Ctrl+Enter or Cmd+Enter)"
-              aria-keyshortcuts="Control+Enter Meta+Enter"
-            >
-              Search traces
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              or press Ctrl+Enter or Cmd+Enter
-            </span>
-            {ask.fromQuestion !== null ? (
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
-                From: {ask.fromQuestion}
-              </span>
-            ) : null}
-            {answered || ask.problem !== null ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={askAgain}
-              >
-                Ask again
-              </Button>
-            ) : null}
-          </div>
-        </>
-      )}
-      {mode === "ask" && answered ? (
-        <div className="flex shrink-0 flex-col items-start gap-1">
-          {ask.answer !== null && ask.answer.explanation !== "" ? (
-            <p className="text-xs text-muted-foreground">
-              {ask.answer.explanation}
-            </p>
+          {askRow ? (
+            <div className="min-w-0 flex-1">
+              <AskField
+                ref={askFieldRef}
+                signal="traces"
+                value={ask.question}
+                onChange={ask.setQuestion}
+                onAsk={ask.ask}
+                pending={ask.asking}
+                onCancel={ask.cancel}
+                placeholder={askPlaceholder}
+              />
+            </div>
           ) : null}
-          {ask.answer?.warnings.map((warning) => (
-            <p key={warning} className="text-xs">
-              <StatusLabel tone="warning">{warning}</StatusLabel>
-            </p>
-          ))}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => switchMode("code")}
-          >
-            Edit the query
-          </Button>
         </div>
-      ) : null}
-      {ask.problem !== null ? (
-        <Alert variant="destructive" className="shrink-0">
-          <AlertDescription className="flex flex-col items-start gap-1">
+        {askRow && answered ? (
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 pt-2 pr-3 pb-2.5 pl-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                {explanation !== "" ? (
+                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <AgentMark size={20} className="text-primary" />
+                    <span className="min-w-0">{explanation}</span>
+                  </p>
+                ) : null}
+                {chips.length > 0 ? (
+                  <div
+                    role="group"
+                    aria-label="The query Ask wrote"
+                    className="flex flex-wrap gap-1.5"
+                  >
+                    {chips.map((chip) => (
+                      <span
+                        key={chip.key}
+                        className="inline-flex h-[22px] items-center gap-1.5 rounded-chip border bg-muted/50 px-1.5 text-xs whitespace-nowrap"
+                      >
+                        <span className="text-muted-foreground">
+                          {chip.label}
+                        </span>
+                        {chip.value !== "" ? (
+                          <span className="font-mono">{chip.value}</span>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {ask.answer?.warnings.map((warning) => (
+                <p key={warning} className="text-xs">
+                  <StatusLabel tone="warning">{warning}</StatusLabel>
+                </p>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="narrow:h-11"
+              onClick={() => switchMode("code")}
+            >
+              Edit the query
+            </Button>
+          </div>
+        ) : null}
+        {askRow ? null : (
+          <>
+            <div className="px-4 pt-3 pb-4" onKeyDownCapture={submitOnModEnter}>
+              <TraceSearchForm
+                key={JSON.stringify([
+                  search.service,
+                  search.span,
+                  search.min,
+                  search.max,
+                  search.errors,
+                  search.q,
+                  search.ask,
+                ])}
+                id={formId}
+                type={type}
+                uid={uid}
+                value={search}
+                onSubmit={(next) => {
+                  ask.clearProblem()
+                  update(next)
+                }}
+                serviceRef={serviceRef}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t px-4 py-2.5">
+              <Button
+                type="submit"
+                form={formId}
+                size="sm"
+                className="narrow:h-11"
+                title="Search traces (Ctrl+Enter or Cmd+Enter)"
+                aria-keyshortcuts="Control+Enter Meta+Enter"
+              >
+                Search traces
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                or press Ctrl+Enter or Cmd+Enter
+              </span>
+              {ask.fromQuestion !== null ? (
+                <span className="min-w-0 truncate text-xs text-muted-foreground">
+                  From: {ask.fromQuestion}
+                </span>
+              ) : null}
+              {answered || ask.problem !== null ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="narrow:h-11"
+                  onClick={askAgain}
+                >
+                  Ask again
+                </Button>
+              ) : null}
+            </div>
+          </>
+        )}
+        {ask.problem !== null ? (
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-1 border-t px-4 py-2.5 text-[13px]"
+          >
             {ask.problem.kind === "cannot_translate" ? (
               <>
-                <p>I could not turn that into a query.</p>
+                <StatusLabel tone="critical">
+                  I could not turn that into a query.
+                </StatusLabel>
                 <p className="text-muted-foreground">{ask.problem.reason}</p>
               </>
             ) : (
-              <p>{ask.problem.text}</p>
+              <StatusLabel tone="critical">{ask.problem.text}</StatusLabel>
             )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+          </div>
+        ) : null}
+      </section>
       <div className="min-h-0 flex-1 overflow-auto">
         <TraceResults datasource={datasource} search={search} update={update} />
       </div>
@@ -488,19 +654,10 @@ function TraceResults({
     return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
   }
   const failure = results.isError ? (
-    <Alert variant="destructive">
-      <AlertDescription className="flex flex-col items-start gap-2">
-        {exploreErrorText(results.error)}
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          onClick={() => void results.refetch()}
-        >
-          Retry
-        </Button>
-      </AlertDescription>
-    </Alert>
+    <ExploreFailure
+      text={exploreErrorText(results.error)}
+      onRetry={() => void results.refetch()}
+    />
   ) : null
   if (!data) return failure ?? <ResultSkeleton />
   const rows = traceRows(data.frames)
@@ -529,7 +686,7 @@ function TraceResults({
   )
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {failure}
         <p className="text-[13px] text-muted-foreground">
           No traces match in {lowerFirst(describeRange(range.from, range.to))}.
@@ -545,7 +702,7 @@ function TraceResults({
   const label = p95Label(search)
   const covered = meta.partial ? partialNote(rows, undefined) : null
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {failure}
       {lost !== null && lost.scope === scope ? (
         <p role="status" className="text-[13px] text-muted-foreground">
@@ -572,36 +729,41 @@ function TraceResults({
         ) : null}
       </p>
       {meta.partial ? (
-        <Alert>
-          <AlertDescription className="flex flex-col items-start gap-2">
-            <p>
-              Tempo stopped searching at its time limit, so older traces may be
-              missing.
-              {covered !== null ? ` ${covered.text}` : null}
-            </p>
-            {covered !== null ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => update({ from: covered.from, to: covered.to })}
-              >
-                Keep only {covered.covers}
-              </Button>
-            ) : null}
-          </AlertDescription>
-        </Alert>
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-card border py-2 pr-2 pl-3 text-[13px]"
+        >
+          <StatusLabel tone="warning">Partial</StatusLabel>
+          <p className="min-w-0 flex-1">
+            Tempo stopped searching at its time limit, so older traces may be
+            missing.
+            {covered !== null ? ` ${covered.text}` : null}
+          </p>
+          {covered !== null ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-normal tabular-nums narrow:h-11"
+              onClick={() => update({ from: covered.from, to: covered.to })}
+            >
+              Keep only {covered.covers}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
-      <SelectableTraceTable
-        key={`${scope}:${state.page}`}
-        datasource={datasource}
-        search={search}
-        update={update}
-        rows={rows}
-        p95={p95}
-        label={label}
-      />
-      {pageBar}
+      <div className="flex flex-col gap-1">
+        <SelectableTraceTable
+          key={`${scope}:${state.page}`}
+          datasource={datasource}
+          search={search}
+          update={update}
+          rows={rows}
+          p95={p95}
+          label={label}
+        />
+        {pageBar}
+      </div>
     </div>
   )
 }

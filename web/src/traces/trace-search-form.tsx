@@ -9,6 +9,7 @@ import { labelValuesQuery } from "@/panel-editor/queries"
 
 import type { TraceFormSearch, TraceSearch } from "./search"
 import { parseDuration } from "./search-query"
+import { traceFilterLabels } from "./trace-filters"
 
 const durationProblem = "Use a number and a unit, like 250ms or 1.5s."
 const maxNameLength = 200
@@ -149,20 +150,20 @@ export function TraceSearchForm({
         <TextField
           ref={serviceRef}
           id={`${ids}-service`}
-          label="Service"
+          label={traceFilterLabels.service}
           value={service}
           onChange={edited(setService)}
           list={clickhouse ? `${ids}-services` : undefined}
         />
         <TextField
           id={`${ids}-span`}
-          label="Span name"
+          label={traceFilterLabels.span}
           value={span}
           onChange={edited(setSpan)}
         />
         <TextField
           id={`${ids}-min`}
-          label="Min duration"
+          label={traceFilterLabels.min}
           value={min}
           onChange={edited(setMin)}
           placeholder="250ms"
@@ -170,7 +171,7 @@ export function TraceSearchForm({
         />
         <TextField
           id={`${ids}-max`}
-          label="Max duration"
+          label={traceFilterLabels.max}
           value={max}
           onChange={edited(setMax)}
           placeholder="2s"
@@ -180,12 +181,12 @@ export function TraceSearchForm({
       {clickhouse ? <ServiceOptions id={`${ids}-services`} uid={uid} /> : null}
       <Label className="gap-2 text-[13px] font-normal">
         <Checkbox checked={errors} onCheckedChange={edited(setErrors)} />
-        Errors only
+        {traceFilterLabels.errors}
       </Label>
       {tempo ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${ids}-q`} className="text-[13px]">
-            TraceQL
+            {traceFilterLabels.q}
           </Label>
           <Textarea
             id={`${ids}-q`}
