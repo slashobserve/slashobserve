@@ -385,7 +385,7 @@ function LogsWorkspaceView({
             to={range.to}
           />
         ) : null}
-        <div className="flex min-h-96 min-w-0 flex-1 overflow-hidden rounded-card border bg-card">
+        <div className="flex min-h-[34rem] min-w-0 flex-1 overflow-hidden rounded-card border bg-card narrow:min-h-[48rem]">
           <FieldsAside />
           <ResultsSection
             actions={
