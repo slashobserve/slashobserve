@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -116,7 +117,7 @@ func repairTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID,
 	if !ok {
 		return 0, "", repairs.ReasonNothingToRepair, nil
 	}
-	mine, err := q.CountActiveHealthRepairsBy(ctx, dbsqlc.CountActiveHealthRepairsByParams{RequesterID: requester, PromptPrefix: repairPromptPrefix})
+	mine, err := q.CountActiveHealthRepairsBy(ctx, dbsqlc.CountActiveHealthRepairsByParams{RequesterID: requester, PromptPrefix: repairprompt.Prefix})
 	if err != nil {
 		return 0, "", "", fmt.Errorf("count active health repairs: %w", err)
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health/healthrule"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -126,7 +127,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 		DashboardIds:   p.DashboardIDs,
 		Kind:           kind,
 		UnopenedBefore: before,
-		RepairPrefix:   repairPromptPrefix,
+		RepairPrefix:   repairprompt.Prefix,
 		RowLimit:       httpapi.Int32(p.Limit + 1),
 	}
 	if cursor != nil {
