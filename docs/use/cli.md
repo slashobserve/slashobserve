@@ -210,8 +210,19 @@ Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <pa
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
 
+`bin/observe o reopen <observation-id>` reopens a resolved observation and prints `Reopened <title>`.
+
+`bin/observe o edit <observation-id>` changes the title with `--title <title>`, the range its panels show with `--from <time> --to <time>`, RFC 3339 times that go together, or removes the range with `--clear-range`, and prints `Updated <title>`.
+Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range` exits 2.
+
+`bin/observe o move <observation-id> --folder <folder-id>` files the observation in another folder and prints `Moved <title> to folder <id>`.
+It needs Edit on the observation and on the folder, and My Dashboards takes no moves.
+
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
+
+`bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
+`bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 
 `bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
 
@@ -220,7 +231,7 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-Renaming, moving or reopening an observation, and changing or removing a live block, are done in the web app or through the HTTP API.
+Changing or removing a live block is done in the web app or through the HTTP API.
 
 ## Saved searches
 
