@@ -46,7 +46,7 @@ A block someone requested also shows in the inbox of the person who created the 
 ### Open an observation
 
 **Observations** in the sidebar opens the list at `/observations`, with each observation's title, state, who opened it and when it last changed, most recently changed first.
-The **State** filter shows Open observations by default, or Resolved or All, and **Load more** fetches the next page.
+The **Open**, **Resolved** and **All** tabs above the list choose which observations show, Open by default, and **Load more** fetches the next page.
 Under **Observations** in the sidebar, up to five open observations are listed, indented, each with a green dot and in bold while it has unread inbox items, and **All observations** follows when more are open.
 On the icon rail, a dot on **Observations** shows that some are open.
 
