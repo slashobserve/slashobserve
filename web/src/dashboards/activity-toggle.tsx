@@ -1,4 +1,4 @@
-import { MessageSquareIcon } from "lucide-react"
+import { DockToggle } from "@/components/dock/dock-toggle"
 
 type Props = {
   pressed: boolean
@@ -19,16 +19,12 @@ export function ActivityToggle({
       : ""
   }`
   return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      aria-label={label}
+    <DockToggle
+      label={label}
+      count={openCount}
+      pressed={pressed}
       disabled={disabled}
-      onClick={onToggle}
-      className="flex h-[30px] items-center gap-1.5 rounded-control px-2 text-[13px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-pressed:bg-muted"
-    >
-      <MessageSquareIcon aria-hidden="true" className="size-4" />
-      {openCount > 0 ? <span className="tabular-nums">{openCount}</span> : null}
-    </button>
+      onToggle={onToggle}
+    />
   )
 }
