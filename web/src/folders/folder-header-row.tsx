@@ -40,7 +40,7 @@ export function FolderHeaderRow({
       <th
         scope="rowgroup"
         colSpan={columnCount}
-        className="border-b px-3.5 py-2.5 text-left font-normal"
+        className="border-b px-3.5 py-2.5 text-left font-normal narrow:basis-full narrow:border-0 narrow:p-0"
       >
         <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
           <Button
