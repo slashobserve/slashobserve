@@ -253,22 +253,49 @@ SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
   f.id AS finding_id
 FROM agent_requests r
-LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(@folders::uuid[])
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id
+  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[]))
 WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR ((r.pinned_at IS NOT NULL) = @cursor_pinned::boolean
       AND (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
     OR (@cursor_pinned::boolean AND r.pinned_at IS NULL))
 ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
+LIMIT @row_limit;
+
+-- name: ListAgentRequestsAll :many
+SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+  r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
+  r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
+  r.title, r.pinned_at, r.observation_id,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  d.title AS dashboard_title,
+  f.id AS finding_id
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id
+  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+WHERE r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
+  AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
+    OR (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 
 -- name: LockSuggestRequests :exec

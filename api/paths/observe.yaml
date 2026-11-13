@@ -21,20 +21,38 @@ agent:
 observe:
   get:
     operationId: listObserveRequests
-    summary: List the caller's own agent requests, newest first.
+    summary: "List agent requests, newest first: the caller's own, or everyone's for an Admin."
     description: >-
-      Only requests the caller made are listed; a user sees their own and a service account its own.
+      With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own.
+      `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403.
       `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`).
       `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard.
-      Archived requests are left out, and pinned requests come first, most recently pinned first.
+      `state` keeps the requests in any of the given states and may repeat.
+      Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only.
+      `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin.
       A new-dashboard request that failed has no dashboard and lives only in this list.
       Progress steps are not included; read `GET /observe/{id}` for them.
     parameters:
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum: [mine, all]
+          default: mine
       - name: source
         in: query
         schema:
           type: string
           enum: [observe, prompt, comment, investigate]
+      - name: state
+        in: query
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            enum: [queued, running, canceling, succeeded, failed, canceled]
       - name: q
         in: query
         schema:
@@ -82,6 +100,8 @@ observe:
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
@@ -195,7 +215,9 @@ observe-id:
     summary: Read one agent request with its progress steps and usage.
     description: >-
       Works for any agent request, including comment and prompt revisions.
-      A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404.
+      A request that has no dashboard yet, or never got one, is readable only by the principal that made it and by Admins; anyone else gets 404.
+      An Admin also reads a request on a dashboard it cannot see.
+      `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today.
       Clients poll it once a second until the status is `succeeded` or `failed`.
       After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone.
       `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build.
@@ -289,7 +311,8 @@ observe-id-build:
       cli: [observe]
     summary: Read the dashboard an agent request has built so far, with its ObserveSpec.
     description: >-
-      Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build.
+      Only the principal that made the request and Admins can read its build, and for a revision only while the reader can still view the dashboard; everyone else gets 404, as does a request without a build.
+      Saving a build stays with the requester.
       A new-dashboard request builds a dashboard that is not in any folder or list until it finishes.
       Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
     responses:
@@ -574,7 +597,7 @@ observe-id-build-panels-panel-id-data:
     description: >-
       The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions.
       This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet.
-      Only signed-in users who made the request may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404.
+      Only signed-in users who made the request, and signed-in Admins, may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404.
       The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests.
       `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`.
       The response has the shape of panel data, with `meta.cached` always false.
@@ -674,7 +697,7 @@ observe-id-build-variables-name-values:
     operationId: getBuildVariableValues
     summary: List the values of one variable of an agent request's build.
     description: >-
-      Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request only, 403 `user_session_required` for a key, 404 for anyone else.
+      Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request and signed-in Admins only, 403 `user_session_required` for a key, 404 for anyone else.
       Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
     parameters:
       - name: from
