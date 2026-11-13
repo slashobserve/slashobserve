@@ -17,6 +17,7 @@ import { findAgent, type AgentRef, type FoundAgent } from "./agent-ref"
 import { PresenceStatus, grantMark } from "./connected-table"
 import { observeAgentMark, PowerState } from "./observe-agent-card"
 import { agentsQuery } from "./queries"
+import { RecentWork } from "./recent-work"
 import { accountMark } from "./service-accounts-table"
 import { scopeLine, statCells, type Stats } from "./stats"
 
@@ -192,6 +193,15 @@ function LoadedAgent({ found }: { found: FoundAgent }) {
         </div>
       </header>
       <Details found={found} />
+      <RecentWork
+        agentRef={
+          found.kind === "observe"
+            ? { kind: "observe" }
+            : found.kind === "grant"
+              ? { kind: "grant", id: found.row.grant_id }
+              : { kind: "service_account", id: found.row.id }
+        }
+      />
     </div>
   )
 }

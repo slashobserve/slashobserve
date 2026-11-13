@@ -69,3 +69,20 @@ A connected agent works only for the person who connected it.
 An agent claims its runs with `claim_run`; see [Take runs as an agent](mcp.md#take-runs-as-an-agent) for the whole loop.
 A run that no outside agent took within 10 minutes fails with the code `agent_unavailable`, and its reply in the thread reads "No agent picked this up within 10 minutes."
 Retrying or continuing such a run goes to the same agent, and answers `assignee_unavailable` when that agent was disconnected or no longer takes runs.
+
+## Recent work
+
+The page of one agent, at `/agents/<ref>`, ends with a **Recent work** list of the runs behind its seven day counts, newest first.
+Each row shows the run's title, its state (Queued, Running, Stopping, Done, Failed or Canceled), when it was asked and the dashboard or observation it touched.
+"Load more" shows the next page, and an agent with no runs says "No runs yet."
+`GET /api/v1/agents/runs?kind=<builtin|grant|service_account>&id=<id>` returns the same list, 20 runs a page by default and at most 50, with the `next_cursor` of one page as the `cursor` of the next.
+The `id` is the grant id or the service account id, and it is refused for `builtin`.
+Like the page, it needs a signed-in person, and a service-account key gets 403 `user_session_required`.
+
+An Admin sees every run of the Observe Agent or of a service account, and the rows then say who asked.
+Anyone else sees only the runs they asked for.
+A connected agent's runs are listed only to the person who connected it, even after the connection was revoked or expired, and anyone else, an Admin included, gets 404 `not_found` for its id.
+A dashboard or observation in a folder you cannot see is left out of its row.
+A run opens only for the person who asked for it, so other people's runs show as plain text.
+Suggestion runs are not listed because they have no page to open, although the seven day counts above still include them.
+Archived runs are listed, because archiving only hides a run from its requester's own list.
