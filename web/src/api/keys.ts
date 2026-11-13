@@ -277,8 +277,6 @@ export const exploreKeys = {
   all: ["explore"] as const,
   query: (uid: string, params: ExploreParams) =>
     ["explore", uid, "query", params] as const,
-  tail: (uid: string, query: string, session: number) =>
-    ["explore", uid, "tail", query, session] as const,
   context: (uid: string, params: ContextParams) =>
     ["explore", uid, "context", params] as const,
   trace: (uid: string, id: string, range: { from: string; to: string }) =>

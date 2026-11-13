@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest"
 import {
   filterTarget,
   isStreamLabel,
-  planFilter,
   withFilter,
   type FilterTarget,
 } from "./query-filters"
@@ -320,115 +319,5 @@ describe("isStreamLabel", () => {
     ["a name that is not a label", "status", undefined, false],
   ])("answers for %s", (_label, name, indexed, expected) => {
     expect(isStreamLabel(name, labels, indexed)).toBe(expected)
-  })
-})
-
-describe("planFilter", () => {
-  const loki = (query: string) => ({ type: "loki", query, stream: false })
-  const search = (query: string) => ({
-    type: "elasticsearch",
-    query,
-    stream: false,
-  })
-
-  it.each([
-    [
-      "filters in a Loki field",
-      loki('{a="b"}'),
-      "in",
-      "status",
-      "500",
-      { text: '{a="b"} | status="500"' },
-    ],
-    [
-      "blocks a duplicate",
-      loki('{a="b"} | status="500"'),
-      "in",
-      "status",
-      "500",
-      { blocked: "Already in the query" },
-    ],
-    [
-      "blocks a query it cannot edit",
-      loki("error"),
-      "out",
-      "status",
-      "500",
-      { blocked: "Cannot edit this query" },
-    ],
-    [
-      "blocks a long value",
-      loki('{a="b"}'),
-      "in",
-      "status",
-      "x".repeat(201),
-      { blocked: "Too long to filter" },
-    ],
-    [
-      "has no exists on Loki",
-      loki('{a="b"}'),
-      "exists",
-      "status",
-      "",
-      { blocked: "Cannot edit this query" },
-    ],
-    [
-      "appends a KQL clause to an empty query",
-      search(""),
-      "in",
-      "http.status",
-      "503",
-      { text: 'http.status:"503"' },
-    ],
-    [
-      "appends a negated KQL clause and wraps a top-level or",
-      search("a:1 or b:2"),
-      "out",
-      "level",
-      "debug",
-      { text: '(a:1 or b:2) and not level:"debug"' },
-    ],
-    [
-      "appends an exists clause",
-      search("a:1"),
-      "exists",
-      "user.id",
-      "",
-      { text: "a:1 and user.id:*" },
-    ],
-    [
-      "keeps a kql prefix",
-      search("kql: a:1"),
-      "in",
-      "b",
-      "2",
-      { text: 'kql: a:1 and b:"2"' },
-    ],
-    [
-      "blocks a KQL duplicate",
-      search('a:1 and http.status:"503"'),
-      "in",
-      "http.status",
-      "503",
-      { blocked: "Already in the query" },
-    ],
-    [
-      "blocks Lucene",
-      search("lucene: a:1"),
-      "in",
-      "b",
-      "2",
-      { blocked: "Switch to KQL to filter from a line" },
-    ],
-    [
-      "blocks Query DSL",
-      search('{"query":{"match_all":{}}}'),
-      "in",
-      "b",
-      "2",
-      { blocked: "Switch to KQL to filter from a line" },
-    ],
-  ] as const)("%s", (_label, context, action, name, value, expected) => {
-    expect(planFilter(context, action, name, value)).toEqual(expected)
   })
 })

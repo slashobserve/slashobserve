@@ -17,6 +17,7 @@ export type Pill = {
   negate: boolean
   pinned: boolean
   paused: boolean
+  line?: true
 }
 
 export type NewPill = Omit<Pill, "id">
@@ -29,7 +30,8 @@ const operators: readonly RangeOperator[] = [">", ">=", "<", "<="]
 const negateFlag = 1
 const pinnedFlag = 2
 const pausedFlag = 4
-const allFlags = negateFlag | pinnedFlag | pausedFlag
+const lineFlag = 8
+const allFlags = negateFlag | pinnedFlag | pausedFlag | lineFlag
 
 type Entry = [
   PillKind,
@@ -55,7 +57,8 @@ function flagsOf(pill: NewPill): number {
   return (
     (pill.negate ? negateFlag : 0) |
     (pill.pinned ? pinnedFlag : 0) |
-    (pill.paused ? pausedFlag : 0)
+    (pill.paused ? pausedFlag : 0) |
+    (pill.line === true ? lineFlag : 0)
   )
 }
 
@@ -112,6 +115,7 @@ function pillOfEntry(entry: unknown, index: number): Pill | null {
     negate: (flags & negateFlag) !== 0,
     pinned: (flags & pinnedFlag) !== 0,
     paused: (flags & pausedFlag) !== 0,
+    ...((flags & lineFlag) !== 0 ? { line: true as const } : {}),
   }
   switch (base.kind) {
     case "is":
@@ -165,6 +169,7 @@ function sameClause(a: NewPill, b: NewPill): boolean {
     a.kind === b.kind &&
     a.field === b.field &&
     a.negate === b.negate &&
+    a.line === b.line &&
     a.op === b.op &&
     a.value === b.value &&
     (a.values ?? []).join("\0") === (b.values ?? []).join("\0")
@@ -227,7 +232,8 @@ function applyNativePill(
   pill: Pill
 ): string | null {
   if (pill.kind !== "is") return null
-  const stream = type === "loki" && !perLineLokiLabels.has(pill.field)
+  const stream =
+    type === "loki" && pill.line !== true && !perLineLokiLabels.has(pill.field)
   const target = filterTarget(type, pill.field, stream)
   return withFilter(
     query,
@@ -260,6 +266,47 @@ export function applyPills(
     (text, pill) => applyNativePill(text, type, pill) ?? text,
     query
   )
+}
+
+export type LineFilterAction = "in" | "out" | "exists"
+
+export type LineFilter = { pills: Pill[] } | { blocked: string }
+
+const maxLineFilterValueLength = 200
+
+export function lineFilter(
+  context: { type: string; query: string; stream: boolean },
+  pills: Pill[],
+  action: LineFilterAction,
+  field: string,
+  value: string
+): LineFilter {
+  const { type, query, stream } = context
+  const next: NewPill = {
+    kind: action === "exists" ? "exists" : "is",
+    field,
+    negate: action === "out",
+    pinned: false,
+    paused: false,
+    ...(type === "loki" && !stream ? { line: true as const } : {}),
+    ...(action === "exists" ? {} : { value }),
+  }
+  const probe: Pill = { ...next, id: "" }
+  if (!pillSupported(type, probe)) return { blocked: "Cannot edit this query" }
+  if (isSearchFamily(type) && splitForm(query).form !== "kql") {
+    return { blocked: "Switch to KQL to filter from a line" }
+  }
+  if (action !== "exists" && value.length > maxLineFilterValueLength) {
+    return { blocked: "Too long to filter" }
+  }
+  const added = addPill(pills, next)
+  if (added === pills) {
+    return {
+      blocked:
+        pills.length >= maxPills ? "Too many filters" : "Already a filter",
+    }
+  }
+  return { pills: added }
 }
 
 export function unpinnedCleared(pills: Pill[]): Pill[] {
