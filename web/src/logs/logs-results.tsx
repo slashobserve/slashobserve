@@ -407,7 +407,7 @@ export function LogsResults({
       <div
         role="toolbar"
         aria-label="Results view"
-        className="flex h-8 shrink-0 items-center gap-3 px-4 text-[13px] narrow:h-11 narrow:border-b narrow:border-border"
+        className="@container/toolbar flex h-8 shrink-0 items-center gap-3 px-4 text-[13px] narrow:h-11 narrow:border-b narrow:border-border"
       >
         <div className="flex items-center gap-2">
           <Label htmlFor={sortId} className="text-xs font-normal">
@@ -458,7 +458,7 @@ export function LogsResults({
             onChange={onColumnsChange}
           />
         )}
-        <span className="ml-auto text-xs text-muted-foreground max-[760px]:hidden">
+        <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground @max-[620px]/toolbar:hidden">
           j and k move, Enter expands
         </span>
       </div>
