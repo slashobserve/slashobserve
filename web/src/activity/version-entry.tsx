@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
+import { versionChangesSearch } from "@/history/search"
 import { versionActor } from "@/lib/origin"
 
 import { avatarFor, boxClass, DetailsLink, EntryFrame } from "./entry-frame"
@@ -26,7 +27,7 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
       <Link
         to="/d/$dashboardId/versions"
         params={{ dashboardId }}
-        search={n > 1 ? { from: n - 1, to: n, back } : { to: n, back }}
+        search={{ ...versionChangesSearch(n), back }}
         data-version={n}
         className={`${boxClass} flex items-center justify-between gap-2.5 no-underline outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring`}
       >

@@ -1,4 +1,3 @@
-import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,6 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+import { CheckLine } from "./check-line"
 import {
   dashboardProblems,
   healthyLabel,
@@ -23,21 +23,6 @@ import {
 import { ProblemGroups } from "./problem-groups"
 import { RepairControl } from "./repair-control"
 import { useDashboardHealth } from "./use-dashboard-health"
-
-function CheckLine({ item }: { item: HealthItem }) {
-  if (item.skipped === "depends_on_viewer")
-    return <>Skipped: reads the viewer</>
-  if (item.checked_at === null) return <>Not checked yet</>
-  return (
-    <>
-      Checked <RelativeTime iso={item.checked_at} />
-      {item.checked_version === null
-        ? null
-        : ` on version ${item.checked_version}`}
-      {item.state === "outdated" ? ", before the latest version" : null}
-    </>
-  )
-}
 
 function HealthyButton({ item }: { item: HealthItem }) {
   return (

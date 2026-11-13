@@ -34,7 +34,6 @@ type Props = {
   panelTitle: string | null
   onSelectPanel: (panelId: string) => void
   gate: AgentGate
-  latestVersion: number
   clientName: string
 }
 
@@ -49,7 +48,6 @@ export function ThreadEntry({
   panelTitle,
   onSelectPanel,
   gate,
-  latestVersion,
   clientName,
 }: Props) {
   const { thread, request, panelId, askedAgent } = entry
@@ -177,7 +175,6 @@ export function ThreadEntry({
           rootId={root.id}
           people={people}
           gate={gate}
-          latestVersion={latestVersion}
           onClose={closeReply}
         />
       ) : null}
