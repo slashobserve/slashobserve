@@ -304,6 +304,8 @@ paths:
     $ref: "./paths/grants.yaml#/grants-id"
   /agents:
     $ref: "./paths/agents.yaml#/agents"
+  /agents/runs:
+    $ref: "./paths/agents.yaml#/agent-runs"
   /inbox:
     $ref: "./paths/inbox.yaml#/inbox"
   /inbox/read:
@@ -750,6 +752,96 @@ components:
           type: number
           nullable: true
           description: Null when no run started.
+    AgentRun:
+      type: object
+      additionalProperties: false
+      required: [id, source, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [comment, prompt, observe, investigate]
+        title:
+          type: string
+          description: The requester's title, else the first line of the prompt cut to 120 characters, else the source word.
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+        result_kind:
+          type: string
+          enum: [none, version, partial_version, proposal, suggestion, observation]
+        failure_code:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        cost_usd:
+          type: number
+          nullable: true
+          description: The recorded run cost, null when the run has none.
+        requested_by:
+          type: object
+          additionalProperties: false
+          required: [kind, name]
+          properties:
+            kind:
+              type: string
+            name:
+              type: string
+        openable:
+          type: boolean
+          description: True when the caller requested the run, the only case in which its run page opens for them.
+        dashboard:
+          type: object
+          additionalProperties: false
+          nullable: true
+          required: [id, title]
+          description: Null when the run has no dashboard or the caller cannot see its folder.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+        observation:
+          type: object
+          additionalProperties: false
+          nullable: true
+          required: [id, title]
+          description: Null when the run has no observation or the caller cannot see its folder.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+    AgentRunPage:
+      type: object
+      additionalProperties: false
+      required: [scope, items, next_cursor]
+      properties:
+        scope:
+          type: string
+          enum: [workspace, you]
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AgentRun"
+        next_cursor:
+          type: string
+          nullable: true
     AgentsOverview:
       type: object
       additionalProperties: false

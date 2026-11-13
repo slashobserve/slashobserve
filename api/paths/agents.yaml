@@ -31,3 +31,73 @@ agents:
               $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+agent-runs:
+  get:
+    operationId: listAgentRuns
+    summary: List the recent runs of one agent.
+    description: >-
+      Lists the runs assigned to one agent, newest first, so the Agents page can show the work behind its seven day numbers.
+      `kind` is `builtin` for the Observe Agent, `grant` for one of the caller's connected agents or `service_account` for a service account that takes runs.
+      `id` is the grant id or the service account id, and it is required for `grant` and `service_account` and refused for `builtin`.
+      For `builtin` and `service_account`, an Admin sees every run of the agent (`scope` is `workspace`) and anyone else only the runs they requested (`scope` is `you`).
+      A `grant` is listed only for the person it belongs to, revoked or expired connections included so the history stays readable, and any other grant id answers 404 `not_found`, an Admin's too.
+      An unknown service account answers 404 `not_found`.
+      Suggestion runs are left out because they have no page to open, although the seven day numbers of `GET /agents` still count them; archived runs are included.
+      A dashboard or observation in a folder the caller cannot see comes back as null, never with its id or title.
+      `openable` is true only when the caller requested the run, because a run page opens only for the person who asked for it.
+      `title` is the requester's title or the start of the prompt, and never empty.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    parameters:
+      - name: kind
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [builtin, grant, service_account]
+      - name: id
+        in: query
+        description: The grant id or service account id; required for `grant` and `service_account`, refused for `builtin`.
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of runs.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRunPage"
+      "400":
+        description: The kind, id, limit or cursor is not valid (`invalid_request`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: The grant is not the caller's or the service account does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
