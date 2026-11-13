@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DatasourceStatus } from "@/datasources/queries"
+import { logsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { exploreErrorText } from "@/logs/explore"
 import { ExploreLogs } from "@/logs/logs-results"
@@ -205,13 +206,9 @@ function TraceLogsBody({
   const { ref, height } = useElementSize<HTMLDivElement>()
   const open = (
     <Link
-      to="/logs"
-      search={traceLogsSearch(
+      {...logsLink(
         datasource.uid,
-        datasource.type,
-        traceId,
-        window,
-        span?.id
+        traceLogsSearch(datasource.type, traceId, window, span?.id)
       )}
       className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
     >

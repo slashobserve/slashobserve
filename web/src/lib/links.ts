@@ -1,3 +1,6 @@
+import type { LogsSearch } from "@/logs/search"
+import type { TraceSearch } from "@/traces/search"
+
 import { stringifySearch } from "./search"
 
 const maxSlugLength = 60
@@ -71,15 +74,32 @@ export function proposalLink(proposalId: string) {
   return { to: "/proposals/$proposalId", params: { proposalId } } as const
 }
 
-export type LogsLinkSearch = {
-  ds?: string
-  q?: string
-  from?: string
-  to?: string
+export function logsLink(uid: string, search: LogsSearch = {}) {
+  return {
+    to: "/logs/$datasourceUid",
+    params: { datasourceUid: uid },
+    search,
+  } as const
 }
 
-export function logsUrl(search: LogsLinkSearch): string {
-  return "/logs" + stringifySearch(search)
+export function tracesLink(uid: string, search: TraceSearch = {}) {
+  return {
+    to: "/traces/$datasourceUid",
+    params: { datasourceUid: uid },
+    search,
+  } as const
+}
+
+export function logsPath(uid: string): string {
+  return path("logs", uid)
+}
+
+export function tracesPath(uid: string): string {
+  return path("traces", uid)
+}
+
+export function logsUrl(uid: string, search: LogsSearch = {}): string {
+  return logsPath(uid) + stringifySearch(search)
 }
 
 type TraceRange = { from: string; to: string }

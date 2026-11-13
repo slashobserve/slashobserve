@@ -19,11 +19,13 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
-| `/logs` | The logs page; `ds`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
-| `/traces` | The trace search; `ds`, `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
+
+`/logs` and `/traces` open the source you used last on this browser, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 

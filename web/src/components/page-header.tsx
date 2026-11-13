@@ -12,7 +12,8 @@ type Props = {
 }
 
 export function PageHeader({ title, description, actions, headingId }: Props) {
-  const inBar = headingInPhoneBar(title, useCrumbs())
+  const { crumbs } = useCrumbs()
+  const inBar = headingInPhoneBar(title, crumbs)
   return (
     <div
       className={cn(

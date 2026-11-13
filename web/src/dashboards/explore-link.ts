@@ -1,14 +1,8 @@
+import { logsLink, tracesLink } from "@/lib/links"
 import type { DataPanel, PanelQuery } from "@/spec"
 
 export type ExploreTarget =
-  | {
-      to: "/logs"
-      search: { ds: string; q: string; from?: string; to?: string }
-    }
-  | {
-      to: "/traces"
-      search: { ds: string; q?: string; from?: string; to?: string }
-    }
+  ReturnType<typeof logsLink> | ReturnType<typeof tracesLink>
 
 export type ExploreProblem =
   | "not-a-logs-or-traces-panel"
@@ -48,12 +42,10 @@ export function exploreTarget(
   if (panel.type === "traces" && datasourceType(ds) === "clickhouse") {
     return { problem: "clickhouse-traces-query" }
   }
-  const search = { ds, q: query.query, ...range }
+  const search = { q: query.query, ...range }
   return {
     target:
-      panel.type === "logs"
-        ? { to: "/logs", search }
-        : { to: "/traces", search },
+      panel.type === "logs" ? logsLink(ds, search) : tracesLink(ds, search),
   }
 }
 
