@@ -26,6 +26,7 @@ export type LogsWorkspace = {
   datasource: DatasourceStatus
   datasources: DatasourceStatus[]
   search: LogsSearch
+  effectiveQuery: string | undefined
   update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
   draft: string
   setDraft: (text: string) => void
