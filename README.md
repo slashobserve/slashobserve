@@ -18,7 +18,7 @@ You need Docker with Compose v2.20 or newer.
 The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, and took about a minute on a fast connection.
 Without `make`, run `docker compose -f deploy/compose/compose.yaml up -d --wait`; it reads the same environment variables.
 
-Open http://localhost:8080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by pod, last 6h`.
+Open http://localhost:8080, sign in as `admin@example.com` with the password `password`, and choose **New** > **Ask Observe Agent** to type a prompt such as `checkout health by pod, last 6h`.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 Without an LLM provider the demo still starts, but prompts answer `503 agent_unavailable`.
 
@@ -35,11 +35,15 @@ Contributors build the demo from source with `make demo-build`.
   A save runs every panel query and rejects a panel whose query fails or returns no data.
 - Follow-up prompts revise the same dashboard.
   Every change is a saved version that you can compare and restore.
-- Findings, the saved answers of an investigation, which live in folders and follow the folder's access.
-- Comment threads on dashboards, findings and annotations, with edits, and `@observe` mentions that are recorded in the activity log.
-  A comment on a panel can also go to the agent as a revision request.
+- Observations, pages of text, live panels and frozen snapshots that answer one question, which live in folders and follow the folder's access.
+  An investigation saves its answer into one, and so can a person or an outside agent.
+- Proposals: a change saved by someone who can only comment, or by an agent in propose mode, waits for an Editor to review and merge it, with a choice per conflict.
+- Comment threads on dashboards, observations, annotations and proposals, with edits.
+  A comment that mentions an agent and asks it to run hands it the work: the built-in `@observe`, one of your connected agents or a service account that takes runs, and the answer comes back in the thread.
+- An Inbox of what needs you: proposals to review, requested blocks, mentions, replies and runs that failed.
+- An Agents page that shows the built-in agent, your connected agents and the service accounts that take runs, with each agent's seven days of work and a direct or propose mode for each connected agent.
 - One activity log of who changed what, in the web app, the CLI, MCP and signed webhooks that an Admin configures.
-- One search across dashboards, findings, annotations, comments and saved searches, from the command palette, the CLI and MCP.
+- One search across dashboards, observations, annotations, comments and saved searches, from the command palette, the CLI and MCP.
 - A logs page and a trace view, and saved logs and trace searches that the team can reuse.
 - A panel editor for queries, settings and JSON, for changes that do not need the agent.
 - 21 data panel types, among them time series, stat, table, heatmap, logs, traces, geomap and canvas, plus text, dashboard list, news and rows.
@@ -47,6 +51,7 @@ Contributors build the demo from source with `make demo-build`.
 - Import of Grafana dashboard JSON, with a report of what carried over and what did not.
 - Sign-in through your OIDC provider, four roles, and folders with access lists.
 - MCP over OAuth, where the client acts as the person who approved it, or over a service-account key for bots.
+  An outside agent can also claim the runs assigned to it with `claim_run` and work them under the guards of the built-in agent.
   The `/observe` guide for outside agents is served as an MCP prompt and ships as an agent skill that the CLI installs.
 - The estimated cost of each agent run, and an optional spend limit.
 
@@ -61,7 +66,7 @@ It reads six datasource types and imports Grafana dashboards, from JSON or from 
 Grafana supports many more datasources and has alerting, which SlashObserve does not have yet.
 
 From chat-with-your-metrics tools.
-The answer is a saved dashboard or finding and not a chat reply: it has an address, comment threads and folder access, and a dashboard keeps refreshing from your datasources after the conversation ends.
+The answer is a saved dashboard or observation and not a chat reply: it has an address, comment threads and folder access, and a dashboard keeps refreshing from your datasources after the conversation ends.
 The agent can only save a dashboard definition, which the server checks before it keeps it.
 You can also bring your own agent: MCP clients use the same tools and the same checks, and what they change is recorded under the name of the person they act for.
 
@@ -86,7 +91,7 @@ Install it with the script below, download it from the [releases page](https://g
 
     curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | sh
 
-An Admin creates a service-account key on the **API keys** page; then:
+An Admin creates a service-account key on the **API keys** page, which the Agents page links to; then:
 
     observe login --server http://localhost:8080
     observe "checkout p99 latency, last 6h"
