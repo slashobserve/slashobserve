@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ChevronDownIcon, ChevronUpIcon, Columns3Icon } from "lucide-react"
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { useMemo, useState, type ReactNode } from "react"
 
 import { StatusLabel } from "@/components/status-label"
@@ -79,13 +79,16 @@ function SortHeader({
   return (
     <HeaderCell
       aria-sort={active?.direction ?? "none"}
-      className={cn("p-0", column.align === "right" && "text-right")}
+      className={cn(
+        "h-8 bg-canvas p-0 text-xs",
+        column.align === "right" && "text-right"
+      )}
     >
       <button
         type="button"
         onClick={() => onSort(column.key)}
         className={cn(
-          "flex w-full items-center gap-1 px-3.5 py-[9px] text-left hover:text-foreground",
+          "flex h-full w-full items-center gap-1 px-3.5 text-left hover:text-foreground",
           column.align === "right" && "flex-row-reverse text-right",
           active !== null && "text-foreground"
         )}
@@ -243,10 +246,16 @@ function ColumnsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="xs" className="ml-auto" />}
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="font-normal narrow:h-11"
+          />
+        }
       >
-        <Columns3Icon aria-hidden="true" />
         Columns
+        <ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {columns
@@ -335,31 +344,40 @@ function SortedTraceTable({
     rows.some((row) => row.start !== null && row.durationMs !== null)
 
   return (
-    <div className="flex flex-col gap-2">
-      {plotted ? (
-        <DurationScatter
-          rows={rows}
-          range={range}
-          window={window}
-          datasourceUid={datasourceUid}
-          highlighted={highlighted}
-          onHighlight={setHighlighted}
-          p95Ms={p95}
-          p95Label={p95Label}
-          ariaLabel={
-            p95Ms !== undefined && p95 !== null
-              ? `Duration of matching traces; the ${p95Label} is ${durationText(p95)}`
-              : undefined
-          }
-          selection={selection}
-          onSelectionChange={onSelectionChange}
-          selectedCount={listed.length}
-          selectionActions={selectionActions}
-        />
-      ) : null}
-      {selectionPanel}
-      <div className="flex h-8 flex-wrap items-center gap-3 text-[13px]">
-        <h2 className="font-medium">
+    <div className="flex flex-col gap-3">
+      <div
+        className={cn(
+          "grid gap-4",
+          selectionPanel !== undefined
+            ? "grid-cols-[minmax(0,1fr)_384px] max-[1100px]:grid-cols-1"
+            : "narrow:hidden"
+        )}
+      >
+        {plotted ? (
+          <DurationScatter
+            rows={rows}
+            range={range}
+            window={window}
+            datasourceUid={datasourceUid}
+            highlighted={highlighted}
+            onHighlight={setHighlighted}
+            p95Ms={p95}
+            p95Label={p95Label}
+            ariaLabel={
+              p95Ms !== undefined && p95 !== null
+                ? `Duration of matching traces; the ${p95Label} is ${durationText(p95)}`
+                : undefined
+            }
+            selection={selection}
+            onSelectionChange={onSelectionChange}
+            selectedCount={listed.length}
+            selectionActions={selectionActions}
+          />
+        ) : null}
+        {selectionPanel}
+      </div>
+      <div className="flex min-h-7 flex-wrap items-center gap-x-3 text-[13px]">
+        <h2 className="font-semibold">
           {selection === null
             ? countText(rows.length, "trace")
             : countText(listed.length, "selected trace")}
@@ -370,12 +388,17 @@ function SortedTraceTable({
             {rows.length.toLocaleString("en")}.
           </p>
         ) : null}
-        <p className="text-muted-foreground">
+        <p className="ml-auto text-xs text-muted-foreground">
           {sortHint(sort)} Sorting applies to this page.
         </p>
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
-      <TableCard label="Traces" stackOnNarrow minWidth={760}>
+      <TableCard
+        label="Traces"
+        stackOnNarrow
+        minWidth={760}
+        className="bg-card"
+      >
         <thead>
           <tr>
             {shownColumns.map((column) => (

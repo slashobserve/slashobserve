@@ -306,60 +306,30 @@ export function DurationScatter({
   return (
     <section
       aria-label="Duration over time"
-      className="flex flex-col gap-1.5 rounded-card border bg-background px-3.5 pt-3 pb-2.5 narrow:hidden"
+      className="flex min-w-0 flex-col gap-2 rounded-card border bg-card px-4 py-3 narrow:hidden"
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h2 className="text-[13px] font-medium">Duration over time</h2>
-          {selection === null ? (
-            <p className="text-xs text-muted-foreground">
-              Each dot is a trace. Drag across the chart to select some and see
-              what sets them apart.
-            </p>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground">
-                {selectionText(selection, selectedCount, undefined)}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                aria-label="Clear the selection"
-                onClick={() => onSelectionChange(null)}
-              >
-                Clear
-              </Button>
-              {selectionActions}
-            </>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs">
-          <Legend>
-            <span
-              aria-hidden="true"
-              className="size-2 rounded-full bg-series-1"
-            />
-            OK
-          </Legend>
-          <Legend>
-            <span
-              aria-hidden="true"
-              className="size-2 rounded-full bg-status-critical"
-            />
-            Error
-          </Legend>
-          {p95Ms !== null ? (
-            <Legend>
-              <span
-                aria-hidden="true"
-                className="w-3.5 border-t border-dashed border-series-3"
-              />
-              {p95Label}
-            </Legend>
-          ) : null}
-        </div>
+      <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <h2 className="text-[13px] font-semibold">Duration over time</h2>
+        {selection !== null ? (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              aria-label="Clear the selection"
+              onClick={() => onSelectionChange(null)}
+            >
+              Clear
+            </Button>
+            {selectionActions}
+          </div>
+        ) : null}
       </div>
+      <p className="text-xs text-muted-foreground">
+        {selection === null
+          ? "Each dot is a trace. Drag across the chart to select some and see what sets them apart."
+          : selectionText(selection, selectedCount, undefined)}
+      </p>
       <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-x-1.5">
         <div
           aria-hidden="true"
@@ -487,6 +457,31 @@ export function DurationScatter({
             {timeLabel(tick, xSpan, undefined)}
           </span>
         ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pl-[50px] text-xs">
+        <Legend>
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full bg-series-1"
+          />
+          OK
+        </Legend>
+        <Legend>
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full bg-status-critical"
+          />
+          Error
+        </Legend>
+        {p95Ms !== null ? (
+          <Legend>
+            <span
+              aria-hidden="true"
+              className="w-3.5 border-t border-dashed border-series-3"
+            />
+            {p95Label}
+          </Legend>
+        ) : null}
       </div>
     </section>
   )

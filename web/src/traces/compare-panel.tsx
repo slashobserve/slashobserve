@@ -51,7 +51,7 @@ function DifferenceRow({
   onFilter: (next: Partial<TraceSearch>) => void
 }) {
   return (
-    <li className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_3.5rem] items-center gap-x-4 border-t border-border py-1.5">
+    <li className="grid grid-cols-[minmax(0,5fr)_minmax(0,4fr)_52px] items-center gap-x-3 border-t border-border py-[7px]">
       <div className="flex min-w-0 flex-col font-mono text-xs">
         <span className="truncate text-muted-foreground">
           {difference.attribute}
@@ -135,7 +135,7 @@ function Differences({
         <ul className="flex flex-col text-[13px]">
           <li
             aria-hidden="true"
-            className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_3.5rem] gap-x-4 pb-1 text-xs text-muted-foreground"
+            className="grid grid-cols-[minmax(0,5fr)_minmax(0,4fr)_52px] gap-x-3 pb-1 text-xs text-muted-foreground"
           >
             <span>Attribute</span>
             <span>Share of traces</span>
@@ -240,10 +240,10 @@ export function ComparePanel({
   return (
     <section
       aria-labelledby={headingId}
-      className="flex flex-col gap-2.5 rounded-card border bg-background px-3.5 py-3"
+      className="flex min-w-0 flex-col gap-2 rounded-card border bg-card px-4 py-3"
     >
       <div className="flex flex-col gap-0.5">
-        <h2 id={headingId} className="text-[13px] font-medium">
+        <h2 id={headingId} className="text-[13px] font-semibold">
           {heading}
         </h2>
         {compare.data !== undefined && comparable ? (
