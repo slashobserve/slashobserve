@@ -275,9 +275,17 @@ function FieldGroup({
 }
 
 export function FieldsAside() {
-  const { datasource, search, effectiveQuery, range, setDraft, run } =
+  const { datasource, search, effectiveQuery, range, setDraft, run, detail } =
     useLogsWorkspace()
-  const [open, setOpen] = useState(storedFacetsOpen)
+  const [shown, setShown] = useState(storedFacetsOpen)
+  const lineOpen = detail.selection !== null
+  const [lineWasOpen, setLineWasOpen] = useState(lineOpen)
+  const [foldedByLine, setFoldedByLine] = useState(lineOpen)
+  if (lineOpen !== lineWasOpen) {
+    setLineWasOpen(lineOpen)
+    setFoldedByLine(lineOpen)
+  }
+  const open = shown && !foldedByLine
   const [filterText, setFilterText] = useState("")
   const [openField, setOpenField] = useState<string | null>(null)
   const uid = datasource.uid
@@ -311,7 +319,8 @@ export function FieldsAside() {
   const groups = splitFields(rows, selected, filterText)
 
   function toggle(next: boolean) {
-    setOpen(next)
+    setShown(next)
+    setFoldedByLine(false)
     storeFacetsOpen(next)
   }
 
