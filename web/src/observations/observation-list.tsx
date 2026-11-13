@@ -90,10 +90,7 @@ export function ObservationList({ state, creating, onChange }: Props) {
   return (
     <>
       <PageHeader title="Observations" actions={newObservation} />
-      <FilterToolbar
-        label="Observation filters"
-        onClear={filtered ? clearFilters : undefined}
-      >
+      <FilterToolbar label="Observation filters">
         <Tabs
           value={state}
           onValueChange={(next) => {
