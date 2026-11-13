@@ -1,7 +1,12 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 
-import { parseMemory, rememberIn } from "./datasource-memory"
+import {
+  parseMemory,
+  recentSources,
+  rememberIn,
+  useSourceMemory,
+} from "./datasource-memory"
 
 describe("parseMemory", () => {
   it("reads lists most recent first", () => {
@@ -60,5 +65,29 @@ describe("rememberIn", () => {
     expect(next).toHaveLength(20)
     expect(next[0]).toBe("new")
     expect(next).not.toContain("s19")
+  })
+})
+
+describe("useSourceMemory", () => {
+  beforeEach(() => {
+    const loaded = { logs: ["a", "b"], traces: ["t"] }
+    useSourceMemory.setState({ ...loaded, atLoad: loaded })
+  })
+
+  it("records a use for the live list and leaves the list from load alone", () => {
+    useSourceMemory.getState().remember("logs", "b")
+
+    expect(recentSources("logs")).toEqual(["b", "a"])
+    expect(useSourceMemory.getState().atLoad).toEqual({
+      logs: ["a", "b"],
+      traces: ["t"],
+    })
+  })
+
+  it("records a use of a source that was never used before", () => {
+    useSourceMemory.getState().remember("traces", "new")
+
+    expect(recentSources("traces")).toEqual(["new", "t"])
+    expect(useSourceMemory.getState().atLoad.traces).toEqual(["t"])
   })
 })

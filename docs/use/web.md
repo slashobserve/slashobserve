@@ -25,7 +25,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
-`/logs` and `/traces` open the source you used last on this browser, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
+`/logs` and `/traces` open the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 

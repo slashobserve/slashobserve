@@ -19,10 +19,10 @@ import {
 
 export function useExploreSources(kind: ExploreKind) {
   const { data, isPending, isError, error, refetch } = useDatasources()
-  const recent = useSourceMemory((state) => state[kind])
+  const recentAtLoad = useSourceMemory((state) => state.atLoad[kind])
   const sources = useMemo(
-    () => orderSources(sourcesOf(kind, data), recent),
-    [kind, data, recent]
+    () => orderSources(sourcesOf(kind, data), recentAtLoad),
+    [kind, data, recentAtLoad]
   )
   return { sources, isPending, isError, error, refetch }
 }

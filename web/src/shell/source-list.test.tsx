@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { act, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import { datasourceKeys } from "@/api/keys"
@@ -47,13 +47,18 @@ function renderList(
   })
 }
 
+function setRecentAtLoad(logs: string[]) {
+  const loaded = { logs, traces: [] }
+  useSourceMemory.setState({ ...loaded, atLoad: loaded })
+}
+
 beforeEach(() => {
-  useSourceMemory.setState({ logs: [], traces: [] })
+  setRecentAtLoad([])
 })
 
 describe("SourceList", () => {
   it("lists the sources recent first, then by name", async () => {
-    useSourceMemory.setState({ logs: ["c"] })
+    setRecentAtLoad(["c"])
     renderList([
       source("a", "Alpha"),
       source("b", "Beta"),
@@ -66,6 +71,25 @@ describe("SourceList", () => {
         .getAllByRole("link")
         .map((link) => link.textContent)
     ).toEqual(["GammaLogQL", "AlphaLogQL", "BetaLogQL"])
+  })
+
+  it("keeps the order on screen when a source is opened", async () => {
+    setRecentAtLoad(["c"])
+    renderList([
+      source("a", "Alpha"),
+      source("b", "Beta"),
+      source("c", "Gamma"),
+    ])
+    const list = await screen.findByRole("list", { name: "Log sources" })
+
+    act(() => useSourceMemory.getState().remember("logs", "b"))
+
+    expect(
+      within(list)
+        .getAllByRole("link")
+        .map((link) => link.textContent)
+    ).toEqual(["GammaLogQL", "AlphaLogQL", "BetaLogQL"])
+    expect(useSourceMemory.getState().logs).toEqual(["b", "c"])
   })
 
   it("links each source to its own page", async () => {
