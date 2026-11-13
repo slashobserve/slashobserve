@@ -150,7 +150,7 @@ func TestSearchRouteMatchesTheDocument(t *testing.T) {
 	})
 
 	t.Run("kind repeats to search several kinds", func(t *testing.T) {
-		body := decode(t, d.get(t, admin, "q=heron&kind=finding&kind=comment", http.StatusOK))
+		body := decode(t, d.get(t, admin, "q=heron&kind=observation&kind=comment", http.StatusOK))
 		kinds := map[string]int{}
 		for _, r := range body.Results {
 			kinds[r.Kind]++
@@ -160,15 +160,15 @@ func TestSearchRouteMatchesTheDocument(t *testing.T) {
 		}
 	})
 
-	t.Run("finding and observation together return the observation once", func(t *testing.T) {
-		body := decode(t, d.get(t, admin, "q=heron&kind=finding&kind=observation", http.StatusOK))
+	t.Run("a repeated kind returns the observation once", func(t *testing.T) {
+		body := decode(t, d.get(t, admin, "q=heron&kind=observation&kind=observation", http.StatusOK))
 		if len(body.Results) != 1 || body.Results[0].Kind != "observation" || body.Results[0].URL == nil || !strings.Contains(*body.Results[0].URL, "/o/") {
 			t.Fatalf("body %+v", body)
 		}
 	})
 
 	t.Run("a snippet marks the matched word", func(t *testing.T) {
-		body := decode(t, d.get(t, admin, "q=heron&kind=finding", http.StatusOK))
+		body := decode(t, d.get(t, admin, "q=heron&kind=observation", http.StatusOK))
 		if len(body.Results) != 1 || len(body.Results[0].Snippet) == 0 {
 			t.Fatalf("body %+v", body)
 		}
@@ -207,6 +207,7 @@ func TestSearchRouteAnswersEveryError(t *testing.T) {
 		{"a query with no word", admin, "q=--", http.StatusBadRequest, "invalid_request", "q needs a word to search for"},
 		{"a control character", admin, "q=a%00b", http.StatusBadRequest, "invalid_request", "q must not contain control characters"},
 		{"an unknown kind", admin, "q=heron&kind=folder", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, observation, annotation, comment, saved_search"},
+		{"the removed finding kind", admin, "q=heron&kind=finding", http.StatusBadRequest, "invalid_request", "kind must be one of dashboard, observation, annotation, comment, saved_search"},
 		{"a limit above the ceiling", admin, "q=heron&limit=51", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a limit of zero", admin, "q=heron&limit=0", http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 50"},
 		{"a cursor that is not ours", admin, "q=heron&cursor=garbage", http.StatusBadRequest, "invalid_request", "cursor is not valid"},

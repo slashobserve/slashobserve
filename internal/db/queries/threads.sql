@@ -35,9 +35,6 @@ SELECT id FROM dashboards WHERE id = @id FOR KEY SHARE;
 -- name: LockDashboardKeyShareSkipLocked :one
 SELECT id FROM dashboards WHERE id = @id FOR KEY SHARE SKIP LOCKED;
 
--- name: ObservationOfFinding :one
-SELECT observation_id FROM findings WHERE id = @id;
-
 -- name: LockObservationKeyShare :one
 SELECT id FROM observations WHERE id = @id FOR KEY SHARE;
 

@@ -24,7 +24,6 @@ type Kind string
 
 const (
 	KindDashboard   Kind = "dashboard"
-	KindFinding     Kind = "finding"
 	KindAnnotation  Kind = "annotation"
 	KindObservation Kind = "observation"
 	KindComment     Kind = "comment"
@@ -44,15 +43,12 @@ func Kinds() []Kind {
 }
 
 func (k Kind) Valid() bool {
-	return k == KindFinding || slices.Contains(Kinds(), k)
+	return slices.Contains(Kinds(), k)
 }
 
-func normalize(kinds []Kind) []Kind {
+func distinct(kinds []Kind) []Kind {
 	out := make([]Kind, 0, len(kinds))
 	for _, k := range kinds {
-		if k == KindFinding {
-			k = KindObservation
-		}
 		if !slices.Contains(out, k) {
 			out = append(out, k)
 		}
@@ -160,7 +156,7 @@ func kindNames(kinds []Kind) []string {
 	if len(kinds) == 0 {
 		kinds = Kinds()
 	}
-	kinds = normalize(kinds)
+	kinds = distinct(kinds)
 	names := make([]string, len(kinds))
 	for i, k := range kinds {
 		names[i] = string(k)

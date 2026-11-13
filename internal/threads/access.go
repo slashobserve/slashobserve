@@ -24,25 +24,8 @@ type scope struct {
 	abilities folders.Abilities
 }
 
-func (s *Service) resolve(ctx context.Context, t Target) (Target, error) {
-	if t.Kind != KindFinding {
-		return t, nil
-	}
-	id, err := s.db.Queries().ObservationOfFinding(ctx, t.ID)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return Target{}, ErrTargetNotFound
-	case err != nil:
-		return Target{}, fmt.Errorf("resolve finding target: %w", err)
-	}
-	return Target{Kind: KindObservation, ID: id}, nil
-}
-
 func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (scope, error) {
-	t, err := s.resolve(ctx, t)
-	if err != nil {
-		return scope{}, err
-	}
+	var err error
 	var dashboard pgtype.UUID
 	var owner activity.Owner
 	var abilities folders.Abilities
@@ -65,7 +48,7 @@ func (s *Service) scopeOf(ctx context.Context, by auth.Principal, t Target) (sco
 		dashboard, abilities, err = s.proposals.Access(ctx, by, t.ID)
 		owner = activity.OnDashboard(dashboard)
 	default:
-		return scope{}, invalidTarget("target kind must be dashboard, finding or annotation, observation or proposal")
+		return scope{}, invalidTarget("target kind must be dashboard, annotation, observation or proposal")
 	}
 	switch {
 	case isHidden(err):

@@ -62,7 +62,7 @@ func TestCommentsCommands(t *testing.T) {
 	}, ",") + `],"next_cursor":null}`
 	envelope := func(c string) string { return `{"comment":` + c + `}` }
 	threadsPage := `{"threads":[` + strings.Join([]string{
-		threadJSON(testThread, "finding", testFinding, "", true, "open", "null"),
+		threadJSON(testThread, "observation", testFinding, "", true, "open", "null"),
 		threadJSON(testReply, "dashboard", testDashboard, testPanel, false, "resolved", "2"),
 	}, ",") + `],"messages":[` + strings.Join([]string{
 		messageJSON(testThread, testThread, "Ada", "is this real?"),
@@ -70,13 +70,13 @@ func TestCommentsCommands(t *testing.T) {
 		messageJSON(testReply, testReply, "Eve\u202eevil", "gone panel"),
 	}, ",") + `],"next_cursor":"next","can_comment":true}`
 	threadResolved := func(version string) string {
-		return `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "resolved", version) + `}`
+		return `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "resolved", version) + `}`
 	}
-	messageEnvelope := `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `,"message":` + messageJSON(testReply, testThread, "Ada", "x") + `}`
-	on := "finding:" + testFinding
+	messageEnvelope := `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "open", "null") + `,"message":` + messageJSON(testReply, testThread, "Ada", "x") + `}`
+	on := "observation:" + testFinding
 	messageWith := func(extra string) string {
 		message := messageJSON(testReply, testThread, "Ada", "@observe go")
-		return `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `,"message":` + strings.TrimSuffix(message, "}") + `,` + extra + `}}`
+		return `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "open", "null") + `,"message":` + strings.TrimSuffix(message, "}") + `,` + extra + `}}`
 	}
 	startedMessageEnvelope := messageWith(`"run":{"id":"` + testRun + `","status":"queued","assigned_kind":"builtin"},"run_refusal":null`)
 	refusedMessageEnvelope := messageWith(`"run":null,"run_refusal":{"code":"too_many_runs","message":"the dashboard already has its limit of runs"}`)
@@ -263,10 +263,10 @@ func TestCommentsCommands(t *testing.T) {
 			response:   threadsPage,
 			wantMethod: http.MethodGet,
 			wantPath:   "/api/v1/threads",
-			wantQuery:  "limit=50&status=open&target=finding%3A" + testFinding,
+			wantQuery:  "limit=50&status=open&target=observation%3A" + testFinding,
 			wantOut: []string{
-				testThread + " - finding open Ada",
-				"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee " + testThread + " finding open Observe Agent for Sam",
+				testThread + " - observation open Ada",
+				"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee " + testThread + " observation open Observe Agent for Sam",
 				testReply + " - " + testPanel + " (removed) resolved Eve evil",
 			},
 			wantNotOut: []string{"\u202e"},
@@ -286,7 +286,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   threadsPage,
 			wantMethod: http.MethodGet,
 			wantPath:   "/api/v1/threads",
-			wantQuery:  "limit=50&status=open&target=finding%3A" + testFinding,
+			wantQuery:  "limit=50&status=open&target=observation%3A" + testFinding,
 			wantOut:    []string{`"can_comment":true`},
 		},
 		{
@@ -318,25 +318,25 @@ func TestCommentsCommands(t *testing.T) {
 		},
 		{
 			name:     "list rejects a target without an id",
-			args:     []string{"comments", "list", "--on", "finding"},
+			args:     []string{"comments", "list", "--on", "observation"},
 			wantCode: 2,
-			wantErr:  `--on "finding" is not <kind>:<id>`,
+			wantErr:  `--on "observation" is not <kind>:<id>`,
 		},
 		{
 			name:     "list rejects a target with a bad id",
-			args:     []string{"comments", "list", "--on", "finding:nope"},
+			args:     []string{"comments", "list", "--on", "observation:nope"},
 			wantCode: 2,
-			wantErr:  `--on "finding:nope" is not <kind>:<id>`,
+			wantErr:  `--on "observation:nope" is not <kind>:<id>`,
 		},
 		{
-			name:       "add starts a thread on a finding",
+			name:       "add starts a thread on an observation",
 			args:       []string{"comments", "add", "--on", on, "looks", "wrong"},
 			status:     http.StatusCreated,
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
 			wantBody:   `{"body":"looks wrong","target":"` + on + `"}`,
-			wantOut:    []string{"Started thread " + testThread + " on finding:" + testFinding},
+			wantOut:    []string{"Started thread " + testThread + " on observation:" + testFinding},
 		},
 		{
 			name:       "add anchors to a panel and a version",
@@ -574,7 +574,7 @@ func TestCommentsCommands(t *testing.T) {
 		{
 			name:       "reopen sends no body",
 			args:       []string{"comments", "reopen", testThread},
-			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			response:   `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "open", "null") + `}`,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
 			wantOut:    []string{"Reopened thread " + testThread},
@@ -582,7 +582,7 @@ func TestCommentsCommands(t *testing.T) {
 		{
 			name:       "reopen with --quiet prints nothing",
 			args:       []string{"-q", "comments", "reopen", testThread},
-			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			response:   `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "open", "null") + `}`,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
 			wantExact:  new(string),
@@ -590,7 +590,7 @@ func TestCommentsCommands(t *testing.T) {
 		{
 			name:       "reopen with --json prints the body",
 			args:       []string{"comments", "reopen", "--json", testThread},
-			response:   `{"thread":` + threadJSON(testThread, "finding", testFinding, "", true, "open", "null") + `}`,
+			response:   `{"thread":` + threadJSON(testThread, "observation", testFinding, "", true, "open", "null") + `}`,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/reopen",
 			wantOut:    []string{`"thread"`},

@@ -46,6 +46,15 @@ type rig struct {
 	open         pgtype.UUID
 }
 
+func (r rig) general(t *testing.T) pgtype.UUID {
+	t.Helper()
+	var raw string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE general`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	return mustUUID(t, raw)
+}
+
 func newRig(t *testing.T) rig {
 	t.Helper()
 	d := dbtest.New(t)

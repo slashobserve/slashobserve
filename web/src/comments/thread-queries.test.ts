@@ -29,7 +29,7 @@ const ada = {
 function thread(id: string, createdAt: string): Thread {
   return {
     id,
-    target: { kind: "finding", id: "f1" },
+    target: { kind: "observation", id: "f1" },
     dashboard_id: null,
     version: null,
     panel_id: null,

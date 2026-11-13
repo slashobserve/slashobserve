@@ -178,8 +178,6 @@ paths:
     $ref: "./paths/findings.yaml#/findings-id-pin"
   /findings/{id}/dashboard:
     $ref: "./paths/findings.yaml#/findings-id-dashboard"
-  /findings/{id}/move:
-    $ref: "./paths/findings.yaml#/findings-id-move"
   /findings/{id}/panels/{panel_id}/data:
     $ref: "./paths/findings.yaml#/findings-id-panels-panel-id-data"
   /observations:
@@ -1408,7 +1406,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [dashboard, finding, annotation, observation]
+          enum: [dashboard, annotation, observation]
         id:
           type: string
           format: uuid
@@ -1421,8 +1419,7 @@ components:
       properties:
         kind:
           type: string
-          description: "`finding` is never returned any more: a finding is found as its observation."
-          enum: [dashboard, finding, annotation, observation, comment, saved_search]
+          enum: [dashboard, annotation, observation, comment, saved_search]
         id:
           type: string
           format: uuid
@@ -2236,8 +2233,7 @@ components:
           properties:
             kind:
               type: string
-              description: "`finding` is a deprecated alias that is never returned: a thread on a finding is a thread on its observation, so it answers `observation`."
-              enum: [dashboard, finding, annotation, observation, proposal]
+              enum: [dashboard, annotation, observation, proposal]
             id:
               type: string
               format: uuid
@@ -2245,12 +2241,12 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The dashboard the thread is on; null for a finding or annotation.
+          description: The dashboard the thread is on; null for an annotation or an observation.
         version:
           type: integer
           minimum: 1
           nullable: true
-          description: The dashboard version the thread is anchored to; null for a finding or annotation.
+          description: The dashboard version the thread is anchored to; null for an annotation or an observation.
         panel_id:
           type: string
           nullable: true

@@ -15,7 +15,6 @@ import {
   BotIcon,
   ChartGanttIcon,
   DatabaseIcon,
-  FileTextIcon,
   FlagIcon,
   InboxIcon,
   KeyIcon,
@@ -68,7 +67,6 @@ const pageIcons: Record<PagePath, LucideIcon> = {
 
 const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
   dashboard: LayoutDashboardIcon,
-  finding: FileTextIcon,
   comment: MessageSquareIcon,
   annotation: FlagIcon,
   observation: NotebookTextIcon,

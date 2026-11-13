@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	testObservation = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	testBlock       = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	testPanelBlock  = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	testObservedURL = "https://observe.example.com/o/" + testObservation
+	testObservation  = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	testBlock        = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	testPanelBlock   = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	testFolderTarget = "eeeeeeee-1111-4111-8111-eeeeeeeeeeee"
+	testObservedURL  = "https://observe.example.com/o/" + testObservation
 )
 
 func observationJSON(blocks string) string {

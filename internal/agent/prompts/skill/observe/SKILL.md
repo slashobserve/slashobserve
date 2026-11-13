@@ -53,7 +53,6 @@ Find the signal with the discovery tools and query_range, and look for causes be
 Save the answer in an observation: create_observation files one in a folder (list_folders gives a folder_id), and add_block adds a text block (Markdown, no HTML), a panel block whose query returns data in its range, or a snapshot that freezes a panel block.
 Put a one-sentence answer first, then the evidence.
 No tool queues an investigation on the server; you do the work with your own model.
-create_finding, list_findings and move_finding are deprecated adapters over observations; use the observation tools.
 
 ## Keep an observation
 

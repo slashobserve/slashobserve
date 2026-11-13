@@ -83,7 +83,7 @@ func (r response) expect(t *testing.T, status int, code string) {
 func TestOpeningAThreadOnEachTargetAnswersThreadAndMessage(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t, "rps")
-	finding := r.createFinding(t, testUser, dash)
+	finding := r.filedObservation(t, testUser, dash)
 	global := r.createAnnotation(t, testUser, pgtype.UUID{})
 	bo := r.createUser(t, "Bo Baker", "bo@example.com")
 
@@ -107,10 +107,10 @@ func TestOpeningAThreadOnEachTargetAnswersThreadAndMessage(t *testing.T) {
 		t.Errorf("mentions = %v", onPanel.at(t, "message", "mentions"))
 	}
 
-	onFinding := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": "finding:" + finding.String(), "body": "agreed"})
+	onFinding := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": "observation:" + finding.String(), "body": "agreed"})
 	onFinding.expect(t, http.StatusCreated, "")
 	if onFinding.at(t, "thread", "dashboard_id") != nil || onFinding.at(t, "thread", "version") != nil ||
-		onFinding.at(t, "thread", "target", "kind") != "observation" || onFinding.at(t, "thread", "target", "id") != r.observationOf(t, finding).String() {
+		onFinding.at(t, "thread", "target", "kind") != "observation" || onFinding.at(t, "thread", "target", "id") != finding.String() {
 		t.Errorf("finding thread = %v", onFinding.body["thread"])
 	}
 
@@ -124,17 +124,13 @@ func TestOpeningAThreadOnEachTargetAnswersThreadAndMessage(t *testing.T) {
 func TestListingThreadsPagesByMessages(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t, "rps")
-	finding := r.createFinding(t, testUser, dash)
-	targetValue := "finding:" + finding.String()
+	observation := r.filedObservation(t, testUser, dash)
+	targetValue := "observation:" + observation.String()
 	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "first"})
 	threadID := opened.at(t, "thread", "id").(string)
 	r.call(t, commenter, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "second"}).expect(t, http.StatusCreated, "")
 	r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "third"}).expect(t, http.StatusCreated, "")
-	other := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "other thread"})
-	other.expect(t, http.StatusCreated, "")
-	if other.at(t, "thread", "id") != threadID {
-		t.Fatalf("a second open on a finding opened thread %v, want a reply in %s", other.at(t, "thread", "id"), threadID)
-	}
+	r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "other thread"}).expect(t, http.StatusCreated, "")
 
 	first := r.call(t, viewer, http.MethodGet, "/threads?limit=2&target="+targetValue, nil)
 	first.expect(t, http.StatusOK, "")
@@ -191,8 +187,8 @@ func TestListingAThreadShowsItsQueuedRevision(t *testing.T) {
 func TestAViewerReadsAFindingThreadButCannotWriteToIt(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
-	finding := r.createFinding(t, testUser, dash)
-	targetValue := "finding:" + finding.String()
+	finding := r.filedObservation(t, testUser, dash)
+	targetValue := "observation:" + finding.String()
 	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "look"})
 	threadID := opened.at(t, "thread", "id").(string)
 
@@ -212,8 +208,8 @@ func TestAViewerReadsAFindingThreadButCannotWriteToIt(t *testing.T) {
 
 func TestAHiddenTargetOrThreadAnswersNotFound(t *testing.T) {
 	r := newRig(t)
-	detached := r.createFindingIn(t, admin, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	targetValue := "finding:" + detached.String()
+	detached := r.filedObservationIn(t, admin, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
+	targetValue := "observation:" + detached.String()
 	opened := r.call(t, admin, http.MethodPost, "/threads", map[string]any{"target": targetValue, "body": "private"})
 	opened.expect(t, http.StatusCreated, "")
 	threadID := opened.at(t, "thread", "id").(string)

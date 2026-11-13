@@ -174,8 +174,6 @@ func TestSearchKindFilter(t *testing.T) {
 	}{
 		{[]Kind{KindDashboard}, 2},
 		{[]Kind{KindObservation}, 4},
-		{[]Kind{KindFinding}, 4},
-		{[]Kind{KindFinding, KindObservation}, 4},
 		{[]Kind{KindAnnotation}, 2},
 		{[]Kind{KindComment}, 8},
 		{[]Kind{KindSavedSearch}, 1},
@@ -389,7 +387,7 @@ func TestSearchResultsCarryTheirPlaceAndAddress(t *testing.T) {
 	}
 }
 
-func TestAFindingKindMeansObservation(t *testing.T) {
+func TestAnObservationIsReturnedOnceWhateverKindsAreAsked(t *testing.T) {
 	r := newRig(t)
 	converted := r.finding(t, findingIn{title: "marmot burrow", markdown: "marmot tunnels under the road\nsecond line", summary: "marmot tunnels under the road"})
 	r.finding(t, findingIn{title: "other", markdown: "nothing relevant"})
@@ -400,9 +398,7 @@ func TestAFindingKindMeansObservation(t *testing.T) {
 	}{
 		{"no kinds", nil},
 		{"observation", []Kind{KindObservation}},
-		{"finding", []Kind{KindFinding}},
-		{"finding and observation", []Kind{KindFinding, KindObservation}},
-		{"observation twice and finding", []Kind{KindObservation, KindFinding, KindObservation}},
+		{"observation twice", []Kind{KindObservation, KindObservation}},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -413,22 +409,17 @@ func TestAFindingKindMeansObservation(t *testing.T) {
 		})
 	}
 
-	t.Run("a finding kind alone does not also search the other kinds", func(t *testing.T) {
-		r.dashboard(t, "marmot dashboard", mustUUID(t, r.text(t, `SELECT general_folder_id()::text`)), "")
-		if got := r.search(t, admin, "marmot", KindFinding); len(got) != 1 || got[0].ID != converted {
-			t.Fatalf("results %v", titles(got))
-		}
-	})
 }
 
-func TestTheDefaultSearchNeverReturnsTheFindingKind(t *testing.T) {
-	w := buildWorld(t)
-	for _, result := range w.search(t, admin, "zebra") {
-		if result.Kind == KindFinding {
-			t.Errorf("result %s has the finding kind", result.ID)
+func TestOnlyTheListedKindsAreValid(t *testing.T) {
+	for _, kind := range Kinds() {
+		if !kind.Valid() {
+			t.Errorf("kind %s is listed but not valid", kind)
 		}
 	}
-	if slices.Contains(Kinds(), KindFinding) || !KindFinding.Valid() || Kind("folder").Valid() {
-		t.Errorf("kinds %v, finding valid %v, folder valid %v", Kinds(), KindFinding.Valid(), Kind("folder").Valid())
+	for _, name := range []string{"finding", "folder", ""} {
+		if Kind(name).Valid() {
+			t.Errorf("kind %q is valid", name)
+		}
 	}
 }

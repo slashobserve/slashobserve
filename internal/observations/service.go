@@ -292,7 +292,7 @@ func checkedUpdate(in UpdateInput) (string, error) {
 }
 
 func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Observation, error) {
-	moved, err := s.move(ctx, by, id, folderID, nil)
+	moved, err := s.move(ctx, by, id, folderID)
 	if err != nil {
 		return Observation{}, err
 	}
@@ -303,7 +303,7 @@ func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgty
 	return s.Get(ctx, by, id)
 }
 
-func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID, inTx func(q *dbsqlc.Queries) error) (bool, error) {
+func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (bool, error) {
 	current, _, abilities, err := s.open(ctx, by, id)
 	if err != nil {
 		return false, err
@@ -338,12 +338,8 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 		if err := activity.Move(ctx, q, activity.OnObservation(id), target.ID); err != nil {
 			return err
 		}
-		err = appendEvent(ctx, q, activity.TypeObservationMoved, who, id,
+		return appendEvent(ctx, q, activity.TypeObservationMoved, who, id,
 			movedEventData{Title: moved.Title, FromFolderID: row.FolderID.String(), ToFolderID: target.ID.String()})
-		if err != nil || inTx == nil {
-			return err
-		}
-		return inTx(q)
 	})
 	return err == nil, err
 }

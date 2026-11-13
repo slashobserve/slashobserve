@@ -12,7 +12,7 @@ import (
 
 const commentPreviewRunes = 80
 
-var commentTargetKinds = []string{"dashboard", "annotation", "observation", "proposal", "finding"}
+var commentTargetKinds = []string{"dashboard", "annotation", "observation", "proposal"}
 
 type commentListOptions struct {
 	pageOptions
@@ -117,7 +117,7 @@ func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
 		Short: "Comment on dashboards, observations, annotations and proposals",
-		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nThe kind finding is deprecated: it resolves to the discussion of the finding's observation.\nMention a person in a comment as @[Name](user:<id>), the built-in agent as @observe, one of your connected agents as @[Name](grant:<id>) and a service account that takes runs as @[Name](service_account:<id>).\nA mention is recorded in the activity log and starts no run unless add or reply is given --start-runs.",
+		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>), the built-in agent as @observe, one of your connected agents as @[Name](grant:<id>) and a service account that takes runs as @[Name](service_account:<id>).\nA mention is recorded in the activity log and starts no run unless add or reply is given --start-runs.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -138,7 +138,7 @@ func parseOn(raw string) (string, error) {
 	}
 	kind, id, found := strings.Cut(raw, ":")
 	if !found || !slices.Contains(commentTargetKinds, kind) || !idPattern.MatchString(id) {
-		return "", usagef("--on %q is not <kind>:<id> with kind dashboard, annotation, observation or proposal; finding is deprecated and means observation", text(raw))
+		return "", usagef("--on %q is not <kind>:<id> with kind dashboard, annotation, observation or proposal", text(raw))
 	}
 	return raw, nil
 }

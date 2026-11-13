@@ -48,7 +48,7 @@ function message(
 
 const thread: Thread = {
   id: "t1",
-  target: { kind: "finding", id: "f1" },
+  target: { kind: "observation", id: "f1" },
   dashboard_id: null,
   version: null,
   panel_id: null,

@@ -237,8 +237,6 @@ func TestSavingAFindingAsADashboardMatchesTheDocument(t *testing.T) {
 func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 	d := newDocumented(t)
 	onDashboard := d.save(t, editor, findings.SaveInput{DashboardID: d.open})
-	own := d.save(t, editor, findings.SaveInput{})
-	shared := d.folder(t, "Incidents")
 	id := onDashboard.ID
 	routes := []struct {
 		name         string
@@ -251,7 +249,6 @@ func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 		{"get of a missing finding", http.MethodGet, "/api/v1/findings/99999999-9999-4999-8999-999999999999", "", http.StatusNotFound},
 		{"pin", http.MethodPost, "/api/v1/findings/" + id + "/pin", "", http.StatusCreated},
 		{"save as a dashboard", http.MethodPost, "/api/v1/findings/" + id + "/dashboard", "", http.StatusConflict},
-		{"move", http.MethodPost, "/api/v1/findings/" + own.ID + "/move", `{"folder_id":"` + shared.String() + `"}`, http.StatusOK},
 	}
 	for _, c := range routes {
 		t.Run(c.name, func(t *testing.T) {
@@ -260,5 +257,16 @@ func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 				t.Fatalf("Deprecation %q, want @1794355200", got)
 			}
 		})
+	}
+}
+
+func TestTheFindingMoveRouteIsGone(t *testing.T) {
+	d := newDocumented(t)
+	f := d.save(t, editor, findings.SaveInput{})
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/findings/"+f.ID+"/move", strings.NewReader(`{}`))
+	rec := httptest.NewRecorder()
+	d.engine.ServeHTTP(rec, request)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("POST /findings/{id}/move answered %d, want 404", rec.Code)
 	}
 }

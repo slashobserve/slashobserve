@@ -25,9 +25,7 @@ const (
 	defaultLimit = 20
 	maxLimit     = 100
 
-	maxMoveBodyBytes        = 1 << 10
-	deprecationValue        = "@1794355200"
-	moveIntoPersonalMessage = "a finding cannot move into My Dashboards"
+	deprecationValue = "@1794355200"
 )
 
 type FindingAuthorJSON struct {
@@ -123,7 +121,6 @@ func (h *Handler) Register(api auth.Routes) {
 	api.GET("/findings/:id", auth.RoleViewer, h.get)
 	api.POST("/findings/:id/pin", auth.RoleViewer, h.pin)
 	api.POST("/findings/:id/dashboard", auth.RoleViewer, h.saveDashboard)
-	api.POST("/findings/:id/move", auth.RoleViewer, h.move)
 }
 
 func (h *Handler) render(f Finding) FindingJSON {
@@ -201,33 +198,6 @@ func (h *Handler) pin(c *gin.Context) {
 	c.JSON(http.StatusCreated, annotations.JSONOf(a))
 }
 
-type moveRequest struct {
-	FolderID string `json:"folder_id"`
-}
-
-func (h *Handler) move(c *gin.Context) {
-	MarkDeprecated(c)
-	id, ok := httpapi.UUIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var body moveRequest
-	if !httpapi.DecodeBody(c, &body, maxMoveBodyBytes) {
-		return
-	}
-	folderID, err := db.ParseUUID(body.FolderID)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "folder_id must be a UUID")
-		return
-	}
-	f, err := h.service.Move(c.Request.Context(), httpapi.Caller(c), id, folderID)
-	if err != nil {
-		h.fail(c, "move finding", err)
-		return
-	}
-	c.JSON(http.StatusOK, envelopeOf(h.render(f), f.Folder, f.Abilities))
-}
-
 func (h *Handler) saveDashboard(c *gin.Context) {
 	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
@@ -255,10 +225,6 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
 	case errors.Is(err, ErrPlacement):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrPlacement.Error())
-	case errors.Is(err, ErrOnDashboard):
-		httpapi.AbortError(c, http.StatusConflict, "finding_on_dashboard", ErrOnDashboard.Error())
-	case errors.Is(err, folders.ErrMoveIntoPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", moveIntoPersonalMessage)
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
 	case errors.Is(err, ErrNoDashboard):

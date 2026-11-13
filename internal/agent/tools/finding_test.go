@@ -117,7 +117,7 @@ func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 		refused bool
 		message string
 	}{
-		{"save_finding outside a run", editor, nameSaveFinding, `{}`, true, "save_finding runs inside the agent; MCP clients use create_finding"},
+		{"save_finding outside a run", editor, nameSaveFinding, `{}`, true, "save_finding runs inside the agent; MCP clients use create_observation"},
 		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard"},
 		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels"},
 		{"query_range in an investigation", investigate, nameQueryRange, `{"datasource":"fake","query":"up"}`, false, ""},
@@ -158,8 +158,6 @@ func TestOfferedInSplitsTheToolsByMode(t *testing.T) {
 		{nameImportGrafana, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
 		{nameSaveFinding, []Mode{ModeCreate, ModeRevise, ModeInvestigate}},
 		{nameListAnnotations, []Mode{ModeInvestigate}},
-		{nameListFindings, modes},
-		{nameCreateFinding, nil},
 		{nameListComments, nil},
 	}
 	for _, c := range cases {
@@ -233,197 +231,6 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	}
 	if !f.From.Equal(from) || !f.To.Equal(findingWindowTo) || f.Title != "why are checkout errors up" || f.DashboardID != "" {
 		t.Errorf("finding = %s to %s %q dashboard %q", f.From, f.To, f.Title, f.DashboardID)
-	}
-}
-
-func TestCreateFindingKeepsHiddenDashboardsHidden(t *testing.T) {
-	r := newFindingRig(t)
-	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec(hiddenTitle)), "create")
-	if err != nil {
-		t.Fatal(err)
-	}
-	hidden, err := db.ParseUUID(board.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, hiddenFolder, privateGroup))
-	input := `{"markdown":"payroll is late","dashboard_id":"` + board.ID + `"}`
-	if res := r.callIn(t, nil, editorCaller, nameCreateFinding, input); errorCode(t, res) != codeNotFound {
-		t.Fatalf("hidden dashboard: %#v", res.Content)
-	}
-	res := r.callIn(t, nil, adminCaller, nameCreateFinding, `{"markdown":"payroll is late","title":"Payroll","dashboard_id":"`+board.ID+`","from":"now-3h","to":"now"}`)
-	createdOut, ok := res.Content.(findingCreatedOut)
-	created := createdOut.FindingJSON
-	if res.IsError || !ok || created.Title != "Payroll" || created.DashboardID == nil || *created.DashboardID != board.ID || created.AgentRequestID != nil {
-		t.Fatalf("visible dashboard: %#v", res.Content)
-	}
-	if res := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"x","title":"two\nlines"}`); errorCode(t, res) != codeInvalidRequest {
-		t.Errorf("a two-line title: %#v", res.Content)
-	}
-	if res := r.callIn(t, nil, viewerCaller, nameCreateFinding, `{"markdown":"x"}`); errorCode(t, res) != codeForbiddenRole {
-		t.Errorf("a viewer: %#v", res.Content)
-	}
-}
-
-func TestListFindingsPagesTheCallersFindings(t *testing.T) {
-	r := newFindingRig(t)
-	for i := range 3 {
-		if res := r.callIn(t, nil, editorCaller, nameCreateFinding, fmt.Sprintf(`{"markdown":"finding %d"}`, i)); res.IsError {
-			t.Fatalf("create: %#v", res.Content)
-		}
-	}
-	if res := r.callIn(t, nil, keyCaller, nameCreateFinding, `{"markdown":"someone else"}`); res.IsError {
-		t.Fatalf("create: %#v", res.Content)
-	}
-	var seen []string
-	cursor := ""
-	for pages := 0; ; pages++ {
-		if pages > 3 {
-			t.Fatal("the list did not end")
-		}
-		input := `{"limit":2}`
-		if cursor != "" {
-			input = `{"limit":2,"cursor":"` + cursor + `"}`
-		}
-		res := r.callIn(t, nil, viewerCaller, nameListFindings, input)
-		if res.IsError {
-			t.Fatalf("list: %#v", res.Content)
-		}
-		if len(res.Content.(findingListOut).Findings) != 0 {
-			t.Fatalf("a viewer sees another principal's findings: %#v", res.Content)
-		}
-		res = r.callIn(t, nil, editorCaller, nameListFindings, input)
-		page := res.Content.(findingListOut)
-		for _, f := range page.Findings {
-			seen = append(seen, f.Markdown)
-		}
-		if page.NextCursor == nil {
-			break
-		}
-		cursor = *page.NextCursor
-	}
-	if want := []string{"finding 2", "finding 1", "finding 0"}; strings.Join(seen, ",") != strings.Join(want, ",") {
-		t.Errorf("listed %v, want %v", seen, want)
-	}
-	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"cursor":"nope"}`); errorCode(t, res) != codeInvalidRequest {
-		t.Errorf("a bad cursor: %#v", res.Content)
-	}
-}
-
-func TestCreateFindingFilesInAFolderTheCallerMayWriteTo(t *testing.T) {
-	r := newFindingRig(t)
-	open, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Incidents"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	folderID := open.ID.String()
-	res := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"disk is full","folder_id":"`+folderID+`"}`)
-	createdOut, ok := res.Content.(findingCreatedOut)
-	created := createdOut.FindingJSON
-	if res.IsError || !ok || createdOut.Notice != noticeCreateFinding || created.ObservationID != created.ID || created.FolderID == nil || *created.FolderID != folderID || created.DashboardID != nil {
-		t.Fatalf("filed finding: %#v", res.Content)
-	}
-	res = r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+folderID+`"}`)
-	list, ok := res.Content.(findingListOut)
-	if res.IsError || !ok || len(list.Findings) != 1 || list.Findings[0].ID != created.ID || list.Findings[0].FolderID == nil || *list.Findings[0].FolderID != folderID {
-		t.Fatalf("folder list: %#v", res.Content)
-	}
-	res = r.callIn(t, nil, editorCaller, nameListFindings, `{}`)
-	if all, ok := res.Content.(findingListOut); res.IsError || !ok || len(all.Findings) != 1 {
-		t.Fatalf("own list: %#v", res.Content)
-	}
-}
-
-func TestCreateFindingRefusesWhatTheFolderCannotTake(t *testing.T) {
-	r := newFindingRig(t)
-	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
-	if err != nil {
-		t.Fatal(err)
-	}
-	restricted := foldertest.Restricted(t, r.db, hiddenFolder, privateGroup)
-	missing := "99999999-9999-4999-8999-999999999999"
-	cases := []struct {
-		name  string
-		by    auth.Principal
-		input string
-		code  string
-	}{
-		{"a dashboard and a folder", editorCaller, `{"markdown":"x","dashboard_id":"` + board.ID + `","folder_id":"` + missing + `"}`, codeInvalidRequest},
-		{"a folder id that is not a uuid", editorCaller, `{"markdown":"x","folder_id":"nope"}`, codeInvalidRequest},
-		{"an unknown folder", editorCaller, `{"markdown":"x","folder_id":"` + missing + `"}`, codeNotFound},
-		{"a folder the caller cannot see", editorCaller, `{"markdown":"x","folder_id":"` + restricted.String() + `"}`, codeNotFound},
-	}
-	for _, c := range cases {
-		if res := r.callIn(t, nil, c.by, nameCreateFinding, c.input); errorCode(t, res) != c.code {
-			t.Errorf("%s: %#v, want %s", c.name, res.Content, c.code)
-		}
-	}
-	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+missing+`"}`); errorCode(t, res) != codeNotFound {
-		t.Errorf("listing an unknown folder: %#v", res.Content)
-	}
-	if res := r.callIn(t, nil, editorCaller, nameListFindings, `{"folder_id":"`+missing+`","dashboard_id":"`+board.ID+`"}`); errorCode(t, res) != codeInvalidRequest {
-		t.Errorf("listing by dashboard and folder: %#v", res.Content)
-	}
-}
-
-func TestMoveFindingSharesAFindingWithAnotherFolder(t *testing.T) {
-	r := newFindingRig(t)
-	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
-	if err != nil {
-		t.Fatal(err)
-	}
-	onBoard := r.callIn(t, nil, adminCaller, nameCreateFinding, `{"markdown":"on a board","dashboard_id":"`+board.ID+`"}`).Content.(findingCreatedOut).FindingJSON
-	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'eve', 'eve@example.com', 'Eve')`, editorCaller.ID)
-	filed := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"disk is full"}`).Content.(findingCreatedOut).FindingJSON
-	target, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	elsewhere, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Platform"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	shared := r.callIn(t, nil, adminCaller, nameCreateFinding, `{"markdown":"shared","folder_id":"`+target.ID.String()+`"}`).Content.(findingCreatedOut).FindingJSON
-	var personal string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, editorCaller.ID).Scan(&personal); err != nil {
-		t.Fatal(err)
-	}
-	missing := "99999999-9999-4999-8999-999999999999"
-	move := func(by auth.Principal, run *Run, finding, folder string) Result {
-		return r.callIn(t, run, by, nameMoveFinding, `{"finding_id":"`+finding+`","folder_id":"`+folder+`"}`)
-	}
-
-	cases := []struct {
-		name   string
-		result Result
-		code   string
-	}{
-		{"a finding on a dashboard", move(adminCaller, nil, onBoard.ID, target.ID.String()), codeInvalidRequest},
-		{"an unknown finding", move(editorCaller, nil, missing, target.ID.String()), codeNotFound},
-		{"an unknown folder", move(editorCaller, nil, filed.ID, missing), codeNotFound},
-		{"My Dashboards", move(editorCaller, nil, filed.ID, personal), codeInvalidRequest},
-		{"a Viewer on a finding it cannot edit", move(viewerCaller, nil, shared.ID, elsewhere.ID.String()), codeForbiddenRole},
-		{"a Commenter on a finding it cannot edit", move(commenterCaller, nil, shared.ID, elsewhere.ID.String()), codeForbiddenRole},
-		{"a finding id that is not a uuid", move(editorCaller, nil, "nope", target.ID.String()), codeInvalidRequest},
-		{"a folder id that is not a uuid", move(editorCaller, nil, filed.ID, "nope"), codeInvalidRequest},
-		{"inside a run", move(editorCaller, &Run{Mode: ModeCreate}, filed.ID, target.ID.String()), codeInvalidRequest},
-	}
-	for _, c := range cases {
-		if got := errorCode(t, c.result); got != c.code {
-			t.Errorf("%s: %#v, want %s", c.name, c.result.Content, c.code)
-		}
-	}
-	if body := cases[len(cases)-1].result.Content.(errorBody); body.Message != "move_finding is for MCP clients; a run saves only dashboards or a finding" {
-		t.Errorf("in-run message = %q", body.Message)
-	}
-
-	res := move(editorCaller, nil, filed.ID, target.ID.String())
-	out, ok := res.Content.(findingMovedOut)
-	if res.IsError || !ok || out.ID != filed.ID || out.Notice != noticeMoveFinding || out.Folder != "Payments" || out.FolderID == nil || *out.FolderID != target.ID.String() {
-		t.Fatalf("move: %#v", res.Content)
-	}
-	if again := move(editorCaller, nil, filed.ID, target.ID.String()); again.IsError {
-		t.Errorf("moving into the folder it is in: %#v", again.Content)
 	}
 }
 
@@ -592,18 +399,5 @@ func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
 	if err != nil || !after.ObservationID.Valid || saved.URL != "/o/"+after.ObservationID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
-	}
-}
-
-func TestCreateFindingTellsTheCallerItIsDeprecated(t *testing.T) {
-	r := newFindingRig(t)
-	res := r.callIn(t, nil, editorCaller, nameCreateFinding, `{"markdown":"disk is full"}`)
-	created, ok := res.Content.(findingCreatedOut)
-	if res.IsError || !ok || created.Notice != noticeCreateFinding || created.ObservationID != created.ID || created.URL != "/o/"+created.ObservationID {
-		t.Fatalf("create: %#v", res.Content)
-	}
-	list, ok := r.callIn(t, nil, editorCaller, nameListFindings, `{}`).Content.(findingListOut)
-	if !ok || list.Notice != noticeListFindings || len(list.Findings) != 1 || list.Findings[0].ObservationID != created.ObservationID {
-		t.Fatalf("list: %#v", list)
 	}
 }

@@ -394,7 +394,7 @@ export interface paths {
         };
         /**
          * Search dashboards, observations, annotations, comments and saved searches by words.
-         * @description Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals. A caller finds only what it can open: a dashboard and its annotations and comments through the dashboard's folder, an observation, its comments and a saved search through the folder each is in, and a global annotation and its comments through General. A finding's text lives in its observation, so a finding is found as that observation. Only the latest version of a dashboard is searched. `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space. Results stop after 200 per query; refine the words to see more.
+         * @description Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals. A caller finds only what it can open: a dashboard and its annotations and comments through the dashboard's folder, an observation, its comments and a saved search through the folder each is in, and a global annotation and its comments through General. Only the latest version of a dashboard is searched. `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space. Results stop after 200 per query; refine the words to see more.
          */
         get: operations["searchWorkspace"];
         put?: never;
@@ -953,14 +953,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the comment threads on a dashboard, a finding, an annotation, an observation or a proposal.
-         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, an annotation on a dashboard follows that dashboard, a global annotation follows the General folder, an observation follows the folder it is in, and a proposal follows its dashboard. `finding:<id>` is deprecated and resolves to the finding's observation discussion, so a finding follows its observation's folder and the threads answer with `target.kind` `observation`. A target the caller cannot see answers 404, never 403.
+         * List the comment threads on a dashboard, an annotation, an observation or a proposal.
+         * @description Pages through the messages of the target's threads, oldest first, and returns each message with the thread it belongs to. `limit` counts messages, so a thread can continue on the next page; `threads` holds only the threads that appear on this page. `can_comment` says whether the caller may start threads and write messages on the target. Reading needs View on the target: a dashboard follows its folder, an annotation on a dashboard follows that dashboard, a global annotation follows the General folder, an observation follows the folder it is in, and a proposal follows its dashboard. A target the caller cannot see answers 404, never 403.
          */
         get: operations["listThreads"];
         put?: never;
         /**
-         * Start a thread on a dashboard, a finding, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on a finding, an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. Starting a thread on `finding:<id>` is deprecated and resolves to the finding's observation: when that observation already has a discussion, the message is added to it as a reply and the answer is 201 with the discussion thread and the new message. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message. A grant that is not yours, revoked or expired, or a service account that takes no runs, answers 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded and shows in the activity log, and notifies no one. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role` or `too_many_runs`. A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * Start a thread on a dashboard, an annotation, an observation or a proposal.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message. A grant that is not yours, revoked or expired, or a service account that takes no runs, answers 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded and shows in the activity log, and notifies no one. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role` or `too_many_runs`. A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1865,29 +1865,6 @@ export interface paths {
          * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["saveFindingAsDashboard"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/findings/{id}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Move a finding without a dashboard into another folder.
-         * @deprecated
-         * @description Moving moves the finding's observation, which shares the finding with the readers of the target folder; a finding moved out of My Dashboards is published. It needs Edit on the finding and on the target folder. A finding on a dashboard answers 409 `finding_on_dashboard`, and a move into a personal folder answers 409 `personal_folder`. Moving a finding into the folder it is already in changes nothing. The move is recorded as `finding.moved` beside the observation's `observation.moved`, and the finding's earlier activity moves to the target folder with it. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
-         */
-        post: operations["moveFinding"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3911,17 +3888,14 @@ export interface components {
         /** @description What a comment is on; null for every other kind. */
         SearchTarget: {
             /** @enum {string} */
-            kind: "dashboard" | "finding" | "annotation" | "observation";
+            kind: "dashboard" | "annotation" | "observation";
             /** Format: uuid */
             id: string;
             title: string;
         } | null;
         SearchResult: {
-            /**
-             * @description `finding` is never returned any more: a finding is found as its observation.
-             * @enum {string}
-             */
-            kind: "dashboard" | "finding" | "annotation" | "observation" | "comment" | "saved_search";
+            /** @enum {string} */
+            kind: "dashboard" | "annotation" | "observation" | "comment" | "saved_search";
             /**
              * Format: uuid
              * @description The id of the object, or of the message for a comment.
@@ -4331,20 +4305,17 @@ export interface components {
              */
             id: string;
             target: {
-                /**
-                 * @description `finding` is a deprecated alias that is never returned: a thread on a finding is a thread on its observation, so it answers `observation`.
-                 * @enum {string}
-                 */
-                kind: "dashboard" | "finding" | "annotation" | "observation" | "proposal";
+                /** @enum {string} */
+                kind: "dashboard" | "annotation" | "observation" | "proposal";
                 /** Format: uuid */
                 id: string;
             };
             /**
              * Format: uuid
-             * @description The dashboard the thread is on; null for a finding or annotation.
+             * @description The dashboard the thread is on; null for an annotation or an observation.
              */
             dashboard_id: string | null;
-            /** @description The dashboard version the thread is anchored to; null for a finding or annotation. */
+            /** @description The dashboard version the thread is anchored to; null for an annotation or an observation. */
             version: number | null;
             /** @description The panel the thread is on; null for the whole object. */
             panel_id: string | null;
@@ -7332,8 +7303,8 @@ export interface operations {
             query: {
                 /** @description One to 200 characters with at least one letter or digit outside a `-` term and no control characters. */
                 q: string;
-                /** @description Only results of these kinds; repeat the parameter for several. `finding` is deprecated and is no longer produced as a result kind: it means `observation`, and a request that names both returns each observation once. */
-                kind?: ("dashboard" | "finding" | "annotation" | "observation" | "comment" | "saved_search")[];
+                /** @description Only results of these kinds; repeat the parameter for several. A kind named twice returns each result once. */
+                kind?: ("dashboard" | "annotation" | "observation" | "comment" | "saved_search")[];
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
@@ -8741,7 +8712,7 @@ export interface operations {
     listThreads: {
         parameters: {
             query: {
-                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`. `finding:<id>` is deprecated and resolves to the finding's observation discussion. */
+                /** @description The object to read, as `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`. */
                 target: string;
                 status?: "open" | "resolved" | "all";
                 /** @description Only threads on this panel; dashboards only. */
@@ -8789,7 +8760,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `finding`, `annotation`, `observation` or `proposal`. `finding:<id>` is deprecated and resolves to the finding's observation discussion. */
+                    /** @description The object to comment on, as `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`. */
                     target: string;
                     /** @description The dashboard version to anchor to; the latest when absent. Dashboards only. */
                     version?: number | null;
@@ -11492,50 +11463,6 @@ export interface operations {
                 };
             };
             422: components["responses"]["InvalidSpec"];
-            500: components["responses"]["Internal"];
-        };
-    };
-    moveFinding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    folder_id: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The finding in its new folder. */
-            200: {
-                headers: {
-                    Deprecation: components["headers"]["Deprecation"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FindingEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description The finding is on a dashboard (`finding_on_dashboard`) or the target is a personal folder (`personal_folder`). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
             500: components["responses"]["Internal"];
         };
     };

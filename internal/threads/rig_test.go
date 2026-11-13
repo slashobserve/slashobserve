@@ -181,12 +181,12 @@ func (r *rig) addVersion(t *testing.T, dash pgtype.UUID, parent int) {
 	}
 }
 
-func (r *rig) createFinding(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
+func (r *rig) filedObservation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	return r.saveFinding(t, by, findings.SaveInput{DashboardID: dashboardID})
 }
 
-func (r *rig) createFindingIn(t *testing.T, by auth.Principal, folder pgtype.UUID) pgtype.UUID {
+func (r *rig) filedObservationIn(t *testing.T, by auth.Principal, folder pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	return r.saveFinding(t, by, findings.SaveInput{FolderID: folder})
 }
@@ -198,16 +198,7 @@ func (r *rig) saveFinding(t *testing.T, by auth.Principal, in findings.SaveInput
 	if err != nil {
 		t.Fatal(err)
 	}
-	return mustParse(t, f.ID)
-}
-
-func (r *rig) observationOf(t *testing.T, finding pgtype.UUID) pgtype.UUID {
-	t.Helper()
-	id, err := r.db.Queries().ObservationOfFinding(t.Context(), finding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return id
+	return mustParse(t, f.ObservationID)
 }
 
 func (r *rig) createAnnotation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {

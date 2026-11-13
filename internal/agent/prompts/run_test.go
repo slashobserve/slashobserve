@@ -82,7 +82,6 @@ func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"with `row` naming its row",
 		"First decide what the request asks for, then do only that.",
 		"Every answer keeps to the scope below.",
-		"and earlier findings with `list_findings`",
 		"never call `save_finding` after you saved a panel",
 	} {
 		if !strings.Contains(system, want) {
@@ -97,6 +96,7 @@ func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"Use `stat` or `table` for",
 		"10 to 20 series: a full-width",
 		"The only result that matters is a saved dashboard",
+		"list_findings",
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)

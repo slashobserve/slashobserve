@@ -151,7 +151,7 @@ func TestCommentEventOmitsAbsentPanelAndParent(t *testing.T) {
 
 func TestOnlyDashboardThreadsSendLiveEvents(t *testing.T) {
 	id := mustParse(t, "11111111-2222-3333-4444-555555555555")
-	for _, kind := range []Kind{KindFinding, KindAnnotation} {
+	for _, kind := range []Kind{KindObservation, KindAnnotation} {
 		e := emitter{scope: scope{target: Target{Kind: kind, ID: id}}, thread: dbsqlc.Thread{ID: id}}
 		if ev := e.live(events.TypeCommentCreated, id, pgtype.UUID{}, StatusOpen); ev != nil {
 			t.Errorf("a %s thread sent %+v", kind, ev)
@@ -600,7 +600,7 @@ func TestCommentsOnOtherTargetsAreNotReachableThroughTheDashboardRoutes(t *testi
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	other := r.createDashboard(t)
-	onFinding, _ := r.open(t, testUser, OpenInput{Target: target(KindFinding, r.createFinding(t, testUser, dash)), Body: "finding"})
+	onFinding, _ := r.open(t, testUser, OpenInput{Target: target(KindObservation, r.filedObservation(t, testUser, dash)), Body: "finding"})
 	onOther, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, other), Body: "elsewhere"})
 
 	for name, id := range map[string]string{"a finding thread": onFinding.ID, "a thread of another dashboard": onOther.ID} {
