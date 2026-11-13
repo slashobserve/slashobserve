@@ -172,7 +172,7 @@ function ContextLines({ datasource, anchor, indexedLabels }: Props) {
     return (
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="xs"
         className="self-start"
         disabled={context.isPlaceholderData}
