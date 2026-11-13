@@ -79,7 +79,9 @@ export function SettingsRow({
       >
         {children}
       </span>
-      {note}
+      {note === undefined ? null : (
+        <div className="flex narrow:order-last narrow:basis-full">{note}</div>
+      )}
       {copy === undefined ? null : copy === null ? (
         <span aria-hidden="true" className="ml-auto size-7 flex-none" />
       ) : (
