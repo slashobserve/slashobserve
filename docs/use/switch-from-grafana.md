@@ -25,7 +25,7 @@ The screens come from the [demo stack](../operate/demo.md), which runs no Grafan
 
 The chat page at `/ask` lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
 
-![The home page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
+![The Ask page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
 
 ## Connect
 

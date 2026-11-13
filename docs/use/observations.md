@@ -38,6 +38,8 @@ A requested block is visible but is not part of the page's settled content until
 An editor keeps a requested block or discards it, and the one who asked for it may discard it too.
 Each block has a `version`, and a change or a keep that names an older one is refused with `version_conflict`, so two people never overwrite each other unseen.
 An observation in My Dashboards is private to its owner.
+Over the API and MCP, an observation and each of its blocks carry `allowed_actions`, the actions the caller may take now; [States](../reference/states.md#observation) lists them.
+A block someone requested also shows in the inbox of the person who created the observation, as a "Suggested block" that waits to be kept or discarded; see [Inbox](inbox.md).
 
 ## Work on one in the web app
 
@@ -107,6 +109,11 @@ The discussion is the observation's one comment thread, shown to the right of th
 A person who can comment writes messages in the box at its foot.
 Each message has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
 The message stays in the discussion as well.
+
+A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, starts an investigation for that agent that writes into this observation, and it needs the Editor role.
+The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>."
+The line is not the model's text, and it never resolves the discussion.
+[Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Add to an observation from a panel or from Logs
 

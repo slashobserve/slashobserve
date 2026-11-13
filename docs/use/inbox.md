@@ -9,6 +9,20 @@ It is a read over the [activity log](activity.md), not a second store of events,
 Both need the Viewer role or higher and a signed-in person: a service-account key gets 403 `user_session_required`.
 A connected agent signed in as a person reads the same list with the MCP tool `list_inbox`, which marks nothing read.
 
+## In the web app
+
+**Inbox** is the first entry in the sidebar, at `/inbox`, and `/` opens it.
+A badge on the entry shows the unread count, and a dot replaces it while the sidebar is folded to icons.
+The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply" or "Run failed", and "Workspace activity" for the rest, which only the Everything view shows.
+The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
+The list refreshes when new activity arrives.
+
+**Mark all read** marks the newest item on the page and everything older as read, and shows only while something is unread.
+Arrow keys move through the rows.
+On a window 1100 pixels wide or more, a selected row opens in a pane beside the list, and the address keeps the view and the item (`view` and `item`).
+A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page; any other item has an **Open** button.
+On a narrower window the list stands alone and each row is a link.
+
 ## What asks something of you
 
 Each item has a `reason`, and an item that matches several rules has the first in this order.

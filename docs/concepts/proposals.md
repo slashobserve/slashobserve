@@ -60,6 +60,19 @@ Its `allowed_actions` list what the caller may do now; `update` is a new save by
 Each step is an entry in [Activity](../use/activity.md): `proposal.opened`, `proposal.updated`, `proposal.merged` and `proposal.discarded`.
 Deleting the dashboard deletes its proposals.
 
+## Review one in the web app
+
+A dashboard with open proposals shows "1 proposal" or "N proposals" in its top row, and the button lists each with its title, its author, when it was opened and "Behind" when the dashboard has moved on.
+A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id>`.
+The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, and the list of changes by panel, "Variable <name>" and "Dashboard settings".
+A link opens the dashboard at the version the proposal builds on, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
+
+When a change conflicts, its row asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
+A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
+**Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
+**Discard** asks "Discard this proposal?" and shows to the author and to anyone who may merge.
+If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.
+
 ## Routes
 
 - `GET /api/v1/dashboards/{id}/proposals` lists the proposals of a dashboard, the open ones unless `state` is `merged`, `discarded` or `all`.

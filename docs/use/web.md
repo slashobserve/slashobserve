@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
+description: The short addresses of the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -9,6 +9,9 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | --- | --- |
 | `/inbox` | Your inbox: what happened on your observations, dashboards and requests. `view` and `item` in the query string reopen a view and an open item. `/` opens it. |
 | `/ask` | The chat: ask the Observe Agent for a dashboard. |
+| `/observations` | The list of [observations](observations.md). |
+| `/o/<observation id>` | One observation, its blocks and its discussion; `rca=1` in the query string opens the Publish as RCA panel. |
+| `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
 | `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
 | `/f/<folder id>` | A folder's settings. |
@@ -57,7 +60,7 @@ The server redirects only when the id is a UUID, and the web app does the same f
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
 It resolves only for a signed-in caller who can see the dashboard: a signed-out visitor signs in first and comes back to it, and a uid nobody imported, or whose dashboard is in a folder you cannot see, opens the app's not-found page.
 
-## Home page and stars
+## Dashboards on the Ask page and stars
 
 The chat page at `/ask` lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
 Starred dashboards come first, newest star first, then Recently viewed: the last five dashboards you opened in this browser that are not starred.

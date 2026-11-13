@@ -543,7 +543,7 @@ bin/observe webhooks test <webhook id>
 
 ## Agent skill
 
-`bin/observe skill install` writes the `/observe` skill, the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces and answer comments, to `~/.agents/skills/observe/SKILL.md` and `~/.claude/skills/observe/SKILL.md`.
+`bin/observe skill install` writes the `/observe` skill, the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces, answer comments, keep observations, review proposals and take assigned runs, to `~/.agents/skills/observe/SKILL.md` and `~/.claude/skills/observe/SKILL.md`.
 Claude Code and other agents that read Agent Skills then offer it as `/observe`.
 It replaces an earlier copy, prints one `Installed <path>` line per file and needs no server, sign-in or network.
 `--dir <path>` writes only `<path>/observe/SKILL.md`.
