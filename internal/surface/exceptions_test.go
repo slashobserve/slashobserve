@@ -9,9 +9,7 @@ const (
 	connectedAgents     = "connected agents are a person's credentials; keys never manage credentials, the CLI signs in with a key, and no MCP tool manages a person's credentials"
 	webhookAdmin        = "An Admin decides where workspace activity is sent; an agent that could register a webhook could send it anywhere."
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
-	noDashboardMoves    = "no tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API"
-	noObservationMoves  = "no tool removes a block, or moves, renames or reopens an observation; people do that in the web app or the HTTP API"
-	noAnnotationDelete  = "no tool deletes an annotation; people do that in the web app or the HTTP API"
+	noMCPDeletes        = "no MCP tool deletes anything: every MCP write is advertised as non-destructive, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
 	builtInAgentQueue   = "starts or steers a run of the built-in agent; an outside agent does the work itself with its own model and the same tools"
 	browserSignIn       = "the browser's sign-in and session flow; keys and MCP clients authenticate with a bearer token"
@@ -27,8 +25,7 @@ const (
 var exceptions = map[string]exception{
 	"runAction": {MCP: panelActions, CLI: panelActions},
 
-	"listAnnotations":  {CLI: notBuilt},
-	"deleteAnnotation": {MCP: noAnnotationDelete, CLI: notBuilt},
+	"deleteAnnotation": {MCP: noMCPDeletes},
 
 	"getAssetImage":   {MCP: personOnly, CLI: personOnly},
 	"getAssetGeojson": {MCP: personOnly, CLI: personOnly},
@@ -40,16 +37,11 @@ var exceptions = map[string]exception{
 	"getMe":        {MCP: notBuilt},
 	"getInstance":  {MCP: notBuilt},
 
-	"createDashboard":         {CLI: notBuilt},
-	"listDashboardTags":       {MCP: notBuilt, CLI: notBuilt},
-	"moveDashboard":           {MCP: noDashboardMoves, CLI: notBuilt},
-	"deleteDashboard":         {MCP: noDashboardMoves},
-	"listDashboardVersions":   {MCP: notBuilt},
-	"createDashboardVersion":  {CLI: notBuilt},
-	"restoreDashboardVersion": {MCP: notBuilt, CLI: notBuilt},
-	"duplicateDashboard":      {MCP: noDashboardMoves, CLI: notBuilt},
-	"diffDashboardVersions":   {MCP: notBuilt, CLI: notBuilt},
-	"recordDashboardView":     {MCP: openRecording, CLI: openRecording},
+	"createDashboard":        {CLI: notBuilt},
+	"listDashboardTags":      {MCP: notBuilt, CLI: notBuilt},
+	"deleteDashboard":        {MCP: noMCPDeletes},
+	"createDashboardVersion": {CLI: notBuilt},
+	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 
@@ -60,26 +52,20 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
-	"updateObservation":      {MCP: noObservationMoves, CLI: notBuilt},
-	"moveObservation":        {MCP: noObservationMoves, CLI: notBuilt},
-	"reopenObservation":      {MCP: noObservationMoves, CLI: notBuilt},
 	"updateObservationBlock": {CLI: notBuilt},
-	"removeObservationBlock": {MCP: noObservationMoves, CLI: notBuilt},
+	"removeObservationBlock": {MCP: noMCPDeletes, CLI: notBuilt},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
 	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
-	"listRcas":               {MCP: notBuilt, CLI: notBuilt},
-	"getRca":                 {MCP: notBuilt, CLI: notBuilt},
 	"listRcaPublicLinks":     {MCP: publicLink, CLI: publicLink},
 	"createRcaPublicLink":    {MCP: publicLink, CLI: publicLink},
 	"deleteRcaPublicLink":    {MCP: publicLink, CLI: publicLink},
 	"viewPublicRca":          {MCP: publicView, CLI: publicView},
 	"viewPublicRcaSnapshot":  {MCP: publicView, CLI: publicView},
 
-	"listFolders":          {CLI: notBuilt},
-	"createFolder":         {MCP: notBuilt, CLI: notBuilt},
+	"createFolder":         {MCP: notBuilt},
 	"getFolder":            {MCP: notBuilt, CLI: notBuilt},
-	"renameFolder":         {MCP: notBuilt, CLI: notBuilt},
-	"deleteFolder":         {MCP: notBuilt, CLI: notBuilt},
+	"renameFolder":         {MCP: notBuilt},
+	"deleteFolder":         {MCP: noMCPDeletes},
 	"getFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
 	"setFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
 
@@ -112,12 +98,6 @@ var exceptions = map[string]exception{
 	"previewImport":      {MCP: notBuilt},
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
 	"getDashboardImport": {MCP: notBuilt, CLI: notBuilt},
-
-	"logContext": {CLI: notBuilt},
-
-	"logFacets": {CLI: notBuilt},
-
-	"logPatterns": {CLI: notBuilt},
 
 	"listDatasourceMetrics":     {CLI: notBuilt},
 	"listDatasourceLabels":      {CLI: notBuilt},
@@ -186,16 +166,14 @@ var exceptions = map[string]exception{
 	"listServiceAccountKeys":   {MCP: accountKeys, CLI: accountKeys},
 	"revokeServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
 
-	"starDashboard":   {MCP: personOnly, CLI: personOnly},
-	"unstarDashboard": {MCP: personOnly, CLI: personOnly},
-	"listStars":       {MCP: personOnly, CLI: personOnly},
+	"starDashboard":   {CLI: personOnly},
+	"unstarDashboard": {CLI: personOnly},
+	"listStars":       {CLI: personOnly},
 
 	"createPanelSuggestion": {MCP: builtInAgentQueue, CLI: notBuilt},
 	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
 
 	"tailLogs": {MCP: liveWebPage},
-
-	"compareTraces": {CLI: notBuilt},
 
 	"traceLogs": {CLI: notBuilt},
 

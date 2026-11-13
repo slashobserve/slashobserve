@@ -3,6 +3,7 @@ folders:
     operationId: listFolders
     x-surfaces:
       mcp: [list_folders]
+      cli: [observe folders list]
     summary: List the folders the caller can see.
     description: >-
       A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone.
@@ -30,6 +31,8 @@ folders:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createFolder
+    x-surfaces:
+      cli: [observe folders create]
     summary: Create a folder.
     description: >-
       Needs the Editor role.
@@ -106,6 +109,8 @@ folders-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: renameFolder
+    x-surfaces:
+      cli: [observe folders rename]
     summary: Rename a folder.
     description: Needs the Manage permission on the folder. The General folder cannot be renamed.
     requestBody:
@@ -147,6 +152,8 @@ folders-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteFolder
+    x-surfaces:
+      cli: [observe folders delete]
     summary: Delete an empty folder.
     description: Needs the Manage permission on the folder. The General folder cannot be deleted, and a folder that holds dashboards must be emptied first.
     responses:

@@ -49,6 +49,9 @@ observations-id-rcas:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listRcas
+    x-surfaces:
+      mcp: [list_rcas]
+      cli: [observe o rcas]
     summary: List the published revisions of an observation's RCA, newest first.
     description: Anyone who can view the observation's folder may list them.
     responses:
@@ -89,6 +92,9 @@ observations-id-rcas-revision:
         minimum: 1
   get:
     operationId: getRca
+    x-surfaces:
+      mcp: [get_rca]
+      cli: [observe o rcas]
     summary: Read one published revision of an observation's RCA.
     description: Anyone who can view the observation's folder may read it.
     responses:

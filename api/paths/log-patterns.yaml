@@ -9,6 +9,7 @@ datasources-uid-log-patterns:
     operationId: logPatterns
     x-surfaces:
       mcp: [log_patterns]
+      cli: [observe logs]
     summary: Group the lines a logs query matches over a range into patterns with counts.
     description: >-
       A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern.

@@ -8,6 +8,8 @@ dashboards-id-star:
         format: uuid
   put:
     operationId: starDashboard
+    x-surfaces:
+      mcp: [pin_dashboard]
     summary: Star a dashboard for the signed-in person.
     description: >-
       Stars belong to one person and follow them across browsers.
@@ -32,6 +34,8 @@ dashboards-id-star:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: unstarDashboard
+    x-surfaces:
+      mcp: [unpin_dashboard]
     summary: Remove the signed-in person's star from a dashboard.
     description: Removing a star that does not exist changes nothing. A service-account key gets 403 `user_session_required`.
     responses:
@@ -54,6 +58,8 @@ dashboards-id-star:
 stars:
   get:
     operationId: listStars
+    x-surfaces:
+      mcp: [list_pinned_dashboards]
     summary: List the signed-in person's starred dashboards, newest star first.
     description: >-
       Lists at most 200 stars, and only dashboards in folders the caller can see.
