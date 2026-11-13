@@ -64,17 +64,23 @@ function SettingsPage() {
   const sections = settingsSections(principal.role)
   const selected = selectedSectionId(sections, hash)
   return (
-    <div className="flex items-start gap-8">
-      <SettingsNav sections={sections} selected={selected} placement="side" />
-      <div className="max-w-[720px] min-w-0 flex-1">
-        <PageHeader
-          title="Settings"
-          description="How this server is set up. Most values come from its environment."
-        />
-        <SettingsNav sections={sections} selected={selected} placement="top" />
-        <SelectedSection id={selected} />
+    <>
+      <PageHeader
+        title="Settings"
+        description="How this server is set up. Most values come from its environment."
+      />
+      <div className="flex items-start gap-8">
+        <SettingsNav sections={sections} selected={selected} placement="side" />
+        <div className="min-w-0 flex-1">
+          <SettingsNav
+            sections={sections}
+            selected={selected}
+            placement="top"
+          />
+          <SelectedSection id={selected} />
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
