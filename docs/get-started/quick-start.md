@@ -30,7 +30,7 @@ The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewe
 ## Send a prompt
 
 Sign-in opens the [inbox](../use/inbox.md).
-Choose **New**, then **Ask Observe Agent**, or open http://localhost:8080/ask, and type a prompt such as `checkout health by pod, last 6h` into the chat composer.
+Press `⌘K` or `Ctrl+K` and choose **Ask Observe Agent**, or open http://localhost:8080/ask, and type a prompt such as `checkout health by pod, last 6h` into the chat composer.
 
 ## Dashboards the demo provisions
 

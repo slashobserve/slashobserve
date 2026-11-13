@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
+description: The short addresses of the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, the sidebar, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -72,7 +72,7 @@ Arrow keys move through the results and Enter opens one.
 
 Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
 A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted.
-The sidebar lists ten pins and then a **More** link to the dashboards list; the phone menu lists them too, and the icon rail shows none.
+The sidebar lists ten pins and then a **More** link to the dashboards list, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
 Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
 Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
@@ -176,6 +176,14 @@ The item is greyed, with the reason after it, when the panel has several queries
 **Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.
 The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
 [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs) describes the side panel and the range the block takes.
+
+## Sidebar
+
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
+**Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
+Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
+Hovering or focusing an icon on the rail shows its name.
+On the rail, Inbox shows its unread count, Observations shows a green dot while any observation is open, and Dashboards opens a menu that Escape or a click outside closes.
 
 ## Search
 

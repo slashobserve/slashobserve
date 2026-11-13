@@ -47,8 +47,8 @@ A block someone requested also shows in the inbox of the person who created the 
 
 **Observations** in the sidebar opens the list at `/observations`, with each observation's title, state, who opened it and when it last changed, most recently changed first.
 The **State** filter shows Open observations by default, or Resolved or All, and **Load more** fetches the next page.
-Under the navigation, **Open observations** lists up to eight observations that are open, and shows a count with a plus sign when there are more.
-It is hidden while the sidebar is collapsed and when none is open.
+Under **Observations** in the sidebar, up to five open observations are listed, indented, each with a green dot and in bold while it has unread inbox items, and **All observations** follows when more are open.
+On the icon rail, a dot on **Observations** shows that some are open.
 
 An observation opens at `/o/<id>`.
 The page updates when someone else changes its blocks, its state or the discussion.
@@ -56,7 +56,7 @@ The page updates when someone else changes its blocks, its state or the discussi
 
 ### Start one
 
-**New observation** on the list, in the **New** menu and in the command palette opens a panel with a **Title** of 1 to 200 characters and a **Folder**.
+**New observation** on the list and in the command palette opens a panel with a **Title** of 1 to 200 characters and a **Folder**.
 The folder choices are the folders you can edit.
 With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General.
 **Create** opens the new page.
