@@ -45,9 +45,10 @@ function isDashboardShape(raw: unknown): raw is Dashboard {
 export function latestDashboardQuery(queryClient: QueryClient, id: string) {
   return queryOptions({
     queryKey: dashboardKeys.latest(id),
-    queryFn: async ({ signal }) => {
+    // The route loader awaits this fetch, so it must not read the query's abort signal: React Query cancels a fetch that read it when the last observer unmounts, and the loader would reject with CancelledError.
+    queryFn: async () => {
       const body = await api
-        .GET("/dashboards/{id}", { params: { path: { id } }, signal })
+        .GET("/dashboards/{id}", { params: { path: { id } } })
         .then(unwrap)
       queryClient.setQueryData(
         dashboardKeys.version(id, body.version.version),

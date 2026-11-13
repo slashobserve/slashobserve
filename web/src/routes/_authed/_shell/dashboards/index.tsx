@@ -42,7 +42,7 @@ function DashboardsPage() {
                 New folder
               </Button>
             ) : null}
-            <Link to="/" className={cn(buttonVariants())}>
+            <Link to="/ask" className={cn(buttonVariants())}>
               <PlusIcon aria-hidden="true" />
               Create dashboard
             </Link>

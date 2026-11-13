@@ -6,15 +6,15 @@ import {
   useRouterState,
 } from "@tanstack/react-router"
 import {
+  BotIcon,
   ChartGanttIcon,
   DatabaseIcon,
   HeartPulseIcon,
-  KeyIcon,
+  InboxIcon,
   LayoutDashboardIcon,
   LogsIcon,
   NotebookTextIcon,
   SettingsIcon,
-  TerminalIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react"
@@ -26,11 +26,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
 
 import { AccountMenu } from "./account-menu"
 import {
   isNavItemActive,
+  unreadBadge,
   visibleNavItems,
   type NavItem,
   type NavPath,
@@ -49,14 +51,14 @@ import {
 import { useFoldedByWidth } from "./use-folded"
 
 const icons: Record<NavPath, LucideIcon> = {
-  "/": TerminalIcon,
+  "/inbox": InboxIcon,
   "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/health": HeartPulseIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
+  "/agents": BotIcon,
   "/datasources": DatabaseIcon,
-  "/keys": KeyIcon,
   "/people": UsersIcon,
   "/settings": SettingsIcon,
 }
@@ -70,7 +72,7 @@ function HomeLink({
   collapsed: boolean
   onNavigate?: () => void
 }) {
-  const linkProps = useLinkProps({ to: "/" })
+  const linkProps = useLinkProps({ to: "/inbox" })
   return (
     <a
       {...linkProps}
@@ -91,15 +93,42 @@ function HomeLink({
   )
 }
 
+function UnreadMark({
+  badge,
+  collapsed,
+}: {
+  badge: string
+  collapsed: boolean
+}) {
+  if (collapsed) {
+    return (
+      <span
+        aria-hidden="true"
+        className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary"
+      />
+    )
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-auto grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+    >
+      {badge}
+    </span>
+  )
+}
+
 function NavLink({
   item,
   active,
   collapsed,
+  unread,
   onNavigate,
 }: {
   item: NavItem
   active: boolean
   collapsed: boolean
+  unread: string | null
   onNavigate?: () => void
 }) {
   const Icon = icons[item.to]
@@ -108,8 +137,10 @@ function NavLink({
     onClick: onNavigate,
     activeOptions: { exact: true },
     "aria-current": active ? ("page" as const) : undefined,
+    "aria-label":
+      unread === null ? undefined : `${item.label}, ${unread} unread`,
     className: cn(
-      "flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
+      "relative flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
       focusRing,
       collapsed && "justify-center px-0"
     ),
@@ -118,6 +149,9 @@ function NavLink({
     <>
       <Icon aria-hidden="true" className="size-4 flex-none" strokeWidth={1.8} />
       <span className={collapsed ? "sr-only" : "truncate"}>{item.label}</span>
+      {unread === null ? null : (
+        <UnreadMark badge={unread} collapsed={collapsed} />
+      )}
     </>
   )
   if (!collapsed) return <Link {...props}>{content}</Link>
@@ -245,6 +279,7 @@ export function SidebarContent({
   const items = visibleNavItems(principal.role)
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
+  const unreadInbox = unreadBadge(useInboxCount())
 
   function renderItems(items: readonly NavItem[]) {
     return items.map((item) => (
@@ -253,6 +288,7 @@ export function SidebarContent({
         item={item}
         active={isNavItemActive(item.to, pathname)}
         collapsed={collapsed}
+        unread={item.to === "/inbox" ? unreadInbox : null}
         onNavigate={onNavigate}
       />
     ))

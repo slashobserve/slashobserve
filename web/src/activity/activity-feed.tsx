@@ -83,6 +83,7 @@ type Props = {
   onSelectPanel: (panelId: string) => void
   back: string | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
+  focusedThreadId?: string
   range: { from: string; to: string }
 }
 
@@ -172,6 +173,7 @@ export function ActivityFeed({
   onSelectPanel,
   back,
   composerRef,
+  focusedThreadId,
   range,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -307,6 +309,7 @@ export function ActivityFeed({
           <ThreadEntry
             dashboardId={dashboardId}
             entry={entry}
+            focused={entry.thread.root.id === focusedThreadId}
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}

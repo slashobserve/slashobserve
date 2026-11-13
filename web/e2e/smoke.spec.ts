@@ -3,9 +3,10 @@ import { expect, test } from "./fixtures"
 test("loads the app shell", async ({ page }) => {
   const response = await page.goto("/")
   expect(response?.status()).toBe(200)
-  await expect(page).toHaveTitle("Observe - SlashObserve")
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveTitle("Inbox - SlashObserve")
   await expect(
-    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+    page.getByRole("heading", { level: 1, name: "Inbox" })
   ).toBeVisible()
 })
 
@@ -16,9 +17,9 @@ test("serves deep links through the SPA fallback", async ({ page }) => {
     page.getByRole("heading", { name: "Page not found" })
   ).toBeVisible()
   await page.getByRole("link", { name: "Back to home" }).click()
-  await expect(page).toHaveURL("/")
+  await expect(page).toHaveURL(/\/inbox$/)
   await expect(
-    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+    page.getByRole("heading", { level: 1, name: "Inbox" })
   ).toBeVisible()
 })
 
@@ -30,7 +31,7 @@ test.describe("on a phone", () => {
   }) => {
     await page.goto("/")
     await expect(
-      page.getByRole("heading", { level: 1, name: "What do you want to see?" })
+      page.getByRole("heading", { level: 1, name: "Inbox" })
     ).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden()
     const clipped = await page

@@ -7,7 +7,10 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 
 | Address | Opens |
 | --- | --- |
-| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history. |
+| `/inbox` | Your inbox: what happened on your observations, dashboards and requests. `view` and `item` in the query string reopen a view and an open item. `/` opens it. |
+| `/ask` | The chat: ask the Observe Agent for a dashboard. |
+| `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
+| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
 | `/f/<folder id>` | A folder's settings. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/b/<request id>` | The live view of an agent request's build. |
@@ -19,7 +22,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
-The lists keep their names: `/dashboards` lists dashboards and `/` is the **Observe** chat home.
+The lists keep their names: `/dashboards` lists dashboards, `/` redirects to `/inbox`, and the chat that used to open at `/` is at `/ask`, with its query string kept.
 
 ## Public links
 
@@ -56,7 +59,7 @@ It resolves only for a signed-in caller who can see the dashboard: a signed-out 
 
 ## Home page and stars
 
-The home page lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
+The chat page at `/ask` lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
 Starred dashboards come first, newest star first, then Recently viewed: the last five dashboards you opened in this browser that are not starred.
 When you have neither, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its three provisioned dashboards.
 The search box below them finds dashboards by title or description, and `tag:` words narrow it to tags: `tag:prod latency` finds dashboards tagged `prod` that mention `latency`.
@@ -170,6 +173,7 @@ Open Settings and choose **Connected agents** in its section list to see the MCP
 **Disconnect** asks first and then ends the connection at once; the client has to be connected again from the agent to work.
 The API behind it also returns each connection's presence (working, listening or offline) and when it last asked for work; this section does not show them yet.
 The section also shows the command that adds this server to Claude Code.
+The **Agents** page in the sidebar lists the same connections next to the Observe Agent and the service accounts, and each can switch between direct and propose mode there.
 An Admin sees a second card, **Everyone's connected agents**, with the person each belongs to, and can disconnect any of them.
 [Connect your own agent](mcp.md#connect-your-own-agent) describes how a client is approved.
 

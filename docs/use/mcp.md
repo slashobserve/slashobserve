@@ -51,6 +51,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_datasources` | Viewer |
 | `list_findings` | Viewer |
 | `list_folders` | Viewer |
+| `list_inbox` | Viewer |
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
 | `list_metrics` | Viewer |
@@ -259,6 +260,10 @@ The built-in agent has the same tool.
 `list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
 Narrow it with `dashboard_id`, `folder_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
 It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
+
+`list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
+Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
+It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a service-account key gets `user_session_required`, and it is over MCP only, so the built-in agent does not have it.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.

@@ -2105,12 +2105,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: offered in create = %v, offered to the model = %v", tool.Name, tool.OfferedIn(tools.ModeCreate), offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "list_folders", "create_comment", "edit_comment", "reopen_comment", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity", "get_run", "search_workspace", "move_finding", "save_search", "list_saved_searches", "claim_run", "report_run", "finish_run", "get_run_brief", "create_observation", "get_observation", "list_observations", "add_block", "update_block", "resolve_observation", "keep_block", "discard_block", "publish_rca", "list_proposals", "get_proposal", "merge_proposal", "discard_proposal"} {
+	for _, name := range []string{"list_comments", "list_folders", "create_comment", "edit_comment", "reopen_comment", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query", "list_activity", "list_inbox", "get_run", "search_workspace", "move_finding", "save_search", "list_saved_searches", "claim_run", "report_run", "finish_run", "get_run_brief", "create_observation", "get_observation", "list_observations", "add_block", "update_block", "resolve_observation", "keep_block", "discard_block", "publish_rca", "list_proposals", "get_proposal", "merge_proposal", "discard_proposal"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 34 || len(offered) != len(registry.List())-35 {
+	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 35 || len(offered) != len(registry.List())-36 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }

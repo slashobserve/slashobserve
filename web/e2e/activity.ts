@@ -9,6 +9,8 @@ const repoRoot = join(import.meta.dirname, "..", "..")
 
 const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 
+const observeRequestApi = /\/api\/v1\/observe\/[^/]+(\?.*)?$/
+
 function readJson<T>(...segments: string[]): T {
   return JSON.parse(
     readFileSync(join(repoRoot, ...segments), { encoding: "utf8" })
@@ -61,6 +63,18 @@ export async function holdRequestsRunning(page: Page) {
       result_version: null,
       finished_at: null,
     }))
+    await route.fulfill({ response, json: body })
+  })
+  await page.route(observeRequestApi, async (route) => {
+    if (route.request().method() !== "GET" || !held) {
+      await route.fallback()
+      return
+    }
+    const response = await route.fetch()
+    const body = (await response.json()) as {
+      request: Record<string, unknown>
+    }
+    body.request = { ...body.request, status: "running", state: "running" }
     await route.fulfill({ response, json: body })
   })
   return () => {

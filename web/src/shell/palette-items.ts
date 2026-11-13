@@ -1,17 +1,18 @@
 import type { components } from "@/api/schema.gen"
 import { dashboardPath, observationPath } from "@/lib/links"
-import type { Role } from "@/lib/roles"
+import { roleAtLeast, type Role } from "@/lib/roles"
 
 import { visibleNavItems, type NavPath } from "./nav"
 
 export type SearchResult = components["schemas"]["SearchResult"]
 export type MatchSegment = components["schemas"]["SearchSnippetSegment"]
 
+export type PagePath = NavPath | "/keys"
 type PageEntry = {
   kind: "page"
   id: string
   label: string
-  to: NavPath
+  to: PagePath
 }
 export type ResultEntry = {
   kind: SearchResult["kind"]
@@ -45,13 +46,23 @@ export type PaletteGroup = {
   items: PaletteEntry[]
 }
 
+const keysEntry: PageEntry = {
+  kind: "page",
+  id: "page:/keys",
+  label: "API keys",
+  to: "/keys",
+}
+
 function pageEntries(role: Role): PageEntry[] {
-  return visibleNavItems(role).map((item) => ({
+  const entries: PageEntry[] = visibleNavItems(role).map((item) => ({
     kind: "page",
     id: `page:${item.to}`,
     label: item.label,
     to: item.to,
   }))
+  if (!roleAtLeast(role, "admin")) return entries
+  const before = entries.findIndex((entry) => entry.to === "/people")
+  return entries.toSpliced(before, 0, keysEntry)
 }
 
 const newActionEntries: ActionEntry[] = [

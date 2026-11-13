@@ -428,3 +428,21 @@ describe("chat", () => {
     expect(validateDashboardSearch({ chat })).toEqual({ vars: {} })
   })
 })
+
+describe("thread", () => {
+  it("round-trips a thread id through the URL", () => {
+    const id = "3f2c8d1e-0b5a-4c7d-9e11-2a6b8c4d5e70"
+    const state = validateDashboardSearch(parseSearch(`?thread=${id}`))
+    expect(state).toEqual({ thread: id, vars: {} })
+    expect(searchFromState(state)).toEqual({ thread: id })
+    expect(validateDashboardSearch(searchFromState(state))).toEqual(state)
+  })
+
+  it.each([
+    ["an empty id", ""],
+    ["an id with a space", "a b"],
+    ["an id longer than 64 characters", "a".repeat(65)],
+  ])("drops %s", (_name, thread) => {
+    expect(validateDashboardSearch({ thread })).toEqual({ vars: {} })
+  })
+})

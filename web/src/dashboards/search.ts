@@ -38,6 +38,7 @@ export type DashboardSearch = {
   inspect?: string
   inspectTab?: InspectTab
   chat?: string
+  thread?: string
   vars: Record<string, string[]>
 }
 
@@ -178,6 +179,11 @@ export function validateDashboardSearch(
   const chat = firstString(raw.chat)
   if (chat !== undefined && requestIdPattern.test(chat)) state.chat = chat
 
+  const thread = firstString(raw.thread)
+  if (thread !== undefined && requestIdPattern.test(thread)) {
+    state.thread = thread
+  }
+
   for (const key of Object.keys(raw)) {
     if (!key.startsWith(variablePrefix)) continue
     const name = key.slice(variablePrefix.length)
@@ -225,6 +231,7 @@ export function searchFromState(
     }
   }
   if (state.chat !== undefined) out.chat = state.chat
+  if (state.thread !== undefined) out.thread = state.thread
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }

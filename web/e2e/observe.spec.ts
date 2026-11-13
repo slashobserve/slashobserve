@@ -29,7 +29,7 @@ type ObserveBody = {
 test("creates a dashboard from a prompt", async ({ page }) => {
   const release = await holdRequestPollsUntilFinished(page)
 
-  await page.goto("/")
+  await page.goto("/ask")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
@@ -59,7 +59,7 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await open.click()
   await expect(page).toHaveURL(dashboardPath)
 
-  await page.goto("/")
+  await page.goto("/ask")
   await expect(
     page
       .getByRole("region", { name: "Recent chats" })
@@ -107,7 +107,7 @@ test("records the repair step and reopens finished requests", async ({
 })
 
 test("explains a failed request", async ({ page }) => {
-  await page.goto("/")
+  await page.goto("/ask")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(neverSavesPrompt)
   await page.getByRole("button", { name: "Send" }).click()
@@ -218,7 +218,7 @@ test("links a failed comment revision back to its dashboard", async ({
 
 test("follows up in the same chat", async ({ page }) => {
   const release = await holdRequestPollsUntilFinished(page)
-  await page.goto("/")
+  await page.goto("/ask")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
@@ -272,7 +272,7 @@ test("follows up in the same chat", async ({ page }) => {
 })
 
 test("slash focuses the chat composer", async ({ page }) => {
-  await page.goto("/")
+  await page.goto("/ask")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await expect(promptBar).toBeFocused()
   await page.getByRole("heading", { level: 1 }).click()
@@ -290,7 +290,7 @@ test.describe("touch device", () => {
   }) => {
     const release = await holdRequestPollsUntilFinished(page)
 
-    await page.goto("/")
+    await page.goto("/ask")
     const promptBar = page.getByRole("textbox", { name: "Message the agent" })
     await expect(promptBar).toHaveAttribute("enterkeyhint", "enter")
     await expect(promptBar).not.toHaveAttribute("aria-describedby")
@@ -299,7 +299,7 @@ test.describe("touch device", () => {
     await promptBar.fill(redPrompt)
     await promptBar.press("Enter")
     await expect(promptBar).toHaveValue(`${redPrompt}\n`)
-    await expect(page).toHaveURL(/\/$/)
+    await expect(page).toHaveURL(/\/ask$/)
 
     await page.getByRole("button", { name: "Send" }).click()
     await expect(page).toHaveURL(buildPath)

@@ -17,12 +17,13 @@ describe("paletteGroups", () => {
       "Account",
     ])
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
-      "Observe",
+      "Inbox",
       "Observations",
       "Dashboards",
       "Health",
       "Logs",
       "Traces",
+      "Agents",
       "Datasources",
       "API keys",
       "People",
@@ -47,6 +48,7 @@ describe("paletteGroups", () => {
     expect(groups).toHaveLength(1)
     expect(groups[0]?.value).toBe("Pages")
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual(["API keys"])
+    expect(groups[0]?.items[0]).toMatchObject({ kind: "page", to: "/keys" })
   })
 
   test("matches titles case-insensitively", () => {
@@ -95,15 +97,17 @@ describe("paletteGroups", () => {
       (entry) => entry.label
     )
     expect(labels).toEqual([
-      "Observe",
+      "Inbox",
       "Observations",
       "Dashboards",
       "Health",
       "Logs",
       "Traces",
+      "Agents",
       "Settings",
     ])
     expect(paletteGroups("people", [], [], "viewer")).toEqual([])
+    expect(paletteGroups("api keys", [], [], "editor")).toEqual([])
   })
 
   test("a query finds the New actions by their words", () => {
@@ -112,8 +116,12 @@ describe("paletteGroups", () => {
     expect(groups[0]?.items).toEqual([
       { kind: "action", id: "action:import", label: "Import a dashboard" },
     ])
+    const ask = paletteGroups("ask", [], [], "viewer")
+    expect(ask[0]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
     const agent = paletteGroups("agent", [], [], "viewer")
-    expect(agent[0]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
+    expect(agent.map((group) => group.value)).toEqual(["Pages", "Actions"])
+    expect(agent[0]?.items.map((entry) => entry.id)).toEqual(["page:/agents"])
+    expect(agent[1]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
   })
 
   test("a query matching nothing returns no groups", () => {

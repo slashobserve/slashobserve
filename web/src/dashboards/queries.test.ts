@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from "@tanstack/react-query"
 import { act, renderHook } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -6,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import type { Dashboard } from "@/spec"
 
-import { asDashboardSpec, useAddVersion } from "./queries"
+import { asDashboardSpec, latestDashboardQuery, useAddVersion } from "./queries"
 
 const invalid = "Server returned an invalid Spec"
 
@@ -153,5 +157,29 @@ describe("useAddVersion", () => {
       latestVersion: 4,
       conflicts: [{ id: "p" }],
     })
+  })
+})
+
+describe("latestDashboardQuery", () => {
+  it("lets a route loader see the 404 when the page unmounts while it loads", async () => {
+    let answer: (response: Response) => void = () => {}
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))
+    )
+    const client = new QueryClient()
+    const query = latestDashboardQuery(client, "d1")
+
+    const loader = client.ensureQueryData(query)
+    const unsubscribe = new QueryObserver(client, query).subscribe(() => {})
+    unsubscribe()
+    answer(
+      new Response(JSON.stringify({ error: "not found", code: "not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })
+    )
+
+    await expect(loader).rejects.toMatchObject({ status: 404 })
   })
 })

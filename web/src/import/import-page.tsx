@@ -253,7 +253,7 @@ export function ImportPage() {
   ) : (
     <>
       <Link
-        to="/"
+        to="/ask"
         className={cn(buttonVariants({ variant: "outline" }), "font-normal")}
       >
         Cancel

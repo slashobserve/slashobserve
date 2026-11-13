@@ -23,7 +23,7 @@ The screens come from the [demo stack](../operate/demo.md), which runs no Grafan
 - In Grafana, create a service account with the Viewer role on the folders you want to bring over, and a token for it.
   The server only reads from Grafana: `/api/health`, `/api/folders`, `/api/search`, `/api/datasources` and `/api/dashboards/uid/<uid>`.
 
-The home page lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
+The chat page at `/ask` lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
 
 ![The home page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
 

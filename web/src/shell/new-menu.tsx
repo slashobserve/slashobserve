@@ -51,7 +51,7 @@ export function NewMenu({
           <NotebookTextIcon aria-hidden="true" />
           New observation
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go(() => navigate({ to: "/" }))}>
+        <DropdownMenuItem onClick={() => go(() => navigate({ to: "/ask" }))}>
           <TerminalIcon aria-hidden="true" />
           Ask Observe Agent
         </DropdownMenuItem>

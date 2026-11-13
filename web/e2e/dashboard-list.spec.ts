@@ -579,7 +579,7 @@ test("shows the empty state", async ({ page }) => {
   ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "Open the chat" })
-  ).toHaveAttribute("href", "/")
+  ).toHaveAttribute("href", "/ask")
 })
 
 test("shows an error with retry", async ({ page, request, consoleErrors }) => {

@@ -37,9 +37,6 @@ function stubServer(sent: Record<string, unknown> = {}) {
           effort: null,
         })
       }
-      if (pathname === "/api/v1/me/grants") {
-        return json({ grants: [], next_cursor: null })
-      }
       return json({ service_accounts: [] })
     })
   )

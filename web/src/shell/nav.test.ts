@@ -1,20 +1,34 @@
 import { describe, expect, test } from "vitest"
 
-import { isNavItemActive, visibleNavItems } from "./nav"
+import { isNavItemActive, unreadBadge, visibleNavItems } from "./nav"
 
 describe("isNavItemActive", () => {
-  test("Observe covers the chat, the importer and requests", () => {
-    expect(isNavItemActive("/", "/")).toBe(true)
-    expect(isNavItemActive("/", "/c/abc")).toBe(true)
-    expect(isNavItemActive("/", "/import")).toBe(true)
-    expect(isNavItemActive("/", "/dashboards")).toBe(false)
+  test("Inbox covers its own page only, not the chat or the importer", () => {
+    expect(isNavItemActive("/inbox", "/inbox")).toBe(true)
+    expect(isNavItemActive("/inbox", "/inbox-x")).toBe(false)
+    expect(isNavItemActive("/inbox", "/dashboards")).toBe(false)
+    const active = (pathname: string) =>
+      visibleNavItems("admin")
+        .filter((item) => isNavItemActive(item.to, pathname))
+        .map((item) => item.label)
+    expect(active("/ask")).toEqual([])
+    expect(active("/c/abc")).toEqual([])
+    expect(active("/import")).toEqual([])
   })
 
   test("other items match their path and children only", () => {
     expect(isNavItemActive("/dashboards", "/dashboards")).toBe(true)
     expect(isNavItemActive("/dashboards", "/dashboards-x")).toBe(false)
-    expect(isNavItemActive("/keys", "/keys")).toBe(true)
     expect(isNavItemActive("/settings", "/settings")).toBe(true)
+  })
+
+  test("Agents covers its list, an agent's page and the API keys page", () => {
+    expect(isNavItemActive("/agents", "/agents")).toBe(true)
+    expect(isNavItemActive("/agents", "/agents/grant-abc")).toBe(true)
+    expect(isNavItemActive("/agents", "/keys")).toBe(true)
+    expect(isNavItemActive("/agents", "/agents-x")).toBe(false)
+    expect(isNavItemActive("/agents", "/keysx")).toBe(false)
+    expect(isNavItemActive("/settings", "/keys")).toBe(false)
   })
 
   test("Observations covers its list and a single observation", () => {
@@ -26,7 +40,7 @@ describe("isNavItemActive", () => {
     expect(active).toEqual(["Observations"])
     expect(isNavItemActive("/observations", "/observations")).toBe(true)
     expect(isNavItemActive("/observations", "/observations-x")).toBe(false)
-    expect(isNavItemActive("/", "/o/abc")).toBe(false)
+    expect(isNavItemActive("/inbox", "/o/abc")).toBe(false)
   })
 
   test("Traces also covers a single trace", () => {
@@ -49,16 +63,16 @@ describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all ten pages", () => {
+  test("an Admin sees all ten pages and neither the chat nor API keys is one of them", () => {
     expect(labels("admin")).toEqual([
-      "Observe",
+      "Inbox",
       "Observations",
       "Dashboards",
       "Health",
       "Logs",
       "Traces",
+      "Agents",
       "Datasources",
-      "API keys",
       "People",
       "Settings",
     ])
@@ -68,14 +82,29 @@ describe("visibleNavItems", () => {
     "%s sees every page but the Admin ones",
     (role) => {
       expect(labels(role)).toEqual([
-        "Observe",
+        "Inbox",
         "Observations",
         "Dashboards",
         "Health",
         "Logs",
         "Traces",
+        "Agents",
         "Settings",
       ])
     }
   )
+})
+
+describe("unreadBadge", () => {
+  test.each([
+    [null, null],
+    [0, null],
+    [-1, null],
+    [1, "1"],
+    [42, "42"],
+    [99, "99"],
+    [100, "99+"],
+  ])("%s unread shows %s", (count, shown) => {
+    expect(unreadBadge(count)).toBe(shown)
+  })
 })

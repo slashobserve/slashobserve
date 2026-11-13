@@ -13,7 +13,7 @@ for (const scheme of ["light", "dark"] as const) {
     test.use({ colorScheme: scheme })
 
     test("shows the chat home", async ({ page }) => {
-      await page.goto("/")
+      await page.goto("/ask")
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -44,22 +44,22 @@ for (const scheme of ["light", "dark"] as const) {
     })
 
     test("rejects an empty message", async ({ page }) => {
-      await page.goto("/")
+      await page.goto("/ask")
       await page.getByRole("button", { name: "Send" }).click()
       await expect(page.getByRole("alert")).toHaveText(
         "Describe the dashboard you want first."
       )
-      await expect(page).toHaveURL(/\/$/)
+      await expect(page).toHaveURL(/\/ask$/)
     })
 
     test("Shift+Enter adds a line", async ({ page }) => {
-      await page.goto("/")
+      await page.goto("/ask")
       const composer = page.getByRole("textbox", { name: "Message the agent" })
       await composer.pressSequentially("a")
       await composer.press("Shift+Enter")
       await composer.pressSequentially("b")
       await expect(composer).toHaveValue("a\nb")
-      await expect(page).toHaveURL(/\/$/)
+      await expect(page).toHaveURL(/\/ask$/)
     })
 
     test("lists recent chats", async ({ page }) => {
@@ -70,7 +70,7 @@ for (const scheme of ["light", "dark"] as const) {
       expect(created.status()).toBe(202)
       const { request } = (await created.json()) as { request: { id: string } }
 
-      await page.goto("/")
+      await page.goto("/ask")
       const recent = page.getByRole("region", { name: "Recent chats" })
       const row = recent
         .getByRole("button", { name: new RegExp(unanswerablePrompt) })
@@ -92,7 +92,7 @@ for (const scheme of ["light", "dark"] as const) {
           json: { available: false, provider: null, model: null, effort: null },
         })
       )
-      await page.goto("/")
+      await page.goto("/ask")
       await expect(
         page.getByText("No model is connected to this server.")
       ).toBeVisible()
@@ -108,7 +108,7 @@ for (const scheme of ["light", "dark"] as const) {
       test.use({ viewport: { width: 390, height: 844 } })
 
       test("fits a phone", async ({ page }) => {
-        await page.goto("/")
+        await page.goto("/ask")
         await expect(
           page.getByRole("heading", {
             level: 1,

@@ -213,6 +213,7 @@ export function ActivityCard({
             onSelectPanel={onSelectPanel}
             back={back}
             composerRef={composerRef}
+            focusedThreadId={search.thread}
             range={{
               from: timeRange.from ?? spec.time.from,
               to: timeRange.to ?? spec.time.to,

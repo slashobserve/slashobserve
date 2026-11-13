@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react"
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { ArrowRightIcon } from "lucide-react"
 
@@ -42,6 +42,7 @@ type Props = {
   at: string
   edited?: boolean
   nested?: boolean
+  focused?: boolean
   children?: ReactNode
 }
 
@@ -64,13 +65,21 @@ export function EntryFrame({
   at,
   edited,
   nested,
+  focused,
   children,
 }: Props) {
+  const item = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (focused) item.current?.scrollIntoView({ block: "nearest" })
+  }, [focused])
   return (
     <li
+      ref={item}
+      aria-current={focused ? "true" : undefined}
       className={cn(
         "group/entry relative flex gap-2.5",
-        nested ? "py-1.5" : "py-2"
+        nested ? "py-1.5" : "py-2",
+        focused && "rounded-control bg-selection"
       )}
     >
       {nested ? null : (

@@ -60,7 +60,7 @@ for (const theme of themes) {
         page
           .getByRole("navigation", { name: "Main" })
           .getByRole("link", { name: "/observe home" })
-      ).toHaveAttribute("href", "/")
+      ).toHaveAttribute("href", "/inbox")
       await expect(
         breadcrumb.getByRole("link", { name: "Dashboards", exact: true })
       ).toHaveAttribute("href", "/dashboards")

@@ -402,3 +402,15 @@ export const proposalKeys = {
     ["proposals", "list", dashboardId, state] as const,
   detail: (id: string) => ["proposals", "detail", id] as const,
 }
+
+export type InboxView = "for_you" | "everything" | "proposals" | "mentions"
+
+export const inboxKeys = {
+  all: ["inbox"] as const,
+  list: (view: InboxView) => ["inbox", "list", view] as const,
+}
+
+export const agentKeys = {
+  all: ["agents"] as const,
+  list: () => ["agents", "list"] as const,
+}

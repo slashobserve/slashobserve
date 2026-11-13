@@ -111,6 +111,31 @@ func TestCreatingWithAFirstBlockWritesBothInOneTransaction(t *testing.T) {
 	}
 }
 
+func TestBlockAddedEventsCarryTheBlockIdAndState(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	live := r.addText(t, editor, o, "From the editor")
+	requested := r.addText(t, commenter, o, "From the commenter")
+
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data->>'block_id', data->>'state' FROM activity WHERE observation_id = $1::uuid AND type = 'observation.block_added' ORDER BY seq`, o.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got [][2]string
+	for rows.Next() {
+		var id, state string
+		if err := rows.Scan(&id, &state); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, [2]string{id, state})
+	}
+	want := [][2]string{{live.ID, "live"}, {requested.ID, "requested"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("block_added data = %v, want %v", got, want)
+	}
+}
+
 func TestACommenterAddsRequestedBlocksAnEditorAddsLiveOnesAndAViewerNone(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)

@@ -109,7 +109,7 @@ export function PersonRole({ person }: { person: User }) {
           if (isMe) {
             void refreshSession()
               .catch(() => undefined)
-              .then(() => navigate({ to: "/" }))
+              .then(() => navigate({ to: "/inbox" }))
             return
           }
           toast.success(`${person.name} is now ${roleLabels[role]}`)

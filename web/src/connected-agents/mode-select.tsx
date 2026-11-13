@@ -1,3 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query"
+
+import { agentKeys } from "@/api/keys"
 import {
   Select,
   SelectContent,
@@ -7,29 +10,33 @@ import {
 } from "@/components/ui/select"
 
 import { useSetGrantMode } from "./queries"
-import {
-  agentName,
-  modeChoices,
-  type ConnectedAgent,
-  type GrantMode,
-} from "./rows"
+import { modeChoices, type GrantMode } from "./rows"
 
 const items = modeChoices.map(({ value, label }) => ({ value, label }))
 
-export function ModeSelect({ grant }: { grant: ConnectedAgent }) {
+type Props = { grantId: string; mode: GrantMode; name: string }
+
+export function ModeSelect({ grantId, mode, name }: Props) {
+  const queryClient = useQueryClient()
   const setMode = useSetGrantMode()
   return (
     <Select
       items={items}
-      value={grant.mode}
+      value={mode}
       onValueChange={(next: GrantMode | null) => {
-        if (next === null || next === grant.mode) return
-        setMode.mutate({ id: grant.id, mode: next })
+        if (next === null || next === mode) return
+        setMode.mutate(
+          { id: grantId, mode: next },
+          {
+            onSettled: () =>
+              queryClient.invalidateQueries({ queryKey: agentKeys.all }),
+          }
+        )
       }}
     >
       <SelectTrigger
         size="sm"
-        aria-label={`Mode for ${agentName(grant.client.name)}`}
+        aria-label={`Mode for ${name}`}
         aria-busy={setMode.isPending || undefined}
         disabled={setMode.isPending}
       >

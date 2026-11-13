@@ -289,7 +289,7 @@ func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observati
 	if err := q.TouchObservation(ctx, parent.ID); err != nil {
 		return dbsqlc.ObservationBlock{}, fmt.Errorf("touch observation: %w", err)
 	}
-	err = appendEvent(ctx, q, activity.TypeObservationBlockAdded, by, parent.ID, blockEventData{Title: parent.Title, BlockID: row.ID.String(), BlockKind: p.kind})
+	err = appendEvent(ctx, q, activity.TypeObservationBlockAdded, by, parent.ID, blockEventData{Title: parent.Title, BlockID: row.ID.String(), BlockKind: p.kind, State: state})
 	return row, err
 }
 

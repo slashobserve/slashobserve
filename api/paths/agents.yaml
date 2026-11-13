@@ -1,0 +1,33 @@
+agents:
+  get:
+    operationId: listAgents
+    summary: List who can do work for the signed-in person.
+    description: >-
+      Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read.
+      `observe_agent` names the configured provider and model (never an address or a key); `provider` and `model` are null while the agent is off.
+      `runtime` is the configured agent runtime, `sidecar` (the `observe-agent` process, the default) or `go` (the in-process loop).
+      Its `last_7_days` covers every built-in run of the workspace for an Admin (`scope` is `workspace`) and only the caller's own runs for anyone else (`scope` is `you`).
+      `connected` lists only the caller's own live connections, newest first and at most 100.
+      `grant_id` is the id a mention names as `@[Name](grant:<grant_id>)`, and a service account's `id` is the one in `@[Name](service_account:<id>)`.
+      `service_accounts` lists every account that takes runs, ordered by name and at most 100, with `last_7_days` for an Admin and null for anyone else, because a person needs the names to mention them.
+      `present` is true while the agent holds a run or asked for work in the last 40 seconds; see `docs/reference/states.md`.
+      Each `last_7_days` counts the runs created in the last seven days assigned to that agent: `failed` leaves out canceled runs, `cost_usd` is the sum of the recorded run costs and null when a finished run has none, because an unknown price is never counted as zero, and `median_queue_wait_seconds` is the median time from request to start over the runs that started, null when none did.
+      `writes_7d` counts the activity rows of the last seven days written by the caller over MCP under the connection's client name, so two connections of one client name share the count.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    responses:
+      "200":
+        description: The agents.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentsOverview"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
