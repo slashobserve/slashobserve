@@ -76,9 +76,11 @@ function setup({
   search = { q: "service.name:checkout" },
   names = ["log.level", "message", "http.response.status_code"],
   facets = esFacets,
+  effectiveQuery = search.q,
 }: {
   type?: string
   search?: LogsSearch
+  effectiveQuery?: string
   names?: string[]
   facets?: LogFacets
 } = {}) {
@@ -95,6 +97,7 @@ function setup({
       dashboard_count: 0,
     },
     search,
+    effectiveQuery,
     range,
     run,
     setDraft,
@@ -104,9 +107,9 @@ function setup({
     labels: names,
     truncated: false,
   })
-  if (search.q !== undefined) {
+  if (effectiveQuery !== undefined) {
     queryClient.setQueryData(
-      exploreKeys.facets("ds", { query: search.q, ...range, limit: 5 }),
+      exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
       facets
     )
   }
@@ -136,6 +139,17 @@ describe("FieldsAside", () => {
         .getAllByRole("button", { expanded: false })
         .map((button) => button.textContent)
     ).toEqual(["#http.response.status_code", "klog.level", "message"])
+  })
+
+  it("counts values over the query with the filter pills applied", async () => {
+    const { user } = setup({
+      search: { q: "timeout" },
+      effectiveQuery: "timeout AND service.name:checkout",
+    })
+    await user.click(screen.getByRole("button", { name: /log\.level/ }))
+    expect(
+      screen.getByRole("group", { name: "Top values of log.level" })
+    ).toBeVisible()
   })
 
   it("filters the field list by name", async () => {

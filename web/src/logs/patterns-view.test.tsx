@@ -44,6 +44,7 @@ function setup(patterns: LogPattern[], matched: number) {
       dashboard_count: 0,
     },
     search: { q: query, view: "patterns" },
+    effectiveQuery: query,
     range,
     update,
     setDraft,

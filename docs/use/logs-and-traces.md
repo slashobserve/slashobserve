@@ -149,6 +149,30 @@ The editor highlights JSON as soon as the text starts with `{`.
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 
+## Filters
+
+A filter pill narrows the query without retyping it.
+The row under the query box shows one pill for each filter, such as `service.name: checkout` or `NOT host.name: canary-*`, and **Add filter** opens a form with a field, an operator and a value.
+The field and the value suggest what the datasource holds in the time range, and the operators are is, is not, is one of, exists and between.
+A pill is applied in the language of the datasource: on Elasticsearch and OpenSearch it adds a KQL clause to the query, on Loki it goes into the stream selector or a `|` stage, and on ClickHouse into the `WHERE` clause.
+
+Pick a pill to change it:
+
+- **Exclude** turns it into its negation and **Include** turns it back.
+- **Pin** keeps it when you change the query, and **Unpin** lets the next query clear it.
+- **Pause** keeps the pill in the row but leaves it out of the query until you pick **Resume**.
+- **Edit** opens the form with the pill's values.
+- **Delete** removes it.
+
+The pills are not part of the text in the query box.
+The results, the log volume, the fields and the patterns all read the query with the active pills added, and the address keeps the pills as `f` beside `q`, so a shared link carries both.
+When you run a different query, the pills that are not pinned are cleared and the page says how many.
+A saved search stores the query with its pills folded in as text.
+
+On Elasticsearch and OpenSearch a pill needs a KQL query, so the row asks you to switch the query to KQL while the text starts with `lucene:` or `{`.
+On Loki and ClickHouse only the is and is not operators apply.
+A pill the datasource cannot express is marked "not applied" and left out of the query.
+
 ## Fields
 
 The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
