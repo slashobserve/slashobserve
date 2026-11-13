@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
 import {
   Link,
   useNavigate,
@@ -33,18 +32,22 @@ import { clickhouseLogsTemplate } from "./context-query"
 import { DatasourceControl } from "./datasource-control"
 import { eligibleDatasources } from "./datasource-picker"
 import { DetailDrawer } from "./detail-drawer"
-import { exploreQuery } from "./explore"
 import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import { logsDatasourceTypes, logsTimeRange, type LogsSearch } from "./search"
+import {
+  logsDatasourceTypes,
+  logsTimeRange,
+  searchAfter,
+  type LogsSearch,
+} from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { VolumeStrip } from "./volume-strip"
 import {
   LogsWorkspaceContext,
-  resultRows,
+  useLogsResults,
   type DetailTab,
   type LogsWorkspace,
 } from "./workspace"
@@ -68,7 +71,7 @@ function useLogsSearch() {
   const update = useCallback<Update>(
     (next, options) =>
       void navigate({
-        search: (state) => ({ ...state, ...next }),
+        search: (state) => searchAfter(state, next),
         replace: options?.replace,
       }),
     [navigate]
@@ -202,20 +205,16 @@ function LogsWorkspaceView({
     hasAsk: search.ask !== undefined,
   })
 
-  const results = useQuery({
-    ...exploreQuery(uid, {
-      query: q ?? "",
-      kind: "instant",
-      from: range.from,
-      to: range.to,
-      limit: resultRows,
-    }),
-    enabled: q !== undefined,
+  const { results, paging } = useLogsResults({
+    datasource,
+    search,
+    range,
+    update,
   })
   const liveTail = useLiveTail({
     uid,
     query: q ?? "",
-    seed: results.data?.frames ?? [],
+    seed: paging.page === 1 ? (results.data?.frames ?? []) : [],
     running: tailing,
     session: tailSession,
   })
@@ -302,6 +301,7 @@ function LogsWorkspaceView({
     run,
     range,
     results,
+    paging,
     tail: {
       ...liveTail,
       on: tailOn,

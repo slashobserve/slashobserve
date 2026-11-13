@@ -1,16 +1,116 @@
-import { createContext, useContext } from "react"
-import type { UseQueryResult } from "@tanstack/react-query"
+import { createContext, useContext, useEffect, useState } from "react"
+import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 
+import type { ExploreParams } from "@/api/keys"
 import type { InputMode } from "@/ask/input-mode"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import type { DatasourceStatus } from "@/datasources/queries"
+import { defaultPageSize, pagesByOffset, type PageSize } from "@/lib/paging"
+import { usePageCursors } from "@/lib/use-page-cursors"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
+import { exploreQuery } from "./explore"
 import type { LogsSearch } from "./search"
 import type { useLiveTail } from "./use-live-tail"
 
-export const resultRows = 1000
+export function logsPageParams({
+  query,
+  range,
+  pageSize,
+  page,
+  cursor,
+}: {
+  query: string
+  range: TimeRangeValue
+  pageSize: PageSize
+  page: number
+  cursor: string | undefined
+}): ExploreParams {
+  return {
+    query,
+    kind: "instant",
+    from: range.from,
+    to: range.to,
+    pageSize,
+    page,
+    ...(cursor !== undefined && { cursor }),
+  }
+}
+
+export type LogsPaging = {
+  page: number
+  pageSize: PageSize
+  lostPage: number | null
+}
+
+export function useLogsResults({
+  datasource,
+  search,
+  range,
+  update,
+}: {
+  datasource: Pick<DatasourceStatus, "uid" | "type">
+  search: LogsSearch
+  range: TimeRangeValue
+  update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
+}): { results: UseQueryResult<PanelDataResponse>; paging: LogsPaging } {
+  const byOffset = pagesByOffset(datasource.type)
+  const pageSize = search.size ?? defaultPageSize
+  const scope = JSON.stringify([
+    datasource.uid,
+    search.q,
+    range.from,
+    range.to,
+    pageSize,
+  ])
+  const cursors = usePageCursors(scope, byOffset)
+  const requested = search.page ?? 1
+  const page = cursors.reachable(requested) ? requested : 1
+  const results = useQuery({
+    ...exploreQuery(
+      datasource.uid,
+      logsPageParams({
+        query: search.q ?? "",
+        range,
+        pageSize,
+        page,
+        cursor: byOffset ? undefined : cursors.cursorFor(page),
+      })
+    ),
+    enabled: search.q !== undefined,
+  })
+  const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
+  if (page !== requested && lost?.scope !== scope) {
+    setLost({ scope, page: requested })
+  } else if (page === requested && requested !== 1 && lost !== null) {
+    setLost(null)
+  }
+  const fresh =
+    results.data !== undefined && !results.isPlaceholderData
+      ? results.data
+      : undefined
+  const freshPage = fresh?.meta.page?.page
+  const nextCursor = fresh?.meta.page?.next
+  const { remember } = cursors
+
+  useEffect(() => {
+    if (page !== requested) update({ page: undefined }, { replace: true })
+  }, [page, requested, update])
+
+  useEffect(() => {
+    if (freshPage !== undefined) remember(freshPage, nextCursor)
+  }, [freshPage, nextCursor, remember])
+
+  return {
+    results,
+    paging: {
+      page,
+      pageSize,
+      lostPage: lost?.scope === scope ? lost.page : null,
+    },
+  }
+}
 
 export type DetailTab = "table" | "json" | "context"
 
@@ -32,6 +132,7 @@ export type LogsWorkspace = {
   run: (text?: string, asked?: string) => void
   range: TimeRangeValue
   results: UseQueryResult<PanelDataResponse>
+  paging: LogsPaging
   tail: ReturnType<typeof useLiveTail> & {
     on: boolean
     shown: boolean

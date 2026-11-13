@@ -9,13 +9,23 @@ import {
   type UIEvent,
 } from "react"
 
+import { EmptyState } from "@/components/empty-state"
+import { PageBar } from "@/components/page-bar"
+import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
+import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import { useDatasources } from "@/datasources/queries"
+import {
+  defaultPageSize,
+  pagesByOffset,
+  pageStateOf,
+  rangeText,
+  windowNote,
+  type PageState,
+} from "@/lib/paging"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
 import type { LogEntry } from "@/panels/logs/logs-model"
@@ -35,7 +45,6 @@ import { columnList, columnsText } from "./line-fields"
 import { LogsResults, type ResultsView } from "./logs-results"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
-import { streamLimit, streamLimitText } from "./stream-limit"
 import {
   arrivalMarkMs,
   recentlyArrived,
@@ -51,7 +60,7 @@ import { TailVolume } from "./tail-volume"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 import { tailRows } from "./use-live-tail"
-import { resultRows, useLogsWorkspace } from "./workspace"
+import { useLogsWorkspace } from "./workspace"
 
 const skeletonRows = [0, 1, 2, 3, 4]
 
@@ -59,17 +68,50 @@ function count(value: number): string {
   return value.toLocaleString("en")
 }
 
-function hitsText(meta: PanelDataMeta, type: string): string {
+function tookText(elapsedMs: number | undefined): string {
+  return elapsedMs === undefined ? "" : ` in ${(elapsedMs / 1000).toFixed(1)} s`
+}
+
+function hitsText(
+  data: PanelDataResponse,
+  state: PageState,
+  type: string
+): string {
   const noun = isSearchFamily(type) ? "hits" : "lines"
   const shown =
-    meta.truncated && meta.rows_total !== undefined
-      ? `${count(meta.rows)} of ${count(meta.rows_total)}`
-      : count(meta.rows)
-  const took =
-    meta.elapsed_ms === undefined
-      ? ""
-      : ` in ${(meta.elapsed_ms / 1000).toFixed(1)} s`
-  return `${shown} ${noun}${took}`
+    state.totalRelation === "eq" && state.total !== undefined
+      ? state.total
+      : data.meta.rows
+  const page = state.page > 1 ? `, page ${state.page}` : ""
+  return `${count(shown)} ${noun}${tookText(data.meta.elapsed_ms)}${page}`
+}
+
+function sourceText(
+  data: PanelDataResponse,
+  state: PageState,
+  type: string,
+  name: string,
+  index: string | undefined
+): string {
+  const noun = isSearchFamily(type) ? "hits" : "lines"
+  return [
+    typeName(type),
+    name,
+    index,
+    rangeText(state, noun, tookText(data.meta.elapsed_ms)),
+  ]
+    .filter((part) => part !== undefined)
+    .join(" ")
+}
+
+const lokiPagingNote =
+  "Loki pages by time from the last line shown, so there is no page count."
+
+function pagingNote(type: string, state: PageState): string | undefined {
+  if (type === "loki") return lokiPagingNote
+  if (isSearchFamily(type))
+    return windowNote(state, typeName(type)) ?? undefined
+  return undefined
 }
 
 type TailViewState = { tail: TailState; now: number }
@@ -314,7 +356,7 @@ export function ResultsSection() {
     mode,
     update,
     detail,
-    labels,
+    paging,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
   const [view, setView] = useState<ResultsView>({
@@ -347,14 +389,43 @@ export function ResultsSection() {
   const { ref, height } = useElementSize<HTMLDivElement>()
   const q = search.q
   const patterns = search.view === "patterns"
-  const frames = results.data?.frames
+  const resultsScope = `${q ?? ""}|${range.from}|${range.to}|${paging.pageSize}`
+  const [lastGood, setLastGood] = useState<{
+    scope: string
+    data: PanelDataResponse
+  } | null>(null)
+  const fresh =
+    results.data !== undefined && !results.isPlaceholderData
+      ? results.data
+      : undefined
+  if (fresh !== undefined && lastGood?.data !== fresh) {
+    setLastGood({ scope: resultsScope, data: fresh })
+  }
+  const kept =
+    results.isError && lastGood?.scope === resultsScope
+      ? lastGood.data
+      : undefined
+  const data = results.data ?? kept
+  const frames = data?.frames
   const lines = frames ? rowCount(frames) : 0
   const traceDatasource = traceDatasourceFor(
     datasource,
     allDatasources.data ?? []
   )
-  const meta = !tail.shown ? results.data?.meta : undefined
-  const hits = meta === undefined ? null : hitsText(meta, datasource.type)
+  const byOffset = pagesByOffset(datasource.type)
+  const shownData = !tail.shown ? data : undefined
+  const pageState =
+    shownData === undefined
+      ? null
+      : pageStateOf(shownData.meta.page, lines, byOffset, {
+          page: paging.page,
+          pageSize: paging.pageSize,
+          truncated: shownData.meta.truncated,
+        })
+  const hits =
+    shownData === undefined || pageState === null
+      ? null
+      : hitsText(shownData, pageState, datasource.type)
 
   function resultsProps() {
     return {
@@ -404,26 +475,19 @@ export function ResultsSection() {
         <p className="p-3 text-[13px] text-muted-foreground">{offlineText}</p>
       )
     }
-    if (!tail.shown && results.isError) {
-      const limit = streamLimit(results.error)
+    if (!tail.shown && results.isError && kept === undefined) {
       return (
         <div className="p-3">
           <Alert variant="destructive">
             <AlertDescription className="flex flex-col items-start gap-2">
-              {limit !== null
-                ? streamLimitText(limit)
-                : exploreErrorText(results.error)}
+              {exploreErrorText(results.error)}
               <Button
                 type="button"
                 variant="outline"
                 size="xs"
-                onClick={
-                  limit !== null
-                    ? () => labels.setOpen(true)
-                    : () => void results.refetch()
-                }
+                onClick={() => void results.refetch()}
               >
-                {limit !== null ? "Open label browser" : "Retry"}
+                Retry
               </Button>
             </AlertDescription>
           </Alert>
@@ -479,9 +543,15 @@ export function ResultsSection() {
       </div>
       {hits === null ? null : (
         <p className="border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-          {[typeName(datasource.type), datasource.name, datasource.index, hits]
-            .filter((part) => part !== undefined)
-            .join(" ")}
+          {shownData === undefined || pageState === null
+            ? null
+            : sourceText(
+                shownData,
+                pageState,
+                datasource.type,
+                datasource.name,
+                datasource.index
+              )}
         </p>
       )}
       {tail.error ? (
@@ -509,10 +579,49 @@ export function ResultsSection() {
       >
         <div className="absolute inset-0 flex flex-col">{body()}</div>
       </div>
-      {lines === resultRows && !patterns ? (
-        <p className="border-t border-border px-3 py-1.5 text-xs text-muted-foreground">
-          Showing the newest 1,000 lines. Narrow the query or the time range.
-        </p>
+      {pageState !== null &&
+      shownData !== undefined &&
+      !patterns &&
+      (pageState.rows > 0 || pageState.hasPrev) ? (
+        <div className="flex flex-col gap-2 border-t border-border px-3 py-2">
+          {results.isError && kept !== undefined ? (
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-col items-start gap-2">
+                {exploreErrorText(results.error)}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => void results.refetch()}
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {paging.lostPage !== null ? (
+            <p role="status" className="text-[13px] text-muted-foreground">
+              Page {paging.lostPage} could not be restored; showing page 1
+            </p>
+          ) : null}
+          {shownData.meta.partial && isSearchFamily(datasource.type) ? (
+            <StatusLabel tone="warning">
+              Some shards did not answer; counts may be low
+            </StatusLabel>
+          ) : null}
+          <PageBar
+            state={pageState}
+            noun={isSearchFamily(datasource.type) ? "hits" : "lines"}
+            qualifier=" in range"
+            note={pagingNote(datasource.type, pageState)}
+            label="Document pages"
+            busy={results.isFetching}
+            onPage={(next) => update({ page: next })}
+            onPageSize={(size) =>
+              update({ size: size === defaultPageSize ? undefined : size })
+            }
+          />
+        </div>
       ) : null}
     </section>
   )

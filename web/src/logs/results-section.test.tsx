@@ -21,6 +21,7 @@ function workspace(search: LogsWorkspace["search"]): LogsWorkspace {
     search,
     range: { from: "now-1h", to: "now" },
     results: { fetchStatus: "idle", isFetching: false },
+    paging: { page: 1, pageSize: 50, lostPage: null },
     tail: { shown: false, isFetching: false, stop: vi.fn() },
     mode: "query",
     update: vi.fn(),

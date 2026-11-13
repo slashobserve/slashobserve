@@ -21,7 +21,7 @@ The address keeps `ds`, `q`, `from` and `to`, so **Copy link** copies a search t
 ### What the page shows first
 
 The page starts as soon as it opens.
-On ClickHouse it runs a template that reads `otel_logs` and shows the newest 1,000 lines of the time range at once.
+On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
 On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
 The label browser lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
@@ -47,13 +47,25 @@ In the language segment you write the query yourself.
 On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
-The page shows at most 1,000 lines, newest first.
+The page shows one page of lines at a time, newest first, 50 by default.
 
 On Loki the query must start with a stream selector.
 When a run fails, the box says "No results." with the time and size of the last good run, and on Elasticsearch and OpenSearch a **Check the datasource** link.
-When the page shows 1,000 lines it adds the note "Showing the newest 1,000 lines. Narrow the query or the time range."
-The results have no page bar and no way to load older lines, so narrow the query or the time range to reach them.
+Under the lines a page bar sets 50, 100, 250 or 500 lines per page and moves between pages, as [Paging](#paging) describes.
 **Live tail**, **Add to dashboard** and **Add to observation** stay disabled until a query has run, and say "Run a query first."
+
+### Paging
+
+The bar under the lines says which lines are on the page, such as "51-100 of 48,210 hits in range", and sets how many lines a page holds.
+The header above the lines gains ", page 3" from the second page on.
+ClickHouse, Elasticsearch and OpenSearch offer numbered pages and an exact total of the lines that match.
+Elasticsearch and OpenSearch stop at the largest offset the index pages to, `max_result_window`, and a note under the bar says which page that is and to narrow the time range to reach older lines.
+Loki pages by time from the last line shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, because a Loki page is reached through the page before it.
+
+The page and size are in the address as `page` and `size`, so a link to a page opens on it; a Loki address beyond page 1 reopens on page 1 with a note, and a query, filter, datasource or time range change returns to page 1.
+When a page cannot be read, the bar keeps the last page that loaded and the error shows above it.
+On Elasticsearch and OpenSearch a note above the bar says "Some shards did not answer; counts may be low" when the store reports a partial answer.
+Live tail replaces the lines and hides the bar.
 
 ### Results toolbar and columns
 
