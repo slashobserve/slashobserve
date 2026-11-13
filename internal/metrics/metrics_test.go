@@ -14,13 +14,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
-	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -52,8 +50,8 @@ func newPoolStat(t *testing.T) func() *pgxpool.Stat {
 func TestScrapeServesEverySeries(t *testing.T) {
 	r := metrics.New()
 	r.HTTP().ObserveRequest("/api/v1/dashboards/:id", "GET", 200, 20*time.Millisecond)
-	r.AgentRuns().AgentRun("create", "succeeded")
-	r.AgentQueue().RequestClaimed("prompt", 3*time.Second)
+	r.AgentRequests().AgentRun("create", "succeeded")
+	r.AgentRequests().RequestClaimed("prompt", 3*time.Second)
 	r.ModelCalls().ModelCall("anthropic", "claude-haiku-5-5", "ok", 3*time.Second, llm.Usage{InputTokens: 1200, OutputTokens: 300, CacheReadTokens: 900, CacheWriteTokens: 50})
 	r.Proxy().ProxyQuery("prometheus", "ok", 40*time.Millisecond)
 	r.Proxy().ProxyCache(true)
@@ -257,29 +255,10 @@ func TestMeteredProviderRecordsEveryModelCallWithItsOutcome(t *testing.T) {
 	}
 }
 
-type fakeReviser struct {
-	result revisions.Result
-	err    error
-}
-
-func (f fakeReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return f.result, f.err
-}
-
-func TestMeteredReviserRecordsTheKindAndOutcomeOfEveryRun(t *testing.T) {
+func TestAgentRunsAreCountedByKindAndOutcome(t *testing.T) {
 	r := metrics.New()
-	runs := []struct {
-		reviser revisions.Reviser
-		req     revisions.Request
-	}{
-		{fakeReviser{result: revisions.Result{Version: 1}}, revisions.Request{Source: revisions.SourceObserve}},
-		{fakeReviser{result: revisions.Result{Version: 2}}, revisions.Request{Source: revisions.SourceComment, DashboardID: "d"}},
-		{fakeReviser{result: revisions.Result{FailureCode: revisions.FailureRateLimited}, err: errors.New("failed")}, revisions.Request{Source: revisions.SourcePrompt, DashboardID: "d"}},
-		{fakeReviser{err: fmt.Errorf("wrapped: %w", revisions.ErrLeaseLost)}, revisions.Request{Source: revisions.SourceSuggest, DashboardID: "d"}},
-		{fakeReviser{err: errors.New("boom")}, revisions.Request{Source: revisions.SourceObserve}},
-	}
-	for _, run := range runs {
-		_, _ = agent.WithMetrics(run.reviser, r.AgentRuns()).Revise(t.Context(), run.req)
+	for _, run := range [][2]string{{"create", "succeeded"}, {"revise", "succeeded"}, {"revise", "rate_limited"}, {"suggest", "canceled"}, {"create", "internal"}} {
+		r.AgentRequests().AgentRun(run[0], run[1])
 	}
 
 	body := scrape(t, r)
@@ -287,7 +266,7 @@ func TestMeteredReviserRecordsTheKindAndOutcomeOfEveryRun(t *testing.T) {
 		`slashobserve_agent_runs_total{kind="create",outcome="succeeded"} 1`,
 		`slashobserve_agent_runs_total{kind="revise",outcome="succeeded"} 1`,
 		`slashobserve_agent_runs_total{kind="revise",outcome="rate_limited"} 1`,
-		`slashobserve_agent_runs_total{kind="suggest",outcome="lease_lost"} 1`,
+		`slashobserve_agent_runs_total{kind="suggest",outcome="canceled"} 1`,
 		`slashobserve_agent_runs_total{kind="create",outcome="internal"} 1`,
 	} {
 		if !strings.Contains(body, want) {

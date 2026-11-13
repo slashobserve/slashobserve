@@ -39,7 +39,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make evals-stack-up [EVALS_STACK_MODE=replay\|<env-file>]` | Generate the replay fixtures and synthetic series, then boot the isolated `slashobserve-evals` stack on http://localhost:28080 (Prometheus on :29090, the `checkout-0` and `checkout-1` fault APIs on :28081 and :28082); the default `replay` mode never reads `deploy/compose/.env`, and an env file path boots it on the provider settings of that file; it returns once Prometheus serves the node, shop and synthetic series the scenarios read, about 3 minutes after the containers are healthy, once the synthetic series hold the history a retime step needs. |
 | `make evals-stack-down` | Remove the `slashobserve-evals` containers and drop its volumes only. |
 | `scripts/evals-stack.sh up --k8s replay` | Boot the evals stack against the running Kubernetes demo: it adds the `prom_k8s` datasource, joins the server to the cluster's docker network and serves no synthetic series. Then `go run ./evals/runner --verify-k8s --server http://localhost:28080 --bootstrap-dex` imports the 29 Kubernetes corpus dashboards and compares their unverified panels with `evals/k8s-gaps.yaml`; `--profile k8s` runs the live suite on them. |
-| `make evals-replay` | Boot the replay stack and run `--suite replay --bootstrap-dex --min-pass 1` against it with no key or model (`EVALS_OUT=<file>` writes the JSON report; `SLASHOBSERVE_AGENT_RUNTIME=go|sidecar` picks the runtime): what the CI `evals-replay` job runs. |
+| `make evals-replay` | Boot the replay stack and run `--suite replay --bootstrap-dex --min-pass 1` against it with no key or model (`EVALS_OUT=<file>` writes the JSON report): what the CI `evals-replay` job runs. |
 | `make evals-live [EVALS_MATRIX=evals/matrix.yaml] [EVALS_REPORT_DIR=evals/reports/live]` | Run the live suite once per model of the git-ignored matrix file (see `evals/matrix.example.yaml`) against a running evals stack, recreating only the server between models; spends tokens, so it runs by hand and CI never runs it. |
 
 Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`, `/healthz` and `/readyz` to :8080), `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
@@ -65,7 +65,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `spec/`: `schema/observespec.v0.json` and `schema/defaults.json`, plus `examples/` (valid examples and `invalid/` fixtures with `expected.json`) shared by Go, TS and e2e tests.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
-- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it unless `SLASHOBSERVE_AGENT_RUNTIME=go`, and the image ships it at `/usr/local/bin/observe-agent`.
+- `observe-agent/`: the built-in agent as a separate Bun process that claims runs over MCP; the server starts it whenever a model provider is configured, and the image ships it at `/usr/local/bin/observe-agent`.
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
 - `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite), `replicas.sh` (lifecycle of the isolated `slashobserve-replicas` stack: `up`, `down`, `status`, `logs`, `keys`, `stop`, `kill`, `start`, `workers`, `check`, `load`), `evals-stack.sh` (lifecycle of the isolated `slashobserve-evals` stack: `up [--k8s] replay|<env-file>`, `server [--k8s] <env-file>`, `down`, `status`), `demo-k8s.sh` (lifecycle of the Kubernetes demo cluster) and the release tag and notes scripts.
@@ -114,7 +114,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
 - Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
 - `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it.
-- The model clients are `anthropic-sdk-go` and `openai-go/v3` for the Go runtime and draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
+- The model clients are `anthropic-sdk-go` and `openai-go/v3` for draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
   Adapters stream, retry in one place (`llm.Retry`, the SDKs' retries off) and keep provider history append-only except `Session.Compact`; request-side pruning changes only what is sent.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).
   The OpenAI-compatible adapter rebuilds assistant history with its own helper, so a tool call with a missing type still round-trips.

@@ -38,7 +38,6 @@ func noResultMessage(source Source) string {
 	return messageNoDashboard
 }
 
-// The agent's sentinel errors take their texts from here, so a run stored by the server and one stored by the Go loop read the same.
 func FailureMessage(code FailureCode, source Source) string {
 	switch code {
 	case FailureNoToolCall:

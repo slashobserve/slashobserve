@@ -252,17 +252,12 @@ jobs:
         run: scripts/e2e.sh down
 
   evals-replay:
-    name: evals-replay (${{ matrix.runtime }})
+    name: evals-replay
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        runtime: [go, sidecar]
     env:
       SLASHOBSERVE_IMAGE: slashobserve-evals:ci
       SLASHOBSERVE_SHOP_IMAGE: slashobserve-evals-shop:ci
-      SLASHOBSERVE_AGENT_RUNTIME: ${{ matrix.runtime }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

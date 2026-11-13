@@ -176,17 +176,15 @@ func (r *rig) activity(t *testing.T, by auth.Principal, origin, client string, d
 
 func price(v float64) *float64 { return &v }
 
-func TestObserveAgentReportsTheConfiguredRuntime(t *testing.T) {
-	for _, runtime := range []string{"go", "sidecar"} {
-		r := newRig(t, Observe{Enabled: true, Runtime: runtime})
-		if got := r.overview(t, ada).ObserveAgent.Runtime; got != runtime {
-			t.Fatalf("runtime = %q, want the configured %q", got, runtime)
-		}
+func TestObserveAgentReportsTheSidecarRuntime(t *testing.T) {
+	r := newRig(t, Observe{Enabled: true})
+	if got := r.overview(t, ada).ObserveAgent.Runtime; got != "sidecar" {
+		t.Fatalf("runtime = %q, want sidecar", got)
 	}
 }
 
 func TestAdminSeesWorkspaceScopeAndServiceAccountStats(t *testing.T) {
-	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5", Runtime: "sidecar"})
+	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5"})
 	account := r.serviceAccount(t, "nightly", true)
 	r.run(t, run{kind: "builtin", by: ada, state: "succeeded", cost: price(0.25), waitSeconds: 4})
 	r.run(t, run{kind: "builtin", by: bob, state: "failed", cost: price(0.5), waitSeconds: 8})
@@ -385,7 +383,7 @@ func (r *rig) validate(t *testing.T, rec *httptest.ResponseRecorder) {
 }
 
 func TestTheResponsesMatchTheDocument(t *testing.T) {
-	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5", Runtime: "sidecar"})
+	r := newRig(t, Observe{Enabled: true, Provider: "anthropic", Model: "claude-sonnet-5-5"})
 	grant := r.grant(t, root, "claude-code")
 	account := r.serviceAccount(t, "nightly", true)
 	r.run(t, run{kind: "builtin", by: root, state: "succeeded", cost: price(0.5), waitSeconds: 3})

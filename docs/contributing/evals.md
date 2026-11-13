@@ -12,7 +12,7 @@ The contributor's guide, with every scenario field, fault, check, quality rule a
 
 | Suite | What it is for |
 | --- | --- |
-| `replay` | Proving the runner, the server and the agent loop still work, with scripted model turns and no key. |
+| `replay` | Proving the runner, the server and the agent still work, with scripted model turns and no key. |
 | `live` | Measuring a real model: pass rate, quality, latency and cost, including investigations of injected shop faults. |
 | `smoke` | Thirteen live tasks for a quick check of a model, prompt or agent change before a full live run. |
 

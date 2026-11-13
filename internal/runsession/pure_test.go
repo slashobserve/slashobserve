@@ -2,7 +2,6 @@ package runsession
 
 import (
 	"encoding/json"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -185,21 +184,6 @@ func TestSessionStateRoundTripsThroughJSON(t *testing.T) {
 	again, _ := json.Marshal(back)
 	if string(again) != string(raw) {
 		t.Fatalf("round trip changed the state:\n%s\n%s", raw, again)
-	}
-}
-
-func TestTheRunSessionDoesNotImportTheAgentLoop(t *testing.T) {
-	if testing.Short() {
-		t.Skip("go list is slow")
-	}
-	out, err := exec.Command("go", "list", "-deps", ".").CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list: %v\n%s", err, out)
-	}
-	for _, dep := range strings.Fields(string(out)) {
-		if strings.HasSuffix(dep, "/internal/agent") {
-			t.Fatalf("the run session depends on the agent loop: %s", dep)
-		}
 	}
 }
 

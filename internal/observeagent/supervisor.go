@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	errBinaryNotFound = errors.New("observe-agent is not on PATH; the server image ships it at /usr/local/bin/observe-agent, a source build gets it from make agent, or set SLASHOBSERVE_AGENT_RUNTIME=go")
+	errBinaryNotFound = errors.New("observe-agent is not on PATH; the server image ships it at /usr/local/bin/observe-agent and a source build gets it from make agent")
 	errExitedCleanly  = errors.New("observe-agent exited with status 0")
 )
 

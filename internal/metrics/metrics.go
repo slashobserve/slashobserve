@@ -100,19 +100,20 @@ func (h HTTP) ObserveRequest(route, method string, status int, took time.Duratio
 	h.requests.WithLabelValues(route, method, strconv.Itoa(status)).Observe(took.Seconds())
 }
 
-type AgentRuns struct{ runs *prometheus.CounterVec }
+type AgentRequests struct {
+	runs *prometheus.CounterVec
+	wait *prometheus.HistogramVec
+}
 
-func (r *Registry) AgentRuns() AgentRuns { return AgentRuns{runs: r.agentRuns} }
+func (r *Registry) AgentRequests() AgentRequests {
+	return AgentRequests{runs: r.agentRuns, wait: r.agentQueueWait}
+}
 
-func (a AgentRuns) AgentRun(kind, outcome string) {
+func (a AgentRequests) AgentRun(kind, outcome string) {
 	a.runs.WithLabelValues(kind, outcome).Inc()
 }
 
-type AgentQueue struct{ wait *prometheus.HistogramVec }
-
-func (r *Registry) AgentQueue() AgentQueue { return AgentQueue{wait: r.agentQueueWait} }
-
-func (a AgentQueue) RequestClaimed(source string, waited time.Duration) {
+func (a AgentRequests) RequestClaimed(source string, waited time.Duration) {
 	a.wait.WithLabelValues(source).Observe(waited.Seconds())
 }
 

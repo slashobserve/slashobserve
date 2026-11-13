@@ -768,7 +768,7 @@ components:
               nullable: true
             runtime:
               type: string
-              enum: [go, sidecar]
+              enum: [sidecar]
             scope:
               type: string
               enum: [workspace, you]

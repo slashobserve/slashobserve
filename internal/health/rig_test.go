@@ -75,12 +75,6 @@ func (s stub) frames(q datasource.Query) ([]datasource.Frame, error) {
 	}}}, nil
 }
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type rig struct {
 	db         *dbtest.Database
 	dashboards *dashboards.Service
@@ -110,8 +104,8 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	runner := queryproxy.NewRunner(registry, logger)
-	queue := revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access))
-	none := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
+	queue := revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access))
+	none := revisions.NewService(database.DB, logger, revisions.WithAccess(access))
 	svc := health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, PublicURL: base, Logger: logger, Job: "dashboard_health"})
 	shared, err := database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Shop"})
 	if err != nil {

@@ -26,13 +26,14 @@ const (
 	scopeYou       = "you"
 	sessionMessage = "the agents overview shows a person's own connected agents; service-account keys cannot read it"
 	anonymousName  = "MCP"
+
+	runtimeSidecar = "sidecar"
 )
 
 type Observe struct {
 	Enabled  bool
 	Provider string
 	Model    string
-	Runtime  string
 }
 
 type Handler struct {
@@ -127,7 +128,7 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 			Enabled:  h.observe.Enabled,
 			Provider: httpapi.OptionalString(h.observe.Provider),
 			Model:    httpapi.OptionalString(h.observe.Model),
-			Runtime:  h.observe.Runtime,
+			Runtime:  runtimeSidecar,
 			Scope:    scopeYou,
 		},
 		Connected:       []connectedJSON{},

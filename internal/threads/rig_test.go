@@ -77,12 +77,6 @@ func fakeFrames() []datasource.Frame {
 	}}}
 }
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type runObservations struct {
 	service *observations.Service
 }
@@ -129,11 +123,11 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var reviser revisions.Reviser
+	revisionOpts := []revisions.Option{revisions.WithAccess(access), revisions.WithObservations(runObservations{observationService})}
 	if agent {
-		reviser = noopReviser{}
+		revisionOpts = append(revisionOpts, revisions.WithBuiltInAgent())
 	}
-	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access), revisions.WithObservations(runObservations{observationService}))
+	queue := revisions.NewService(database.DB, logger, revisionOpts...)
 	proposalService := proposals.New(database.DB, access, dashboardService, logger)
 	dashboardService.SetProposer(proposalService.Propose)
 	service := NewService(database.DB, access, dashboardService, annotationService, observationService, proposalService)

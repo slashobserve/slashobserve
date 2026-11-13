@@ -135,9 +135,6 @@ const (
 	envAgentWorkers         = "SLASHOBSERVE_AGENT_WORKERS"
 	envAgentRunMaxCostUSD   = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
-	envAgentLogToolInputs = "SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS"
-	envAgentRuntime       = "SLASHOBSERVE_AGENT_RUNTIME"
-
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
 	envMetrics      = "SLASHOBSERVE_METRICS"
 	envSecretKey    = "SLASHOBSERVE_SECRET_KEY"
@@ -150,7 +147,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentLogToolInputs, envAgentRuntime,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -174,22 +171,11 @@ type LLM struct {
 	LogProviderErrors bool
 }
 
-type AgentRuntime string
-
-const (
-	AgentRuntimeGo      AgentRuntime = "go"
-	AgentRuntimeSidecar AgentRuntime = "sidecar"
-
-	defaultAgentRuntime = AgentRuntimeSidecar
-)
-
 type Agent struct {
-	Runtime           AgentRuntime
 	RunTimeout        time.Duration
 	SessionRenewBytes int
 	Workers           int
 	MaxRunCostUSD     float64
-	LogToolInputs     bool
 }
 
 type Config struct {
@@ -298,10 +284,6 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
-	cfg.Agent.LogToolInputs, err = loadBool(lookup, envAgentLogToolInputs, false)
-	if err != nil {
-		errs = append(errs, err)
-	}
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
 	errs = append(errs, loadSecretKey(lookup, &cfg)...)
 
@@ -642,24 +624,7 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 	if err := loadRunMaxCost(lookup, cfg); err != nil {
 		errs = append(errs, err)
 	}
-	if err := loadAgentRuntime(lookup, cfg); err != nil {
-		errs = append(errs, err)
-	}
 	return errs
-}
-
-func loadAgentRuntime(lookup func(string) (string, bool), cfg *Config) error {
-	cfg.Agent.Runtime = defaultAgentRuntime
-	v := get(lookup, envAgentRuntime)
-	if v == "" {
-		return nil
-	}
-	switch runtime := AgentRuntime(strings.ToLower(v)); runtime {
-	case AgentRuntimeGo, AgentRuntimeSidecar:
-		cfg.Agent.Runtime = runtime
-		return nil
-	}
-	return fmt.Errorf("%s: must be go or sidecar, got %q", envAgentRuntime, v)
 }
 
 func loadRunMaxCost(lookup func(string) (string, bool), cfg *Config) error {

@@ -113,12 +113,6 @@ func (b blockingStub) VariableValues(ctx context.Context, q datasource.Query, tr
 	return b.promStub.VariableValues(ctx, q, tr)
 }
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type rig struct {
 	db        *dbtest.Database
 	dashboard *dashboards.Service
@@ -150,7 +144,7 @@ func newRigWith(t *testing.T, ds datasource.Datasource) *rig {
 		dashboard: dash,
 		access:    access,
 		imports:   imports.New(database.DB, dash, access, registry, logger),
-		queue:     revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access)),
+		queue:     revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)),
 	}
 }
 

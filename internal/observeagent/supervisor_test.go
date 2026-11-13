@@ -371,7 +371,7 @@ func TestFindBinary(t *testing.T) {
 	t.Run("not on PATH", func(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())
 		_, err := FindBinary()
-		if err == nil || !strings.Contains(err.Error(), "observe-agent is not on PATH") || !strings.Contains(err.Error(), "SLASHOBSERVE_AGENT_RUNTIME=go") {
+		if err == nil || !strings.Contains(err.Error(), "observe-agent is not on PATH") || !strings.Contains(err.Error(), "make agent") {
 			t.Fatalf("FindBinary error = %v, want the not-on-PATH message", err)
 		}
 	})

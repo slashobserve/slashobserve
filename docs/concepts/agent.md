@@ -161,7 +161,6 @@ A tool result over its size limit goes back to the model as a `result_too_large`
 A save result is never an error for its size, because the save already happened: its panel list is cut to fit and marked `truncated`.
 A tool that fails, such as a datasource that does not answer, goes back to the model as a `tool_failed` error without the error's own text, and the run goes on.
 A tool call ends the run only on a broken internal invariant: a cancellation, a lost claim on the build, or a tool that panicked (`tool_panicked`).
-On an evals stack, `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` logs each tool input by hash, size, panel ids and the issue paths of a rejected save, never by its text; see [Configuration](../reference/configuration.md).
 
 ### Cancel, continue and queueing
 
@@ -315,14 +314,13 @@ When a message that mentions an agent started the run, the server instead posts 
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).
 
-## Runtimes
+## The agent process
 
-`SLASHOBSERVE_AGENT_RUNTIME` picks where the loop runs.
-With `sidecar`, the default, the server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
-With `go`, the loop runs inside the server.
+The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
-Whichever runtime runs, the guards, the limits and the saved result are the same.
+The server enforces the guards and the limits and stores the saved result.
+It looks for `observe-agent` on `PATH`, and it does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 
 ## MCP clients use their own model
 

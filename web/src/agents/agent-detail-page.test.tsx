@@ -26,7 +26,7 @@ const overview: AgentsOverview = {
     enabled: true,
     provider: "anthropic",
     model: "claude-haiku-5-5",
-    runtime: "go",
+    runtime: "sidecar",
     scope: "you",
     last_7_days: stats,
   },

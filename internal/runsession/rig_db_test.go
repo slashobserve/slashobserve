@@ -61,12 +61,6 @@ type panels struct{}
 
 func (panels) HasPanel(context.Context, pgtype.UUID, int, string) (bool, error) { return true, nil }
 
-type noReviser struct{}
-
-func (noReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type stepLog struct {
 	mu    sync.Mutex
 	steps []revisions.Step
@@ -248,7 +242,7 @@ func newRig(t *testing.T, options ...rigOption) *rig {
 	t.Helper()
 	d := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
-	runs := revisions.NewService(d.DB, noReviser{}, logger,
+	runs := revisions.NewService(d.DB, logger, revisions.WithBuiltInAgent(),
 		revisions.WithPrincipals(people{}), revisions.WithPanels(panels{}), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
 	claimsService := claims.New(claims.Config{DB: d.DB, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
 	r := &rig{t: t, d: d, runs: runs, claims: claimsService, steps: &stepLog{}}

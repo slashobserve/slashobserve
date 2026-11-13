@@ -44,18 +44,18 @@ func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (au
 	return auth.Principal{Kind: kind, ID: id, Name: user.Name, Email: user.Email, Role: auth.RoleEditor}, nil
 }
 
-func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
-	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns(database))}, opts...)...)
-}
+var revisers sync.Map
 
-func TestNewWorkerNeedsAtLeastOneWorker(t *testing.T) {
-	svc := newTestService(nil, nil, quietLogger())
-	defer func() {
-		if recover() == nil {
-			t.Fatal("NewWorker accepted zero workers")
-		}
-	}()
-	revisions.NewWorker(svc, nil, quietLogger(), revisions.WorkerOptions{Workers: 0})
+func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
+	base := []revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns(database))}
+	if reviser != nil {
+		base = append(base, revisions.WithBuiltInAgent())
+	}
+	svc := revisions.NewService(database, logger, append(base, opts...)...)
+	if reviser != nil {
+		revisers.Store(svc, reviser)
+	}
+	return svc
 }
 
 func TestMain(m *testing.M) {
@@ -149,6 +149,9 @@ func startWorkerLogged(t *testing.T, svc *revisions.Service, d *dbtest.Database,
 		opts.Poll = 20 * time.Millisecond
 	}
 	opts.Workers = cmp.Or(opts.Workers, 2)
+	if reviser, ok := revisers.Load(svc); ok {
+		opts.Reviser = reviser.(revisions.Reviser)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
@@ -415,15 +418,6 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 	}
 }
 
-func TestIdleWorkerWakesOnNotifyBeforeThePollInterval(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 1)
-	startWorker(t, svc, d, revisions.WorkerOptions{Poll: time.Hour})
-	time.Sleep(300 * time.Millisecond)
-	rev := submit(t, svc, dash, "go")
-	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
-}
-
 func TestFailedRunStoresATruncatedError(t *testing.T) {
 	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
 		return revisions.Result{}, errors.New(strings.Repeat("é", 900) + "\x00")
@@ -434,105 +428,6 @@ func TestFailedRunStoresATruncatedError(t *testing.T) {
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
 	if failed.Error != strings.Repeat("é", revisions.MaxErrorRunes) || failed.ResultVersion != nil || failed.Attempts != 1 {
 		t.Fatalf("failed revision = %+v", failed)
-	}
-}
-
-func TestPanicInTheReviserFailsOnlyThatRequest(t *testing.T) {
-	var calls atomic.Int32
-	svc, d := newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
-		if req.Prompt == "boom" {
-			panic("secret prompt text")
-		}
-		calls.Add(1)
-		return revisions.Result{Version: 2}, nil
-	}))
-	dash := seedDashboard(t, d, 1)
-	boom := submit(t, svc, dash, "boom")
-	fine := submit(t, svc, dash, "fine")
-	startWorker(t, svc, d, revisions.WorkerOptions{})
-	failed := waitForStatus(t, svc, dash, boom.ID, revisions.StatusFailed)
-	if failed.Error != "the agent run crashed" {
-		t.Fatalf("error = %q", failed.Error)
-	}
-	assertFailureCode(t, svc, boom.ID, revisions.FailureCrashed)
-	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
-}
-
-func TestWorkerLogsCarryTheRequestIdAsAgentRequestIdAndNoRunText(t *testing.T) {
-	logger, logs := logtest.New()
-	d := dbtest.New(t)
-	svc := newTestService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
-		if req.Prompt == "boom" {
-			panic("secret prompt text")
-		}
-		return revisions.Result{Version: 2}, nil
-	}), logger)
-	dash := seedDashboard(t, d, 1)
-	boom := submit(t, svc, dash, "boom")
-	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
-	waitForStatus(t, svc, dash, boom.ID, revisions.StatusFailed)
-	fine := submit(t, svc, dash, "fine")
-	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
-
-	if got := findEventually(t, logs, "agent run panicked"); got["agent_request_id"] != boom.ID || got["panic_type"] != "string" {
-		t.Errorf("panic record = %v", got)
-	}
-	failed := findEventually(t, logs, "agent request failed")
-	logs.AssertSafeFailure(t, failed, "agent_run_panicked", "secret prompt text")
-	if failed["agent_request_id"] != boom.ID {
-		t.Errorf("failure record = %v", failed)
-	}
-	if got := findEventually(t, logs, "agent request succeeded"); got["agent_request_id"] != fine.ID {
-		t.Errorf("success record = %v", got)
-	}
-	logs.AssertAbsent(t, "revision_id")
-}
-
-func TestRunTimeoutFailsTheRequest(t *testing.T) {
-	svc, d := newService(t, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
-		<-ctx.Done()
-		return revisions.Result{}, ctx.Err()
-	}))
-	dash := seedDashboard(t, d, 1)
-	rev := submit(t, svc, dash, "slow")
-	startWorker(t, svc, d, revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond})
-	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-	if failed.Error != "the agent run timed out" {
-		t.Fatalf("error = %q", failed.Error)
-	}
-	assertFailureCode(t, svc, rev.ID, revisions.FailureRunTimeout)
-}
-
-func TestRunTimeoutOverridesTheCodeThatTheReviserReports(t *testing.T) {
-	svc, d := newService(t, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
-		<-ctx.Done()
-		return revisions.Result{FailureCode: revisions.FailureCallTimeout}, ctx.Err()
-	}))
-	dash := seedDashboard(t, d, 1)
-	rev := submit(t, svc, dash, "slow")
-	startWorker(t, svc, d, revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond})
-	waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-	assertFailureCode(t, svc, rev.ID, revisions.FailureRunTimeout)
-}
-
-func TestFailedRunStoresTheCodeTheReviserReportsOrInternal(t *testing.T) {
-	for name, tc := range map[string]struct {
-		reported revisions.FailureCode
-		want     revisions.FailureCode
-	}{
-		"a reported code is stored": {revisions.FailureRateLimited, revisions.FailureRateLimited},
-		"no reported code":          {"", revisions.FailureInternal},
-	} {
-		t.Run(name, func(t *testing.T) {
-			svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
-				return revisions.Result{FailureCode: tc.reported}, errors.New("the run failed")
-			}))
-			dash := seedDashboard(t, d, 1)
-			rev := submit(t, svc, dash, "go")
-			startWorker(t, svc, d, revisions.WorkerOptions{})
-			waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-			assertFailureCode(t, svc, rev.ID, tc.want)
-		})
 	}
 }
 
@@ -595,10 +490,6 @@ func TestFailedRunWithASavedVersionIsRecordedAsSuccess(t *testing.T) {
 		revise func(ctx context.Context) error
 	}{
 		"error": {revise: func(context.Context) error { return errors.New("the loop gave up after saving") }},
-		"timeout": {
-			opts:   revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond},
-			revise: func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() },
-		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

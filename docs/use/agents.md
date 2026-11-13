@@ -40,7 +40,7 @@ A service account has no mode.
 
 | Part | Shows |
 | --- | --- |
-| `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), its `runtime` (`sidecar`, the default, or `go`, from `SLASHOBSERVE_AGENT_RUNTIME`), and its runs of the last seven days. |
+| `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), its `runtime` (always `sidecar`), and its runs of the last seven days. |
 | `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, whether it is present, when you connected it and what it did in the last seven days. |
 | `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name and whether it is present. |
 
