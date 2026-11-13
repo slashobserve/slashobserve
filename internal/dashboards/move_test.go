@@ -76,10 +76,10 @@ func TestNothingMovesIntoAPersonalFolder(t *testing.T) {
 	general := r.generalFolder(t)
 	dash := r.createAs(t, ada, general)
 
-	if _, _, err := r.service.move(t.Context(), ada.principal, dash, ada.personal); !errors.Is(err, folders.ErrMoveIntoPersonal) {
+	if _, _, err := r.service.Move(t.Context(), ada.principal, dash, ada.personal); !errors.Is(err, folders.ErrMoveIntoPersonal) {
 		t.Fatalf("the owner's move of their own dashboard into their personal folder: error = %v, want ErrMoveIntoPersonal", err)
 	}
-	if _, _, err := r.service.move(t.Context(), ada.principal, dash, bob.personal); !errors.Is(err, ErrFolderNotFound) {
+	if _, _, err := r.service.Move(t.Context(), ada.principal, dash, bob.personal); !errors.Is(err, ErrFolderNotFound) {
 		t.Fatalf("a move into another person's personal folder: error = %v, want ErrFolderNotFound", err)
 	}
 	if got := r.folderOfDashboard(t, dash); got != general {
@@ -103,7 +103,7 @@ func TestPublishingMovesAPrivateDashboardToASharedFolder(t *testing.T) {
 	}
 
 	general := r.generalFolder(t)
-	moved, after, err := r.service.move(t.Context(), ada.principal, dash, general)
+	moved, after, err := r.service.Move(t.Context(), ada.principal, dash, general)
 	if err != nil {
 		t.Fatal(err)
 	}
