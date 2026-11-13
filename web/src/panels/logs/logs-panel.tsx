@@ -215,6 +215,8 @@ type RowProps = {
   controlsId: string
   onSelect: (key: string | null) => void
   marked: boolean
+  arrived: boolean
+  divider: string | undefined
   detailActions: DetailActions | undefined
   commonLabels: Labels
   setSize: number | undefined
@@ -243,6 +245,8 @@ const LogRow = memo(function LogRow({
   controlsId,
   onSelect,
   marked,
+  arrived,
+  divider,
   detailActions,
   commonLabels,
   setSize,
@@ -305,6 +309,7 @@ const LogRow = memo(function LogRow({
         <Message text={entry.message} highlight={highlight} />
       </span>
       {marked ? <span className="sr-only">Selected line</span> : null}
+      {arrived ? <span className="sr-only">, new</span> : null}
       {entry.repeats > 1 ? (
         <span
           data-logs-repeats=""
@@ -362,15 +367,27 @@ const LogRow = memo(function LogRow({
       data-level={kind}
       data-key={entry.key}
       data-marked={marked ? "" : undefined}
+      data-new={arrived ? "" : undefined}
       aria-setsize={setSize}
       aria-posinset={posInSet}
       className={cn(
         "border-b border-border",
         setSize === undefined &&
           "[contain-intrinsic-size:auto_28px] [content-visibility:auto]",
-        marked && "bg-selection"
+        (marked || arrived) && "bg-selection",
+        "motion-safe:transition-colors motion-safe:duration-500"
       )}
     >
+      {divider === undefined ? null : (
+        <div
+          role="separator"
+          aria-label={divider}
+          className="flex items-center gap-2 px-2 py-1 text-muted-foreground"
+        >
+          <span aria-hidden="true" className="h-px flex-1 bg-ring" />
+          <span aria-hidden="true">{divider}</span>
+        </div>
+      )}
       {detailsMode === "off" ? (
         <div className={rowClasses} style={rowStyle}>
           {line}
@@ -492,6 +509,11 @@ function ControlsBar({
   )
 }
 
+export type NewSince = {
+  isFirst: (entry: LogEntry) => boolean
+  label: string
+}
+
 export type LogsViewProps = {
   panelTitle: string
   frames: Parameters<typeof logsModel>[0]
@@ -502,6 +524,8 @@ export type LogsViewProps = {
   height: number
   detailActions?: DetailActions
   isMarked?: (entry: LogEntry) => boolean
+  isNew?: (entry: LogEntry) => boolean
+  newSince?: NewSince
   selectedKey?: string | null
   onSelectedChange?: (selection: LogSelection | null) => void
   detailsId?: string
@@ -528,19 +552,23 @@ function sortedByColumn(
     .map(({ entry }) => entry)
 }
 
+function rowButton(row: Element | null): HTMLButtonElement | null {
+  return (
+    Array.from(row?.children ?? []).find(
+      (child): child is HTMLButtonElement => child instanceof HTMLButtonElement
+    ) ?? null
+  )
+}
+
 function siblingRowButton(
   target: EventTarget,
   step: 1 | -1
 ): HTMLElement | null | undefined {
   if (!(target instanceof HTMLButtonElement)) return undefined
   const row = target.parentElement
-  if (row?.tagName !== "LI" || row.firstElementChild !== target) {
-    return undefined
-  }
+  if (row?.tagName !== "LI" || rowButton(row) !== target) return undefined
   const next = step === 1 ? row.nextElementSibling : row.previousElementSibling
-  return next?.firstElementChild instanceof HTMLButtonElement
-    ? next.firstElementChild
-    : null
+  return rowButton(next)
 }
 
 function useRowHeights(enabled: boolean) {
@@ -624,6 +652,8 @@ export function LogsView({
   height,
   detailActions,
   isMarked,
+  isNew,
+  newSince,
   selectedKey: controlledKey = null,
   onSelectedChange,
   detailsId,
@@ -749,6 +779,7 @@ export function LogsView({
     ? logWindow({ offsets, scrollTop, viewport, overscan })
     : { start: 0, end: entries.length, before: 0, after: 0 }
   const firstMarkedKey = isMarked ? entries.find(isMarked)?.key : undefined
+  const dividerKey = newSince ? entries.find(newSince.isFirst)?.key : undefined
 
   useEffect(() => {
     if (windowed) observeRows(listRef.current)
@@ -861,6 +892,8 @@ export function LogsView({
                 controlsId={detailsId ?? sidebarId}
                 onSelect={select}
                 marked={isMarked?.(entry) ?? false}
+                arrived={isNew?.(entry) ?? false}
+                divider={entry.key === dividerKey ? newSince?.label : undefined}
                 detailActions={detailActions}
                 commonLabels={commonLabels}
                 setSize={windowed ? entries.length : undefined}

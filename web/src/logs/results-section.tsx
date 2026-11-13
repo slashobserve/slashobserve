@@ -53,6 +53,7 @@ import {
   tailReceived,
   tailResumed,
   tailStarted,
+  tailSinceText,
   tailStatusText,
   type TailState,
 } from "./tail-state"
@@ -118,7 +119,7 @@ type TailViewState = { tail: TailState; now: number }
 
 type TailAction =
   | { type: "received"; keys: string[]; kept: ReadonlySet<string>; now: number }
-  | { type: "paused" }
+  | { type: "paused"; now: number }
   | { type: "resumed"; now: number }
   | { type: "expired"; now: number }
 
@@ -130,7 +131,7 @@ function reduceTail(state: TailViewState, action: TailAction): TailViewState {
         now: action.now,
       }
     case "paused":
-      return { ...state, tail: tailPaused(state.tail) }
+      return { ...state, tail: tailPaused(state.tail, action.now) }
     case "resumed":
       return { tail: tailResumed(state.tail, action.now), now: action.now }
     case "expired":
@@ -164,6 +165,8 @@ function TailBody({
     | "orderLocked"
     | "onRendered"
     | "isMarked"
+    | "isNew"
+    | "newSince"
   >
 }) {
   const { ref: regionRef, height } = useElementSize<HTMLDivElement>()
@@ -207,9 +210,28 @@ function TailBody({
         : timesWhere(shown, (key) => recentlyArrived(state.tail, key)),
     [shown, marking, state.tail]
   )
-  const isMarked = useCallback(
+  const isNew = useCallback(
     (entry: LogEntry) => entry.time !== null && arrivedTimes.has(entry.time),
     [arrivedTimes]
+  )
+  const since = state.tail.since
+  const sinceTimes = useMemo(
+    () =>
+      since === null
+        ? emptyTimes
+        : timesWhere(shown, (key) => key === since.key),
+    [shown, since]
+  )
+  const newSince = useMemo(
+    () =>
+      since === null || sinceTimes.size === 0
+        ? undefined
+        : {
+            isFirst: (entry: LogEntry) =>
+              entry.time !== null && sinceTimes.has(entry.time),
+            label: tailSinceText(since.at),
+          },
+    [since, sinceTimes]
   )
 
   const scroller = useCallback(
@@ -230,7 +252,7 @@ function TailBody({
   function pause() {
     following.current = false
     setFrozen(latest.current)
-    dispatch({ type: "paused" })
+    dispatch({ type: "paused", now: Date.now() })
   }
 
   function resume() {
@@ -305,7 +327,8 @@ function TailBody({
             listTitle="Live tail, oldest first"
             orderLocked
             onRendered={follow}
-            isMarked={isMarked}
+            isNew={isNew}
+            newSince={newSince}
           />
         ) : null}
         {paused && pending > 0 ? (

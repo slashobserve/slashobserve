@@ -8,6 +8,8 @@ export type TailState = {
   arrivedAt: ReadonlyMap<string, number>
   pendingKeys: ReadonlySet<string>
   pendingCount: number
+  pausedAt: number | null
+  since: { key: string; at: number } | null
 }
 
 export function tailStarted(keys: readonly string[]): TailState {
@@ -17,6 +19,8 @@ export function tailStarted(keys: readonly string[]): TailState {
     arrivedAt: new Map(),
     pendingKeys: new Set(),
     pendingCount: 0,
+    pausedAt: null,
+    since: null,
   }
 }
 
@@ -52,11 +56,13 @@ export function tailReceived(
   }
 }
 
-export function tailPaused(state: TailState): TailState {
-  return state.paused ? state : { ...state, paused: true }
+export function tailPaused(state: TailState, now: number): TailState {
+  return state.paused ? state : { ...state, paused: true, pausedAt: now }
 }
 
 export function tailResumed(state: TailState, now: number): TailState {
+  const firstPending = state.pendingKeys.values().next().value
+  const at = state.pausedAt ?? now
   const arrivedAt = new Map(state.arrivedAt)
   for (const key of state.pendingKeys) arrivedAt.set(key, now)
   return {
@@ -66,6 +72,8 @@ export function tailResumed(state: TailState, now: number): TailState {
     arrivedAt,
     pendingKeys: new Set(),
     pendingCount: 0,
+    pausedAt: null,
+    since: firstPending === undefined ? state.since : { key: firstPending, at },
   }
 }
 
@@ -80,6 +88,10 @@ export function tailExpired(state: TailState, now: number): TailState {
 
 export function recentlyArrived(state: TailState, key: string): boolean {
   return state.arrivedAt.has(key)
+}
+
+export function tailSinceText(at: number): string {
+  return `New since ${formatDate(at, "HH:mm")}`
 }
 
 export function tailVolume(

@@ -30,6 +30,7 @@ import {
   type ColumnSort,
   type LogSelection,
   type LogsViewModel,
+  type NewSince,
 } from "@/panels/logs/logs-panel"
 import type { DataPanel } from "@/spec"
 
@@ -48,6 +49,8 @@ type ExploreLogsProps = {
   display: Record<string, unknown>
   detailActions?: (selection: LogSelection) => React.ReactNode
   isMarked?: (entry: LogEntry) => boolean
+  isNew?: (entry: LogEntry) => boolean
+  newSince?: NewSince
   selectedKey?: string | null
   onSelectedChange?: (selection: LogSelection | null) => void
   detailsId?: string
@@ -64,6 +67,8 @@ export function ExploreLogs({
   display,
   detailActions,
   isMarked,
+  isNew,
+  newSince,
   selectedKey,
   onSelectedChange,
   detailsId,
@@ -98,6 +103,8 @@ export function ExploreLogs({
           height={height}
           detailActions={detailActions}
           isMarked={isMarked}
+          isNew={isNew}
+          newSince={newSince}
           selectedKey={selectedKey}
           onSelectedChange={onSelectedChange}
           detailsId={detailsId}
@@ -240,6 +247,8 @@ export function LogsResults({
   orderLocked = false,
   onRendered,
   isMarked,
+  isNew,
+  newSince,
 }: {
   frames: WireFrame[]
   datasource: DatasourceStatus
@@ -259,6 +268,8 @@ export function LogsResults({
   orderLocked?: boolean
   onRendered?: () => void
   isMarked?: (entry: LogEntry) => boolean
+  isNew?: (entry: LogEntry) => boolean
+  newSince?: NewSince
 }) {
   const phone = usePhone()
   const sortId = useId()
@@ -488,6 +499,8 @@ export function LogsResults({
             height={rowsHeight}
             display={display}
             isMarked={isMarked}
+            isNew={isNew}
+            newSince={newSince}
             detailActions={phone ? detailActions : undefined}
             selectedKey={selectedKey}
             onSelectedChange={phone ? undefined : onSelect}

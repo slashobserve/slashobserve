@@ -6,6 +6,7 @@ import {
   tailPaused,
   tailReceived,
   tailResumed,
+  tailSinceText,
   tailStarted,
   tailStatusText,
   tailVolume,
@@ -30,7 +31,11 @@ describe("tail state", () => {
   it("grows the pending count only while paused and shows nothing new", () => {
     const running = tailReceived(tailStarted([]), ["a"], 1000)
     expect(running.pendingCount).toBe(0)
-    const paused = tailReceived(tailPaused(running), ["b", "c", "b"], 2000)
+    const paused = tailReceived(
+      tailPaused(running, 1500),
+      ["b", "c", "b"],
+      2000
+    )
     expect(paused.pendingCount).toBe(2)
     expect(recentlyArrived(paused, "b")).toBe(false)
     expect(paused.shownKeys.has("b")).toBe(false)
@@ -39,13 +44,44 @@ describe("tail state", () => {
   })
 
   it("marks the pending lines as arrived and clears the count on resume", () => {
-    const paused = tailReceived(tailPaused(tailStarted([])), ["b", "c"], 2000)
+    const paused = tailReceived(
+      tailPaused(tailStarted([]), 1500),
+      ["b", "c"],
+      2000
+    )
     const resumed = tailResumed(paused, 5000)
     expect(resumed.paused).toBe(false)
     expect(resumed.pendingCount).toBe(0)
     expect(resumed.shownKeys.has("b")).toBe(true)
     expect(recentlyArrived(resumed, "c")).toBe(true)
     expect(resumed.arrivedAt.get("c")).toBe(5000)
+  })
+
+  it("remembers where the lines held during a pause begin and when it started", () => {
+    const paused = tailReceived(
+      tailReceived(tailPaused(tailStarted(["a"]), 1500), ["b", "c"], 2000),
+      ["d"],
+      3000
+    )
+    expect(paused.pausedAt).toBe(1500)
+    expect(paused.since).toBeNull()
+    const resumed = tailResumed(paused, 5000)
+    expect(resumed.since).toEqual({ key: "b", at: 1500 })
+    expect(resumed.pausedAt).toBeNull()
+  })
+
+  it("keeps the earlier divider when a pause ends with nothing held", () => {
+    const first = tailResumed(
+      tailReceived(tailPaused(tailStarted([]), 1500), ["b"], 2000),
+      3000
+    )
+    const idle = tailResumed(tailPaused(first, 4000), 5000)
+    expect(idle.since).toEqual({ key: "b", at: 1500 })
+    const next = tailResumed(
+      tailReceived(tailPaused(idle, 6000), ["z"], 6500),
+      7000
+    )
+    expect(next.since).toEqual({ key: "z", at: 6000 })
   })
 
   it("drops a mark after 1.5 s and keeps a younger one", () => {
@@ -68,6 +104,14 @@ describe("tail state", () => {
       new Set(["b", "c"])
     )
     expect([...state.shownKeys].sort()).toEqual(["b", "c"])
+  })
+})
+
+describe("tailSinceText", () => {
+  it("names the time the pause began", () => {
+    expect(tailSinceText(new Date(2026, 10, 7, 14, 14, 31).getTime())).toBe(
+      "New since 14:14"
+    )
   })
 })
 

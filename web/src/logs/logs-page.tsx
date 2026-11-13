@@ -190,6 +190,12 @@ function LogsWorkspaceView({
   } | null>(null)
   const drawerId = useId()
   const resultsScope = `${effectiveQuery ?? ""}|${range.from}|${range.to}`
+  const [tailScope, setTailScope] = useState(resultsScope)
+  if (tailScope !== resultsScope) {
+    setTailScope(resultsScope)
+    setTailing(false)
+    setTailShown(false)
+  }
   const current = held?.scope === resultsScope ? held : null
   const selection = current?.selection ?? null
   const detailTab = current?.tab ?? "table"
