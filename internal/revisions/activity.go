@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"maps"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -50,6 +51,10 @@ func AssigneeActor(row dbsqlc.AgentRequest, assigneeName string) actor.Actor {
 }
 
 func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
+	return runActivityWith(row, typ, nil)
+}
+
+func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) activity.Entry {
 	columns := requesterColumns(row)
 	data := map[string]any{"source": row.Source}
 	switch typ {
@@ -86,6 +91,7 @@ func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
 			data["cost_usd"] = cost
 		}
 	}
+	maps.Copy(data, extra)
 	return activity.Entry{
 		Type:     typ,
 		TargetID: row.ID,
@@ -137,7 +143,17 @@ func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, 
 	if !ok {
 		return notifyRevision(ctx, q, row)
 	}
-	entry := runActivity(row, typ)
+	var extra map[string]any
+	if typ == activity.TypeRunSucceeded && isHealthRepair(row) {
+		outcome, found, err := readRepairOutcome(ctx, q, row)
+		if err != nil {
+			return err
+		}
+		if found {
+			extra = outcome.data()
+		}
+	}
+	entry := runActivityWith(row, typ, extra)
 	var live *events.Event
 	if ev, ok := revisionEvent(row); ok {
 		live = &ev

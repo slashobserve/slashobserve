@@ -46,6 +46,9 @@ An observation event adds its `title`, and a block event the `block_id` and `blo
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, where a thread on a finding is on its observation, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
+
+A run event adds the run's `source`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
+The `run.succeeded` of a [health repair](dashboard-health.md) that saved a version also adds `dashboard_title` and `panels_repaired`, the number of panels the repair named that the saved version changed and no longer lists as unverified; panels that were deleted, left unchanged or still fail are not counted.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 
 ## Who sees an event

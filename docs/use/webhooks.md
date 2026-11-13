@@ -119,7 +119,7 @@ The body has the delivery id, the webhook id, the type and the event as the acti
 
 `event` follows the rules of [What data holds](activity.md#what-data-holds): ids, numbers, titles and enums, never a prompt, a comment or a query.
 A `webhook.test` body has `"event": null`.
-Treat unknown fields as allowed, because a later version may add some.
+Treat unknown fields as allowed, because a later version may add some: the `run.succeeded` event of a health repair that saved a version carries `dashboard_title` and `panels_repaired` in `data` beside the fields every run event has.
 
 An event whose body would pass 64 KiB is never sent.
 It is recorded as a `skipped` attempt with the error `too_large`, and the webhook moves on to the next event.
