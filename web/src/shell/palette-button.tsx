@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { usePaletteStore } from "./palette-store"
 
 type Props =
-  | { variant: "top" }
+  | { variant: "phone" }
   | { variant: "sidebar"; onNavigate?: () => void }
   | { variant: "rail" }
 
@@ -28,32 +28,34 @@ export function PaletteButton(props: Props) {
       className={cn(
         "text-muted-foreground hover:text-foreground",
         focusRing,
-        props.variant === "rail"
-          ? "grid size-9 place-items-center rounded-control border border-transparent hover:bg-nav-active"
-          : "items-center gap-2 rounded-control border bg-background text-left text-[13px]",
-        props.variant === "top" &&
-          "hidden h-[30px] w-[220px] max-w-[46vw] pr-1.5 pl-[9px] narrow:flex",
-        props.variant === "sidebar" && "flex h-8 w-full px-2.5"
+        props.variant === "phone" &&
+          "grid size-11 flex-none place-items-center rounded-control text-foreground hover:bg-muted",
+        props.variant === "rail" &&
+          "grid size-9 place-items-center rounded-control border border-transparent hover:bg-nav-active",
+        props.variant === "sidebar" &&
+          "flex h-8 w-full items-center gap-2 rounded-control border bg-background px-2.5 text-left text-[13px]"
       )}
     >
       <SearchIcon
         aria-hidden="true"
         className={cn(
           "flex-none",
-          props.variant === "rail" ? "size-4" : "size-3.5"
+          props.variant === "phone" && "size-5",
+          props.variant === "rail" && "size-4",
+          props.variant === "sidebar" && "size-3.5"
         )}
         strokeWidth={props.variant === "rail" ? 1.8 : 2}
       />
-      {props.variant === "rail" ? null : (
-        <span className="flex-1 truncate">{label}</span>
-      )}
       {props.variant === "sidebar" ? (
-        <kbd
-          aria-hidden="true"
-          className="rounded-[4px] border px-[5px] font-[inherit] text-xs"
-        >
-          {modChordLabel(navigator.userAgent, "K")}
-        </kbd>
+        <>
+          <span className="flex-1 truncate">{label}</span>
+          <kbd
+            aria-hidden="true"
+            className="rounded-[4px] border px-[5px] font-[inherit] text-xs"
+          >
+            {modChordLabel(navigator.userAgent, "K")}
+          </kbd>
+        </>
       ) : null}
     </button>
   )

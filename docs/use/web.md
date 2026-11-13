@@ -187,7 +187,7 @@ On the rail, Inbox shows its unread count, Observations shows a green dot while 
 
 ## Search
 
-Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the top bar, and type at least two characters.
+Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the top bar on a phone), and type at least two characters.
 The command palette lists the pages and your dashboards that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
@@ -200,6 +200,8 @@ Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.
 
 ## On a phone
 
+Under 900 pixels wide, every page except a dashboard has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
+A page's own actions, such as **Share** on an observation or **History** on a chat, sit in a row under the bar.
 Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
