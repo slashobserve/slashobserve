@@ -727,7 +727,7 @@ function TraceResults({
               type="button"
               variant="outline"
               size="sm"
-              className="font-normal tabular-nums narrow:h-11"
+              className="h-auto min-h-7 max-w-full py-1 text-left font-normal whitespace-normal tabular-nums narrow:min-h-11"
               onClick={() => update({ from: covered.from, to: covered.to })}
             >
               Keep only {covered.covers}
