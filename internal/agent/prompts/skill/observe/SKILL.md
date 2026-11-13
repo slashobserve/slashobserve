@@ -95,7 +95,7 @@ A call with a run that is not yours is refused, and a connection in propose mode
 ## Limits
 
 Lists show only what you may see, and not_found can mean you may not see it.
-No tool deletes, moves or duplicates a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
+Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.
 
 ## With only a shell

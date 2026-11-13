@@ -56,7 +56,7 @@ func TestBuildCarriesOnlyTheSectionsOfItsTypes(t *testing.T) {
 }
 
 func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
-	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and findings on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
+	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
 	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
 		if strings.Count(system, scope) != 1 || strings.Count(system, "Every answer uses only") != 1 {
 			t.Errorf("%s system text does not carry the scope once before the guide", name)

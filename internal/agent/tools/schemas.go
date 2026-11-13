@@ -62,29 +62,30 @@ const (
 )
 
 const (
-	propDatasource    = `"datasource":{"type":"string","description":"Datasource uid from list_datasources."}`
-	propSearch        = `"search":{"type":"string","maxLength":200,"description":"Case-insensitive substring filter."}`
-	propTable         = `"table":{"type":"string","description":"ClickHouse table such as otel_logs; on Loki, a stream selector such as {service_name=\"payments\"}; not used by Prometheus, Tempo, Elasticsearch or OpenSearch."}`
-	propDiscLimit     = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
-	propScope         = `"scope":{"type":"string","maxLength":256,"description":"A label selector such as {job=\"checkout\"}, a stream selector on Loki, or a table name on ClickHouse; returns every metric family in that scope in one result with type, unit, label keys and series count, and on Loki each stream label key with its stream count. Use it once per create run before planning."}`
-	propOffset        = `"offset":{"type":"integer","minimum":0,"maximum":499,"description":"Skip this many items; pass next_offset from an earlier result to page on."}`
-	propNamesFrom     = `"from":{"type":"string","description":"Only names seen from this time, relative such as now-6h or absolute; give from and to together or neither."}`
-	propNamesTo       = `"to":{"type":"string","description":"Only names seen up to this time, relative such as now or absolute; give from and to together or neither."}`
-	propQuery         = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL, LogQL, TraceQL, ClickHouse SQL, KQL, Lucene or Query DSL JSON. It may use $variables and the macros in the authoring guide, such as $__rate_interval or $__timeFilter(Timestamp)."}`
-	propFrom          = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
-	propTo            = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
-	propVariables     = `"variables":{"type":"object","maxProperties":20,"additionalProperties":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"string"}},"description":"Values for the $variables the query references, by variable name."}`
-	propDashTitle     = `"dashboard_title":{"type":"string","maxLength":200,"description":"Title that $__dashboard expands to in the query. Default Untitled dashboard."}`
-	propFormat        = `"format":{"type":"string","enum":["timeseries","table","heatmap","logs"],"description":"Result shape. On ClickHouse, table and logs keep the rows and columns as selected; otherwise a leading time column is split into one series per combination of string columns. Use the format the panel will have. Default timeseries."}`
-	propSpec          = `"spec":{"type":"object","description":"The complete ObserveSpec document, written by the authoring guide."}`
-	propParentVersion = `"parent_version":{"type":"integer","minimum":1,"description":"The version you read. If a newer one was saved since, the save merges when it changed other panels; when it changed the same ones it returns version_conflict with latest_version and conflicts: read that version, apply your change to it and save again."}`
-	propSummary       = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
-	propDashID        = `"dashboard_id":{"type":"string","description":"Dashboard id from list_dashboards or a save result."}`
-	propFolderID      = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default General."}`
-	propCommentID     = `"comment_id":{"type":"string","description":"Comment id from list_comments or create_comment."}`
-	propStartRuns     = `"start_runs":{"type":"boolean","description":"Start a run for the agent this comment mentions; one agent per comment. Default false."}`
-	propBody          = `"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The comment, plain text."}`
-	propTarget        = `"target":{"type":"string","description":"What the comment is on, written kind:uuid with kind dashboard, observation, annotation or proposal, for example observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f. A finding:uuid target is deprecated and means the discussion of that finding's observation, which the comment then names as observation:uuid."}`
+	propDatasource           = `"datasource":{"type":"string","description":"Datasource uid from list_datasources."}`
+	propSearch               = `"search":{"type":"string","maxLength":200,"description":"Case-insensitive substring filter."}`
+	propTable                = `"table":{"type":"string","description":"ClickHouse table such as otel_logs; on Loki, a stream selector such as {service_name=\"payments\"}; not used by Prometheus, Tempo, Elasticsearch or OpenSearch."}`
+	propDiscLimit            = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
+	propScope                = `"scope":{"type":"string","maxLength":256,"description":"A label selector such as {job=\"checkout\"}, a stream selector on Loki, or a table name on ClickHouse; returns every metric family in that scope in one result with type, unit, label keys and series count, and on Loki each stream label key with its stream count. Use it once per create run before planning."}`
+	propOffset               = `"offset":{"type":"integer","minimum":0,"maximum":499,"description":"Skip this many items; pass next_offset from an earlier result to page on."}`
+	propNamesFrom            = `"from":{"type":"string","description":"Only names seen from this time, relative such as now-6h or absolute; give from and to together or neither."}`
+	propNamesTo              = `"to":{"type":"string","description":"Only names seen up to this time, relative such as now or absolute; give from and to together or neither."}`
+	propQuery                = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL, LogQL, TraceQL, ClickHouse SQL, KQL, Lucene or Query DSL JSON. It may use $variables and the macros in the authoring guide, such as $__rate_interval or $__timeFilter(Timestamp)."}`
+	propFrom                 = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
+	propTo                   = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
+	propVariables            = `"variables":{"type":"object","maxProperties":20,"additionalProperties":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"string"}},"description":"Values for the $variables the query references, by variable name."}`
+	propDashTitle            = `"dashboard_title":{"type":"string","maxLength":200,"description":"Title that $__dashboard expands to in the query. Default Untitled dashboard."}`
+	propFormat               = `"format":{"type":"string","enum":["timeseries","table","heatmap","logs"],"description":"Result shape. On ClickHouse, table and logs keep the rows and columns as selected; otherwise a leading time column is split into one series per combination of string columns. Use the format the panel will have. Default timeseries."}`
+	propSpec                 = `"spec":{"type":"object","description":"The complete ObserveSpec document, written by the authoring guide."}`
+	propParentVersion        = `"parent_version":{"type":"integer","minimum":1,"description":"The version you read. If a newer one was saved since, the save merges when it changed other panels; when it changed the same ones it returns version_conflict with latest_version and conflicts: read that version, apply your change to it and save again."}`
+	propSummary              = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
+	propDashID               = `"dashboard_id":{"type":"string","description":"Dashboard id from list_dashboards or a save result."}`
+	propFolderID             = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default General."}`
+	propObservationsFolderID = `"folder_id":{"type":"string","format":"uuid","description":"Only observations in this folder, from list_folders."}`
+	propCommentID            = `"comment_id":{"type":"string","description":"Comment id from list_comments or create_comment."}`
+	propStartRuns            = `"start_runs":{"type":"boolean","description":"Start a run for the agent this comment mentions; one agent per comment. Default false."}`
+	propBody                 = `"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The comment, plain text."}`
+	propTarget               = `"target":{"type":"string","description":"What the comment is on, written kind:uuid with kind dashboard, observation, annotation or proposal, for example observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f. A finding:uuid target is deprecated and means the discussion of that finding's observation, which the comment then names as observation:uuid."}`
 )
 
 const (
