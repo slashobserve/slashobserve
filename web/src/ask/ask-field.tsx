@@ -126,7 +126,7 @@ export function AskField({
             setCursor(freshCursor)
           }}
           onKeyDown={onKeyDown}
-          className="max-h-[4.75rem] min-h-8 flex-1 resize-none bg-background narrow:min-h-11"
+          className="max-h-[4.75rem] min-h-8 flex-1 resize-none bg-background narrow:max-h-24 narrow:min-h-11"
         />
         <Button
           type="button"

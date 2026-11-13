@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   BookmarkIcon,
-  CircleAlertIcon,
   FolderSearchIcon,
   MoreHorizontalIcon,
 } from "lucide-react"
@@ -83,7 +82,7 @@ import {
 } from "./search-query"
 import { traceFilterChips } from "./trace-filters"
 import { TraceSearchForm } from "./trace-search-form"
-import { countText, durationText, traceRows, type TraceRow } from "./trace-rows"
+import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
   histogramPercentile,
   p95Label,
@@ -705,25 +704,13 @@ function TraceResults({
           Page {lost.page} could not be restored; showing page 1
         </p>
       ) : null}
-      <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <span>{countText(meta.rows, "trace")}</span>
-        {stats.isError ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={<span className="inline-flex" />}
-              aria-label="Stats failed"
-            >
-              <CircleAlertIcon
-                aria-hidden="true"
-                className="size-3.5 text-status-critical"
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              Stats failed: {exploreErrorText(stats.error)}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-      </p>
+      {stats.isError ? (
+        <p role="status" className="text-[13px]">
+          <StatusLabel tone="critical">
+            Stats failed: {exploreErrorText(stats.error)}
+          </StatusLabel>
+        </p>
+      ) : null}
       {meta.partial ? (
         <div
           role="status"
