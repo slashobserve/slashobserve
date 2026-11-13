@@ -186,7 +186,8 @@ func (s *Service) ViewBuild(ctx context.Context, by auth.Principal, requestID pg
 	if err != nil {
 		return Build{}, err
 	}
-	if !found || build.requestedByKind != string(by.Kind) || build.requestedByID.String() != by.ID {
+	mine := build.requestedByKind == string(by.Kind) && build.requestedByID.String() == by.ID
+	if !found || (!mine && !by.Role.AtLeast(auth.RoleAdmin)) {
 		return Build{}, ErrBuildNotFound
 	}
 	if !build.DashboardID.Valid {
