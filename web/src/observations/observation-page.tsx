@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Message } from "@/comments/thread-queries"
-import { Discussion } from "@/discussion/discussion"
+import { useThreads } from "@/comments/thread-queries"
+import { messageCount } from "@/discussion/discussion-model"
 import { useDocumentTitle } from "@/lib/document-title"
 import { observationsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
@@ -17,11 +16,11 @@ import { RcaPanel } from "@/rca/rca-panel"
 import { rcasQuery } from "@/rca/queries"
 
 import { AddBlockRow } from "./add-block-row"
-import { addProblemText } from "./block-rows"
 import { BlockList, type Reveal } from "./block-list"
+import { DiscussionPane } from "./discussion-pane"
+import { MovePanel } from "./move-panel"
 import { ObservationHeader } from "./observation-header"
 import {
-  useAddBlock,
   useObservation,
   useObservationLive,
   type ObservationEnvelope,
@@ -59,50 +58,6 @@ function ObservationNotFound() {
   )
 }
 
-function AddToPage({
-  observationId,
-  message,
-  canEdit,
-  onAdded,
-}: {
-  observationId: string
-  message: Message
-  canEdit: boolean
-  onAdded: (blockId: string) => void
-}) {
-  const addBlock = useAddBlock(observationId)
-
-  function add() {
-    if (addBlock.isPending) return
-    addBlock.mutate(
-      { kind: "text", body: { markdown: message.body } },
-      {
-        onSuccess: ({ block }) => {
-          toast.success(
-            canEdit ? "Added to the page" : "Suggested for the page"
-          )
-          onAdded(block.id)
-        },
-        onError: (error) => toast.error(addProblemText(error)),
-      }
-    )
-  }
-
-  return (
-    <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-disabled={addBlock.isPending || undefined}
-        aria-busy={addBlock.isPending || undefined}
-        onClick={add}
-      >
-        {canEdit ? "Add to page" : "Suggest for page"}
-      </Button>
-    </div>
-  )
-}
-
 type RcaControl = { open: boolean; onOpenChange: (open: boolean) => void }
 
 function LoadedObservation({
@@ -119,22 +74,30 @@ function LoadedObservation({
   const revisions = useQuery(rcasQuery(observation.id))
   const hasRevisions = (revisions.data?.length ?? 0) > 0
   const rcaButton = useRef<HTMLButtonElement>(null)
-  const [discussionHidden, setDiscussionHidden] = useState(false)
+  const [discussionShown, setDiscussionShown] = useState(true)
+  const [moving, setMoving] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
-  const showButton = useRef<HTMLButtonElement>(null)
-  const discussionBox = useRef<HTMLDivElement>(null)
-  const focusAfterToggle = useRef<"show" | "discussion" | null>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const moreButton = useRef<HTMLButtonElement>(null)
+  const focusAfterToggle = useRef<"toggle" | "heading" | null>(null)
+  const { threads } = useThreads(`observation:${observation.id}`)
+  const count = messageCount(threads)
   useObservationLive(observation)
 
   useEffect(() => {
     const target = focusAfterToggle.current
     focusAfterToggle.current = null
-    if (target === "show") showButton.current?.focus()
-    if (target === "discussion") discussionBox.current?.focus()
-  }, [discussionHidden])
+    if (target === "toggle") toggleRef.current?.focus()
+    if (target === "heading") headingRef.current?.focus()
+  }, [discussionShown])
 
   const revealed = useCallback(() => setReveal(null), [])
   const added = useCallback(
+    (blockId: string) => setReveal({ id: blockId, focus: true }),
+    []
+  )
+  const onShowBlock = useCallback(
     (blockId: string) => setReveal({ id: blockId, focus: true }),
     []
   )
@@ -143,81 +106,75 @@ function LoadedObservation({
     []
   )
 
+  function onToggle() {
+    if (discussionShown) {
+      setDiscussionShown(false)
+      return
+    }
+    focusAfterToggle.current = "heading"
+    setDiscussionShown(true)
+  }
+
+  function onClosePane() {
+    focusAfterToggle.current = "toggle"
+    setDiscussionShown(false)
+  }
+
   return (
-    <div className="@container">
-      <div className="flex flex-col gap-6 @min-[1100px]:flex-row @min-[1100px]:items-start">
-        <div className="min-w-0 flex-1">
-          <div className={columnClass}>
-            <ObservationHeader
-              envelope={envelope}
-              discussionHidden={discussionHidden}
-              showDiscussionRef={showButton}
-              onShowDiscussion={() => {
-                focusAfterToggle.current = "discussion"
-                setDiscussionHidden(false)
-              }}
-              extraActions={
-                canPublish || hasRevisions ? (
-                  <Button
-                    ref={rcaButton}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => rca.onOpenChange(true)}
-                  >
-                    {canPublish ? "Publish as RCA" : "RCA revisions"}
-                  </Button>
-                ) : null
-              }
-            />
-            <BlockList
-              observation={observation}
-              blocks={blocks}
-              canAdd={canAdd}
-              reveal={reveal}
-              onRevealed={revealed}
-              onAdded={added}
-            />
-            {canAdd ? (
-              <AddBlockRow
-                observation={observation}
-                blocks={blocks}
-                canEdit={permissions.edit}
-                onAdded={added}
-              />
-            ) : null}
-          </div>
-        </div>
-        {discussionHidden ? null : (
-          <div
-            ref={discussionBox}
-            tabIndex={-1}
-            className="w-full outline-none @min-[1100px]:sticky @min-[1100px]:top-3.5 @min-[1100px]:h-[calc(100svh-4.75rem)] @min-[1100px]:w-96 @min-[1100px]:flex-none"
-          >
-            <Discussion
-              className="h-full max-h-[480px] @min-[1100px]:max-h-none"
-              target={`observation:${observation.id}`}
-              hint="Messages stay here until someone adds them to the page"
-              emptyText="No messages yet. Ask a question or leave a note."
-              onHide={() => {
-                focusAfterToggle.current = "show"
-                setDiscussionHidden(true)
-              }}
-              messageActions={
-                canAdd
-                  ? (message) => (
-                      <AddToPage
-                        observationId={observation.id}
-                        message={message}
-                        canEdit={permissions.edit}
-                        onAdded={addedFromDiscussion}
-                      />
-                    )
-                  : undefined
-              }
-            />
-          </div>
-        )}
+    <>
+      <div className={columnClass}>
+        <ObservationHeader
+          envelope={envelope}
+          discussion={{
+            shown: discussionShown,
+            count,
+            onToggle,
+            toggleRef,
+          }}
+          onMove={() => setMoving(true)}
+          moreButtonRef={moreButton}
+          extraActions={
+            canPublish || hasRevisions ? (
+              <Button
+                ref={rcaButton}
+                variant="outline"
+                size="sm"
+                onClick={() => rca.onOpenChange(true)}
+              >
+                {canPublish ? "Publish as RCA" : "RCA revisions"}
+              </Button>
+            ) : null
+          }
+        />
+        <BlockList
+          observation={observation}
+          blocks={blocks}
+          canAdd={canAdd}
+          reveal={reveal}
+          onRevealed={revealed}
+          onAdded={added}
+        />
+        {canAdd ? (
+          <AddBlockRow
+            observation={observation}
+            blocks={blocks}
+            canEdit={permissions.edit}
+            onAdded={added}
+          />
+        ) : null}
       </div>
+      {discussionShown ? (
+        <DiscussionPane
+          observation={observation}
+          canAdd={canAdd}
+          canEdit={permissions.edit}
+          hidden={rca.open || moving}
+          headingRef={headingRef}
+          onClose={onClosePane}
+          onShowBlock={onShowBlock}
+          onAdded={addedFromDiscussion}
+        />
+      ) : null}
       {rca.open ? (
         <RcaPanel
           observation={observation}
@@ -225,7 +182,14 @@ function LoadedObservation({
           onClose={() => rca.onOpenChange(false)}
         />
       ) : null}
-    </div>
+      {moving ? (
+        <MovePanel
+          observation={observation}
+          trigger={moreButton}
+          onClose={() => setMoving(false)}
+        />
+      ) : null}
+    </>
   )
 }
 
