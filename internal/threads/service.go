@@ -140,7 +140,6 @@ func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
 }
 
 func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hook MessageHook) (Thread, Message, error) {
-	viaFinding := in.Target.Kind == KindFinding
 	sc, err := s.scopeOf(ctx, by, in.Target)
 	if err != nil {
 		return Thread{}, Message{}, err
@@ -187,12 +186,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		return hook(q, thread, message)
 	})
 	if isUniqueViolation(err, observationThreadIndex) {
-		existing := s.existingObservationThread(ctx, in.Target.ID)
-		var exists *ObservationThreadExistsError
-		if viaFinding && errors.As(existing, &exists) {
-			return s.Reply(ctx, by, exists.ThreadID, in.Body, hook)
-		}
-		return Thread{}, Message{}, existing
+		return Thread{}, Message{}, s.existingObservationThread(ctx, in.Target.ID)
 	}
 	if err != nil {
 		return Thread{}, Message{}, targetGone(err)

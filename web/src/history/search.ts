@@ -6,6 +6,13 @@ export type HistorySearch = {
   back?: string | undefined
 }
 
+export function versionChangesSearch(version: number): {
+  from?: number
+  to: number
+} {
+  return version > 1 ? { from: version - 1, to: version } : { to: version }
+}
+
 const versionNumber = /^(0|[1-9][0-9]{0,8})$/
 
 function versionParam(value: unknown): number | undefined {

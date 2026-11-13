@@ -2,7 +2,7 @@
 
 `observe-agent` is the built-in agent as a separate process: an ordinary claimer that runs the model loop and works a run through the claim tools over MCP.
 The server enforces the run's guards in `internal/runsession`; this package holds no guard of its own.
-The server starts it unless `SLASHOBSERVE_AGENT_RUNTIME=go`; the image ships it at `/usr/local/bin/observe-agent` and `make agent` builds `bin/observe-agent`.
+The server starts it whenever a model provider is configured; the image ships it at `/usr/local/bin/observe-agent` and `make agent` builds `bin/observe-agent`.
 
 ## Layout
 

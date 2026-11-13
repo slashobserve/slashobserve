@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
-
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -43,44 +41,6 @@ func TestFailedRunLogsOnlyCodeTypeAndIds(t *testing.T) {
 	}
 }
 
-func TestTimedOutRunLogsOnlyCodeAndType(t *testing.T) {
-	logger, logs := logtest.New()
-	d := dbtest.New(t)
-	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
-		<-ctx.Done()
-		return revisions.Result{}, ctx.Err()
-	}), logger)
-	dash := seedDashboard(t, d, 1)
-	rev := submit(t, svc, dash, leakedPrompt)
-	startWorkerLogged(t, svc, d, revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond}, logger)
-	waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-
-	record := findEventually(t, logs, "agent request failed")
-	logs.AssertSafeFailure(t, record, "agent_run_timed_out", leakedPrompt, "timed out")
-	if record["agent_request_id"] != rev.ID {
-		t.Errorf("record = %v", record)
-	}
-}
-
-func TestPanicAfterTheDeadlineLogsAsPanickedAndStoresTheTimeoutMessage(t *testing.T) {
-	logger, logs := logtest.New()
-	d := dbtest.New(t)
-	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
-		<-ctx.Done()
-		panic(leakedDetail)
-	}), logger)
-	dash := seedDashboard(t, d, 1)
-	rev := submit(t, svc, dash, leakedPrompt)
-	startWorkerLogged(t, svc, d, revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond}, logger)
-	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-	if failed.Error != "the agent run timed out" {
-		t.Fatalf("stored error = %q", failed.Error)
-	}
-
-	record := findEventually(t, logs, "agent request failed")
-	logs.AssertSafeFailure(t, record, "agent_run_panicked", leakedPrompt, leakedDetail)
-}
-
 func TestStoreFailuresAfterARunLogOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
@@ -101,33 +61,6 @@ func TestStoreFailuresAfterARunLogOnlyCodeAndType(t *testing.T) {
 		if record["agent_request_id"] != rev.ID {
 			t.Errorf("%s: record = %v", msg, record)
 		}
-	}
-}
-
-func TestListenerFailureLogsOnlyCodeAndType(t *testing.T) {
-	logger, logs := logtest.New()
-	d := dbtest.New(t)
-	svc := newTestService(d.DB, succeedWith(2), logger)
-	listen := func(ctx context.Context, _ string, _ func(), _ func(string)) error {
-		if ctx.Err() == nil {
-			return &pgconn.PgError{Code: "08006", Message: leakedDetail}
-		}
-		return ctx.Err()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		revisions.NewWorker(svc, listen, logger, revisions.WorkerOptions{Workers: 2, Poll: time.Hour}).Run(ctx)
-	}()
-	t.Cleanup(func() {
-		cancel()
-		<-done
-	})
-	record := waitForLog(t, logs, "agent request listener failed")[0]
-	logs.AssertSafeFailure(t, record, "agent_request_listener_failed", leakedDetail, "db.internal")
-	if record["sqlstate"] != "08006" {
-		t.Errorf("record = %v", record)
 	}
 }
 

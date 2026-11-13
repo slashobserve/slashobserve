@@ -10,7 +10,7 @@ Outside agents such as Claude Code connect over MCP and act as the person who co
 ## What you run
 
 SlashObserve is one container plus one Postgres database.
-The container holds the Go server with the web UI embedded and `observe-agent`, the built-in agent as a second binary that the server starts and supervises unless `SLASHOBSERVE_AGENT_RUNTIME=go`.
+The container holds the Go server with the web UI embedded and `observe-agent`, the built-in agent as a second binary that the server starts and supervises whenever a model provider is configured.
 Postgres holds everything the server owns: dashboards and their versions, observations and proposals, comment threads, the activity log, the inbox's read position, saved searches, folders and their access lists, users and sessions, service accounts and key hashes, connected agents, webhooks, and the agent request queue.
 Your Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers stay where they are; SlashObserve only reads from them.
 

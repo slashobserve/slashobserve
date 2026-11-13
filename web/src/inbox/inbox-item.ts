@@ -1,4 +1,5 @@
 import type { components } from "@/api/schema.gen"
+import { versionChangesSearch } from "@/history/search"
 import {
   chatPath,
   dashboardPath,
@@ -168,7 +169,7 @@ function repairedLink(item: InboxItem): ItemLink | null {
   if (version === null) return page(dashboardPath(item.dashboard_id))
   return {
     to: `${dashboardPath(item.dashboard_id)}/versions`,
-    search: version > 1 ? { from: version - 1, to: version } : { to: version },
+    search: versionChangesSearch(version),
   }
 }
 

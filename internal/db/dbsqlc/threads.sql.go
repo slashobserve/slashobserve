@@ -599,17 +599,6 @@ func (q *Queries) MentionableServiceAccount(ctx context.Context, id pgtype.UUID)
 	return name, err
 }
 
-const observationOfFinding = `-- name: ObservationOfFinding :one
-SELECT observation_id FROM findings WHERE id = $1
-`
-
-func (q *Queries) ObservationOfFinding(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, observationOfFinding, id)
-	var observation_id pgtype.UUID
-	err := row.Scan(&observation_id)
-	return observation_id, err
-}
-
 const resolveThreadForRun = `-- name: ResolveThreadForRun :one
 UPDATE threads
 SET status = 'resolved',

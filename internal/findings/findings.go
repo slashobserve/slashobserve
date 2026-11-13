@@ -41,7 +41,6 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
-	ErrOnDashboard    = errors.New("a finding on a dashboard follows the dashboard's folder")
 )
 
 type Conclusion struct {
@@ -54,7 +53,6 @@ type Conclusion struct {
 type Observations interface {
 	WriteConclusion(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, c Conclusion) (id pgtype.UUID, created bool, err error)
 	Placement(ctx context.Context, by auth.Principal, observationID pgtype.UUID) (folders.Folder, folders.Abilities, error)
-	MoveForFinding(ctx context.Context, by auth.Principal, observationID, folderID pgtype.UUID, inTx func(q *dbsqlc.Queries) error) error
 }
 
 type Author struct{ Kind, ID, Name string }

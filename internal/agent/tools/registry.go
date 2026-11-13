@@ -517,7 +517,7 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case inRun && !t.OfferedIn(run.Mode):
 		message = t.Name + " is only for investigate runs"
 	case !inRun && t.AgentOnly:
-		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateFinding
+		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
 	default:
 		return Result{}, true
 	}

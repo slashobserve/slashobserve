@@ -66,7 +66,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "add_block,claim_run,create_annotation,create_comment,create_finding,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_observation,get_proposal,get_rca,get_run,get_run_brief,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_folders,list_inbox,list_observations,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,merge_proposal,move_dashboard,move_finding,move_observation,pin_dashboard,publish_rca,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,save_search,search_workspace,unpin_dashboard,update_block,update_observation" {
+	if strings.Join(got, ",") != "add_block,claim_run,create_annotation,create_comment,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_observation,get_proposal,get_rca,get_run,get_run_brief,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_folders,list_inbox,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,merge_proposal,move_dashboard,move_observation,pin_dashboard,publish_rca,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,save_search,search_workspace,unpin_dashboard,update_block,update_observation" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -86,9 +86,9 @@ func TestCommentToolsNeedComments(t *testing.T) {
 
 func TestParseCommentQuery(t *testing.T) {
 	dash := `{"dashboard_id":"` + dashA + `"`
-	byTarget := `{"target":"finding:` + dashB + `"`
+	byTarget := `{"target":"observation:` + dashB + `"`
 	dashboardTarget := threads.Target{Kind: threads.KindDashboard, ID: mustUUID(t, dashA)}
-	findingTarget := threads.Target{Kind: threads.KindFinding, ID: mustUUID(t, dashB)}
+	findingTarget := threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashB)}
 	tests := []struct {
 		name    string
 		input   string
@@ -98,11 +98,11 @@ func TestParseCommentQuery(t *testing.T) {
 		{name: "defaults", input: dash + `}`, want: commentQuery{target: dashboardTarget, status: threads.StatusOpen, limit: defaultListComments}},
 		{name: "by target", input: byTarget + `}`, want: commentQuery{target: findingTarget, byTarget: true, status: threads.StatusOpen, limit: defaultListComments}},
 		{name: "dashboard by target", input: `{"target":"dashboard:` + dashA + `"}`, want: commentQuery{target: dashboardTarget, byTarget: true, status: threads.StatusOpen, limit: defaultListComments}},
-		{name: "both", input: `{"target":"finding:` + dashB + `","dashboard_id":"` + dashA + `"}`, wantMsg: "give exactly one of target and dashboard_id"},
+		{name: "both", input: `{"target":"observation:` + dashB + `","dashboard_id":"` + dashA + `"}`, wantMsg: "give exactly one of target and dashboard_id"},
 		{name: "neither", input: `{}`, wantMsg: "give exactly one of target and dashboard_id"},
-		{name: "bad target", input: `{"target":"saved_search:` + dashB + `"}`, wantMsg: "target kind must be dashboard, finding or annotation"},
-		{name: "target without id", input: `{"target":"finding"}`, wantMsg: "target must be kind:uuid"},
-		{name: "target with bad id", input: `{"target":"finding:nope"}`, wantMsg: "target id must be a UUID"},
+		{name: "bad target", input: `{"target":"saved_search:` + dashB + `"}`, wantMsg: "target kind must be dashboard, annotation"},
+		{name: "target without id", input: `{"target":"observation"}`, wantMsg: "target must be kind:uuid"},
+		{name: "target with bad id", input: `{"target":"observation:nope"}`, wantMsg: "target id must be a UUID"},
 		{name: "status kept", input: dash + `,"status":"all"}`, want: commentQuery{target: dashboardTarget, status: "all", limit: defaultListComments}},
 		{name: "panel kept", input: dash + `,"panel_id":"p1","limit":7,"cursor":"abc"}`, want: commentQuery{target: dashboardTarget, status: threads.StatusOpen, panelID: "p1", limit: 7, cursor: "abc"}},
 		{name: "empty panel", input: dash + `,"panel_id":""}`, wantMsg: "panel_id must be at least 1 character"},
@@ -200,13 +200,13 @@ func TestCommentItem(t *testing.T) {
 		}
 	})
 	t.Run("off a dashboard", func(t *testing.T) {
-		thread := threads.Thread{ID: dashA, Target: threads.Target{Kind: threads.KindFinding, ID: mustUUID(t, dashB)}, PanelPresent: true}
+		thread := threads.Thread{ID: dashA, Target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashB)}, PanelPresent: true}
 		out := targetedCommentItem(commentRef{thread, threads.Message{ID: dashA}})
 		body, err := json.Marshal(out)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if out.Target != "finding:"+dashB || !strings.Contains(string(body), `"version":null`) || !strings.Contains(string(body), `"panel_id":null`) {
+		if out.Target != "observation:"+dashB || !strings.Contains(string(body), `"version":null`) || !strings.Contains(string(body), `"panel_id":null`) {
 			t.Fatalf("json = %s", body)
 		}
 	})
@@ -306,7 +306,7 @@ func worstCaseRef(t *testing.T) commentRef {
 
 func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 	cursor := strings.Repeat("c", 256)
-	q := commentQuery{target: threads.Target{Kind: threads.KindFinding, ID: mustUUID(t, dashA)}, byTarget: true}
+	q := commentQuery{target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}, byTarget: true}
 	out, _, cut := commentPage(q, []commentRef{worstCaseRef(t)}, cursor)
 	if cut || len(out.Comments) != 1 {
 		t.Fatalf("cut = %v with %d comments", cut, len(out.Comments))
@@ -343,7 +343,7 @@ func TestCommentPageShrinksToFewerComments(t *testing.T) {
 
 func TestCommentPageNamesWhatWasListed(t *testing.T) {
 	dashboard := threads.Target{Kind: threads.KindDashboard, ID: mustUUID(t, dashA)}
-	finding := threads.Target{Kind: threads.KindFinding, ID: mustUUID(t, dashA)}
+	finding := threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}
 	tests := []struct {
 		name          string
 		q             commentQuery
@@ -352,7 +352,7 @@ func TestCommentPageNamesWhatWasListed(t *testing.T) {
 	}{
 		{"dashboard by id", commentQuery{target: dashboard}, "", dashA},
 		{"dashboard by target", commentQuery{target: dashboard, byTarget: true}, "dashboard:" + dashA, dashA},
-		{"finding by target", commentQuery{target: finding, byTarget: true}, "finding:" + dashA, ""},
+		{"finding by target", commentQuery{target: finding, byTarget: true}, "observation:" + dashA, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -389,12 +389,12 @@ func commentOutOf(t *testing.T, res Result) commentOut {
 	return commentOut{}
 }
 
-func TestCommentToolsWorkOnAFinding(t *testing.T) {
+func TestCommentToolsWorkOnAnObservation(t *testing.T) {
 	r := newAccessRig(t)
 	finding := r.privateFinding(t, adminCaller)
 	target := "observation:" + finding.ObservationID
 
-	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"finding:`+finding.ID+`","body":"is it the cache? @observe"}`))
+	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"observation:`+finding.ObservationID+`","body":"is it the cache? @observe"}`))
 	if opened.Target != target || opened.Version != nil || opened.PanelID != nil || opened.ParentID != nil || opened.Status != threads.StatusOpen {
 		t.Fatalf("created = %+v", opened)
 	}
@@ -407,8 +407,8 @@ func TestCommentToolsWorkOnAFinding(t *testing.T) {
 		t.Fatalf("reply = %+v", reply)
 	}
 
-	listed, ok := r.call(t, adminCaller, nameListComments, `{"target":"finding:`+finding.ID+`"}`).Content.(commentListOut)
-	if !ok || listed.Target != "finding:"+finding.ID || listed.DashboardID != "" || len(listed.Comments) != 2 || listed.Comments[0].ID != opened.ID || listed.Comments[1].ID != reply.ID {
+	listed, ok := r.call(t, adminCaller, nameListComments, `{"target":"observation:`+finding.ObservationID+`"}`).Content.(commentListOut)
+	if !ok || listed.Target != target || listed.DashboardID != "" || len(listed.Comments) != 2 || listed.Comments[0].ID != opened.ID || listed.Comments[1].ID != reply.ID {
 		t.Fatalf("list_comments = %+v", listed)
 	}
 
@@ -502,8 +502,8 @@ func TestCommentToolsOnADashboardPanel(t *testing.T) {
 func TestCommentToolsHideAFindingInAPersonalFolderFromOthers(t *testing.T) {
 	r := newAccessRig(t)
 	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'cam', 'cam@example.com', 'Cam')`, commenterCaller.ID)
-	id := r.privateFinding(t, commenterCaller).ID
-	target := "finding:" + id
+	id := r.privateFinding(t, commenterCaller).ObservationID
+	target := "observation:" + id
 	opened := commentOutOf(t, r.call(t, commenterCaller, nameCreateComment, `{"target":"`+target+`","body":"private note"}`))
 	calls := map[string]string{
 		nameListComments:   `{"target":"` + target + `"}`,

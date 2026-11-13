@@ -40,10 +40,10 @@ A finding someone cannot read answers 404, never 403.
 
 ## The finding API is deprecated
 
-The finding routes under `/api/v1/findings`, the tools `create_finding`, `list_findings` and `move_finding`, and `observe findings` stay for one release as adapters over observations and are removed in the next release.
+The finding tools `create_finding`, `list_findings` and `move_finding`, the command `observe findings`, the route `POST /api/v1/findings/{id}/move`, the comment target `finding:<id>` and the search kind `finding` are removed.
+The routes that read a finding, pin it and make a dashboard from it remain under `/api/v1/findings` as adapters over observations that the web app still reads.
 Every finding route answers with a `Deprecation` header, and a finding carries its `observation_id`.
 Use `/api/v1/observations`, `create_observation` with `add_block`, `list_observations` and `observe o` instead.
-A comment target `finding:<id>` and a search kind `finding` still work and mean the finding's observation.
 
 ## Acting on a finding
 
@@ -55,7 +55,7 @@ Pinning needs Edit on the dashboard, and pinning a finding twice returns the sam
 
 The built-in agent investigates with the same read tools it uses to build dashboards, plus `list_annotations`, so it sees deploy markers beside a spike, and `save_finding`; `list_annotations` is offered only in an investigation, and `save_finding` also in a new-dashboard or revision request that only asks a question.
 It does not get the dashboard save tools in an investigation.
-MCP clients investigate with their own model: they read data with the read tools, save the answer into an observation with `create_observation` and `add_block`, and read earlier ones with `list_observations`; `create_finding` and `list_findings` still work and are deprecated (see [MCP](../use/mcp.md)).
+MCP clients investigate with their own model: they read data with the read tools, save the answer into an observation with `create_observation` and `add_block`, and read earlier ones with `list_observations`.
 
 ## When an investigation fails
 

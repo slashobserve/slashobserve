@@ -444,17 +444,18 @@ func TestGetObservationClipsMarkdownAndFitsTheResult(t *testing.T) {
 func TestObservationToolsNeedOnlyTheViewerRole(t *testing.T) {
 	names := []string{nameCreateObservation, nameGetObservation, nameListObservations, nameAddBlock, nameUpdateBlock, nameResolveObservation, nameKeepBlock, nameDiscardBlock}
 	readOnly := map[string]bool{nameGetObservation: true, nameListObservations: true}
+	builtIn := map[string]bool{nameListObservations: true}
 	byName := toolsByName(t)
 	for _, name := range names {
 		tool, ok := byName[name]
 		if !ok {
 			t.Fatalf("%s is not registered", name)
 		}
-		if !tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly != readOnly[name] {
+		if tool.MCPOnly == builtIn[name] || tool.MinRole != auth.RoleViewer || tool.ReadOnly != readOnly[name] {
 			t.Errorf("%s = MCPOnly %v, MinRole %s, ReadOnly %v", name, tool.MCPOnly, tool.MinRole, tool.ReadOnly)
 		}
-		if tool.OfferedIn(ModeCreate) || tool.OfferedIn(ModeInvestigate) {
-			t.Errorf("%s is offered to the built-in agent", name)
+		if tool.OfferedIn(ModeCreate) != builtIn[name] || tool.OfferedIn(ModeInvestigate) != builtIn[name] {
+			t.Errorf("%s offered to the built-in agent = %v, want %v", name, tool.OfferedIn(ModeCreate), builtIn[name])
 		}
 	}
 }

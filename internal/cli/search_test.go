@@ -53,12 +53,6 @@ func TestSearchCommand(t *testing.T) {
 			wantQuery: "kind=observation&limit=20&q=heron",
 		},
 		{
-			name:      "finding is still accepted as a kind",
-			args:      []string{"search", "heron", "--kind", "finding"},
-			response:  empty,
-			wantQuery: "kind=finding&limit=20&q=heron",
-		},
-		{
 			name:      "results print one line each with the snippet below",
 			args:      []string{"search", "checkout"},
 			response:  page,
@@ -87,7 +81,7 @@ func TestSearchCommand(t *testing.T) {
 		{name: "no words", args: []string{"search"}, wantCode: 1, wantErr: "requires at least 1 arg"},
 		{name: "limit 0", args: []string{"search", "a", "--limit", "0"}, wantCode: 2, wantErr: "--limit must be 1 to 50"},
 		{name: "limit 51", args: []string{"search", "a", "--limit", "51"}, wantCode: 2, wantErr: "--limit must be 1 to 50"},
-		{name: "unknown kind", args: []string{"search", "a", "--kind", "folder"}, wantCode: 2, wantErr: `--kind must be one of dashboard, annotation, observation, comment, saved_search, finding, not "folder"`},
+		{name: "unknown kind", args: []string{"search", "a", "--kind", "folder"}, wantCode: 2, wantErr: `--kind must be one of dashboard, annotation, observation, comment, saved_search, not "folder"`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

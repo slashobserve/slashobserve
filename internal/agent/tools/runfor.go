@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrInvalidReason      = errors.New("reason is not one the brief knows")
-	ErrInvalidFailureCode = errors.New("failure_code is not one the agent loop reports")
+	ErrInvalidFailureCode = errors.New("failure_code is not one the agent reports")
 	ErrCommitNeedsSuccess = errors.New("commit applies only to a succeeded outcome")
 	ErrRunEnded           = errors.New("the run has ended")
 )

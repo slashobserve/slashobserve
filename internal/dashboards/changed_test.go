@@ -108,7 +108,7 @@ func newProbeRig(t *testing.T) (*rig, *probe) {
 	}
 	access := folders.NewAccess(database.DB)
 	service := New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
-	queue := revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access))
+	queue := revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access))
 	return &rig{db: database, service: service, revisions: queue}, p
 }
 

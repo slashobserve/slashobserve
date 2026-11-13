@@ -7,7 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
-var investigateRoleTools = map[string]auth.Role{nameCreateFinding: auth.RoleEditor, nameSaveFinding: auth.RoleEditor}
+var investigateRoleTools = map[string]auth.Role{nameSaveFinding: auth.RoleEditor}
 
 func TestToolRoles(t *testing.T) {
 	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {
@@ -44,17 +44,17 @@ func TestAllowed(t *testing.T) {
 func TestCallRefusesAToolBelowTheKeysRole(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
-	res, err := r.Call(ctx, nameCreateFinding, []byte(`{}`))
+	res, err := r.Call(ctx, nameSaveFinding, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if errorCode(t, res) != "forbidden_role" {
 		t.Fatalf("res = %#v", res)
 	}
-	if want := "this key's role (viewer) cannot use create_finding; an admin can change the service account's role"; res.Content.(errorBody).Message != want {
+	if want := "this key's role (viewer) cannot use save_finding; an admin can change the service account's role"; res.Content.(errorBody).Message != want {
 		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
-	if want := "Refused create_finding: forbidden_role"; res.Step != want {
+	if want := "Refused save_finding: forbidden_role"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
@@ -62,14 +62,14 @@ func TestCallRefusesAToolBelowTheKeysRole(t *testing.T) {
 func TestCallRefusesAPersonBelowTheToolsRole(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer})
-	res, err := r.Call(ctx, nameCreateFinding, []byte(`{}`))
+	res, err := r.Call(ctx, nameSaveFinding, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if errorCode(t, res) != "forbidden_role" {
 		t.Fatalf("res = %#v", res)
 	}
-	if want := "your role (viewer) cannot use create_finding; an admin can change your role"; res.Content.(errorBody).Message != want {
+	if want := "your role (viewer) cannot use save_finding; an admin can change your role"; res.Content.(errorBody).Message != want {
 		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
 }

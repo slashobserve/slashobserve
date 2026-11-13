@@ -1,4 +1,3 @@
-import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,6 +8,7 @@ import {
 } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { CheckLine } from "./check-line"
 import {
   healthCellText,
   healthyLabel,
@@ -32,20 +32,6 @@ function ariaLabel(
 ): string {
   const others = more === 0 ? "" : ` and ${moreProblemsText(more)}`
   return `Health of ${title}: ${kind}${others}${repair === undefined ? "" : `, ${repair}`}`
-}
-
-function CheckLine({ item }: { item: HealthItem }) {
-  if (item.skipped === "depends_on_viewer")
-    return <>Skipped: reads the viewer</>
-  if (item.checked_at === null) return <>Not checked yet</>
-  return (
-    <>
-      Checked <RelativeTime iso={item.checked_at} />
-      {item.checked_version === null
-        ? null
-        : ` on version ${item.checked_version}`}
-    </>
-  )
 }
 
 function HealthyCell({ item, title }: { item: HealthItem; title: string }) {

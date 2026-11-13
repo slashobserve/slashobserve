@@ -14,7 +14,7 @@ const (
 	maxSearchLimit     = 50
 )
 
-var searchKinds = []string{"dashboard", "annotation", "observation", "comment", "saved_search", "finding"}
+var searchKinds = []string{"dashboard", "annotation", "observation", "comment", "saved_search"}
 
 type searchOptions struct {
 	kinds  []string
@@ -52,7 +52,7 @@ func (a *app) searchCommand() *cobra.Command {
 		RunE: a.runSearch,
 	}
 	flags := cmd.Flags()
-	flags.StringArrayVar(&a.searching.kinds, "kind", nil, "only this kind: "+strings.Join(searchKinds, ", ")+" (finding is deprecated, use observation); repeat it for several")
+	flags.StringArrayVar(&a.searching.kinds, "kind", nil, "only this kind: "+strings.Join(searchKinds, ", ")+"; repeat it for several")
 	flags.IntVar(&a.searching.limit, "limit", defaultSearchLimit, "results per page, 1 to 50")
 	flags.StringVar(&a.searching.cursor, "cursor", "", "continue from a next_cursor")
 	return cmd

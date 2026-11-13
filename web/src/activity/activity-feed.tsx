@@ -313,7 +313,6 @@ export function ActivityFeed({
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}
-            latestVersion={latestVersion}
             clientName={clientName}
           />
         )

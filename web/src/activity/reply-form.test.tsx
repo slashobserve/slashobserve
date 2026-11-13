@@ -55,7 +55,6 @@ async function renderReply(gate: AgentGate = { kind: "allowed" }) {
       rootId={rootId}
       people={[]}
       gate={gate}
-      latestVersion={3}
       onClose={onClose}
     />,
     { route: { path: "/", url: "/" } }

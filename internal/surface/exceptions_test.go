@@ -55,6 +55,7 @@ var exceptions = map[string]exception{
 
 	"logVolume": {MCP: notBuilt, CLI: notBuilt},
 
+	"listFindings":           {MCP: notBuilt, CLI: notBuilt},
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},
 	"pinFinding":             {MCP: notBuilt, CLI: notBuilt},
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},

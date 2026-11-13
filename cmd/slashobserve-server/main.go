@@ -22,7 +22,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/activity"
-	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
@@ -356,8 +355,9 @@ func run() error {
 		revisions.WithPrincipals(authService),
 		revisions.WithAccess(folderAccess),
 		revisions.WithThreads(threads.NewRuns(database)),
+		revisions.WithMetrics(serverMetrics.AgentRequests()),
 	}
-	queue := revisions.NewService(database, nil, logger, revisionOpts...)
+	queue := revisions.NewService(database, logger, revisionOpts...)
 	mentionRuns := threads.NewMentionRuns(threadsService, queue, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
@@ -395,27 +395,12 @@ func run() error {
 		Logger:        logger,
 	})
 
-	var reviser revisions.Reviser
 	if llmProvider != nil {
-		reviser = agent.NewReviser(agent.New(agent.Config{
-			Provider:    llmProvider,
-			Tools:       toolRegistry,
-			Dashboards:  dashboardsService,
-			Builds:      dashboardsService,
-			Datasources: registry,
-			Imports:     importsService,
-			Logger:      logger,
-
-			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
-			LogToolInputs:     cfg.Agent.LogToolInputs,
-			Prices:            cfg.LLM.Prices,
-			MaxRunCostUSD:     cfg.Agent.MaxRunCostUSD,
-		}), revisions.NewSteps(database, logger))
-		reviser = agent.WithMetrics(reviser, serverMetrics.AgentRuns())
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
+		revisionOpts = append(revisionOpts, revisions.WithBuiltInAgent())
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisionOpts...)
+	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
@@ -424,10 +409,7 @@ func run() error {
 	stopLiveText := startBackground(ctx, "live text listener", liveText.Run, logger)
 	defer stopLiveText()
 
-	goWorkers := func() func() {
-		return startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{InstanceID: serverID, Workers: cfg.Agent.Workers, RunTimeout: cfg.Agent.RunTimeout, Metrics: serverMetrics.AgentQueue()})
-	}
-	supervisor, stopAgentRuntime := sidecar.start(ctx, cfg, claimsService, goWorkers, logger)
+	supervisor, stopAgentRuntime := sidecar.start(ctx, cfg, claimsService, logger)
 	defer stopAgentRuntime()
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
@@ -495,7 +477,7 @@ func run() error {
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
-			agentsview.NewHandler(database, agentsview.Observe{Enabled: revisionsService.Available(), Provider: observeOpts.Provider, Model: observeOpts.Model, Runtime: string(cfg.Agent.Runtime)}, logger),
+			agentsview.NewHandler(database, agentsview.Observe{Enabled: revisionsService.Available(), Provider: observeOpts.Provider, Model: observeOpts.Model}, logger),
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
@@ -694,9 +676,6 @@ func warnOptInLogging(logger *slog.Logger, cfg config.Config) {
 	if cfg.LLM.LogProviderErrors {
 		logger.Warn("provider error messages are logged; a provider can echo prompt text in them")
 	}
-	if cfg.Agent.LogToolInputs {
-		logger.Warn("agent tool inputs are logged by hash, size, panel ids and issue paths; meant for evals stacks")
-	}
 }
 
 func reportedEffort(llm config.LLM) string {
@@ -708,27 +687,6 @@ func reportedEffort(llm config.LLM) string {
 }
 
 func poolFloor(workers int) int { return 2*workers + 8 }
-
-func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger, opts revisions.WorkerOptions) func() {
-	if !service.Available() {
-		return func() {}
-	}
-	logger.Info("agent workers configured", slog.Int("workers", opts.Workers))
-	workerCtx, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		revisions.NewWorker(service, listen, logger, opts).Run(workerCtx)
-	}()
-	return func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(shutdownTimeout):
-			logger.Warn("agent workers did not stop in time")
-		}
-	}
-}
 
 func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog.Logger) func() {
 	schedulerCtx, cancel := context.WithCancel(ctx)

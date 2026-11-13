@@ -56,7 +56,7 @@ func TestBuildCarriesOnlyTheSectionsOfItsTypes(t *testing.T) {
 }
 
 func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
-	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and findings on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
+	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
 	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
 		if strings.Count(system, scope) != 1 || strings.Count(system, "Every answer uses only") != 1 {
 			t.Errorf("%s system text does not carry the scope once before the guide", name)
@@ -82,7 +82,6 @@ func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"with `row` naming its row",
 		"First decide what the request asks for, then do only that.",
 		"Every answer keeps to the scope below.",
-		"and earlier findings with `list_findings`",
 		"never call `save_finding` after you saved a panel",
 	} {
 		if !strings.Contains(system, want) {
@@ -97,6 +96,7 @@ func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"Use `stat` or `table` for",
 		"10 to 20 series: a full-width",
 		"The only result that matters is a saved dashboard",
+		"list_findings",
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)

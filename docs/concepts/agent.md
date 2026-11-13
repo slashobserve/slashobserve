@@ -161,7 +161,6 @@ A tool result over its size limit goes back to the model as a `result_too_large`
 A save result is never an error for its size, because the save already happened: its panel list is cut to fit and marked `truncated`.
 A tool that fails, such as a datasource that does not answer, goes back to the model as a `tool_failed` error without the error's own text, and the run goes on.
 A tool call ends the run only on a broken internal invariant: a cancellation, a lost claim on the build, or a tool that panicked (`tool_panicked`).
-On an evals stack, `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` logs each tool input by hash, size, panel ids and the issue paths of a rejected save, never by its text; see [Configuration](../reference/configuration.md).
 
 ### Cancel, continue and queueing
 
@@ -297,12 +296,12 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 62 tools: MCP clients get 61, every one except `save_finding`, which only a run offers.
+The server has 72 tools: MCP clients get 71, every one except `save_finding`, which only a run offers.
 The built-in agent gets 26 in a new-dashboard or revision request and 25 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 35 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, inbox, saved search and claim tools, `list_folders`, `create_finding`, `move_finding`, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
-The agent reads earlier answers with `list_findings`, as MCP clients do; MCP clients read observations with `list_observations`, and `create_finding` and `list_findings` are deprecated adapters over them.
+The other 45 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+`list_observations` is offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into; MCP clients also read them in full with `get_observation`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
@@ -315,14 +314,13 @@ When a message that mentions an agent started the run, the server instead posts 
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).
 
-## Runtimes
+## The agent process
 
-`SLASHOBSERVE_AGENT_RUNTIME` picks where the loop runs.
-With `sidecar`, the default, the server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
-With `go`, the loop runs inside the server.
+The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
-Whichever runtime runs, the guards, the limits and the saved result are the same.
+The server enforces the guards and the limits and stores the saved result.
+It looks for `observe-agent` on `PATH`, and it does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 
 ## MCP clients use their own model
 

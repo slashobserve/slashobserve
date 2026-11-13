@@ -62,12 +62,6 @@ func fakeFrames() []datasource.Frame {
 	}}}
 }
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type rig struct {
 	db        *dbtest.Database
 	service   *Service
@@ -96,11 +90,11 @@ func newRig(t *testing.T, agent bool) *rig {
 	}
 	access := folders.NewAccess(database.DB)
 	service := New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
-	var reviser revisions.Reviser
+	revisionOpts := []revisions.Option{revisions.WithAccess(access)}
 	if agent {
-		reviser = noopReviser{}
+		revisionOpts = append(revisionOpts, revisions.WithBuiltInAgent())
 	}
-	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
+	queue := revisions.NewService(database.DB, logger, revisionOpts...)
 	return &rig{db: database, service: service, revisions: queue}
 }
 

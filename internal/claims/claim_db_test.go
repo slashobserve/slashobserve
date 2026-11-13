@@ -65,7 +65,7 @@ func newFixture(t *testing.T) *fixture {
 	d := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
 	people := &principals{}
-	runs := revisions.NewService(d.DB, noReviser{}, logger,
+	runs := revisions.NewService(d.DB, logger, revisions.WithBuiltInAgent(),
 		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
 	svc := New(Config{
 		DB: d.DB, Runs: runs, Listen: d.Listen,
@@ -74,12 +74,6 @@ func newFixture(t *testing.T) *fixture {
 		RunTimeout: time.Hour, Logger: logger,
 	})
 	return &fixture{svc: svc, runs: runs, d: d, principals: people, dashboard: seedDashboard(t, d)}
-}
-
-type noReviser struct{}
-
-func (noReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
 }
 
 func mustUUID(t *testing.T, s string) pgtype.UUID {

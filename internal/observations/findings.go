@@ -132,14 +132,3 @@ func (s *Service) Placement(ctx context.Context, by auth.Principal, id pgtype.UU
 	}
 	return folder, abilities, err
 }
-
-func (s *Service) MoveForFinding(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID, inTx func(q *dbsqlc.Queries) error) error {
-	_, err := s.move(ctx, by, id, folderID, inTx)
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return findings.ErrNotFound
-	case errors.Is(err, ErrFolderNotFound):
-		return findings.ErrFolderNotFound
-	}
-	return err
-}

@@ -59,12 +59,6 @@ func frames() []datasource.Frame {
 	}}}
 }
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 type rig struct {
 	db         *dbtest.Database
 	dashboards *dashboards.Service
@@ -90,8 +84,8 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	queue := revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access))
-	none := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
+	queue := revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access))
+	none := revisions.NewService(database.DB, logger, revisions.WithAccess(access))
 	deps := func(r *revisions.Service) repairs.Deps {
 		return repairs.Deps{DB: database.DB, Access: access, Revisions: r, PublicURL: base, Logger: logger}
 	}

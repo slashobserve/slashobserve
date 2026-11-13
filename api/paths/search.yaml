@@ -8,7 +8,6 @@ search:
     description: >-
       Finds objects whose text contains every word of `q`, each exactly or by its English stem, ranked by relevance with newer objects first among near-equals.
       A caller finds only what it can open: a dashboard and its annotations and comments through the dashboard's folder, an observation, its comments and a saved search through the folder each is in, and a global annotation and its comments through General.
-      A finding's text lives in its observation, so a finding is found as that observation.
       Only the latest version of a dashboard is searched.
       `"quoted words"` match as a phrase, `or` between words matches either, `-word` excludes a word, and the last word also matches as a prefix unless the query ends in a space.
       Results stop after 200 per query; refine the words to see more.
@@ -23,15 +22,15 @@ search:
           maxLength: 200
       - name: kind
         in: query
-        description: "Only results of these kinds; repeat the parameter for several. `finding` is deprecated and is no longer produced as a result kind: it means `observation`, and a request that names both returns each observation once."
+        description: "Only results of these kinds; repeat the parameter for several. A kind named twice returns each result once."
         style: form
         explode: true
         schema:
           type: array
-          maxItems: 6
+          maxItems: 5
           items:
             type: string
-            enum: [dashboard, finding, annotation, observation, comment, saved_search]
+            enum: [dashboard, annotation, observation, comment, saved_search]
       - name: cursor
         in: query
         description: The `next_cursor` of the previous page.

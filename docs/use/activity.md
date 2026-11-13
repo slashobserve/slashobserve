@@ -16,7 +16,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
 | Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
-| Finding | `finding.moved` | A finding without a dashboard moves to another folder through the deprecated finding API, which moves its observation. |
+| Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
@@ -44,7 +44,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`, with the block's `state` (`live` or `requested`) on `observation.block_added`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
-A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, where a thread on a finding is on its observation, as `{"kind": "dashboard", "id": "..."}`.
+A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 
 A run event adds the run's `source`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.

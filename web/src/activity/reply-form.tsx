@@ -22,7 +22,6 @@ type Props = {
   rootId: string
   people: readonly MentionPerson[]
   gate: AgentGate
-  latestVersion: number
   onClose: () => void
 }
 

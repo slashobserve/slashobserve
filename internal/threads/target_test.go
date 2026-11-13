@@ -8,7 +8,7 @@ import (
 const sampleID = "7f0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b"
 
 func TestParseTargetRoundTrips(t *testing.T) {
-	for _, kind := range []Kind{KindDashboard, KindFinding, KindAnnotation, KindObservation, KindProposal} {
+	for _, kind := range []Kind{KindDashboard, KindAnnotation, KindObservation, KindProposal} {
 		raw := string(kind) + ":" + sampleID
 		got, err := ParseTarget(raw)
 		if err != nil {
@@ -23,15 +23,16 @@ func TestParseTargetRoundTrips(t *testing.T) {
 func TestParseTargetRejectsMalformedTargets(t *testing.T) {
 	for _, raw := range []string{
 		"",
-		"finding",
-		"finding:",
+		"observation",
+		"observation:",
 		":" + sampleID,
 		"run:" + sampleID,
-		"Finding:" + sampleID,
-		"finding/" + sampleID,
-		"finding:not-a-uuid",
-		"finding:7f0c1a2b3c4d4e5f8a9b0c1d2e3f4a5b",
-		"finding:" + sampleID + ":extra",
+		"finding:" + sampleID,
+		"Observation:" + sampleID,
+		"observation/" + sampleID,
+		"observation:not-a-uuid",
+		"observation:7f0c1a2b3c4d4e5f8a9b0c1d2e3f4a5b",
+		"observation:" + sampleID + ":extra",
 	} {
 		_, err := ParseTarget(raw)
 		var invalid *InvalidInputError

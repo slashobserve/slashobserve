@@ -158,33 +158,6 @@ func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgty
 	return levels.Visible(), nil
 }
 
-func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Finding, error) {
-	f, err := s.Get(ctx, by, id)
-	if err != nil {
-		return Finding{}, err
-	}
-	if f.DashboardID != "" {
-		return Finding{}, ErrOnDashboard
-	}
-	if !f.Abilities.Edit {
-		return Finding{}, folders.ErrForbidden
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return Finding{}, err
-	}
-	who := actor.Of(by, origin.From(ctx), "")
-	err = s.observations.MoveForFinding(ctx, by, observationID, folderID, func(q *dbsqlc.Queries) error {
-		return appendMoved(ctx, q, who, f, folderID)
-	})
-	if err != nil {
-		return Finding{}, err
-	}
-	s.logger.InfoContext(ctx, "finding moved",
-		slog.String("actor_id", by.ID), slog.String("finding_id", f.ID), slog.String("folder_id", folderID.String()))
-	return s.Get(ctx, by, id)
-}
-
 func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
 	f, err := s.Get(ctx, by, id)
 	if err != nil {

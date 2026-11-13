@@ -18,7 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 )
 
-var errSidecarAddr = errors.New("SLASHOBSERVE_AGENT_RUNTIME=sidecar needs SLASHOBSERVE_HTTP_ADDR to listen on all addresses or on a loopback address")
+var errSidecarAddr = errors.New("the built-in agent needs SLASHOBSERVE_HTTP_ADDR to listen on all addresses or on a loopback address")
 
 func loopbackURL(addr string) (*url.URL, error) {
 	host, port, err := net.SplitHostPort(addr)
@@ -43,10 +43,6 @@ type sidecarSetup struct {
 
 func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slog.Logger) (*sidecarSetup, error) {
 	if !providerConfigured {
-		return nil, nil
-	}
-	logger.Info("agent runtime", slog.String("runtime", string(cfg.Agent.Runtime)))
-	if cfg.Agent.Runtime != config.AgentRuntimeSidecar {
 		return nil, nil
 	}
 	path, err := observeagent.FindBinary()
@@ -74,9 +70,9 @@ func (s *sidecarSetup) modelSettings(cfg config.Config) func() *claims.ModelSett
 	return modelSettingsOf(cfg.LLM, cfg.Agent.SessionRenewBytes)
 }
 
-func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *claims.Service, goWorkers func() func(), logger *slog.Logger) (*observeagent.Supervisor, func()) {
+func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *claims.Service, logger *slog.Logger) (*observeagent.Supervisor, func()) {
 	if s == nil {
-		return nil, goWorkers()
+		return nil, func() {}
 	}
 	supervisor := observeagent.NewSupervisor(observeagent.SupervisorConfig{
 		Path: s.path, ServerURL: s.url.String(), Slots: cfg.Agent.Workers,

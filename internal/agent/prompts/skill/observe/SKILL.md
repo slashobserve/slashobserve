@@ -53,7 +53,6 @@ Find the signal with the discovery tools and query_range, and look for causes be
 Save the answer in an observation: create_observation files one in a folder (list_folders gives a folder_id), and add_block adds a text block (Markdown, no HTML), a panel block whose query returns data in its range, or a snapshot that freezes a panel block.
 Put a one-sentence answer first, then the evidence.
 No tool queues an investigation on the server; you do the work with your own model.
-create_finding, list_findings and move_finding are deprecated adapters over observations; use the observation tools.
 
 ## Keep an observation
 
@@ -96,7 +95,7 @@ A call with a run that is not yours is refused, and a connection in propose mode
 ## Limits
 
 Lists show only what you may see, and not_found can mean you may not see it.
-No tool deletes, moves or duplicates a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
+Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.
 
 ## With only a shell

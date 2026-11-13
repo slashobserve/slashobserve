@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import { tookText } from "@/chat/turn-model"
+import { versionChangesSearch } from "@/history/search"
 
 import {
   avatarFor,
@@ -32,9 +33,7 @@ function SavedVersionLink({
     <Link
       to="/d/$dashboardId/versions"
       params={{ dashboardId }}
-      search={
-        version > 1 ? { from: version - 1, to: version } : { to: version }
-      }
+      search={versionChangesSearch(version)}
       className="rounded-sm text-foreground underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ResolvedState text={`Saved as version ${version}`} />

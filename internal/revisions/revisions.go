@@ -191,6 +191,24 @@ func WithThreads(t Threads) Option {
 	return func(s *Service) { s.threads = t }
 }
 
+func WithBuiltInAgent() Option {
+	return func(s *Service) { s.builtInAgent = true }
+}
+
+type Metrics interface {
+	AgentRun(kind, outcome string)
+	RequestClaimed(source string, waited time.Duration)
+}
+
+type noMetrics struct{}
+
+func (noMetrics) AgentRun(string, string)              {}
+func (noMetrics) RequestClaimed(string, time.Duration) {}
+
+func WithMetrics(m Metrics) Option {
+	return func(s *Service) { s.metrics = m }
+}
+
 type Request struct {
 	ID          string
 	DashboardID string
@@ -217,15 +235,6 @@ func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {
 		return r.Origin
 	}
 	return outside
-}
-
-type Result struct {
-	Version     int
-	Suggestion  json.RawMessage
-	FindingID   string
-	ProposalID  string
-	Usage       *Usage
-	FailureCode FailureCode
 }
 
 type Usage struct {
@@ -267,10 +276,6 @@ type Step struct {
 
 type StepRecorder interface {
 	RecordStep(ctx context.Context, req Request, s Step)
-}
-
-type Reviser interface {
-	Revise(ctx context.Context, req Request) (Result, error)
 }
 
 type Revision struct {

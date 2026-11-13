@@ -40,7 +40,7 @@ An unreachable Prometheus shows up as a datasource health problem, not as a serv
 
 ## The image
 
-The image carries `observe-agent` at `/usr/local/bin/observe-agent` beside `slashobserve-server`; the server starts it unless `SLASHOBSERVE_AGENT_RUNTIME=go`.
+The image carries `observe-agent` at `/usr/local/bin/observe-agent` beside `slashobserve-server`; the server starts it whenever a model provider is configured.
 Its base is `distroless/base-nossl`, which has glibc for the `observe-agent` binary and still runs as the non-root user `nonroot`.
 
 ## Behind a connection pooler

@@ -19,7 +19,9 @@ The answer is saved into an observation, as a text block with the conclusion and
 The observation is in a folder and follows that folder's access; see [Observations](observations.md#who-can-do-what).
 An investigation about a dashboard files its observation in that dashboard's folder when you can edit it, and otherwise in your My Dashboards, or in General when you have none.
 It stays there when the dashboard moves.
-The finding routes, tools and commands are deprecated and are removed in the next release; use the observation's own.
+
+The `/api/v1/findings` routes that remain (list, read, pin, make a dashboard and panel data) are deprecated adapters over observations; use the observation's own routes.
+The finding tools and commands are gone.
 
 ## Start an investigation
 
@@ -60,7 +62,7 @@ Mention people and the agent the way you do on a dashboard; see [Edit a comment 
 A mention is recorded in the [activity log](activity.md) and starts no agent run, unless the comment is sent with `start_runs`, which starts an investigation for the one agent it mentions; see [Start a run from a mention](cli.md#start-a-run-from-a-mention).
 Commenting follows who can see the observation: you need Comment on its folder, and anyone else who can read it sees the discussion but no box and no buttons.
 Threads that people opened on a finding before the discussion existed were merged into it when the server upgraded.
-The comment API still takes `finding:<id>` as a target for one release and resolves it to the discussion of the finding's observation.
+The comment API takes only the observation as a target: a `finding:<id>` target is refused as an invalid target.
 
 ## Pin it to the dashboard
 
@@ -73,7 +75,7 @@ Pinning needs Edit on the dashboard.
 
 Move the observation to another folder to share it: **More actions**, then **Move to folder**, as described in [Observations](observations.md#rename-resolve-reopen-and-move).
 Everyone who can view that folder can then read the answer, and My Dashboards takes no moves.
-`finding.moved` and `move_finding`, `bin/observe findings move` and `POST /api/v1/findings/{id}/move` are deprecated and are removed in the next release.
+The finding move tool, command and route are gone; only earlier `finding.moved` events remain in the activity log.
 
 ## Make a dashboard from it
 
@@ -97,4 +99,3 @@ Viewers can read the observations in the folders they can view.
 
 An agent in your own editor can do the same over [MCP](mcp.md).
 It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves the answer into an observation with `create_observation` and `add_block`, and reads earlier ones with `list_observations`.
-`create_finding`, `list_findings` and `move_finding` still work and are deprecated.

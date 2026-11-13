@@ -22,7 +22,7 @@ A comment is one message, not a whole thread, and a result for it names the obje
 Folders, text panel content and prompts are not searched.
 A match in a title or a tag counts for more than a match in the text, and a match in query text counts for less.
 Query text is searched as plain words, so `http_requests_total` is found by `http_requests_total` and by `requests`.
-A finding's answer lives in its observation, so a finding is found as that observation and never as a separate result.
+A finding's answer lives in its observation, so it is found as that observation.
 
 ## Who finds what
 
@@ -64,7 +64,7 @@ A query returns at most 200 results, so refine the words to see more.
 | Parameter | Meaning |
 | --- | --- |
 | `q` | The words to search for. Required. |
-| `kind` | Only results of this kind: `dashboard`, `annotation`, `observation`, `comment` or `saved_search`. Repeat it for several. `finding` is deprecated, is removed in the next release and means `observation`, so a search that names both returns each observation once. |
+| `kind` | Only results of this kind: `dashboard`, `annotation`, `observation`, `comment` or `saved_search`. Repeat it for several. |
 | `limit` | 1 to 50 results, 20 by default. |
 | `cursor` | The `next_cursor` of the previous page. |
 

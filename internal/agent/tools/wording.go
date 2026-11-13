@@ -21,12 +21,8 @@ var variants = []variant{
 	{name: "guide", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameGetSpecGuide},
 		mcp:   map[string]string{"{guide_first}": mcpGuideFirst, "{spec_guide_desc}": mcpSpecGuideDesc},
 		agent: map[string]string{"{spec_guide_desc}": agentSpecGuideDesc}},
-	{name: "folder", tools: []string{nameCreateDashboard, nameListFindings},
-		mcp: map[string]string{
-			"{folder_prop}":           "," + propFolderID,
-			"{findings_folder_prop}":  "," + propFindingsFolderID,
-			"{findings_folder_scope}": mcpFindingsFolderScope,
-		}},
+	{name: "folder", tools: []string{nameCreateDashboard, nameListObservations},
+		mcp: map[string]string{"{folder_prop}": "," + propFolderID, "{observations_folder_prop}": propObservationsFolderID + ","}},
 	{name: "run target", tools: []string{nameUpdateDashboard, nameUpdatePanels, nameGetPanels},
 		mcp: map[string]string{
 			"{target_props}":     propDashID + "," + propParentVersion + ",",
@@ -74,8 +70,6 @@ var (
 
 const (
 	mcpGuideFirst = " Read get_spec_guide before your first save."
-
-	mcpFindingsFolderScope = "those filed in one folder with folder_id, "
 
 	mcpSpecGuideDesc = "Get the ObserveSpec authoring guide, JSON Schema and an example, in one result of up to 64 KiB. Read it once before your first create_dashboard or update_dashboard; every save is checked against them."
 

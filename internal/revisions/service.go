@@ -30,13 +30,14 @@ const (
 )
 
 type Service struct {
-	db      *db.DB
-	reviser Reviser
-	logger  *slog.Logger
-	panels  PanelChecker
-	specs   SpecReader
-	builds  Builds
-	threads Threads
+	db           *db.DB
+	builtInAgent bool
+	metrics      Metrics
+	logger       *slog.Logger
+	panels       PanelChecker
+	specs        SpecReader
+	builds       Builds
+	threads      Threads
 
 	observations RunObservations
 	principals   Principals
@@ -44,8 +45,8 @@ type Service struct {
 	leaseTTL     time.Duration
 }
 
-func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: database, reviser: reviser, logger: logger, leaseTTL: LeaseTTL}
+func NewService(database *db.DB, logger *slog.Logger, opts ...Option) *Service {
+	s := &Service{db: database, logger: logger, leaseTTL: LeaseTTL, metrics: noMetrics{}}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -53,7 +54,7 @@ func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...O
 }
 
 func (s *Service) Available() bool {
-	return s != nil && s.reviser != nil
+	return s != nil && s.builtInAgent
 }
 
 type EnqueueParams struct {
@@ -718,7 +719,32 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		finished = true
 		return s.recordEnded(ctx, q, savepoint, row, action)
 	})
+	if finished && err == nil {
+		s.metrics.AgentRun(runKind(claimed), runOutcome(o))
+	}
 	return finished, err
+}
+
+func runKind(row dbsqlc.AgentRequest) string {
+	switch {
+	case Source(row.Source) == SourceInvestigate:
+		return "investigate"
+	case Source(row.Source) == SourceSuggest:
+		return "suggest"
+	case !row.DashboardID.Valid:
+		return "create"
+	}
+	return "revise"
+}
+
+func runOutcome(o outcome) string {
+	switch {
+	case o.suggestion != nil, o.finding, o.proposal, o.version != nil:
+		return "succeeded"
+	case o.failure != "":
+		return string(o.failure)
+	}
+	return string(FailureInternal)
 }
 
 func failureText(code FailureCode) pgtype.Text {

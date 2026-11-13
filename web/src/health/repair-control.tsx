@@ -4,6 +4,7 @@ import { LoaderCircleIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { versionChangesSearch } from "@/history/search"
 import { dashboardLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 
@@ -41,11 +42,7 @@ export function RepairControl({
           <Link
             to="/d/$dashboardId/versions"
             params={{ dashboardId: item.id }}
-            search={
-              action.version > 1
-                ? { from: action.version - 1, to: action.version }
-                : { to: action.version }
-            }
+            search={versionChangesSearch(action.version)}
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           >
             See changes

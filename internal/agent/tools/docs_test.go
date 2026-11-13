@@ -4,6 +4,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -58,4 +59,54 @@ func capitalised(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+const agentDocsPath = "../../../docs/concepts/agent.md"
+
+var (
+	agentDocsServerTools = regexp.MustCompile(`The server has (\d+) tools: MCP clients get (\d+),`)
+	agentDocsAgentTools  = regexp.MustCompile(`The built-in agent gets (\d+) in a new-dashboard or revision request and (\d+) in a suggestion`)
+	agentDocsMCPOnly     = regexp.MustCompile(`The other (\d+) tools are for MCP clients only`)
+)
+
+func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
+	page, err := os.ReadFile(agentDocsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var total, mcp, create, suggest, mcpOnly int
+	for _, tool := range New(Deps{}).List() {
+		total++
+		if !tool.AgentOnly {
+			mcp++
+		}
+		if tool.OfferedIn(ModeCreate) {
+			create++
+		}
+		if tool.OfferedIn(ModeSuggest) {
+			suggest++
+		}
+		if tool.MCPOnly {
+			mcpOnly++
+		}
+	}
+	cases := []struct {
+		name    string
+		pattern *regexp.Regexp
+		want    []string
+	}{
+		{"the server and MCP counts", agentDocsServerTools, []string{strconv.Itoa(total), strconv.Itoa(mcp)}},
+		{"the built-in agent counts", agentDocsAgentTools, []string{strconv.Itoa(create), strconv.Itoa(suggest)}},
+		{"the MCP-only count", agentDocsMCPOnly, []string{strconv.Itoa(mcpOnly)}},
+	}
+	for _, c := range cases {
+		m := c.pattern.FindStringSubmatch(string(page))
+		if m == nil {
+			t.Errorf("%s: %s has no sentence matching %s", c.name, agentDocsPath, c.pattern)
+			continue
+		}
+		if !slices.Equal(m[1:], c.want) {
+			t.Errorf("%s: %s says %v, the registry has %v", c.name, agentDocsPath, m[1:], c.want)
+		}
+	}
 }

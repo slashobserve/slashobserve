@@ -8,7 +8,7 @@ import { describe, expect, test } from "vitest"
 
 import { parseSearch, stringifySearch } from "@/lib/search"
 
-import { validateHistorySearch } from "./search"
+import { validateHistorySearch, versionChangesSearch } from "./search"
 
 function routeSearch(url: string) {
   const root = createRootRoute()
@@ -57,5 +57,15 @@ describe("validateHistorySearch", () => {
   test("drops a back value that is not a dashboard search", () => {
     const search = routeSearch("/versions?back=%00")
     expect(search?.back).toBeUndefined()
+  })
+})
+
+describe("versionChangesSearch", () => {
+  test("compares a version with the one before it", () => {
+    expect(versionChangesSearch(4)).toEqual({ from: 3, to: 4 })
+  })
+
+  test("shows the first version alone", () => {
+    expect(versionChangesSearch(1)).toEqual({ to: 1 })
   })
 })

@@ -163,35 +163,6 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	})
 }
 
-type movedActivityFields struct {
-	Title        string  `json:"title"`
-	FromFolderID *string `json:"from_folder_id"`
-	ToFolderID   string  `json:"to_folder_id"`
-}
-
-func appendMoved(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, f Finding, to pgtype.UUID) error {
-	id, err := db.ParseUUID(f.ID)
-	if err != nil {
-		return err
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return err
-	}
-	_, err = activity.Append(ctx, q, activity.Entry{
-		Type:     activity.TypeFindingMoved,
-		TargetID: id,
-		Owner:    activity.OnObservation(observationID),
-		Actor:    by,
-		Data: movedActivityFields{
-			Title:        f.Title,
-			FromFolderID: httpapi.OptionalString(f.FolderID),
-			ToFolderID:   to.String(),
-		},
-	}, nil)
-	return err
-}
-
 func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
 	if dashboardID.Valid {
 		return activity.OnDashboard(dashboardID)

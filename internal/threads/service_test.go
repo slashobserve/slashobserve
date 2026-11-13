@@ -43,8 +43,8 @@ func (r *rig) list(t *testing.T, by auth.Principal, tg Target) Page {
 func TestEveryTargetOpensRepliesAndLists(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t, "rps")
-	finding := r.createFinding(t, testUser, dash)
-	detached := r.createFinding(t, testUser, pgtype.UUID{})
+	finding := r.filedObservation(t, testUser, dash)
+	detached := r.filedObservation(t, testUser, pgtype.UUID{})
 	annotation := r.createAnnotation(t, testUser, dash)
 	global := r.createAnnotation(t, testUser, pgtype.UUID{})
 
@@ -55,8 +55,8 @@ func TestEveryTargetOpensRepliesAndLists(t *testing.T) {
 		owner  string
 	}{
 		{"dashboard", target(KindDashboard, dash), target(KindDashboard, dash), dash.String()},
-		{"finding on a dashboard", target(KindFinding, finding), target(KindObservation, r.observationOf(t, finding)), ""},
-		{"finding with no dashboard", target(KindFinding, detached), target(KindObservation, r.observationOf(t, detached)), ""},
+		{"finding on a dashboard", target(KindObservation, finding), target(KindObservation, finding), ""},
+		{"finding with no dashboard", target(KindObservation, detached), target(KindObservation, detached), ""},
 		{"annotation on a dashboard", target(KindAnnotation, annotation), target(KindAnnotation, annotation), dash.String()},
 		{"global annotation", target(KindAnnotation, global), target(KindAnnotation, global), ""},
 	}
@@ -122,7 +122,7 @@ func TestOpenOnADashboardAnchorsTheVersionAndPanel(t *testing.T) {
 		var in *InvalidInputError
 		return errors.As(err, &in) && in.Code == code
 	}
-	finding := r.createFinding(t, testUser, dash)
+	finding := r.filedObservation(t, testUser, dash)
 	tests := []struct {
 		name string
 		in   OpenInput
@@ -132,8 +132,8 @@ func TestOpenOnADashboardAnchorsTheVersionAndPanel(t *testing.T) {
 		{"version zero", OpenInput{Target: target(KindDashboard, dash), Version: new(0), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidVersion) }},
 		{"a panel not on that version", OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: new("errors"), Body: "x"}, func(err error) bool { return errors.Is(err, ErrUnknownPanel) }},
 		{"an empty panel id", OpenInput{Target: target(KindDashboard, dash), PanelID: new(""), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidPanelID) }},
-		{"a version on a finding", OpenInput{Target: target(KindFinding, finding), Version: new(1), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidTarget) }},
-		{"a panel on a finding", OpenInput{Target: target(KindFinding, finding), PanelID: new("rps"), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidTarget) }},
+		{"a version on a finding", OpenInput{Target: target(KindObservation, finding), Version: new(1), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidTarget) }},
+		{"a panel on a finding", OpenInput{Target: target(KindObservation, finding), PanelID: new("rps"), Body: "x"}, func(err error) bool { return invalid(err, CodeInvalidTarget) }},
 		{"an empty body", OpenInput{Target: target(KindDashboard, dash), Body: " \n"}, func(err error) bool { return invalid(err, CodeInvalidBody) }},
 		{"a body with a control character", OpenInput{Target: target(KindDashboard, dash), Body: "a\x07b"}, func(err error) bool { return invalid(err, CodeInvalidBody) }},
 	}
@@ -154,9 +154,9 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	thread, message := r.open(t, testUser, OpenInput{Target: target(KindDashboard, hidden), Body: "secret"})
 	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
 	foldertest.Move(t, r.db, hidden, restricted)
-	finding := r.createFindingIn(t, admin, restricted)
+	finding := r.filedObservationIn(t, admin, restricted)
 
-	for _, tg := range []Target{target(KindDashboard, hidden), target(KindFinding, finding), target(KindAnnotation, annotation)} {
+	for _, tg := range []Target{target(KindDashboard, hidden), target(KindObservation, finding), target(KindAnnotation, annotation)} {
 		if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("open on hidden %s: err = %v", tg, err)
 		}
@@ -167,7 +167,7 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 			t.Errorf("abilities of hidden %s: err = %v", tg, err)
 		}
 	}
-	missing := target(KindFinding, mustParse(t, "00000000-0000-4000-8000-000000000000"))
+	missing := target(KindObservation, mustParse(t, "00000000-0000-4000-8000-000000000000"))
 	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: missing, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list of a missing finding: err = %v", err)
 	}
@@ -187,7 +187,7 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 func TestAFindingInARestrictedFolderIsPrivateToThatFoldersGroupAndAdmins(t *testing.T) {
 	r := newRig(t)
 	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
-	tg := target(KindFinding, r.createFindingIn(t, admin, restricted))
+	tg := target(KindObservation, r.filedObservationIn(t, admin, restricted))
 
 	thread, _ := r.open(t, admin, OpenInput{Target: tg, Body: "mine"})
 	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
@@ -210,9 +210,9 @@ func TestAFindingInARestrictedFolderIsPrivateToThatFoldersGroupAndAdmins(t *test
 
 func TestAFindingFiledInAFolderFollowsThatFoldersAccess(t *testing.T) {
 	r := newRig(t)
-	filed := target(KindFinding, r.createFinding(t, testUser, pgtype.UUID{}))
+	filed := target(KindObservation, r.filedObservation(t, testUser, pgtype.UUID{}))
 	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'bo', 'bo@example.com', 'Bo')`, commenter.ID)
-	mine := target(KindFinding, r.createFinding(t, commenter, pgtype.UUID{}))
+	mine := target(KindObservation, r.filedObservation(t, commenter, pgtype.UUID{}))
 
 	r.open(t, commenter, OpenInput{Target: filed, Body: "a commenter of General may comment"})
 	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: filed, Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
@@ -319,7 +319,7 @@ func TestAnUnchangedEditChangesAndAppendsNothing(t *testing.T) {
 
 func TestEditRecordsMentionsAgainAndAppendsOnlyAnEditedEvent(t *testing.T) {
 	r := newRig(t)
-	finding := target(KindFinding, r.createFinding(t, testUser, pgtype.UUID{}))
+	finding := target(KindObservation, r.filedObservation(t, testUser, pgtype.UUID{}))
 	bo := r.createUser(t, "Bo Baker", "bo@example.com")
 	cy := r.createUser(t, "", "cy@example.com")
 	token := func(name string, id pgtype.UUID) string { return "@[" + name + "](user:" + id.String() + ")" }
@@ -435,8 +435,8 @@ func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 	} {
 		target := id
 		if name == "a version on a finding" {
-			finding := r.createFinding(t, testUser, pgtype.UUID{})
-			ft, _ := r.open(t, testUser, OpenInput{Target: Target{Kind: KindFinding, ID: finding}, Body: "x"})
+			finding := r.filedObservation(t, testUser, pgtype.UUID{})
+			ft, _ := r.open(t, testUser, OpenInput{Target: Target{Kind: KindObservation, ID: finding}, Body: "x"})
 			target = mustParse(t, ft.ID)
 		}
 		_, _, err := r.service.SetStatus(t.Context(), testUser, target, tt.status, tt.version)
@@ -576,10 +576,10 @@ func TestListPagesByMessageAndFilters(t *testing.T) {
 
 func TestAThreadMessageOnAFindingIsOwnedByItsObservationNotItsDashboard(t *testing.T) {
 	r := newRig(t)
-	detached := r.createFinding(t, testUser, pgtype.UUID{})
-	onDashboard := r.createFinding(t, testUser, r.createDashboard(t, "rps"))
-	r.open(t, testUser, OpenInput{Target: target(KindFinding, detached), Body: "who owns this"})
-	r.open(t, testUser, OpenInput{Target: target(KindFinding, onDashboard), Body: "and this"})
+	detached := r.filedObservation(t, testUser, pgtype.UUID{})
+	onDashboard := r.filedObservation(t, testUser, r.createDashboard(t, "rps"))
+	r.open(t, testUser, OpenInput{Target: target(KindObservation, detached), Body: "who owns this"})
+	r.open(t, testUser, OpenInput{Target: target(KindObservation, onDashboard), Body: "and this"})
 
 	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(observation_id::text, ''), coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
 	if err != nil {
@@ -600,7 +600,7 @@ func TestAThreadMessageOnAFindingIsOwnedByItsObservationNotItsDashboard(t *testi
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{r.observationOf(t, detached).String(), r.observationOf(t, onDashboard).String()}; strings.Join(owners, ",") != strings.Join(want, ",") {
+	if want := []string{detached.String(), onDashboard.String()}; strings.Join(owners, ",") != strings.Join(want, ",") {
 		t.Fatalf("owning observations %v, want %v", owners, want)
 	}
 }

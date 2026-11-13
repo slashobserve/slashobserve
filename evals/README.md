@@ -25,7 +25,7 @@ A suite is a name that scenarios and corpus tasks declare, and `--suite <name>` 
 
 | Suite | What it is for | What declares it | How it runs |
 | --- | --- | --- | --- |
-| `replay` | Proving the runner, the server and the agent loop still work, with no model. | Scenarios with a replay fixture, plus every corpus task the replay provider can script. | `make evals-replay`, in CI, with no key. |
+| `replay` | Proving the runner, the server and the agent still work, with no model. | Scenarios with a replay fixture, plus every corpus task the replay provider can script. | `make evals-replay`, in CI, with no key. |
 | `live` | Measuring a real model: pass rate, quality, latency and cost. | Scenarios for a real model, including those that inject a fault, plus the corpus tasks of the sample. | `make evals-live` with a model matrix, by hand. |
 | `smoke` | A quick check of a model, prompt or agent change before a full live run. | Thirteen live tasks: six `create` (three Prometheus, two ClickHouse, one mixed), two scenario revisions, the demo shop `change`, `fix` and `suggest` corpus tasks, `chat-import-small` and `investigate-checkout-errors-on-one-pod`. | `go run ./evals/runner --suite smoke ...` |
 

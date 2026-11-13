@@ -25,7 +25,7 @@ function overview(over: Partial<AgentsOverview> = {}): AgentsOverview {
       enabled: true,
       provider: "anthropic",
       model: "claude-haiku-5-5",
-      runtime: "go",
+      runtime: "sidecar",
       scope: "workspace",
       last_7_days: stats,
     },

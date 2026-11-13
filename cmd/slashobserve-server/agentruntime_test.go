@@ -78,7 +78,7 @@ func TestModelSettingsWithoutABaseURLSendAnEmptyOne(t *testing.T) {
 func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
 	supervisor := observeagent.NewSupervisor(observeagent.SupervisorConfig{})
 	for name, m := range map[string]mcpCredentials{
-		"go runtime":     {},
+		"no supervisor":  {},
 		"no child yet":   {supervisor: supervisor},
 		"empty token":    {supervisor: supervisor},
 		"lowercase auth": {supervisor: supervisor},

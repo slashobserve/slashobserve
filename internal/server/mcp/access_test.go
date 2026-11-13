@@ -330,16 +330,7 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 		"search_workspace": {"q": "checkout"},
 	}
 	panel := json.RawMessage(`{"id":"p","type":"timeseries","title":"changed","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`)
-	filed, _, err := f.findings.Save(t.Context(), adminKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	target, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
-	if err != nil {
-		t.Fatal(err)
-	}
 	writes := map[string]map[string]any{
-		"move_finding":      {"finding_id": filed.ID, "folder_id": target.ID.String()},
 		"save_search":       {"kind": "logs", "title": "Errors", "datasource_uid": "loki", "query": "{a=\"b\"}"},
 		"create_dashboard":  {"spec": json.RawMessage(boardSpec("Mine"))},
 		"update_panels":     {"dashboard_id": id, "parent_version": 1, "summary": "change", "upsert": []json.RawMessage{panel}},
@@ -424,36 +415,6 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 	})
 }
 
-func TestMoveFindingFollowsWhoMayReadAndEditTheFinding(t *testing.T) {
-	f := newAccessFixture(t)
-	saved, _, err := f.findings.Save(t.Context(), editorKey, findings.SaveInput{Title: "Slow pod", Markdown: "checkout-0 is slow", From: time.Now().Add(-time.Hour), To: time.Now()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	shared, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Shared"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	other, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Other"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	move := func(folder pgtype.UUID) map[string]any {
-		return map[string]any{"finding_id": saved.ID, "folder_id": folder.String()}
-	}
-
-	if res := f.as(t, viewerKey, "move_finding", move(shared.ID)); !res.IsError || res.StructuredContent["code"] != forbidden {
-		t.Errorf("a Viewer key moving a finding it can only read = %s, want %s", text(res), forbidden)
-	}
-	moved := f.as(t, adminKey, "move_finding", move(shared.ID))
-	if moved.IsError || moved.StructuredContent["folder"] != "Shared" || moved.StructuredContent["folder_id"] != shared.ID.String() {
-		t.Fatalf("an Admin key's move = %s", text(moved))
-	}
-	if res := f.as(t, editorKey, "move_finding", move(other.ID)); res.IsError || res.StructuredContent["folder"] != "Other" {
-		t.Errorf("an Editor key moving a finding in a folder it can edit = %s", text(res))
-	}
-}
-
 func TestSavedSearchToolsFollowTheKeysRole(t *testing.T) {
 	f := newAccessFixture(t)
 	input := map[string]any{"kind": "logs", "title": "Errors", "datasource_uid": "loki", "query": "{a=\"b\"}"}
@@ -535,12 +496,6 @@ func TestAViewerOverOAuthDoesWhatTheWebAllows(t *testing.T) {
 	}
 	refused(t, f.as(t, vera, "update_panels", patch(general)))
 	refused(t, f.as(t, vera, "create_comment", map[string]any{"target": "dashboard:" + general, "body": "note"}))
-
-	finding := f.as(t, vera, "create_finding", map[string]any{"markdown": "x"})
-	refused(t, finding)
-	if want := "your role (viewer) cannot use create_finding; an admin can change your role"; !strings.Contains(text(finding), want) {
-		t.Errorf("create_finding refusal = %s, want %q", text(finding), want)
-	}
 
 	versions, _, err := f.service.ListVersions(t.Context(), mustUUID(t, made.DashboardID), 10, "")
 	if err != nil || len(versions) == 0 {

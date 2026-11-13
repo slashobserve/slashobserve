@@ -49,6 +49,9 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 		if err != nil || !found {
 			return Claimed{}, false, err
 		}
+		if result.firstClaim && result.request.StartedAt.Valid && result.request.CreatedAt.Valid {
+			s.metrics.RequestClaimed(result.request.Source, result.request.StartedAt.Time.Sub(result.request.CreatedAt.Time))
+		}
 		req, outcome := s.admit(ctx, c, result.request)
 		switch outcome {
 		case admitted:
@@ -162,7 +165,7 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 	case e.Failure != "":
 		return outcome{message: e.Message, code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
 	case Source(row.Source) == SourceSuggest:
-		return suggestionOutcome(Result{Suggestion: e.Suggestion, Usage: e.Usage}), nil
+		return suggestionOutcome(e.Suggestion, e.Usage), nil
 	case Source(row.Source) == SourceInvestigate:
 		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
 	}

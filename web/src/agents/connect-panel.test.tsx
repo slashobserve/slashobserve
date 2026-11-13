@@ -16,7 +16,7 @@ function overview(grantIds: string[]): AgentsOverview {
       enabled: true,
       provider: null,
       model: null,
-      runtime: "go",
+      runtime: "sidecar",
       scope: "you",
       last_7_days: {
         runs: 0,

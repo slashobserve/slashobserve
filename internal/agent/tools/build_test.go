@@ -17,15 +17,9 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-type noopReviser struct{}
-
-func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
-	return revisions.Result{}, nil
-}
-
 func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 	t.Helper()
-	queue := revisions.NewService(r.database.DB, noopReviser{}, slog.New(slog.DiscardHandler), revisions.WithAccess(folders.NewAccess(r.database.DB)))
+	queue := revisions.NewService(r.database.DB, slog.New(slog.DiscardHandler), revisions.WithBuiltInAgent(), revisions.WithAccess(folders.NewAccess(r.database.DB)))
 	request, err := queue.SubmitObserve(r.ctx, placeholderUser, "build a board")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +30,7 @@ func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 
 func (r *panelsRig) reviseRun(ctx context.Context, t *testing.T, id string) panelsCaller {
 	t.Helper()
-	queue := revisions.NewService(r.database.DB, noopReviser{}, slog.New(slog.DiscardHandler), revisions.WithAccess(folders.NewAccess(r.database.DB)))
+	queue := revisions.NewService(r.database.DB, slog.New(slog.DiscardHandler), revisions.WithBuiltInAgent(), revisions.WithAccess(folders.NewAccess(r.database.DB)))
 	request, err := queue.Submit(r.ctx, revisions.EnqueueParams{DashboardID: mustUUID(t, id), Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: placeholderUser})
 	if err != nil {
 		t.Fatal(err)

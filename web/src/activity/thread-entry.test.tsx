@@ -105,7 +105,6 @@ function threadView(
           panelTitle={null}
           onSelectPanel={() => {}}
           gate={{ kind: "hidden" }}
-          latestVersion={1}
           clientName="Claude Code"
         />
       </ol>
