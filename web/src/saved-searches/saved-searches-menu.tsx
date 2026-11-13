@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/combobox"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { folderLabel } from "./folder-label"
 import { savedSearchLocation } from "./links"
 import { savedSearchesQuery, type SavedSearch } from "./queries"
 
@@ -51,7 +52,7 @@ export function SavedSearchesMenu({ kind }: { kind: SavedSearch["kind"] }) {
             <ComboboxItem key={saved.id} value={saved}>
               <span className="min-w-0 flex-1 truncate">{saved.title}</span>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {saved.folder.personal ? "My Dashboards" : saved.folder.title}
+                {folderLabel(saved.folder)}
               </span>
             </ComboboxItem>
           )}

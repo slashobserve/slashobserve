@@ -167,14 +167,14 @@ describe("SidebarContent", () => {
     expect(precedes(observation, dashboards)).toBe(true)
   })
 
-  it("opens the only log source straight from Logs and lists nothing under it", async () => {
+  it("opens the Logs list even with one source and lists nothing under it", async () => {
     datasources = [source("loki", "loki", "Loki")]
     renderWithProviders(<SidebarContent />, { route })
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Logs" })).toHaveAttribute(
         "href",
-        "/logs/loki"
+        "/logs"
       )
     )
     expect(screen.queryByRole("list", { name: "Log sources" })).toBeNull()

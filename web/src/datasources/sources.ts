@@ -110,3 +110,7 @@ export function withoutSource<T extends { ds?: string }>(
   const { ds, ...rest } = search
   return { uid: ds, search: rest }
 }
+
+export function carriesSearch(search: Record<string, unknown>): boolean {
+  return Object.values(search).some((value) => value !== undefined)
+}
