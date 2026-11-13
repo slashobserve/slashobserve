@@ -130,14 +130,14 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                     {key.display_prefix}…
                   </span>
                 </Cell>
-                <Cell className="text-muted-foreground">
+                <Cell data-label="Created by" className="text-muted-foreground">
                   {users.isPending ? (
                     <Skeleton className="h-4 w-16" />
                   ) : (
                     createdBy(key.created_by)
                   )}
                 </Cell>
-                <Cell className="text-muted-foreground">
+                <Cell data-label="Last used" className="text-muted-foreground">
                   <RelativeTime iso={key.last_used_at} fallback="Never" />
                 </Cell>
                 <Cell>
