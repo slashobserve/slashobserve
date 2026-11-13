@@ -49,18 +49,23 @@ function write(memory: Memory) {
 }
 
 type MemoryState = Memory & {
+  atLoad: Memory
   remember: (kind: ExploreKind, uid: string) => void
 }
 
-export const useSourceMemory = create<MemoryState>((set, get) => ({
-  ...parseMemory(read()),
-  remember: (kind, uid) => {
-    const { logs, traces } = get()
-    const next = { logs, traces, [kind]: rememberIn(get()[kind], uid) }
-    write(next)
-    set(next)
-  },
-}))
+export const useSourceMemory = create<MemoryState>((set, get) => {
+  const stored = parseMemory(read())
+  return {
+    ...stored,
+    atLoad: stored,
+    remember: (kind, uid) => {
+      const { logs, traces } = get()
+      const next = { logs, traces, [kind]: rememberIn(get()[kind], uid) }
+      write(next)
+      set(next)
+    },
+  }
+})
 
 export function recentSources(kind: ExploreKind): string[] {
   return useSourceMemory.getState()[kind]

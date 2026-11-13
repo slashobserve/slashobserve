@@ -13,6 +13,8 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, has its own page at `/logs/<datasource uid>`.
 With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
 The five you used last on this browser come first and the rest follow by name, and **More** opens the full list.
+The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
+A source added or removed meanwhile goes by name without moving the others.
 With one log source, **Logs** opens it and nothing is listed under it.
 On the collapsed sidebar the Logs icon opens the same list, and on a phone the source line under the page title does.
 The title names the source and its language, such as **Logs / ClickHouse** with an **SQL** tag.
@@ -382,6 +384,7 @@ Open **Traces** in the sidebar to find traces by service, span name, minimum and
 The search runs as soon as the page opens, with the fields the address carries, or with none.
 Each trace source, a Tempo or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
 With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the rest; with one, **Traces** opens it.
+As for logs, the order is set when the app loads and stays fixed until you reload.
 The collapsed sidebar and the phone title open the same list as they do for logs, and the title names the source and its language.
 `/traces` opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
 The time range sits above the fields, and the **Search traces** button sits under them with Ctrl+Enter or Cmd+Enter as its shortcut.

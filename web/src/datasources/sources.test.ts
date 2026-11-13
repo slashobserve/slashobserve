@@ -87,6 +87,19 @@ describe("orderSources", () => {
     expect(uids(orderSources(tied, []))).toEqual(["y", "z"])
   })
 
+  it("slots a source that appeared by name and keeps the others in place", () => {
+    const loaded = ["c", "b"]
+    const appeared = [source("n", "loki", "Aardvark"), ...list]
+    expect(uids(orderSources(list, loaded))).toEqual(["c", "b", "a"])
+    expect(uids(orderSources(appeared, loaded))).toEqual(["c", "b", "n", "a"])
+  })
+
+  it("closes the gap of a source that disappeared without moving the others", () => {
+    const loaded = ["c", "b"]
+    const remaining = list.filter((candidate) => candidate.uid !== "b")
+    expect(uids(orderSources(remaining, loaded))).toEqual(["c", "a"])
+  })
+
   it("does not change its input", () => {
     const copy = [...list]
     orderSources(list, ["c"])
