@@ -12,14 +12,8 @@ import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { markOf } from "@/lib/author"
 import { observationLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -40,6 +34,10 @@ const stateItems: { value: ObservationStateFilter; label: string }[] = [
   { value: "resolved", label: "Resolved" },
   { value: "all", label: "All" },
 ]
+
+function isStateFilter(value: unknown): value is ObservationStateFilter {
+  return stateItems.some((item) => item.value === value)
+}
 
 const tableWidth = 720
 const skeletonRows = 3
@@ -71,24 +69,20 @@ export function ObservationList({ state, creating, onChange }: Props) {
         label="Observation filters"
         onClear={filtered ? clearFilters : undefined}
       >
-        <Select
-          items={stateItems}
+        <Tabs
           value={state}
           onValueChange={(next) => {
-            if (next !== null) onChange({ state: next, creating })
+            if (isStateFilter(next)) onChange({ state: next, creating })
           }}
         >
-          <SelectTrigger aria-label="State" className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start">
+          <TabsList variant="line" aria-label="State">
             {stateItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
+              <TabsTrigger key={item.value} value={item.value}>
                 {item.label}
-              </SelectItem>
+              </TabsTrigger>
             ))}
-          </SelectContent>
-        </Select>
+          </TabsList>
+        </Tabs>
       </FilterToolbar>
       {list.isError && list.data === undefined ? (
         <LoadProblem
