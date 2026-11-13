@@ -81,6 +81,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
   Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
+  A lone crumb that a `PageHeader` repeats as its heading is not drawn in the top row (`useHideCrumbWhenHeadingRepeats`), so a title shows once; the phone bar still shows it.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
   The one sheet is the dashboard top row's "Controls" on narrow screens, which mounts the controls only once, so ids such as the More menu's stay unique.
 - Inspect (`web/src/inspect/`) takes the activity card's slot and never sends its own request: `PanelContainer` publishes the inspected panel's query key, response and prepared frames, and the request time comes from the query cache events of that key.
