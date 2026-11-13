@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { PinIcon } from "lucide-react"
+import { PinIcon, PlusIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,7 @@ import { queryModeLabel } from "./search"
 import { useLogsWorkspace } from "./workspace"
 
 const pillClass =
-  "inline-flex h-[26px] items-center gap-1 rounded-full border border-border px-2.5 text-xs outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring data-[negate=true]:border-status-critical data-[paused=true]:line-through data-[paused=true]:opacity-55"
+  "inline-flex h-6 items-center gap-1 rounded-chip border border-border px-2.5 text-xs outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring data-[negate=true]:border-status-critical data-[paused=true]:line-through data-[paused=true]:opacity-55"
 
 function filtersClearedText(count: number): string {
   const noun = count === 1 ? "filter" : "filters"
@@ -205,8 +205,9 @@ function AddFilter({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button type="button" variant="ghost" size="sm" />}
+        render={<Button type="button" variant="ghost" size="xs" />}
       >
+        <PlusIcon aria-hidden="true" />
         Add filter
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80">

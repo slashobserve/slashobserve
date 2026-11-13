@@ -5,12 +5,11 @@ import {
   useRouteContext,
   useSearch,
 } from "@tanstack/react-router"
+import { LayoutDashboardIcon, NotebookTextIcon } from "lucide-react"
 
 import { useInputMode } from "@/ask/input-mode"
-import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
-import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
@@ -24,7 +23,6 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
-import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { logsPanelFor } from "./add-panel"
@@ -35,6 +33,7 @@ import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
+import { LogsPageActions } from "./page-actions"
 import { applyPills, decodePills } from "./pills"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
@@ -52,13 +51,6 @@ import {
 const routeId = "/_authed/_shell/logs/$datasourceUid"
 
 type Update = LogsWorkspace["update"]
-
-function saveHint(savable: ReturnType<typeof logsDraft>): string | undefined {
-  if (!("blocked" in savable)) return undefined
-  return savable.blocked === "no-query"
-    ? "Run a query first."
-    : "Filters are not applied: switch the query to KQL."
-}
 
 function useLogsSearch() {
   const search = useSearch({ from: routeId })
@@ -354,90 +346,37 @@ function LogsWorkspaceView({
 
   return (
     <LogsWorkspaceContext value={workspace}>
+      <LogsPageActions
+        range={range}
+        onRangeChange={(next) => {
+          setTailing(false)
+          setTailShown(false)
+          update(next)
+        }}
+        tail={{ on: tailOn, start: startTail, stop: stopTail }}
+        queryRun={q !== undefined}
+        notRunId={notRunId}
+        savable={savable}
+        saveTrigger={saveTrigger}
+        onSave={() => setSaving(true)}
+      />
       <div className="flex h-full min-h-0 flex-col gap-3">
         <h1 className="sr-only">Logs in {datasource.name}</h1>
         <SourceTitle kind="logs" source={datasource} />
-        <div className="flex flex-wrap items-center gap-2">
-          <QueryBar.ModeSwitch />
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <TimeRangeControl
-              value={range}
-              onChange={(next) => {
-                setTailing(false)
-                setTailShown(false)
-                update(next)
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              aria-pressed={tailOn}
-              disabled={q === undefined}
-              title={q === undefined ? "Run a query first." : undefined}
-              aria-describedby={q === undefined ? notRunId : undefined}
-              onClick={() => (tailOn ? stopTail() : startTail())}
-            >
-              {tailOn ? "Stop live tail" : "Live tail"}
-            </Button>
-            <CopyButton
-              text={window.location.href}
-              label="Copy link"
-              variant="outline"
-              icon={false}
-            >
-              Copy link
-            </CopyButton>
-            <SavedSearchesMenu kind="logs" />
-            <Button
-              ref={saveTrigger}
-              type="button"
-              variant="outline"
-              disabled={"blocked" in savable}
-              title={saveHint(savable)}
-              aria-describedby={q === undefined ? notRunId : undefined}
-              onClick={() => setSaving(true)}
-            >
-              Save search
-            </Button>
-            <Button
-              ref={addTrigger}
-              type="button"
-              variant="outline"
-              disabled={q === undefined}
-              title={q === undefined ? "Run a query first." : undefined}
-              aria-describedby={q === undefined ? notRunId : undefined}
-              onClick={() => {
-                selectLine(null)
-                setAddingToObservation(false)
-                setAdding(true)
-              }}
-            >
-              Add to dashboard
-            </Button>
-            <Button
-              ref={observationTrigger}
-              type="button"
-              variant="outline"
-              disabled={q === undefined}
-              title={q === undefined ? "Run a query first." : undefined}
-              aria-describedby={q === undefined ? notRunId : undefined}
-              onClick={() => {
-                selectLine(null)
-                setAdding(false)
-                setAddingToObservation(true)
-              }}
-            >
-              Add to observation
-            </Button>
-            {q === undefined ? (
-              <span id={notRunId} className="sr-only">
-                Run a query first.
-              </span>
-            ) : null}
+        {q === undefined ? (
+          <span id={notRunId} className="sr-only">
+            Run a query first.
+          </span>
+        ) : null}
+        <section
+          aria-label="Query"
+          className="flex flex-col rounded-card border bg-card"
+        >
+          <div className="px-4 pt-3">
+            <QueryBar.ModeSwitch />
           </div>
-        </div>
-        <QueryBar />
-        <FilterPills />
+          <QueryBar filters={<FilterPills />} />
+        </section>
         {effectiveQuery !== undefined && !tailShown ? (
           <VolumeStrip
             uid={uid}
@@ -446,9 +385,50 @@ function LogsWorkspaceView({
             to={range.to}
           />
         ) : null}
-        <div className="flex min-h-96 min-w-0 flex-1 gap-3">
+        <div className="flex min-h-96 min-w-0 flex-1 overflow-hidden rounded-card border bg-card">
           <FieldsAside />
-          <ResultsSection />
+          <ResultsSection
+            actions={
+              <>
+                <Button
+                  ref={addTrigger}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="narrow:h-11"
+                  disabled={q === undefined}
+                  title={q === undefined ? "Run a query first." : undefined}
+                  aria-describedby={q === undefined ? notRunId : undefined}
+                  onClick={() => {
+                    selectLine(null)
+                    setAddingToObservation(false)
+                    setAdding(true)
+                  }}
+                >
+                  <LayoutDashboardIcon aria-hidden="true" />
+                  Add to dashboard
+                </Button>
+                <Button
+                  ref={observationTrigger}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="narrow:h-11"
+                  disabled={q === undefined}
+                  title={q === undefined ? "Run a query first." : undefined}
+                  aria-describedby={q === undefined ? notRunId : undefined}
+                  onClick={() => {
+                    selectLine(null)
+                    setAdding(false)
+                    setAddingToObservation(true)
+                  }}
+                >
+                  <NotebookTextIcon aria-hidden="true" />
+                  Add to observation
+                </Button>
+              </>
+            }
+          />
         </div>
         <span role="status" className="sr-only">
           {liveRegionText(announcement.text, announcement.count)}

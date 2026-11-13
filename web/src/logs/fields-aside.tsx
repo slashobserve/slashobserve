@@ -349,11 +349,11 @@ export function FieldsAside() {
     <aside
       aria-label="Fields"
       className={cn(
-        "flex min-h-0 w-56 shrink-0 flex-col border-r border-border text-[13px]",
+        "flex min-h-0 w-[248px] shrink-0 flex-col border-r border-border text-[13px]",
         asideClass
       )}
     >
-      <div className="flex items-start justify-between gap-1 pr-1.5 pb-1.5">
+      <div className="flex items-start justify-between gap-1 px-4 pt-3 pb-2">
         <div className="flex min-w-0 flex-col">
           <h2 className="m-0 text-[13px] font-medium">Fields</h2>
           <p className="m-0 text-xs text-muted-foreground">
@@ -373,7 +373,7 @@ export function FieldsAside() {
           <PanelLeftCloseIcon aria-hidden="true" />
         </Button>
       </div>
-      <div className="pr-3 pb-1.5">
+      <div className="px-4 pb-2">
         <Input
           aria-label="Search field names"
           placeholder="Search field names"
@@ -382,7 +382,7 @@ export function FieldsAside() {
           onChange={(event) => setFilterText(event.target.value)}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-2 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3">
         {problem === null ? null : (
           <Alert variant="destructive">
             <AlertDescription className="flex flex-col items-start gap-1 text-xs">
