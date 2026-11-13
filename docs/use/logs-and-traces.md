@@ -488,7 +488,9 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
-The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, and each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
+The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
+A folder with no saved search of that kind is not listed, and a folder's header counts its searches unless the list is cut at 100.
+Each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
 The folder list offers only the folders where you can create, and a refused save shows the server's message.
 
 A search is saved in a folder, which needs the Create permission there.
