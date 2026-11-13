@@ -78,7 +78,7 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
         <TabsList
           aria-label="What to start"
           activateOnFocus
-          className="h-auto w-full flex-wrap justify-start gap-1 rounded-none rounded-t-card border-b bg-transparent p-2"
+          className="w-full flex-wrap justify-start gap-1 rounded-none rounded-t-card border-b bg-transparent p-2 group-data-horizontal/tabs:h-auto"
         >
           <TabsTrigger value="ask" className={triggerClass}>
             <TerminalIcon aria-hidden="true" />
