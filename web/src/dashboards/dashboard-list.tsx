@@ -275,6 +275,7 @@ function sectionRows(
                 data-cell={
                   cell.column.id === actionsColumn.id ? "action" : undefined
                 }
+                data-label={cell.column.columnDef.meta?.stackedLabel}
                 className={cell.column.columnDef.meta?.cellClassName}
               >
                 <table.FlexRender cell={cell} />

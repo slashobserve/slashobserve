@@ -15,8 +15,10 @@ type TableCardProps = TableCardName & {
 const stackedOnNarrow = [
   "min-w-(--table-min) narrow:block narrow:min-w-0",
   "narrow:[&_thead]:sr-only narrow:[&_tbody]:block",
-  "narrow:[&_tbody_tr]:flex narrow:[&_tbody_tr]:flex-wrap narrow:[&_tbody_tr]:items-start narrow:[&_tbody_tr]:gap-x-3 narrow:[&_tbody_tr]:gap-y-1 narrow:[&_tbody_tr]:border-b narrow:[&_tbody_tr]:px-3.5 narrow:[&_tbody_tr]:py-3 narrow:[&_tbody_tr:last-child]:border-b-0",
-  "narrow:[&_tbody_td]:border-0 narrow:[&_tbody_td]:p-0",
+  "narrow:[&_tbody_tr]:flex narrow:[&_tbody_tr]:flex-wrap narrow:[&_tbody_tr]:items-center narrow:[&_tbody_tr]:gap-x-3 narrow:[&_tbody_tr]:gap-y-1 narrow:[&_tbody_tr]:border-b narrow:[&_tbody_tr]:px-3.5 narrow:[&_tbody_tr]:py-3 narrow:[&_tbody_tr:last-child]:border-b-0",
+  "narrow:[&_tbody_td]:min-w-0 narrow:[&_tbody_td]:border-0 narrow:[&_tbody_td]:p-0",
+  'narrow:[&_tbody_td[data-label]]:flex narrow:[&_tbody_td[data-label]]:gap-1 narrow:[&_tbody_td[data-label]]:before:content-[attr(data-label)_":"]',
+  "narrow:[&_tbody_td:empty:not(:first-child)]:hidden",
   "narrow:[&_tbody_td:first-child]:basis-full narrow:[&_tbody_td:first-child]:font-medium",
   "narrow:[&_tbody_td:not(:first-child):not([data-cell=action])]:text-xs narrow:[&_tbody_td:not(:first-child):not([data-cell=action])]:text-muted-foreground",
   "narrow:[&_tbody_td[data-cell=action]]:ml-auto",

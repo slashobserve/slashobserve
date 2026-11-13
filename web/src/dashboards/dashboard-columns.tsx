@@ -26,6 +26,7 @@ declare module "@tanstack/react-table" {
   > {
     headerClassName?: string
     cellClassName?: string
+    stackedLabel?: string
     skeletonClassName: string
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -113,6 +114,7 @@ export const dashboardColumns = column.columns([
     },
     meta: {
       cellClassName: "min-w-40",
+      stackedLabel: "Made by",
       skeletonClassName: "h-5 w-28",
     },
   }),
@@ -134,7 +136,11 @@ export const dashboardColumns = column.columns([
       row.original.open_comment_count > 0
         ? row.original.open_comment_count
         : null,
-    meta: { cellClassName: "tabular-nums", skeletonClassName: "h-5 w-10" },
+    meta: {
+      cellClassName: "tabular-nums",
+      stackedLabel: "Open comments",
+      skeletonClassName: "h-5 w-10",
+    },
   }),
   column.display({
     id: "version",
