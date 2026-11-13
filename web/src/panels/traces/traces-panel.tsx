@@ -24,6 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { traceLink, tracesLink } from "@/lib/links"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
+import { useElementSize } from "@/logs/use-element-size"
 import {
   wholeTrace,
   zoomedOffset,
@@ -45,7 +46,7 @@ import {
   rowId,
   type FoldGroup,
 } from "./fold"
-import { niceTicks } from "./ruler"
+import { niceTicks, tickLimit } from "./ruler"
 import {
   ancestorIds,
   filterSpans,
@@ -735,6 +736,9 @@ function SpanAttributes({
       id={id}
       className={cn("flex flex-col gap-2 text-xs", className)}
     >
+      <p className="text-[13px] font-medium text-foreground">
+        {span.operation || span.id}
+      </p>
       {span.kind !== null ? (
         <p className="text-muted-foreground">{kindLine(span)}</p>
       ) : null}
@@ -901,7 +905,11 @@ export function TraceView(props: TraceViewProps) {
     [filtered.spans, groups, collapsed, shown]
   )
   const windowMs = (zoom.end - zoom.start) * model.duration
-  const ticks = niceTicks(windowMs)
+  const { ref: tickRef, width: tickWidth } = useElementSize<HTMLDivElement>()
+  const ticks =
+    tickWidth > 0
+      ? niceTicks(windowMs, tickLimit(tickWidth))
+      : niceTicks(windowMs)
   const openIndex = rows.findIndex(
     (row) => row.kind === "span" && row.span.id === openId
   )
@@ -1110,7 +1118,7 @@ export function TraceView(props: TraceViewProps) {
               aria-hidden="true"
               {...ruler.handlers}
             >
-              <div className="relative h-full">
+              <div ref={tickRef} className="relative h-full">
                 {ticks.map((tick) => (
                   <span
                     key={tick}
@@ -1142,7 +1150,7 @@ export function TraceView(props: TraceViewProps) {
             {rows.slice(range.start, range.end).map((row) => {
               const id = rowId(row)
               const itemClass =
-                "border-b border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                "scroll-mt-[25px] border-b border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               if (row.kind === "fold") {
                 const { group } = row
                 const isOpen = foldOpen(group)
