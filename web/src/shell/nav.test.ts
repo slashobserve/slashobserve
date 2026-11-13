@@ -3,8 +3,11 @@ import { describe, expect, test } from "vitest"
 import {
   countLabel,
   isNavItemActive,
+  subNavState,
   unreadBadge,
   visibleNavItems,
+  type NavItem,
+  type NavPath,
 } from "./nav"
 
 describe("isNavItemActive", () => {
@@ -61,6 +64,81 @@ describe("isNavItemActive", () => {
     for (const item of visibleNavItems("admin")) {
       expect(isNavItemActive(item.to, "/login")).toBe(false)
     }
+  })
+})
+
+describe("subNavState", () => {
+  const item = (to: NavPath): NavItem => ({
+    to,
+    label: to,
+    group: "main",
+    minRole: "viewer",
+  })
+  const observations = item("/observations")
+  const rows = [
+    { id: "o1", paths: ["/o/o1"] },
+    { id: "o2", paths: ["/o/o2", "/o/o2/alias"] },
+  ]
+
+  test("a parent with a current child contains it and the child is current", () => {
+    expect(subNavState(observations, rows, "/o/o2")).toEqual({
+      parent: "contains-current",
+      currentId: "o2",
+    })
+    expect(subNavState(observations, rows, "/o/o2/alias")).toEqual({
+      parent: "contains-current",
+      currentId: "o2",
+    })
+  })
+
+  test("a parent with no matching child is current when its section is, else none", () => {
+    expect(subNavState(observations, rows, "/observations")).toEqual({
+      parent: "current",
+      currentId: null,
+    })
+    expect(subNavState(observations, rows, "/inbox")).toEqual({
+      parent: "none",
+      currentId: null,
+    })
+  })
+
+  test("a child matches its exact path only", () => {
+    expect(subNavState(observations, rows, "/o/o1/extra")).toEqual({
+      parent: "current",
+      currentId: null,
+    })
+    expect(subNavState(observations, rows, "/o/o10")).toEqual({
+      parent: "current",
+      currentId: null,
+    })
+    expect(subNavState(observations, rows, "/o/o3")).toEqual({
+      parent: "current",
+      currentId: null,
+    })
+  })
+
+  test("an item with no sub-list is current on its section and never contains one", () => {
+    expect(subNavState(item("/inbox"), [], "/inbox")).toEqual({
+      parent: "current",
+      currentId: null,
+    })
+    expect(subNavState(item("/inbox"), [], "/o/o1")).toEqual({
+      parent: "none",
+      currentId: null,
+    })
+  })
+
+  test("a pinned dashboard page makes Dashboards contain it, an unpinned one does not", () => {
+    const dashboards = item("/dashboards")
+    const pins = [{ id: "d1", paths: ["/d/d1/checkout", "/d/d1"] }]
+    expect(subNavState(dashboards, pins, "/d/d1/checkout")).toEqual({
+      parent: "contains-current",
+      currentId: "d1",
+    })
+    expect(subNavState(dashboards, pins, "/d/d2")).toEqual({
+      parent: "none",
+      currentId: null,
+    })
   })
 })
 

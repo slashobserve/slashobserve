@@ -54,6 +54,28 @@ export function isNavItemActive(to: NavPath, pathname: string): boolean {
   return pathname === to || pathname.startsWith(`${to}/`)
 }
 
+export type SubNavRow = {
+  id: string
+  paths: readonly string[]
+}
+
+export type ParentState = "current" | "contains-current" | "none"
+
+export function subNavState(
+  item: NavItem,
+  rows: readonly SubNavRow[],
+  pathname: string
+): { parent: ParentState; currentId: string | null } {
+  const current = rows.find((row) => row.paths.includes(pathname))
+  if (current !== undefined) {
+    return { parent: "contains-current", currentId: current.id }
+  }
+  return {
+    parent: isNavItemActive(item.to, pathname) ? "current" : "none",
+    currentId: null,
+  }
+}
+
 export function unreadBadge(count: number | null): string | null {
   if (count === null || count <= 0) return null
   return count >= 100 ? "99+" : String(count)

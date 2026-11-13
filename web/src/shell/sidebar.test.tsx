@@ -78,6 +78,56 @@ describe("SidebarContent", () => {
     expect(pinned).toHaveAttribute("aria-current", "page")
   })
 
+  it("on a pinned dashboard's page highlights only that row and makes Dashboards semibold", async () => {
+    renderWithProviders(<SidebarContent />, { route })
+
+    const pinned = await screen.findByRole(
+      "link",
+      { name: "Checkout latency" },
+      { timeout: 5000 }
+    )
+    const dashboards = screen.getByRole("link", { name: "Dashboards" })
+    expect(pinned).toHaveAttribute("aria-current", "page")
+    expect(dashboards).not.toHaveAttribute("aria-current")
+    expect(dashboards.querySelector(".font-semibold")).not.toBeNull()
+    expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
+  })
+
+  it("on an open observation's page highlights only that row and makes Observations semibold", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/o/$observationId", url: "/o/o1" },
+    })
+
+    const observation = await screen.findByRole(
+      "link",
+      { name: "Slow pods" },
+      { timeout: 5000 }
+    )
+    const observations = screen.getByRole("link", { name: "Observations" })
+    expect(observation).toHaveAttribute("aria-current", "page")
+    expect(observations).not.toHaveAttribute("aria-current")
+    expect(observations.querySelector(".font-semibold")).not.toBeNull()
+    expect(
+      screen
+        .getByRole("link", { name: "Dashboards" })
+        .querySelector(".font-semibold")
+    ).toBeNull()
+  })
+
+  it("on the Observations list highlights Observations itself and leaves it regular weight", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/observations", url: "/observations" },
+    })
+
+    await screen.findByRole("link", { name: "Slow pods" }, { timeout: 5000 })
+    const observations = screen.getByRole("link", { name: "Observations" })
+    expect(observations).toHaveAttribute("aria-current", "page")
+    expect(observations.querySelector(".font-semibold")).toBeNull()
+    expect(screen.getByRole("link", { name: "Slow pods" })).not.toHaveAttribute(
+      "aria-current"
+    )
+  })
+
   it("starts at Home, has no New menu and lists open observations under Observations", async () => {
     renderWithProviders(<SidebarContent />, { route })
 

@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query"
-import { Link, useRouterState } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 
 import { unreadObservationIds } from "@/inbox/inbox-item"
 import { useInboxForYou } from "@/inbox/queries"
@@ -7,6 +7,7 @@ import { observationLink, observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { observationsInfiniteQuery } from "@/observations/queries"
 
+import type { SubNavRow } from "./nav"
 import { SubNavList, subNavLinkClass, subNavMoreClass } from "./sub-nav"
 
 const shown = 5
@@ -24,11 +25,27 @@ export function useOpenObservationsPage() {
   }
 }
 
-export function OpenObservations({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  })
-  const { observations, more } = useOpenObservationsPage()
+type OpenObservation = ReturnType<
+  typeof useOpenObservationsPage
+>["observations"][number]
+
+export function observationRows(
+  observations: readonly OpenObservation[]
+): SubNavRow[] {
+  return observations.map(({ id }) => ({ id, paths: [observationPath(id)] }))
+}
+
+export function OpenObservations({
+  observations,
+  more,
+  currentId,
+  onNavigate,
+}: {
+  observations: readonly OpenObservation[]
+  more: boolean
+  currentId: string | null
+  onNavigate?: () => void
+}) {
   const unread = unreadObservationIds(
     useInboxForYou().data?.pages[0]?.items ?? []
   )
@@ -44,11 +61,7 @@ export function OpenObservations({ onNavigate }: { onNavigate?: () => void }) {
               {...observationLink(observation.id)}
               onClick={onNavigate}
               title={observation.title}
-              aria-current={
-                pathname === observationPath(observation.id)
-                  ? "page"
-                  : undefined
-              }
+              aria-current={observation.id === currentId ? "page" : undefined}
               className={subNavLinkClass}
             >
               <span
