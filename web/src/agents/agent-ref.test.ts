@@ -29,6 +29,7 @@ const overview: AgentsOverview = {
       grant_id: "0b8e4c55-6c55-4d6a-9d8a-2a8c5b5e9a01",
       client_name: "Claude Code",
       mode: "direct",
+      present: false,
       presence: "offline",
       last_seen_at: null,
       connected_at: "2026-11-11T10:00:00Z",
@@ -40,6 +41,7 @@ const overview: AgentsOverview = {
     {
       id: "5f0a8e3c-2b7d-4e0b-a1c4-7d6f0e9b2c11",
       name: "nightly-audit",
+      present: true,
       presence: "listening",
       last_seen_at: null,
       last_7_days: null,

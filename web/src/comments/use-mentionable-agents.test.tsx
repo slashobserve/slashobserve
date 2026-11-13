@@ -81,6 +81,7 @@ const overview = {
       grant_id: grantId,
       client_name: "Claude Code",
       mode: "direct",
+      present: true,
       presence: "listening",
       last_seen_at: null,
       connected_at: "2026-11-01T00:00:00Z",
@@ -92,6 +93,7 @@ const overview = {
     {
       id: accountId,
       name: "nightly",
+      present: false,
       presence: "offline",
       last_seen_at: null,
       last_7_days: null,

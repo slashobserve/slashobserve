@@ -34,6 +34,7 @@ function overview(over: Partial<AgentsOverview> = {}): AgentsOverview {
         grant_id: "g1",
         client_name: "Claude Code",
         mode: "propose",
+        present: true,
         presence: "listening",
         last_seen_at: "2026-11-11T10:00:00Z",
         connected_at: "2026-11-01T10:00:00Z",
@@ -45,6 +46,7 @@ function overview(over: Partial<AgentsOverview> = {}): AgentsOverview {
       {
         id: "s1",
         name: "nightly-audit",
+        present: false,
         presence: "offline",
         last_seen_at: null,
         last_7_days: { ...stats, runs: 21, failed: 4 },
@@ -133,6 +135,7 @@ describe("AgentsPage", () => {
             {
               id: "s1",
               name: "nightly-audit",
+              present: true,
               presence: "listening",
               last_seen_at: null,
               last_7_days: null,

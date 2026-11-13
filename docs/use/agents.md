@@ -41,10 +41,10 @@ A service account has no mode.
 | Part | Shows |
 | --- | --- |
 | `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), its `runtime` (`sidecar`, the default, or `go`, from `SLASHOBSERVE_AGENT_RUNTIME`), and its runs of the last seven days. |
-| `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, its `presence`, when you connected it and what it did in the last seven days. |
-| `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name and its `presence`. |
+| `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, whether it is `present`, its `presence`, when you connected it and what it did in the last seven days. |
+| `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name, whether it is `present` and its `presence`. |
 
-`presence` is `working` while the agent holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise; [states](../reference/states.md) describes the three presences.
+An agent is `present` while it holds a run or asked for work in the last 40 seconds, and `presence` says which: `working`, `listening` or `offline`; [states](../reference/states.md) describes the three presences.
 The Observe Agent's seven days cover every run in the workspace for an Admin and only your own runs for anyone else, and `scope` says which.
 A service account's seven days are shown to an Admin and are null for anyone else, who still gets its name to mention it.
 

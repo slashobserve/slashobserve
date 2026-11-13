@@ -61,6 +61,7 @@ type connectedJSON struct {
 	GrantID     string    `json:"grant_id"`
 	ClientName  string    `json:"client_name"`
 	Mode        string    `json:"mode"`
+	Present     bool      `json:"present"`
 	Presence    string    `json:"presence"`
 	LastSeenAt  *string   `json:"last_seen_at"`
 	ConnectedAt string    `json:"connected_at"`
@@ -71,6 +72,7 @@ type connectedJSON struct {
 type serviceAccountJSON struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
+	Present    bool       `json:"present"`
 	Presence   string     `json:"presence"`
 	LastSeenAt *string    `json:"last_seen_at"`
 	Last7Days  *statsJSON `json:"last_7_days"`
@@ -155,6 +157,7 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 			GrantID:     g.ID.String(),
 			ClientName:  cmp.Or(actor.ClientName(g.ClientName.String), anonymousName),
 			Mode:        string(grantmode.Parse(g.Mode)),
+			Present:     state != presence.Offline,
 			Presence:    string(state),
 			LastSeenAt:  seen,
 			ConnectedAt: httpapi.FormatTime(g.CreatedAt.Time),
@@ -169,7 +172,7 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 	}
 	for _, a := range accounts {
 		state, seen := presenceOf(a.WorkerSeenAt, a.WorkerWorking, a.CheckedAt)
-		item := serviceAccountJSON{ID: a.ID.String(), Name: a.Name, Presence: string(state), LastSeenAt: seen}
+		item := serviceAccountJSON{ID: a.ID.String(), Name: a.Name, Present: state != presence.Offline, Presence: string(state), LastSeenAt: seen}
 		if admin {
 			stats, err := h.stats(ctx, dbsqlc.AgentRunStatsParams{AssignedKind: "service_account", AssignedID: a.ID})
 			if err != nil {

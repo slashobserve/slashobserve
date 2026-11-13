@@ -782,7 +782,7 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [grant_id, client_name, mode, presence, last_seen_at, connected_at, writes_7d, last_7_days]
+            required: [grant_id, client_name, mode, present, presence, last_seen_at, connected_at, writes_7d, last_7_days]
             properties:
               grant_id:
                 type: string
@@ -793,6 +793,9 @@ components:
               mode:
                 type: string
                 enum: [direct, propose]
+              present:
+                type: boolean
+                description: true while `presence` is `working` or `listening`.
               presence:
                 type: string
                 enum: [working, listening, offline]
@@ -814,13 +817,16 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, name, presence, last_seen_at, last_7_days]
+            required: [id, name, present, presence, last_seen_at, last_7_days]
             properties:
               id:
                 type: string
                 format: uuid
               name:
                 type: string
+              present:
+                type: boolean
+                description: true while `presence` is `working` or `listening`.
               presence:
                 type: string
                 enum: [working, listening, offline]
