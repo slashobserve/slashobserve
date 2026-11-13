@@ -24,7 +24,10 @@ function json(body: unknown, status = 200): Response {
 
 const grantId = "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d"
 
-function stubServer(sent: Record<string, unknown> = {}) {
+function stubServer(
+  sent: Record<string, unknown> = {},
+  postHeld: Promise<void> = Promise.resolve()
+) {
   const posts: { path: string; body: Record<string, unknown> }[] = []
   vi.stubGlobal(
     "fetch",
@@ -32,6 +35,7 @@ function stubServer(sent: Record<string, unknown> = {}) {
       const { pathname } = new URL(request.url)
       if (request.method === "POST") {
         posts.push({ path: pathname, body: await request.clone().json() })
+        await postHeld
         return json(
           {
             thread: { id: "t1" },
@@ -165,6 +169,38 @@ describe("ActivityComposer", () => {
         panel_id: "latency",
       },
     })
+  })
+
+  it("puts the cursor back in the field after a send when focus stayed in the form", async () => {
+    const user = userEvent.setup()
+    const { form } = await renderComposer()
+    await user.click(within(form).getByRole("button", { name: "Send" }))
+    expect(await within(form).findByText("Comment added")).toBeInTheDocument()
+    expect(
+      within(form).getByRole("textbox", { name: "Comment or request" })
+    ).toHaveFocus()
+  })
+
+  it("leaves focus alone when the person moved it elsewhere while the send was in flight", async () => {
+    let release = () => {}
+    const posts = stubServer(
+      {},
+      new Promise<void>((resolve) => {
+        release = resolve
+      })
+    )
+    const user = userEvent.setup()
+    const { form } = await renderComposer()
+    const elsewhere = document.body.appendChild(
+      document.createElement("button")
+    )
+    await user.click(within(form).getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    elsewhere.focus()
+    release()
+    expect(await within(form).findByText("Comment added")).toBeInTheDocument()
+    expect(elsewhere).toHaveFocus()
+    elsewhere.remove()
   })
 
   it("sends start_runs: true when the comment mentions @observe and shows the run line", async () => {

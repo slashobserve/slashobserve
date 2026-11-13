@@ -226,7 +226,16 @@ export function ActivityComposer({
     setAgentKind("revise")
     setCursor(freshCursor)
     announce(text)
-    field.current?.focus()
+    returnFocusToField()
+  }
+
+  function returnFocusToField() {
+    const active = document.activeElement
+    const elsewhere =
+      active !== null &&
+      active !== document.body &&
+      !field.current?.form?.contains(active)
+    if (!elsewhere) field.current?.focus()
   }
 
   function applyText(value: string): string {
@@ -263,7 +272,7 @@ export function ActivityComposer({
 
   function failed(text: string) {
     setFailure(text)
-    field.current?.focus()
+    returnFocusToField()
   }
 
   function sendNow() {

@@ -69,6 +69,19 @@ type Props = {
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
 let focusAfterClose: "composer" | "none" | null = null
 
+const personInput = ["pointerdown", "keydown"] as const
+
+// The menu unmounts after its exit animation, which can end after the person has already clicked elsewhere.
+function returnFocusToComposerUntilInput() {
+  focusAfterClose = "composer"
+  function stop() {
+    if (focusAfterClose === "composer") focusAfterClose = null
+    for (const type of personInput)
+      document.removeEventListener(type, stop, true)
+  }
+  for (const type of personInput) document.addEventListener(type, stop, true)
+}
+
 type MenuItem = {
   id: string
   label: string
@@ -111,7 +124,7 @@ export function PanelMenu({
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        focusAfterClose = "composer"
+        returnFocusToComposerUntilInput()
         commentOnPanel(setSearch, panel.id)
       },
     })
@@ -124,7 +137,7 @@ export function PanelMenu({
       icon: <SearchIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        focusAfterClose = "composer"
+        returnFocusToComposerUntilInput()
         askAboutPanel(setSearch, panel.id)
       },
     })
