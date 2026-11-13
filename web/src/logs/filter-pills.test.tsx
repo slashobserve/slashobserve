@@ -71,9 +71,9 @@ function setup(
 ) {
   const mocks = { update: vi.fn(), run: vi.fn(), announce: vi.fn() }
   const type = options.type ?? "elasticsearch"
-  const searchOf = (q: string | undefined): LogsSearch => ({
+  const searchOf = (q: string | undefined, pills?: Pill[]): LogsSearch => ({
     q,
-    f: encodePills(options.pills ?? seeded),
+    f: encodePills(pills ?? options.pills ?? seeded),
   })
   const queryClient = testQueryClient()
   queryClient.setQueryData(datasourceKeys.labels("ds", range), {
@@ -84,8 +84,8 @@ function setup(
     datasourceKeys.labelValues("ds", "log.level", range),
     { values: ["error", "warn", "info"], truncated: false }
   )
-  const view = (q: string | undefined) => (
-    <LogsWorkspaceContext value={workspaceOf(type, searchOf(q), mocks)}>
+  const view = (q: string | undefined, pills?: Pill[]) => (
+    <LogsWorkspaceContext value={workspaceOf(type, searchOf(q, pills), mocks)}>
       <FilterPills />
     </LogsWorkspaceContext>
   )
@@ -96,10 +96,10 @@ function setup(
   return {
     ...rendered,
     ...mocks,
-    changeQuery: (q: string) =>
+    changeQuery: (q: string, pills?: Pill[]) =>
       rendered.rerender(
         <QueryClientProvider client={queryClient}>
-          {view(q)}
+          {view(q, pills)}
         </QueryClientProvider>
       ),
   }
@@ -295,6 +295,22 @@ describe("FilterPills", () => {
     expect(announce).toHaveBeenCalledWith(
       "2 filters cleared; pinned filters kept"
     )
+  })
+
+  it("keeps the pills that arrive with the new query text", () => {
+    const { changeQuery, update, announce } = setup()
+    const imported: Pill = {
+      id: "3",
+      kind: "is",
+      field: "log.level",
+      value: "error",
+      negate: false,
+      pinned: false,
+      paused: false,
+    }
+    changeQuery("payment failed", [...seeded, imported])
+    expect(update).not.toHaveBeenCalled()
+    expect(announce).not.toHaveBeenCalled()
   })
 
   it("keeps every pill when the first query is run", () => {

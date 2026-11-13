@@ -1,4 +1,4 @@
-import { act, screen } from "@testing-library/react"
+import { act, fireEvent, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, observeKeys } from "@/api/keys"
@@ -6,6 +6,7 @@ import type { InputMode } from "@/ask/input-mode"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
+import { decodePills } from "./pills"
 import { QueryBar } from "./query-bar"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
 
@@ -41,11 +42,12 @@ function setup({
   const setDraft = vi.fn()
   const focusQuery = vi.fn()
   const setLabelsOpen = vi.fn()
+  const update = vi.fn()
   const workspace = {
     datasource: status("ds", type),
     datasources: [],
     search: {},
-    update: vi.fn(),
+    update,
     draft,
     setDraft,
     run,
@@ -75,7 +77,7 @@ function setup({
     </LogsWorkspaceContext>,
     { queryClient, route: { path: "/", url: "/" } }
   )
-  return { ...view, run, setMode, setDraft, focusQuery, setLabelsOpen }
+  return { ...view, run, setMode, setDraft, focusQuery, setLabelsOpen, update }
 }
 
 afterEach(() => {
@@ -379,5 +381,77 @@ describe("QueryBar", () => {
     expect(
       screen.queryByRole("button", { name: "Remove this clause" })
     ).toBeNull()
+  })
+
+  describe("pasting a Discover link", () => {
+    const link =
+      "https://kibana.example.com/app/discover#/?" +
+      new URLSearchParams({
+        _g: "(time:(from:now-15m,to:now))",
+        _a: `(columns:!(message,log.level),filters:!((meta:(key:service.name,negate:!f,params:(query:checkout),type:phrase)),(meta:(key:bytes,negate:!f,params:(gte:1),type:range))),query:(language:kuery,query:'level:error'))`,
+      }).toString()
+
+    async function paste(text: string, label = "KQL query") {
+      const editor = await screen.findByLabelText(label)
+      return fireEvent.paste(editor, {
+        clipboardData: { getData: () => text },
+      })
+    }
+
+    it("fills the query, range, columns and filters and says what it did", async () => {
+      const { run, setDraft, update } = setup()
+      expect(await paste(link)).toBe(false)
+      expect(setDraft).toHaveBeenCalledWith("level:error")
+      expect(run).toHaveBeenCalledWith("level:error")
+      const written = update.mock.calls[0][0] as Record<string, string>
+      expect(written).toMatchObject({
+        q: "level:error",
+        from: "now-15m",
+        to: "now",
+        cols: "message,log.level",
+      })
+      expect(decodePills(written.f)).toMatchObject([
+        { kind: "is", field: "service.name", value: "checkout" },
+      ])
+      expect(
+        await screen.findByText(
+          "Filled from a Discover link: query, time range, 2 columns, 1 filter. 1 filter from the URL was not applied."
+        )
+      ).toBeVisible()
+    })
+
+    it("hides the note when dismissed", async () => {
+      const { user } = setup()
+      await paste(link)
+      await user.click(await screen.findByRole("button", { name: "Dismiss" }))
+      expect(screen.queryByText(/Filled from a Discover link/)).toBeNull()
+    })
+
+    it("leaves the draft alone when the link cannot be read", async () => {
+      const { run, setDraft, update } = setup()
+      expect(
+        await paste("https://kibana.example.com/app/discover#/?_a=(query:('x)")
+      ).toBe(false)
+      expect(
+        await screen.findByText("That Discover link could not be read.")
+      ).toBeVisible()
+      expect(setDraft).not.toHaveBeenCalled()
+      expect(update).not.toHaveBeenCalled()
+      expect(run).not.toHaveBeenCalled()
+    })
+
+    it("leaves other pasted text to the editor", async () => {
+      const { setDraft, update } = setup()
+      await paste("level:error")
+      expect(setDraft).toHaveBeenCalledWith("level:errorlevel:error")
+      expect(update).not.toHaveBeenCalled()
+    })
+
+    it("pastes the link as plain text on Loki", async () => {
+      const { setDraft, update } = setup({ type: "loki", draft: "" })
+      await paste(link, "LogQL query")
+      expect(setDraft).toHaveBeenCalledWith(link)
+      expect(update).not.toHaveBeenCalled()
+    })
   })
 })
