@@ -1,4 +1,10 @@
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
+import {
+  defaultPageSize,
+  validPage,
+  validPageSize,
+  type PageSize,
+} from "@/lib/paging"
 import { isTimeValue } from "@/lib/time"
 
 export type LogsSearch = {
@@ -13,6 +19,18 @@ export type LogsSearch = {
   view?: "patterns"
   tail?: "1"
   observation?: string
+  page?: number
+  size?: PageSize
+}
+
+const pageResetKeys = ["ds", "q", "f", "from", "to", "size"] as const
+
+export function searchAfter(
+  state: LogsSearch,
+  next: Partial<LogsSearch>
+): LogsSearch {
+  const reset = pageResetKeys.some((key) => key in next)
+  return { ...state, ...(reset ? { page: undefined } : {}), ...next }
 }
 
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
@@ -99,6 +117,10 @@ function validObservation(value: unknown): string | undefined {
   return id !== undefined && uuidPattern.test(id) ? id : undefined
 }
 
+function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
+  return value === standard ? undefined : value
+}
+
 export function validRange(raw: Record<string, unknown>): {
   from: string | undefined
   to: string | undefined
@@ -125,6 +147,8 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     view: firstString(raw.view) === "patterns" ? "patterns" : undefined,
     tail: firstString(raw.tail) === "1" ? "1" : undefined,
     observation: validObservation(raw.observation),
+    page: unlessStandard(validPage(raw.page), 1),
+    size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }
 }
 

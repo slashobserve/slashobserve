@@ -5,6 +5,7 @@ import {
   logsTimeRange,
   queryModeLabel,
   validAsk,
+  searchAfter,
   validateLogsSearch,
 } from "./search"
 
@@ -33,6 +34,8 @@ describe("validateLogsSearch", () => {
       view: undefined,
       tail: undefined,
       observation: undefined,
+      page: undefined,
+      size: undefined,
     })
   })
 
@@ -188,5 +191,61 @@ describe("isSearchFamily", () => {
     expect(isSearchFamily("opensearch")).toBe(true)
     expect(isSearchFamily("loki")).toBe(false)
     expect(isSearchFamily("clickhouse")).toBe(false)
+  })
+})
+
+describe("the page and size keys", () => {
+  it("keeps a page above 1 and a size other than 50", () => {
+    expect(validateLogsSearch({ page: "3", size: "100" })).toMatchObject({
+      page: 3,
+      size: 100,
+    })
+  })
+
+  it("omits page 1 and the default size", () => {
+    const search = validateLogsSearch({ page: "1", size: "50" })
+    expect(search.page).toBeUndefined()
+    expect(search.size).toBeUndefined()
+  })
+
+  it.each(["0", "-2", "abc", "1.5", "100001"])("drops page %s", (page) => {
+    expect(validateLogsSearch({ page }).page).toBeUndefined()
+  })
+
+  it.each(["10", "75", "abc", "1000"])("drops size %s", (size) => {
+    expect(validateLogsSearch({ size }).size).toBeUndefined()
+  })
+})
+
+describe("searchAfter", () => {
+  const onPageThree = { ds: "loki", q: "{a}", cols: "level", page: 3 }
+
+  it.each([
+    { q: "{b}" },
+    { f: "abc" },
+    { from: "now-6h", to: "now" },
+    { ds: "ch" },
+    { size: 100 as const },
+  ])("returns to the first page when %j changes", (next) => {
+    expect(searchAfter(onPageThree, next).page).toBeUndefined()
+  })
+
+  it.each([{ cols: "time" }, { line: "1:abc" }, { view: "patterns" as const }])(
+    "keeps the page when %j changes",
+    (next) => {
+      expect(searchAfter(onPageThree, next).page).toBe(3)
+    }
+  )
+
+  it("takes the page it is given with a query change", () => {
+    expect(searchAfter(onPageThree, { q: "{b}", page: 2 }).page).toBe(2)
+  })
+
+  it("merges the new keys into the state", () => {
+    expect(searchAfter(onPageThree, { q: "{b}" })).toMatchObject({
+      ds: "loki",
+      q: "{b}",
+      cols: "level",
+    })
   })
 })
