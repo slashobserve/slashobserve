@@ -2,6 +2,7 @@ import type { ReactNode, RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AsteriskIcon, FilterIcon, FilterXIcon } from "lucide-react"
 
+import { BreakableName } from "@/components/breakable-name"
 import { CopyButton } from "@/components/copy-button"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -283,7 +284,7 @@ function FieldRow({
   return (
     <div className="group grid min-h-7 grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-start gap-x-3">
       <dt className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
-        {name}
+        <BreakableName name={name} />
       </dt>
       <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
         {value}
@@ -461,48 +462,54 @@ export function DetailDrawer({
         <div
           role="group"
           aria-label="Line actions"
-          className="flex flex-wrap gap-1"
+          className="flex flex-wrap gap-x-1 gap-y-1"
         >
-          {traceId !== null &&
-          traceDatasource !== null &&
-          entry.time !== null ? (
-            <OpenTraceLink
-              traceId={traceId}
-              traceDatasource={traceDatasource}
-              time={entry.time}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          <div className="flex gap-1">
+            {traceId !== null &&
+            traceDatasource !== null &&
+            entry.time !== null ? (
+              <OpenTraceLink
+                traceId={traceId}
+                traceDatasource={traceDatasource}
+                time={entry.time}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" })
+                )}
+              >
+                Open trace
+              </OpenTraceLink>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={blocker !== undefined}
+              title={blocker}
+              onClick={() => onTabChange("context")}
             >
-              Open trace
-            </OpenTraceLink>
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={blocker !== undefined}
-            title={blocker}
-            onClick={() => onTabChange("context")}
-          >
-            {searchFamily ? "Surrounding documents" : "Show context"}
-          </Button>
-          <CopyButton
-            text={entry.message}
-            label="Copy line"
-            variant="ghost"
-            size="sm"
-            icon={false}
-          >
-            Copy line
-          </CopyButton>
-          <CopyButton
-            text={linePermalink(window.location.href, entry)}
-            label="Copy link"
-            variant="ghost"
-            size="sm"
-            icon={false}
-          >
-            Copy link
-          </CopyButton>
+              {searchFamily ? "Surrounding documents" : "Show context"}
+            </Button>
+          </div>
+          <div className="flex gap-1">
+            <CopyButton
+              text={entry.message}
+              label="Copy line"
+              variant="ghost"
+              size="sm"
+              icon={false}
+            >
+              Copy line
+            </CopyButton>
+            <CopyButton
+              text={linePermalink(window.location.href, entry)}
+              label="Copy link"
+              variant="ghost"
+              size="sm"
+              icon={false}
+            >
+              Copy link
+            </CopyButton>
+          </div>
         </div>
         <Tabs
           value={tab}

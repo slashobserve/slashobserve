@@ -18,6 +18,7 @@ import {
   PlusIcon,
 } from "lucide-react"
 
+import { BreakableName } from "@/components/breakable-name"
 import { CopyButton } from "@/components/copy-button"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -554,7 +555,7 @@ function TextPairRows({ pairs }: { pairs: Record<string, string> }) {
       className={cn("grid min-h-6 items-center gap-x-2", kv3Columns)}
     >
       <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
-        {key}
+        <BreakableName name={key} />
       </span>
       <span
         className={cn(
@@ -647,7 +648,7 @@ function AttributeRow({
   return (
     <div className={cn("group grid min-h-7 items-center gap-x-2", kv3Columns)}>
       <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
-        {attribute.key}
+        <BreakableName name={attribute.key} />
       </span>
       <span className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
         {attribute.text}
@@ -759,7 +760,9 @@ function SpanAttributes({
             >
               {group.items.map((attribute, index) => (
                 <div key={`${index}:${attribute.key}`} className="contents">
-                  <dt className="text-muted-foreground">{attribute.key}</dt>
+                  <dt className="[overflow-wrap:anywhere] text-muted-foreground">
+                    <BreakableName name={attribute.key} />
+                  </dt>
                   <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
                     {attribute.text}
                   </dd>

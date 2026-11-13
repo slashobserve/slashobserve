@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react"
 
+import { BreakableName } from "@/components/breakable-name"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -187,7 +188,7 @@ export function LogDetails({
                 layout === "drawer" && "font-mono [overflow-wrap:anywhere]"
               )}
             >
-              {detail.name}
+              <BreakableName name={detail.name} />
             </dt>
             <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
               {detailText(fields, detail, zone)}
