@@ -56,6 +56,11 @@ function firstString(value: unknown): string | undefined {
   return typeof item === "string" ? item : undefined
 }
 
+function pageText(value: unknown): string | undefined {
+  const item = Array.isArray(value) ? value[0] : value
+  return typeof item === "number" ? String(item) : firstString(item)
+}
+
 function validTags(value: unknown): string[] | undefined {
   const items = Array.isArray(value) ? value : [value]
   const tags = new Set<string>()
@@ -103,7 +108,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   }
   const kind = firstString(raw.kind)
   if (isProblemFilter(kind)) search.kind = kind
-  const page = firstString(raw.page)
+  const page = pageText(raw.page)
   if (page !== undefined && pagePattern.test(page)) {
     const n = Number(page)
     if (n >= 2 && n <= maxListPage) search.page = n

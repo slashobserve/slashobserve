@@ -229,8 +229,27 @@ describe("validateListSearch page", () => {
     expect(validateListSearch({ page: "2000" }).page).toBe(2000)
   })
 
+  it("keeps a page the router passes on as a number when it navigates", () => {
+    expect(validateListSearch({ page: 3 }).page).toBe(3)
+    expect(validateListSearch({ page: 2000 }).page).toBe(2000)
+  })
+
   it("drops page 1 and anything that is not a plain page number", () => {
-    for (const value of ["1", "0", "01", "2001", "-2", "x", "", 3, null]) {
+    for (const value of [
+      "1",
+      "0",
+      "01",
+      "2001",
+      "-2",
+      "x",
+      "",
+      1,
+      0,
+      2001,
+      -2,
+      2.5,
+      null,
+    ]) {
       expect(validateListSearch({ page: value }).page).toBeUndefined()
     }
   })
