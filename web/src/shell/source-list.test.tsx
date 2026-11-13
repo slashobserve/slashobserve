@@ -115,7 +115,7 @@ describe("SourceList", () => {
     ).not.toHaveAttribute("aria-current")
   })
 
-  it("shows five sources and a More button when there are more", async () => {
+  it("shows five sources and a More link to the list when there are more", async () => {
     renderList(
       Array.from({ length: 7 }, (_, index) =>
         source(`s${index}`, `Source ${index}`)
@@ -123,10 +123,10 @@ describe("SourceList", () => {
     )
 
     const list = await screen.findByRole("list", { name: "Log sources" })
-    expect(within(list).getAllByRole("link")).toHaveLength(5)
+    expect(within(list).getAllByRole("link")).toHaveLength(6)
     expect(
-      within(list).getByRole("button", { name: "More log sources" })
-    ).toBeVisible()
+      within(list).getByRole("link", { name: "More log sources" })
+    ).toHaveAttribute("href", "/logs")
   })
 
   it("shows no More button at exactly five sources", async () => {
@@ -137,7 +137,9 @@ describe("SourceList", () => {
     )
 
     const list = await screen.findByRole("list", { name: "Log sources" })
-    expect(within(list).queryByRole("button")).toBeNull()
+    expect(
+      within(list).queryByRole("link", { name: "More log sources" })
+    ).toBeNull()
   })
 
   it("lists nothing for a single source", () => {

@@ -19,13 +19,15 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
+| `/logs` | The list of log sources and saved logs searches. |
 | `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
-`/logs` and `/traces` open the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
+`/logs` and `/traces` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
@@ -185,11 +187,11 @@ The item is greyed, with "(uses dashboard variables)" after it, when a query or 
 
 The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
-On the page of a listed observation or pinned dashboard only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
+On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
 Hovering or focusing an icon on the rail shows its name.
-On the rail, Inbox shows its unread count, Observations shows a green dot while any observation is open, and Dashboards opens a menu that Escape or a click outside closes.
+On the rail, Inbox shows its unread count, Observations shows a green dot while any observation is open, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs and Traces open a menu with a link to their list and the sources.
 
 ## Search
 

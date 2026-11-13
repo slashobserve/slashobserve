@@ -11,16 +11,19 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 ### Choose a source
 
 Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, has its own page at `/logs/<datasource uid>`.
+
+`/logs` lists the log sources, each with its query language and whether it answers, and under them the saved logs searches you can view, most recently changed first, with their source, folder, who saved them and when; a source or a search opens on its own page.
+
 With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
-The five you used last on this browser come first and the rest follow by name, and **More** opens the full list.
+The five you used last on this browser come first and the rest follow by name, and **More** opens the Logs list.
 The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
 A source added or removed meanwhile goes by name without moving the others.
-With one log source, **Logs** opens it and nothing is listed under it.
-On the collapsed sidebar the Logs icon opens the same list, and on a phone the source line under the page title does.
+With one log source nothing is listed under it, and **Logs** still opens the list.
+On the collapsed sidebar the Logs icon opens a menu with a **Logs** link and the same sources, and on a phone the source line under the page title opens the sources.
 The title names the source and its language, such as **Logs / ClickHouse** with an **SQL** tag.
 
 Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
-`/logs` opens the source you used last on this browser, else the first by name, and an old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
+An address that carries a search but no source, such as `/logs?q=...`, opens the source you used last on this browser, else the first by name, and an old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
 The page searches that one source in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
 On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
 The address keeps the source, `q`, `from` and `to`, so **Copy link** in the top bar copies a search that opens the same way.
@@ -386,13 +389,14 @@ The source name in the title opens the trace search on the same source at `/trac
 
 ## Trace search
 
-Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
+Open **Traces** in the sidebar to see the trace sources and the saved trace searches, then open a source to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
 Each trace source, a Tempo or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
-With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the rest; with one, **Traces** opens it.
+With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the Traces list; with one, nothing is listed.
 As for logs, the order is set when the app loads and stays fixed until you reload.
-The collapsed sidebar and the phone title open the same list as they do for logs, and the title names the source and its language.
-`/traces` opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
+The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
+
+`/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
 The time range, **Saved searches** and **Save search** sit in the top bar, and on a phone **Save search** and **Saved searches** are under **More actions**.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
@@ -484,6 +488,7 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, and each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
 The folder list offers only the folders where you can create, and a refused save shows the server's message.
 
 A search is saved in a folder, which needs the Create permission there.

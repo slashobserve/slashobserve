@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { logsLink, tracesLink } from "@/lib/links"
+import { cn } from "@/lib/utils"
 import type { LogsSearch } from "@/logs/search"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 import type { TraceSearch } from "@/traces/search"
@@ -111,16 +112,24 @@ function SourceFlyoutItem({
 export function SourceFlyoutItems({ kind }: { kind: ExploreKind }) {
   const { sources } = useExploreSources(kind)
   return (
-    <DropdownMenuGroup>
-      <DropdownMenuLabel className={railFlyoutLabelClass}>
-        {kind === "logs" ? "Log sources" : "Trace sources"}
-      </DropdownMenuLabel>
-      <div className="max-h-80 overflow-y-auto">
-        {sources.map((source) => (
-          <SourceFlyoutItem key={source.uid} kind={kind} source={source} />
-        ))}
-      </div>
-    </DropdownMenuGroup>
+    <>
+      <DropdownMenuLinkItem
+        render={<Link to={kind === "logs" ? "/logs" : "/traces"} />}
+        className={cn(railFlyoutItemClass, "font-semibold")}
+      >
+        {kind === "logs" ? "Logs" : "Traces"}
+      </DropdownMenuLinkItem>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className={railFlyoutLabelClass}>
+          {kind === "logs" ? "Log sources" : "Trace sources"}
+        </DropdownMenuLabel>
+        <div className="max-h-80 overflow-y-auto">
+          {sources.map((source) => (
+            <SourceFlyoutItem key={source.uid} kind={kind} source={source} />
+          ))}
+        </div>
+      </DropdownMenuGroup>
+    </>
   )
 }
 
