@@ -58,7 +58,7 @@ export type LogsModel = {
   truncated: boolean
 }
 
-const messageNames = new Set(["body", "message", "msg", "line", "log"])
+export const messageNames = new Set(["body", "message", "msg", "line", "log"])
 const severityNumberNames = new Set(["severitynumber"])
 const levelNames = new Set([
   "severitytext",

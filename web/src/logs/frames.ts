@@ -1,9 +1,13 @@
 import type { WireFrame } from "@/dashboards/queries"
+import { messageNames } from "@/panels/logs/logs-model"
 
 type Keep = (frame: WireFrame, row: number) => boolean
 
 type RowSource = Pick<WireFrame, "labels"> & {
-  fields: readonly Pick<WireFrame["fields"][number], "type" | "values">[]
+  fields: readonly Pick<
+    WireFrame["fields"][number],
+    "name" | "type" | "values"
+  >[]
 }
 
 function sortedLabelPairs(labels: WireFrame["labels"]): [string, string][] {
@@ -20,10 +24,20 @@ function frameRows(frame: RowSource): number {
 }
 
 function rowKey(frame: RowSource, row: number): string {
-  return JSON.stringify([
-    sortedLabelPairs(frame.labels),
-    ...frame.fields.map((field) => field.values[row]),
-  ])
+  const stamp =
+    frame.fields.find((field) => field.name === "TimeNs") ??
+    frame.fields.find((field) => field.type === "time")
+  const body =
+    frame.fields.find(
+      (field) =>
+        field.name !== "TimeNs" && messageNames.has(field.name.toLowerCase())
+    ) ??
+    frame.fields.find((field) => field.type === "string" && field !== stamp)
+  const parts =
+    stamp === undefined || body === undefined
+      ? frame.fields.map((field) => field.values[row])
+      : [stamp.values[row], body.values[row]]
+  return JSON.stringify([sortedLabelPairs(frame.labels), ...parts])
 }
 
 export function rowTime(frame: RowSource, row: number): number | null {
@@ -198,15 +212,4 @@ export function keysOf(frames: readonly WireFrame[]): Set<string> {
       keys.add(rowKey(frame, row))
   }
   return keys
-}
-
-export function tailWindow(
-  newest: number | null,
-  now: number
-): { from: string; to: string } {
-  const start = newest ?? now - 10_000
-  return {
-    from: String(start),
-    to: String(Math.max(now, (newest ?? now) + 1000)),
-  }
 }

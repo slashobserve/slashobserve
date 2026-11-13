@@ -277,8 +277,9 @@ Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, wi
 
 ## Live tail
 
-**Live tail** polls the datasource through the explore query every 2 seconds, asking for the lines from the newest one it holds onward, and adds what comes back to the list.
-Each poll returns at most 1,000 lines, and the poll runs as the signed-in person, under the explore query's limits.
+**Live tail** opens one stream to the server, which watches the query and sends new lines as they arrive, so the browser runs no query of its own.
+You may hold 5 tails at a time, and a tail reconnects by itself after a dropped connection or at the server's 30 minute limit, from the newest line it already holds, so no line is lost or repeated.
+On Elasticsearch and OpenSearch the server waits a few seconds before it sends a line, so late-indexed documents are not missed.
 The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top, and the note under the list says so.
 
 The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
@@ -287,11 +288,10 @@ Scrolling up pauses the list so it stops moving under the pointer, and a button 
 **Jump to newest**, **Resume** or scrolling back to the bottom resumes it, and a "New since" divider then marks where the lines that arrived during the pause begin, with each of them read out as "new" by a screen reader.
 **Clear** empties the lines shown until you start the tail again.
 
-A tail stops when you press **Stop live tail**, when the query, a filter or the time range changes, or when a poll fails.
-A failed poll shows "Live tail stopped" with the reason and **Start again**.
+A tail stops when you press **Stop live tail**, when the query, a filter or the time range changes, or when the server cannot run the query.
+A tail that cannot start or run shows "Live tail stopped" with the reason, such as the limit of 5 tails, and **Start again**.
 
-The browser polls and does not read the server's stream.
-Scripts can read that stream with `GET /api/v1/datasources/{uid}/tail?query=...`, which sends Server-Sent Events, polls the datasource every second and ends after 30 minutes; see the API reference.
+The page reads `GET /api/v1/datasources/{uid}/tail?query=...`, which sends Server-Sent Events, polls the datasource every second and ends after 30 minutes; scripts can read the same stream, see the API reference.
 
 ## Add to dashboard
 

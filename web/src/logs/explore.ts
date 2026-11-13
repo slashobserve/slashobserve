@@ -16,7 +16,7 @@ import { requestZone } from "@/lib/time"
 export const offlineText =
   "You are offline. The query runs when the connection is back."
 
-export function exploreRequest(
+function exploreRequest(
   uid: string,
   {
     query,
