@@ -43,12 +43,12 @@ beforeEach(() => {
   return () => vi.unstubAllGlobals()
 })
 
-async function renderPage(crumbs: Crumb[], heading: string) {
+async function renderPage(crumbs: Crumb[] | undefined, heading: string) {
   const root = createRootRoute({ component: AppShell })
   const page = createRoute({
     getParentRoute: () => root,
     path: "/page",
-    staticData: { crumbs },
+    staticData: crumbs === undefined ? {} : { crumbs },
     component: () => <PageHeader title={heading} />,
   })
   const router = createRouter({
@@ -82,8 +82,20 @@ describe("top row title", () => {
   })
 
   it("keeps the crumb when the heading says something else", async () => {
-    await renderPage([{ label: "Home" }], "What are you working on?")
-    expect(within(topRow()).getByText("Home")).toBeTruthy()
+    await renderPage([{ label: "Health" }], "Dashboard health")
+    expect(within(topRow()).getByText("Health")).toBeTruthy()
+  })
+
+  it("shows no breadcrumb and collapses the row on a page without crumbs, such as Home", async () => {
+    await renderPage(undefined, "What are you working on?")
+    expect(
+      within(topRow()).queryByRole("navigation", { name: "Breadcrumb" })
+    ).toBeNull()
+    expect(within(topRow()).queryByText("Home")).toBeNull()
+    expect(topRow().hasAttribute("data-crumb-hidden")).toBe(true)
+    expect(
+      topRow().querySelector("[data-slot=top-row-actions]")?.childElementCount
+    ).toBe(0)
   })
 
   it("keeps a trail of several crumbs", async () => {
