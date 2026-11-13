@@ -18,17 +18,27 @@ import { PanelLeftCloseIcon } from "lucide-react"
 import { Wordmark } from "@/components/brand/wordmark"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
-import { PinnedDashboards } from "@/pins/pinned-dashboards"
+import {
+  PinnedDashboards,
+  pinRows,
+  useVisiblePins,
+} from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
 import {
-  isNavItemActive,
+  subNavState,
   unreadBadge,
   visibleNavItems,
   type NavItem,
   type NavPath,
+  type ParentState,
+  type SubNavRow,
 } from "./nav"
-import { OpenObservations } from "./open-observations"
+import {
+  OpenObservations,
+  observationRows,
+  useOpenObservationsPage,
+} from "./open-observations"
 import { PaletteButton } from "./palette-button"
 import { navIcons, RailContent } from "./rail"
 import { useSidebarStore } from "./sidebar-store"
@@ -77,12 +87,12 @@ function UnreadMark({ badge }: { badge: string }) {
 
 function NavLink({
   item,
-  active,
+  state,
   unread,
   onNavigate,
 }: {
   item: NavItem
-  active: boolean
+  state: ParentState
   unread: string | null
   onNavigate?: () => void
 }) {
@@ -92,7 +102,7 @@ function NavLink({
       to={item.to}
       onClick={onNavigate}
       activeOptions={{ exact: true }}
-      aria-current={active ? "page" : undefined}
+      aria-current={state === "current" ? "page" : undefined}
       aria-label={
         unread === null ? undefined : `${item.label}, ${unread} unread`
       }
@@ -102,7 +112,14 @@ function NavLink({
       )}
     >
       <Icon aria-hidden="true" className="size-4 flex-none" strokeWidth={1.8} />
-      <span className="truncate">{item.label}</span>
+      <span
+        className={cn(
+          "truncate",
+          state === "contains-current" && "font-semibold"
+        )}
+      >
+        {item.label}
+      </span>
       {unread === null ? null : <UnreadMark badge={unread} />}
     </Link>
   )
@@ -245,23 +262,60 @@ export function SidebarContent({
   const workspace = items.filter((item) => item.group === "workspace")
   const unreadInbox = unreadBadge(useInboxCount())
 
-  const subLists: Partial<Record<NavPath, ReactNode>> = {
-    "/observations": <OpenObservations onNavigate={onNavigate} />,
-    "/dashboards": <PinnedDashboards onNavigate={onNavigate} />,
+  const openObservations = useOpenObservationsPage()
+  const pinned = useVisiblePins()
+
+  const subLists: Partial<
+    Record<
+      NavPath,
+      {
+        rows: readonly SubNavRow[]
+        render: (currentId: string | null) => ReactNode
+      }
+    >
+  > = {
+    "/observations": {
+      rows: observationRows(openObservations.observations),
+      render: (currentId) => (
+        <OpenObservations
+          {...openObservations}
+          currentId={currentId}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
+    "/dashboards": {
+      rows: pinRows(pinned.pins),
+      render: (currentId) => (
+        <PinnedDashboards
+          {...pinned}
+          currentId={currentId}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
   }
 
   function renderItems(list: readonly NavItem[]) {
-    return list.map((item) => (
-      <Fragment key={item.to}>
-        <NavLink
-          item={item}
-          active={isNavItemActive(item.to, pathname)}
-          unread={item.to === "/inbox" ? unreadInbox : null}
-          onNavigate={onNavigate}
-        />
-        {subLists[item.to] ?? null}
-      </Fragment>
-    ))
+    return list.map((item) => {
+      const subList = subLists[item.to]
+      const { parent, currentId } = subNavState(
+        item,
+        subList?.rows ?? [],
+        pathname
+      )
+      return (
+        <Fragment key={item.to}>
+          <NavLink
+            item={item}
+            state={parent}
+            unread={item.to === "/inbox" ? unreadInbox : null}
+            onNavigate={onNavigate}
+          />
+          {subList?.render(currentId) ?? null}
+        </Fragment>
+      )
+    })
   }
 
   return (

@@ -71,7 +71,7 @@ The search box below them finds dashboards by title or description, and `tag:` w
 Arrow keys move through the results and Enter opens one.
 
 Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
-A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted.
+A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted while **Dashboards** itself turns semibold instead of highlighted.
 The sidebar lists ten pins and then a **More** link to the dashboards list, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
 Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
 Only people pin: a service-account key gets `403 user_session_required`.
@@ -180,6 +180,8 @@ The item is greyed, with "(uses dashboard variables)" after it, when a query or 
 ## Sidebar
 
 The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
+Open observations are listed indented under **Observations** the same way.
+On the page of a listed observation or pinned dashboard only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
 Hovering or focusing an icon on the rail shows its name.

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { PinnedDashboards } from "./pinned-dashboards"
+import { PinnedDashboards, useVisiblePins } from "./pinned-dashboards"
 import { PinToggle } from "./pin-toggle"
 import type { Pin } from "./pins"
 
@@ -58,12 +58,16 @@ beforeEach(() => {
   return () => vi.unstubAllGlobals()
 })
 
+function PinnedList({ currentId = null }: { currentId?: string | null }) {
+  return <PinnedDashboards {...useVisiblePins()} currentId={currentId} />
+}
+
 const route = { path: "/d/$dashboardId/{-$slug}", url: "/d/d2/slow-pods" }
 
 describe("PinnedDashboards", () => {
   it("lists pins in server order as links in an indented, labelled list, marking the open one", async () => {
     serve([pin("d1", "Checkout latency"), pin("d2", "Slow pods")])
-    renderWithProviders(<PinnedDashboards />, { route })
+    renderWithProviders(<PinnedList currentId="d2" />, { route })
 
     const list = await screen.findByRole("list", { name: "Pinned dashboards" })
     const links = within(list).getAllByRole("link")
@@ -80,7 +84,7 @@ describe("PinnedDashboards", () => {
   it("gives each link its full title as a tooltip", async () => {
     const title = "A very long dashboard title that the sidebar must truncate"
     serve([pin("d1", title)])
-    renderWithProviders(<PinnedDashboards />, { route })
+    renderWithProviders(<PinnedList />, { route })
 
     expect(await screen.findByRole("link", { name: title })).toHaveAttribute(
       "title",
@@ -94,7 +98,7 @@ describe("PinnedDashboards", () => {
         pin(`d${index}`, `Dashboard ${index}`)
       )
     )
-    renderWithProviders(<PinnedDashboards />, { route })
+    renderWithProviders(<PinnedList />, { route })
 
     const more = await screen.findByRole("link", {
       name: "More pinned dashboards",
@@ -111,7 +115,7 @@ describe("PinnedDashboards", () => {
         pin(`d${index}`, `Dashboard ${index}`)
       )
     )
-    renderWithProviders(<PinnedDashboards />, { route })
+    renderWithProviders(<PinnedList />, { route })
 
     await screen.findByRole("link", { name: "Dashboard 9" })
     expect(screen.queryByRole("link", { name: /^More/ })).toBeNull()
@@ -119,7 +123,7 @@ describe("PinnedDashboards", () => {
 
   it("renders nothing without pins", async () => {
     const calls = serve([])
-    renderWithProviders(<PinnedDashboards />, { route })
+    renderWithProviders(<PinnedList />, { route })
 
     await waitFor(() => expect(calls).toContain("GET /api/v1/stars"))
     expect(screen.queryByRole("list")).toBeNull()
@@ -130,7 +134,7 @@ describe("PinnedDashboards", () => {
     const { user } = renderWithProviders(
       <>
         <PinToggle dashboardId="d9" />
-        <PinnedDashboards />
+        <PinnedList />
       </>,
       { route }
     )

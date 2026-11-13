@@ -3,9 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { OpenObservations } from "./open-observations"
+import { OpenObservations, useOpenObservationsPage } from "./open-observations"
 
 const route = { path: "/o/$observationId", url: "/o/o2" }
+
+function OpenObservationsList({
+  currentId = null,
+}: {
+  currentId?: string | null
+}) {
+  return (
+    <OpenObservations {...useOpenObservationsPage()} currentId={currentId} />
+  )
+}
 
 function observation(id: string, title: string) {
   return { id, title, state: "open" }
@@ -50,7 +60,7 @@ describe("OpenObservations", () => {
       [observation("o1", "Checkout latency"), observation("o2", "Slow pods")],
       null
     )
-    renderWithProviders(<OpenObservations />, { route })
+    renderWithProviders(<OpenObservationsList currentId="o2" />, { route })
 
     const first = await screen.findByRole("link", { name: "Checkout latency" })
     expect(first).toHaveAttribute("href", "/o/o1")
@@ -78,7 +88,7 @@ describe("OpenObservations", () => {
       ),
       "next"
     )
-    const first = renderWithProviders(<OpenObservations />, { route })
+    const first = renderWithProviders(<OpenObservationsList />, { route })
 
     const all = await screen.findByRole("link", { name: "All observations" })
     expect(all).toHaveAttribute("href", "/observations")
@@ -91,7 +101,7 @@ describe("OpenObservations", () => {
       ),
       null
     )
-    renderWithProviders(<OpenObservations />, { route })
+    renderWithProviders(<OpenObservationsList />, { route })
 
     await screen.findByRole("link", { name: "Other 0" })
     expect(screen.getAllByRole("link")).toHaveLength(5)
@@ -102,7 +112,9 @@ describe("OpenObservations", () => {
 
   it("renders nothing when no observation is open", async () => {
     const fetch = answer([], null)
-    const { container } = renderWithProviders(<OpenObservations />, { route })
+    const { container } = renderWithProviders(<OpenObservationsList />, {
+      route,
+    })
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -116,7 +128,7 @@ describe("OpenObservations", () => {
       null,
       [inboxItem("o1", true), inboxItem("o2", false)]
     )
-    renderWithProviders(<OpenObservations />, { route })
+    renderWithProviders(<OpenObservationsList />, { route })
 
     const unread = await screen.findByRole("link", {
       name: "Checkout latency Unread",

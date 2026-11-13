@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 
 import {
   DropdownMenuGroup,
@@ -8,40 +8,55 @@ import {
 import { dashboardLink, dashboardPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
+import type { SubNavRow } from "@/shell/nav"
 import { SubNavList, subNavLinkClass, subNavMoreClass } from "@/shell/sub-nav"
 
+import type { Pin } from "./pins"
 import { usePins } from "./queries"
 
 const shown = 10
 
-export function PinnedDashboards({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  })
-  const pins = usePins().data
-  if (pins === undefined || pins.length === 0) return null
+export function useVisiblePins() {
+  const pins = usePins().data ?? []
+  return { pins: pins.slice(0, shown), more: pins.length > shown }
+}
+
+export function pinRows(pins: readonly Pin[]): SubNavRow[] {
+  return pins.map(({ id, title }) => ({
+    id,
+    paths: [dashboardPath(id, title), dashboardPath(id)],
+  }))
+}
+
+export function PinnedDashboards({
+  pins,
+  more,
+  currentId,
+  onNavigate,
+}: {
+  pins: readonly Pin[]
+  more: boolean
+  currentId: string | null
+  onNavigate?: () => void
+}) {
+  if (pins.length === 0) return null
 
   return (
     <SubNavList label="Pinned dashboards">
-      {pins.slice(0, shown).map((pin) => (
+      {pins.map((pin) => (
         <li key={pin.id}>
           <Link
             {...dashboardLink(pin.id, pin.title)}
             onClick={onNavigate}
             title={pin.title}
-            aria-current={
-              pathname === dashboardPath(pin.id, pin.title) ||
-              pathname === dashboardPath(pin.id)
-                ? "page"
-                : undefined
-            }
+            aria-current={pin.id === currentId ? "page" : undefined}
             className={subNavLinkClass}
           >
             <span className="truncate">{pin.title}</span>
           </Link>
         </li>
       ))}
-      {pins.length > shown ? (
+      {more ? (
         <li>
           <Link
             to="/dashboards"
