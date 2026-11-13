@@ -3,6 +3,7 @@ annotations:
     operationId: listAnnotations
     x-surfaces:
       mcp: [list_annotations]
+      cli: [observe annotations list]
     summary: List annotations, newest first.
     description: >-
       Lists annotations ordered by `time_from` then `id`, newest first.
@@ -160,6 +161,8 @@ annotations-id:
         format: uuid
   delete:
     operationId: deleteAnnotation
+    x-surfaces:
+      cli: [observe annotations delete]
     summary: Delete an annotation.
     description: >-
       Deletes an annotation the caller created, or any annotation for an Admin; anyone else gets 403 `not_creator`.

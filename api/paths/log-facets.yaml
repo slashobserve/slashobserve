@@ -9,6 +9,7 @@ datasources-uid-log-facets:
     operationId: logFacets
     x-surfaces:
       mcp: [log_facets]
+      cli: [observe logs]
     summary: Count the top values of each label, field or column a logs query matches over a range.
     description: >-
       Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`.

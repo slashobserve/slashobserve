@@ -9,6 +9,7 @@ datasources-uid-log-context:
     operationId: logContext
     x-surfaces:
       mcp: [log_context]
+      cli: [observe logs]
     summary: Read the log lines just before and just after one line.
     description: >-
       `anchor` is the `TimeNs` string of the line, as the explore query and the tail return it, so the context is exact to the nanosecond and needs one request.

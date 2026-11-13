@@ -234,6 +234,9 @@ dashboards-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: moveDashboard
+    x-surfaces:
+      mcp: [move_dashboard]
+      cli: [observe dashboards move]
     summary: Move a dashboard to another folder.
     description: >-
       Needs Edit on the dashboard and on the target folder.
@@ -310,6 +313,7 @@ dashboards-id-versions:
   get:
     operationId: listDashboardVersions
     x-surfaces:
+      mcp: [list_dashboard_versions]
       cli: [observe dashboards versions]
     summary: List the versions of a dashboard without their Specs, newest first.
     parameters:
@@ -501,6 +505,9 @@ dashboards-id-versions-version-restore:
         maximum: 2147483647
   post:
     operationId: restoreDashboardVersion
+    x-surfaces:
+      mcp: [restore_dashboard_version]
+      cli: [observe dashboards restore]
     summary: Save a copy of an earlier version as a new version.
     description: >-
       The stored Spec is parsed again and its datasource references are checked, but its queries are not run,
@@ -561,6 +568,9 @@ dashboards-id-duplicate:
         format: uuid
   post:
     operationId: duplicateDashboard
+    x-surfaces:
+      mcp: [duplicate_dashboard]
+      cli: [observe dashboards duplicate]
     summary: Save the latest version as version 1 of a new dashboard.
     description: >-
       Needs View on the dashboard and Create in the target folder.
@@ -623,6 +633,9 @@ dashboards-id-diff:
         format: uuid
   get:
     operationId: diffDashboardVersions
+    x-surfaces:
+      mcp: [diff_dashboard_versions]
+      cli: [observe dashboards diff]
     summary: List the structural changes between two versions of a dashboard.
     parameters:
       - name: from

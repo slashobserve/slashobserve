@@ -127,6 +127,9 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: updateObservation
+    x-surfaces:
+      mcp: [update_observation]
+      cli: [observe o edit]
     summary: Change an observation's title or time range.
     description: Needs Edit on the folder. Allowed whether the observation is open or resolved.
     requestBody:
@@ -166,6 +169,9 @@ observations-id-move:
         format: uuid
   post:
     operationId: moveObservation
+    x-surfaces:
+      mcp: [move_observation]
+      cli: [observe o move]
     summary: Move an observation to another folder.
     description: >-
       Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`).
@@ -256,6 +262,9 @@ observations-id-reopen:
         format: uuid
   post:
     operationId: reopenObservation
+    x-surfaces:
+      mcp: [reopen_observation]
+      cli: [observe o reopen]
     summary: Reopen a resolved observation.
     description: Needs Edit on the folder. The summary is kept. An open observation answers 409 `invalid_transition`.
     responses:
