@@ -45,12 +45,20 @@ The keys do nothing while you type in a field, while a menu or dialog is open, o
 
 ## Logs page keys
 
-The logs page answers two keys of its own, described in [Logs and traces](logs-and-traces.md).
+The logs page answers keys of its own, described in [Logs and traces](logs-and-traces.md).
+`?` opens the same list in a dialog named Keyboard shortcuts.
+`/` and `?` do nothing while you type in a field or while a dialog is open.
 
 | Keys | What they do |
 | --- | --- |
-| `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
+| `/` | Focus the query. |
 | `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+| `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
+| `Ctrl+Space` | Complete a field, label or keyword, in the query editor. |
+| `j` and `k` | Move to the next and previous line, while a line has the focus. |
+| `Enter` | Open the line that has the focus. |
+| `Esc` | Close the open line and return to it. |
+| `?` | Show this list. |
 
 ## Trace search keys
 
