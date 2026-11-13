@@ -2,12 +2,14 @@ import { describe, expect, test } from "vitest"
 
 import {
   canRepair,
+  dashboardCountText,
   dashboardProblems,
   groupProblems,
   healthCellText,
   healthRedirectSearch,
   isProblemFilter,
   lastRunProblem,
+  moreProblemsText,
   panelProblems,
   pollHealth,
   problemCountText,
@@ -371,17 +373,17 @@ describe("summaryLabels", () => {
         unopened: 3,
       })
     ).toEqual([
-      { tone: "critical", label: "2 failing" },
-      { tone: "warning", label: "1 without data" },
-      { tone: "none", label: "3 not opened in 90 days" },
-      { tone: "none", label: "1 duplicate title" },
+      { tone: "critical", label: "2 dashboards failing" },
+      { tone: "warning", label: "1 dashboard without data" },
+      { tone: "none", label: "3 dashboards not opened in 90 days" },
+      { tone: "none", label: "1 dashboard with a duplicate title" },
     ])
   })
 
   test("drops zero counts", () => {
     expect(summaryLabels(empty)).toEqual([])
     expect(summaryLabels({ ...empty, duplicate_titles: 2 })).toEqual([
-      { tone: "none", label: "2 duplicate titles" },
+      { tone: "none", label: "2 dashboards with a duplicate title" },
     ])
   })
 })
@@ -524,7 +526,7 @@ describe("healthCellText", () => {
     expect(healthCellText(item({ problems: [] }))).toBeNull()
   })
 
-  test("takes the first group and counts the others", () => {
+  test("takes the first group and counts the problems outside it", () => {
     const cell = healthCellText(
       item({
         problems: [
@@ -540,10 +542,56 @@ describe("healthCellText", () => {
     )
     expect(cell?.group.kind).toBe("query_failed")
     expect(cell?.group.subjects).toEqual(["Orders"])
+    expect(cell?.more).toBe(1)
+  })
+
+  test("counts every problem outside the first group, not the groups", () => {
+    const cell = healthCellText(
+      item({
+        problems: [
+          problem({ kind: "query_failed", panel_title: "A", message: "m" }),
+          problem({ kind: "no_data", panel_title: "B", message: "n" }),
+          problem({ kind: "no_data", panel_title: "C", message: "n" }),
+          problem({ kind: "variable_failed", variable: "env", message: "v" }),
+        ],
+      })
+    )
+    expect(cell?.group.kind).toBe("query_failed")
+    expect(cell?.more).toBe(3)
+  })
+
+  test("counts the problems of the same kind with another message", () => {
+    const cell = healthCellText(
+      item({
+        problems: [
+          problem({ panel_title: "A", message: "m" }),
+          problem({ panel_title: "B", message: "other" }),
+          problem({ panel_title: "C", message: "other" }),
+        ],
+      })
+    )
     expect(cell?.more).toBe(2)
   })
 
-  test("counts no more groups for one kind with one message", () => {
+  test("does not count unopened as a problem", () => {
+    const cell = healthCellText(
+      item({ problems: [problem({ kind: "unopened" })] })
+    )
+    expect(cell?.group.kind).toBe("unopened")
+    expect(cell?.more).toBe(0)
+    expect(
+      healthCellText(
+        item({
+          problems: [
+            problem({ kind: "query_failed", panel_title: "A", message: "m" }),
+            problem({ kind: "unopened" }),
+          ],
+        })
+      )?.more
+    ).toBe(0)
+  })
+
+  test("counts no more problems for one kind with one message", () => {
     const cell = healthCellText(
       item({
         problems: [
@@ -630,6 +678,26 @@ describe("problemCountText", () => {
     [3, "3 problems"],
   ])("counts %i as %j", (count, want) => {
     expect(problemCountText(count)).toBe(want)
+  })
+})
+
+describe("dashboardCountText", () => {
+  test.each([
+    [1, "1 dashboard"],
+    [2, "2 dashboards"],
+    [13, "13 dashboards"],
+  ])("counts %i as %j", (count, want) => {
+    expect(dashboardCountText(count)).toBe(want)
+  })
+})
+
+describe("moreProblemsText", () => {
+  test.each([
+    [1, "1 more problem"],
+    [2, "2 more problems"],
+    [10, "10 more problems"],
+  ])("counts %i as %j", (count, want) => {
+    expect(moreProblemsText(count)).toBe(want)
   })
 })
 

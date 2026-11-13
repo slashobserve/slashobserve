@@ -8,7 +8,7 @@ It is the list to work through after [switching from Grafana](switch-from-grafan
 
 ## In the dashboards list
 
-The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more" when it has other kinds, and the state of its repair.
+The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more problems" counting its other problems, and the state of its repair.
 Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
 A dashboard with no known problem has an empty cell.
 
@@ -16,7 +16,7 @@ The **Problem** menu narrows the list to the dashboards with one kind of problem
 The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
 For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards; see [Repair](switch-from-grafana.md#repair).
 
-A summary line above the list counts the dashboards that are failing, have no data, have not been opened in 90 days or share a title, and says when the last check finished or that one is going now.
+A summary line above the list counts the dashboards that are failing, have no data, have not been opened in 90 days or have a duplicate title, such as **2 dashboards failing**, and says when the last check finished or that one is going now.
 It shows to everyone when there is something to report.
 An Admin always sees it, with **Run now**, which is turned off while a run is going.
 

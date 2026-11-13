@@ -106,8 +106,20 @@ export function panelProblems(
   return byPanel
 }
 
+function counted(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export function problemCountText(count: number): string {
-  return `${count} ${count === 1 ? "problem" : "problems"}`
+  return counted(count, "problem", "problems")
+}
+
+export function dashboardCountText(count: number): string {
+  return counted(count, "dashboard", "dashboards")
+}
+
+export function moreProblemsText(count: number): string {
+  return counted(count, "more problem", "more problems")
 }
 
 export function worstTone(problems: readonly HealthProblem[]): StatusTone {
@@ -152,8 +164,12 @@ export function groupProblems(
 export function healthCellText(
   item: HealthItem
 ): { group: ProblemGroup; more: number } | null {
-  const [group, ...rest] = groupProblems(item.problems)
-  return group === undefined ? null : { group, more: rest.length }
+  const [group] = groupProblems(item.problems)
+  if (group === undefined) return null
+  const more = dashboardProblems(item).filter(
+    (p) => p.kind !== group.kind || p.message !== group.message
+  ).length
+  return { group, more }
 }
 
 export function subjectNoun(group: ProblemGroup): string {
@@ -238,18 +254,17 @@ export type SummaryLabel = { tone: StatusTone; label: string }
 
 export function summaryLabels(summary: HealthSummary): SummaryLabel[] {
   const labels: [number, StatusTone, string][] = [
-    [summary.failing, "critical", `${summary.failing} failing`],
-    [summary.no_data, "warning", `${summary.no_data} without data`],
-    [summary.unopened, "none", `${summary.unopened} not opened in 90 days`],
-    [
-      summary.duplicate_titles,
-      "none",
-      `${summary.duplicate_titles} duplicate ${summary.duplicate_titles === 1 ? "title" : "titles"}`,
-    ],
+    [summary.failing, "critical", "failing"],
+    [summary.no_data, "warning", "without data"],
+    [summary.unopened, "none", "not opened in 90 days"],
+    [summary.duplicate_titles, "none", "with a duplicate title"],
   ]
   return labels
     .filter(([count]) => count > 0)
-    .map(([, tone, label]) => ({ tone, label }))
+    .map(([count, tone, state]) => ({
+      tone,
+      label: `${dashboardCountText(count)} ${state}`,
+    }))
 }
 
 const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {

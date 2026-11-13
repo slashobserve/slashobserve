@@ -93,7 +93,22 @@ describe("HealthCell", () => {
     })
     expect(trigger.textContent).toContain("Query fails")
     expect(trigger.textContent).toContain("Query fails·Orders")
-    expect(trigger.textContent).toContain("+1 more")
+    expect(trigger.textContent).toContain("+1 more problem")
+  })
+
+  test("counts every other problem in the visible text and the label", async () => {
+    provider.item = item({
+      problems: [
+        queryFailed,
+        noData,
+        { ...noData, panel_id: "3", panel_title: "Traffic" },
+      ],
+    })
+    renderCell()
+    const trigger = await screen.findByRole("button", {
+      name: "Health of Checkout: Query fails and 2 more problems",
+    })
+    expect(trigger.textContent).toContain("+2 more problems")
   })
 
   test("adds the repair status to the trigger and its label", async () => {

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   healthCellText,
   kindLabels,
+  moreProblemsText,
   repairAction,
   repairStatus,
   type HealthItem,
@@ -27,8 +28,7 @@ function ariaLabel(
   more: number,
   repair: string | undefined
 ): string {
-  const others =
-    more === 0 ? "" : ` and ${more} more ${more === 1 ? "problem" : "problems"}`
+  const others = more === 0 ? "" : ` and ${moreProblemsText(more)}`
   return `Health of ${title}: ${kind}${others}${repair === undefined ? "" : `, ${repair}`}`
 }
 
@@ -82,7 +82,7 @@ export function HealthCell({
         <span className="flex flex-wrap items-center gap-x-1.5">
           <KindSummary group={group} />
           {more === 0 ? null : (
-            <span className="text-muted-foreground">+{more} more</span>
+            <span className="text-muted-foreground">+{moreProblemsText(more)}</span>
           )}
         </span>
         {status === null ? null : (
