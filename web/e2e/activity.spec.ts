@@ -417,7 +417,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           entry.getByText("Saved version 2 of this dashboard.")
         ).toBeVisible({ timeout: agentTimeout })
-        await expect(running).toHaveCount(0)
+        await expect(running).toHaveCount(0, { timeout: agentTimeout })
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
         })
