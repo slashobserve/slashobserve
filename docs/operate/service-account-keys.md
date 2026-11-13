@@ -5,7 +5,7 @@ description: Create and revoke the keys that the CLI, MCP clients and scripts us
 
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
-1. Sign in to the web app as an Admin and choose **API keys** in the sidebar, or open `<public url>/keys` (the old `/settings/keys` address redirects).
+1. Sign in to the web app as an Admin and open `<public url>/keys`, which the **API keys** link on the Agents page also opens (the old `/settings/keys` address redirects).
 2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
 3. Choose **Create key** in the panel and copy the key.
    It is shown once, in that panel, with an `export OBSERVE_TOKEN=…` line to paste into your shell.

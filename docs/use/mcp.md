@@ -305,6 +305,7 @@ Each connected agent in the list has a `state`, always `active` there because th
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's there too.
+The [Agents page](agents.md) lists the same connections with their mode and presence, and its **Connect an agent** button shows the Claude Code command.
 
 Each client's setup:
 
@@ -436,7 +437,7 @@ If your Cursor version cannot expand variables there, put the key in the file on
 ## The /observe prompt
 
 The server offers one MCP prompt, `observe`, with an optional `ask`.
-It returns the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces and answer comments, and appends the `ask` as its last section.
+It returns the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces, answer comments, keep observations, review proposals and take assigned runs, and appends the `ask` as its last section.
 The prompt also takes an optional `kind`, `build` or `investigate`, that returns the system text SlashObserve's own agent works from for that kind of run, which an agent that claims runs reads before it starts one.
 Without `kind` it returns the general guide as before.
 Any key that can call `/mcp` can list and get it, and the text holds nothing secret.
@@ -445,22 +446,40 @@ To get the same guide as `/observe` in Claude Code and other agents that read Ag
 
 ## Take runs as an agent
 
-A connected agent, signed in over OAuth, can claim the runs assigned to it with `claim_run`.
-A service account can claim runs only after an Admin turns on `takes_runs`, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
-Nothing assigns runs to outside agents yet, so SlashObserve's own agent runs every run until assignment arrives.
+An outside agent can do the runs that people hand to it, with its own model and under the guards of SlashObserve's own agent.
+A run reaches it when a comment mentions it and starts a run: `@[Name](grant:<id>)` for a connected agent and `@[Name](service_account:<id>)` for a service account (see [Give an agent a run](agents.md#give-an-agent-a-run)).
+The run waits in the queue, assigned to that one agent, and only that agent can claim it.
+Only a mention assigns a run to an outside agent, and the built-in agent never takes one.
+
+Two kinds of credential can claim:
+
+- A connected agent, signed in over OAuth, claims the runs assigned to its own connection.
+  It works only for the person who connected it, and the run's writes carry that connection's `direct` or `propose` mode.
+- A service account claims the runs assigned to it with its key, after an Admin turns on `takes_runs`, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
+  Its runs always use the direct mode.
+  Without `takes_runs`, `claim_run` answers `not_a_worker`.
+
+The claim tools are `claim_run`, `report_run`, `finish_run` and `get_run_brief`; MCP lists them like any other tool.
+Connect as in [Connect your own agent](#connect-your-own-agent) or [Keys for bots](#keys-for-bots), and poll with `claim_run` while the agent is idle.
+An agent that polls shows as `listening` on the [Agents page](agents.md), and as `working` while it holds a run.
 
 The loop of an agent that takes runs:
 
-1. Call `claim_run`, which waits up to `wait_seconds` (30 by default) and answers `run: null` when nothing is waiting.
+1. Call `claim_run`, which waits up to `wait_seconds` (0 to 30, 30 by default) and answers `run: null` when nothing is waiting.
    Call it again.
-2. A claimed run holds its `id`, `attempt`, `kind`, `prompt` and target, a `session` with a `url` and a `token`, and the `observe` prompt to read with the run's `kind`.
+   An agent may keep 2 waiting `claim_run` calls at a time; past that, and when `wait_seconds` is 0, the answer is `run: null` with `retry_after_seconds` of 5, so wait that long before the next call.
+2. A claimed run holds its `id`, `attempt`, `kind` (`build` or `investigate`), its `source` (`observe`, `prompt`, `comment`, `suggest` or `investigate`), its `prompt`, its target (`dashboard_id`, `base_version`, `panel_id`, `from` and `to`, null when the run has none), `continue_note`, and `requested_by`, the person it acts for.
+   The answer also has `lease_seconds` (60), a `session` with a `url`, a `token` (starting `sot_`) and `expires_at`, and `system_prompt`, the `observe` prompt to read with the run's `kind`.
    When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
    The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
 5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
+   `note`, one line of at most 500 characters, shows in the run's steps.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
+
+A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none of the claim tools.
 It acts for the person who asked and records every call in the run's steps.
@@ -469,7 +488,7 @@ Its prompt list is empty, because the `observe` prompt is read on the first conn
 The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
 A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
-A run that no agent held for 10 minutes fails as `agent_unavailable`.
+A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
 ### The run session enforces the guards
 
@@ -520,9 +539,12 @@ The answer has `restarted`, true when the commit found a newer version and the r
 A `failure_code` with another outcome, a code outside the list, or `commit` with `outcome` `failed` answers `invalid_request`.
 
 The `usage` of `finish_run` is shown on the run as the agent reports it.
+
+### Presence and modes
+
 A connected agent or service account shows its presence, `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise, with `last_seen_at`; see [Agent presence](../reference/states.md#agent-presence).
 A connection's `mode` is `direct` by default.
-Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`; it applies from the agent's next request, and no key or agent can change it.
+Its person can switch it to `propose` with `PATCH /api/v1/me/grants/{id}` and the body `{"mode": "propose"}`, and back with `direct`, or with the **Mode** menu on the [Agents page](agents.md#direct-and-propose-mode); it applies from the agent's next request, and no key or agent can change it.
 In propose mode `update_dashboard` and `update_panels` save a proposal and answer `proposed` even when the person is an Editor, `merge_proposal` answers `propose_mode`, and `discard_proposal` works only on a proposal the agent itself opened.
 A save that removes panels or variables answers `proposal_required` and names them, so the agent asks its person to remove them; the same holds when a run ends with `finish` on a build that removed any, and when `finish_run` with `commit` saves such a build, which stays so the agent can put the panels back and finish again.
 `create_dashboard` is not changed by the mode.

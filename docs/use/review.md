@@ -171,3 +171,5 @@ If someone saved a newer version while the dialog was open, it says "Version M w
 - [Chat and follow-ups](chat.md) for what the agent does with a request.
 - [Edit a panel](edit-panel.md) to fix a panel by hand, which also saves a version.
 - [MCP](mcp.md) for agents that read and resolve comments from outside.
+- [Agents](agents.md) for handing a comment to a connected agent and choosing whether it saves or proposes.
+- [Proposals](../concepts/proposals.md) for a change that waits for someone to merge it.

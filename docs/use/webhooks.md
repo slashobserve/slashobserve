@@ -43,7 +43,7 @@ Admins see a Webhooks section in Settings; nobody else does.
 
 1. Open Settings, then Webhooks.
 2. Under Add a webhook, enter a name, the https address and the events to send.
-   The events are grouped as Dashboards, Annotations, Findings, Saved searches, Comment threads and Agent runs, and a group's box chooses all of its events.
+   The events are grouped as Dashboards, Annotations, Findings, Saved searches, Observations, Proposals, Comment threads and Agent runs, and a group's box chooses all of its events.
 3. Select Add webhook.
    If the address's domain is not on the outbound allowlist, the form says so and links to the Outbound access section, where an Admin can allow it.
 4. Copy the signing secret that appears, then select I have copied it.

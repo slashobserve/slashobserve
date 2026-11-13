@@ -3,7 +3,7 @@ title: Chat and follow-ups
 description: How a prompt becomes a dashboard, how to watch the build beside the chat, how to read each turn, and how to find, rename, pin and delete your chats.
 ---
 
-The chat on the **Observe** page turns a sentence into a saved dashboard.
+The chat on the Ask page, at `/ask`, turns a sentence into a saved dashboard.
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
