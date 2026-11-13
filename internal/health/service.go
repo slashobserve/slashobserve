@@ -58,6 +58,10 @@ type ListParams struct {
 	Limit        int
 }
 
+func (p ListParams) ListsEveryRequested() bool {
+	return len(p.DashboardIDs) > 0 && p.Kind == ""
+}
+
 type Item struct {
 	ID, Title, URL string
 	Folder         folders.Folder
@@ -125,6 +129,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 		Folders:        visible,
 		Folder:         p.FolderID,
 		DashboardIds:   p.DashboardIDs,
+		EveryRequested: p.ListsEveryRequested(),
 		Kind:           kind,
 		UnopenedBefore: before,
 		RepairPrefix:   repairprompt.Prefix,

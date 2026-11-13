@@ -117,7 +117,8 @@ While you have unsaved moves, the actions that would change the dashboard in ano
 ## Health on a dashboard
 
 When the last health check found a problem in the dashboard, its header has a button that counts the problems, such as **2 problems**.
-Choose it to open a popover with every problem, when and on which version the dashboard was checked, and **Repair**.
+A dashboard that was checked and has no problem shows a quiet **Healthy** button instead, whose popover says "No problems found" and when and on which version it was checked.
+Choose the problem button to open a popover with every problem, when and on which version the dashboard was checked, and **Repair**.
 The popover says "before the latest version" when the dashboard has been saved since the check.
 **Not opened in 90 days** is never listed here, because you just opened the dashboard.
 

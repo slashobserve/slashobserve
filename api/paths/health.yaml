@@ -4,7 +4,7 @@ health:
     x-surfaces:
       mcp: [list_dashboard_health]
       cli: [observe health]
-    summary: List dashboards with health problems.
+    summary: List dashboards with health problems, or the health of given dashboards.
     description: >-
       Anyone with a role can call this endpoint.
       It lists every dashboard, in folders the caller can see, with at least one problem.
@@ -17,7 +17,8 @@ health:
       The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null.
       Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one.
       `job` is the state of the health job.
-      With `dashboard_id`, only those dashboards are listed, still only when they have a problem, and `summary` is null on every page.
+      With `dashboard_id`, only those dashboards are listed, each one the caller can see whether or not it has a problem: a checked dashboard with no problem comes back with empty `problems`, and one never checked has `state` `unchecked` with null `checked_at` and `checked_version`; `kind` still narrows the list to dashboards with a problem of that kind.
+      `summary` is null on every page when `dashboard_id` is given.
     parameters:
       - name: folder_id
         in: query
@@ -28,7 +29,7 @@ health:
       - name: dashboard_id
         in: query
         description: >-
-          Only these dashboards, repeated up to 50 times; more than 50 values, or a value that is not a UUID, answers 400 `invalid_request`, and a repeated id counts once.
+          Only these dashboards, repeated up to 50 times, including those without a problem; more than 50 values, or a value that is not a UUID, answers 400 `invalid_request`, and a repeated id counts once.
           An id that does not exist, or is in a folder the caller cannot see, is absent from the answer and never an error.
         style: form
         explode: true
@@ -56,7 +57,7 @@ health:
           type: string
     responses:
       "200":
-        description: One page of dashboards with problems.
+        description: One page of dashboards with problems, or of the requested dashboards.
         content:
           application/json:
             schema:

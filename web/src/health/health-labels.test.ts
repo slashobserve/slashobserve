@@ -7,6 +7,7 @@ import {
   groupProblems,
   healthCellText,
   healthRedirectSearch,
+  isHealthy,
   isProblemFilter,
   lastRunProblem,
   moreProblemsText,
@@ -736,5 +737,70 @@ describe("repairLabel", () => {
     ],
   ])("labels %o as %j", (problems, want) => {
     expect(repairLabel(problems)).toBe(want)
+  })
+})
+
+describe("isHealthy", () => {
+  const repair = (outcome: string, version: number | null = null) =>
+    ({
+      request_id: "r1",
+      state: outcome,
+      outcome,
+      version,
+      error: null,
+      updated_at: "2026-11-06T10:00:00Z",
+    }) as unknown as HealthItem["repair"]
+
+  test.each([
+    ["checked with no problems", item({}), true],
+    [
+      "checked with only an unopened problem",
+      item({ problems: [problem({ kind: "unopened" })] }),
+      true,
+    ],
+    [
+      "checked before the latest version",
+      item({ state: "outdated" } as Partial<HealthItem>),
+      true,
+    ],
+    ["never checked", item({ checked_at: null, checked_version: null }), false],
+    ["skipped", item({ skipped: "depends_on_viewer" }), false],
+    [
+      "a failing query",
+      item({ problems: [problem({ kind: "query_failed", panel_id: "1" })] }),
+      false,
+    ],
+    [
+      "a duplicate title",
+      item({ problems: [problem({ kind: "duplicate_title" })] }),
+      false,
+    ],
+    ["a queued repair", item({ repair: repair("queued") }), false],
+    ["a running repair", item({ repair: repair("running") }), false],
+    [
+      "a failed repair and a clean check",
+      item({ repair: repair("failed") }),
+      true,
+    ],
+    [
+      "a repaired dashboard with a clean check",
+      item({ repair: repair("repaired", 5) }),
+      true,
+    ],
+    [
+      "a repair that is still failing and a clean check",
+      item({ repair: repair("still_failing", 5) }),
+      true,
+    ],
+    [
+      "a failed repair and a failing query",
+      item({
+        problems: [problem({ kind: "query_failed", panel_id: "1" })],
+        repair: repair("failed"),
+      }),
+      false,
+    ],
+  ])("for %s is %j", (_name, got, want) => {
+    expect(isHealthy(got)).toBe(want)
   })
 })

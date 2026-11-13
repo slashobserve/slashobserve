@@ -33,8 +33,8 @@ FROM (
   WHERE s.folder_id = ANY(@folders::uuid[])
     AND (sqlc.narg('folder')::uuid IS NULL OR s.folder_id = sqlc.narg('folder')::uuid)
     AND (coalesce(cardinality(@dashboard_ids::uuid[]), 0) = 0 OR s.id = ANY(@dashboard_ids::uuid[]))
-    AND health_problem_matches(@kind::text, s.query_failed, s.no_data, s.variable_failed, s.duplicate_title,
-      s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+    AND (@every_requested::boolean OR health_problem_matches(@kind::text, s.query_failed, s.no_data, s.variable_failed,
+      s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz))
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (

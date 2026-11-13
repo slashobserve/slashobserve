@@ -10,6 +10,8 @@ import {
 
 import {
   dashboardProblems,
+  healthyLabel,
+  isHealthy,
   problemCountText,
   repairAction,
   repairLabel,
@@ -37,6 +39,25 @@ function CheckLine({ item }: { item: HealthItem }) {
   )
 }
 
+function HealthyButton({ item }: { item: HealthItem }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={<Button variant="ghost" size="sm" aria-haspopup="dialog" />}
+      >
+        <StatusLabel tone="ok">{healthyLabel}</StatusLabel>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80">
+        <PopoverTitle>Health</PopoverTitle>
+        <p>No problems found</p>
+        <p className="text-xs text-muted-foreground">
+          <CheckLine item={item} />
+        </p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function DashboardHealthButton({
   dashboardId,
   blockedReason,
@@ -47,6 +68,7 @@ export function DashboardHealthButton({
   const { item, agentAvailable, repair, pending } =
     useDashboardHealth(dashboardId)
   if (item === null) return null
+  if (isHealthy(item)) return <HealthyButton item={item} />
   const problems = dashboardProblems(item)
   if (problems.length === 0 && item.repair === null) return null
   const status = repairStatus(repairAction(item, agentAvailable))

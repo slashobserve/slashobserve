@@ -72,9 +72,77 @@ beforeEach(() => {
 })
 
 describe("HealthCell", () => {
-  test("renders nothing for a dashboard with no known problem", async () => {
+  test("renders nothing for a dashboard without a health record", async () => {
     renderCell()
     expect((await screen.findByTestId("cell")).textContent).toBe("")
+  })
+
+  test("shows a Healthy badge for a checked dashboard with no problem", async () => {
+    provider.item = item({ problems: [] })
+    renderCell()
+    const trigger = await screen.findByRole("button", {
+      name: "Health of Checkout: Healthy",
+    })
+    expect(trigger.textContent).toBe("Healthy")
+    expect(trigger.querySelector("[data-status=ok]")).not.toBeNull()
+  })
+
+  test("opens the healthy popover with when and on which version it was checked", async () => {
+    provider.item = item({ problems: [] })
+    const { user } = renderCell()
+    await user.click(
+      await screen.findByRole("button", { name: "Health of Checkout: Healthy" })
+    )
+    const popover = await screen.findByRole("dialog")
+    expect(popover.textContent).toContain("No problems found")
+    expect(popover.textContent).toContain("Checked")
+    expect(popover.textContent).toContain("on version 4")
+    expect(screen.queryByRole("button", { name: "Repair" })).toBeNull()
+  })
+
+  test.each([
+    ["never checked", { checked_at: null, checked_version: null }],
+    ["skipped", { skipped: "depends_on_viewer" }],
+    [
+      "queued for repair",
+      {
+        repair: {
+          request_id: "0a1b2c3d-0000-4000-8000-0000000000a1",
+          state: "queued",
+          outcome: "queued",
+          version: null,
+          error: null,
+          updated_at: "2026-11-06T10:00:00Z",
+        },
+      },
+    ],
+  ] as [string, Partial<HealthItem>][])(
+    "does not read Healthy when %s",
+    async (_name, fields) => {
+      provider.item = item({ problems: [], ...fields })
+      renderCell()
+      expect((await screen.findByTestId("cell")).textContent).toBe("")
+    }
+  )
+
+  test("keeps Not opened in 90 days for a dashboard with only that problem", async () => {
+    provider.item = item({
+      problems: [
+        {
+          kind: "unopened",
+          panel_id: null,
+          panel_title: null,
+          variable: null,
+          code: null,
+          message: null,
+        },
+      ],
+    })
+    renderCell()
+    const trigger = await screen.findByRole("button", {
+      name: "Health of Checkout: Not opened in 90 days",
+    })
+    expect(trigger.textContent).not.toContain("Healthy")
   })
 
   test("shows a skeleton while the page's health loads", async () => {

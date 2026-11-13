@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   healthCellText,
+  healthyLabel,
+  isHealthy,
   kindLabels,
   moreProblemsText,
   repairAction,
@@ -46,6 +48,33 @@ function CheckLine({ item }: { item: HealthItem }) {
   )
 }
 
+function HealthyCell({ item, title }: { item: HealthItem; title: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-haspopup="dialog"
+            aria-label={`Health of ${title}: ${healthyLabel}`}
+            className="-ml-2 h-auto max-w-full py-1 text-left font-normal whitespace-normal"
+          />
+        }
+      >
+        <StatusLabel tone="ok">{healthyLabel}</StatusLabel>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80">
+        <PopoverTitle>Health</PopoverTitle>
+        <p>No problems found</p>
+        <p className="text-xs text-muted-foreground">
+          <CheckLine item={item} />
+        </p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function HealthCell({
   dashboardId,
   title,
@@ -58,7 +87,9 @@ export function HealthCell({
   if (pending) return <Skeleton className="h-4 w-20" />
   if (item === null) return null
   const cell = healthCellText(item)
-  if (cell === null) return null
+  if (cell === null) {
+    return isHealthy(item) ? <HealthyCell item={item} title={title} /> : null
+  }
   const { group, more } = cell
   const status = repairStatus(repairAction(item, agentAvailable))
   return (
@@ -82,7 +113,9 @@ export function HealthCell({
         <span className="flex flex-wrap items-center gap-x-1.5">
           <KindSummary group={group} />
           {more === 0 ? null : (
-            <span className="text-muted-foreground">+{moreProblemsText(more)}</span>
+            <span className="text-muted-foreground">
+              +{moreProblemsText(more)}
+            </span>
           )}
         </span>
         {status === null ? null : (

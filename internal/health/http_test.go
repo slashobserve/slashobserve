@@ -189,7 +189,9 @@ func TestHTTPListCarriesTheSummaryOnlyOnTheFirstPageAndNullRepairs(t *testing.T)
 
 type idsBody struct {
 	Dashboards []struct {
-		ID string `json:"id"`
+		ID       string          `json:"id"`
+		State    string          `json:"state"`
+		Problems json.RawMessage `json:"problems"`
 	} `json:"dashboards"`
 	Summary json.RawMessage `json:"summary"`
 }
@@ -222,10 +224,25 @@ func TestHTTPListWithDashboardIDs(t *testing.T) {
 		got = append(got, d.ID)
 	}
 	slices.Sort(got)
-	want := []string{empty.String(), failing.String()}
+	want := []string{empty.String(), failing.String(), healthy.String()}
 	slices.Sort(want)
 	if status != http.StatusOK || !slices.Equal(got, want) || string(body.Summary) != "null" {
-		t.Errorf("status %d, dashboards %v, summary %s; want the two visible dashboards with a problem and a null summary", status, got, body.Summary)
+		t.Errorf("status %d, dashboards %v, summary %s; want the three visible dashboards, the healthy one included, and a null summary", status, got, body.Summary)
+	}
+
+	status, body = get(r.editor, idsQuery(healthy.String()))
+	if status != http.StatusOK || len(body.Dashboards) != 1 || string(body.Dashboards[0].Problems) != "[]" || body.Dashboards[0].State != "healthy" {
+		t.Errorf("a healthy dashboard: status %d, %+v", status, body.Dashboards)
+	}
+
+	status, body = get(r.editor, idsQuery(failing.String(), healthy.String())+"kind=query_failed")
+	if status != http.StatusOK || len(body.Dashboards) != 1 || body.Dashboards[0].ID != failing.String() {
+		t.Errorf("dashboard_id with kind: status %d, %+v", status, body.Dashboards)
+	}
+
+	status, body = get(r.editor, "/health")
+	if status != http.StatusOK || len(body.Dashboards) != 2 {
+		t.Errorf("no dashboard_id: status %d, %d dashboards, want the 2 with a problem", status, len(body.Dashboards))
 	}
 
 	status, body = get(r.editor, idsQuery(empty.String(), empty.String()))

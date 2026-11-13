@@ -172,6 +172,17 @@ export function healthCellText(
   return { group, more }
 }
 
+export const healthyLabel = "Healthy"
+
+export function isHealthy(item: HealthItem): boolean {
+  return (
+    item.checked_at !== null &&
+    item.skipped === null &&
+    dashboardProblems(item).length === 0 &&
+    !repairActive(item)
+  )
+}
+
 export function subjectNoun(group: ProblemGroup): string {
   return group.kind === "variable_failed" ? "variables" : "panels"
 }

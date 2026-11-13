@@ -146,6 +146,35 @@ func TestHealthPageCutsTheProblemsOfOneDashboardThatDoesNotFit(t *testing.T) {
 	}
 }
 
+func TestHealthDescriptionSaysDashboardIDAnswersHealthyDashboards(t *testing.T) {
+	for _, want := range []string{"dashboard_id reads one dashboard whether or not it has a problem", "empty problems", "unchecked"} {
+		if !strings.Contains(descListDashboardHealth, want) {
+			t.Errorf("description does not say %q", want)
+		}
+	}
+	if !strings.Contains(schemaListDashboardHealth, "answered even when it has no problem") {
+		t.Error("the dashboard_id schema does not say a healthy dashboard is answered")
+	}
+}
+
+func TestListedHealthCallsDashboardsUnhealthyOnlyWhenTheListFiltersToProblems(t *testing.T) {
+	id := []pgtype.UUID{{Valid: true}}
+	cases := []struct {
+		name string
+		p    health.ListParams
+		want string
+	}{
+		{"no filter", health.ListParams{}, "2 unhealthy dashboards"},
+		{"a dashboard id", health.ListParams{DashboardIDs: id}, "2 dashboards"},
+		{"a dashboard id and a kind", health.ListParams{DashboardIDs: id, Kind: health.KindNoData}, "2 unhealthy dashboards"},
+	}
+	for _, c := range cases {
+		if got := listedHealth(2, c.p); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
 func TestHealthDescriptionNamesTheRanking(t *testing.T) {
 	for _, want := range []string{"Failing queries or variables come first, then no data, duplicate titles and unopened dashboards", "the most recently opened first", "summary", "latest repair"} {
 		if !strings.Contains(descListDashboardHealth, want) {

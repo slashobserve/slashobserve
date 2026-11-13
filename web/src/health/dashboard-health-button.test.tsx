@@ -88,18 +88,69 @@ function renderButton(blockedReason: string | null = null) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("DashboardHealthButton", () => {
-  test("renders nothing for a dashboard the check found no problem in", async () => {
+  test("renders nothing for a dashboard without a health record", async () => {
     serve([])
     const { container, queryClient } = renderButton()
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
     expect(container.querySelector("button")).toBeNull()
   })
 
-  test("renders nothing for a dashboard whose only problem is unopened", async () => {
+  test.each([
+    ["never checked", { checked_at: null, checked_version: null }],
+    ["skipped", { skipped: "depends_on_viewer" }],
+  ] as [string, Partial<HealthItem>][])(
+    "renders nothing for a dashboard that was %s",
+    async (_name, fields) => {
+      serve([item({ problems: [], state: "unchecked", ...fields })])
+      const { container, queryClient } = renderButton()
+      await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+      expect(container.querySelector("button")).toBeNull()
+    }
+  )
+
+  test("shows a Healthy badge for a checked dashboard with no problem", async () => {
+    serve([item({ problems: [], state: "healthy" })])
+    renderButton()
+    const button = await screen.findByRole("button", { name: "Healthy" })
+    expect(button.querySelector("[data-status=ok]")).not.toBeNull()
+  })
+
+  test("shows Healthy for a dashboard whose only problem is unopened", async () => {
     serve([item({ problems: [unopened] })])
-    const { container, queryClient } = renderButton()
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
-    expect(container.querySelector("button")).toBeNull()
+    renderButton()
+    expect(await screen.findByRole("button", { name: "Healthy" })).toBeTruthy()
+  })
+
+  test("opens the healthy popover with when and on which version it was checked", async () => {
+    serve([item({ problems: [], state: "outdated" })])
+    const { user } = renderButton()
+    await user.click(await screen.findByRole("button", { name: "Healthy" }))
+    expect(await screen.findByText("No problems found")).toBeTruthy()
+    expect(
+      screen.getByText(/on version 4, before the latest version/)
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
+  })
+
+  test("reads a running repair, not Healthy", async () => {
+    serve([
+      item({
+        problems: [],
+        repair: {
+          state: "running",
+          outcome: "running",
+          request_id: "r1",
+          version: null,
+          error: null,
+          updated_at: "2026-11-06T10:05:00Z",
+        },
+      }),
+    ])
+    renderButton()
+    expect(
+      await screen.findByRole("button", { name: "Repairing" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Healthy" })).toBeNull()
   })
 
   test("renders nothing while loading or when the load fails", async () => {

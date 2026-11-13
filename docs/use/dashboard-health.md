@@ -10,7 +10,7 @@ It is the list to work through after [switching from Grafana](switch-from-grafan
 
 The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more problems" counting its other problems, and the state of its repair.
 Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
-A dashboard with no known problem has an empty cell.
+A dashboard that was checked and has no problem shows a **Healthy** badge, whose popover says "No problems found" and when and on which version it was checked.
 
 The **Problem** menu narrows the list to the dashboards with one kind of problem, or with any problem, and the address keeps the choice, as `?kind=<kind or any>&folder=<folder id>`.
 The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
@@ -67,7 +67,10 @@ It checks the dashboards that are due, as the hourly run does, and when a run is
 
 `GET /api/v1/health` lists the dashboards with a problem in folders the caller can see.
 It takes `folder_id`, `dashboard_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
-`dashboard_id` repeats up to 50 times and lists only those dashboards, still only the ones with a problem, with `summary` null on every page.
+`dashboard_id` repeats up to 50 times and lists only those dashboards that the caller can see, whether or not they have a problem: a checked dashboard with no problem comes back with empty `problems`, and one that was never checked has `state` `unchecked` with null `checked_at` and `checked_version`.
+With `kind` as well, the list keeps only the dashboards with a problem of that kind.
+`summary` is null on every page when `dashboard_id` is given.
+The web reads a dashboard's Healthy badge this way.
 `GET /api/v1/dashboards?problem=<kind or any>` narrows the dashboards list to the dashboards with that problem by the same rules, keeping its order, paging and `total_count`.
 
 The list is ranked, so the dashboards most worth fixing come first:
@@ -170,7 +173,7 @@ Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows t
 
 ## From MCP clients
 
-MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
+MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard, answered even when it has no problem, with empty `problems`), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
 The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).

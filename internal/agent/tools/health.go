@@ -22,12 +22,12 @@ const (
 	maxListHealth       = 50
 	maxProblemTextBytes = 500
 
-	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its state and its latest repair with its outcome. Fix failing panels with get_panels and update_panels. Page with next_cursor. dashboard_id reads one dashboard."
+	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its state and its latest repair with its outcome. Fix failing panels with get_panels and update_panels. Page with next_cursor. dashboard_id reads one dashboard whether or not it has a problem: a checked dashboard with no problem comes back with empty problems, one never checked has state unchecked, and kind still narrows it to dashboards with that kind of problem."
 )
 
 var schemaListDashboardHealth = `{"type":"object","properties":{` +
 	`"folder_id":{"type":"string","format":"uuid","description":"Only dashboards in this folder, from list_folders."},` +
-	`"dashboard_id":{"type":"string","format":"uuid","description":"Only this dashboard, from list_dashboards or a dashboard URL."},` +
+	`"dashboard_id":{"type":"string","format":"uuid","description":"Only this dashboard, from list_dashboards or a dashboard URL; answered even when it has no problem."},` +
 	`"kind":{"type":"string","enum":` + healthKindsJSON() + `,"description":"Only this kind of problem."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Dashboards per page. Default 20."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
@@ -138,10 +138,17 @@ func (r *Registry) listDashboardHealth(ctx context.Context, input json.RawMessag
 		}
 		out, smaller, retry := healthPage(page)
 		if !retry {
-			return success("Listed "+plural(len(out.Dashboards), "unhealthy dashboard", "unhealthy dashboards"), out), nil
+			return success("Listed "+listedHealth(len(out.Dashboards), params), out), nil
 		}
 		params.Limit = smaller
 	}
+}
+
+func listedHealth(n int, p health.ListParams) string {
+	if p.ListsEveryRequested() {
+		return plural(n, "dashboard", "dashboards")
+	}
+	return plural(n, "unhealthy dashboard", "unhealthy dashboards")
 }
 
 func healthParams(in listHealthInput) (health.ListParams, Result, bool) {
