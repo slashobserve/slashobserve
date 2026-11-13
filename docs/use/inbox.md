@@ -44,7 +44,8 @@ An item leaves the inbox when its reason stops being true, for example when the 
 A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
 A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
 A failed run opens its chat.
-A repaired item opens the versions compare of the version the repair saved.
+A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
+An item recorded before the title and panel count were stored reads "Your repair saved version N".
 
 ## Views
 

@@ -46,6 +46,13 @@ function textField(item: InboxItem, key: string): string | null {
   return typeof value === "string" && value !== "" ? value : null
 }
 
+function countField(item: InboxItem, key: string): number | null {
+  const value = field(item, key)
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : null
+}
+
 type ObjectRef = { kind: TargetKind; id: string }
 
 function objectRef(item: InboxItem): ObjectRef | null {
@@ -67,8 +74,29 @@ function fallbackVerb(type: string): string {
   return action.replace(/_/g, " ")
 }
 
+function repairedText(item: InboxItem): ItemText {
+  const title = textField(item, "dashboard_title")
+  const panels = countField(item, "panels_repaired")
+  if (title !== null && panels !== null) {
+    return {
+      actor: item.actor.label,
+      verb: `repaired ${panels} ${panels === 1 ? "panel" : "panels"} on`,
+      object: title,
+    }
+  }
+  const version = countField(item, "result_version")
+  return {
+    actor: "",
+    verb: "Your repair saved",
+    object: version === null ? "a version" : `version ${version}`,
+  }
+}
+
 export function itemText(item: InboxItem): ItemText {
   const actor = item.actor.label
+  if (item.type === "run.succeeded" && item.reason === "repaired") {
+    return repairedText(item)
+  }
   switch (item.type) {
     case "proposal.opened": {
       const title = textField(item, "title")
@@ -104,7 +132,10 @@ export function itemText(item: InboxItem): ItemText {
   }
 }
 
-export type ItemLink = { to: string; search?: { thread: string } }
+export type ItemLink = {
+  to: string
+  search?: { thread: string } | { from?: number; to: number }
+}
 
 function page(to: string): ItemLink {
   return { to }
@@ -131,7 +162,20 @@ function threadLink(item: InboxItem): ItemLink | null {
   }
 }
 
+function repairedLink(item: InboxItem): ItemLink | null {
+  if (item.dashboard_id === null) return null
+  const version = countField(item, "result_version")
+  if (version === null) return page(dashboardPath(item.dashboard_id))
+  return {
+    to: `${dashboardPath(item.dashboard_id)}/versions`,
+    search: version > 1 ? { from: version - 1, to: version } : { to: version },
+  }
+}
+
 export function itemLink(item: InboxItem): ItemLink | null {
+  if (item.type === "run.succeeded" && item.reason === "repaired") {
+    return repairedLink(item)
+  }
   const { kind, id } = item.target
   switch (kind) {
     case "proposal":
