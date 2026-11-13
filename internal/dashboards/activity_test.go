@@ -256,7 +256,7 @@ func TestAMoveRewritesTheFolderOfEarlierActivityAndAppendsOneRow(t *testing.T) {
 	}
 	target := r.newFolder(t, "Payments")
 
-	if _, _, err := r.service.move(origin.With(t.Context(), origin.Origin{Kind: origin.Web}), testUser, id, target); err != nil {
+	if _, _, err := r.service.Move(origin.With(t.Context(), origin.Origin{Kind: origin.Web}), testUser, id, target); err != nil {
 		t.Fatal(err)
 	}
 
@@ -332,7 +332,7 @@ func TestAConcurrentAppendFollowsAMove(t *testing.T) {
 
 	moveDone := make(chan error, 1)
 	go func() {
-		_, _, err := r.service.move(context.WithoutCancel(t.Context()), testUser, id, target)
+		_, _, err := r.service.Move(context.WithoutCancel(t.Context()), testUser, id, target)
 		moveDone <- err
 	}()
 	r.waitForLockWaiter(t)

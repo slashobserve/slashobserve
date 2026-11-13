@@ -439,7 +439,7 @@ func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, erro
 	return tags, nil
 }
 
-func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
+func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
 	source, err := s.need(ctx, by, id, folders.NeedEdit)
 	if err != nil {
 		return Dashboard{}, Version{}, err
