@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
+import { EllipsisIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { RelativeTime } from "@/components/relative-time"
@@ -17,6 +17,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 import { grafanaProblemText } from "./connection-problems"
 import {
@@ -95,7 +101,12 @@ export function ConnectionsCard({ connections, onImport }: Props) {
 
   return (
     <>
-      <TableCard label="Grafana connections" minWidth={820} className="mb-4">
+      <TableCard
+        label="Grafana connections"
+        minWidth={760}
+        stackOnNarrow
+        className="rounded-none border-0 border-t bg-transparent"
+      >
         <thead>
           <tr>
             <HeaderCell>Name</HeaderCell>
@@ -124,11 +135,12 @@ export function ConnectionsCard({ connections, onImport }: Props) {
                 <Cell>
                   <LastImport connection={connection} />
                 </Cell>
-                <Cell>
+                <Cell data-cell="action">
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="narrow:h-11"
                       disabled={testing}
                       focusableWhenDisabled
                       aria-busy={testing}
@@ -146,27 +158,43 @@ export function ConnectionsCard({ connections, onImport }: Props) {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="narrow:h-11"
                       aria-label={`Import from ${connection.name}`}
                       onClick={() => onImport(connection)}
                     >
                       Import
                     </Button>
-                    <Button
-                      ref={(button) => {
-                        if (button === null)
-                          deleteButtons.current.delete(connection.id)
-                        else deleteButtons.current.set(connection.id, button)
-                      }}
-                      variant="outline"
-                      size="sm"
-                      aria-label={`Delete ${connection.name}`}
-                      onClick={() => {
-                        deleteTarget.current = connection.id
-                        setDeleting(connection)
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            ref={(button) => {
+                              if (button === null)
+                                deleteButtons.current.delete(connection.id)
+                              else
+                                deleteButtons.current.set(connection.id, button)
+                            }}
+                            variant="outline"
+                            size="icon-sm"
+                            className="narrow:size-11"
+                            aria-label={`More for ${connection.name}`}
+                          />
+                        }
+                      >
+                        <EllipsisIcon aria-hidden="true" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            deleteTarget.current = connection.id
+                            setDeleting(connection)
+                          }}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </Cell>
               </tr>

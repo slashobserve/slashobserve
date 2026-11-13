@@ -5,6 +5,8 @@ import {
   eventTypeGroups,
   eventTypeLabels,
   eventTypeSummary,
+  groupCountText,
+  openGroupPrefixes,
   toggleEventType,
   toggleGroup,
 } from "./event-types"
@@ -100,5 +102,35 @@ describe("eventTypeSummary", () => {
 
   test("says all events when every type is chosen", () => {
     expect(eventTypeSummary(allEventTypes)).toBe("All events")
+  })
+})
+
+describe("groupCountText", () => {
+  const runs = eventTypeGroups.find((group) => group.prefix === "run")!
+  const dashboards = eventTypeGroups.find(
+    (group) => group.prefix === "dashboard"
+  )!
+
+  test("counts none, some and all of a group's events", () => {
+    expect(groupCountText([], runs)).toBe("0 of 8")
+    expect(groupCountText(["run.failed", "run.started"], runs)).toBe("2 of 8")
+    expect(groupCountText(runs.types, runs)).toBe("8 of 8")
+  })
+
+  test("ignores events of other groups", () => {
+    expect(groupCountText(["run.failed"], dashboards)).toBe("0 of 5")
+  })
+})
+
+describe("openGroupPrefixes", () => {
+  test("opens no group when nothing is chosen", () => {
+    expect(openGroupPrefixes([])).toEqual([])
+  })
+
+  test("opens each group with a chosen event, in catalog order", () => {
+    expect(openGroupPrefixes(["run.failed", "dashboard.created"])).toEqual([
+      "dashboard",
+      "run",
+    ])
   })
 })

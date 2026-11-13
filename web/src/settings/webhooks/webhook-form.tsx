@@ -1,16 +1,19 @@
-import { useId, useRef, useState, type FormEvent } from "react"
+import { useId, useState, type FormEvent, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
-import { LoaderCircleIcon } from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 
 import {
   eventTypeGroups,
   eventTypeLabels,
+  groupCountText,
+  openGroupPrefixes,
   toggleEventType,
   toggleGroup,
   type ActivityType,
@@ -25,12 +28,11 @@ import {
 } from "./webhook-problems"
 
 type Props = {
+  formId: string
   initial?: WebhookInput
-  submitLabel: string
-  pending: boolean
   serverError: unknown
-  onSubmit: (input: WebhookInput) => Promise<boolean>
-  onCancel?: () => void
+  onSubmit: (input: WebhookInput) => void
+  firstInputRef: RefObject<HTMLInputElement | null>
 }
 
 const empty: WebhookInput = { name: "", url: "", events: [] }
@@ -44,7 +46,11 @@ function ServerProblem({ error }: { error: unknown }) {
           it. An Admin can allow it in the{" "}
           <Link
             to="/settings"
-            search={true}
+            search={(prev) => ({
+              ...prev,
+              panel: undefined,
+              webhook: undefined,
+            })}
             hash="outbound-access"
             className="underline underline-offset-3"
           >
@@ -63,32 +69,38 @@ function ServerProblem({ error }: { error: unknown }) {
 }
 
 export function WebhookForm({
+  formId,
   initial = empty,
-  submitLabel,
-  pending,
   serverError,
   onSubmit,
-  onCancel,
+  firstInputRef,
 }: Props) {
   const baseId = useId()
   const [values, setValues] = useState(initial)
   const [problems, setProblems] = useState<WebhookProblems>({})
-  const firstInput = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(
+    () => new Set(openGroupPrefixes(initial.events))
+  )
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault()
-    if (pending) return
     const found = webhookProblems(values)
     setProblems(found)
     if (Object.keys(found).length > 0) return
-    if (await onSubmit(trimWebhook(values))) {
-      setValues(initial)
-      firstInput.current?.focus()
-    }
+    onSubmit(trimWebhook(values))
   }
 
   function change(next: Partial<WebhookInput>) {
     setValues((current) => ({ ...current, ...next }))
+  }
+
+  function toggleOpen(prefix: string) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (next.has(prefix)) next.delete(prefix)
+      else next.add(prefix)
+      return next
+    })
   }
 
   const nameId = `${baseId}-name`
@@ -97,17 +109,19 @@ export function WebhookForm({
 
   return (
     <form
+      id={formId}
       noValidate
-      onSubmit={(event) => void submit(event)}
-      className="flex flex-col gap-3 px-4 py-3"
+      onSubmit={submit}
+      className="flex flex-col gap-4"
     >
-      <div className="flex flex-col gap-1">
-        <Label htmlFor={nameId} className="text-[13px]">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={nameId} className="text-[13px] font-medium">
           Name
         </Label>
         <Input
           id={nameId}
-          ref={firstInput}
+          ref={firstInputRef}
+          className="narrow:h-11"
           autoComplete="off"
           placeholder="Failed runs"
           value={values.name}
@@ -123,8 +137,8 @@ export function WebhookForm({
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor={urlId} className="text-[13px]">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={urlId} className="text-[13px] font-medium">
           Address
         </Label>
         <Input
@@ -132,7 +146,7 @@ export function WebhookForm({
           autoComplete="off"
           spellCheck={false}
           placeholder="https://hooks.example.com/slashobserve"
-          className="font-mono"
+          className="font-mono narrow:h-11"
           value={values.url}
           aria-invalid={problems.url !== undefined}
           aria-describedby={
@@ -150,78 +164,97 @@ export function WebhookForm({
         aria-describedby={
           problems.events === undefined ? undefined : `${eventsId}-error`
         }
-        className="flex flex-col gap-2"
+        className="flex flex-col"
       >
-        <legend className="mb-1 text-[13px] font-medium">Events to send</legend>
-        {eventTypeGroups.map((group) => {
-          const chosen = group.types.filter((type) =>
-            values.events.includes(type)
-          )
-          const all = chosen.length === group.types.length
-          return (
-            <div key={group.prefix} className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={`${baseId}-group-${group.prefix}`}
-                  checked={all}
-                  indeterminate={chosen.length > 0 && !all}
-                  onCheckedChange={(on) =>
-                    change({ events: toggleGroup(values.events, group, on) })
-                  }
-                />
-                <Label
-                  htmlFor={`${baseId}-group-${group.prefix}`}
-                  className="text-[13px] font-medium"
-                >
-                  {group.label}
-                </Label>
-              </div>
-              <div className="ml-6 flex flex-wrap gap-x-5 gap-y-1.5">
-                {group.types.map((type: ActivityType) => (
-                  <div key={type} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`${baseId}-${type}`}
-                      checked={values.events.includes(type)}
-                      onCheckedChange={(on) =>
-                        change({
-                          events: toggleEventType(values.events, type, on),
-                        })
-                      }
+        <legend className="mb-1.5 text-[13px] font-medium">
+          Events to send
+        </legend>
+        <div className="flex flex-col divide-y rounded-control border">
+          {eventTypeGroups.map((group) => {
+            const chosen = group.types.filter((type) =>
+              values.events.includes(type)
+            )
+            const all = chosen.length === group.types.length
+            const expanded = open.has(group.prefix)
+            const listId = `${baseId}-list-${group.prefix}`
+            return (
+              <div key={group.prefix}>
+                <div className="flex min-h-9 items-center gap-2 px-2.5 narrow:min-h-11">
+                  <Checkbox
+                    id={`${baseId}-group-${group.prefix}`}
+                    checked={all}
+                    indeterminate={chosen.length > 0 && !all}
+                    onCheckedChange={(on) =>
+                      change({ events: toggleGroup(values.events, group, on) })
+                    }
+                  />
+                  <Label
+                    htmlFor={`${baseId}-group-${group.prefix}`}
+                    className="text-[13px] font-medium"
+                  >
+                    {group.label}
+                  </Label>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {groupCountText(values.events, group)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="narrow:size-11"
+                    aria-expanded={expanded}
+                    aria-controls={listId}
+                    aria-label={`Show ${group.label} events`}
+                    onClick={() => toggleOpen(group.prefix)}
+                  >
+                    <ChevronDownIcon
+                      aria-hidden="true"
+                      className={cn(expanded && "rotate-180")}
                     />
-                    <Label
-                      htmlFor={`${baseId}-${type}`}
-                      className="text-[13px]"
-                    >
-                      {eventTypeLabels[type]}
-                    </Label>
+                  </Button>
+                </div>
+                {expanded ? (
+                  <div
+                    id={listId}
+                    className="flex flex-col pr-2.5 pb-2 pl-[34px]"
+                  >
+                    {group.types.map((type: ActivityType) => (
+                      <div
+                        key={type}
+                        className="flex min-h-7 items-center gap-2 narrow:min-h-11"
+                      >
+                        <Checkbox
+                          id={`${baseId}-${type}`}
+                          checked={values.events.includes(type)}
+                          onCheckedChange={(on) =>
+                            change({
+                              events: toggleEventType(values.events, type, on),
+                            })
+                          }
+                        />
+                        <Label
+                          htmlFor={`${baseId}-${type}`}
+                          className="text-[13px]"
+                        >
+                          {eventTypeLabels[type]}
+                        </Label>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : null}
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
         {problems.events === undefined ? null : (
-          <p id={`${eventsId}-error`} className="text-xs text-destructive">
+          <p
+            id={`${eventsId}-error`}
+            className="mt-1.5 text-xs text-destructive"
+          >
             {problems.events}
           </p>
         )}
       </fieldset>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={pending} aria-busy={pending}>
-          {pending ? (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              className="motion-safe:animate-spin"
-            />
-          ) : null}
-          {submitLabel}
-        </Button>
-        {onCancel === undefined ? null : (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
       {serverError === null || serverError === undefined ? null : (
         <ServerProblem error={serverError} />
       )}

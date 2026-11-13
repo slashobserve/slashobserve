@@ -5,14 +5,22 @@ import { renderWithProviders } from "@/test/render"
 
 import { ConnectionForm } from "./connection-form"
 
+const formId = "add-connection"
+
 function renderForm(serverError: string | null = null) {
-  const onSubmit = vi.fn(() => Promise.resolve(true))
+  const onSubmit = vi.fn()
   const result = renderWithProviders(
-    <ConnectionForm
-      pending={false}
-      serverError={serverError}
-      onSubmit={onSubmit}
-    />
+    <>
+      <ConnectionForm
+        formId={formId}
+        serverError={serverError}
+        onSubmit={onSubmit}
+        firstInputRef={{ current: null }}
+      />
+      <button type="submit" form={formId}>
+        Add connection
+      </button>
+    </>
   )
   return { ...result, onSubmit }
 }
@@ -47,7 +55,7 @@ describe("ConnectionForm", () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it("submits the trimmed values once, then empties the form", async () => {
+  it("submits the trimmed values once", async () => {
     const { user, onSubmit } = renderForm()
     await user.type(await screen.findByLabelText("Name"), "  Production ")
     await user.type(
@@ -61,12 +69,6 @@ describe("ConnectionForm", () => {
       url: "https://grafana.example.com",
       token: "glsa_abc",
     })
-    expect(
-      await screen.findByText(
-        "The token is stored encrypted and is never shown again."
-      )
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText("Service account token")).toHaveValue("")
     expect(screen.getByLabelText("Service account token")).toHaveAttribute(
       "type",
       "password"
