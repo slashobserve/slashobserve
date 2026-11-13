@@ -32,9 +32,9 @@ func TestMain(m *testing.M) {
 func runTestChild(mode string) {
 	switch mode {
 	case "serve":
-		fmt.Printf(`{"level":"info","msg":"child started","token":%q}`+"\n", os.Getenv(EnvToken))
 		terms := make(chan os.Signal, 1)
 		signal.Notify(terms, syscall.SIGTERM)
+		fmt.Printf(`{"level":"info","msg":"child started","token":%q}`+"\n", os.Getenv(EnvToken))
 		<-terms
 		fmt.Println(`{"level":"info","msg":"terminated"}`)
 	case "serve-then-exit":
@@ -47,11 +47,11 @@ func runTestChild(mode string) {
 		fmt.Println(`{"level":"info","msg":"child started"}`)
 		time.Sleep(time.Hour)
 	case "log":
+		terms := make(chan os.Signal, 1)
+		signal.Notify(terms, syscall.SIGTERM)
 		fmt.Println(`{"level":"warn","msg":"hello","k":"v"}`)
 		fmt.Fprintln(os.Stderr, "oops")
 		fmt.Println(`{"level":"info","msg":"child started"}`)
-		terms := make(chan os.Signal, 1)
-		signal.Notify(terms, syscall.SIGTERM)
 		<-terms
 	}
 }
