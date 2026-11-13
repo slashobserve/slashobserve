@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
-import { useCrumbs } from "@/shell/crumbs"
+import { useCrumbs, useHideCrumbWhenHeadingRepeats } from "@/shell/crumbs"
 import { headingInPhoneBar } from "@/shell/phone-title"
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
 export function PageHeader({ title, description, actions, headingId }: Props) {
   const { crumbs } = useCrumbs()
   const inBar = headingInPhoneBar(title, crumbs)
+  useHideCrumbWhenHeadingRepeats(title)
   return (
     <div
       className={cn(
