@@ -153,6 +153,23 @@ To import a directory of exports into one folder:
 for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
 ```
 
+## Folders
+
+`bin/observe folders` manages the [folders](../teams/folders.md) that hold dashboards, observations and saved searches:
+
+```sh
+bin/observe folders list
+bin/observe folders create Team Payments
+bin/observe folders rename <folder-id> Team Billing
+bin/observe folders delete <folder-id>
+```
+
+`list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)` and your My Dashboards `(yours)`.
+`create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`; a title that another folder uses answers `folder_exists`.
+`rename` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id, and the General folder answers `general_folder`.
+`delete` works only on an empty folder, asks for no `--yes`, and answers `folder_not_empty` when anything is still filed in it.
+Folder permissions are managed in the web app.
+
 ## Saved prompts
 
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
@@ -330,6 +347,17 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+
+`bin/observe annotations list` prints annotations newest first as `ID`, `TIME`, `DASHBOARD`, `TAGS` and `TEXT` columns:
+
+```sh
+bin/observe annotations list --dashboard <dashboard-id> --from 2026-11-01T00:00:00Z --tag deploy
+bin/observe annotations delete <annotation-id>
+```
+
+Without `--dashboard` it lists only the global annotations, and with it that dashboard's annotations and the global ones.
+`--from` and `--to` are RFC 3339 times, `--tag` can be repeated to match any of several tags, and `--limit` and `--cursor` page through the result.
+`bin/observe annotations delete <annotation-id>` prints `Deleted annotation <id>`.
 
 ## Dashboard health
 
