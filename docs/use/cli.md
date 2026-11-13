@@ -446,6 +446,29 @@ The message is the first column named `body`, `message`, `msg`, `line` or `log`,
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
 An invalid query exits 1 with the datasource's message.
 
+### Facets, patterns and context
+
+Three flags read the lines differently, as the logs page does, and print the response body with `--json`:
+
+```sh
+bin/observe logs '{app="shop"}' --datasource loki --facets
+bin/observe logs '{app="shop"}' --datasource loki --patterns
+bin/observe logs '{app="shop"}' --datasource loki --context 2026-11-01T10:00:00.123456789Z
+```
+
+`--facets` counts the top values of each label or field instead of printing lines.
+Each field prints a header `<name> (<kind>, exact|sampled)`, with `bytes` added for a Loki index label, which counts bytes, then one `<count>  <value>` row per value.
+A sampled field counts the newest lines only, and `--field <name>`, which can be repeated, counts just the fields you name.
+
+`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched and sampled go to standard error.
+`--limit` is the most patterns to print, up to 100.
+
+`--context <time>` prints the lines around one line: the lines before it oldest first, a `-- <time> --` line, then the lines after it.
+Give the line's time as nanoseconds since the epoch, or as an RFC 3339 time with nanoseconds, so that two lines in the same millisecond stay apart.
+`--before` and `--after` set how many lines to read on each side, 0 to 500 and 50 by default, and a note on standard error says when more exist.
+
+`--facets`, `--patterns`, `--context` and `--tail` cannot be combined, and `--field` needs `--facets`, `--before` and `--after` need `--context`; each mistake exits 2.
+
 ### Ask for logs in plain language
 
 `--ask` takes a question instead of the query, and the server writes the query with [Ask](logs-and-traces.md#ask-in-plain-language):
