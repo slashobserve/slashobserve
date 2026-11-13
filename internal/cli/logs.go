@@ -138,16 +138,20 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
+	printLogLines(out, lines, opts.from, opts.to)
+	return nil
+}
+
+func printLogLines(out *output, lines []logLine, from, to string) {
 	if len(lines) == 0 {
-		out.notice("No log lines between %s and %s", text(opts.from), text(opts.to))
-		return nil
+		out.notice("No log lines between %s and %s", text(from), text(to))
+		return
 	}
 	keys := varyingLabels(lines)
 	width := levelWidth(lines)
 	for _, line := range lines {
 		out.line("%s", logText(line, keys, width))
 	}
-	return nil
 }
 
 func logLines(frames []frame) []logLine {
