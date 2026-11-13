@@ -34,12 +34,21 @@ SELECT d.id, d.latest_version, v.spec
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
-WHERE h.checked_at IS NULL OR h.checked_at < $1::timestamptz
+WHERE h.checked_at IS NULL OR (
+  h.checked_at < $1::timestamptz
+  AND (
+    h.checked_at < $2::timestamptz
+    OR h.version < d.latest_version
+    OR h.issues @> '[{"kind":"query_failed"}]'::jsonb
+    OR h.issues @> '[{"kind":"variable_failed"}]'::jsonb
+  )
+)
 ORDER BY h.checked_at ASC NULLS FIRST, d.id
-LIMIT $2
+LIMIT $3
 `
 
 type DashboardsDueForHealthParams struct {
+	RunStarted    pgtype.Timestamptz
 	CheckedBefore pgtype.Timestamptz
 	RowLimit      int32
 }
@@ -51,7 +60,7 @@ type DashboardsDueForHealthRow struct {
 }
 
 func (q *Queries) DashboardsDueForHealth(ctx context.Context, arg DashboardsDueForHealthParams) ([]DashboardsDueForHealthRow, error) {
-	rows, err := q.db.Query(ctx, dashboardsDueForHealth, arg.CheckedBefore, arg.RowLimit)
+	rows, err := q.db.Query(ctx, dashboardsDueForHealth, arg.RunStarted, arg.CheckedBefore, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}

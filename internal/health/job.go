@@ -67,6 +67,7 @@ func (s *Service) Run(ctx context.Context) error {
 	for budget.Err() == nil {
 		rows, err := s.db.Queries().DashboardsDueForHealth(budget, dbsqlc.DashboardsDueForHealthParams{
 			CheckedBefore: pgtype.Timestamptz{Time: started.Add(-recheckAfter), Valid: true},
+			RunStarted:    pgtype.Timestamptz{Time: started, Valid: true},
 			RowLimit:      batchSize,
 		})
 		if budget.Err() != nil {

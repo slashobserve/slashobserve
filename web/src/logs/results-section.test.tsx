@@ -19,6 +19,7 @@ function workspace(search: LogsWorkspace["search"]): LogsWorkspace {
       dashboard_count: 0,
     },
     search,
+    effectiveQuery: search.q,
     range: { from: "now-1h", to: "now" },
     results: { fetchStatus: "idle", isFetching: false },
     paging: { page: 1, pageSize: 50, lostPage: null },

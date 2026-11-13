@@ -42,6 +42,7 @@ function usePillStore() {
   const { search, update, run, announce } = useLogsWorkspace()
   const pills = useMemo(() => decodePills(search.f), [search.f])
   const q = search.q
+  const filters = search.f
 
   function write(next: Pill[]) {
     update({ f: encodePills(next) })
@@ -49,15 +50,20 @@ function usePillStore() {
   }
 
   const previousQuery = useRef(q)
+  const previousFilters = useRef(filters)
   useEffect(() => {
     const before = previousQuery.current
+    const filtersBefore = previousFilters.current
     previousQuery.current = q
-    if (before === undefined || before === q) return
+    previousFilters.current = filters
+    if (before === undefined || before === q || filtersBefore !== filters) {
+      return
+    }
     const kept = unpinnedCleared(pills)
     if (kept.length === pills.length) return
     update({ f: encodePills(kept) }, { replace: true })
     announce(filtersClearedText(pills.length - kept.length))
-  }, [q, pills, update, announce])
+  }, [q, filters, pills, update, announce])
 
   return { pills, write }
 }

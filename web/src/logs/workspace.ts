@@ -46,11 +46,13 @@ export type LogsPaging = {
 
 export function useLogsResults({
   datasource,
+  query,
   search,
   range,
   update,
 }: {
   datasource: Pick<DatasourceStatus, "uid" | "type">
+  query: string | undefined
   search: LogsSearch
   range: TimeRangeValue
   update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
@@ -59,7 +61,7 @@ export function useLogsResults({
   const pageSize = search.size ?? defaultPageSize
   const scope = JSON.stringify([
     datasource.uid,
-    search.q,
+    query,
     range.from,
     range.to,
     pageSize,
@@ -71,14 +73,14 @@ export function useLogsResults({
     ...exploreQuery(
       datasource.uid,
       logsPageParams({
-        query: search.q ?? "",
+        query: query ?? "",
         range,
         pageSize,
         page,
         cursor: byOffset ? undefined : cursors.cursorFor(page),
       })
     ),
-    enabled: search.q !== undefined,
+    enabled: query !== undefined,
   })
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
   if (page !== requested && lost?.scope !== scope) {
@@ -126,6 +128,7 @@ export type LogsWorkspace = {
   datasource: DatasourceStatus
   datasources: DatasourceStatus[]
   search: LogsSearch
+  effectiveQuery: string | undefined
   update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
   draft: string
   setDraft: (text: string) => void

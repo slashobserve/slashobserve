@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import {
   Link,
   useNavigate,
@@ -35,6 +35,7 @@ import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
+import { applyPills, decodePills } from "./pills"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
 import {
@@ -163,6 +164,14 @@ function LogsWorkspaceView({
   const type = datasource.type
   const range = logsTimeRange(search)
   const q = search.q
+  const filters = search.f
+  const effectiveQuery = useMemo(
+    () =>
+      q === undefined
+        ? undefined
+        : (applyPills(q, type, decodePills(filters)) ?? q),
+    [q, type, filters]
+  )
   const [draft, setDraft] = useState(
     () => q ?? (type === "clickhouse" ? clickhouseLogsTemplate : "")
   )
@@ -180,7 +189,7 @@ function LogsWorkspaceView({
     scope: string
   } | null>(null)
   const drawerId = useId()
-  const resultsScope = `${q ?? ""}|${range.from}|${range.to}`
+  const resultsScope = `${effectiveQuery ?? ""}|${range.from}|${range.to}`
   const current = held?.scope === resultsScope ? held : null
   const selection = current?.selection ?? null
   const detailTab = current?.tab ?? "table"
@@ -207,13 +216,14 @@ function LogsWorkspaceView({
 
   const { results, paging } = useLogsResults({
     datasource,
+    query: effectiveQuery,
     search,
     range,
     update,
   })
   const liveTail = useLiveTail({
     uid,
-    query: q ?? "",
+    query: effectiveQuery ?? "",
     seed: paging.page === 1 ? (results.data?.frames ?? []) : [],
     running: tailing,
     session: tailSession,
@@ -295,6 +305,7 @@ function LogsWorkspaceView({
     datasource,
     datasources,
     search,
+    effectiveQuery,
     update,
     draft,
     setDraft,
@@ -410,8 +421,13 @@ function LogsWorkspaceView({
         </div>
         <QueryBar />
         <FilterPills />
-        {q !== undefined && !tailShown ? (
-          <VolumeStrip uid={uid} query={q} from={range.from} to={range.to} />
+        {effectiveQuery !== undefined && !tailShown ? (
+          <VolumeStrip
+            uid={uid}
+            query={effectiveQuery}
+            from={range.from}
+            to={range.to}
+          />
         ) : null}
         <div className="flex min-h-96 min-w-0 flex-1 gap-3">
           <FieldsAside />
@@ -439,21 +455,21 @@ function LogsWorkspaceView({
           finalFocus={() => saveTrigger.current ?? true}
         />
       ) : null}
-      {adding && q !== undefined ? (
+      {adding && effectiveQuery !== undefined ? (
         <AddToDashboardPanel
           datasource={uid}
-          query={q}
+          query={effectiveQuery}
           onClose={() => setAdding(false)}
           trigger={addTrigger}
         />
       ) : null}
-      {addingToObservation && q !== undefined ? (
+      {addingToObservation && effectiveQuery !== undefined ? (
         <AddToObservationPanel
           panel={logsPanelFor({
             id: "logs",
             title: "Logs",
             datasource: uid,
-            query: q,
+            query: effectiveQuery,
             y: 0,
           })}
           from={range.from}

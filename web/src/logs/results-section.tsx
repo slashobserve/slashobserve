@@ -350,6 +350,7 @@ export function ResultsSection() {
   const {
     datasource,
     search,
+    effectiveQuery,
     range,
     results,
     tail,
@@ -389,7 +390,7 @@ export function ResultsSection() {
   const { ref, height } = useElementSize<HTMLDivElement>()
   const q = search.q
   const patterns = search.view === "patterns"
-  const resultsScope = `${q ?? ""}|${range.from}|${range.to}|${paging.pageSize}`
+  const resultsScope = `${effectiveQuery ?? ""}|${range.from}|${range.to}|${paging.pageSize}`
   const [lastGood, setLastGood] = useState<{
     scope: string
     data: PanelDataResponse

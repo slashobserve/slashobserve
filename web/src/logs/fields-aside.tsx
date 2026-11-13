@@ -120,11 +120,11 @@ function FieldValues({
   filter: Filter
   apply: (query: string) => void
 }) {
-  const { datasource, search, range } = useLogsWorkspace()
+  const { datasource, search, effectiveQuery, range } = useLogsWorkspace()
   const q = search.q
   const own = useQuery({
     ...logFacetsQuery(datasource.uid, {
-      query: q ?? "",
+      query: effectiveQuery ?? "",
       from: range.from,
       to: range.to,
       limit: topValues,
@@ -275,7 +275,8 @@ function FieldGroup({
 }
 
 export function FieldsAside() {
-  const { datasource, search, range, setDraft, run } = useLogsWorkspace()
+  const { datasource, search, effectiveQuery, range, setDraft, run } =
+    useLogsWorkspace()
   const [open, setOpen] = useState(storedFacetsOpen)
   const [filterText, setFilterText] = useState("")
   const [openField, setOpenField] = useState<string | null>(null)
@@ -288,7 +289,7 @@ export function FieldsAside() {
   })
   const facets = useQuery({
     ...logFacetsQuery(uid, {
-      query: q ?? "",
+      query: effectiveQuery ?? "",
       from: range.from,
       to: range.to,
       limit: topValues,
