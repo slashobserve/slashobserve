@@ -44,8 +44,11 @@ Opens through an API key, the CLI or MCP do not count.
 ## The health check
 
 A server job named `dashboard_health` runs every hour.
-Each run spends at most 8 minutes and checks at most 2 dashboards at once, taking the dashboards never checked first and then the oldest checks, and skips any dashboard checked in the last 23 hours.
-Every dashboard is therefore checked about once a day without one long run.
+Each run spends at most 8 minutes and checks at most 2 dashboards at once, taking the dashboards never checked first and then the oldest checks.
+A healthy dashboard is checked about once a day, and a run skips any dashboard checked in the last 23 hours.
+A dashboard whose last check found a `query_failed` or `variable_failed` problem is checked again on the next hourly run, so a brief outage of a datasource stops showing within an hour of the datasource coming back.
+A dashboard saved since its last check is also checked on the next hourly run, so a repair shows its result within an hour.
+No run checks a dashboard more than once.
 
 A check runs every panel and variable query of the dashboard's latest version the way a save does, over the last 7 days instead of the dashboard's own time range, so a dashboard that only shows the last 15 minutes is not reported because the last 15 minutes were quiet.
 It runs with no viewer, so a dashboard whose queries read `${__user.login}`, `${__user.email}` or `${__user.name}` is not checked and is marked `depends_on_viewer`.
