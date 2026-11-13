@@ -90,6 +90,7 @@ func NewHandler(database *db.DB, observe Observe, logger *slog.Logger) *Handler 
 
 func (h *Handler) Register(api auth.Routes) {
 	api.GET("/agents", auth.RoleViewer, requireSession, h.list)
+	api.GET("/agents/runs", auth.RoleViewer, requireSession, h.runs)
 }
 
 func requireSession(c *gin.Context) {

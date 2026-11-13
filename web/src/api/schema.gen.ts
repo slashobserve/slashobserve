@@ -3300,6 +3300,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the recent runs of one agent.
+         * @description Lists the runs assigned to one agent, newest first, so the Agents page can show the work behind its seven day numbers. `kind` is `builtin` for the Observe Agent, `grant` for one of the caller's connected agents or `service_account` for a service account that takes runs. `id` is the grant id or the service account id, and it is required for `grant` and `service_account` and refused for `builtin`. For `builtin` and `service_account`, an Admin sees every run of the agent (`scope` is `workspace`) and anyone else only the runs they requested (`scope` is `you`). A `grant` is listed only for the person it belongs to, revoked or expired connections included so the history stays readable, and any other grant id answers 404 `not_found`, an Admin's too. An unknown service account answers 404 `not_found`. Suggestion runs are left out because they have no page to open, although the seven day numbers of `GET /agents` still count them; archived runs are included. A dashboard or observation in a folder the caller cannot see comes back as null, never with its id or title. `openable` is true only when the caller requested the run, because a run page opens only for the person who asked for it. `title` is the requester's title or the start of the prompt, and never empty. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         */
+        get: operations["listAgentRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/inbox": {
         parameters: {
             query?: never;
@@ -3564,6 +3584,51 @@ export interface components {
             cost_usd: number | null;
             /** @description Null when no run started. */
             median_queue_wait_seconds: number | null;
+        };
+        AgentRun: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            source: "comment" | "prompt" | "observe" | "investigate";
+            /** @description The requester's title, else the first line of the prompt cut to 120 characters, else the source word. */
+            title: string;
+            /** @enum {string} */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /** @enum {string} */
+            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
+            failure_code: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description The recorded run cost, null when the run has none. */
+            cost_usd: number | null;
+            requested_by: {
+                kind: string;
+                name: string;
+            };
+            /** @description True when the caller requested the run, the only case in which its run page opens for them. */
+            openable: boolean;
+            /** @description Null when the run has no dashboard or the caller cannot see its folder. */
+            dashboard: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+            } | null;
+            /** @description Null when the run has no observation or the caller cannot see its folder. */
+            observation: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+            } | null;
+        };
+        AgentRunPage: {
+            /** @enum {string} */
+            scope: "workspace" | "you";
+            items: components["schemas"]["AgentRun"][];
+            next_cursor: string | null;
         };
         AgentsOverview: {
             observe_agent: {
@@ -14598,6 +14663,62 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAgentRuns: {
+        parameters: {
+            query: {
+                kind: "builtin" | "grant" | "service_account";
+                /** @description The grant id or service account id; required for `grant` and `service_account`, refused for `builtin`. */
+                id?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunPage"];
+                };
+            };
+            /** @description The kind, id, limit or cursor is not valid (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The grant is not the caller's or the service account does not exist (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -106,7 +106,9 @@ describe("AgentDetailPage", () => {
       screen.getByText("Writes in 7 days").nextElementSibling?.textContent
     ).toBe("7")
     expect(screen.getByText("Connected")).toBeTruthy()
-    expect(screen.queryByText("Recent work")).toBeNull()
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Recent work" })
+    ).toBeTruthy()
   })
 
   it("shows Observe Agent for anyone who asks, with the scope of its numbers", async () => {

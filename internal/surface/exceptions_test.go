@@ -102,6 +102,7 @@ var exceptions = map[string]exception{
 	"listGrants":        {MCP: connectedAgents, CLI: connectedAgents},
 	"disconnectGrant":   {MCP: connectedAgents, CLI: connectedAgents},
 	"listAgents":        {MCP: connectedAgents, CLI: personOnly},
+	"listAgentRuns":     {MCP: connectedAgents, CLI: personOnly},
 
 	"listInbox":     {CLI: personOnly},
 	"markInboxRead": {MCP: personOnly, CLI: personOnly},

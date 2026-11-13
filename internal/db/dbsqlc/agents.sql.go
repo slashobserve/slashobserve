@@ -116,6 +116,123 @@ func (q *Queries) ConnectedGrantsOf(ctx context.Context, userID pgtype.UUID) ([]
 	return items, nil
 }
 
+const grantOwnedBy = `-- name: GrantOwnedBy :one
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND user_id = $2)
+`
+
+type GrantOwnedByParams struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+func (q *Queries) GrantOwnedBy(ctx context.Context, arg GrantOwnedByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, grantOwnedBy, arg.ID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listAgentRuns = `-- name: ListAgentRuns :many
+SELECT r.id, r.source, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
+       r.created_at, r.started_at, r.finished_at,
+       ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
+       coalesce((r.run_usage->>'cost_usd')::float8, 0)::float8 AS cost_usd,
+       r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+       d.id AS visible_dashboard_id, d.title AS dashboard_title,
+       o.id AS visible_observation_id, o.title AS observation_title
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+WHERE r.assigned_kind = $2
+  AND ($3::uuid IS NULL OR r.assigned_id = $3::uuid)
+  AND r.source <> 'suggest'
+  AND ($4::uuid IS NULL OR (r.requested_by_kind = 'user' AND r.requested_by_id = $4::uuid))
+  AND ($5::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($5::timestamptz, $6::uuid))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $7
+`
+
+type ListAgentRunsParams struct {
+	Folders         []pgtype.UUID
+	AssignedKind    string
+	AssignedID      pgtype.UUID
+	RequestedBy     pgtype.UUID
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	RowLimit        int32
+}
+
+type ListAgentRunsRow struct {
+	ID                   pgtype.UUID
+	Source               string
+	Title                pgtype.Text
+	Prompt               string
+	State                string
+	ResultKind           string
+	FailureCode          pgtype.Text
+	CreatedAt            pgtype.Timestamptz
+	StartedAt            pgtype.Timestamptz
+	FinishedAt           pgtype.Timestamptz
+	Priced               bool
+	CostUsd              float64
+	RequestedByKind      string
+	RequestedByID        pgtype.UUID
+	RequestedByName      string
+	VisibleDashboardID   pgtype.UUID
+	DashboardTitle       pgtype.Text
+	VisibleObservationID pgtype.UUID
+	ObservationTitle     pgtype.Text
+}
+
+func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([]ListAgentRunsRow, error) {
+	rows, err := q.db.Query(ctx, listAgentRuns,
+		arg.Folders,
+		arg.AssignedKind,
+		arg.AssignedID,
+		arg.RequestedBy,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentRunsRow
+	for rows.Next() {
+		var i ListAgentRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.Title,
+			&i.Prompt,
+			&i.State,
+			&i.ResultKind,
+			&i.FailureCode,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Priced,
+			&i.CostUsd,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
+			&i.VisibleDashboardID,
+			&i.DashboardTitle,
+			&i.VisibleObservationID,
+			&i.ObservationTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const runTakingServiceAccounts = `-- name: RunTakingServiceAccounts :many
 SELECT s.id, s.name,
        w.seen_at AS worker_seen_at,
@@ -163,4 +280,15 @@ func (q *Queries) RunTakingServiceAccounts(ctx context.Context) ([]RunTakingServ
 		return nil, err
 	}
 	return items, nil
+}
+
+const serviceAccountExists = `-- name: ServiceAccountExists :one
+SELECT EXISTS (SELECT 1 FROM service_accounts WHERE id = $1)
+`
+
+func (q *Queries) ServiceAccountExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, serviceAccountExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
