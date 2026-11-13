@@ -36,6 +36,7 @@ export function RailTip({
       <TooltipContent
         side="right"
         sideOffset={6}
+        role="tooltip"
         className="h-7 px-2 py-0 font-medium"
       >
         {label}
