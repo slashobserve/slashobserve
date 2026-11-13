@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { AsteriskIcon, FilterIcon, FilterXIcon } from "lucide-react"
 
 import { CopyButton } from "@/components/copy-button"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
@@ -35,13 +35,14 @@ import {
 } from "./pills"
 import { filterTarget, isStreamLabel } from "./query-filters"
 import { isSearchFamily } from "./search"
-import { traceDatasourceFor, traceIdOf } from "./trace-link"
+import { detailValue, traceDatasourceFor, traceIdOf } from "./trace-link"
 import { useLogsWorkspace, type DetailTab } from "./workspace"
 
 const coreNames = ["time", "level", "service", "trace_id", "span_id", "id"]
 const hiddenNames = new Set(["body", "timens"])
 const expandedPrefix = "Fields."
 const tracePrefixLength = 8
+const allZeros = /^0+$/
 const tabs: readonly DetailTab[] = ["table", "json", "context"]
 
 export function documentGroups(details: readonly LogDetail[]): {
@@ -87,6 +88,23 @@ export function entryJson(
       ])
     ),
   }
+}
+
+function spanIdOf(entry: LogEntry): string | null {
+  for (const detail of entry.details) {
+    if (detail.name.toLowerCase().replaceAll("_", "") !== "spanid") continue
+    const text = detailValue(detail).trim()
+    if (text !== "" && !allZeros.test(text)) return text
+  }
+  return null
+}
+
+function IdChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="rounded-chip bg-muted px-1.5 py-0.5 font-mono text-xs [overflow-wrap:anywhere]">
+      {label} {value}
+    </span>
+  )
 }
 
 function indexName({ entry, fields }: LogSelection): string | undefined {
@@ -367,6 +385,7 @@ export function DetailDrawer({
     allDatasources.data ?? []
   )
   const traceId = traceIdOf(entry)
+  const spanId = spanIdOf(entry)
   const blocker = contextBlocker(datasource, entry)
   const groups = fieldGroups(
     datasource.type,
@@ -422,15 +441,44 @@ export function DetailDrawer({
       trigger={trigger}
     >
       <div id={id} className="flex min-h-0 flex-1 flex-col gap-3">
+        <p
+          title={entry.message}
+          className="line-clamp-3 font-mono text-[13px] [overflow-wrap:anywhere] whitespace-pre-wrap"
+        >
+          {entry.message}
+        </p>
+        {traceId !== null || spanId !== null ? (
+          <div className="flex flex-wrap gap-1.5">
+            {traceId === null ? null : (
+              <IdChip
+                label="Trace"
+                value={traceId.slice(0, tracePrefixLength)}
+              />
+            )}
+            {spanId === null ? null : <IdChip label="Span" value={spanId} />}
+          </div>
+        ) : null}
         <div
           role="group"
           aria-label="Line actions"
-          className="flex flex-wrap gap-2"
+          className="flex flex-wrap gap-1"
         >
+          {traceId !== null &&
+          traceDatasource !== null &&
+          entry.time !== null ? (
+            <OpenTraceLink
+              traceId={traceId}
+              traceDatasource={traceDatasource}
+              time={entry.time}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              Open trace
+            </OpenTraceLink>
+          ) : null}
           <Button
             type="button"
-            variant="outline"
-            size="xs"
+            variant="ghost"
+            size="sm"
             disabled={blocker !== undefined}
             title={blocker}
             onClick={() => onTabChange("context")}
@@ -440,8 +488,8 @@ export function DetailDrawer({
           <CopyButton
             text={entry.message}
             label="Copy line"
-            variant="outline"
-            size="xs"
+            variant="ghost"
+            size="sm"
             icon={false}
           >
             Copy line
@@ -449,25 +497,13 @@ export function DetailDrawer({
           <CopyButton
             text={linePermalink(window.location.href, entry)}
             label="Copy link"
-            variant="outline"
-            size="xs"
+            variant="ghost"
+            size="sm"
             icon={false}
           >
             Copy link
           </CopyButton>
         </div>
-        {traceId !== null && traceDatasource !== null && entry.time !== null ? (
-          <div className="rounded-card border border-border px-3 py-2 text-xs">
-            <OpenTraceLink
-              traceId={traceId}
-              traceDatasource={traceDatasource}
-              time={entry.time}
-              className={cn("underline underline-offset-3")}
-            >
-              Open trace {traceId.slice(0, tracePrefixLength)}
-            </OpenTraceLink>
-          </div>
-        ) : null}
         <Tabs
           value={tab}
           onValueChange={(next) => {
@@ -476,15 +512,18 @@ export function DetailDrawer({
           }}
           className="min-h-0 flex-1"
         >
-          <TabsList variant="line">
-            <TabsTrigger value="table">Table</TabsTrigger>
-            <TabsTrigger value="json">JSON</TabsTrigger>
-            <TabsTrigger value="context">Context</TabsTrigger>
+          <TabsList className="h-7! rounded-control p-0.5">
+            <TabsTrigger value="table" className="rounded-chip text-[13px]">
+              Table
+            </TabsTrigger>
+            <TabsTrigger value="json" className="rounded-chip text-[13px]">
+              JSON
+            </TabsTrigger>
+            <TabsTrigger value="context" className="rounded-chip text-[13px]">
+              Context
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="table" className="flex flex-col gap-3">
-            <p className="font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {entry.message}
-            </p>
             {groups.map((group) => (
               <Group
                 key={group.title}
