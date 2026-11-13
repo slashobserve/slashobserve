@@ -10,7 +10,7 @@ test("shows the signed-in user", async ({ page }) => {
   ).toBeVisible()
   await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
   await expect(
-    page.getByRole("heading", { level: 1, name: "Inbox" })
+    page.getByRole("heading", { level: 1, name: "What are you working on?" })
   ).toBeVisible()
 })
 
