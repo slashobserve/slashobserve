@@ -78,7 +78,7 @@ function renderPanel(current: ServiceAccount) {
 }
 
 beforeEach(() => {
-  document.body.innerHTML = ""
+  document.body.replaceChildren()
 })
 
 afterEach(() => {
