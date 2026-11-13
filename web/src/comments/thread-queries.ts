@@ -4,11 +4,12 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { threadKeys } from "@/api/keys"
+import { dashboardKeys, observeKeys, threadKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 export type Thread = components["schemas"]["Thread"]
@@ -97,14 +98,81 @@ export function useThreads(target: string) {
   }
 }
 
+export type SentMessage = {
+  thread: Thread
+  message: Message
+  run: NonNullable<Message["run"]> | null
+  runRefusal: NonNullable<Message["run_refusal"]> | null
+}
+
+function sentMessage(body: { thread: Thread; message: Message }): SentMessage {
+  return {
+    thread: body.thread,
+    message: body.message,
+    run: body.message.run ?? null,
+    runRefusal: body.message.run_refusal ?? null,
+  }
+}
+
+export function askedAgent(sent: SentMessage): boolean {
+  return sent.run !== null || sent.runRefusal !== null
+}
+
+const dashboardTarget = "dashboard:"
+
+function dashboardIdOf(target: string): string | null {
+  return target.startsWith(dashboardTarget)
+    ? target.slice(dashboardTarget.length)
+    : null
+}
+
+function refreshAfterSend(
+  queryClient: QueryClient,
+  target: string,
+  sent: SentMessage
+) {
+  void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+  const dashboardId = dashboardIdOf(target)
+  if (dashboardId !== null) {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.comments(dashboardId),
+    })
+  }
+  if (sent.run === null) return
+  if (dashboardId !== null) {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.revisions(dashboardId),
+    })
+  }
+  void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+}
+
 export function useOpenThread(target: string) {
   const queryClient = useQueryClient()
+  const dashboardId = dashboardIdOf(target)
   return useMutation({
+    mutationKey:
+      dashboardId === null ? undefined : dashboardKeys.posts(dashboardId),
     networkMode: "always",
-    mutationFn: (input: { body: string }) =>
-      api.POST("/threads", { body: { target, body: input.body } }).then(unwrap),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: threadKeys.list(target) }),
+    mutationFn: (input: {
+      body: string
+      startRuns: boolean
+      version?: number
+      panelId?: string | null
+    }) =>
+      api
+        .POST("/threads", {
+          body: {
+            target,
+            body: input.body,
+            ...(input.version === undefined ? {} : { version: input.version }),
+            ...(input.panelId == null ? {} : { panel_id: input.panelId }),
+            ...(input.startRuns ? { start_runs: true } : {}),
+          },
+        })
+        .then(unwrap)
+        .then(sentMessage),
+    onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),
   })
 }
 
@@ -112,14 +180,21 @@ export function useReplyToThread(target: string) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: (input: { threadId: string; body: string }) =>
+    mutationFn: (input: {
+      threadId: string
+      body: string
+      startRuns: boolean
+    }) =>
       api
         .POST("/threads/{thread_id}/messages", {
           params: { path: { thread_id: input.threadId } },
-          body: { body: input.body },
+          body: {
+            body: input.body,
+            ...(input.startRuns ? { start_runs: true } : {}),
+          },
         })
-        .then(unwrap),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: threadKeys.list(target) }),
+        .then(unwrap)
+        .then(sentMessage),
+    onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),
   })
 }

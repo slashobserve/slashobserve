@@ -41,11 +41,24 @@ SELECT observation_id FROM findings WHERE id = @id;
 -- name: LockObservationKeyShare :one
 SELECT id FROM observations WHERE id = @id FOR KEY SHARE;
 
+-- name: LockObservationKeyShareSkipLocked :one
+SELECT id FROM observations WHERE id = @id FOR KEY SHARE SKIP LOCKED;
+
 -- name: LockProposalKeyShare :one
 SELECT id FROM proposals WHERE id = @id FOR KEY SHARE;
 
 -- name: LockAnnotationKeyShare :one
 SELECT id FROM annotations WHERE id = @id FOR KEY SHARE;
+
+-- name: InsertRunReply :one
+INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
+SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
+RETURNING *;
+
+-- name: GetRunProposalTitle :one
+SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id LIMIT 1;
 
 -- name: GetMessage :one
 SELECT * FROM thread_messages WHERE id = @id;
@@ -105,11 +118,28 @@ LIMIT @row_limit;
 DELETE FROM thread_mentions WHERE message_id = @message_id;
 
 -- name: InsertMention :exec
-INSERT INTO thread_mentions (message_id, user_id, agent, name)
-VALUES (@message_id::uuid, sqlc.narg('user_id')::uuid, sqlc.narg('agent')::text, @name::text);
+INSERT INTO thread_mentions (message_id, user_id, agent, agent_grant_id, agent_service_account_id, name)
+VALUES (@message_id::uuid, sqlc.narg('user_id')::uuid, sqlc.narg('agent')::text, sqlc.narg('agent_grant_id')::uuid, sqlc.narg('agent_service_account_id')::uuid, @name::text);
 
 -- name: ListMentions :many
-SELECT * FROM thread_mentions WHERE message_id = ANY(@message_ids::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id;
+SELECT * FROM thread_mentions WHERE message_id = ANY(@message_ids::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id, agent_grant_id, agent_service_account_id;
 
 -- name: UserMentionNames :many
 SELECT id, name, email FROM users WHERE id = ANY(@ids::uuid[]);
+
+-- name: MentionableGrant :one
+SELECT coalesce(c.name, '')::text AS name
+FROM oauth_grants g
+JOIN oauth_clients c ON c.id = g.client_id
+WHERE g.id = @id AND g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now();
+
+-- name: MentionableServiceAccount :one
+SELECT name FROM service_accounts WHERE id = @id AND takes_runs;
+
+-- name: ThreadTranscript :many
+SELECT m.*
+FROM thread_messages m
+WHERE m.thread_id = @thread_id
+  AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = @before_id)
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT @row_limit;

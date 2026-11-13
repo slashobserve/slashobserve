@@ -1,4 +1,5 @@
 import {
+  useId,
   useRef,
   useState,
   type ChangeEvent,
@@ -16,6 +17,7 @@ import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
 import {
+  mentionedAgents,
   mentionOptions,
   mentionTriggerAt,
   type MentionAgent,
@@ -24,15 +26,58 @@ import {
 
 type ComposerProps = {
   label: string
+  formLabel?: string
   placeholder: string
   hint?: ReactNode
   people: readonly MentionPerson[]
   agents?: readonly MentionAgent[]
+  agentsBlocked?: string | null
   onSubmit: (body: string) => Promise<unknown>
   onCancel?: () => void
   autoFocus?: boolean
   disabledReason?: string | null
   defaultValue?: string
+}
+
+export const oneAgentText = "Mention one agent per message"
+
+export function agentSendBlock(
+  body: string,
+  agentsBlocked: string | null | undefined
+): string | null {
+  const count = mentionedAgents(body).length
+  if (count > 1) return oneAgentText
+  return count === 1 && typeof agentsBlocked === "string" ? agentsBlocked : null
+}
+
+function sendLabel(body: string): string {
+  const agents = mentionedAgents(body)
+  return agents.length === 1 ? `Send and ask ${agents[0].name}` : "Send"
+}
+
+export function SendButton({
+  body,
+  disabled,
+  busy,
+}: {
+  body: string
+  disabled: boolean
+  busy: boolean
+}) {
+  const label = sendLabel(body)
+  return (
+    <Button
+      type="submit"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      aria-disabled={busy || undefined}
+      aria-busy={busy || undefined}
+    >
+      <ArrowUpIcon aria-hidden="true" />
+    </Button>
+  )
 }
 
 function describeSendError(error: unknown): string {
@@ -44,10 +89,12 @@ function describeSendError(error: unknown): string {
 
 export function Composer({
   label,
+  formLabel = label,
   placeholder,
   hint,
   people,
   agents = [],
+  agentsBlocked,
   onSubmit,
   onCancel,
   autoFocus,
@@ -62,9 +109,11 @@ export function Composer({
   const textarea = useRef<HTMLTextAreaElement>(null)
   const text = body.trim()
   const unavailable = typeof disabledReason === "string"
+  const sendBlock = agentSendBlock(body, agentsBlocked)
+  const sendBlockId = useId()
 
   async function submit() {
-    if (busy || unavailable || text === "") return
+    if (busy || unavailable || sendBlock !== null || text === "") return
     setBusy(true)
     setError(null)
     try {
@@ -100,7 +149,7 @@ export function Composer({
 
   return (
     <form
-      aria-label={label}
+      aria-label={formLabel}
       className="flex flex-col rounded-card border border-border bg-card focus-within:ring-2 focus-within:ring-ring"
       onSubmit={(event) => {
         event.preventDefault()
@@ -116,11 +165,17 @@ export function Composer({
         placeholder={placeholder}
         className="field-sizing-content max-h-40 min-h-0 rounded-none border-0 bg-transparent pt-2.5 pr-3 pb-1 pl-3 text-[13px] focus-visible:border-0 focus-visible:ring-0"
         maxLength={maxPromptLength}
+        aria-describedby={sendBlock === null ? undefined : sendBlockId}
         value={body}
         disabled={unavailable}
         readOnly={busy}
         onChange={onChange}
       />
+      {sendBlock === null ? null : (
+        <p id={sendBlockId} className="px-3 text-xs text-muted-foreground">
+          {sendBlock}
+        </p>
+      )}
       {error === null ? null : (
         <p role="alert" className="px-3 text-xs text-destructive">
           {error}
@@ -143,16 +198,11 @@ export function Composer({
           replaceFrom={replaceFrom}
           disabled={busy || unavailable}
         />
-        <Button
-          type="submit"
-          size="icon-sm"
-          aria-label="Send"
-          title="Send"
-          disabled={text === "" || unavailable}
-          aria-disabled={busy || undefined}
-        >
-          <ArrowUpIcon aria-hidden="true" />
-        </Button>
+        <SendButton
+          body={body}
+          disabled={text === "" || unavailable || sendBlock !== null}
+          busy={busy}
+        />
       </div>
     </form>
   )

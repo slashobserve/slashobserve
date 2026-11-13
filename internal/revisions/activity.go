@@ -7,8 +7,10 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 func runEventFor(row dbsqlc.AgentRequest, a Action) (string, bool) {
@@ -33,6 +35,18 @@ func RunActor(row dbsqlc.AgentRequest) actor.Actor {
 	columns := requesterColumns(row)
 	columns.RunID = row.ID
 	return actor.FromColumns(columns)
+}
+
+func AssigneeActor(row dbsqlc.AgentRequest, assigneeName string) actor.Actor {
+	switch AssigneeKind(row.AssignedKind) {
+	case AssignGrant:
+		person := actor.FromColumns(requesterColumns(row))
+		person.Origin = origin.Origin{Kind: origin.MCP, Client: origin.CleanClient(assigneeName)}
+		return person
+	case AssignServiceAccount:
+		return actor.Actor{Kind: auth.KindServiceAccount, ID: row.AssignedID.String(), Name: assigneeName, Origin: origin.Origin{Kind: origin.MCP}}
+	}
+	return RunActor(row)
 }
 
 func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {

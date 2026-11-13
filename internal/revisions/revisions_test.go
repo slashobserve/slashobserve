@@ -853,8 +853,8 @@ func assertThreadOpen(t *testing.T, d *dbtest.Database, dash, id pgtype.UUID) {
 
 func assertResolveFailureLogged(t *testing.T, logs *logtest.Capture, requestID string) {
 	t.Helper()
-	record := findEventually(t, logs, "resolve comment thread of a succeeded agent request")
-	logs.AssertSafeFailure(t, record, "agent_request_thread_resolve_failed", "resolution blocked")
+	record := findEventually(t, logs, "answer in the thread of an ended agent request")
+	logs.AssertSafeFailure(t, record, "agent_request_thread_end_failed", "resolution blocked")
 	if record["agent_request_id"] != requestID || record["sqlstate"] != "P0001" {
 		t.Fatalf("resolve failure record = %v", record)
 	}

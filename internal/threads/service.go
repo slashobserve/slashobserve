@@ -49,6 +49,8 @@ func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.
 	return &Service{db: database, access: access, dashboards: dashboards, annotations: annotations, observations: observations, proposals: proposals, panelSets: newPanelCache()}
 }
 
+type MessageHook func(*dbsqlc.Queries, Thread, Message) error
+
 type OpenInput struct {
 	Target  Target
 	Version *int
@@ -137,7 +139,7 @@ func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
 	return at, nil
 }
 
-func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hook func(*dbsqlc.Queries, Thread, Message) error) (Thread, Message, error) {
+func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hook MessageHook) (Thread, Message, error) {
 	viaFinding := in.Target.Kind == KindFinding
 	sc, err := s.scopeOf(ctx, by, in.Target)
 	if err != nil {
@@ -170,7 +172,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
 		if err != nil {
 			return err
 		}
@@ -188,7 +190,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		existing := s.existingObservationThread(ctx, in.Target.ID)
 		var exists *ObservationThreadExistsError
 		if viaFinding && errors.As(existing, &exists) {
-			return s.Reply(ctx, by, exists.ThreadID, in.Body)
+			return s.Reply(ctx, by, exists.ThreadID, in.Body, hook)
 		}
 		return Thread{}, Message{}, existing
 	}
@@ -206,7 +208,7 @@ func (s *Service) existingObservationThread(ctx context.Context, observationID p
 	return &ObservationThreadExistsError{ThreadID: id}
 }
 
-func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, body string) (Thread, Message, error) {
+func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, body string, hook MessageHook) (Thread, Message, error) {
 	row, sc, err := s.writableThread(ctx, by, id)
 	if err != nil {
 		return Thread{}, Message{}, err
@@ -230,12 +232,18 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
 		if err != nil {
 			return err
 		}
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
-		return emitter{scope: sc, thread: current, actor: author}.replied(ctx, q, messageRow, recorded)
+		if err := (emitter{scope: sc, thread: current, actor: author}).replied(ctx, q, messageRow, recorded); err != nil {
+			return err
+		}
+		if hook == nil {
+			return nil
+		}
+		return hook(q, threadOf(current, nil, sc.abilities.Comment), message)
 	})
 	if err != nil {
 		return Thread{}, Message{}, threadGone(err)
@@ -285,7 +293,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 		if err := q.DeleteMentions(ctx, messageRow.ID); err != nil {
 			return fmt.Errorf("delete mentions: %w", err)
 		}
-		if recorded, err = s.recordMentions(ctx, q, messageRow.ID, mentions); err != nil {
+		if recorded, err = s.recordMentions(ctx, q, by, messageRow.ID, mentions); err != nil {
 			return err
 		}
 		return emitter{scope: sc, thread: row, actor: author}.edited(ctx, q, messageRow)
@@ -645,10 +653,10 @@ func checkBody(body string) (string, []Mention, error) {
 	return cleaned, mentions, nil
 }
 
-func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
+func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
 	var userIDs []pgtype.UUID
 	for _, m := range parsed {
-		if m.Agent == "" {
+		if m.Kind() == mentionUser {
 			userIDs = append(userIDs, m.UserID)
 		}
 	}
@@ -665,9 +673,27 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, message
 	recorded := make([]Mention, 0, len(parsed))
 	for _, m := range parsed {
 		params := dbsqlc.InsertMentionParams{MessageID: messageID, Name: m.Name}
-		if m.Agent != "" {
+		switch m.Kind() {
+		case mentionAgent:
 			params.Agent = pgtype.Text{String: m.Agent, Valid: true}
-		} else {
+		case mentionGrant:
+			name, err := mentionableGrant(ctx, q, by, m)
+			if err != nil {
+				return nil, err
+			}
+			m.Name = cmp.Or(capName(name), m.Name)
+			params.AgentGrantID, params.Name = m.GrantID, m.Name
+		case mentionServiceAccount:
+			name, err := q.MentionableServiceAccount(ctx, m.ServiceAccountID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, errInvalidMention
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read mentioned service account: %w", err)
+			}
+			m.Name = capName(name)
+			params.AgentServiceAccountID, params.Name = m.ServiceAccountID, m.Name
+		default:
 			name, ok := names[m.UserID]
 			if !ok {
 				continue
@@ -684,6 +710,24 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, message
 	return recorded, nil
 }
 
+func mentionableGrant(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, m Mention) (string, error) {
+	if by.Kind != auth.KindUser {
+		return "", errInvalidMention
+	}
+	personID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return "", fmt.Errorf("author id: %w", err)
+	}
+	name, err := q.MentionableGrant(ctx, dbsqlc.MentionableGrantParams{ID: m.GrantID, UserID: personID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", errInvalidMention
+	}
+	if err != nil {
+		return "", fmt.Errorf("read mentioned grant: %w", err)
+	}
+	return name, nil
+}
+
 func (s *Service) mentionsOf(ctx context.Context, q *dbsqlc.Queries, messageID pgtype.UUID) ([]Mention, error) {
 	byMessage, err := s.mentionsByMessage(ctx, q, []pgtype.UUID{messageID})
 	return byMessage[messageID], err
@@ -696,7 +740,7 @@ func (s *Service) mentionsByMessage(ctx context.Context, q *dbsqlc.Queries, mess
 	}
 	byMessage := make(map[pgtype.UUID][]Mention, len(messageIDs))
 	for _, r := range rows {
-		byMessage[r.MessageID] = append(byMessage[r.MessageID], Mention{UserID: r.UserID, Agent: r.Agent.String, Name: r.Name})
+		byMessage[r.MessageID] = append(byMessage[r.MessageID], Mention{UserID: r.UserID, Agent: r.Agent.String, GrantID: r.AgentGrantID, ServiceAccountID: r.AgentServiceAccountID, Name: r.Name})
 	}
 	for _, mentions := range byMessage {
 		sortMentions(mentions)

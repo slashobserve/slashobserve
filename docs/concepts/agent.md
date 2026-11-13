@@ -307,6 +307,7 @@ The run names the dashboard and its version, so the agent's `update_dashboard` a
 Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.
 Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide with the sections of the configured types, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
+When a message that mentions an agent started the run, the server instead posts one status reply in that thread when the run ends, whatever the outcome, and leaves the thread as it is; the agent also reads the thread's earlier messages with the request.
 
 ### Data sent to the provider
 

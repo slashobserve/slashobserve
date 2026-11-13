@@ -86,7 +86,7 @@ func TestAnObservationInAHiddenFolderIsNotFoundToEveryoneWhoCannotSeeIt(t *testi
 	if _, err := r.service.List(t.Context(), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list: %v", err)
 	}
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi"); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi", nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply: %v", err)
 	}
 	missing := target(KindObservation, mustParse(t, "00000000-0000-4000-8000-000000000000"))

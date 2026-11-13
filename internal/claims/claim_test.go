@@ -2,6 +2,7 @@ package claims
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +115,23 @@ func TestOfferedRunMapsARequest(t *testing.T) {
 	}
 	if build.From != nil || build.To != nil {
 		t.Fatalf("build window = %v to %v, want none", build.From, build.To)
+	}
+}
+
+func TestOfferedRunCarriesTheThreadContextOnlyWhenThereIsOne(t *testing.T) {
+	requester := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada"}
+	asked := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourceComment, Prompt: "why", Attempt: 1, DashboardID: "d1", ThreadContext: "Ada: why did errors rise?", RequestedBy: requester})
+	plain := offeredRun(revisions.Request{ID: "r2", Source: revisions.SourcePrompt, Prompt: "why", Attempt: 1, DashboardID: "d1", RequestedBy: requester})
+	if asked.ThreadContext == nil || *asked.ThreadContext != "Ada: why did errors rise?" || plain.ThreadContext != nil {
+		t.Fatalf("thread context = %v and %v", asked.ThreadContext, plain.ThreadContext)
+	}
+	encoded, err := json.Marshal(asked)
+	if err != nil || !strings.Contains(string(encoded), `"thread_context":"Ada: why did errors rise?"`) {
+		t.Fatalf("encoded run = %s, err %v", encoded, err)
+	}
+	encoded, err = json.Marshal(plain)
+	if err != nil || !strings.Contains(string(encoded), `"thread_context":null`) {
+		t.Fatalf("encoded plain run = %s, err %v", encoded, err)
 	}
 }
 

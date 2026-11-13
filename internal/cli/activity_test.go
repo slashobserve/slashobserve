@@ -91,7 +91,7 @@ func activityFrame(seq int, kind, label, at, data string) string {
 
 func twoEventPage() string {
 	newest := activityJSON(12, "dashboard.version_created", "Sam", "2026-11-01T10:05:09Z", `{"version":12,"title":"Checkout","summary":"x"}`)
-	oldest := activityJSON(11, "run.failed", "/observe for Sam", "2026-11-01T10:00:00Z", `{"source":"prompt","failure_code":"no_progress"}`)
+	oldest := activityJSON(11, "run.failed", "Observe Agent for Sam", "2026-11-01T10:00:00Z", `{"source":"prompt","failure_code":"no_progress"}`)
 	return `{"activity":[` + newest + `,` + oldest + `],"next_cursor":null}`
 }
 
@@ -101,7 +101,7 @@ func TestActivityPrintsTheNewestEventsOldestFirst(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
-	want := "2026-11-01T10:00:00Z  /observe for Sam  run failed (no_progress)\n" +
+	want := "2026-11-01T10:00:00Z  Observe Agent for Sam  run failed (no_progress)\n" +
 		"2026-11-01T10:05:09Z  Sam  saved version 12 of \"Checkout\"\n"
 	if stdout != want {
 		t.Errorf("stdout %q, want %q", stdout, want)
@@ -308,16 +308,16 @@ func TestReadFramesStopsWhenTheHandlerFails(t *testing.T) {
 func TestActivityFollowPrintsFramesAndResumesFromTheLastOne(t *testing.T) {
 	ready := "retry: 10\nevent: ready\ndata: {}\n\n"
 	first := ready + ": ping\n\n" + activityFrame(13, "dashboard.moved", "Sam", "2026-11-01T10:06:00Z", `{"title":"Checkout"}`)
-	second := ready + "event: reset\ndata: {}\n\n" + activityFrame(20, "run.canceled", "/observe for Sam", "2026-11-01T10:07:00Z", `{"source":"prompt"}`)
+	second := ready + "event: reset\ndata: {}\n\n" + activityFrame(20, "run.canceled", "Observe Agent for Sam", "2026-11-01T10:07:00Z", `{"source":"prompt"}`)
 	f := newActivityFake(t, twoEventPage(), sendFrames(first), status(http.StatusTooManyRequests), sendFrames(second))
 	stdout, stderr, code := f.run("activity", "--follow", "--type", "run.canceled", "--limit", "7")
 	if code != 1 || !strings.Contains(stderr, "stop (stop_here)") {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
-	want := "2026-11-01T10:00:00Z  /observe for Sam  run failed (no_progress)\n" +
+	want := "2026-11-01T10:00:00Z  Observe Agent for Sam  run failed (no_progress)\n" +
 		"2026-11-01T10:05:09Z  Sam  saved version 12 of \"Checkout\"\n" +
 		"2026-11-01T10:06:00Z  Sam  moved \"Checkout\"\n" +
-		"2026-11-01T10:07:00Z  /observe for Sam  run canceled\n"
+		"2026-11-01T10:07:00Z  Observe Agent for Sam  run canceled\n"
 	if stdout != want {
 		t.Errorf("stdout %q, want %q", stdout, want)
 	}

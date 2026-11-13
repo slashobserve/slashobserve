@@ -14,10 +14,11 @@ import (
 
 type Threads struct {
 	service *Service
+	runs    *MentionRuns
 }
 
-func NewThreads(service *Service) *Threads {
-	return &Threads{service: service}
+func NewThreads(service *Service, runs *MentionRuns) *Threads {
+	return &Threads{service: service, runs: runs}
 }
 
 type targetJSON struct {
@@ -43,15 +44,28 @@ type threadJSON struct {
 }
 
 type messageJSON struct {
-	ID        string        `json:"id"`
-	ThreadID  string        `json:"thread_id"`
-	Body      string        `json:"body"`
-	Actor     actor.JSON    `json:"actor"`
-	CreatedAt string        `json:"created_at"`
-	UpdatedAt string        `json:"updated_at"`
-	EditedAt  *string       `json:"edited_at"`
-	Mentions  []mentionJSON `json:"mentions"`
-	CanEdit   bool          `json:"can_edit"`
+	ID         string          `json:"id"`
+	ThreadID   string          `json:"thread_id"`
+	Body       string          `json:"body"`
+	Actor      actor.JSON      `json:"actor"`
+	CreatedAt  string          `json:"created_at"`
+	UpdatedAt  string          `json:"updated_at"`
+	EditedAt   *string         `json:"edited_at"`
+	Mentions   []mentionJSON   `json:"mentions"`
+	CanEdit    bool            `json:"can_edit"`
+	Run        *startedRunJSON `json:"run"`
+	RunRefusal *runRefusalJSON `json:"run_refusal"`
+}
+
+type startedRunJSON struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	AssignedKind string `json:"assigned_kind"`
+}
+
+type runRefusalJSON struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 type threadPageJSON struct {
@@ -75,10 +89,17 @@ type openThreadRequest struct {
 	Version *int    `json:"version"`
 	PanelID *string `json:"panel_id"`
 	Body    string  `json:"body"`
+
+	StartRuns bool `json:"start_runs"`
 }
 
 type messageBodyRequest struct {
 	Body string `json:"body"`
+}
+
+type replyRequest struct {
+	Body      string `json:"body"`
+	StartRuns bool   `json:"start_runs"`
 }
 
 type resolveThreadRequest struct {
@@ -146,14 +167,14 @@ func (th *Threads) open(c *gin.Context) {
 		th.fail(c, "open thread", err)
 		return
 	}
-	thread, message, err := th.service.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
+	thread, message, run, refusal, err := th.runs.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
 		Target: target, Version: req.Version, PanelID: req.PanelID, Body: req.Body,
-	}, nil)
+	}, req.StartRuns)
 	if err != nil {
 		th.fail(c, "open thread", err)
 		return
 	}
-	th.respondWithMessage(c, http.StatusCreated, thread, message)
+	th.respondWithMessage(c, http.StatusCreated, thread, withRun(newMessageJSON(message), run, refusal))
 }
 
 func (th *Threads) reply(c *gin.Context) {
@@ -161,16 +182,16 @@ func (th *Threads) reply(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req messageBodyRequest
+	var req replyRequest
 	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
-	thread, message, err := th.service.Reply(c.Request.Context(), httpapi.Caller(c), id, req.Body)
+	thread, message, run, refusal, err := th.runs.Reply(c.Request.Context(), httpapi.Caller(c), id, req.Body, req.StartRuns)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
 		return
 	}
-	th.respondWithMessage(c, http.StatusCreated, thread, message)
+	th.respondWithMessage(c, http.StatusCreated, thread, withRun(newMessageJSON(message), run, refusal))
 }
 
 func (th *Threads) edit(c *gin.Context) {
@@ -187,7 +208,7 @@ func (th *Threads) edit(c *gin.Context) {
 		th.fail(c, "edit message", err)
 		return
 	}
-	th.respondWithMessage(c, http.StatusOK, thread, message)
+	th.respondWithMessage(c, http.StatusOK, thread, newMessageJSON(message))
 }
 
 func (th *Threads) resolve(c *gin.Context) {
@@ -224,13 +245,13 @@ func (th *Threads) setStatus(c *gin.Context, id pgtype.UUID, status string, reso
 	c.JSON(http.StatusOK, threadEnvelopeJSON{Thread: threads[0]})
 }
 
-func (th *Threads) respondWithMessage(c *gin.Context, status int, thread Thread, message Message) {
+func (th *Threads) respondWithMessage(c *gin.Context, status int, thread Thread, message messageJSON) {
 	threads, err := th.threadsJSON(c, []Thread{thread})
 	if err != nil {
 		th.fail(c, "read thread", err)
 		return
 	}
-	c.JSON(status, threadMessageEnvelopeJSON{Thread: threads[0], Message: newMessageJSON(message)})
+	c.JSON(status, threadMessageEnvelopeJSON{Thread: threads[0], Message: message})
 }
 
 func (th *Threads) threadsJSON(c *gin.Context, threads []Thread) ([]threadJSON, error) {
@@ -328,4 +349,14 @@ func newMessageJSON(m Message) messageJSON {
 		out.EditedAt = &at
 	}
 	return out
+}
+
+func withRun(message messageJSON, run *StartedRun, refusal *RunRefusal) messageJSON {
+	if run != nil {
+		message.Run = &startedRunJSON{ID: run.ID, Status: run.Status, AssignedKind: run.AssignedKind}
+	}
+	if refusal != nil {
+		message.RunRefusal = &runRefusalJSON{Code: refusal.Code, Message: refusal.Message}
+	}
+	return message
 }

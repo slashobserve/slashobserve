@@ -93,21 +93,22 @@ type Config struct {
 }
 
 type Task struct {
-	Prompt       string
-	DashboardID  string
-	PanelID      string
-	Source       revisions.Source
-	RequestID    string
-	Attempt      int
-	Continues    bool
-	ContinueNote string
-	Principal    auth.Principal
-	Suggest      bool
-	BaseVersion  int
-	Draft        json.RawMessage
-	Investigate  bool
-	From, To     *time.Time
-	Progress     func(Step)
+	Prompt        string
+	DashboardID   string
+	PanelID       string
+	Source        revisions.Source
+	RequestID     string
+	Attempt       int
+	Continues     bool
+	ContinueNote  string
+	ThreadContext string
+	Principal     auth.Principal
+	Suggest       bool
+	BaseVersion   int
+	Draft         json.RawMessage
+	Investigate   bool
+	From, To      *time.Time
+	Progress      func(Step)
 }
 
 type Step struct {
@@ -490,7 +491,7 @@ func (a *Agent) buildStoreError(ctx context.Context, message string, err error, 
 func (r *runner) briefTask() brief.Task {
 	return brief.Task{
 		Mode: r.mode, Source: r.task.Source, Prompt: r.prompt, PanelID: r.task.PanelID,
-		From: r.task.From, To: r.task.To, ContinueNote: r.task.ContinueNote,
+		From: r.task.From, To: r.task.To, ContinueNote: r.task.ContinueNote, ThreadContext: r.task.ThreadContext,
 		Continues: r.task.Continues, Attempt: r.task.Attempt,
 	}
 }

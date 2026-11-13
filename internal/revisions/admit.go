@@ -272,7 +272,10 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		Assignee:     AssigneeKind(row.AssignedKind),
 		Continues:    row.ContinuesID.Valid,
 		ContinueNote: row.ContinueNote.String,
-		From:         optionalTime(row.ContextFrom),
-		To:           optionalTime(row.ContextTo),
+
+		ThreadContext: row.ThreadContext.String,
+
+		From: optionalTime(row.ContextFrom),
+		To:   optionalTime(row.ContextTo),
 	}
 }

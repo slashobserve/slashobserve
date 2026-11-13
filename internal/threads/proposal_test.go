@@ -77,7 +77,7 @@ func TestAViewerReadsAProposalThreadButCannotWriteToIt(t *testing.T) {
 	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("open: %v", err)
 	}
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi"); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi", nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("reply: %v", err)
 	}
 	denied := r.call(t, viewer, http.MethodPost, "/threads", map[string]any{"target": tg.String(), "body": "hi"})
@@ -97,7 +97,7 @@ func TestAProposalOnADashboardTheCallerCannotSeeIsNotFound(t *testing.T) {
 	if _, err := r.service.List(t.Context(), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list: %v", err)
 	}
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi"); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), "hi", nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply: %v", err)
 	}
 	r.call(t, viewer, http.MethodGet, "/threads?target="+tg.String(), nil).expect(t, http.StatusNotFound, "")

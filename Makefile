@@ -22,6 +22,8 @@ GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -co
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
+# hono and @hono/node-server under the MCP SDK's server transports, which observe-agent never loads; drop once hono 4.13.16 and @hono/node-server 2.1.6 are 14 days old (2026-11-16)
+AGENT_AUDIT_IGNORE := GHSA-qv5m-9pm6-hqp3 GHSA-jpvv-r467-5p4w GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6
 
 define DEMO_BANNER
 	@echo "SlashObserve is running at http://localhost:$${SLASHOBSERVE_HOST_PORT:-8080}"
@@ -103,7 +105,7 @@ audit:
 	cd $(SHOP_DIR) && go tool -modfile=../tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
-	cd observe-agent && bun audit --prod
+	cd observe-agent && bun audit --prod $(addprefix --ignore=,$(AGENT_AUDIT_IGNORE))
 	cd observe-agent && bun audit --audit-level=high
 
 demo:

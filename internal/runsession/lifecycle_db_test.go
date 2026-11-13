@@ -7,10 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -96,6 +99,29 @@ func TestANotFoundSaveEndsTheRunNotFound(t *testing.T) {
 	}
 }
 
+func TestARunTheSessionEndsAnswersInTheThreadItWasAskedIn(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	thread, err := r.d.Queries().CreateThread(context.Background(), dbsqlc.CreateThreadParams{DashboardID: r.dash, DashboardVersion: pgtype.Int4{Int32: 1, Valid: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.d.Queries().CreateMessage(context.Background(), dbsqlc.CreateMessageParams{ID: thread.ID, ThreadID: thread.ID, Body: "why", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	r.d.Exec(t, "UPDATE agent_requests SET thread_message_id = $2 WHERE id = $1", mustUUID(t, req.ID), thread.ID)
+
+	r.call(req, "update_panels", `{"n":1}`, nil, func(context.Context) (tools.Result, error) {
+		return tools.Result{Content: map[string]any{"code": "not_found"}, IsError: true}, nil
+	})
+
+	var body, runID string
+	err = r.d.SQLDB(t).QueryRow("SELECT body, run_id::text FROM thread_messages WHERE thread_id = $1 AND run_id IS NOT NULL", thread.ID).Scan(&body, &runID)
+	if err != nil || body != "The run failed: the dashboard no longer exists." || runID != req.ID {
+		t.Fatalf("reply %q from run %q, err %v", body, runID, err)
+	}
+}
+
 func TestBriefAnswersTheSystemTextTheMessageAndTheReason(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
@@ -108,6 +134,20 @@ func TestBriefAnswersTheSystemTextTheMessageAndTheReason(t *testing.T) {
 	}
 	if _, err := r.svc.Brief(context.Background(), req, "nonsense"); !errors.Is(err, tools.ErrInvalidReason) {
 		t.Fatalf("err = %v, want tools.ErrInvalidReason", err)
+	}
+}
+
+func TestBriefCarriesTheThreadTheRunWasAskedIn(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	req.ThreadContext = "Ada: why did errors rise?"
+	got, err := r.svc.Brief(context.Background(), req, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := "The request was asked in this thread (earlier messages, oldest first):\nAda: why did errors rise?"
+	if !strings.Contains(got.Message, lead) || strings.Index(got.Message, lead) > strings.Index(got.Message, "<request>") {
+		t.Fatalf("message = %q", got.Message)
 	}
 }
 

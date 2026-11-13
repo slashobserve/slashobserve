@@ -28,6 +28,10 @@ func runAllowed(source Source, hasDashboard, canCreate bool, role auth.Role, a f
 	return source == SourceObserve && canCreate
 }
 
+func (s *Service) CheckRun(ctx context.Context, source Source, dashboardID pgtype.UUID, by auth.Principal) error {
+	return s.checkRun(ctx, source, dashboardID, by)
+}
+
 func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtype.UUID, by auth.Principal) error {
 	if !dashboardID.Valid {
 		levels, err := s.access.Levels(ctx, by)

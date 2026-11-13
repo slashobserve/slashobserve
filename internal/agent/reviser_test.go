@@ -328,6 +328,23 @@ func TestReviserCarriesTheContinuationAndItsNoteIntoTheSeed(t *testing.T) {
 	}
 }
 
+func TestReviserStartsTheModelWithTheThreadTheRunWasAskedIn(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
+	req := revisionRequest()
+	req.ThreadContext = "Ada: why did errors rise?"
+
+	if _, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	got := r.provider.started()[0]
+	lead := "The request was asked in this thread (earlier messages, oldest first):\nAda: why did errors rise?"
+	if !strings.Contains(got.Context, lead) {
+		t.Fatalf("context:\n%s", got.Context)
+	}
+}
+
 func TestReviseReportsALostBuildAsALostLease(t *testing.T) {
 	r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{}`))))
 	r.tools.on("create_dashboard", func(context.Context, json.RawMessage) (tools.Result, error) {

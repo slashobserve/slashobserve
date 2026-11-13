@@ -77,16 +77,34 @@ type Server = {
   threads: Thread[]
   messages: () => Message[]
   canComment?: boolean
+  sent?: Partial<Message>
 }
 
-function mockServer({ threads, messages, canComment = true }: Server) {
+function mockServer({
+  threads,
+  messages,
+  canComment = true,
+  sent = {},
+}: Server) {
   const posts: { path: string; body: unknown }[] = []
   const fetch = vi.fn(async (request: Request) => {
     const { pathname } = new URL(request.url)
     if (request.method === "POST") {
       posts.push({ path: pathname, body: await request.clone().json() })
-      return json({ thread, message: later }, 201)
+      return json({ thread, message: { ...later, ...sent } }, 201)
     }
+    if (pathname === "/api/v1/agent") {
+      return json({
+        available: true,
+        provider: "anthropic",
+        model: "claude-haiku-5-5",
+        effort: null,
+      })
+    }
+    if (pathname === "/api/v1/me/grants") {
+      return json({ grants: [], next_cursor: null })
+    }
+    if (pathname === "/api/v1/agents") return json({ service_accounts: [] })
     return json({
       threads,
       messages: messages(),
@@ -103,15 +121,19 @@ afterEach(() => {
 })
 
 function renderDiscussion(
-  props: Partial<Parameters<typeof Discussion>[0]> = {}
+  props: Partial<Parameters<typeof Discussion>[0]> & {
+    route?: { path: string; url: string }
+  } = {}
 ) {
+  const { route, ...discussion } = props
   return renderWithProviders(
     <Discussion
       target={target}
       hint="Posted to everyone who can see this"
       emptyText="No messages yet."
-      {...props}
-    />
+      {...discussion}
+    />,
+    { route }
   )
 }
 
@@ -220,5 +242,74 @@ describe("Discussion", () => {
     await waitFor(() =>
       expect(status).toHaveTextContent(/^New message from Grace\s*$/)
     )
+  })
+
+  it("sends start_runs when the message mentions one agent and shows the working line with a link to the run", async () => {
+    const runId = "6f1e2d3c-4b5a-4968-8776-655443322110"
+    const posts = mockServer({
+      threads: [thread],
+      messages: () => [earlier],
+      sent: { run: { id: runId, status: "queued", assigned_kind: "builtin" } },
+    })
+    const { user } = renderDiscussion({
+      route: { path: "/", url: "/" },
+    })
+    await screen.findByRole("list", { name: "Messages" })
+    await user.click(screen.getByRole("textbox", { name: "Message" }))
+    await user.paste("@observe why did latency rise")
+    await user.click(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    )
+    await waitFor(() =>
+      expect(posts).toEqual([
+        {
+          path: "/api/v1/threads/t1/messages",
+          body: { body: "@observe why did latency rise", start_runs: true },
+        },
+      ])
+    )
+    expect(
+      await screen.findByText(/Observe Agent is working on it/)
+    ).toBeVisible()
+    expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
+      "href",
+      `/c/${runId}`
+    )
+  })
+
+  it("shows the refusal sentence when the server stored the message and started no run", async () => {
+    mockServer({
+      threads: [thread],
+      messages: () => [earlier],
+      sent: {
+        run_refusal: {
+          code: "agent_unavailable",
+          message: "the agent is not configured",
+        },
+      },
+    })
+    const { user } = renderDiscussion()
+    await screen.findByRole("list", { name: "Messages" })
+    await user.click(screen.getByRole("textbox", { name: "Message" }))
+    await user.paste("@observe hi")
+    await user.click(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    )
+    expect(
+      await screen.findByText("The agent is not configured.")
+    ).toBeVisible()
+  })
+
+  it("sends no start_runs for a message that mentions only a person", async () => {
+    const posts = mockServer({ threads: [thread], messages: () => [earlier] })
+    const { user } = renderDiscussion()
+    await screen.findByRole("list", { name: "Messages" })
+    await user.click(screen.getByRole("textbox", { name: "Message" }))
+    await user.paste("@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toEqual({
+      body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
+    })
   })
 })

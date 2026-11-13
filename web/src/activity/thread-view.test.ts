@@ -165,11 +165,11 @@ describe("threadState", () => {
           resolved_actor: {
             ...otherActor,
             run_id: "r1",
-            label: "/observe for Grace",
+            label: "Observe Agent for Grace",
           },
         },
       })
-    ).toEqual({ kind: "resolved", text: "Resolved by /observe for Grace" })
+    ).toEqual({ kind: "resolved", text: "Resolved by Observe Agent for Grace" })
     expect(state({ root: { status: "resolved" } })).toEqual({
       kind: "resolved",
       text: "Resolved by someone",

@@ -178,9 +178,16 @@ Each comment has its `version`, which is null off a dashboard, `edited_at` and i
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
 A comment id is the id of any message of the thread, and the first message's id is the thread's.
 
-Write `@observe` to address the built-in agent: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run.
+Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
+`create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
+A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
+A run started this way is checked like one the same person starts in the web app.
+Two agents in one comment with `start_runs` answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
+The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable`, `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
+
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
 
 `create_finding` is deprecated: use `create_observation` and then `add_block`.
 It saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
@@ -442,6 +449,8 @@ The loop of an agent that takes runs:
 1. Call `claim_run`, which waits up to `wait_seconds` (30 by default) and answers `run: null` when nothing is waiting.
    Call it again.
 2. A claimed run holds its `id`, `attempt`, `kind`, `prompt` and target, a `session` with a `url` and a `token`, and the `observe` prompt to read with the run's `kind`.
+   When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
+   The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.

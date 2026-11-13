@@ -74,8 +74,39 @@ type commentListOut struct {
 	NextCursor  *string      `json:"next_cursor"`
 }
 
+type runOut struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	AssignedKind string `json:"assigned_kind"`
+}
+
+type runRefusalOut struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 type commentResultOut struct {
-	Comment commentOut `json:"comment"`
+	Comment    commentOut     `json:"comment"`
+	Run        *runOut        `json:"run,omitempty"`
+	RunRefusal *runRefusalOut `json:"run_refusal,omitempty"`
+}
+
+func commentResult(ref commentRef, run *threads.StartedRun, refusal *threads.RunRefusal) commentResultOut {
+	out := commentResultOut{Comment: targetedCommentItem(ref)}
+	if run != nil {
+		out.Run = &runOut{ID: run.ID, Status: run.Status, AssignedKind: run.AssignedKind}
+	}
+	if refusal != nil {
+		out.RunRefusal = &runRefusalOut{Code: refusal.Code, Message: refusal.Message}
+	}
+	return out
+}
+
+func startedStep(step string, run *threads.StartedRun) string {
+	if run == nil {
+		return step
+	}
+	return step + " and started a run"
 }
 
 type commentChangedOut struct {
@@ -346,6 +377,8 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 		Body    string  `json:"body"`
 		PanelID *string `json:"panel_id"`
 		Version *int    `json:"version"`
+
+		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -354,11 +387,23 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return commentFailure(err)
 	}
-	thread, message, err := r.deps.Threads.Open(ctx, principal, threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, Body: in.Body}, nil)
+	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, Body: in.Body}
+	var thread threads.Thread
+	var message threads.Message
+	var run *threads.StartedRun
+	var refusal *threads.RunRefusal
+	switch {
+	case !in.StartRuns:
+		thread, message, err = r.deps.Threads.Open(ctx, principal, open, nil)
+	case r.deps.Mentions == nil:
+		return Result{}, errCommentsNotConfigured
+	default:
+		thread, message, run, refusal, err = r.deps.Mentions.Open(ctx, principal, open, true, threads.WithoutInvestigations())
+	}
 	if err != nil {
 		return commentFailure(err)
 	}
-	return success("Opened a comment", commentResultOut{Comment: targetedCommentItem(commentRef{thread, message})}), nil
+	return success(startedStep("Opened a comment", run), commentResult(commentRef{thread, message}, run, refusal)), nil
 }
 
 func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -369,6 +414,8 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	var in struct {
 		CommentID string `json:"comment_id"`
 		Body      string `json:"body"`
+
+		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -377,11 +424,22 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	if !ok {
 		return res, nil
 	}
-	thread, message, err := r.deps.Threads.Reply(ctx, principal, commentID, in.Body)
+	var thread threads.Thread
+	var message threads.Message
+	var run *threads.StartedRun
+	var refusal *threads.RunRefusal
+	switch {
+	case !in.StartRuns:
+		thread, message, err = r.deps.Threads.Reply(ctx, principal, commentID, in.Body, nil)
+	case r.deps.Mentions == nil:
+		return Result{}, errCommentsNotConfigured
+	default:
+		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, in.Body, true, threads.WithoutInvestigations())
+	}
 	if err != nil {
 		return commentFailure(err)
 	}
-	return success("Replied to a comment", commentResultOut{Comment: targetedCommentItem(commentRef{thread, message})}), nil
+	return success(startedStep("Replied to a comment", run), commentResult(commentRef{thread, message}, run, refusal)), nil
 }
 
 func (r *Registry) editComment(ctx context.Context, input json.RawMessage) (Result, error) {

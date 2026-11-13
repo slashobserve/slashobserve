@@ -12,12 +12,15 @@ WHERE dashboard_id = @dashboard_id AND source NOT IN ('suggest', 'investigate') 
 INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
-  continues_id, continue_note
+  continues_id, continue_note,
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context
 ) VALUES (
   @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
-  sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text
+  sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text,
+  coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text
 )
 RETURNING *;
 
@@ -307,12 +310,15 @@ SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND
 -- name: EnqueueInvestigateRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, prompt, panel_id, context_from, context_to,
-  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context
 ) VALUES (
   sqlc.narg('dashboard_id')::uuid, 'investigate', @prompt, sqlc.narg('panel_id')::text,
   sqlc.narg('context_from')::timestamptz, sqlc.narg('context_to')::timestamptz,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
+  coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text
 )
 RETURNING *;
 

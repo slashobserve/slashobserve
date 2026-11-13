@@ -57,7 +57,7 @@ The evidence panels always show the finding's own window, not the dashboard's cu
 
 The comments on an answer are the observation's discussion, one thread for the whole page, and you write in it as described in [Observations](observations.md#who-can-do-what).
 Mention people and the agent the way you do on a dashboard; see [Edit a comment and mention people](review.md#edit-a-comment-and-mention-people).
-A mention is recorded in the [activity log](activity.md) and starts no agent run.
+A mention is recorded in the [activity log](activity.md) and starts no agent run, unless the comment is sent with `start_runs`, which starts an investigation for the one agent it mentions; see [Start a run from a mention](cli.md#start-a-run-from-a-mention).
 Commenting follows who can see the observation: you need Comment on its folder, and anyone else who can read it sees the discussion but no box and no buttons.
 Threads that people opened on a finding before the discussion existed were merged into it when the server upgraded.
 The comment API still takes `finding:<id>` as a target for one release and resolves it to the discussion of the finding's observation.

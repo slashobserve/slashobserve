@@ -37,7 +37,7 @@ function finding(): Finding {
       origin: "web",
       client: null,
       run_id: "r1",
-      label: "/observe for Ada",
+      label: "Observe Agent for Ada",
     },
     created_at: "2026-11-06T11:05:00Z",
     url: "",

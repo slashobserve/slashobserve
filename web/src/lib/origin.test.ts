@@ -155,9 +155,9 @@ describe("versionActor", () => {
   it("marks a save by the built-in agent as an agent's", () => {
     expect(
       versionActor({
-        actor: actor({ run_id: "r1", label: "/observe for Ada" }),
+        actor: actor({ run_id: "r1", label: "Observe Agent for Ada" }),
       })
-    ).toEqual({ who: "/observe for Ada", verb: "saved", agent: true })
+    ).toEqual({ who: "Observe Agent for Ada", verb: "saved", agent: true })
   })
 })
 

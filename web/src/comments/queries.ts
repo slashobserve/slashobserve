@@ -5,7 +5,6 @@ import {
   useMutation,
   useQueryClient,
   type InfiniteData,
-  type QueryClient,
   type QueryKey,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -98,56 +97,6 @@ function mapComment(
       ),
     })),
   }
-}
-
-function insertComment(queryClient: QueryClient, id: string, comment: Comment) {
-  queryClient.setQueryData<CommentsData>(dashboardKeys.comments(id), (data) => {
-    if (!data || data.pages.length === 0) return data
-    const known = data.pages.some((page) =>
-      page.comments.some((item) => item.id === comment.id)
-    )
-    if (known) return data
-    const last = data.pages.length - 1
-    return {
-      ...data,
-      pages: data.pages.map((page, index) =>
-        index === last
-          ? { ...page, comments: [...page.comments, comment] }
-          : page
-      ),
-    }
-  })
-  void queryClient.invalidateQueries({
-    queryKey: dashboardKeys.comments(id),
-  })
-}
-
-export function useAddComment(id: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationKey: dashboardKeys.posts(id),
-    networkMode: "always",
-    mutationFn: (
-      input: { body: string } & (
-        { version: number; panelId: string | null } | { parentId: string }
-      )
-    ) =>
-      api
-        .POST("/dashboards/{id}/comments", {
-          params: { path: { id } },
-          body:
-            "parentId" in input
-              ? { parent_id: input.parentId, body: input.body }
-              : {
-                  version: input.version,
-                  panel_id: input.panelId ?? undefined,
-                  body: input.body,
-                },
-        })
-        .then(unwrap)
-        .then((body) => body.comment),
-    onSuccess: (comment) => insertComment(queryClient, id, comment),
-  })
 }
 
 export function useSetCommentStatus(

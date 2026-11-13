@@ -142,6 +142,7 @@ type Deps struct {
 	Runner        *queryproxy.Runner
 	Dashboards    *dashboards.Service
 	Threads       *threads.Service
+	Mentions      *threads.MentionRuns
 	Proposals     *proposals.Service
 	Imports       *imports.Service
 	Folders       *folders.Access

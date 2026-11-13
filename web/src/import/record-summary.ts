@@ -1,5 +1,6 @@
 import type { StatusTone } from "@/components/status-label"
 import type { components } from "@/api/schema.gen"
+import { agentToken, observeAgent } from "@/comments/mentions"
 
 type ImportCounts = components["schemas"]["ImportCounts"]
 
@@ -32,7 +33,8 @@ export function importStatus(counts: ImportCounts): {
 }
 
 export function fixPrompt(title: string, panelId: string): string {
+  const ask = agentToken(observeAgent)
   return title === ""
-    ? `Fix the unverified panel ${panelId}.`
-    : `Fix the unverified panel "${title}" (${panelId}).`
+    ? `${ask} Fix the unverified panel ${panelId}.`
+    : `${ask} Fix the unverified panel "${title}" (${panelId}).`
 }

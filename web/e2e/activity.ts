@@ -7,7 +7,7 @@ import type { Spec } from "./api"
 
 const repoRoot = join(import.meta.dirname, "..", "..")
 
-export const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
+const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 
 function readJson<T>(...segments: string[]): T {
   return JSON.parse(

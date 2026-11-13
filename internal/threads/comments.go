@@ -134,7 +134,7 @@ func (cm *Comments) reply(ctx context.Context, by auth.Principal, dashboardID pg
 	if _, err := cm.threadOn(ctx, dashboardID, in.ParentID); err != nil {
 		return Comment{}, err
 	}
-	thread, message, err := cm.service.Reply(ctx, by, in.ParentID, in.Body)
+	thread, message, err := cm.service.Reply(ctx, by, in.ParentID, in.Body, nil)
 	if err != nil {
 		return Comment{}, legacyError(err)
 	}

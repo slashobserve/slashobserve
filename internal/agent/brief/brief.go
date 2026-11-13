@@ -10,15 +10,18 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
+const threadLead = "The request was asked in this thread (earlier messages, oldest first):"
+
 type Task struct {
-	Mode         tools.Mode
-	Source       revisions.Source
-	Prompt       string
-	PanelID      string
-	From, To     *time.Time
-	ContinueNote string
-	Continues    bool
-	Attempt      int
+	Mode          tools.Mode
+	Source        revisions.Source
+	Prompt        string
+	PanelID       string
+	From, To      *time.Time
+	ContinueNote  string
+	ThreadContext string
+	Continues     bool
+	Attempt       int
 }
 
 type View struct {
@@ -48,6 +51,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 			return Message{}, err
 		}
 		m.System, m.Context = systemFor(statuses), body
+	}
+	if t.ThreadContext != "" {
+		m.Context += "\n\n" + threadLead + "\n" + t.ThreadContext
 	}
 	if digest != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + digest

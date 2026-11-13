@@ -270,3 +270,32 @@ func TestRevisionEventIsSentOnlyForDashboardRequestsThatAreNotSuggestionsOrInves
 		}
 	}
 }
+
+func TestAssigneeActorReadsAsTheAgentThatTookTheRun(t *testing.T) {
+	accountID := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
+	tests := []struct {
+		name     string
+		assigned AssigneeKind
+		assignee pgtype.UUID
+		agent    string
+		want     string
+		wantRun  bool
+		wantKind auth.PrincipalKind
+		wantID   string
+	}{
+		{"the built-in agent works for the requester", AssignBuiltin, pgtype.UUID{}, "", "Observe Agent for Ada", true, auth.KindUser, runRequesterID.String()},
+		{"a connected agent is the person over its client", AssignGrant, runDashboardID, "claude-code", "Ada (via Claude Code)", false, auth.KindUser, runRequesterID.String()},
+		{"a connected agent whose client is gone is the person over MCP", AssignGrant, runDashboardID, "", "Ada (via MCP)", false, auth.KindUser, runRequesterID.String()},
+		{"a service account is its own actor", AssignServiceAccount, accountID, "ci-bot", "ci-bot (via MCP)", false, auth.KindServiceAccount, accountID.String()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			row := runRow(StatusSucceeded, SourceComment)
+			row.AssignedKind, row.AssignedID = string(tt.assigned), tt.assignee
+			got := AssigneeActor(row, tt.agent)
+			if got.Label() != tt.want || (got.RunID != "") != tt.wantRun || got.Kind != tt.wantKind || got.ID != tt.wantID {
+				t.Fatalf("actor = %+v label %q, want label %q, run %v, kind %s, id %s", got, got.Label(), tt.want, tt.wantRun, tt.wantKind, tt.wantID)
+			}
+		})
+	}
+}

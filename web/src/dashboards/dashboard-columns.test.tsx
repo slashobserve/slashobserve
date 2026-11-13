@@ -146,10 +146,10 @@ describe("dashboard list cells", () => {
           origin: "web",
           origin_client: null,
           via: "agent",
-          actor: actorOf({ run_id: "r1", label: "/observe for Ana" }),
+          actor: actorOf({ run_id: "r1", label: "Observe Agent for Ana" }),
         },
-        text: "/observe for Ana",
-        hover: "/observe for Ana · ana@example.com",
+        text: "Observe Agent for Ana",
+        hover: "Observe Agent for Ana · ana@example.com",
       },
       {
         creator: {

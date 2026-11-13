@@ -76,6 +76,8 @@ type AgentRequest struct {
 	AssignedID        pgtype.UUID
 	ClaimedBy         pgtype.Text
 	ObservationID     pgtype.UUID
+	ThreadMessageID   pgtype.UUID
+	ThreadContext     pgtype.Text
 }
 
 type AgentRequestBuild struct {
@@ -654,25 +656,29 @@ type Thread struct {
 }
 
 type ThreadMention struct {
-	MessageID pgtype.UUID
-	UserID    pgtype.UUID
-	Agent     pgtype.Text
-	Name      string
+	MessageID             pgtype.UUID
+	UserID                pgtype.UUID
+	Agent                 pgtype.Text
+	Name                  string
+	AgentGrantID          pgtype.UUID
+	AgentServiceAccountID pgtype.UUID
 }
 
 type ThreadMessage struct {
-	ID           pgtype.UUID
-	ThreadID     pgtype.UUID
-	Body         string
-	AuthorKind   string
-	AuthorID     pgtype.UUID
-	AuthorName   string
-	AuthorEmail  pgtype.Text
-	Origin       pgtype.Text
-	OriginClient pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	EditedAt     pgtype.Timestamptz
+	ID              pgtype.UUID
+	ThreadID        pgtype.UUID
+	Body            string
+	AuthorKind      string
+	AuthorID        pgtype.UUID
+	AuthorName      string
+	AuthorEmail     pgtype.Text
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	EditedAt        pgtype.Timestamptz
+	RunID           pgtype.UUID
+	RunAssignedKind pgtype.Text
 }
 
 type User struct {

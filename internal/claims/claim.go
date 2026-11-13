@@ -26,18 +26,19 @@ type Offer struct {
 }
 
 type OfferedRun struct {
-	ID           string    `json:"id"`
-	Attempt      int       `json:"attempt"`
-	Kind         string    `json:"kind"`
-	Source       string    `json:"source"`
-	Prompt       string    `json:"prompt"`
-	DashboardID  *string   `json:"dashboard_id"`
-	BaseVersion  *int      `json:"base_version"`
-	PanelID      *string   `json:"panel_id"`
-	From         *string   `json:"from"`
-	To           *string   `json:"to"`
-	ContinueNote *string   `json:"continue_note"`
-	RequestedBy  Requester `json:"requested_by"`
+	ID            string    `json:"id"`
+	Attempt       int       `json:"attempt"`
+	Kind          string    `json:"kind"`
+	Source        string    `json:"source"`
+	Prompt        string    `json:"prompt"`
+	DashboardID   *string   `json:"dashboard_id"`
+	BaseVersion   *int      `json:"base_version"`
+	PanelID       *string   `json:"panel_id"`
+	From          *string   `json:"from"`
+	To            *string   `json:"to"`
+	ContinueNote  *string   `json:"continue_note"`
+	ThreadContext *string   `json:"thread_context"`
+	RequestedBy   Requester `json:"requested_by"`
 }
 
 type Requester struct {
@@ -150,17 +151,18 @@ func (s *Service) openSession(ctx context.Context, c Claimer, row dbsqlc.AgentRe
 
 func offeredRun(req revisions.Request) OfferedRun {
 	run := OfferedRun{
-		ID:           req.ID,
-		Attempt:      req.Attempt,
-		Kind:         revisions.Kind(req.Source),
-		Source:       string(req.Source),
-		Prompt:       req.Prompt,
-		DashboardID:  nonEmpty(req.DashboardID),
-		PanelID:      nonEmpty(req.PanelID),
-		ContinueNote: nonEmpty(req.ContinueNote),
-		From:         formatTime(req.From),
-		To:           formatTime(req.To),
-		RequestedBy:  Requester{Kind: string(req.RequestedBy.Kind), ID: req.RequestedBy.ID, Name: req.RequestedBy.Name},
+		ID:            req.ID,
+		Attempt:       req.Attempt,
+		Kind:          revisions.Kind(req.Source),
+		Source:        string(req.Source),
+		Prompt:        req.Prompt,
+		DashboardID:   nonEmpty(req.DashboardID),
+		PanelID:       nonEmpty(req.PanelID),
+		ContinueNote:  nonEmpty(req.ContinueNote),
+		ThreadContext: nonEmpty(req.ThreadContext),
+		From:          formatTime(req.From),
+		To:            formatTime(req.To),
+		RequestedBy:   Requester{Kind: string(req.RequestedBy.Kind), ID: req.RequestedBy.ID, Name: req.RequestedBy.Name},
 	}
 	if req.BaseVersion > 0 {
 		run.BaseVersion = &req.BaseVersion

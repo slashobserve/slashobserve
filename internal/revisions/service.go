@@ -67,6 +67,11 @@ type EnqueueParams struct {
 
 	ContinuesID  pgtype.UUID
 	ContinueNote string
+
+	Assignee        Assignee
+	Trigger         string
+	ThreadMessageID pgtype.UUID
+	ThreadContext   string
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
@@ -90,9 +95,17 @@ func (s *Service) submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequ
 }
 
 func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
+	if p.Assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
+	return s.enqueue(ctx, q, p)
+}
+
+func (s *Service) EnqueueAssigned(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
+	return s.enqueue(ctx, q, p)
+}
+
+func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	if !p.DashboardID.Valid {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: dashboard id is required")
 	}
@@ -126,6 +139,11 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		OriginClient:     originClient,
 		ContinuesID:      p.ContinuesID,
 		ContinueNote:     pgtype.Text{String: p.ContinueNote, Valid: p.ContinueNote != ""},
+		AssignedKind:     p.Assignee.kindText(),
+		AssignedID:       p.Assignee.ID,
+		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
+		ThreadMessageID:  p.ThreadMessageID,
+		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -158,26 +176,24 @@ func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, SourcePrompt, dashboardID, by); err != nil {
+	return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, PanelID: panelID, Prompt: prompt, By: by}, baseVersion)
+}
+
+func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
+	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	latest, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
+	latest, base, err := s.baseVersionFor(ctx, p.DashboardID, baseVersion)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if panelID != "" {
-		if err := s.checkPanel(ctx, dashboardID, latest, panelID); err != nil {
+	if p.PanelID != "" {
+		if err := s.checkPanel(ctx, p.DashboardID, latest, p.PanelID); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
 	}
-	return s.submit(ctx, EnqueueParams{
-		DashboardID: dashboardID,
-		Source:      SourcePrompt,
-		Prompt:      prompt,
-		PanelID:     panelID,
-		BaseVersion: base,
-		By:          by,
-	})
+	p.Source, p.BaseVersion = SourcePrompt, base
+	return s.submit(ctx, p)
 }
 
 func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
@@ -274,70 +290,90 @@ type InvestigateParams struct {
 
 	ObservationID    pgtype.UUID
 	ReuseObservation bool
+
+	Assignee        Assignee
+	Trigger         string
+	ThreadMessageID pgtype.UUID
+	ThreadContext   string
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
-	if !s.Available() {
+	if p.Assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if err := s.checkInvestigate(ctx, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	requesterID, err := db.ParseUUID(p.By.ID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
-	}
 	var row dbsqlc.AgentRequest
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := q.LockObserveRequests(ctx); err != nil {
-			return fmt.Errorf("lock observe requests: %w", err)
-		}
-		mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
-		if err != nil {
-			return fmt.Errorf("count active investigations of requester: %w", err)
-		}
-		if mine >= MaxActiveInvestigatePerPrincipal {
-			return ErrTooManyInvestigations
-		}
-		all, err := q.CountActiveInvestigateRequests(ctx)
-		if err != nil {
-			return fmt.Errorf("count active investigations: %w", err)
-		}
-		if all >= MaxActiveInvestigate {
-			return ErrAgentBusy
-		}
-		originKind, originClient := origin.From(ctx).Columns()
-		row, err = q.EnqueueInvestigateRequest(ctx, dbsqlc.EnqueueInvestigateRequestParams{
-			DashboardID:      p.DashboardID,
-			Prompt:           p.Prompt,
-			PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
-			ContextFrom:      timestamp(p.From),
-			ContextTo:        timestamp(p.To),
-			RequestedByKind:  string(p.By.Kind),
-			RequestedByID:    requesterID,
-			RequestedByName:  p.By.Name,
-			RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
-			Origin:           originKind,
-			OriginClient:     originClient,
-		})
-		if err != nil {
-			return fmt.Errorf("enqueue investigate request: %w", err)
-		}
-		if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
-			return err
-		}
-		if row, err = s.openObservation(ctx, q, row, p); err != nil {
-			return err
-		}
-		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
-			return fmt.Errorf("notify workers: %w", err)
-		}
-		return nil
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = s.enqueueInvestigate(ctx, q, p)
+		return err
 	})
 	if db.IsForeignKeyViolation(err) {
 		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
 	}
 	return row, err
+}
+
+func (s *Service) EnqueueAssignedInvestigate(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) (dbsqlc.AgentRequest, error) {
+	return s.enqueueInvestigate(ctx, q, p)
+}
+
+func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) (dbsqlc.AgentRequest, error) {
+	requesterID, err := db.ParseUUID(p.By.ID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
+	}
+	if err := q.LockObserveRequests(ctx); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
+	}
+	mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations of requester: %w", err)
+	}
+	if mine >= MaxActiveInvestigatePerPrincipal {
+		return dbsqlc.AgentRequest{}, ErrTooManyInvestigations
+	}
+	all, err := q.CountActiveInvestigateRequests(ctx)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations: %w", err)
+	}
+	if all >= MaxActiveInvestigate {
+		return dbsqlc.AgentRequest{}, ErrAgentBusy
+	}
+	originKind, originClient := origin.From(ctx).Columns()
+	row, err := q.EnqueueInvestigateRequest(ctx, dbsqlc.EnqueueInvestigateRequestParams{
+		DashboardID:      p.DashboardID,
+		Prompt:           p.Prompt,
+		PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
+		ContextFrom:      timestamp(p.From),
+		ContextTo:        timestamp(p.To),
+		RequestedByKind:  string(p.By.Kind),
+		RequestedByID:    requesterID,
+		RequestedByName:  p.By.Name,
+		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
+		Origin:           originKind,
+		OriginClient:     originClient,
+		AssignedKind:     p.Assignee.kindText(),
+		AssignedID:       p.Assignee.ID,
+		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
+		ThreadMessageID:  p.ThreadMessageID,
+		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
+	})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue investigate request: %w", err)
+	}
+	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if row, err = s.openObservation(ctx, q, row, p); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
+	}
+	return row, nil
 }
 
 func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -680,13 +716,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return fmt.Errorf("finish agent request: %w", err)
 		}
 		finished = true
-		if err := recordRun(ctx, q, row, action); err != nil {
-			return err
-		}
-		if State(row.State) == StateSucceeded {
-			s.resolveThread(ctx, savepoint, row)
-		}
-		return nil
+		return s.recordEnded(ctx, q, savepoint, row, action)
 	})
 	return finished, err
 }
@@ -716,13 +746,7 @@ func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, chec
 			return fmt.Errorf("settle released agent request: %w", err)
 		}
 		released = true
-		if err := recordRun(ctx, q, row, ActionSettle); err != nil {
-			return err
-		}
-		if State(row.State) == StateSucceeded {
-			s.resolveThread(ctx, savepoint, row)
-		}
-		return nil
+		return s.recordEnded(ctx, q, savepoint, row, ActionSettle)
 	})
 	return released, err
 }
@@ -757,13 +781,21 @@ func (s *Service) hasProposal(ctx context.Context, claimed dbsqlc.AgentRequest) 
 	return found, nil
 }
 
-func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
-	if s.threads == nil {
+func (s *Service) recordEnded(ctx context.Context, q *dbsqlc.Queries, savepoint db.Savepoint, row dbsqlc.AgentRequest, action Action) error {
+	if err := recordRun(ctx, q, row, action); err != nil {
+		return err
+	}
+	s.runEnded(ctx, savepoint, row)
+	return nil
+}
+
+func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
+	if s.threads == nil || !State(row.State).Terminal() {
 		return
 	}
-	err := savepoint(func(q *dbsqlc.Queries) error { return s.threads.ResolveForRun(ctx, q, row) })
+	err := savepoint(func(q *dbsqlc.Queries) error { return s.threads.RunEnded(ctx, q, row) })
 	if err != nil {
-		s.logger.WarnContext(ctx, "resolve comment thread of a succeeded agent request", logattrs.Failure("agent_request_thread_resolve_failed", err, slog.String("agent_request_id", row.ID.String()))...)
+		s.logger.WarnContext(ctx, "answer in the thread of an ended agent request", logattrs.Failure("agent_request_thread_end_failed", err, slog.String("agent_request_id", row.ID.String()))...)
 	}
 }
 

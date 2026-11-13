@@ -187,7 +187,7 @@ SET result_version = $1::integer,
   build_saved_at = clock_timestamp(),
   result_kind = 'partial_version'
 WHERE id = $3 AND state = ANY($4::text[]) AND build_saved_at IS NULL
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context
 `
 
 type MarkAgentRequestBuildSavedParams struct {
@@ -252,6 +252,8 @@ func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentR
 		&i.AssignedID,
 		&i.ClaimedBy,
 		&i.ObservationID,
+		&i.ThreadMessageID,
+		&i.ThreadContext,
 	)
 	return i, err
 }

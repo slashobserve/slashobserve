@@ -36,7 +36,14 @@ func (r *Runs) ForRun(ctx context.Context, dashboardID, commentID pgtype.UUID) (
 	return row.ID, row.PanelID.String, nil
 }
 
-func (r *Runs) ResolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error {
+func (r *Runs) RunEnded(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error {
+	if run.ThreadMessageID.Valid {
+		return replyForRun(ctx, q, run)
+	}
+	return resolveForRun(ctx, q, run)
+}
+
+func resolveForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error {
 	if !run.CommentID.Valid || !run.DashboardID.Valid || !run.ResultVersion.Valid {
 		return nil
 	}

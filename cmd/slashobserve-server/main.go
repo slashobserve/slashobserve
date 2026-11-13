@@ -357,6 +357,7 @@ func run() error {
 		revisions.WithThreads(threads.NewRuns(database)),
 	}
 	queue := revisions.NewService(database, nil, logger, revisionOpts...)
+	mentionRuns := threads.NewMentionRuns(threadsService, queue, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
 		InstanceID: serverID, Model: sidecar.modelSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
@@ -372,6 +373,7 @@ func run() error {
 		Runner:        runner,
 		Dashboards:    dashboardsService,
 		Threads:       threadsService,
+		Mentions:      mentionRuns,
 		Proposals:     proposalsService,
 		Imports:       importsService,
 		Folders:       folderAccess,
@@ -494,7 +496,7 @@ func run() error {
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
-			threads.NewThreads(threadsService),
+			threads.NewThreads(threadsService, mentionRuns),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
