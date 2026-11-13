@@ -30,7 +30,7 @@ export const HideCrumbContext = createContext<(hidden: boolean) => void>(
   () => undefined
 )
 
-export function useHideCrumbWhenHeadingRepeats(title: string) {
+export function useHideCrumbWhenHeadingRepeats(title: string): boolean {
   const { crumbs, pageTitle } = useCrumbs()
   const setHidden = useContext(HideCrumbContext)
   const repeats =
@@ -40,4 +40,5 @@ export function useHideCrumbWhenHeadingRepeats(title: string) {
     setHidden(true)
     return () => setHidden(false)
   }, [repeats, setHidden])
+  return repeats
 }
