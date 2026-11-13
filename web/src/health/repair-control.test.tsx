@@ -80,4 +80,11 @@ describe("RepairControl", () => {
     renderControl(viewer, { showOpen: true })
     expect(await screen.findByRole("link", { name: "Open" })).toBeTruthy()
   })
+
+  test("labels the button with the label prop", async () => {
+    renderControl(item({}), { label: "Repair all" })
+    expect(
+      await screen.findByRole("button", { name: "Repair all" })
+    ).toBeTruthy()
+  })
 })

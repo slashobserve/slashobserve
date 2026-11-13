@@ -16,6 +16,7 @@ type RepairControlProps = {
   onRepair: () => void
   blockedReason?: string | null
   showOpen?: boolean
+  label?: string
 }
 
 export function RepairControl({
@@ -25,6 +26,7 @@ export function RepairControl({
   onRepair,
   blockedReason = null,
   showOpen = false,
+  label = "Repair",
 }: RepairControlProps) {
   const action = repairAction(item, agentAvailable)
   switch (action.kind) {
@@ -64,6 +66,7 @@ export function RepairControl({
               disabledReason={action.disabledReason ?? blockedReason}
               pending={pending}
               onRepair={onRepair}
+              label={label}
             />
           ) : null}
         </span>
@@ -74,6 +77,7 @@ export function RepairControl({
           disabledReason={action.disabledReason ?? blockedReason}
           pending={pending}
           onRepair={onRepair}
+          label={label}
         />
       )
     case "open":
@@ -92,10 +96,12 @@ function RepairButton({
   disabledReason,
   pending,
   onRepair,
+  label,
 }: {
   disabledReason: string | null
   pending: boolean
   onRepair: () => void
+  label: string
 }) {
   const reasonId = useId()
   return (
@@ -116,7 +122,7 @@ function RepairButton({
             className="motion-safe:animate-spin"
           />
         ) : null}
-        Repair
+        {label}
       </Button>
       {disabledReason === null ? null : (
         <span id={reasonId} className="sr-only">

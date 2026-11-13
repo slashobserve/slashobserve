@@ -3,22 +3,27 @@ import { describe, expect, test } from "vitest"
 import {
   canRepair,
   dashboardCount,
+  dashboardProblems,
   groupProblems,
   healthCellText,
   isHealthFilter,
   isProblemFilter,
   lastRunProblem,
+  panelProblems,
   pollHealth,
+  problemCountText,
   problemFilterLabels,
   problemSubject,
   problemText,
   repairAction,
+  repairLabel,
   repairOutcomeText,
   repairStatus,
   runStartWaitMs,
   sortProblems,
   subjectSummary,
   summaryLabels,
+  worstTone,
   type HealthItem,
   type HealthJob,
   type HealthProblem,
@@ -586,5 +591,101 @@ describe("repairStatus", () => {
     [{ kind: "open" }, null],
   ] as const)("%j shows %j", (action, want) => {
     expect(repairStatus(action)).toEqual(want)
+  })
+})
+
+describe("dashboardProblems", () => {
+  test("drops unopened because the viewer just opened the dashboard", () => {
+    const failing = problem({ kind: "query_failed", panel_id: "1" })
+    const wide = problem({ kind: "duplicate_title" })
+    const got = dashboardProblems(
+      item({ problems: [failing, problem({ kind: "unopened" }), wide] })
+    )
+    expect(got).toEqual([failing, wide])
+  })
+})
+
+describe("panelProblems", () => {
+  const orders = problem({ kind: "query_failed", panel_id: "1" })
+  const ordersEmpty = problem({ kind: "no_data", panel_id: "1" })
+  const latency = problem({ kind: "no_data", panel_id: "2" })
+  const env = problem({ kind: "variable_failed", variable: "env" })
+  const checked = item({
+    checked_version: 4,
+    problems: [
+      orders,
+      env,
+      latency,
+      ordersEmpty,
+      problem({ kind: "unopened" }),
+    ],
+  })
+
+  test("groups the panel problems by panel id and skips the rest", () => {
+    const got = panelProblems(checked, 4)
+    expect([...got.keys()]).toEqual(["1", "2"])
+    expect(got.get("1")).toEqual([orders, ordersEmpty])
+    expect(got.get("2")).toEqual([latency])
+  })
+
+  test.each([
+    ["an older version", 3],
+    ["a newer version", 5],
+  ])("is empty when %s is drawn", (_name, drawn) => {
+    expect(panelProblems(checked, drawn).size).toBe(0)
+  })
+
+  test("is empty before the first check", () => {
+    expect(
+      panelProblems(item({ checked_version: null, problems: [orders] }), 1).size
+    ).toBe(0)
+  })
+})
+
+describe("problemCountText", () => {
+  test.each([
+    [1, "1 problem"],
+    [2, "2 problems"],
+    [3, "3 problems"],
+  ])("counts %i as %j", (count, want) => {
+    expect(problemCountText(count)).toBe(want)
+  })
+})
+
+describe("worstTone", () => {
+  test.each([
+    [
+      [problem({ kind: "no_data" }), problem({ kind: "query_failed" })],
+      "critical",
+    ],
+    [
+      [problem({ kind: "duplicate_title" }), problem({ kind: "no_data" })],
+      "warning",
+    ],
+    [[problem({ kind: "duplicate_title" })], "none"],
+    [[], "none"],
+  ])("reads the tone of the first of %o as %s", (problems, want) => {
+    expect(worstTone(problems)).toBe(want)
+  })
+})
+
+describe("repairLabel", () => {
+  test.each([
+    [[], "Repair"],
+    [[problem({ kind: "query_failed" })], "Repair"],
+    [
+      [problem({ kind: "query_failed" }), problem({ kind: "no_data" })],
+      "Repair all",
+    ],
+    [
+      [problem({ kind: "no_data" }), problem({ kind: "duplicate_title" })],
+      "Repair",
+    ],
+    [
+      [problem({ kind: "variable_failed" }), problem({ kind: "no_data" })],
+      "Repair all",
+    ],
+  ])("labels %o as %j", (problems, want) => {
+    expect(repairLabel(problems)).toBe(want)
   })
 })

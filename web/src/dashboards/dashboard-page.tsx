@@ -25,6 +25,8 @@ import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
+import { DashboardHealthButton } from "@/health/dashboard-health-button"
+import { usePanelHealth } from "@/health/use-dashboard-health"
 import { StarToggle } from "@/home/star-toggle"
 import {
   InspectPane,
@@ -251,6 +253,11 @@ function DashboardView({
     () =>
       unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
     [envelope.version.unverified, envelopeVersion, version]
+  )
+  const panelHealth = usePanelHealth(
+    dashboardId,
+    version,
+    editing ? "finish the layout first" : null
   )
   const actionContext = useMemo(
     () => ({
@@ -691,6 +698,11 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
+    <DashboardHealthButton
+      key="health"
+      dashboardId={dashboardId}
+      blockedReason={editing ? "finish the layout first" : null}
+    />,
     <ProposalsButton key="proposals" dashboardId={dashboardId} />,
     <MoreMenu
       key="more"
@@ -775,6 +787,11 @@ function DashboardView({
       layoutSession={editing}
       openComments={item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0}
       unverifiedReason={unverified.panels.get(item.panel.id)}
+      health={
+        item.first && !unverified.panels.has(item.panel.id)
+          ? panelHealth.get(item.panel.id)
+          : undefined
+      }
       highlighted={item.panel.id === search.panel || item.panel.id === flashed}
       selected={item.first && !viewing && item.panel.id === selectedId}
       editingPanel={

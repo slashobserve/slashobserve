@@ -78,8 +78,42 @@ export function problemSubject(problem: HealthProblem): string {
   return ""
 }
 
+export function dashboardProblems(item: HealthItem): HealthProblem[] {
+  return item.problems.filter((p) => p.kind !== "unopened")
+}
+
+export function panelProblems(
+  item: HealthItem,
+  drawnVersion: number
+): ReadonlyMap<string, readonly HealthProblem[]> {
+  const byPanel = new Map<string, HealthProblem[]>()
+  if (item.checked_version !== drawnVersion) return byPanel
+  for (const problem of item.problems) {
+    if (problem.panel_id === null) continue
+    const list = byPanel.get(problem.panel_id) ?? []
+    list.push(problem)
+    byPanel.set(problem.panel_id, list)
+  }
+  return byPanel
+}
+
+export function problemCountText(count: number): string {
+  return `${count} ${count === 1 ? "problem" : "problems"}`
+}
+
+export function worstTone(problems: readonly HealthProblem[]): StatusTone {
+  const [worst] = sortProblems(problems)
+  return worst === undefined ? "none" : kindTones[worst.kind]
+}
+
 export function canRepair(item: HealthItem): boolean {
   return item.can_edit && item.problems.some((p) => repairableKinds.has(p.kind))
+}
+
+export function repairLabel(problems: readonly HealthProblem[]): string {
+  return problems.filter((p) => repairableKinds.has(p.kind)).length > 1
+    ? "Repair all"
+    : "Repair"
 }
 
 export type ProblemGroup = {
