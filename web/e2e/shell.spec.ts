@@ -59,11 +59,11 @@ test("renders every shell page with its crumb and current item", async ({
   }
 })
 
-test("redirects / to the inbox and keeps the chat at /ask", async ({
-  page,
-}) => {
+test("opens Home at / and keeps the chat at /ask", async ({ page }) => {
   await page.goto("/")
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(
+    page.getByRole("heading", { level: 1, name: "What are you working on?" })
+  ).toBeVisible()
   await page.goto("/ask")
   await expect(
     page.getByRole("heading", { level: 1, name: "What do you want to see?" })

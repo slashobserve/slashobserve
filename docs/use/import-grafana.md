@@ -6,6 +6,7 @@ description: Import a Grafana dashboard from the web page, the CLI or MCP, and h
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
 The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
+Home's **Import a dashboard** tab starts the web page: paste the JSON or choose a file there and Home opens the page with it; see [Home](home.md).
 
 To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
 

@@ -11,7 +11,7 @@ A connected agent signed in as a person reads the same list with the MCP tool `l
 
 ## In the web app
 
-**Inbox** is the entry after **Home** in the sidebar, at `/inbox`, and `/` opens it.
+**Inbox** is in the sidebar under Home, at `/inbox`.
 A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
 The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply" or "Run failed", and "Workspace activity" for the rest, which only the Everything view shows.
 The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.

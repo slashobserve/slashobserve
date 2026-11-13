@@ -62,9 +62,10 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
   A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
-- `web/src/home/` is the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
+- `web/src/home/` is Home at `/` (`home-page.tsx`) and the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows; recently viewed dashboards and observations live only in `localStorage` under `slashobserve-recent-dashboards` and `slashobserve-recent-observations` (at most 20 each, written by `useRecordRecent` in the dashboard and observation routes) and never reach the server.
 - Pins (`web/src/pins/`) are the server's stars under their web name: they come from `GET /api/v1/stars` under `pinKeys` and change only through `usePinMutation`, which `PinToggle` and the sidebar's `PinnedDashboards` share through the one query.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
+  Home's import tab hands it to `/import` in memory through `web/src/import/handoff.ts`, never through the address, history state or storage.
 - Comment bodies render as plain text only.
 
 ## Routes and shell
@@ -72,7 +73,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `_authed` only checks the session.
   Every page except the dashboard and the build renders inside the pathless `_authed/_shell` layout, and the dashboard routes under `_authed/d/$dashboardId` and the build route `_authed/b/$requestId` have no shell.
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
-- `/` only redirects: to `/inbox`, or to `/ask` with its query string when it has one; the chat is `/ask`.
+- `/` is Home; with a query string other than `tab` it redirects to `/ask` with that query string (`homeRedirect` in `web/src/home/home-tab.ts`); the chat is `/ask`.
   Agents are at `/agents` and `/agents/<ref>`, and `/keys` has no sidebar entry, because the Agents page links to it for Admins.
 - `/connect/$requestId` is the OAuth consent page, under `_authed` without the shell; it navigates to the server's `redirect_to` and never stores it.
 - `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.

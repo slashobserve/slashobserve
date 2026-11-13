@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   MAX_IMPORT_BYTES,
+  exceedsImportLimit,
   formatBytes,
   requestBytes,
   summaryLine,
@@ -32,6 +33,13 @@ describe("requestBytes", () => {
 
   it("limits to 8 MiB", () => {
     expect(MAX_IMPORT_BYTES).toBe(8_388_608)
+  })
+})
+
+describe("exceedsImportLimit", () => {
+  it("accepts a short text and refuses one as long as the limit", () => {
+    expect(exceedsImportLimit("{}")).toBe(false)
+    expect(exceedsImportLimit("x".repeat(MAX_IMPORT_BYTES))).toBe(true)
   })
 })
 

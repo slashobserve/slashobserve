@@ -51,9 +51,9 @@ test("falls back to the home page for an unsafe return_to", async ({
   page,
 }) => {
   await page.goto("/login?return_to=/%5Cevil.com")
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
   await expect(
-    page.getByRole("heading", { level: 1, name: "Inbox" })
+    page.getByRole("heading", { level: 1, name: "What are you working on?" })
   ).toBeVisible()
 })
 

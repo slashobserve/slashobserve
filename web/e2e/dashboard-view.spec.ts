@@ -335,7 +335,7 @@ test("shows not found for an unknown dashboard", async ({
   const back = page.getByRole("link", { name: "Back to dashboards" })
   await expect(back).toHaveAttribute("href", "/")
   await back.click()
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
   consoleErrors.length = 0
 })
 

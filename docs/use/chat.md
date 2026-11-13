@@ -3,7 +3,7 @@ title: Chat and follow-ups
 description: How a prompt becomes a dashboard, how to watch the build beside the chat, how to read each turn, and how to find, rename, pin and delete your chats.
 ---
 
-The chat on the Ask page, at `/ask`, turns a sentence into a saved dashboard.
+The chat on Home's **Ask Observe Agent** tab, and on the Ask page at `/ask`, turns a sentence into a saved dashboard.
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
@@ -51,7 +51,7 @@ The example prompts under the box are built from your datasources and dashboards
 With Prometheus and a dashboard, the first one adds a latency row to that dashboard and opens its chat; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
 Choosing one sends it at once.
 
-Under the example prompts, the chat home lists your saved prompts and those shared with everyone, and typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
+Under the example prompts, the Ask page at `/ask` lists your saved prompts and those shared with everyone, and typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
 
 Each person may have 3 new-dashboard requests queued or running, and the instance 20.
 Past that the server answers `429` with `too_many_requests` or `agent_busy` ("The agent is busy with other requests; try again in a moment."); wait for a request to finish.
