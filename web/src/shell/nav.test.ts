@@ -24,6 +24,16 @@ describe("isNavItemActive", () => {
     expect(active("/import")).toEqual([])
   })
 
+  test("Home is current on the Chats page and no other item is", () => {
+    expect(isNavItemActive("/", "/")).toBe(true)
+    expect(isNavItemActive("/", "/chats")).toBe(true)
+    expect(isNavItemActive("/", "/chats-x")).toBe(false)
+    const active = visibleNavItems("admin")
+      .filter((item) => isNavItemActive(item.to, "/chats"))
+      .map((item) => item.label)
+    expect(active).toEqual(["Home"])
+  })
+
   test("other items match their path and children only", () => {
     expect(isNavItemActive("/dashboards", "/dashboards")).toBe(true)
     expect(isNavItemActive("/dashboards", "/dashboards-x")).toBe(false)

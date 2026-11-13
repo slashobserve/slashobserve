@@ -19,6 +19,23 @@ export function chatState(state: RequestSummary["state"]): {
   }
 }
 
+export type ChatStateFilter = "running" | "stopped" | "done"
+
+const everyState = {
+  queued: true,
+  running: true,
+  canceling: true,
+  succeeded: true,
+  failed: true,
+  canceled: true,
+} satisfies Record<RequestSummary["state"], true>
+
+export function statesFor(filter: ChatStateFilter): RequestSummary["state"][] {
+  return (Object.keys(everyState) as RequestSummary["state"][]).filter(
+    (state) => chatState(state).word.toLowerCase() === filter
+  )
+}
+
 function savedText(request: RequestSummary): string {
   if (request.dashboard_title === null) return requestStatusView(request).text
   return request.source === "observe"

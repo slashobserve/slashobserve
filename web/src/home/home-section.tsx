@@ -27,7 +27,7 @@ type ListProps<T> = {
   errorText?: string
 }
 
-export const textLinkClass =
+const textLinkClass =
   "rounded-control text-[13px] text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
 
 export const rowLinkClass =

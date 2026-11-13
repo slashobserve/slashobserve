@@ -1,4 +1,4 @@
-import type { paths } from "@/api/schema.gen"
+import type { components, paths } from "@/api/schema.gen"
 
 export type Selections = Record<string, string[]>
 
@@ -80,6 +80,8 @@ export type ChatListFilters = {
   q?: string
   pinned?: boolean
   dashboardId?: string
+  scope?: "all"
+  states?: components["schemas"]["RequestSummary"]["state"][]
 }
 
 export const observeKeys = {
