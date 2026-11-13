@@ -26,7 +26,7 @@ import {
   type ObservationEnvelope,
 } from "./queries"
 
-const columnClass = "mx-auto flex w-full max-w-[720px] flex-col gap-8"
+const columnClass = "flex w-full flex-col gap-8"
 
 function ObservationSkeleton() {
   return (

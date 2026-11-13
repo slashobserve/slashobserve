@@ -277,7 +277,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
   )
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <PageHeader
         title="Import from Grafana"
         description="Every panel is kept; what cannot render yet becomes a placeholder listed in the report."

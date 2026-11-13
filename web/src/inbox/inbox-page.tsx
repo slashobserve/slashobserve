@@ -191,7 +191,7 @@ export function InboxPage({ view, selected, onChange }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <>
       <PageHeader
         title="Inbox"
         actions={
@@ -234,6 +234,6 @@ export function InboxPage({ view, selected, onChange }: Props) {
           </section>
         ) : null}
       </div>
-    </div>
+    </>
   )
 }
