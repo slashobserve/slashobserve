@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode, Ref } from "react"
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,13 +31,15 @@ type TraceToolbarProps = {
   onErrorsOnlyChange: (on: boolean) => void
   onCollapseAll: () => void
   onExpandAll: () => void
-  hint: string
+  onPrevMatch: () => void
+  onNextMatch: () => void
+}
+
+type ServiceLegendProps = {
   services: TraceService[]
   hiddenServices: ReadonlySet<string>
   onToggleService: (name: string) => void
-  legendHint: string
-  onPrevMatch: () => void
-  onNextMatch: () => void
+  hint: string
   formatDuration: (ms: number) => string
 }
 
@@ -115,125 +117,129 @@ export function TraceToolbar({ searchRef, ...props }: TraceToolbarProps) {
   )
 
   return (
-    <div className="flex flex-col gap-2 text-[13px]">
-      <div
-        role="toolbar"
-        aria-label="Trace tools"
-        className="flex flex-wrap items-center gap-x-4 gap-y-2"
-      >
-        <div className="flex min-w-0 flex-1 basis-60 items-center gap-1">
+    <div
+      role="toolbar"
+      aria-label="Trace tools"
+      className="flex flex-wrap items-center gap-2 text-[13px]"
+    >
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="relative w-60 max-w-full">
+          <SearchIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             ref={searchRef}
             type="search"
             value={props.search}
             placeholder="Find in trace"
             aria-label="Find spans by name, service or attribute value"
-            className="max-w-[380px] min-w-0 flex-1"
+            className="pl-8"
             onChange={(event) => props.onSearchChange(event.target.value)}
             onKeyDown={onSearchKeyDown}
           />
-          {props.search === "" ? null : (
-            <>
-              <span
-                role="status"
-                className="shrink-0 text-xs text-muted-foreground tabular-nums"
-              >
-                {matchText}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Previous match"
-                disabled={props.matchCount === 0}
-                onClick={props.onPrevMatch}
-              >
-                <ChevronUpIcon aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Next match"
-                disabled={props.matchCount === 0}
-                onClick={props.onNextMatch}
-              >
-                <ChevronDownIcon aria-hidden="true" />
-              </Button>
-            </>
-          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {props.criticalPathDisabled === undefined ? (
-            criticalPathButton
-          ) : (
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                {criticalPathButton}
-              </TooltipTrigger>
-              <TooltipContent>{props.criticalPathDisabled}</TooltipContent>
-            </Tooltip>
-          )}
-          <ToggleButton
-            pressed={props.errorsOnly}
-            onChange={props.onErrorsOnlyChange}
-          >
-            Errors only
-          </ToggleButton>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={props.onCollapseAll}
-          >
-            Collapse all
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={props.onExpandAll}
-          >
-            Expand all
-          </Button>
-          <span className="text-xs text-muted-foreground">{props.hint}</span>
-        </div>
+        {props.search === "" ? null : (
+          <>
+            <span
+              role="status"
+              className="shrink-0 text-xs text-muted-foreground tabular-nums"
+            >
+              {matchText}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Previous match"
+              disabled={props.matchCount === 0}
+              onClick={props.onPrevMatch}
+            >
+              <ChevronUpIcon aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Next match"
+              disabled={props.matchCount === 0}
+              onClick={props.onNextMatch}
+            >
+              <ChevronDownIcon aria-hidden="true" />
+            </Button>
+          </>
+        )}
       </div>
-      <div className="flex items-center gap-x-4 overflow-x-auto">
-        <span className="shrink-0 text-xs text-muted-foreground">Services</span>
-        <div className="flex items-center gap-1">
-          {props.services.map((service) => {
-            const shown = !props.hiddenServices.has(service.name)
-            return (
-              <Button
-                key={service.name}
-                type="button"
-                variant="ghost"
-                size="xs"
-                aria-pressed={shown}
-                title={`${service.name}: ${props.formatDuration(service.selfMs)} of own time`}
-                className={cn("gap-1.5", !shown && "opacity-40")}
-                onClick={() => props.onToggleService(service.name)}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-[7px] shrink-0 rounded-[2px]"
-                  style={{ backgroundColor: styleForSlot(service.slot).color }}
-                />
-                {service.name}
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {service.spans.toLocaleString("en")}
-                </span>
-              </Button>
-            )
-          })}
-        </div>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {props.legendHint}
-        </span>
-      </div>
+      {props.criticalPathDisabled === undefined ? (
+        criticalPathButton
+      ) : (
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex" />}>
+            {criticalPathButton}
+          </TooltipTrigger>
+          <TooltipContent>{props.criticalPathDisabled}</TooltipContent>
+        </Tooltip>
+      )}
+      <ToggleButton
+        pressed={props.errorsOnly}
+        onChange={props.onErrorsOnlyChange}
+      >
+        Errors only
+      </ToggleButton>
+      <span className="ml-auto flex items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={props.onCollapseAll}
+        >
+          Collapse all
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={props.onExpandAll}
+        >
+          Expand all
+        </Button>
+      </span>
+    </div>
+  )
+}
+
+export function ServiceLegend(props: ServiceLegendProps) {
+  return (
+    <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto px-4">
+      <span className="shrink-0 text-xs text-muted-foreground">Services</span>
+      {props.services.map((service) => {
+        const shown = !props.hiddenServices.has(service.name)
+        return (
+          <Button
+            key={service.name}
+            type="button"
+            variant="outline"
+            size="xs"
+            aria-pressed={shown}
+            title={`${service.name}: ${props.formatDuration(service.selfMs)} of own time`}
+            className={cn("gap-1.5", !shown && "opacity-40")}
+            onClick={() => props.onToggleService(service.name)}
+          >
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-[2px]"
+              style={{ backgroundColor: styleForSlot(service.slot).color }}
+            />
+            {service.name}
+            <span className="text-muted-foreground tabular-nums">
+              {service.spans.toLocaleString("en")}
+            </span>
+          </Button>
+        )
+      })}
+      <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
+        {props.hint}
+      </span>
     </div>
   )
 }

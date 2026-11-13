@@ -16,10 +16,10 @@ import {
   ChevronRightIcon,
   MinusIcon,
   PlusIcon,
-  XIcon,
 } from "lucide-react"
 
 import { CopyButton } from "@/components/copy-button"
+import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { traceLink, tracesLink } from "@/lib/links"
 import { zonedDateTimeMs } from "@/lib/time"
@@ -80,7 +80,8 @@ export type TraceViewProps = {
   zone: string | undefined
   width: number
   height: number
-  attributes: "inline" | "pane"
+  attributes: "inline" | "external"
+  detailsId?: string
   openId?: string | null
   onOpenIdChange?: (id: string | null) => void
   collapsed?: ReadonlySet<string>
@@ -92,10 +93,7 @@ export type TraceViewProps = {
   zoom?: Zoom
   onZoom?: (zoom: Zoom) => void
   header?: boolean
-  searchLink?: SearchLink
-  spanPaneExtra?: (span: Span) => ReactNode
   fold?: ReadonlyMap<string, FoldGroup>
-  traceLinks?: TraceLinkTarget
 }
 
 export type TraceLinkTarget = { ds: string; from: string; to: string }
@@ -493,7 +491,7 @@ function MoreRow({
   )
 }
 
-function kindLine(span: Span): string {
+export function kindLine(span: Span): string {
   return [
     span.service,
     span.kind === null ? "" : `${span.kind.toLowerCase()} span`,
@@ -772,99 +770,58 @@ function SpanAttributes({
   )
 }
 
-function SpanPane({
-  id,
+export function SpanDetails({
   span,
   model,
   searchLink,
   traceLinks,
   extra,
-  onClose,
 }: {
-  id: string
-  span: Span | undefined
+  span: Span
   model: TraceViewProps["model"]
   searchLink: SearchLink | undefined
   traceLinks: TraceLinkTarget | undefined
   extra: ReactNode
-  onClose: () => void
 }) {
   const share =
-    span && model.duration > 0
-      ? Math.round((span.duration / model.duration) * 100)
-      : 0
-  const spanAttributes =
-    span?.attributes.filter((attribute) => attribute.source === "span") ?? []
-  const resourceAttributes =
-    span?.attributes.filter((attribute) => attribute.source === "resource") ??
-    []
+    model.duration > 0 ? Math.round((span.duration / model.duration) * 100) : 0
+  const spanAttributes = span.attributes.filter(
+    (attribute) => attribute.source === "span"
+  )
+  const resourceAttributes = span.attributes.filter(
+    (attribute) => attribute.source === "resource"
+  )
   return (
-    <aside
-      aria-label="Span details"
-      id={id}
-      className="w-[400px] max-w-1/2 shrink-0 overflow-auto border-l border-border p-3 text-xs"
-    >
-      {span ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="text-muted-foreground">{kindLine(span)}</p>
-              <h2 className="m-0 text-[13px] font-semibold [overflow-wrap:anywhere] text-foreground">
-                {span.operation || span.id}
-              </h2>
-              <p className="flex flex-wrap gap-x-2">
-                <span
-                  className={cn(
-                    "font-medium",
-                    span.error ? "text-status-critical" : "text-foreground"
-                  )}
-                >
-                  {span.error ? "Error" : "OK"}
-                </span>
-                <span className="tabular-nums">
-                  {model.formatDuration(span.duration)}
-                </span>
-                <span className="text-muted-foreground tabular-nums">
-                  {share}% of the trace
-                </span>
-                <span className="text-muted-foreground tabular-nums">
-                  starts at +{model.formatDuration(span.start - model.start)}
-                </span>
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Close span details"
-              onClick={onClose}
-            >
-              <XIcon aria-hidden="true" />
-            </Button>
-          </div>
-          {span.attributes.length === 0 ? (
-            <p className="text-muted-foreground">No attributes.</p>
-          ) : null}
-          <AttributeSection
-            title="Attributes"
-            items={spanAttributes}
-            searchLink={searchLink}
-          />
-          <AttributeSection
-            title="Resource"
-            items={resourceAttributes}
-            searchLink={searchLink}
-          />
-          <EventList span={span} formatDuration={model.formatDuration} />
-          <LinkList span={span} target={traceLinks} />
-          {extra}
-        </div>
-      ) : (
-        <p className="text-muted-foreground">
-          Select a span to see its attributes.
-        </p>
-      )}
-    </aside>
+    <div className="flex flex-col gap-3 text-xs">
+      <p className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
+        <span className="font-medium">
+          <StatusLabel tone={span.error ? "critical" : "ok"}>
+            {span.error ? "Error" : "OK"}
+          </StatusLabel>
+        </span>
+        <span>{model.formatDuration(span.duration)}</span>
+        <span className="text-muted-foreground">{share}% of the trace</span>
+        <span className="text-muted-foreground">
+          starts at +{model.formatDuration(span.start - model.start)}
+        </span>
+      </p>
+      {span.attributes.length === 0 ? (
+        <p className="text-muted-foreground">No attributes.</p>
+      ) : null}
+      <AttributeSection
+        title="Attributes"
+        items={spanAttributes}
+        searchLink={searchLink}
+      />
+      <AttributeSection
+        title="Resource"
+        items={resourceAttributes}
+        searchLink={searchLink}
+      />
+      <EventList span={span} formatDuration={model.formatDuration} />
+      <LinkList span={span} target={traceLinks} />
+      {extra}
+    </div>
   )
 }
 
@@ -903,7 +860,8 @@ export function TraceView(props: TraceViewProps) {
   const scrolledTo = useRef<string | null>(null)
   const focusPending = useRef(false)
   const initialOpenId = useRef(props.openId ?? null)
-  const detailsId = useId()
+  const ownDetailsId = useId()
+  const detailsId = props.detailsId ?? ownDetailsId
 
   const wanted = props.collapsed ?? internalCollapsed
   const setCollapsed = (next: ReadonlySet<string>) => {
@@ -947,8 +905,6 @@ export function TraceView(props: TraceViewProps) {
   const openIndex = rows.findIndex(
     (row) => row.kind === "span" && row.span.id === openId
   )
-  const openRow = openIndex === -1 ? undefined : rows[openIndex]
-  const openSpan = openRow?.kind === "span" ? openRow.span : undefined
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
   const range = windowed
@@ -1306,21 +1262,6 @@ export function TraceView(props: TraceViewProps) {
             })}
           </ul>
         </div>
-        {inline ? null : (
-          <SpanPane
-            id={detailsId}
-            span={openSpan}
-            model={model}
-            searchLink={props.searchLink}
-            traceLinks={props.traceLinks}
-            extra={
-              openSpan && props.spanPaneExtra
-                ? props.spanPaneExtra(openSpan)
-                : null
-            }
-            onClose={() => setOpenId(null)}
-          />
-        )}
       </div>
     </div>
   )
