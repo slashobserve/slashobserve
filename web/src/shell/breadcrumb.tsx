@@ -1,13 +1,9 @@
-import { Link, useMatches } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 
-import type { Crumb } from "./crumbs"
+import { useCrumbs } from "./crumbs"
 
 export function Breadcrumb() {
-  const crumbs = useMatches({
-    select: (matches): Crumb[] =>
-      matches.findLast((match) => match.staticData.crumbs)?.staticData.crumbs ??
-      [],
-  })
+  const crumbs = useCrumbs()
   const last = crumbs.length - 1
   return (
     <nav

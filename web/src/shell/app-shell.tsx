@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
 import { CommandPalette } from "./command-palette"
+import { PhoneBar } from "./phone-bar"
 import { Sidebar } from "./sidebar"
 import { PanelHostContext } from "./side-panel"
 import { TopRow } from "./top-row"
@@ -17,8 +18,9 @@ export function AppShell() {
           <Sidebar />
           <div className="group/shell @container flex min-w-0 flex-1 flex-wrap overflow-y-auto bg-background">
             <main className="flex max-h-full min-h-0 min-w-0 flex-[1_1_560px] flex-col overflow-hidden @max-[1000px]:group-has-[aside]/shell:max-h-none">
+              <PhoneBar />
               <TopRow setActionsHost={setActionsHost} />
-              <div className="relative min-h-0 flex-1 overflow-auto px-6 pt-3.5 pb-7">
+              <div className="relative min-h-0 flex-1 overflow-auto px-6 pt-3.5 pb-7 narrow:px-4">
                 <Outlet />
               </div>
             </main>
