@@ -59,17 +59,20 @@ describe("scopeLine", () => {
 describe("presenceLabel", () => {
   const now = Date.parse("2026-11-11T10:00:00Z")
 
-  test("says Present while the agent is present", () => {
-    expect(presenceLabel(true, "2026-11-11T09:00:00Z", now)).toBe("Present")
+  test.each([
+    ["working", "Working"],
+    ["listening", "Listening"],
+  ] as const)("says %s as %s whatever the last seen time", (presence, text) => {
+    expect(presenceLabel(presence, "2026-11-11T09:00:00Z", now)).toBe(text)
   })
 
-  test("gives the time since it was last seen", () => {
-    expect(presenceLabel(false, "2026-11-11T09:55:00Z", now)).toBe(
-      "Last seen 5 min ago"
+  test("gives the time since an offline agent was last seen", () => {
+    expect(presenceLabel("offline", "2026-11-11T09:55:00Z", now)).toBe(
+      "Offline, last seen 5 min ago"
     )
   })
 
   test("says Never seen when it never was", () => {
-    expect(presenceLabel(false, null, now)).toBe("Never seen")
+    expect(presenceLabel("offline", null, now)).toBe("Never seen")
   })
 })

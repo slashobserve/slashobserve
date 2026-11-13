@@ -34,7 +34,7 @@ function overview(over: Partial<AgentsOverview> = {}): AgentsOverview {
         grant_id: "g1",
         client_name: "Claude Code",
         mode: "propose",
-        present: true,
+        presence: "listening",
         last_seen_at: "2026-11-11T10:00:00Z",
         connected_at: "2026-11-01T10:00:00Z",
         writes_7d: 7,
@@ -45,7 +45,7 @@ function overview(over: Partial<AgentsOverview> = {}): AgentsOverview {
       {
         id: "s1",
         name: "nightly-audit",
-        present: false,
+        presence: "offline",
         last_seen_at: null,
         last_7_days: { ...stats, runs: 21, failed: 4 },
       },
@@ -100,7 +100,7 @@ describe("AgentsPage", () => {
 
     const connected = screen.getByRole("region", { name: "Connected agents" })
     expect(within(connected).getByText("Claude Code")).toBeTruthy()
-    expect(within(connected).getByText("Present")).toBeTruthy()
+    expect(within(connected).getByText("Listening")).toBeTruthy()
     expect(within(connected).getByText("7")).toBeTruthy()
     expect(
       within(connected).getByRole("combobox", { name: "Mode for Claude Code" })
@@ -133,7 +133,7 @@ describe("AgentsPage", () => {
             {
               id: "s1",
               name: "nightly-audit",
-              present: true,
+              presence: "listening",
               last_seen_at: null,
               last_7_days: null,
             },
