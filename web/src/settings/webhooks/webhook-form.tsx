@@ -1,4 +1,11 @@
-import { useId, useState, type FormEvent, type RefObject } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type RefObject,
+} from "react"
 import { Link } from "@tanstack/react-router"
 import { ChevronDownIcon } from "lucide-react"
 
@@ -37,10 +44,16 @@ type Props = {
 
 const empty: WebhookInput = { name: "", url: "", events: [] }
 
-function ServerProblem({ error }: { error: unknown }) {
+function ServerProblem({
+  error,
+  alertRef,
+}: {
+  error: unknown
+  alertRef: RefObject<HTMLDivElement | null>
+}) {
   if (isDomainNotAllowed(error)) {
     return (
-      <Alert variant="destructive">
+      <Alert ref={alertRef} variant="destructive" tabIndex={-1}>
         <AlertDescription>
           This domain is not on the outbound allowlist, and a webhook never adds
           it. An Admin can allow it in the{" "}
@@ -62,7 +75,7 @@ function ServerProblem({ error }: { error: unknown }) {
     )
   }
   return (
-    <Alert variant="destructive">
+    <Alert ref={alertRef} variant="destructive" tabIndex={-1}>
       <AlertDescription>{webhookProblemText(error)}</AlertDescription>
     </Alert>
   )
@@ -76,11 +89,18 @@ export function WebhookForm({
   firstInputRef,
 }: Props) {
   const baseId = useId()
+  const alertBox = useRef<HTMLDivElement>(null)
   const [values, setValues] = useState(initial)
   const [problems, setProblems] = useState<WebhookProblems>({})
   const [open, setOpen] = useState(
     () => new Set(openGroupPrefixes(initial.events))
   )
+
+  useEffect(() => {
+    if (serverError !== null && serverError !== undefined) {
+      alertBox.current?.focus()
+    }
+  }, [serverError])
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -114,6 +134,9 @@ export function WebhookForm({
       onSubmit={submit}
       className="flex flex-col gap-4"
     >
+      {serverError === null || serverError === undefined ? null : (
+        <ServerProblem error={serverError} alertRef={alertBox} />
+      )}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={nameId} className="text-[13px] font-medium">
           Name
@@ -255,9 +278,6 @@ export function WebhookForm({
           </p>
         )}
       </fieldset>
-      {serverError === null || serverError === undefined ? null : (
-        <ServerProblem error={serverError} />
-      )}
     </form>
   )
 }
