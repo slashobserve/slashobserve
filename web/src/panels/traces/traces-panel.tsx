@@ -47,7 +47,7 @@ import {
   rowId,
   type FoldGroup,
 } from "./fold"
-import { niceTicks, tickLimit } from "./ruler"
+import { niceTicks, tickAnchor, tickLimit, type TickAnchor } from "./ruler"
 import {
   ancestorIds,
   filterSpans,
@@ -183,10 +183,10 @@ export function DragSelection({
   )
 }
 
-function tickClass(tick: number, duration: number): string {
-  if (tick === 0) return "left-0"
-  if (tick >= duration) return "right-0"
-  return "-translate-x-1/2"
+const tickClass: Record<TickAnchor, string> = {
+  start: "left-0",
+  middle: "-translate-x-1/2",
+  end: "right-0",
 }
 
 function nameColumns(width: number): string {
@@ -1122,22 +1122,25 @@ export function TraceView(props: TraceViewProps) {
               {...ruler.handlers}
             >
               <div ref={tickRef} className="relative h-full">
-                {ticks.map((tick) => (
-                  <span
-                    key={tick}
-                    className={cn(
-                      "absolute top-1 whitespace-nowrap tabular-nums",
-                      tickClass(tick, windowMs)
-                    )}
-                    style={
-                      tick === 0 || tick >= windowMs
-                        ? undefined
-                        : { left: `${(tick / windowMs) * 100}%` }
-                    }
-                  >
-                    {model.formatDuration(zoom.start * model.duration + tick)}
-                  </span>
-                ))}
+                {ticks.map((tick) => {
+                  const anchor = tickAnchor(tick, windowMs, tickWidth)
+                  return (
+                    <span
+                      key={tick}
+                      className={cn(
+                        "absolute top-1 whitespace-nowrap tabular-nums",
+                        tickClass[anchor]
+                      )}
+                      style={
+                        anchor === "middle"
+                          ? { left: `${(tick / windowMs) * 100}%` }
+                          : undefined
+                      }
+                    >
+                      {model.formatDuration(zoom.start * model.duration + tick)}
+                    </span>
+                  )
+                })}
                 <DragSelection selection={ruler.selection} />
               </div>
             </div>

@@ -4,6 +4,7 @@ const mostTicks = 6
 const preferredTicks = 5
 const floatSlack = 1e-9
 const tickLabelPx = 64
+const labelHalfPx = 24
 
 function tickCount(durationMs: number, step: number): number {
   return Math.floor((durationMs / step) * (1 + floatSlack)) + 1
@@ -49,4 +50,20 @@ export function niceTicks(
     { length: tickCount(durationMs, step) },
     (_, index) => index * step
   )
+}
+
+export type TickAnchor = "start" | "middle" | "end"
+
+export function tickAnchor(
+  tickMs: number,
+  durationMs: number,
+  rulerPx: number
+): TickAnchor {
+  if (tickMs <= 0) return "start"
+  if (tickMs >= durationMs) return "end"
+  if (rulerPx <= 0) return "middle"
+  const fromStartPx = (tickMs / durationMs) * rulerPx
+  if (fromStartPx < labelHalfPx) return "start"
+  if (rulerPx - fromStartPx < labelHalfPx) return "end"
+  return "middle"
 }
