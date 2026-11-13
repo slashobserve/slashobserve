@@ -366,7 +366,7 @@ func TestSearchResultsCarryTheirPlaceAndAddress(t *testing.T) {
 		{"a comment points at what it is on", message, "https://observe.example.com/o/" + finding, "General",
 			&Target{Kind: KindObservation, ID: finding, Title: "heron finding"}, thread, KindComment, true},
 		{"an observation saved by a key is filed in General", keyed, "https://observe.example.com/o/" + keyed, "General", nil, "", KindObservation, true},
-		{"a saved search opens its page", saved, "https://observe.example.com/logs?ds=loki&from=now-1h&q=%7Bapp%3D%22x%22%7D+%7C%3D+%22heron%22&to=now", "General", nil, "", KindSavedSearch, true},
+		{"a saved search opens its page", saved, "https://observe.example.com/logs/loki?from=now-1h&q=%7Bapp%3D%22x%22%7D+%7C%3D+%22heron%22&to=now", "General", nil, "", KindSavedSearch, true},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
