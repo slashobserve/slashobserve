@@ -124,11 +124,19 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 | `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
+| `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
+| `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
+| `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
+| `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
 | `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)). |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
+
+`restore` reads the latest version for `--parent` when it is omitted, and answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.
+`bin/observe dashboards diff <dashboard-id> --from 2 --to 3` shows what changed between versions 2 and 3.
+Pins (stars) are a signed-in person's and cannot be set with a key, so the CLI has no pin command; pin dashboards in the web app or over MCP.
 
 The lists and the panel table print as columns aligned with spaces.
 `bin/observe --help` shows the rest.
