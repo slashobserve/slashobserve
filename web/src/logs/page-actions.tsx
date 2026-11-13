@@ -209,7 +209,7 @@ export function LogsPageActions({
           onClick={onSave}
         >
           <BookmarkIcon aria-hidden="true" />
-          Save search
+          <span className="@max-[780px]/top:sr-only">Save search</span>
         </Button>
         <CopyButton
           text={window.location.href}

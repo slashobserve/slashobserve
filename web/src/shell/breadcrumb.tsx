@@ -12,11 +12,15 @@ export function Breadcrumb({
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]"
+      className="flex min-w-0 items-center gap-2 text-[13px]"
     >
       {crumbs.map((crumb, index) =>
         index === last && !pageTitle ? (
-          <span key={crumb.label} aria-current="page" className="font-medium">
+          <span
+            key={crumb.label}
+            aria-current="page"
+            className="min-w-0 truncate font-medium"
+          >
             {crumb.label}
           </span>
         ) : (
