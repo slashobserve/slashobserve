@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
 import { DashboardHealthButton } from "@/health/dashboard-health-button"
 import { usePanelHealth } from "@/health/use-dashboard-health"
-import { StarToggle } from "@/home/star-toggle"
 import {
   InspectPane,
   inspectPaneId,
@@ -41,6 +40,7 @@ import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
+import { PinToggle } from "@/pins/pin-toggle"
 import { ShareToggle } from "@/share/share-pane"
 import { Sidebar } from "@/shell/sidebar"
 import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
@@ -737,7 +737,7 @@ function DashboardView({
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
     />,
-    <StarToggle key="star" dashboardId={dashboardId} />,
+    <PinToggle key="pin" dashboardId={dashboardId} />,
     <ShareToggle
       key="share"
       pressed={search.share === true && !editing}

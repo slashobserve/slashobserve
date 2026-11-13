@@ -62,18 +62,20 @@ The server redirects only when the id is a UUID, and the web app does the same f
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
 It resolves only for a signed-in caller who can see the dashboard: a signed-out visitor signs in first and comes back to it, and a uid nobody imported, or whose dashboard is in a folder you cannot see, opens the app's not-found page.
 
-## Dashboards on the Ask page and stars
+## Dashboards on the Ask page and pins
 
 The chat page at `/ask` lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
-Starred dashboards come first, newest star first, then Recently viewed: the last five dashboards you opened in this browser that are not starred.
-When you have neither, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its three provisioned dashboards.
+It shows Recently viewed: the last five dashboards you opened in this browser.
+When you have none, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its three provisioned dashboards.
 The search box below them finds dashboards by title or description, and `tag:` words narrow it to tags: `tag:prod latency` finds dashboards tagged `prod` that mention `latency`.
 Arrow keys move through the results and Enter opens one.
 
-Star a dashboard with the **Star** button in its header; it then reads **Starred**, and pressing it again removes the star.
-Stars belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them.
-Only people star: a service-account key gets `403 user_session_required`.
-A starred dashboard in a folder you can no longer see leaves the list, and deleting a dashboard removes its stars.
+Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
+A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted.
+The sidebar lists ten pins and then a **More** link to the dashboards list; the phone menu lists them too, and the icon rail shows none.
+Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
+Only people pin: a service-account key gets `403 user_session_required`.
+A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
 Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.
 
 ## TV mode

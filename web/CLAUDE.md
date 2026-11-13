@@ -62,8 +62,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
   A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
-- `web/src/home/` is the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows.
-  Stars come from `GET /api/v1/stars` under `starKeys` and change only through `useStarMutation`; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
+- `web/src/home/` is the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
+- Pins (`web/src/pins/`) are the server's stars under their web name: they come from `GET /api/v1/stars` under `pinKeys` and change only through `usePinMutation`, which `PinToggle` and the sidebar's `PinnedDashboards` share through the one query.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
 - Comment bodies render as plain text only.
 

@@ -47,14 +47,6 @@ export function recordRecent(
   ].slice(0, recentLimit)
 }
 
-export function recentToShow(
-  list: readonly RecentDashboard[],
-  starredIds: ReadonlySet<string>,
-  limit: number
-): RecentDashboard[] {
-  return list.filter((recent) => !starredIds.has(recent.id)).slice(0, limit)
-}
-
 function readRecent(): RecentDashboard[] {
   try {
     return parseRecent(localStorage.getItem(recentDashboardsKey))
