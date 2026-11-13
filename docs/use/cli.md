@@ -510,6 +510,20 @@ Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickH
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
+### Compare traces
+
+`--compare` explains what sets some traces apart from others, as the compare view of the Traces page does:
+
+```sh
+bin/observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736,5c1d7a2e9f8b4a3d --baseline 6d2e8b3fa09c4b4e9f7a1c2d3e4f5061 --datasource tempo
+```
+
+`--compare` takes the trace ids to explain and `--baseline` the trace ids to compare them with, each comma separated or repeated, and a trace id is in only one of them.
+It prints `ATTRIBUTE`, `VALUE`, `SELECTED` and `BASELINE` columns: the attribute values whose share of the selected traces and share of the baseline traces differ by at least 10 percentage points, the largest gap first.
+`--limit` is the most differences to print, 1 to 100 and 20 by default, and `--from` and `--to` bound where the traces are read.
+A note on standard error says when some traces were not found in the range or more differences exist than `--limit` allows, and `--json` prints the response body.
+`--compare` takes no trace id argument and cannot be combined with `--ask`, and `--baseline` and `--limit` need `--compare`; each mistake exits 2.
+
 ## Grafana connections
 
 ### Connect to a Grafana
