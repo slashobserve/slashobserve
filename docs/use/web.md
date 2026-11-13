@@ -97,7 +97,7 @@ The toolbar shows only what you may do:
 The arrow keys move between the toolbar's buttons, and `Home` and `End` go to the first and last.
 While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
 
-At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone and in TV mode.
+At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you can neither comment nor ask, as a Viewer cannot.
 With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
 **Ask** opens the activity pane in investigate mode for the whole dashboard.
 

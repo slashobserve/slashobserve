@@ -105,7 +105,7 @@ After a large import, an Admin can choose **Run now** instead of waiting for the
 Delete or merge the duplicates and the unopened dashboards before the next step, so nobody shares or commits them.
 See [Dashboard health](dashboard-health.md) for the rules and the API.
 
-![The Dashboard health page with the All problems and All folders filters and Run now, listing a Node Exporter Full dashboard whose panels return no data, with a Repair button on its row](images/switch-from-grafana/05-health.png)
+![The dashboards list with its Health column, showing a failing query on some dashboards and Healthy on others, the Problem filter and Run now above the list](images/switch-from-grafana/05-health.png)
 
 ## Share with public links and TV mode
 
