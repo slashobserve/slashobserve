@@ -66,22 +66,28 @@ WHERE d.folder_id = ANY($1::uuid[])
   AND ($7::text IS NULL OR d.created_origin_client = $7::text)
   AND ($8::text IS NULL OR v.datasource_uids @> ARRAY[$8::text])
   AND ($9::text[] IS NULL OR d.tags @> $9::text[])
-  AND ($10::text IS NULL
-    OR strpos(lower(d.title), lower($10::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($10::text)) > 0)
+  AND ($10::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches($10::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $11::timestamptz)))
+  AND ($12::text IS NULL
+    OR strpos(lower(d.title), lower($12::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($12::text)) > 0)
 `
 
 type CountDashboardsParams struct {
-	Folders     []pgtype.UUID
-	Folder      pgtype.UUID
-	CreatorKind pgtype.Text
-	CreatorID   pgtype.UUID
-	OnlyAgent   bool
-	OnlyMcp     bool
-	McpClient   pgtype.Text
-	Datasource  pgtype.Text
-	Tags        []string
-	Q           pgtype.Text
+	Folders        []pgtype.UUID
+	Folder         pgtype.UUID
+	CreatorKind    pgtype.Text
+	CreatorID      pgtype.UUID
+	OnlyAgent      bool
+	OnlyMcp        bool
+	McpClient      pgtype.Text
+	Datasource     pgtype.Text
+	Tags           []string
+	Problem        pgtype.Text
+	UnopenedBefore pgtype.Timestamptz
+	Q              pgtype.Text
 }
 
 func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams) (int64, error) {
@@ -95,6 +101,8 @@ func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams
 		arg.McpClient,
 		arg.Datasource,
 		arg.Tags,
+		arg.Problem,
+		arg.UnopenedBefore,
 		arg.Q,
 	)
 	var count int64
@@ -625,11 +633,15 @@ WHERE ($1::timestamptz IS NULL
   AND ($9::text IS NULL OR d.created_origin_client = $9::text)
   AND ($10::text IS NULL OR v.datasource_uids @> ARRAY[$10::text])
   AND ($11::text[] IS NULL OR d.tags @> $11::text[])
-  AND ($12::text IS NULL
-    OR strpos(lower(d.title), lower($12::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($12::text)) > 0)
+  AND ($12::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches($12::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $13::timestamptz)))
+  AND ($14::text IS NULL
+    OR strpos(lower(d.title), lower($14::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($14::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $14 OFFSET $13
+LIMIT $16 OFFSET $15
 `
 
 type ListDashboardsParams struct {
@@ -644,6 +656,8 @@ type ListDashboardsParams struct {
 	McpClient       pgtype.Text
 	Datasource      pgtype.Text
 	Tags            []string
+	Problem         pgtype.Text
+	UnopenedBefore  pgtype.Timestamptz
 	Q               pgtype.Text
 	RowOffset       int32
 	RowLimit        int32
@@ -677,6 +691,8 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 		arg.McpClient,
 		arg.Datasource,
 		arg.Tags,
+		arg.Problem,
+		arg.UnopenedBefore,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,
@@ -751,32 +767,38 @@ WHERE ($1::uuid IS NULL
   AND ($13::text IS NULL OR d.created_origin_client = $13::text)
   AND ($14::text IS NULL OR v.datasource_uids @> ARRAY[$14::text])
   AND ($15::text[] IS NULL OR d.tags @> $15::text[])
-  AND ($16::text IS NULL
-    OR strpos(lower(d.title), lower($16::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($16::text)) > 0)
+  AND ($16::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches($16::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $17::timestamptz)))
+  AND ($18::text IS NULL
+    OR strpos(lower(d.title), lower($18::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($18::text)) > 0)
 ORDER BY NOT f.personal, f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
-LIMIT $18 OFFSET $17
+LIMIT $20 OFFSET $19
 `
 
 type ListDashboardsByFolderParams struct {
-	CFolder     pgtype.UUID
-	CPersonal   pgtype.Bool
-	CGeneral    pgtype.Bool
-	CTitle      pgtype.Text
-	CUpdatedAt  pgtype.Timestamptz
-	CID         pgtype.UUID
-	Folders     []pgtype.UUID
-	Folder      pgtype.UUID
-	CreatorKind pgtype.Text
-	CreatorID   pgtype.UUID
-	OnlyAgent   bool
-	OnlyMcp     bool
-	McpClient   pgtype.Text
-	Datasource  pgtype.Text
-	Tags        []string
-	Q           pgtype.Text
-	RowOffset   int32
-	RowLimit    int32
+	CFolder        pgtype.UUID
+	CPersonal      pgtype.Bool
+	CGeneral       pgtype.Bool
+	CTitle         pgtype.Text
+	CUpdatedAt     pgtype.Timestamptz
+	CID            pgtype.UUID
+	Folders        []pgtype.UUID
+	Folder         pgtype.UUID
+	CreatorKind    pgtype.Text
+	CreatorID      pgtype.UUID
+	OnlyAgent      bool
+	OnlyMcp        bool
+	McpClient      pgtype.Text
+	Datasource     pgtype.Text
+	Tags           []string
+	Problem        pgtype.Text
+	UnopenedBefore pgtype.Timestamptz
+	Q              pgtype.Text
+	RowOffset      int32
+	RowLimit       int32
 }
 
 type ListDashboardsByFolderRow struct {
@@ -811,6 +833,8 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 		arg.McpClient,
 		arg.Datasource,
 		arg.Tags,
+		arg.Problem,
+		arg.UnopenedBefore,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,

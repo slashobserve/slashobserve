@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 )
 
@@ -251,7 +252,7 @@ func TestListByKindKeepsEachDashboardsRank(t *testing.T) {
 func TestListAcceptsEveryKind(t *testing.T) {
 	r := newRig(t)
 	r.rankedFixture(t)
-	for _, kind := range health.Kinds {
+	for _, kind := range healthrule.Kinds {
 		items := r.list(t, r.editor, kind)
 		if len(items) == 0 {
 			t.Errorf("kind %s lists nothing", kind)
@@ -378,4 +379,68 @@ func equalPtr[T comparable](a, b *T) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+func (r *rig) moveToPersonalFolderOf(t *testing.T, id pgtype.UUID, owner auth.Principal) {
+	t.Helper()
+	r.db.Exec(t, `UPDATE dashboards SET folder_id = (SELECT id FROM folders WHERE owner_id = $2) WHERE id = $1`, id.String(), owner.ID)
+}
+
+func (r *rig) dashboardIDsFixture(t *testing.T) (empty, failing, healthy, hidden pgtype.UUID) {
+	t.Helper()
+	empty = r.create(t, boardSpec("Empty", "empty_series"))
+	failing = r.create(t, boardSpec("Failing", "fail_series"))
+	healthy = r.create(t, boardSpec("Healthy", "up"))
+	hidden = r.create(t, boardSpec("Hidden", "empty_series"))
+	r.moveToPersonalFolderOf(t, hidden, r.viewer)
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	return empty, failing, healthy, hidden
+}
+
+func TestListWithDashboardIDsReadsOnlyThoseThatHaveAProblemAndAreVisible(t *testing.T) {
+	r := newRig(t)
+	empty, failing, healthy, hidden := r.dashboardIDsFixture(t)
+
+	page, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{empty, failing, healthy, hidden}, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, it := range page.Items {
+		got = append(got, it.Title)
+	}
+	if want := []string{"Failing", "Empty"}; !slices.Equal(got, want) {
+		t.Errorf("listed %v, want %v", got, want)
+	}
+	if page.Summary != nil {
+		t.Errorf("summary = %+v, want nil", page.Summary)
+	}
+
+	owner, err := r.svc.List(t.Context(), r.viewer, health.ListParams{DashboardIDs: []pgtype.UUID{hidden}, Limit: 100})
+	if err != nil || len(owner.Items) != 1 || owner.Items[0].Title != "Hidden" {
+		t.Errorf("owner list = %+v, %v", owner.Items, err)
+	}
+}
+
+func TestListWithDashboardIDsHasNoSummaryOnAnyPage(t *testing.T) {
+	r := newRig(t)
+	empty, failing, _, _ := r.dashboardIDsFixture(t)
+	ids := []pgtype.UUID{empty, failing}
+
+	first, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1})
+	if err != nil || first.NextCursor == "" || first.Summary != nil || len(first.Items) != 1 {
+		t.Fatalf("first page = %+v, %v", first, err)
+	}
+	second, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1, Cursor: first.NextCursor})
+	if err != nil || second.NextCursor != "" || second.Summary != nil || len(second.Items) != 1 {
+		t.Fatalf("second page = %+v, %v", second, err)
+	}
+
+	all, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: 1})
+	if err != nil || all.Summary == nil {
+		t.Fatalf("unfiltered first page summary = %+v, %v", all.Summary, err)
+	}
 }

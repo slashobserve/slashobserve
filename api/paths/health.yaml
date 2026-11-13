@@ -17,6 +17,7 @@ health:
       The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null.
       Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one.
       `job` is the state of the health job.
+      With `dashboard_id`, only those dashboards are listed, still only when they have a problem, and `summary` is null on every page.
     parameters:
       - name: folder_id
         in: query
@@ -24,6 +25,19 @@ health:
         schema:
           type: string
           format: uuid
+      - name: dashboard_id
+        in: query
+        description: >-
+          Only these dashboards, repeated up to 50 times; more than 50 values, or a value that is not a UUID, answers 400 `invalid_request`, and a repeated id counts once.
+          An id that does not exist, or is in a folder the caller cannot see, is absent from the answer and never an error.
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
       - name: kind
         in: query
         description: Only dashboards with this kind of problem, and only problems of this kind.

@@ -289,6 +289,7 @@ type ListParams struct {
 	Datasource string
 	Query      string
 	Tags       []string
+	Problem    string
 	SkipTotal  bool
 	Folder     pgtype.UUID
 	ByFolder   bool

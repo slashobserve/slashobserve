@@ -84,6 +84,9 @@ func TestListFiltersRejectBadInput(t *testing.T) {
 		"tag over the length limit":    "tag=" + strings.Repeat("a", 41),
 		"eleven tags":                  strings.Repeat("tag=a&", 10) + "tag=a",
 		"one bad tag among good ones":  "tag=demo&tag=Bad",
+		"problem unknown":              "problem=bogus",
+		"problem empty":                "problem=",
+		"problem in another case":      "problem=ANY",
 		"q empty":                      "q=",
 		"datasource empty":             "datasource=",
 	}
@@ -132,6 +135,17 @@ func TestListFiltersAcceptRepeatedTags(t *testing.T) {
 		if code != http.StatusOK || !slices.Equal(params.Tags, tt.want) {
 			t.Errorf("%.40s answered %d with tags %v, want %v", tt.raw, code, params.Tags, tt.want)
 		}
+	}
+}
+
+func TestListFiltersAcceptEveryProblem(t *testing.T) {
+	for _, problem := range []string{"any", "no_data", "query_failed", "variable_failed", "duplicate_title", "unopened"} {
+		if code, params := listFilterStatus(t, "problem="+problem); code != http.StatusOK || params.Problem != problem {
+			t.Errorf("problem=%s answered %d with problem %q", problem, code, params.Problem)
+		}
+	}
+	if code, params := listFilterStatus(t, ""); code != http.StatusOK || params.Problem != "" {
+		t.Errorf("no problem answered %d with problem %q", code, params.Problem)
 	}
 }
 

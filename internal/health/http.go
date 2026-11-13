@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -27,6 +28,7 @@ const (
 	defaultListLimit   = 50
 	maxListLimit       = 100
 	invalidRepairsBody = "send dashboard_ids with 1 to 50 dashboard UUIDs"
+	invalidListIDsBody = "dashboard_id must be 1 to 50 dashboard UUIDs"
 )
 
 type Jobs interface {
@@ -188,8 +190,16 @@ func (h *Handler) list(c *gin.Context) {
 		}
 		params.FolderID = folder
 	}
+	if raw, present := c.GetQueryArray("dashboard_id"); present {
+		ids, ok := dashboardIDs(raw)
+		if !ok {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidListIDsBody)
+			return
+		}
+		params.DashboardIDs = distinctIDs(ids)
+	}
 	if raw, present := c.GetQuery("kind"); present {
-		kind, valid := ValidKind(raw)
+		kind, valid := healthrule.ValidKind(raw)
 		if !valid {
 			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be no_data, query_failed, variable_failed, duplicate_title or unopened")
 			return
@@ -227,7 +237,7 @@ func (h *Handler) repair(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
-	ids, ok := repairIDs(body.DashboardIDs)
+	ids, ok := dashboardIDs(body.DashboardIDs)
 	if !ok {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidRepairsBody)
 		return
@@ -247,7 +257,7 @@ func (h *Handler) repair(c *gin.Context) {
 	c.JSON(http.StatusAccepted, out)
 }
 
-func repairIDs(raw []string) ([]pgtype.UUID, bool) {
+func dashboardIDs(raw []string) ([]pgtype.UUID, bool) {
 	if len(raw) < 1 || len(raw) > maxRepairIDs {
 		return nil, false
 	}
@@ -260,6 +270,18 @@ func repairIDs(raw []string) ([]pgtype.UUID, bool) {
 		ids = append(ids, id)
 	}
 	return ids, true
+}
+
+func distinctIDs(ids []pgtype.UUID) []pgtype.UUID {
+	seen := make(map[[16]byte]bool, len(ids))
+	out := make([]pgtype.UUID, 0, len(ids))
+	for _, id := range ids {
+		if !seen[id.Bytes] {
+			seen[id.Bytes] = true
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func (h *Handler) run(c *gin.Context) {

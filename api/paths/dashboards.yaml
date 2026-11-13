@@ -132,6 +132,14 @@ dashboards:
           items:
             type: string
             pattern: "^[a-z0-9][a-z0-9_.-]{0,39}$"
+      - name: problem
+        in: query
+        description: >-
+          Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them.
+          The same rules as `GET /health`.
+        schema:
+          type: string
+          enum: [any, no_data, query_failed, variable_failed, duplicate_title, unopened]
     responses:
       "200":
         description: One page of dashboards.

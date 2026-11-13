@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 )
 
 func TestHealthParamsBoundTheInput(t *testing.T) {
@@ -21,6 +22,10 @@ func TestHealthParamsBoundTheInput(t *testing.T) {
 	if !ok || got.Limit != 50 || got.Kind != health.KindNoData || !got.FolderID.Valid || got.Cursor != "c" {
 		t.Fatalf("full input = %+v, ok %v", got, ok)
 	}
+	one, _, ok := healthParams(listHealthInput{DashboardID: "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61"})
+	if !ok || len(one.DashboardIDs) != 1 || one.DashboardIDs[0].String() != "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61" {
+		t.Fatalf("dashboard_id = %+v, ok %v", one.DashboardIDs, ok)
+	}
 	cases := []struct {
 		name    string
 		in      listHealthInput
@@ -29,6 +34,7 @@ func TestHealthParamsBoundTheInput(t *testing.T) {
 		{"limit 0", listHealthInput{Limit: ptr(0)}, "limit must be between 1 and 50"},
 		{"limit 51", listHealthInput{Limit: ptr(51)}, "limit must be between 1 and 50"},
 		{"folder not a uuid", listHealthInput{FolderID: "shop"}, "folder_id must be a UUID from list_folders"},
+		{"dashboard not a uuid", listHealthInput{DashboardID: "shop"}, "dashboard_id must be a UUID from list_dashboards"},
 		{"unknown kind", listHealthInput{Kind: "slow"}, "kind must be one of no_data, query_failed, variable_failed, duplicate_title, unopened"},
 		{"long cursor", listHealthInput{Cursor: strings.Repeat("c", maxNameBytes+1)}, "cursor must be at most 256 bytes"},
 	}
@@ -52,8 +58,8 @@ func TestHealthSchemaOffersEveryKind(t *testing.T) {
 	if err := json.Unmarshal([]byte(schemaListDashboardHealth), &schema); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(kindStrings(schema.Properties.Kind.Enum), ",") != strings.Join(kindStrings(health.Kinds), ",") {
-		t.Errorf("kind enum = %v, want %v", schema.Properties.Kind.Enum, health.Kinds)
+	if strings.Join(kindStrings(schema.Properties.Kind.Enum), ",") != strings.Join(kindStrings(healthrule.Kinds), ",") {
+		t.Errorf("kind enum = %v, want %v", schema.Properties.Kind.Enum, healthrule.Kinds)
 	}
 }
 
