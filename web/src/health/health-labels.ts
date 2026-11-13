@@ -43,18 +43,27 @@ export const runStartWaitMs = 60_000
 
 export const importedFilter = "imported"
 
-export const importedLabel = "Imported, not verified"
-
-export type HealthFilter = HealthKind | typeof importedFilter
-
-export function isHealthFilter(value: unknown): value is HealthFilter {
-  return value === importedFilter || healthKinds.includes(value as HealthKind)
-}
+const importedLabel = "Imported, not verified"
 
 export type ProblemFilter = "any" | HealthKind | typeof importedFilter
 
 export function isProblemFilter(value: unknown): value is ProblemFilter {
-  return value === "any" || isHealthFilter(value)
+  return (
+    value === "any" ||
+    value === importedFilter ||
+    healthKinds.includes(value as HealthKind)
+  )
+}
+
+export function healthRedirectSearch(search: Record<string, unknown>): {
+  kind: ProblemFilter
+  folder?: string
+} {
+  const { kind, folder } = search
+  return {
+    kind: isProblemFilter(kind) ? kind : "any",
+    ...(typeof folder === "string" && folder !== "" ? { folder } : {}),
+  }
 }
 
 export const problemFilterLabels: Record<ProblemFilter, string> = {
@@ -260,22 +269,6 @@ export function repairOutcomeText(outcome: RepairsQueued): string {
   return skipped === undefined
     ? "No repair queued."
     : `No repair queued. ${skipTexts[skipped.reason]}`
-}
-
-const kindCounts: Record<HealthKind, keyof HealthSummary> = {
-  query_failed: "query_failed",
-  variable_failed: "variable_failed",
-  no_data: "no_data",
-  duplicate_title: "duplicate_titles",
-  unopened: "unopened",
-}
-
-export function dashboardCount(
-  summary: HealthSummary,
-  kind: HealthKind | null
-): string {
-  const count = summary[kind === null ? "dashboards" : kindCounts[kind]]
-  return `${count} ${count === 1 ? "dashboard" : "dashboards"}`
 }
 
 export function lastRunProblem(job: HealthJob): SummaryLabel | null {

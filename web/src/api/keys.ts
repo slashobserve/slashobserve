@@ -195,8 +195,6 @@ export const repairKeys = {
 
 export const healthKeys = {
   all: ["health"] as const,
-  list: (kind: string | null, folderId: string | null) =>
-    ["health", "list", kind ?? "all", folderId ?? "all"] as const,
   dashboards: (ids: readonly string[]) =>
     ["health", "dashboards", [...ids].sort()] as const,
   summary: (folderId: string | null) =>

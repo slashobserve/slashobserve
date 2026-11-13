@@ -55,6 +55,8 @@ The old forms keep working and redirect with `301 Moved Permanently`, keeping th
 | `/observe/<id>` | `/c/<id>` |
 | `/builds/<id>` | `/b/<id>` |
 
+The web app also sends `/health` to `/dashboards?kind=any` and `/import/repair` to `/dashboards?kind=imported`, keeping `kind` and `folder`; these are not server redirects.
+
 The server redirects only when the id is a UUID, and the web app does the same for links it follows itself.
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.

@@ -2,11 +2,10 @@ import { describe, expect, test } from "vitest"
 
 import {
   canRepair,
-  dashboardCount,
   dashboardProblems,
   groupProblems,
   healthCellText,
-  isHealthFilter,
+  healthRedirectSearch,
   isProblemFilter,
   lastRunProblem,
   panelProblems,
@@ -387,29 +386,6 @@ describe("summaryLabels", () => {
   })
 })
 
-describe("dashboardCount", () => {
-  const summary = {
-    dashboards: 7,
-    failing: 3,
-    query_failed: 2,
-    variable_failed: 1,
-    no_data: 1,
-    duplicate_titles: 0,
-    unopened: 4,
-  }
-
-  test.each([
-    [null, "7 dashboards"],
-    ["query_failed", "2 dashboards"],
-    ["variable_failed", "1 dashboard"],
-    ["no_data", "1 dashboard"],
-    ["duplicate_title", "0 dashboards"],
-    ["unopened", "4 dashboards"],
-  ] as const)("counts %j as %j", (kind, want) => {
-    expect(dashboardCount(summary, kind)).toBe(want)
-  })
-})
-
 describe("lastRunProblem", () => {
   test.each([
     [{ ...idle, running: true, last_outcome: "failed" as const }, null],
@@ -498,18 +474,6 @@ describe("pollHealth", () => {
   })
 })
 
-describe("isHealthFilter", () => {
-  test.each([
-    ["no_data", true],
-    ["unopened", true],
-    ["imported", true],
-    ["placeholder", false],
-    [undefined, false],
-  ])("%j is %s", (value, want) => {
-    expect(isHealthFilter(value)).toBe(want)
-  })
-})
-
 describe("isProblemFilter", () => {
   test.each([
     ["any", true],
@@ -521,6 +485,23 @@ describe("isProblemFilter", () => {
     [undefined, false],
   ])("%j is %s", (value, want) => {
     expect(isProblemFilter(value)).toBe(want)
+  })
+})
+
+describe("healthRedirectSearch", () => {
+  test.each([
+    ["no search", {}, { kind: "any" }],
+    [
+      "a kind and a folder",
+      { kind: "no_data", folder: "5b2c0f0e-0000-4000-8000-000000000001" },
+      { kind: "no_data", folder: "5b2c0f0e-0000-4000-8000-000000000001" },
+    ],
+    ["an unknown kind", { kind: "bogus" }, { kind: "any" }],
+    ["the import queue", { kind: "imported" }, { kind: "imported" }],
+    ["an empty folder", { folder: "" }, { kind: "any" }],
+    ["a repeated kind", { kind: ["no_data"] }, { kind: "any" }],
+  ])("%s", (_, search, want) => {
+    expect(healthRedirectSearch(search)).toEqual(want)
   })
 })
 

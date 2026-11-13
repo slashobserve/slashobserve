@@ -1,5 +1,4 @@
 import {
-  infiniteQueryOptions,
   queryOptions,
   useMutation,
   useQueryClient,
@@ -9,36 +8,7 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { healthKeys } from "@/api/keys"
 
-import {
-  pollHealth,
-  type HealthItem,
-  type HealthKind,
-  type RunRequest,
-} from "./health-labels"
-
-const pageSize = 50
-
-export function healthQuery(kind: HealthKind | null, folderId: string | null) {
-  return infiniteQueryOptions({
-    queryKey: healthKeys.list(kind, folderId),
-    queryFn: ({ pageParam, signal }) =>
-      api
-        .GET("/health", {
-          params: {
-            query: {
-              limit: pageSize,
-              cursor: pageParam,
-              ...(kind === null ? {} : { kind }),
-              ...(folderId === null ? {} : { folder_id: folderId }),
-            },
-          },
-          signal,
-        })
-        .then(unwrap),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.next_cursor ?? undefined,
-  })
-}
+import { pollHealth, type HealthItem, type RunRequest } from "./health-labels"
 
 const pollMs = 5000
 

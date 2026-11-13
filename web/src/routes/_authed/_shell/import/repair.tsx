@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authed/_shell/import/repair")({
   }),
   beforeLoad: ({ search }) => {
     throw redirect({
-      to: "/health",
+      to: "/dashboards",
       search: {
         kind: importedFilter,
         ...(search.folder === undefined ? {} : { folder: search.folder }),

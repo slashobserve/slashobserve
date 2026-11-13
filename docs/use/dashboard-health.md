@@ -20,27 +20,10 @@ A summary line above the list counts the dashboards that are failing, have no da
 It shows to everyone when there is something to report.
 An Admin always sees it, with **Run now**, which is turned off while a run is going.
 
-## The Health page
+## Where health shows
 
-Choose **Health** in the sidebar, or open `<public url>/health`.
-A summary line under the header counts the dashboards that are failing, have no data, have not been opened in 90 days or share a title, over every dashboard in the chosen folder whatever the problem filter, and says when the last check finished or that one is going now.
-When no dashboard has a problem, the page says that every dashboard passed its last check, and when.
-
-The list shows one row per dashboard, ranked with failures first, then dashboards with no data, then duplicate titles and dashboards nobody opens; inside each rank, the most recently opened dashboard comes first.
-Each row shows the dashboard's folder, its problems, when it was last checked and on which version, and when anyone last opened it.
-Problems of one kind with the same message share one line with the number of panels, such as "No data · 13 panels", the message once, and **Show panels** to list them.
-On a phone each row is a short list entry with the problems, the times and the action.
-
-The **Problem** and **Folder** menus narrow the list to one kind of problem or one folder, and the address keeps the choice, as `?kind=no_data&folder=<folder id>`, so a filtered list can be shared.
-For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards with **Repair all**; see [Repair](switch-from-grafana.md#repair).
-
-Each row ends with the next thing to do.
-**Repair** shows on a dashboard you can edit that has a problem the agent can repair, and it is turned off with the reason when no agent is configured.
-While the repair waits or runs, the row says **Repair queued** or **Repairing**.
-After a repair that saved a version, the row says **Repaired** with **See changes**, which opens the versions compare of that version, until the next check reads it.
-After a repair that failed, the row says **Repair failed** with the reason, and **Repair** again.
-Any other row offers **Open**.
-An Admin also sees **Run now**, which is turned off while a run is going; the page follows the run until it finishes.
+Health shows in two places: the [dashboards list](#in-the-dashboards-list) and [a dashboard](web.md#health-on-a-dashboard).
+`<public url>/health` opens the dashboards list filtered to dashboards with any problem, and keeps `kind` and `folder`.
 
 ## What counts as a problem
 
@@ -70,14 +53,14 @@ A check that cannot run at all is recorded as a `query_failed` problem with the 
 
 ## Repair
 
-An Editor can ask the agent to repair a dashboard, with **Repair** on the Health page or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
+An Editor can ask the agent to repair a dashboard, with **Repair** from the dashboards list or the dashboard, or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
 The repair is an ordinary revision with a prompt that names each failing panel and variable, so it shows in the dashboard's history and can be reviewed and reverted like any other.
 It needs a configured LLM provider and edit access to the dashboard, and a dashboard with a revision already queued or running is skipped.
 Each person can have 20 health repairs queued or running at once.
 
 ## Run now
 
-An Admin can start a run at once with **Run now**, for example right after a large import.
+An Admin can start a run at once with **Run now** above the dashboards list, for example right after a large import.
 It checks the dashboards that are due, as the hourly run does, and when a run is already going nothing more starts.
 
 ## API
