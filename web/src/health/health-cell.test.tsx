@@ -92,7 +92,7 @@ describe("HealthCell", () => {
       name: "Health of Checkout: Query fails and 1 more problem",
     })
     expect(trigger.textContent).toContain("Query fails")
-    expect(trigger.textContent).toContain("· Orders")
+    expect(trigger.textContent).toContain("Query fails·Orders")
     expect(trigger.textContent).toContain("+1 more")
   })
 

@@ -1,19 +1,16 @@
 import { useId, useState } from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 
-import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 
 import {
   groupProblems,
-  kindLabels,
-  kindTones,
   problemText,
   subjectNoun,
-  subjectSummary,
   type HealthProblem,
   type ProblemGroup,
 } from "./health-labels"
+import { KindSummary } from "./kind-summary"
 
 export function ProblemGroups({
   problems,
@@ -35,18 +32,12 @@ export function ProblemGroups({
 function ProblemGroupLine({ group }: { group: ProblemGroup }) {
   const [open, setOpen] = useState(false)
   const listId = useId()
-  const summary = subjectSummary(group)
   const text = problemText(group)
   const noun = subjectNoun(group)
   return (
     <li className="flex flex-col items-start gap-0.5">
       <span className="flex flex-wrap items-center gap-x-1.5 font-medium">
-        <StatusLabel tone={kindTones[group.kind]}>
-          {kindLabels[group.kind]}
-        </StatusLabel>
-        {summary === null ? null : (
-          <span className="font-normal wrap-anywhere">· {summary}</span>
-        )}
+        <KindSummary group={group} />
       </span>
       {text === null ? null : (
         <span className="text-xs wrap-anywhere text-muted-foreground narrow:hidden">

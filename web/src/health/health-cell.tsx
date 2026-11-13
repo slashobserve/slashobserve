@@ -12,13 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   healthCellText,
   kindLabels,
-  kindTones,
   repairAction,
   repairStatus,
-  subjectSummary,
   type HealthItem,
 } from "./health-labels"
 import { useListHealth, useListHealthRepair } from "./list-health"
+import { KindSummary } from "./kind-summary"
 import { ProblemGroups } from "./problem-groups"
 import { RepairControl } from "./repair-control"
 
@@ -61,7 +60,6 @@ export function HealthCell({
   const cell = healthCellText(item)
   if (cell === null) return null
   const { group, more } = cell
-  const summary = subjectSummary(group)
   const status = repairStatus(repairAction(item, agentAvailable))
   return (
     <Popover>
@@ -82,12 +80,7 @@ export function HealthCell({
         }
       >
         <span className="flex flex-wrap items-center gap-x-1.5">
-          <StatusLabel tone={kindTones[group.kind]}>
-            {kindLabels[group.kind]}
-          </StatusLabel>
-          {summary === null ? null : (
-            <span className="wrap-anywhere">· {summary}</span>
-          )}
+          <KindSummary group={group} />
           {more === 0 ? null : (
             <span className="text-muted-foreground">+{more} more</span>
           )}
