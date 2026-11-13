@@ -34,12 +34,10 @@ function ObservationsRoute() {
     })
   }
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <ObservationList
-        state={state}
-        creating={search.new === "1"}
-        onChange={go}
-      />
-    </div>
+    <ObservationList
+      state={state}
+      creating={search.new === "1"}
+      onChange={go}
+    />
   )
 }

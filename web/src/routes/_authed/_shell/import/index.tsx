@@ -16,9 +16,5 @@ function ImportRoute() {
   useDocumentTitle("Import from Grafana - SlashObserve")
   const [initial] = useState(peekHandedImport)
   useEffect(() => clearHandedImport(), [])
-  return (
-    <div className="mx-auto w-full max-w-6xl">
-      <ImportPage initial={initial} />
-    </div>
-  )
+  return <ImportPage initial={initial} />
 }

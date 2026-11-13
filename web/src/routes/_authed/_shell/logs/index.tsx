@@ -49,9 +49,5 @@ export const Route = createFileRoute("/_authed/_shell/logs/")({
 })
 
 function LogsListRoute() {
-  return (
-    <div className="mx-auto w-full max-w-6xl">
-      <ExploreList kind="logs" />
-    </div>
-  )
+  return <ExploreList kind="logs" />
 }

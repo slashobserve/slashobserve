@@ -43,7 +43,7 @@ export function GrafanaSettings({ running, onStarted }: Props) {
     )
   }
   if (query.data === undefined) {
-    return <Skeleton className="h-24 w-full max-w-[860px]" />
+    return <Skeleton className="h-24 w-full" />
   }
 
   async function add(input: Parameters<typeof create.mutateAsync>[0]) {
