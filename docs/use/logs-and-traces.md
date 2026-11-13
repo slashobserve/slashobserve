@@ -67,10 +67,16 @@ The menu on a column heading sorts the loaded lines A to Z or Z to A, moves the 
 ### Log volume
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
-It comes from its own log volume request, so the lines never wait for it, and it hides when that request fails or while live tail shows its lines.
+It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
+Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
+The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
+Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
+Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
+On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
+When the volume request does not finish, the strip says so with the server's reason, the lines below still load, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
-- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the strip hides when the query does not select both.
+- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both.
 - On Elasticsearch and OpenSearch one aggregation request counts the matching documents per time bucket and per value of the level field, the field the datasource's level role names; with no level field every document counts as other, and a query body with its own `aggs` is refused.
 
 Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
