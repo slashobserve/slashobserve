@@ -1,6 +1,7 @@
 import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type NavPath =
+  | "/"
   | "/inbox"
   | "/observations"
   | "/dashboards"
@@ -19,6 +20,7 @@ export type NavItem = {
 }
 
 const navItems: readonly NavItem[] = [
+  { to: "/", label: "Home", group: "main", minRole: "viewer" },
   { to: "/inbox", label: "Inbox", group: "main", minRole: "viewer" },
   {
     to: "/observations",
@@ -45,6 +47,7 @@ export function visibleNavItems(role: Role): NavItem[] {
 }
 
 export function isNavItemActive(to: NavPath, pathname: string): boolean {
+  if (to === "/") return pathname === "/"
   if (to === "/traces" && pathname.startsWith("/t/")) return true
   if (to === "/agents" && pathname === "/keys") return true
   if (to === "/observations" && pathname.startsWith("/o/")) return true
@@ -54,4 +57,9 @@ export function isNavItemActive(to: NavPath, pathname: string): boolean {
 export function unreadBadge(count: number | null): string | null {
   if (count === null || count <= 0) return null
   return count >= 100 ? "99+" : String(count)
+}
+
+export function countLabel(shown: number, more: boolean): string | null {
+  if (shown <= 0) return null
+  return more ? `${shown}+` : String(shown)
 }

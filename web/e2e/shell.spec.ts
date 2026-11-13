@@ -91,7 +91,7 @@ test("shows only the wordmark when expanded", async ({ page }) => {
 test("shows only the mark when collapsed", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("button", { name: "Collapse sidebar" }).click()
-  await expectWidth(sidebar(page), 44)
+  await expectWidth(sidebar(page), 52)
   const home = page.getByRole("link", { name: "/observe home" })
   await expect(home).toBeVisible()
   await expect(home).toHaveText("")
@@ -99,8 +99,8 @@ test("shows only the mark when collapsed", async ({ page }) => {
   const mark = home.locator("svg")
   await expect(mark).toHaveCount(1)
   const markBox = await rect(mark)
-  expect(markBox.width).toBe(16)
-  expect(markBox.height).toBe(16)
+  expect(markBox.width).toBe(22)
+  expect(markBox.height).toBe(22)
   const icon = await rect(
     sidebar(page).getByRole("link", { name: "Datasources" }).locator("svg")
   )
@@ -112,11 +112,11 @@ test("resizes the sidebar from the keyboard and remembers it", async ({
 }) => {
   await page.goto("/")
   const handle = grip(page)
-  await expect(handle).toHaveAttribute("aria-valuenow", "240")
+  await expect(handle).toHaveAttribute("aria-valuenow", "248")
 
   await handle.focus()
   await page.keyboard.press("ArrowRight")
-  await expect(handle).toHaveAttribute("aria-valuenow", "248")
+  await expect(handle).toHaveAttribute("aria-valuenow", "256")
   await page.keyboard.press("End")
   await expect(handle).toHaveAttribute("aria-valuenow", "360")
   await expectWidth(sidebar(page), 360)
@@ -127,13 +127,13 @@ test("resizes the sidebar from the keyboard and remembers it", async ({
   await expect(grip(page)).toHaveAttribute("aria-valuenow", "200")
 
   await grip(page).dblclick()
-  await expect(grip(page)).toHaveAttribute("aria-valuenow", "240")
+  await expect(grip(page)).toHaveAttribute("aria-valuenow", "248")
 })
 
 test("resizes the sidebar by dragging", async ({ page }) => {
   await page.goto("/")
   const handle = grip(page)
-  await expect(handle).toHaveAttribute("aria-valuenow", "240")
+  await expect(handle).toHaveAttribute("aria-valuenow", "248")
   const box = await rect(handle)
   const centerX = box.x + box.width / 2
   const centerY = box.y + box.height / 2
@@ -143,14 +143,14 @@ test("resizes the sidebar by dragging", async ({ page }) => {
   await page.mouse.move(centerX + 60, centerY, { steps: 5 })
   await page.mouse.up()
 
-  await expect(handle).toHaveAttribute("aria-valuenow", "300")
-  await expectWidth(sidebar(page), 300)
+  await expect(handle).toHaveAttribute("aria-valuenow", "308")
+  await expectWidth(sidebar(page), 308)
 })
 
 test("collapses to icons with tooltips and remembers it", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("button", { name: "Collapse sidebar" }).click()
-  await expectWidth(sidebar(page), 44)
+  await expectWidth(sidebar(page), 52)
   await expect(grip(page)).toHaveCount(0)
 
   const datasources = page.getByRole("link", { name: "Datasources" })
@@ -159,9 +159,9 @@ test("collapses to icons with tooltips and remembers it", async ({ page }) => {
   await expect(page.getByRole("tooltip")).toHaveText("Datasources")
 
   await page.reload()
-  await expectWidth(sidebar(page), 44)
+  await expectWidth(sidebar(page), 52)
   await page.getByRole("button", { name: "Expand sidebar" }).click()
-  await expectWidth(sidebar(page), 240)
+  await expectWidth(sidebar(page), 248)
 })
 
 test("hides the sidebar under 900px", async ({ page }) => {
@@ -208,7 +208,7 @@ test("shows the sidebar rail on a dashboard", async ({ page, request }) => {
   })
   await openDashboard(page, id)
   await expect(sidebar(page)).toBeVisible()
-  await expectWidth(sidebar(page), 44)
+  await expectWidth(sidebar(page), 52)
   await expect(grip(page)).toHaveCount(0)
   await sidebar(page).getByRole("link", { name: "Agents" }).click()
   await expect(page).toHaveURL(/\/agents$/)
@@ -255,7 +255,7 @@ test("draws the shell in dark mode", async ({ page }) => {
     radius: "0px",
     top: 0,
     rightEdge: true,
-    current: "rgb(19, 20, 23)",
+    current: "rgb(33, 35, 39)",
     currentBorder: "rgba(0, 0, 0, 0)",
   })
 })

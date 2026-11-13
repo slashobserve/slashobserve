@@ -14,7 +14,12 @@ const signOut = vi.hoisted(() => {
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   useRouteContext: () => ({
-    principal: { name: "Ana Lima", email: "ana@example.com", role: "admin" },
+    principal: {
+      id: "u1",
+      name: "Ana Lima",
+      email: "ana@example.com",
+      role: "admin",
+    },
   }),
 }))
 

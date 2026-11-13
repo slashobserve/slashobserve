@@ -8,7 +8,12 @@ import { SidebarContent } from "./sidebar"
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   useRouteContext: () => ({
-    principal: { name: "Ana Lima", email: "ana@example.com", role: "admin" },
+    principal: {
+      id: "u1",
+      name: "Ana Lima",
+      email: "ana@example.com",
+      role: "admin",
+    },
   }),
 }))
 
@@ -30,7 +35,10 @@ beforeEach(() => {
       const body = pathname.endsWith("/stars")
         ? { items: pins }
         : pathname.endsWith("/observations")
-          ? { observations: [], next_cursor: null }
+          ? {
+              observations: [{ id: "o1", title: "Slow pods", state: "open" }],
+              next_cursor: null,
+            }
           : { items: [], next_cursor: null, unread_count: 0 }
       return new Response(JSON.stringify(body), {
         status: 200,
@@ -43,9 +51,15 @@ beforeEach(() => {
 
 const route = { path: "/d/$dashboardId/{-$slug}", url: "/d/d1" }
 
-describe("SidebarContent pinned dashboards", () => {
+function precedes(first: Element, second: Element): boolean {
+  return Boolean(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+  )
+}
+
+describe("SidebarContent", () => {
   it("lists pins right after the Dashboards item, before Logs", async () => {
-    renderWithProviders(<SidebarContent collapsed={false} />, { route })
+    renderWithProviders(<SidebarContent />, { route })
 
     const pinned = await screen.findByRole(
       "link",
@@ -64,11 +78,25 @@ describe("SidebarContent pinned dashboards", () => {
     expect(pinned).toHaveAttribute("aria-current", "page")
   })
 
-  it("leaves the pins out of the collapsed rail", async () => {
-    renderWithProviders(<SidebarContent collapsed />, { route })
+  it("starts at Home, has no New menu and lists open observations under Observations", async () => {
+    renderWithProviders(<SidebarContent />, { route })
 
-    await screen.findByRole("link", { name: "Dashboards" })
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(screen.queryByRole("link", { name: "Checkout latency" })).toBeNull()
+    const observation = await screen.findByRole(
+      "link",
+      { name: "Slow pods" },
+      { timeout: 5000 }
+    )
+    const home = screen.getByRole("link", { name: "Home" })
+    const inbox = screen.getByRole("link", { name: "Inbox" })
+    const observations = screen.getByRole("link", { name: "Observations" })
+    const dashboards = screen.getByRole("link", { name: "Dashboards" })
+    expect(home).toHaveAttribute("href", "/")
+    expect(precedes(home, inbox)).toBe(true)
+    expect(screen.queryByRole("button", { name: "New" })).toBeNull()
+    expect(
+      screen.getByRole("list", { name: "Open observations" })
+    ).toContainElement(observation)
+    expect(precedes(observations, observation)).toBe(true)
+    expect(precedes(observation, dashboards)).toBe(true)
   })
 })

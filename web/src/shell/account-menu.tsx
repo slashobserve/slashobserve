@@ -11,6 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { AuthorMark } from "@/components/author-mark"
+import { personTint } from "@/lib/author"
 import { cn } from "@/lib/utils"
 import { providerDisplayName } from "@/people/sign-in-policy"
 
@@ -38,18 +40,22 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
             aria-label={`Account: ${[principal.name, principal.email].filter(Boolean).join(", ")}`}
             title={label}
             className={cn(
-              "flex min-h-10 items-center gap-2.5 rounded-[7px] px-1.5 text-left outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-background",
-              collapsed && "justify-center px-0"
+              "rounded-control outline-none hover:bg-nav-active focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-nav-active",
+              collapsed
+                ? "grid size-9 place-items-center p-0"
+                : "flex min-h-10 min-w-0 flex-1 items-center gap-2.5 px-1.5 text-left"
             )}
           />
         }
       >
-        <span
-          aria-hidden="true"
-          className="grid size-[26px] flex-none place-items-center rounded-full border bg-background text-[11px] font-semibold"
-        >
-          {initials(principal.name, principal.email)}
-        </span>
+        <AuthorMark
+          mark={{
+            kind: "person",
+            text: initials(principal.name, principal.email),
+            tint: personTint(principal.id),
+          }}
+          size={24}
+        />
         {collapsed ? null : (
           <span className="flex min-w-0 flex-col leading-[1.25]">
             <span className="truncate text-[13px]">{label}</span>

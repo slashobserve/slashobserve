@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type PointerEvent,
+  type ReactNode,
 } from "react"
 import {
   Link,
@@ -12,26 +13,9 @@ import {
   useRouteContext,
   useRouterState,
 } from "@tanstack/react-router"
-import {
-  BotIcon,
-  ChartGanttIcon,
-  DatabaseIcon,
-  InboxIcon,
-  LayoutDashboardIcon,
-  LogsIcon,
-  NotebookTextIcon,
-  SettingsIcon,
-  UsersIcon,
-  type LucideIcon,
-} from "lucide-react"
+import { PanelLeftCloseIcon } from "lucide-react"
 
-import { Mark } from "@/components/brand/mark"
 import { Wordmark } from "@/components/brand/wordmark"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
 import { PinnedDashboards } from "@/pins/pinned-dashboards"
@@ -44,9 +28,9 @@ import {
   type NavItem,
   type NavPath,
 } from "./nav"
-import { NewMenu } from "./new-menu"
 import { OpenObservations } from "./open-observations"
 import { PaletteButton } from "./palette-button"
+import { navIcons, RailContent } from "./rail"
 import { useSidebarStore } from "./sidebar-store"
 import {
   clampSidebarWidth,
@@ -57,28 +41,10 @@ import {
 } from "./sidebar-width"
 import { useFoldedByWidth } from "./use-folded"
 
-const icons: Record<NavPath, LucideIcon> = {
-  "/inbox": InboxIcon,
-  "/observations": NotebookTextIcon,
-  "/dashboards": LayoutDashboardIcon,
-  "/logs": LogsIcon,
-  "/traces": ChartGanttIcon,
-  "/agents": BotIcon,
-  "/datasources": DatabaseIcon,
-  "/people": UsersIcon,
-  "/settings": SettingsIcon,
-}
-
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-function HomeLink({
-  collapsed,
-  onNavigate,
-}: {
-  collapsed: boolean
-  onNavigate?: () => void
-}) {
-  const linkProps = useLinkProps({ to: "/inbox" })
+function HomeLink({ onNavigate }: { onNavigate?: () => void }) {
+  const linkProps = useLinkProps({ to: "/" })
   return (
     <a
       {...linkProps}
@@ -89,31 +55,16 @@ function HomeLink({
       aria-label="/observe home"
       aria-current={undefined}
       className={cn(
-        "flex items-center rounded-control no-underline",
-        focusRing,
-        collapsed ? "h-8 flex-1 justify-center" : "min-h-[34px] px-2.5"
+        "flex min-h-[34px] items-center rounded-control px-2.5 no-underline",
+        focusRing
       )}
     >
-      {collapsed ? <Mark size={16} /> : <Wordmark size={17} />}
+      <Wordmark size={17} />
     </a>
   )
 }
 
-function UnreadMark({
-  badge,
-  collapsed,
-}: {
-  badge: string
-  collapsed: boolean
-}) {
-  if (collapsed) {
-    return (
-      <span
-        aria-hidden="true"
-        className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary"
-      />
-    )
-  }
+function UnreadMark({ badge }: { badge: string }) {
   return (
     <span
       aria-hidden="true"
@@ -127,47 +78,33 @@ function UnreadMark({
 function NavLink({
   item,
   active,
-  collapsed,
   unread,
   onNavigate,
 }: {
   item: NavItem
   active: boolean
-  collapsed: boolean
   unread: string | null
   onNavigate?: () => void
 }) {
-  const Icon = icons[item.to]
-  const props = {
-    to: item.to,
-    onClick: onNavigate,
-    activeOptions: { exact: true },
-    "aria-current": active ? ("page" as const) : undefined,
-    "aria-label":
-      unread === null ? undefined : `${item.label}, ${unread} unread`,
-    className: cn(
-      "relative flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
-      focusRing,
-      collapsed && "justify-center px-0"
-    ),
-  }
-  const content = (
-    <>
-      <Icon aria-hidden="true" className="size-4 flex-none" strokeWidth={1.8} />
-      <span className={collapsed ? "sr-only" : "truncate"}>{item.label}</span>
-      {unread === null ? null : (
-        <UnreadMark badge={unread} collapsed={collapsed} />
-      )}
-    </>
-  )
-  if (!collapsed) return <Link {...props}>{content}</Link>
+  const Icon = navIcons[item.to]
   return (
-    <Tooltip>
-      <TooltipTrigger render={<Link {...props} />}>{content}</TooltipTrigger>
-      <TooltipContent side="right" role="tooltip">
-        {item.label}
-      </TooltipContent>
-    </Tooltip>
+    <Link
+      to={item.to}
+      onClick={onNavigate}
+      activeOptions={{ exact: true }}
+      aria-current={active ? "page" : undefined}
+      aria-label={
+        unread === null ? undefined : `${item.label}, ${unread} unread`
+      }
+      className={cn(
+        "relative flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-nav-active aria-[current=page]:bg-nav-active",
+        focusRing
+      )}
+    >
+      <Icon aria-hidden="true" className="size-4 flex-none" strokeWidth={1.8} />
+      <span className="truncate">{item.label}</span>
+      {unread === null ? null : <UnreadMark badge={unread} />}
+    </Link>
   )
 }
 
@@ -270,12 +207,33 @@ function ResizeGrip({
   )
 }
 
+function CollapseButton() {
+  const setCollapsed = useSidebarStore((state) => state.setCollapsed)
+  return (
+    <button
+      type="button"
+      aria-label="Collapse sidebar"
+      title="Collapse sidebar"
+      aria-expanded={true}
+      aria-controls="app-sidebar"
+      onClick={() => setCollapsed(true)}
+      className="grid size-8 flex-none place-items-center rounded-control text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <PanelLeftCloseIcon
+        aria-hidden="true"
+        className="size-4"
+        strokeWidth={1.8}
+      />
+    </button>
+  )
+}
+
 export function SidebarContent({
-  collapsed,
   onNavigate,
+  footerAction,
 }: {
-  collapsed: boolean
   onNavigate?: () => void
+  footerAction?: ReactNode
 }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -287,65 +245,53 @@ export function SidebarContent({
   const workspace = items.filter((item) => item.group === "workspace")
   const unreadInbox = unreadBadge(useInboxCount())
 
-  function renderItems(items: readonly NavItem[]) {
-    return items.map((item) => (
+  const subLists: Partial<Record<NavPath, ReactNode>> = {
+    "/observations": <OpenObservations onNavigate={onNavigate} />,
+    "/dashboards": <PinnedDashboards onNavigate={onNavigate} />,
+  }
+
+  function renderItems(list: readonly NavItem[]) {
+    return list.map((item) => (
       <Fragment key={item.to}>
         <NavLink
           item={item}
           active={isNavItemActive(item.to, pathname)}
-          collapsed={collapsed}
           unread={item.to === "/inbox" ? unreadInbox : null}
           onNavigate={onNavigate}
         />
-        {item.to === "/dashboards" ? (
-          <PinnedDashboards collapsed={collapsed} onNavigate={onNavigate} />
-        ) : null}
+        {subLists[item.to] ?? null}
       </Fragment>
     ))
   }
 
   return (
     <>
-      <div className="mb-2.5 flex items-center justify-between">
-        <HomeLink collapsed={collapsed} onNavigate={onNavigate} />
-        <NewMenu collapsed={collapsed} onNavigate={onNavigate} />
+      <div className="mb-2.5 flex items-center">
+        <HomeLink onNavigate={onNavigate} />
       </div>
       <div className="mb-3.5">
-        <PaletteButton
-          variant="sidebar"
-          collapsed={collapsed}
-          onNavigate={onNavigate}
-        />
+        <PaletteButton variant="sidebar" onNavigate={onNavigate} />
       </div>
       <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
         {renderItems(main)}
-        <OpenObservations collapsed={collapsed} onNavigate={onNavigate} />
-        {collapsed ? (
+        <div
+          role="group"
+          aria-labelledby={workspaceId}
+          className="flex flex-col gap-0.5"
+        >
           <div
-            role="group"
-            aria-label="Workspace"
-            className="flex flex-col gap-0.5"
+            id={workspaceId}
+            className="px-2.5 pt-3.5 pb-1.5 text-xs text-muted-foreground"
           >
-            <div aria-hidden="true" className="mx-1.5 my-2 h-px bg-border" />
-            {renderItems(workspace)}
+            Workspace
           </div>
-        ) : (
-          <div
-            role="group"
-            aria-labelledby={workspaceId}
-            className="flex flex-col gap-0.5"
-          >
-            <div
-              id={workspaceId}
-              className="px-2.5 pt-3.5 pb-1.5 text-xs text-muted-foreground"
-            >
-              Workspace
-            </div>
-            {renderItems(workspace)}
-          </div>
-        )}
+          {renderItems(workspace)}
+        </div>
       </div>
-      <AccountMenu collapsed={collapsed} />
+      <div className="flex items-center gap-1">
+        <AccountMenu collapsed={false} />
+        {footerAction}
+      </div>
     </>
   )
 }
@@ -354,7 +300,8 @@ export function Sidebar({ rail = false }: { rail?: boolean }) {
   const width = useSidebarStore((state) => state.width)
   const storedCollapsed = useSidebarStore((state) => state.collapsed)
   const folded = useFoldedByWidth()
-  const collapsed = rail || storedCollapsed || folded
+  const forced = rail || folded
+  const collapsed = forced || storedCollapsed
   const [dragWidth, setDragWidth] = useState<number | null>(null)
   const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
 
@@ -363,13 +310,20 @@ export function Sidebar({ rail = false }: { rail?: boolean }) {
       id="app-sidebar"
       aria-label="Main"
       className={cn(
-        "relative flex flex-none flex-col gap-0.5 pt-3.5 pb-3 narrow:hidden",
+        "relative flex flex-none flex-col narrow:hidden",
+        collapsed ? "items-center gap-1 px-2 py-3" : "gap-0.5 pt-3.5 pb-3",
         rail && "sticky top-0 h-svh self-start bg-chrome"
       )}
-      style={{ width: shown, paddingInline: collapsed ? 6 : 10 }}
+      style={collapsed ? { width: shown } : { width: shown, paddingInline: 10 }}
     >
-      <SidebarContent collapsed={collapsed} />
-      {collapsed ? null : <ResizeGrip shown={shown} onDrag={setDragWidth} />}
+      {collapsed ? (
+        <RailContent forced={forced} />
+      ) : (
+        <>
+          <SidebarContent footerAction={<CollapseButton />} />
+          <ResizeGrip shown={shown} onDrag={setDragWidth} />
+        </>
+      )}
     </nav>
   )
 }

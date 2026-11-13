@@ -63,7 +63,7 @@ const route = { path: "/d/$dashboardId/{-$slug}", url: "/d/d2/slow-pods" }
 describe("PinnedDashboards", () => {
   it("lists pins in server order as links in an indented, labelled list, marking the open one", async () => {
     serve([pin("d1", "Checkout latency"), pin("d2", "Slow pods")])
-    renderWithProviders(<PinnedDashboards collapsed={false} />, { route })
+    renderWithProviders(<PinnedDashboards />, { route })
 
     const list = await screen.findByRole("list", { name: "Pinned dashboards" })
     const links = within(list).getAllByRole("link")
@@ -80,7 +80,7 @@ describe("PinnedDashboards", () => {
   it("gives each link its full title as a tooltip", async () => {
     const title = "A very long dashboard title that the sidebar must truncate"
     serve([pin("d1", title)])
-    renderWithProviders(<PinnedDashboards collapsed={false} />, { route })
+    renderWithProviders(<PinnedDashboards />, { route })
 
     expect(await screen.findByRole("link", { name: title })).toHaveAttribute(
       "title",
@@ -94,7 +94,7 @@ describe("PinnedDashboards", () => {
         pin(`d${index}`, `Dashboard ${index}`)
       )
     )
-    renderWithProviders(<PinnedDashboards collapsed={false} />, { route })
+    renderWithProviders(<PinnedDashboards />, { route })
 
     const more = await screen.findByRole("link", {
       name: "More pinned dashboards",
@@ -111,7 +111,7 @@ describe("PinnedDashboards", () => {
         pin(`d${index}`, `Dashboard ${index}`)
       )
     )
-    renderWithProviders(<PinnedDashboards collapsed={false} />, { route })
+    renderWithProviders(<PinnedDashboards />, { route })
 
     await screen.findByRole("link", { name: "Dashboard 9" })
     expect(screen.queryByRole("link", { name: /^More/ })).toBeNull()
@@ -119,17 +119,9 @@ describe("PinnedDashboards", () => {
 
   it("renders nothing without pins", async () => {
     const calls = serve([])
-    renderWithProviders(<PinnedDashboards collapsed={false} />, { route })
+    renderWithProviders(<PinnedDashboards />, { route })
 
     await waitFor(() => expect(calls).toContain("GET /api/v1/stars"))
-    expect(screen.queryByRole("list")).toBeNull()
-  })
-
-  it("is hidden on the collapsed rail", async () => {
-    serve([pin("d1", "Checkout latency")])
-    renderWithProviders(<PinnedDashboards collapsed />, { route })
-
-    await new Promise((resolve) => setTimeout(resolve, 20))
     expect(screen.queryByRole("list")).toBeNull()
   })
 
@@ -138,7 +130,7 @@ describe("PinnedDashboards", () => {
     const { user } = renderWithProviders(
       <>
         <PinToggle dashboardId="d9" />
-        <PinnedDashboards collapsed={false} />
+        <PinnedDashboards />
       </>,
       { route }
     )

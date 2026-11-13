@@ -16,6 +16,7 @@ import {
   ChartGanttIcon,
   DatabaseIcon,
   FlagIcon,
+  HouseIcon,
   InboxIcon,
   KeyIcon,
   LayoutDashboardIcon,
@@ -53,6 +54,7 @@ import { useToggleTheme } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
 
 const pageIcons: Record<PagePath, LucideIcon> = {
+  "/": HouseIcon,
   "/inbox": InboxIcon,
   "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,

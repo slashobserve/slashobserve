@@ -50,7 +50,7 @@ describe("OpenObservations", () => {
       [observation("o1", "Checkout latency"), observation("o2", "Slow pods")],
       null
     )
-    renderWithProviders(<OpenObservations collapsed={false} />, { route })
+    renderWithProviders(<OpenObservations />, { route })
 
     const first = await screen.findByRole("link", { name: "Checkout latency" })
     expect(first).toHaveAttribute("href", "/o/o1")
@@ -60,7 +60,7 @@ describe("OpenObservations", () => {
       "page"
     )
     expect(
-      screen.getByRole("group", { name: "Open observations 2" })
+      screen.getByRole("list", { name: "Open observations" })
     ).toBeInTheDocument()
 
     const request = fetch.mock.calls
@@ -68,30 +68,41 @@ describe("OpenObservations", () => {
       .find((call) => new URL(call.url).pathname.endsWith("/observations"))
     const url = new URL(request!.url, "http://localhost")
     expect(url.searchParams.get("state")).toBe("open")
-    expect(url.searchParams.get("limit")).toBe("8")
+    expect(url.searchParams.get("limit")).toBe("5")
   })
 
-  it("shows a plus after the count when more are open", async () => {
+  it("links to all observations only when more are open", async () => {
     answer(
-      Array.from({ length: 8 }, (_, index) =>
+      Array.from({ length: 5 }, (_, index) =>
         observation(`o${index}`, `Observation ${index}`)
       ),
       "next"
     )
-    renderWithProviders(<OpenObservations collapsed={false} />, { route })
+    const first = renderWithProviders(<OpenObservations />, { route })
 
+    const all = await screen.findByRole("link", { name: "All observations" })
+    expect(all).toHaveAttribute("href", "/observations")
+    expect(screen.getAllByRole("link")).toHaveLength(6)
+    first.unmount()
+
+    answer(
+      Array.from({ length: 5 }, (_, index) =>
+        observation(`p${index}`, `Other ${index}`)
+      ),
+      null
+    )
+    renderWithProviders(<OpenObservations />, { route })
+
+    await screen.findByRole("link", { name: "Other 0" })
+    expect(screen.getAllByRole("link")).toHaveLength(5)
     expect(
-      await screen.findByRole("group", { name: "Open observations 8+" })
-    ).toBeInTheDocument()
-    expect(screen.getAllByRole("link")).toHaveLength(8)
+      screen.queryByRole("link", { name: "All observations" })
+    ).not.toBeInTheDocument()
   })
 
   it("renders nothing when no observation is open", async () => {
     const fetch = answer([], null)
-    const { container } = renderWithProviders(
-      <OpenObservations collapsed={false} />,
-      { route }
-    )
+    const { container } = renderWithProviders(<OpenObservations />, { route })
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -105,7 +116,7 @@ describe("OpenObservations", () => {
       null,
       [inboxItem("o1", true), inboxItem("o2", false)]
     )
-    renderWithProviders(<OpenObservations collapsed={false} />, { route })
+    renderWithProviders(<OpenObservations />, { route })
 
     const unread = await screen.findByRole("link", {
       name: "Checkout latency Unread",
@@ -114,13 +125,5 @@ describe("OpenObservations", () => {
     const read = screen.getByRole("link", { name: "Slow pods" })
     expect(read.querySelector(".font-semibold")).toBeNull()
     expect(screen.getAllByText("Unread")).toHaveLength(1)
-  })
-
-  it("renders nothing when the sidebar is folded to icons", async () => {
-    answer([observation("o1", "Checkout latency")], null)
-    renderWithProviders(<OpenObservations collapsed />, { route })
-
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest"
 
-import { isNavItemActive, unreadBadge, visibleNavItems } from "./nav"
+import {
+  countLabel,
+  isNavItemActive,
+  unreadBadge,
+  visibleNavItems,
+} from "./nav"
 
 describe("isNavItemActive", () => {
   test("Inbox covers its own page only, not the chat or the importer", () => {
@@ -59,12 +64,29 @@ describe("isNavItemActive", () => {
   })
 })
 
+describe("Home", () => {
+  test("is active on the root path only", () => {
+    expect(isNavItemActive("/", "/")).toBe(true)
+    expect(isNavItemActive("/", "/inbox")).toBe(false)
+    expect(isNavItemActive("/", "/o/abc")).toBe(false)
+    expect(isNavItemActive("/", "/login")).toBe(false)
+  })
+
+  test("no other item is active on the root path", () => {
+    const active = visibleNavItems("admin")
+      .filter((item) => isNavItemActive(item.to, "/"))
+      .map((item) => item.label)
+    expect(active).toEqual(["Home"])
+  })
+})
+
 describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all ten pages and neither the chat nor API keys is one of them", () => {
+  test("an Admin sees all eleven pages and neither the chat nor API keys is one of them", () => {
     expect(labels("admin")).toEqual([
+      "Home",
       "Inbox",
       "Observations",
       "Dashboards",
@@ -81,6 +103,7 @@ describe("visibleNavItems", () => {
     "%s sees every page but the Admin ones",
     (role) => {
       expect(labels(role)).toEqual([
+        "Home",
         "Inbox",
         "Observations",
         "Dashboards",
@@ -104,5 +127,15 @@ describe("unreadBadge", () => {
     [100, "99+"],
   ])("%s unread shows %s", (count, shown) => {
     expect(unreadBadge(count)).toBe(shown)
+  })
+})
+
+describe("countLabel", () => {
+  test.each([
+    [0, false, null],
+    [3, false, "3"],
+    [5, true, "5+"],
+  ])("%s shown with more=%s is %s", (shown, more, label) => {
+    expect(countLabel(shown, more)).toBe(label)
   })
 })
