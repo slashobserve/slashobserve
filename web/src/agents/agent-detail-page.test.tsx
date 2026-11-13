@@ -36,6 +36,7 @@ const overview: AgentsOverview = {
       client_name: "Claude Code",
       mode: "propose",
       present: false,
+      presence: "offline",
       last_seen_at: null,
       connected_at: "2026-11-01T10:00:00Z",
       writes_7d: 7,
@@ -47,6 +48,7 @@ const overview: AgentsOverview = {
       id: "s1",
       name: "nightly-audit",
       present: true,
+      presence: "listening",
       last_seen_at: null,
       last_7_days: null,
     },
@@ -130,7 +132,7 @@ describe("AgentDetailPage", () => {
       await screen.findByRole("heading", { level: 1, name: "nightly-audit" })
     ).toBeTruthy()
     expect(screen.getByText("Service account")).toBeTruthy()
-    expect(screen.getByText("Present")).toBeTruthy()
+    expect(screen.getByText("Listening")).toBeTruthy()
     expect(screen.queryByText("Runs")).toBeNull()
   })
 

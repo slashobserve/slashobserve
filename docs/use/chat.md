@@ -34,6 +34,7 @@ Type the command and a space, and it turns into a chip above the box:
 While you type a command, a line under the box lists the matching commands and says "Type a space after the command to use it."
 Remove the chip with its button, or press Backspace in the empty box.
 `/revise` works only in a chat that already has a dashboard, and `/import` only in the chat, not in a dashboard's activity pane.
+`/investigate` is offered to Editors and Admins only, because starting an investigation needs the Editor role.
 In a chat about a dashboard, a second chip names that dashboard.
 
 The footer shows the model and, when the server sets one, its effort, for example "claude-haiku-5-5, medium effort".

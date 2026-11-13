@@ -75,7 +75,7 @@ export function ServiceAccountsTable({
                 </Cell>
                 <Cell className="text-muted-foreground">
                   <PresenceStatus
-                    present={row.present}
+                    presence={row.presence}
                     lastSeenAt={row.last_seen_at}
                   />
                 </Cell>

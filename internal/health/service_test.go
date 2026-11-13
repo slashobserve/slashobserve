@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/repairs"
@@ -88,6 +89,71 @@ func TestRunChecksADashboardAgainOnlyAfterADay(t *testing.T) {
 	}
 	if again := checkedAt(); !again.After(first) {
 		t.Errorf("a day old check was not run again: %v", again)
+	}
+}
+
+func TestRunChecksAnHourOldDashboardAgainOnlyWhenItFailedOrIsOutdated(t *testing.T) {
+	r := newRig(t)
+	healthy := r.create(t, boardSpec("Healthy", "up"))
+	failing := r.create(t, boardSpec("Failing", "fail_series"))
+	variable := r.create(t, variableSpec("Variable"))
+	empty := r.create(t, boardSpec("Empty", "empty_series"))
+	outdated := r.create(t, boardSpec("Outdated", "up"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	_, err := r.dashboards.Save(t.Context(), r.editor, dashboards.SaveInput{
+		DashboardID: outdated, Parent: 1, Spec: boardSpec("Outdated", "up", "up"), Summary: "edit",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '1 hour'`)
+	checkedAt := func(id pgtype.UUID) time.Time {
+		var at time.Time
+		r.scan(t, `SELECT checked_at FROM dashboard_health WHERE dashboard_id = $1`, id.String(), &at)
+		return at
+	}
+	before := map[pgtype.UUID]time.Time{}
+	for _, id := range []pgtype.UUID{healthy, failing, variable, empty, outdated} {
+		before[id] = checkedAt(id)
+	}
+
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[pgtype.UUID]bool{healthy: false, failing: true, variable: true, empty: false, outdated: true}
+	for id, rechecked := range want {
+		if got := checkedAt(id).After(before[id]); got != rechecked {
+			t.Errorf("dashboard %s rechecked = %v, want %v", id.String(), got, rechecked)
+		}
+	}
+	var version int
+	r.scan(t, `SELECT version FROM dashboard_health WHERE dashboard_id = $1`, outdated.String(), &version)
+	if version != 2 {
+		t.Errorf("outdated dashboard was checked at version %d, want 2", version)
+	}
+}
+
+func TestRunChecksAFailingDashboardOnceInOneRun(t *testing.T) {
+	r := newRig(t)
+	failing := r.create(t, boardSpec("Failing", "fail_series"))
+	r.broken.Store(true)
+	r.queries.Store(0)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	queriesPerCheck := r.queries.Load()
+	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '1 hour' WHERE dashboard_id = $1`, failing.String())
+
+	r.queries.Store(0)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.queries.Load(); got != queriesPerCheck {
+		t.Errorf("one run ran %d queries for the failing dashboard, want %d for one check", got, queriesPerCheck)
 	}
 }
 

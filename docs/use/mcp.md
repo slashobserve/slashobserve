@@ -455,9 +455,9 @@ Two kinds of credential can claim:
 
 - A connected agent, signed in over OAuth, claims the runs assigned to its own connection.
   It works only for the person who connected it, and the run's writes carry that connection's `direct` or `propose` mode.
-- A service account claims the runs assigned to it with its key, after an Admin turns on `takes_runs`, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
+- A service account claims the runs assigned to it with its key, after an Admin turns on **Takes agent runs** for it in the Create key panel or sets `takes_runs` through the API, or after `takesRuns: true` in the [service-accounts file](../operate/service-account-keys.md).
   Its runs always use the direct mode.
-  Without `takes_runs`, `claim_run` answers `not_a_worker`.
+  With **Takes agent runs** off, or `takes_runs` false, `claim_run` answers `not_a_worker`.
 
 The claim tools are `claim_run`, `report_run`, `finish_run` and `get_run_brief`; MCP lists them like any other tool.
 Connect as in [Connect your own agent](#connect-your-own-agent) or [Keys for bots](#keys-for-bots), and poll with `claim_run` while the agent is idle.
