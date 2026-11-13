@@ -9,6 +9,7 @@ import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { roleAtLeast } from "@/lib/roles"
 import { isEditableTarget } from "@/lib/shortcuts"
+import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
   useAgentInfo,
@@ -58,6 +59,8 @@ type Props = {
   autoFocus?: boolean
   disabled?: boolean
   promptPicker?: boolean
+  framed?: boolean
+  importLink?: boolean
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
 }
 
@@ -110,6 +113,8 @@ export function ChatComposer({
   autoFocus = false,
   disabled = false,
   promptPicker = false,
+  framed = true,
+  importLink = true,
   onSent,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -360,7 +365,11 @@ export function ChatComposer({
       <div className="relative">
         <form
           onSubmit={onSubmit}
-          className="flex w-full flex-col rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-aria-invalid:focus-within:border-ring has-aria-invalid:focus-within:ring-ring"
+          className={cn(
+            "flex w-full flex-col",
+            framed &&
+              "rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-aria-invalid:focus-within:border-ring has-aria-invalid:focus-within:ring-ring"
+          )}
         >
           <label htmlFor={inputId} className="sr-only">
             Message the agent
@@ -416,7 +425,7 @@ export function ChatComposer({
               {model !== null ? <span>{model}</span> : null}
             </div>
             <div className="flex items-center gap-1.5">
-              <ImportLink />
+              {importLink ? <ImportLink /> : null}
               {runningRequestId !== undefined ? (
                 <StopRequestButton requestId={runningRequestId} />
               ) : null}
