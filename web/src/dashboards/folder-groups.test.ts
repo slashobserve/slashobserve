@@ -195,6 +195,44 @@ describe("groupPage", () => {
     )
   })
 
+  it("counts the folder's dashboards when nothing is filtered", () => {
+    const list = [row("a", checkout), row("b", checkout), row("d", general)]
+    expect(
+      groupPage(folders, list, everything).map((s) => [s.folder.id, s.count])
+    ).toEqual([
+      ["c", 2],
+      ["p", 0],
+      ["g", 1],
+    ])
+  })
+
+  it("counts the matching dashboards of each folder when the whole result is on the page", () => {
+    const list = [row("a", checkout), row("d", general)]
+    expect(
+      groupPage(folders, list, { offset: 0, total: 2, filtered: true }).map(
+        (s) => [s.folder.id, s.count]
+      )
+    ).toEqual([
+      ["c", 1],
+      ["g", 1],
+    ])
+  })
+
+  it("gives no count when a filtered result spans pages", () => {
+    const big = folder("a", "Big", { dashboard_count: 60 })
+    const first = groupPage([big], rows("a", 50, big), {
+      offset: 0,
+      total: 60,
+      filtered: true,
+    })
+    const later = groupPage([big], rows("a", 10, big), {
+      offset: 50,
+      total: 60,
+      filtered: true,
+    })
+    expect([first[0].count, later[0].count]).toEqual([null, null])
+  })
+
   it("gives no sections for a filter that matches nothing", () => {
     expect(
       groupPage(folders, [], { offset: 0, total: 0, filtered: true })
