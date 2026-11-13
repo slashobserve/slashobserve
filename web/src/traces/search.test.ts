@@ -4,14 +4,30 @@ import {
   normaliseTraceId,
   tracesTimeRange,
   traceViewRange,
+  validateTraceEntrySearch,
   validateTraceSearch,
   validateTraceViewSearch,
 } from "./search"
 
+describe("validateTraceEntrySearch", () => {
+  it("keeps a valid datasource uid next to the page keys", () => {
+    expect(
+      validateTraceEntrySearch({ ds: "tempo", service: "checkout" })
+    ).toMatchObject({ ds: "tempo", service: "checkout" })
+  })
+
+  it("drops an invalid datasource uid", () => {
+    expect(validateTraceEntrySearch({ ds: "a/b" }).ds).toBeUndefined()
+  })
+
+  it("leaves the datasource out of the page search", () => {
+    expect(validateTraceSearch({ ds: "tempo" })).not.toHaveProperty("ds")
+  })
+})
+
 describe("validateTraceSearch", () => {
   it("keeps a valid search", () => {
     const search = {
-      ds: "tempo",
       service: "checkout",
       span: "GET /pay",
       min: "250ms",

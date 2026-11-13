@@ -23,7 +23,7 @@ import {
   type TimeRangeValue,
 } from "@/dashboards/time-range-picker"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
-import { traceUrl } from "@/lib/links"
+import { tracesLink, traceUrl } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
 import { describeRange, zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -153,8 +153,7 @@ function TraceForId({ id }: { id: string }) {
         </CopyButton>
       ) : null}
       <Link
-        to="/traces"
-        search={{ ds: datasource?.uid }}
+        {...(datasource ? tracesLink(datasource.uid) : { to: "/traces" })}
         className={cn(buttonVariants({ variant: "outline" }))}
       >
         Search traces
@@ -484,7 +483,7 @@ function TraceMissing({
 
 function tempoSearchLink(uid: string): SearchLink {
   return (attribute, negate) => ({
-    ds: uid,
+    uid,
     q: traceQLAttribute(
       attribute.source,
       attribute.key,

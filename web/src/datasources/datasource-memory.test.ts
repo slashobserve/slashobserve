@@ -1,101 +1,64 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
-import { rememberDatasource, rememberedDatasource } from "./datasource-memory"
-import type { DatasourceStatus } from "./queries"
+import { parseMemory, rememberIn } from "./datasource-memory"
 
-const storageKey = "slashobserve-explore-datasource"
-
-function datasource(uid: string, type: string): DatasourceStatus {
-  return {
-    uid,
-    type,
-    name: uid,
-    healthy: true,
-    checked_at: "2026-11-06T00:00:00Z",
-    dashboard_count: 0,
-  }
-}
-
-const clickhouse = datasource("ch", "clickhouse")
-const tempo = datasource("tempo", "tempo")
-const loki = datasource("loki", "loki")
-
-function stubStorage(initial: Record<string, string> = {}) {
-  const store = new Map(Object.entries(initial))
-  return {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    store,
-  }
-}
-
-let storage: ReturnType<typeof stubStorage>
-
-beforeEach(() => {
-  storage = stubStorage()
-  vi.stubGlobal("localStorage", storage)
-})
-
-afterEach(() => vi.unstubAllGlobals())
-
-describe("rememberedDatasource", () => {
-  it("keeps the stored datasource when it is still eligible", () => {
-    storage.store.set(storageKey, JSON.stringify({ traces: "ch" }))
-    expect(rememberedDatasource("traces", [tempo, clickhouse])).toBe("ch")
+describe("parseMemory", () => {
+  it("reads lists most recent first", () => {
+    expect(
+      parseMemory(JSON.stringify({ logs: ["a", "b"], traces: ["t"] }))
+    ).toEqual({ logs: ["a", "b"], traces: ["t"] })
   })
 
-  it("falls back when the stored datasource is gone", () => {
-    storage.store.set(storageKey, JSON.stringify({ traces: "old" }))
-    expect(rememberedDatasource("traces", [clickhouse, tempo])).toBe("tempo")
+  it("reads the old single uid as a one entry list", () => {
+    expect(
+      parseMemory(JSON.stringify({ logs: "ch", traces: "tempo" }))
+    ).toEqual({ logs: ["ch"], traces: ["tempo"] })
   })
 
-  it("prefers Tempo for traces", () => {
-    expect(rememberedDatasource("traces", [clickhouse, tempo])).toBe("tempo")
+  it("leaves out a kind that was never stored", () => {
+    expect(parseMemory(JSON.stringify({ logs: ["a"] }))).toEqual({
+      logs: ["a"],
+      traces: [],
+    })
   })
 
-  it("takes the first eligible for logs", () => {
-    expect(rememberedDatasource("logs", [clickhouse, loki])).toBe("ch")
+  it("drops entries that are not strings", () => {
+    expect(parseMemory(JSON.stringify({ logs: ["a", 3, null, "b"] }))).toEqual({
+      logs: ["a", "b"],
+      traces: [],
+    })
   })
 
-  it("reads the page's own entry", () => {
-    storage.store.set(storageKey, JSON.stringify({ logs: "ch" }))
-    expect(rememberedDatasource("traces", [clickhouse, tempo])).toBe("tempo")
-  })
-
-  it("returns nothing without an eligible datasource", () => {
-    expect(rememberedDatasource("traces", [])).toBeUndefined()
-  })
-
-  it.each(["", "not json", "[]", '{"traces": 3}'])(
-    "ignores a stored value of %j",
+  it.each([null, "", "not json", "[]", "3", '{"logs": 3}'])(
+    "reads %j as empty lists",
     (raw) => {
-      storage.store.set(storageKey, raw)
-      expect(rememberedDatasource("traces", [clickhouse])).toBe("ch")
+      expect(parseMemory(raw)).toEqual({ logs: [], traces: [] })
     }
   )
 
-  it("survives storage that throws", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new Error("blocked")
-      },
-      setItem: () => {
-        throw new Error("blocked")
-      },
-    })
-    expect(rememberedDatasource("traces", [clickhouse])).toBe("ch")
-    expect(() => rememberDatasource("traces", "ch")).not.toThrow()
+  it("keeps at most 20 uids", () => {
+    const many = Array.from({ length: 30 }, (_, index) => `s${index}`)
+    expect(parseMemory(JSON.stringify({ logs: many })).logs).toEqual(
+      many.slice(0, 20)
+    )
   })
 })
 
-describe("rememberDatasource", () => {
-  it("keeps the other page's entry", () => {
-    rememberDatasource("logs", "loki")
-    rememberDatasource("traces", "tempo")
-    expect(JSON.parse(storage.store.get(storageKey) ?? "")).toEqual({
-      logs: "loki",
-      traces: "tempo",
-    })
+describe("rememberIn", () => {
+  it("puts the uid first", () => {
+    expect(rememberIn(["a", "b"], "c")).toEqual(["c", "a", "b"])
+  })
+
+  it("moves a known uid to the front without repeating it", () => {
+    expect(rememberIn(["a", "b", "c"], "c")).toEqual(["c", "a", "b"])
+  })
+
+  it("keeps at most 20 uids, dropping the oldest", () => {
+    const full = Array.from({ length: 20 }, (_, index) => `s${index}`)
+    const next = rememberIn(full, "new")
+    expect(next).toHaveLength(20)
+    expect(next[0]).toBe("new")
+    expect(next).not.toContain("s19")
   })
 })

@@ -134,22 +134,22 @@ describe("linePermalink", () => {
   it("adds the line to the address and keeps the rest", () => {
     const id = lineId(entry([]))!
     const link = new URL(
-      linePermalink("http://localhost/logs?ds=loki&q=%7Ba%7D", entry([]))
+      linePermalink("http://localhost/logs/loki?q=%7Ba%7D", entry([]))
     )
     expect(link.searchParams.get("line")).toBe(id)
-    expect(link.searchParams.get("ds")).toBe("loki")
+    expect(link.pathname).toBe("/logs/loki")
     expect(link.searchParams.get("q")).toBe("{a}")
   })
 
   it("replaces a line already in the address", () => {
     const link = new URL(
-      linePermalink("http://localhost/logs?line=1%3Aold", entry([]))
+      linePermalink("http://localhost/logs/loki?line=1%3Aold", entry([]))
     )
     expect(link.searchParams.getAll("line")).toEqual([lineId(entry([]))])
   })
 
   it("keeps the address as it is for a line without a time", () => {
-    const href = "http://localhost/logs?ds=loki"
+    const href = "http://localhost/logs/loki"
     expect(linePermalink(href, entry([], { time: null }))).toBe(href)
   })
 })

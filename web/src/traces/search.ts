@@ -17,7 +17,6 @@ import {
 import { parseDuration } from "./search-query"
 
 export type TraceSearch = {
-  ds?: string
   service?: string
   span?: string
   min?: string
@@ -77,7 +76,6 @@ function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
 
 export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
   return {
-    ds: validDatasource(raw.ds),
     service: validName(raw.service),
     span: validName(raw.span),
     min: validDuration(raw.min),
@@ -89,6 +87,14 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }
+}
+
+export type TraceEntrySearch = TraceSearch & { ds?: string }
+
+export function validateTraceEntrySearch(
+  raw: Record<string, unknown>
+): TraceEntrySearch {
+  return { ...validateTraceSearch(raw), ds: validDatasource(raw.ds) }
 }
 
 export function validateTraceViewSearch(

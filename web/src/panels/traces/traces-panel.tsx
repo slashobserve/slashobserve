@@ -21,7 +21,7 @@ import {
 
 import { CopyButton } from "@/components/copy-button"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { traceLink } from "@/lib/links"
+import { traceLink, tracesLink } from "@/lib/links"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import {
@@ -67,7 +67,7 @@ const indentStep = 12
 const wideNameColumn = 600
 const ErrorIcon = thresholdIcons.critical
 
-export type TraceSearchLink = { ds: string; q: string }
+export type TraceSearchLink = { uid: string; q: string }
 
 export type SearchLink = (
   attribute: SpanAttribute,
@@ -624,8 +624,7 @@ function SearchAction({
 }) {
   return (
     <Link
-      to="/traces"
-      search={link}
+      {...tracesLink(link.uid, { q: link.q })}
       aria-label={label}
       className={cn(
         buttonVariants({ variant: "ghost", size: "icon-xs" }),

@@ -8,7 +8,6 @@ import {
 import { isTimeValue } from "@/lib/time"
 
 export type LogsSearch = {
-  ds?: string
   q?: string
   ask?: string
   from?: string
@@ -23,7 +22,7 @@ export type LogsSearch = {
   size?: PageSize
 }
 
-const pageResetKeys = ["ds", "q", "f", "from", "to", "size"] as const
+const pageResetKeys = ["q", "f", "from", "to", "size"] as const
 
 export function searchAfter(
   state: LogsSearch,
@@ -137,7 +136,6 @@ export function validRange(raw: Record<string, unknown>): {
 
 export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
   return {
-    ds: validDatasource(raw.ds),
     q: validQuery(raw.q),
     ask: validAsk(raw.ask),
     ...validRange(raw),
@@ -150,6 +148,14 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }
+}
+
+export type LogsEntrySearch = LogsSearch & { ds?: string }
+
+export function validateLogsEntrySearch(
+  raw: Record<string, unknown>
+): LogsEntrySearch {
+  return { ...validateLogsSearch(raw), ds: validDatasource(raw.ds) }
 }
 
 export function logsTimeRange(search: LogsSearch): TimeRangeValue {

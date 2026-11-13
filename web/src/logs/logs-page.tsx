@@ -8,14 +8,14 @@ import {
 
 import { useInputMode } from "@/ask/input-mode"
 import { CopyButton } from "@/components/copy-button"
-import { PageHeader } from "@/components/page-header"
+import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
-import {
-  rememberDatasource,
-  rememberedDatasource,
-} from "@/datasources/datasource-memory"
-import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
+import { useSourceMemory } from "@/datasources/datasource-memory"
+import type { DatasourceStatus } from "@/datasources/queries"
+import { SourceTitle } from "@/datasources/source-title"
+import { useExploreSources } from "@/datasources/use-sources"
+import { useDocumentTitle } from "@/lib/document-title"
 import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
@@ -25,12 +25,11 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 import { logsDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
+import { loadProblemText } from "@/service-accounts/queries"
 
 import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
-import { DatasourceControl } from "./datasource-control"
-import { eligibleDatasources } from "./datasource-picker"
 import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
@@ -39,12 +38,7 @@ import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
 import { applyPills, decodePills } from "./pills"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import {
-  logsDatasourceTypes,
-  logsTimeRange,
-  searchAfter,
-  type LogsSearch,
-} from "./search"
+import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
 import { VolumeStrip } from "./volume-strip"
@@ -55,9 +49,7 @@ import {
   type LogsWorkspace,
 } from "./workspace"
 
-const routeId = "/_authed/_shell/logs"
-const description =
-  "Search one datasource in its own query language, narrow by field, then jump to the trace."
+const routeId = "/_authed/_shell/logs/$datasourceUid"
 
 type Update = LogsWorkspace["update"]
 
@@ -70,7 +62,7 @@ function saveHint(savable: ReturnType<typeof logsDraft>): string | undefined {
 
 function useLogsSearch() {
   const search = useSearch({ from: routeId })
-  const navigate = useNavigate({ from: "/logs" })
+  const navigate = useNavigate({ from: "/logs/$datasourceUid" })
   const update = useCallback<Update>(
     (next, options) =>
       void navigate({
@@ -82,47 +74,49 @@ function useLogsSearch() {
   return { search, update }
 }
 
-function useDefaultDatasource(
-  current: DatasourceStatus | undefined,
-  eligible: readonly DatasourceStatus[]
-) {
-  const navigate = useNavigate()
-  const fallback =
-    current === undefined ? rememberedDatasource("logs", eligible) : undefined
-  const uid = current?.uid
-  useEffect(() => {
-    if (fallback === undefined) return
-    void navigate({
-      to: ".",
-      search: (state: Record<string, unknown>) => ({ ...state, ds: fallback }),
-      replace: true,
-    })
-  }, [fallback, navigate])
-  useEffect(() => {
-    if (uid !== undefined) rememberDatasource("logs", uid)
-  }, [uid])
-}
-
-export function LogsPage() {
+export function LogsPage({ uid }: { uid: string }) {
   const { search, update } = useLogsSearch()
-  const datasources = useDatasources()
+  const { sources, isPending, isError, error, refetch } =
+    useExploreSources("logs")
   const { principal } = useRouteContext({ from: "/_authed" })
-  const eligible = eligibleDatasources(datasources.data, logsDatasourceTypes)
-  const datasource = eligible.find((candidate) => candidate.uid === search.ds)
-  useDefaultDatasource(datasource, eligible)
+  const datasource = sources.find((candidate) => candidate.uid === uid)
+  const rememberedUid = datasource?.uid
+  useDocumentTitle(
+    datasource
+      ? `Logs / ${datasource.name} - SlashObserve`
+      : "Logs - SlashObserve"
+  )
+  useEffect(() => {
+    if (rememberedUid !== undefined) {
+      useSourceMemory.getState().remember("logs", rememberedUid)
+    }
+  }, [rememberedUid])
 
-  if (datasources.isPending) {
+  if (isPending) {
     return (
       <>
-        <PageHeader title="Logs" />
+        <h1 className="sr-only">Logs</h1>
         <ResultSkeleton />
       </>
     )
   }
-  if (eligible.length === 0) {
+  if (isError) {
     return (
       <>
-        <PageHeader title="Logs" />
+        <h1 className="sr-only">Logs</h1>
+        <LoadProblem
+          title="Could not load the datasources"
+          detail={loadProblemText(error)}
+          retrying={false}
+          onRetry={() => void refetch()}
+        />
+      </>
+    )
+  }
+  if (sources.length === 0) {
+    return (
+      <>
+        <h1 className="sr-only">Logs</h1>
         <p className="text-[13px] text-muted-foreground">
           No logs datasource is configured. An Admin adds an Elasticsearch,
           OpenSearch, Loki or ClickHouse datasource in the datasources file.
@@ -138,12 +132,26 @@ export function LogsPage() {
       </>
     )
   }
-  if (datasource === undefined) return <PageHeader title="Logs" />
+  if (datasource === undefined) {
+    return (
+      <>
+        <h1 className="sr-only">Logs</h1>
+        <p className="text-[13px] text-muted-foreground">
+          No log source has the uid {uid}.
+        </p>
+        <Link
+          to="/logs"
+          className="mt-2 inline-block text-[13px] underline underline-offset-3"
+        >
+          Open Logs
+        </Link>
+      </>
+    )
+  }
   return (
     <LogsWorkspaceView
       key={datasource.uid}
       datasource={datasource}
-      datasources={eligible}
       search={search}
       update={update}
     />
@@ -152,12 +160,10 @@ export function LogsPage() {
 
 function LogsWorkspaceView({
   datasource,
-  datasources,
   search,
   update,
 }: {
   datasource: DatasourceStatus
-  datasources: DatasourceStatus[]
   search: LogsSearch
   update: Update
 }) {
@@ -315,7 +321,6 @@ function LogsWorkspaceView({
 
   const workspace: LogsWorkspace = {
     datasource,
-    datasources,
     search,
     effectiveQuery,
     update,
@@ -350,11 +355,11 @@ function LogsWorkspaceView({
   return (
     <LogsWorkspaceContext value={workspace}>
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <PageHeader title="Logs" description={description} />
+        <h1 className="sr-only">Logs in {datasource.name}</h1>
+        <SourceTitle kind="logs" source={datasource} />
         <div className="flex flex-wrap items-center gap-2">
           <QueryBar.ModeSwitch />
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <DatasourceControl />
             <TimeRangeControl
               value={range}
               onChange={(next) => {

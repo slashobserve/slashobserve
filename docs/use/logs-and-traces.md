@@ -8,15 +8,20 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 
 ## Logs page
 
-### Choose a datasource
+### Choose a source
 
-Open **Logs** in the sidebar and pick one datasource in the toolbar: Elasticsearch, OpenSearch, Loki or ClickHouse.
-The datasource control shows the name and type, and on Elasticsearch and OpenSearch also the index pattern and time field.
-It opens a list of the datasources grouped by type, with a search field, and **Apply** switches to the one you chose.
-Switching keeps the time range and clears the query, unless both datasources are Elasticsearch or OpenSearch, which both speak KQL.
-The page searches that one datasource in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
+Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, has its own page at `/logs/<datasource uid>`.
+With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
+The five you used last on this browser come first and the rest follow by name, and **More** opens the full list.
+With one log source, **Logs** opens it and nothing is listed under it.
+On the collapsed sidebar the Logs icon opens the same list, and on a phone the source line under the page title does.
+The title names the source and its language, such as **Logs / ClickHouse** with an **SQL** tag.
+
+Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
+`/logs` opens the source you used last on this browser, else the first by name, and an old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
+The page searches that one source in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
 On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
-The address keeps `ds`, `q`, `from` and `to`, so **Copy link** copies a search that opens the same way.
+The address keeps the source, `q`, `from` and `to`, so **Copy link** copies a search that opens the same way.
 
 ### What the page shows first
 
@@ -86,7 +91,7 @@ A field the mapping does not have is reported as a warning in lint, and the quer
 
 ### Share a search
 
-The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
+The address keeps the search as `/logs/<datasource uid>?q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
 
 ## Filters
@@ -292,7 +297,7 @@ The block stays live on the page, so it runs the query when the page is open.
 
 Paste a Kibana or OpenSearch Dashboards Discover address into the query box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 The note under the box says what was filled and how many filters from the address were not applied: range, exists and custom filters are left out.
-A Lucene query gets the `lucene:` prefix, the datasource you picked stays selected, and nothing is sent to the server: the browser reads the address itself.
+A Lucene query gets the `lucene:` prefix, the source you are on stays selected, and nothing is sent to the server: the browser reads the address itself.
 On a Loki datasource or a ClickHouse datasource the address is pasted as plain text.
 
 ## Ask on the logs page
@@ -369,13 +374,17 @@ When Tempo did not search every block, a banner says that some spans may be miss
 ### Export and share
 
 **Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
-**Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same datasource.
+**Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same source at `/traces/<datasource uid>`.
 
 ## Trace search
 
 Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
-The page opens on the last datasource you used in this browser, else Tempo when one is configured; the datasource and the time range sit in the title row, and the **Search traces** button sits under the fields with Ctrl+Enter or Cmd+Enter as its shortcut.
+Each trace source, a Tempo or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
+With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the rest; with one, **Traces** opens it.
+The collapsed sidebar and the phone title open the same list as they do for logs, and the title names the source and its language.
+`/traces` opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
+The time range sits above the fields, and the **Search traces** button sits under them with Ctrl+Enter or Cmd+Enter as its shortcut.
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
@@ -433,7 +442,7 @@ The explanation and any warnings show under the question, with **Edit the query*
 The Run row then shows a "From: <question>" line and **Ask again**, which brings the question back.
 
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
-Changing the datasource drops the question, because it was answered for the other one.
+Switching to another source drops the question, because it was answered for the other one.
 Without a model, the page stays in Query, and the Ask side of the toggle is disabled and says "Add a model key to ask in plain language".
 
 ## Ask in plain language

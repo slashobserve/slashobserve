@@ -16,6 +16,8 @@ import {
 import { PanelLeftCloseIcon } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
+import { sourceRows } from "@/datasources/sources"
+import { useListedSources, useNavTarget } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
 import {
@@ -42,6 +44,7 @@ import {
 import { PaletteButton } from "./palette-button"
 import { navIcons, RailContent } from "./rail"
 import { useSidebarStore } from "./sidebar-store"
+import { SourceList } from "./source-list"
 import {
   clampSidebarWidth,
   keyboardWidth,
@@ -97,9 +100,10 @@ function NavLink({
   onNavigate?: () => void
 }) {
   const Icon = navIcons[item.to]
+  const target = useNavTarget(item.to)
   return (
     <Link
-      to={item.to}
+      {...target}
       onClick={onNavigate}
       activeOptions={{ exact: true }}
       aria-current={state === "current" ? "page" : undefined}
@@ -264,6 +268,8 @@ export function SidebarContent({
 
   const openObservations = useOpenObservationsPage()
   const pinned = useVisiblePins()
+  const logs = useListedSources("logs")
+  const traces = useListedSources("traces")
 
   const subLists: Partial<
     Record<
@@ -289,6 +295,28 @@ export function SidebarContent({
       render: (currentId) => (
         <PinnedDashboards
           {...pinned}
+          currentId={currentId}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
+    "/logs": {
+      rows: sourceRows("logs", logs.shown),
+      render: (currentId) => (
+        <SourceList
+          kind="logs"
+          {...logs}
+          currentId={currentId}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
+    "/traces": {
+      rows: sourceRows("traces", traces.shown),
+      render: (currentId) => (
+        <SourceList
+          kind="traces"
+          {...traces}
           currentId={currentId}
           onNavigate={onNavigate}
         />

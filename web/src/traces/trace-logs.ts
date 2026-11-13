@@ -6,10 +6,11 @@ import { exploreKeys, type TraceLogsParams } from "@/api/keys"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
-import { logsUrl, type LogsLinkSearch } from "@/lib/links"
+import { logsUrl } from "@/lib/links"
 import { requestZone } from "@/lib/time"
 import { clickhouseLogsTemplate } from "@/logs/context-query"
 import { rowTime } from "@/logs/frames"
+import type { LogsSearch } from "@/logs/search"
 import { matcherInsert } from "@/panel-editor/insert-text"
 
 export type TraceLogsWindow = { from: string; to: string }
@@ -136,14 +137,12 @@ function clickhouseTraceQuery(
 }
 
 export function traceLogsSearch(
-  uid: string,
   type: string,
   traceId: string,
   window: TraceLogsWindow,
   spanId?: string
-): LogsLinkSearch {
+): LogsSearch {
   return {
-    ds: uid,
     q:
       type === "clickhouse"
         ? clickhouseTraceQuery(traceId, spanId)
@@ -160,7 +159,7 @@ export function traceLogsAddress(
   window: TraceLogsWindow,
   spanId?: string
 ): string {
-  return logsUrl(traceLogsSearch(uid, type, traceId, window, spanId))
+  return logsUrl(uid, traceLogsSearch(type, traceId, window, spanId))
 }
 
 function bodyField(frame: WireFrame) {
