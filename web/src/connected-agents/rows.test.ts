@@ -7,6 +7,7 @@ import {
   disconnectTitle,
   modeChoices,
   modeLabel,
+  modeNote,
   type ConnectedAgent,
 } from "./rows"
 import { claudeOAuthSnippet } from "./snippets"
@@ -72,6 +73,14 @@ describe("modeLabel", () => {
         description: "Saves become proposals an editor merges",
       },
     ])
+  })
+})
+
+describe("modeNote", () => {
+  it("explains both modes in one sentence each", () => {
+    expect(modeNote()).toBe(
+      "Direct: saves change dashboards. Propose: saves become proposals an editor merges."
+    )
   })
 })
 

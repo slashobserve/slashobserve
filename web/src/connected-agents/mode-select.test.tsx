@@ -3,15 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { ConnectedAgentsSection } from "./connected-agents-card"
+import {
+  ConnectedAgentsSection,
+  EveryonesAgentsCard,
+} from "./connected-agents-card"
 import type { ConnectedAgent } from "./rows"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
-vi.mock("@tanstack/react-router", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
-  useRouteContext: () => ({ principal: { id: "u1", role: "admin" } }),
-}))
+
+const route = { path: "/settings", url: "/settings" }
 
 const grantId = "0b8e4c55-6c55-4d6a-9d8a-2a8c5b5e9a01"
 
@@ -75,7 +76,7 @@ afterEach(() => {
 describe("ModeSelect", () => {
   it("sends propose for the person's own connection and shows the server's answer", async () => {
     const patches = mockServer()
-    const { user } = renderWithProviders(<ConnectedAgentsSection />)
+    const { user } = renderWithProviders(<ConnectedAgentsSection />, { route })
     const trigger = await screen.findByRole("combobox", {
       name: "Mode for Claude Code",
     })
@@ -97,7 +98,7 @@ describe("ModeSelect", () => {
 
   it("describes each mode in the list", async () => {
     mockServer()
-    const { user } = renderWithProviders(<ConnectedAgentsSection />)
+    const { user } = renderWithProviders(<ConnectedAgentsSection />, { route })
     await user.click(
       await screen.findByRole("combobox", { name: "Mode for Claude Code" })
     )
@@ -113,7 +114,7 @@ describe("ModeSelect", () => {
       patch: () =>
         json({ error: "connection not found", code: "not_found" }, 404),
     })
-    const { user } = renderWithProviders(<ConnectedAgentsSection />)
+    const { user } = renderWithProviders(<ConnectedAgentsSection />, { route })
     await user.click(
       await screen.findByRole("combobox", { name: "Mode for Claude Code" })
     )
@@ -128,14 +129,23 @@ describe("ModeSelect", () => {
 
   it("shows the mode as text, not a select, on the everyone's list", async () => {
     mockServer()
-    renderWithProviders(<ConnectedAgentsSection />)
+    renderWithProviders(<EveryonesAgentsCard />)
     const everyone = await screen.findByRole("region", {
       name: "Everyone's connected agents",
     })
     await waitFor(() =>
       expect(within(everyone).getByText("Direct")).toBeTruthy()
     )
-    expect(within(everyone).queryByRole("combobox")).toBeNull()
+    expect(screen.queryByRole("combobox")).toBeNull()
+  })
+
+  it("keeps the everyone's list out of the person's own section", async () => {
+    mockServer()
+    renderWithProviders(<ConnectedAgentsSection />, { route })
+    await screen.findByRole("combobox", { name: "Mode for Claude Code" })
+    expect(
+      screen.queryByRole("region", { name: "Everyone's connected agents" })
+    ).toBeNull()
     expect(screen.getAllByRole("combobox")).toHaveLength(1)
   })
 })

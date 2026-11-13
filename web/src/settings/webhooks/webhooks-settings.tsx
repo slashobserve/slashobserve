@@ -1,100 +1,61 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { PlusIcon } from "lucide-react"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { SettingsPanel } from "@/settings/sections"
 import { SettingsCard, SettingsProblem } from "@/settings/settings-card"
+import { SettingsSection } from "@/settings/settings-section"
 
-import type { ActivityType } from "./event-types"
-import {
-  useCreateWebhook,
-  useUpdateWebhook,
-  webhooksQuery,
-  type Webhook,
-} from "./queries"
+import { webhooksQuery } from "./queries"
 import { SecretReveal } from "./secret-reveal"
-import { WebhookForm } from "./webhook-form"
-import { webhookProblemText, type WebhookInput } from "./webhook-problems"
+import { webhookProblemText } from "./webhook-problems"
+import {
+  WebhookPanel,
+  webhooksHint,
+  type WebhookPanelMode,
+} from "./webhook-panel"
 import { WebhooksCard } from "./webhooks-card"
 
 type Revealed = { webhookName: string; secret: string }
 
-const formHint =
-  "Each event is sent as a signed https request. Only events from now on are sent, and only ones its owner can read."
-
-function inputOf(webhook: Webhook): WebhookInput {
-  return {
-    name: webhook.name,
-    url: webhook.url,
-    events: webhook.event_types as ActivityType[],
-  }
+type Props = {
+  panel: SettingsPanel | null
+  onPanel: (panel: SettingsPanel | null) => void
 }
 
-export function WebhooksSettings() {
+export function WebhooksSettings({ panel, onPanel }: Props) {
   const query = useQuery(webhooksQuery())
-  const create = useCreateWebhook()
-  const update = useUpdateWebhook()
   const [revealed, setRevealed] = useState<Revealed | null>(null)
-  const [editing, setEditing] = useState<Webhook | null>(null)
-
-  if (query.isError && query.data === undefined) {
-    return (
-      <SettingsCard title="Webhooks" hint={formHint}>
-        <SettingsProblem
-          title="Could not load the webhooks"
-          detail={webhookProblemText(query.error)}
-          retrying={query.isFetching}
-          onRetry={() => void query.refetch()}
-        />
-      </SettingsCard>
-    )
-  }
-  if (query.data === undefined) {
-    return <Skeleton className="h-24 w-full" />
-  }
-
-  async function add(input: WebhookInput) {
-    try {
-      const created = await create.mutateAsync({
-        name: input.name,
-        url: input.url,
-        event_types: input.events,
-      })
-      setRevealed({ webhookName: created.webhook.name, secret: created.secret })
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async function save(input: WebhookInput) {
-    if (editing === null) return false
-    try {
-      await update.mutateAsync({
-        id: editing.id,
-        body: { name: input.name, url: input.url, event_types: input.events },
-      })
-      setEditing(null)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  function changeEditing(open: boolean) {
-    if (open || update.isPending) return
-    setEditing(null)
-    update.reset()
-  }
+  const addButton = useRef<HTMLButtonElement>(null)
+  const editing =
+    panel?.kind === "webhook-edit"
+      ? query.data?.find((webhook) => webhook.id === panel.webhookId)
+      : undefined
+  const panelMode: WebhookPanelMode | null =
+    panel?.kind === "webhook-add"
+      ? { kind: "add" }
+      : editing === undefined
+        ? null
+        : { kind: "edit", webhook: editing }
 
   return (
-    <>
+    <SettingsSection
+      title="Webhooks"
+      description="Send workspace activity to an address of your choice as signed requests."
+      action={
+        <Button
+          ref={addButton}
+          variant={panelMode === null ? "default" : "outline"}
+          className="narrow:h-11"
+          onClick={() => onPanel({ kind: "webhook-add" })}
+        >
+          <PlusIcon aria-hidden="true" />
+          Add webhook
+        </Button>
+      }
+    >
       {revealed === null ? null : (
         <SecretReveal
           webhookName={revealed.webhookName}
@@ -102,47 +63,41 @@ export function WebhooksSettings() {
           onDone={() => setRevealed(null)}
         />
       )}
-      {query.data.length > 0 ? (
-        <WebhooksCard
-          webhooks={query.data}
-          onEdit={setEditing}
-          onSecret={(webhookName, secret) =>
-            setRevealed({ webhookName, secret })
-          }
-        />
-      ) : null}
-      <SettingsCard title="Add a webhook" hint={formHint}>
-        <WebhookForm
-          submitLabel="Add webhook"
-          pending={create.isPending}
-          serverError={create.isError ? create.error : null}
-          onSubmit={add}
-        />
+      <SettingsCard title="Webhooks" hint={webhooksHint}>
+        {query.isError && query.data === undefined ? (
+          <SettingsProblem
+            title="Could not load the webhooks"
+            detail={webhookProblemText(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        ) : query.data === undefined ? (
+          <div className="border-t p-4">
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : query.data.length === 0 ? (
+          <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">
+            No webhooks yet.
+          </p>
+        ) : (
+          <WebhooksCard
+            webhooks={query.data}
+            editingId={editing?.id ?? null}
+            onEdit={(webhookId) => onPanel({ kind: "webhook-edit", webhookId })}
+            onSecret={(webhookName, secret) =>
+              setRevealed({ webhookName, secret })
+            }
+          />
+        )}
       </SettingsCard>
-      <Dialog open={editing !== null} onOpenChange={changeEditing}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="wrap-anywhere">
-              Edit {editing?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Saving makes you the webhook&apos;s owner, so it sends what you
-              can read. A new address keeps its place in the log.
-            </DialogDescription>
-          </DialogHeader>
-          {editing === null ? null : (
-            <WebhookForm
-              key={editing.id}
-              initial={inputOf(editing)}
-              submitLabel="Save changes"
-              pending={update.isPending}
-              serverError={update.isError ? update.error : null}
-              onSubmit={save}
-              onCancel={() => changeEditing(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+      {panelMode === null ? null : (
+        <WebhookPanel
+          mode={panelMode}
+          onClose={() => onPanel(null)}
+          onCreated={setRevealed}
+          trigger={addButton}
+        />
+      )}
+    </SettingsSection>
   )
 }
