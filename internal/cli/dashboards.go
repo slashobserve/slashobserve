@@ -87,7 +87,7 @@ func (a *app) dashboardsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand(), a.dashboardMoveCommand(), a.dashboardDuplicateCommand(), a.dashboardRestoreCommand(), a.dashboardDiffCommand())
 	return cmd
 }
 

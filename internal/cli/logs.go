@@ -34,6 +34,12 @@ type logsOptions struct {
 	tail       bool
 	ask        string
 	dryRun     bool
+	facets     bool
+	fields     []string
+	patterns   bool
+	context    string
+	before     int
+	after      int
 }
 
 type logLine struct {
@@ -57,7 +63,10 @@ func (a *app) logsCommand() *cobra.Command {
 		Long:  "logs runs a log query on a datasource and prints the lines oldest first.\nWith --ask the server writes the query from a question and prints it first.\nWith --tail it keeps printing new lines every 2 seconds until Ctrl-C.",
 		Example: "  observe logs '{app=\"shop\"} |= \"error\"' --datasource loki --from now-15m\n" +
 			"  observe logs '{app=\"shop\"}' --datasource loki --tail\n" +
-			"  observe logs --ask \"checkout errors\" --datasource loki --dry-run",
+			"  observe logs --ask \"checkout errors\" --datasource loki --dry-run\n" +
+			"  observe logs '{app=\"shop\"}' --datasource loki --facets\n" +
+			"  observe logs '{app=\"shop\"}' --datasource loki --patterns\n" +
+			"  observe logs '{app=\"shop\"}' --datasource loki --context 2026-11-01T10:00:00.123456789Z",
 		Args: cobra.ArbitraryArgs,
 		RunE: a.runLogs,
 	}
@@ -69,6 +78,12 @@ func (a *app) logsCommand() *cobra.Command {
 	flags.BoolVar(&a.logs.tail, "tail", false, "keep printing new lines until Ctrl-C")
 	flags.StringVar(&a.logs.ask, "ask", "", "a question the server turns into the log query, instead of the query argument")
 	flags.BoolVar(&a.logs.dryRun, "dry-run", false, "with --ask, print the query without running it")
+	flags.BoolVar(&a.logs.facets, "facets", false, "count the top values of each label or field instead of printing lines")
+	flags.StringArrayVar(&a.logs.fields, "field", nil, "with --facets, count only this label or field; repeat it for several")
+	flags.BoolVar(&a.logs.patterns, "patterns", false, "group the lines into patterns instead of printing them")
+	flags.StringVar(&a.logs.context, "context", "", "print the lines around one line: its nanosecond time or an RFC 3339 time with nanoseconds")
+	flags.IntVar(&a.logs.before, "before", defaultContextLines, "with --context, the lines to print before it, 0 to 500")
+	flags.IntVar(&a.logs.after, "after", defaultContextLines, "with --context, the lines to print after it, 0 to 500")
 	return cmd
 }
 
@@ -82,6 +97,10 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 	}
 	if opts.limit < 1 || opts.limit > maxLogLimit {
 		return usagef("--limit must be 1 to %d", maxLogLimit)
+	}
+	insight, err := opts.insight(cmd)
+	if err != nil {
+		return err
 	}
 	c, err := a.newClient()
 	if err != nil {
@@ -101,6 +120,9 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		}
 		query = answer.Query
 	}
+	if insight != insightNone {
+		return a.logInsight(ctx, c, out, insight, query)
+	}
 	req := exploreRequest{Query: query, Kind: "range", From: opts.from, To: opts.to, Limit: opts.limit}
 	data, body, err := explore(ctx, c, opts.datasource, req)
 	if err != nil {
@@ -116,19 +138,29 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
+	printLogLines(out, lines, opts.from, opts.to)
+	return nil
+}
+
+func printLogLines(out *output, lines []logLine, from, to string) {
 	if len(lines) == 0 {
-		out.notice("No log lines between %s and %s", text(opts.from), text(opts.to))
-		return nil
+		out.notice("No log lines between %s and %s", text(from), text(to))
+		return
 	}
 	keys := varyingLabels(lines)
 	width := levelWidth(lines)
 	for _, line := range lines {
 		out.line("%s", logText(line, keys, width))
 	}
-	return nil
 }
 
 func logLines(frames []frame) []logLine {
+	lines := collectLogLines(frames)
+	slices.SortStableFunc(lines, func(a, b logLine) int { return a.At.Compare(b.At) })
+	return lines
+}
+
+func collectLogLines(frames []frame) []logLine {
 	var lines []logLine
 	for _, f := range frames {
 		at := firstOfType(f, "time")
@@ -152,7 +184,6 @@ func logLines(frames []frame) []logLine {
 			lines = append(lines, line)
 		}
 	}
-	slices.SortStableFunc(lines, func(a, b logLine) int { return a.At.Compare(b.At) })
 	return lines
 }
 
