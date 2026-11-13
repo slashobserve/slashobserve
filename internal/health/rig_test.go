@@ -31,7 +31,8 @@ func TestMain(m *testing.M) {
 }
 
 type stub struct {
-	broken *atomic.Bool
+	broken  *atomic.Bool
+	queries *atomic.Int64
 }
 
 func (stub) Type() string                      { return "prometheus" }
@@ -61,6 +62,7 @@ func (s stub) QueryInstant(_ context.Context, q datasource.Query, _ datasource.T
 }
 
 func (s stub) frames(q datasource.Query) ([]datasource.Frame, error) {
+	s.queries.Add(1)
 	if s.broken.Load() {
 		switch {
 		case strings.Contains(q.Text, "empty"):
@@ -83,6 +85,7 @@ type rig struct {
 	repairs    *health.Repairs
 	noAgent    *health.Repairs
 	broken     *atomic.Bool
+	queries    *atomic.Int64
 	editor     auth.Principal
 	viewer     auth.Principal
 	key        auth.Principal
@@ -94,7 +97,8 @@ func newRig(t *testing.T) *rig {
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
 	broken := &atomic.Bool{}
-	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: stub{broken: broken}})
+	queries := &atomic.Int64{}
+	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: stub{broken: broken, queries: queries}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,6 +123,7 @@ func newRig(t *testing.T) *rig {
 		repairs:    health.NewRepairs(svc, queue),
 		noAgent:    health.NewRepairs(svc, none),
 		broken:     broken,
+		queries:    queries,
 		editor:     user(t, database, "eda", auth.RoleEditor),
 		viewer:     user(t, database, "vic", auth.RoleViewer),
 		key:        auth.Principal{Kind: auth.KindServiceAccount, ID: "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61", Name: "ci", Role: auth.RoleEditor},

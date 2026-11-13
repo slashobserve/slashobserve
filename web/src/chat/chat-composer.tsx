@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { roleAtLeast } from "@/lib/roles"
 import { isEditableTarget } from "@/lib/shortcuts"
 import {
   describeSubmitError,
@@ -111,6 +112,7 @@ export function ChatComposer({
   promptPicker = false,
   onSent,
 }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const create = useCreateObserveRequest()
@@ -153,7 +155,7 @@ export function ChatComposer({
   const available = availableCommands({
     hasDashboard: dashboardId !== undefined,
     surface: "chat",
-    canInvestigate: true,
+    canInvestigate: roleAtLeast(principal.role, "editor"),
   })
   const matches = matchingCommands(prompt, available)
   const agentOff = agent.data?.available === false

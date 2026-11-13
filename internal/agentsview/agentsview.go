@@ -63,6 +63,7 @@ type connectedJSON struct {
 	ClientName  string    `json:"client_name"`
 	Mode        string    `json:"mode"`
 	Present     bool      `json:"present"`
+	Presence    string    `json:"presence"`
 	LastSeenAt  *string   `json:"last_seen_at"`
 	ConnectedAt string    `json:"connected_at"`
 	Writes7d    int       `json:"writes_7d"`
@@ -73,6 +74,7 @@ type serviceAccountJSON struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	Present    bool       `json:"present"`
+	Presence   string     `json:"presence"`
 	LastSeenAt *string    `json:"last_seen_at"`
 	Last7Days  *statsJSON `json:"last_7_days"`
 }
@@ -151,12 +153,13 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 		if err != nil {
 			return overviewJSON{}, err
 		}
-		present, seen := presenceOf(g.WorkerSeenAt, g.WorkerWorking, g.CheckedAt)
+		state, seen := presenceOf(g.WorkerSeenAt, g.WorkerWorking, g.CheckedAt)
 		out.Connected = append(out.Connected, connectedJSON{
 			GrantID:     g.ID.String(),
 			ClientName:  cmp.Or(actor.ClientName(g.ClientName.String), anonymousName),
 			Mode:        string(grantmode.Parse(g.Mode)),
-			Present:     present,
+			Present:     state != presence.Offline,
+			Presence:    string(state),
 			LastSeenAt:  seen,
 			ConnectedAt: httpapi.FormatTime(g.CreatedAt.Time),
 			Writes7d:    int(g.Writes7d),
@@ -169,8 +172,8 @@ func (h *Handler) overview(ctx context.Context, caller auth.Principal) (overview
 		return overviewJSON{}, fmt.Errorf("list run-taking service accounts: %w", err)
 	}
 	for _, a := range accounts {
-		present, seen := presenceOf(a.WorkerSeenAt, a.WorkerWorking, a.CheckedAt)
-		item := serviceAccountJSON{ID: a.ID.String(), Name: a.Name, Present: present, LastSeenAt: seen}
+		state, seen := presenceOf(a.WorkerSeenAt, a.WorkerWorking, a.CheckedAt)
+		item := serviceAccountJSON{ID: a.ID.String(), Name: a.Name, Present: state != presence.Offline, Presence: string(state), LastSeenAt: seen}
 		if admin {
 			stats, err := h.stats(ctx, dbsqlc.AgentRunStatsParams{AssignedKind: "service_account", AssignedID: a.ID})
 			if err != nil {
@@ -198,11 +201,11 @@ func (h *Handler) stats(ctx context.Context, params dbsqlc.AgentRunStatsParams) 
 	return out, nil
 }
 
-func presenceOf(seenAt pgtype.Timestamptz, working bool, checkedAt pgtype.Timestamptz) (bool, *string) {
-	present := presence.Of(seenAt.Time, seenAt.Valid, working, checkedAt.Time) != presence.Offline
+func presenceOf(seenAt pgtype.Timestamptz, working bool, checkedAt pgtype.Timestamptz) (presence.State, *string) {
+	state := presence.Of(seenAt.Time, seenAt.Valid, working, checkedAt.Time)
 	if !seenAt.Valid {
-		return present, nil
+		return state, nil
 	}
 	seen := httpapi.FormatTime(seenAt.Time)
-	return present, &seen
+	return state, &seen
 }

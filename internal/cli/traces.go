@@ -24,6 +24,9 @@ type tracesOptions struct {
 	to         string
 	ask        string
 	dryRun     bool
+	compare    []string
+	baseline   []string
+	limit      int
 }
 
 type span struct {
@@ -49,7 +52,8 @@ func (a *app) tracesCommand() *cobra.Command {
 		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints the newest 100 matching traces.",
 		Example: "  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo\n" +
 			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d\n" +
-			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo",
+			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo\n" +
+			"  observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736 --baseline 5c1d7a2e9f8b4a3d8e6f0b1c2d3e4f50 --datasource tempo",
 		Args: cobra.ArbitraryArgs,
 		RunE: a.runTraces,
 	}
@@ -59,11 +63,22 @@ func (a *app) tracesCommand() *cobra.Command {
 	flags.StringVar(&a.traces.to, "to", "now", "end of the range")
 	flags.StringVar(&a.traces.ask, "ask", "", "a question the server turns into a trace search, instead of the trace id")
 	flags.BoolVar(&a.traces.dryRun, "dry-run", false, "with --ask, print the search without running it")
+	flags.StringSliceVar(&a.traces.compare, "compare", nil, "the trace ids to explain, comma separated or repeated")
+	flags.StringSliceVar(&a.traces.baseline, "baseline", nil, "with --compare, the trace ids to compare them with, comma separated or repeated")
+	flags.IntVar(&a.traces.limit, "limit", defaultCompareLimit, "with --compare, the most differences to print, 1 to 100")
 	return cmd
 }
 
 func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	opts := a.traces
+	if cmd.Flags().Changed("compare") {
+		return a.compareTraces(cmd, args)
+	}
+	for _, name := range []string{"baseline", "limit"} {
+		if cmd.Flags().Changed(name) {
+			return usagef("--%s needs --compare", name)
+		}
+	}
 	if err := askUsage(cmd.Name(), "a trace id", args, opts.ask, opts.dryRun); err != nil {
 		return err
 	}

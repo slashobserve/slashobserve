@@ -111,6 +111,7 @@ func (a *app) command() *cobra.Command {
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.Version = a.version
 	root.SetVersionTemplate("{{.Version}}\n")
+	root.AddCommand(a.foldersCommand(), a.annotationsCommand())
 
 	flags := root.PersistentFlags()
 	flags.StringVar(&a.server, "server", "", "server address (env OBSERVE_SERVER)")

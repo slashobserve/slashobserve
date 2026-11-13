@@ -2,6 +2,8 @@ import type { components } from "@/api/schema.gen"
 import { formatShortRelative } from "@/lib/time"
 
 export type Stats = components["schemas"]["AgentRunStats"]
+type ServiceAccountPresence =
+  components["schemas"]["AgentsOverview"]["service_accounts"][number]["presence"]
 export type Scope =
   components["schemas"]["AgentsOverview"]["observe_agent"]["scope"]
 
@@ -41,12 +43,15 @@ export function scopeLine(scope: Scope): string {
   return scope === "workspace" ? "Last 7 days, everyone" : "Last 7 days, yours"
 }
 
+export type Presence = ServiceAccountPresence
+
 export function presenceLabel(
-  present: boolean,
+  presence: Presence,
   lastSeenAt: string | null,
   now = Date.now()
 ): string {
-  if (present) return "Present"
+  if (presence === "working") return "Working"
+  if (presence === "listening") return "Listening"
   if (lastSeenAt === null) return "Never seen"
-  return `Last seen ${formatShortRelative(lastSeenAt, now).toLowerCase()}`
+  return `Offline, last seen ${formatShortRelative(lastSeenAt, now).toLowerCase()}`
 }

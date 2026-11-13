@@ -8,7 +8,7 @@ health:
     description: >-
       Anyone with a role can call this endpoint.
       It lists every dashboard, in folders the caller can see, with at least one problem.
-      `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer.
+      `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, and again on the next run when its last check found a `query_failed` or `variable_failed` problem or it was saved since, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer.
       `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read.
       A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`.
       Dashboards are ranked: 0 with a `query_failed` or `variable_failed` problem, 1 with `no_data`, 2 with `duplicate_title`, 3 with only `unopened`.

@@ -7,6 +7,12 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { ChatComposer } from "./chat-composer"
 
+const session = vi.hoisted(() => ({ role: "editor" }))
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useRouteContext: () => ({ principal: { id: "u1", role: session.role } }),
+}))
+
 const dashboardId = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const runningId = "7a1d2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
 
@@ -80,6 +86,7 @@ async function box() {
 
 beforeEach(() => {
   localStorage.clear()
+  session.role = "editor"
 })
 
 afterEach(() => {
@@ -127,6 +134,22 @@ describe("ChatComposer", () => {
     expect(
       screen.getByRole("button", { name: "Remove Revise" })
     ).toBeInTheDocument()
+  })
+
+  it.each([
+    ["editor", true],
+    ["admin", true],
+    ["commenter", false],
+    ["viewer", false],
+  ])("offers /investigate to a %s: %s", async (role, offered) => {
+    session.role = role
+    const { user } = renderComposer()
+    await user.type(await box(), "/inv")
+    const hint = screen.queryByText(
+      "asks a question and answers with a finding"
+    )
+    if (offered) expect(hint).toBeInTheDocument()
+    else expect(hint).not.toBeInTheDocument()
   })
 
   it("shows the model and effort in the footer", async () => {

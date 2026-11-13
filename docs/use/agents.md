@@ -16,7 +16,7 @@ The page has three parts.
 
 - **Observe Agent** shows whether it is On or Off, the provider and model it uses or "No model configured", and four counts for the last seven days: Runs, Failed, Cost and Median wait.
   Under them, "Last 7 days, everyone" shows for an Admin and "Last 7 days, yours" for anyone else.
-- **Connected agents** lists your own live connections with the agent name, its **Mode**, its status ("Present", "Never seen" or "Last seen" with a time) and its writes in the last 7 days.
+- **Connected agents** lists your own live connections with the agent name, its **Mode**, its status ("Working", "Listening", "Offline, last seen" with a time, or "Never seen") and its writes in the last 7 days.
   **Manage in Settings** opens the Connected agents section, where you disconnect one.
   With none, the page says "No connected agents yet."
 - **Service accounts that take runs** lists each account with its status, and an Admin also sees its runs and failures for the last 7 days.
@@ -41,10 +41,10 @@ A service account has no mode.
 | Part | Shows |
 | --- | --- |
 | `observe_agent` | Whether the built-in agent is on, the configured provider and model names (never an address or a key), its `runtime` (always `sidecar`), and its runs of the last seven days. |
-| `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, whether it is present, when you connected it and what it did in the last seven days. |
-| `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name and whether it is present. |
+| `connected` | Your own live connections, newest first: the client, `direct` or `propose` mode, whether it is `present`, its `presence`, when you connected it and what it did in the last seven days. |
+| `service_accounts` | Every service account that [takes runs](../operate/service-account-keys.md), with its name, whether it is `present` and its `presence`. |
 
-An agent is present while it holds a run or asked for work in the last 40 seconds; [states](../reference/states.md) describes the three presences behind it.
+An agent is `present` while it holds a run or asked for work in the last 40 seconds, and `presence` says which: `working`, `listening` or `offline`; [states](../reference/states.md) describes the three presences.
 The Observe Agent's seven days cover every run in the workspace for an Admin and only your own runs for anyone else, and `scope` says which.
 A service account's seven days are shown to an Admin and are null for anyone else, who still gets its name to mention it.
 

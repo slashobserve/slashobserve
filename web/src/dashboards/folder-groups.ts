@@ -9,6 +9,7 @@ export type FolderSection = {
   rows: DashboardSummary[]
   empty: boolean
   continued: boolean
+  count: number | null
 }
 
 function rowsByFolder(
@@ -34,18 +35,25 @@ export function groupPage(
     0
   )
   const exact = !filtered && counted === total
+  const wholeResultOnPage = filtered && offset === 0 && rows.length >= total
   const pageEnd = offset + listPageSize
   const byFolder = rowsByFolder(rows)
   const sections: FolderSection[] = []
   let start = 0
   for (const folder of folders) {
     const onPage = byFolder.get(folder.id) ?? []
+    const count = filtered
+      ? wholeResultOnPage
+        ? onPage.length
+        : null
+      : folder.dashboard_count
     if (onPage.length > 0) {
       sections.push({
         folder,
         rows: onPage,
         empty: false,
         continued: exact && start < offset,
+        count,
       })
     } else if (
       exact &&
@@ -53,7 +61,13 @@ export function groupPage(
       start >= offset &&
       (start < pageEnd || pageEnd >= total)
     ) {
-      sections.push({ folder, rows: [], empty: true, continued: false })
+      sections.push({
+        folder,
+        rows: [],
+        empty: true,
+        continued: false,
+        count,
+      })
     }
     start += folder.dashboard_count
   }

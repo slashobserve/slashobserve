@@ -3,7 +3,15 @@ SELECT d.id, d.latest_version, v.spec
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
-WHERE h.checked_at IS NULL OR h.checked_at < @checked_before::timestamptz
+WHERE h.checked_at IS NULL OR (
+  h.checked_at < @run_started::timestamptz
+  AND (
+    h.checked_at < @checked_before::timestamptz
+    OR h.version < d.latest_version
+    OR h.issues @> '[{"kind":"query_failed"}]'::jsonb
+    OR h.issues @> '[{"kind":"variable_failed"}]'::jsonb
+  )
+)
 ORDER BY h.checked_at ASC NULLS FIRST, d.id
 LIMIT @row_limit;
 

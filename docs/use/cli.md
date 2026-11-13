@@ -124,11 +124,19 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 | `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
+| `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
+| `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
+| `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
+| `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
 | `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)). |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
+
+`restore` reads the latest version for `--parent` when it is omitted, and answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.
+`bin/observe dashboards diff <dashboard-id> --from 2 --to 3` shows what changed between versions 2 and 3.
+Pins (stars) are a signed-in person's and cannot be set with a key, so the CLI has no pin command; pin dashboards in the web app or over MCP.
 
 The lists and the panel table print as columns aligned with spaces.
 `bin/observe --help` shows the rest.
@@ -144,6 +152,23 @@ To import a directory of exports into one folder:
 ```sh
 for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
 ```
+
+## Folders
+
+`bin/observe folders` manages the [folders](../teams/folders.md) that hold dashboards, observations and saved searches:
+
+```sh
+bin/observe folders list
+bin/observe folders create Team Payments
+bin/observe folders rename <folder-id> Team Billing
+bin/observe folders delete <folder-id>
+```
+
+`list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)` and your My Dashboards `(yours)`.
+`create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`; a title that another folder uses answers `folder_exists`.
+`rename` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id, and the General folder answers `general_folder`.
+`delete` works only on an empty folder, asks for no `--yes`, and answers `folder_not_empty` when anything is still filed in it.
+Folder permissions are managed in the web app.
 
 ## Saved prompts
 
@@ -190,8 +215,19 @@ Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <pa
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
 
+`bin/observe o reopen <observation-id>` reopens a resolved observation and prints `Reopened <title>`.
+
+`bin/observe o edit <observation-id>` changes the title with `--title <title>`, the range its panels show with `--from <time> --to <time>`, RFC 3339 times that go together, or removes the range with `--clear-range`, and prints `Updated <title>`.
+Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range` exits 2.
+
+`bin/observe o move <observation-id> --folder <folder-id>` files the observation in another folder and prints `Moved <title> to folder <id>`.
+It needs Edit on the observation and on the folder, and My Dashboards takes no moves.
+
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
+
+`bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
+`bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 
 `bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
 
@@ -200,7 +236,7 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-Renaming, moving or reopening an observation, and changing or removing a live block, are done in the web app or through the HTTP API.
+Changing or removing a live block is done in the web app or through the HTTP API.
 
 ## Saved searches
 
@@ -299,6 +335,17 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
 
+`bin/observe annotations list` prints annotations newest first as `ID`, `TIME`, `DASHBOARD`, `TAGS` and `TEXT` columns:
+
+```sh
+bin/observe annotations list --dashboard <dashboard-id> --from 2026-11-01T00:00:00Z --tag deploy
+bin/observe annotations delete <annotation-id>
+```
+
+Without `--dashboard` it lists only the global annotations, and with it that dashboard's annotations and the global ones.
+`--from` and `--to` are RFC 3339 times, `--tag` can be repeated to match any of several tags, and `--limit` and `--cursor` page through the result.
+`bin/observe annotations delete <annotation-id>` prints `Deleted annotation <id>`.
+
 ## Dashboard health
 
 `bin/observe health` lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, one row per problem:
@@ -386,6 +433,29 @@ The message is the first column named `body`, `message`, `msg`, `line` or `log`,
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
 An invalid query exits 1 with the datasource's message.
 
+### Facets, patterns and context
+
+Three flags read the lines differently, as the logs page does, and print the response body with `--json`:
+
+```sh
+bin/observe logs '{app="shop"}' --datasource loki --facets
+bin/observe logs '{app="shop"}' --datasource loki --patterns
+bin/observe logs '{app="shop"}' --datasource loki --context 2026-11-01T10:00:00.123456789Z
+```
+
+`--facets` counts the top values of each label or field instead of printing lines.
+Each field prints a header `<name> (<kind>, exact|sampled)`, with `bytes` added for a Loki index label, which counts bytes, then one `<count>  <value>` row per value.
+A sampled field counts the newest lines only, and `--field <name>`, which can be repeated, counts just the fields you name.
+
+`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched and sampled go to standard error.
+`--limit` is the most patterns to print, up to 100.
+
+`--context <time>` prints the lines around one line: the lines before it oldest first, a `-- <time> --` line, then the lines after it.
+Give the line's time as nanoseconds since the epoch, or as an RFC 3339 time with nanoseconds, so that two lines in the same millisecond stay apart.
+`--before` and `--after` set how many lines to read on each side, 0 to 500 and 50 by default, and a note on standard error says when more exist.
+
+`--facets`, `--patterns`, `--context` and `--tail` cannot be combined, and `--field` needs `--facets`, `--before` and `--after` need `--context`; each mistake exits 2.
+
 ### Ask for logs in plain language
 
 `--ask` takes a question instead of the query, and the server writes the query with [Ask](logs-and-traces.md#ask-in-plain-language):
@@ -426,6 +496,20 @@ It prints the answer on standard error, as `Filters: service=checkout min=2s err
 Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
+
+### Compare traces
+
+`--compare` explains what sets some traces apart from others, as the compare view of the Traces page does:
+
+```sh
+bin/observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736,5c1d7a2e9f8b4a3d --baseline 6d2e8b3fa09c4b4e9f7a1c2d3e4f5061 --datasource tempo
+```
+
+`--compare` takes the trace ids to explain and `--baseline` the trace ids to compare them with, each comma separated or repeated, and a trace id is in only one of them.
+It prints `ATTRIBUTE`, `VALUE`, `SELECTED` and `BASELINE` columns: the attribute values whose share of the selected traces and share of the baseline traces differ by at least 10 percentage points, the largest gap first.
+`--limit` is the most differences to print, 1 to 100 and 20 by default, and `--from` and `--to` bound where the traces are read.
+A note on standard error says when some traces were not found in the range or more differences exist than `--limit` allows, and `--json` prints the response body.
+`--compare` takes no trace id argument and cannot be combined with `--ask`, and `--baseline` and `--limit` need `--compare`; each mistake exits 2.
 
 ## Grafana connections
 

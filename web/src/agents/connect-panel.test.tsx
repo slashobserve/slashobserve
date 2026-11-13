@@ -30,6 +30,7 @@ function overview(grantIds: string[]): AgentsOverview {
       client_name: id === "new" ? "Claude Code" : "Cursor",
       mode: "direct" as const,
       present: false,
+      presence: "offline",
       last_seen_at: null,
       connected_at: "2026-11-11T10:00:00Z",
       writes_7d: 0,

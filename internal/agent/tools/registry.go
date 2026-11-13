@@ -34,6 +34,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
+	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -157,6 +158,7 @@ type Deps struct {
 	RunSessions   RunSessions
 	LiveText      LiveText
 	Search        *search.Service
+	Stars         *stars.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL
 	Logger        *slog.Logger

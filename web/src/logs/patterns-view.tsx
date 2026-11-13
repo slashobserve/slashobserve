@@ -53,16 +53,15 @@ const levelClasses: Record<LogPattern["level"], string> = {
 }
 
 function useLogPatterns(enabled: boolean, limit: number) {
-  const { datasource, search, range } = useLogsWorkspace()
-  const q = search.q
+  const { datasource, effectiveQuery, range } = useLogsWorkspace()
   return useQuery({
     ...logPatternsQuery(datasource.uid, {
-      query: q ?? "",
+      query: effectiveQuery ?? "",
       from: range.from,
       to: range.to,
       limit,
     }),
-    enabled: enabled && q !== undefined,
+    enabled: enabled && effectiveQuery !== undefined,
   })
 }
 

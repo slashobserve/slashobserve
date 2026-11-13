@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ClipboardEvent,
   type KeyboardEvent,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -39,12 +40,19 @@ import type { LintResult } from "@/query-editor/server-lint"
 import { BuilderBar } from "./builder-bar"
 import { canBuild, withoutField } from "./builder"
 import { typeName } from "./datasource-picker"
+import {
+  DiscoverUrlError,
+  importDiscoverUrl,
+  importSummary,
+  isDiscoverUrl,
+} from "./discover-url"
 import { parseKql } from "./kql"
 import { LogLabelBrowser } from "./label-browser"
+import { addPill, decodePills, encodePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
 import { problemOf, type QueryProblem } from "./query-problem"
 import { kqlReferenceUrl, QueryProblemCard } from "./query-problem.tsx"
-import { isSearchFamily, queryModeLabel } from "./search"
+import { isSearchFamily, queryModeLabel, type LogsSearch } from "./search"
 import { useLogsWorkspace } from "./workspace"
 
 const askPlaceholder =
@@ -249,6 +257,7 @@ export function QueryBar() {
   const {
     datasource,
     search: urlSearch,
+    update,
     range,
     draft,
     setDraft,
@@ -271,6 +280,7 @@ export function QueryBar() {
   const labelsWereShown = useRef(false)
   const [blocked, setBlocked] = useState<string | null>(null)
   const [lint, setLint] = useState<LintResult | null>(null)
+  const [discoverNote, setDiscoverNote] = useState<string | null>(null)
   const emptyDraft = draft.trim() === ""
   const form = formOf(draft)
 
@@ -355,6 +365,37 @@ export function QueryBar() {
     event.preventDefault()
     event.stopPropagation()
     submit()
+  }
+
+  function onEditorPaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (!search) return
+    const text = event.clipboardData.getData("text/plain")
+    if (!isDiscoverUrl(text)) return
+    event.preventDefault()
+    event.stopPropagation()
+    let imported: ReturnType<typeof importDiscoverUrl>
+    try {
+      imported = importDiscoverUrl(text)
+    } catch (error) {
+      if (!(error instanceof DiscoverUrlError)) throw error
+      setDiscoverNote("That Discover link could not be read.")
+      return
+    }
+    const kept = decodePills(urlSearch.f)
+    const pills = imported.pills.reduce(
+      (current, pill) => addPill(current, pill),
+      imported.q === undefined ? kept : unpinnedCleared(kept)
+    )
+    const next: Partial<LogsSearch> = {}
+    if (imported.q !== undefined) next.q = imported.q
+    if (imported.from !== undefined) next.from = imported.from
+    if (imported.to !== undefined) next.to = imported.to
+    if (imported.cols !== undefined) next.cols = imported.cols.join(",")
+    if (imported.pills.length > 0) next.f = encodePills(pills)
+    if (imported.q !== undefined) setDraft(imported.q)
+    update(next)
+    if (imported.q !== undefined) run(imported.q)
+    setDiscoverNote(importSummary(imported))
   }
 
   function insert(text: string) {
@@ -451,6 +492,7 @@ export function QueryBar() {
         <div className="flex flex-col gap-1">
           <div
             onKeyDownCapture={onEditorKeyDown}
+            onPasteCapture={onEditorPaste}
             className={cn(shown === "ask" && "[&_.cm-editor]:max-h-44!")}
           >
             <CodeEditor
@@ -474,6 +516,22 @@ export function QueryBar() {
               </p>
             </div>
           ) : null}
+          {discoverNote === null ? null : (
+            <p
+              role="status"
+              className="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              {discoverNote}
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                onClick={() => setDiscoverNote(null)}
+              >
+                Dismiss
+              </Button>
+            </p>
+          )}
           {unknownFields.map((field) => (
             <UnknownField
               key={field}

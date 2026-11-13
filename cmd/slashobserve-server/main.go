@@ -389,6 +389,7 @@ func run() error {
 		RunSessions:   runSessions,
 		LiveText:      liveText,
 		Search:        searchService,
+		Stars:         stars.New(database, folderAccess),
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,
