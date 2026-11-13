@@ -2,36 +2,14 @@ import { matcherInsert } from "@/panel-editor/insert-text"
 import type { Labels } from "@/panels/logs/logs-model"
 
 import { perLineLokiLabels } from "./context-query"
-import { appendExists, appendKql, flatClauses, kqlText, parseKql } from "./kql"
-import { splitForm } from "./query-form"
-import { isSearchFamily } from "./search"
-
-const maxFilterValueLength = 200
 
 export type FilterTarget =
   "loki-stream" | "loki-line" | "clickhouse-column" | "clickhouse-attribute"
-
-export type FilterAction = "in" | "out" | "exists"
-
-export type FilterPlan = { text: string } | { blocked: string }
-
-export type FilterContext = {
-  type: string
-  query: string
-  stream: boolean
-}
 
 type Rewrite = { text: string } | { reason: "present" | "unsupported" }
 
 const present: Rewrite = { reason: "present" }
 const unsupported: Rewrite = { reason: "unsupported" }
-
-const blockedMessages = {
-  tooLong: "Too long to filter",
-  present: "Already in the query",
-  unsupported: "Cannot edit this query",
-  kqlOnly: "Switch to KQL to filter from a line",
-}
 
 const clickhouseColumns = new Set([
   "Timestamp",
@@ -43,7 +21,6 @@ const clickhouseColumns = new Set([
 ])
 
 const lokiLabel = /^[A-Za-z_][A-Za-z0-9_]*$/
-const kqlField = /^[A-Za-z_@][\w.@-]*$/
 const matcherStart = /^([A-Za-z_][A-Za-z0-9_]*)\s*(=~|!~|!=|=)/
 const quoteCharacters = ['"', "`"]
 
@@ -260,52 +237,4 @@ export function withFilter(
 ): string | null {
   const result = rewrite(type, target, name, query, value, negate)
   return "text" in result ? result.text : null
-}
-
-function outcome(result: Rewrite): FilterPlan {
-  return "text" in result ? result : { blocked: blockedMessages[result.reason] }
-}
-
-function planKql(
-  query: string,
-  action: FilterAction,
-  name: string,
-  value: string
-): FilterPlan {
-  const { form, body, offset } = splitForm(query)
-  if (form !== "kql") return { blocked: blockedMessages.kqlOnly }
-  if (!kqlField.test(name)) return outcome(unsupported)
-  const negate = action === "out"
-  const append = (text: string) =>
-    action === "exists"
-      ? appendExists(text, name, false)
-      : appendKql(text, name, value, negate)
-  const wanted = parseKql(append("")).node
-  const bodyNode = parseKql(body).node
-  const held = bodyNode === null ? null : flatClauses(bodyNode)
-  if (
-    wanted !== null &&
-    held?.some((clause) => kqlText(clause) === kqlText(wanted))
-  ) {
-    return outcome(present)
-  }
-  return { text: query.slice(0, offset) + append(body) }
-}
-
-export function planFilter(
-  context: FilterContext,
-  action: FilterAction,
-  name: string,
-  value: string
-): FilterPlan {
-  const { type, query, stream } = context
-  if (action !== "exists" && value.length > maxFilterValueLength) {
-    return { blocked: blockedMessages.tooLong }
-  }
-  if (isSearchFamily(type)) return planKql(query, action, name, value)
-  if (action === "exists" || (type !== "loki" && type !== "clickhouse")) {
-    return outcome(unsupported)
-  }
-  const target = filterTarget(type, name, stream)
-  return outcome(rewrite(type, target, name, query, value, action === "out"))
 }

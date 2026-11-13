@@ -27,12 +27,13 @@ import { ContextTab } from "./context-panel"
 import { linePermalink } from "./line-fields"
 import { contextBlocker, OpenTraceLink } from "./logs-results"
 import {
-  filterTarget,
-  isStreamLabel,
-  planFilter,
-  type FilterAction,
-  type FilterPlan,
-} from "./query-filters"
+  decodePills,
+  encodePills,
+  lineFilter,
+  type LineFilter,
+  type LineFilterAction,
+} from "./pills"
+import { filterTarget, isStreamLabel } from "./query-filters"
 import { isSearchFamily } from "./search"
 import { traceDatasourceFor, traceIdOf } from "./trace-link"
 import { useLogsWorkspace, type DetailTab } from "./workspace"
@@ -192,17 +193,17 @@ const ariaValueLength = 60
 function RowAction({
   label,
   tooltip,
-  plan,
+  filter,
   onClick,
   children,
 }: {
   label: string
   tooltip: string
-  plan: FilterPlan
+  filter: LineFilter
   onClick: () => void
   children: ReactNode
 }) {
-  const blocked = "blocked" in plan ? plan.blocked : undefined
+  const blocked = "blocked" in filter ? filter.blocked : undefined
   return (
     <Tooltip>
       <TooltipTrigger
@@ -229,13 +230,17 @@ function RowAction({
 function FieldRow({
   row,
   searchFamily,
-  planFor,
+  filterFor,
   onFilter,
 }: {
   row: FieldRowData
   searchFamily: boolean
-  planFor: (action: FilterAction, field: string, value: string) => FilterPlan
-  onFilter: (action: FilterAction, field: string, value: string) => void
+  filterFor: (
+    action: LineFilterAction,
+    field: string,
+    value: string
+  ) => LineFilter
+  onFilter: (action: LineFilterAction, field: string, value: string) => void
 }) {
   const { name, value } = row
   const shown =
@@ -243,7 +248,7 @@ function FieldRow({
       ? `${value.slice(0, ariaValueLength)}...`
       : value
   const action = (
-    kind: FilterAction,
+    kind: LineFilterAction,
     label: string,
     tooltip: string,
     icon: ReactNode
@@ -251,7 +256,7 @@ function FieldRow({
     <RowAction
       label={label}
       tooltip={tooltip}
-      plan={planFor(kind, name, value)}
+      filter={filterFor(kind, name, value)}
       onClick={() => onFilter(kind, name, value)}
     >
       {icon}
@@ -298,13 +303,17 @@ function FieldRow({
 function Group({
   group,
   searchFamily,
-  planFor,
+  filterFor,
   onFilter,
 }: {
   group: FieldGroup
   searchFamily: boolean
-  planFor: (action: FilterAction, field: string, value: string) => FilterPlan
-  onFilter: (action: FilterAction, field: string, value: string) => void
+  filterFor: (
+    action: LineFilterAction,
+    field: string,
+    value: string
+  ) => LineFilter
+  onFilter: (action: LineFilterAction, field: string, value: string) => void
 }) {
   const { title, note, rows } = group
   return (
@@ -321,7 +330,7 @@ function Group({
             key={`${index}:${row.name}`}
             row={row}
             searchFamily={searchFamily}
-            planFor={planFor}
+            filterFor={filterFor}
             onFilter={onFilter}
           />
         ))}
@@ -345,7 +354,7 @@ export function DetailDrawer({
   trigger: RefObject<HTMLElement | null>
   id: string
 }) {
-  const { datasource, search, run } = useLogsWorkspace()
+  const { datasource, search, update } = useLogsWorkspace()
   const allDatasources = useDatasources()
   const indexLabels = useQuery({
     ...labelNamesQuery(datasource.uid, {}),
@@ -366,12 +375,12 @@ export function DetailDrawer({
     datasource.index ?? datasource.name
   )
 
-  function planLineFilter(
-    action: FilterAction,
+  function filterOfLine(
+    action: LineFilterAction,
     field: string,
     value: string
-  ): FilterPlan {
-    return planFilter(
+  ): LineFilter {
+    return lineFilter(
       {
         type: datasource.type,
         query: search.q ?? "",
@@ -381,15 +390,20 @@ export function DetailDrawer({
           indexLabels.data?.labels
         ),
       },
+      decodePills(search.f),
       action,
       field,
       value
     )
   }
 
-  function filterFromLine(action: FilterAction, field: string, value: string) {
-    const plan = planLineFilter(action, field, value)
-    if ("text" in plan) run(plan.text)
+  function filterFromLine(
+    action: LineFilterAction,
+    field: string,
+    value: string
+  ) {
+    const result = filterOfLine(action, field, value)
+    if ("pills" in result) update({ f: encodePills(result.pills) })
   }
 
   const description = [
@@ -476,7 +490,7 @@ export function DetailDrawer({
                 key={group.title}
                 group={group}
                 searchFamily={searchFamily}
-                planFor={planLineFilter}
+                filterFor={filterOfLine}
                 onFilter={filterFromLine}
               />
             ))}

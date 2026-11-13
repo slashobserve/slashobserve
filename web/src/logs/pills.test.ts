@@ -6,6 +6,7 @@ import {
   applyPills,
   decodePills,
   encodePills,
+  lineFilter,
   maxPills,
   pillLabel,
   pillOptions,
@@ -322,6 +323,90 @@ LIMIT 1000`
     expect(
       applyPills("up", "prometheus", [pill({ kind: "is", field: "a" })])
     ).toBeNull()
+  })
+})
+
+describe("lineFilter", () => {
+  const loki = { type: "loki", query: '{a="b"}', stream: false }
+  const search = (query: string) => ({
+    type: "elasticsearch",
+    query,
+    stream: false,
+  })
+  const added = (result: ReturnType<typeof lineFilter>) =>
+    "pills" in result ? result.pills : []
+
+  it("adds a per-line Loki field as a stage after the selector", () => {
+    const pills = added(lineFilter(loki, [], "in", "status", "500"))
+    expect(pills).toMatchObject([{ kind: "is", field: "status", line: true }])
+    expect(applyPills('{a="b"}', "loki", pills)).toBe('{a="b"} | status="500"')
+  })
+
+  it("adds a Loki stream label to the selector", () => {
+    const pills = added(
+      lineFilter({ ...loki, stream: true }, [], "out", "pod", "x")
+    )
+    expect(applyPills('{a="b"}', "loki", pills)).toBe('{a="b", pod!="x"}')
+  })
+
+  it("keeps the stage flag through the address", () => {
+    const pills = added(lineFilter(loki, [], "in", "status", "500"))
+    expect(decodePills(encodePills(pills))).toEqual(pills)
+  })
+
+  it("adds an include, an exclude and an exists pill on a KQL query", () => {
+    const query = search("level:error")
+    const first = added(lineFilter(query, [], "in", "http.status", "503"))
+    const second = added(lineFilter(query, first, "out", "level", "debug"))
+    const third = added(lineFilter(query, second, "exists", "user.id", ""))
+    expect(third).toMatchObject([
+      { kind: "is", field: "http.status", value: "503", negate: false },
+      { kind: "is", field: "level", value: "debug", negate: true },
+      { kind: "exists", field: "user.id", negate: false },
+    ])
+  })
+
+  it.each([
+    [
+      "a pill already there",
+      loki,
+      [pill({ kind: "is", field: "status", value: "500", line: true })],
+      "in",
+      "500",
+      "Already a filter",
+    ],
+    ["a long value", loki, [], "in", "x".repeat(201), "Too long to filter"],
+    ["exists on Loki", loki, [], "exists", "", "Cannot edit this query"],
+    [
+      "a Lucene query",
+      search("lucene: a:1"),
+      [],
+      "in",
+      "2",
+      "Switch to KQL to filter from a line",
+    ],
+    [
+      "a Query DSL query",
+      search('{"query":{"match_all":{}}}'),
+      [],
+      "in",
+      "2",
+      "Switch to KQL to filter from a line",
+    ],
+    [
+      "a full list",
+      loki,
+      Array.from({ length: maxPills }, (_, index) =>
+        pill({ id: String(index), kind: "is", field: `f${index}`, value: "v" })
+      ),
+      "in",
+      "500",
+      "Too many filters",
+    ],
+  ] as const)("blocks %s", (_label, context, pills, action, value, blocked) => {
+    expect(lineFilter(context, [...pills], action, "status", value)).toEqual({
+      blocked,
+    })
   })
 })
 

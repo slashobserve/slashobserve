@@ -9,7 +9,6 @@ import {
   newestTime,
   rowCount,
   startTail,
-  tailWindow,
   timesWhere,
   withoutKeys,
 } from "./frames"
@@ -135,17 +134,56 @@ describe("withoutKeys", () => {
   })
 })
 
-describe("tailWindow", () => {
-  it.each([
-    ["no line yet", null, 50_000, { from: "40000", to: "51000" }],
-    ["a line in the past", 45_000, 50_000, { from: "45000", to: "50000" }],
-    [
-      "a line ahead of the browser clock",
-      52_000,
-      50_000,
-      { from: "52000", to: "53000" },
-    ],
-  ])("covers %s", (_, newest, now, window) => {
-    expect(tailWindow(newest, now)).toEqual(window)
+describe("the key of a tail line", () => {
+  function nsFrame(
+    ns: string[],
+    extra: Record<string, string[]> = {},
+    labels: Record<string, string> = { service_name: "checkout" }
+  ): WireFrame {
+    return {
+      ref: "A",
+      labels,
+      fields: [
+        { name: "Time", type: "time", values: ns.map(() => 1_000) },
+        { name: "TimeNs", type: "string", values: ns },
+        { name: "Body", type: "string", values: ns.map((n) => `line ${n}`) },
+        ...Object.entries(extra).map(([name, values]) => ({
+          name,
+          type: "string" as const,
+          values,
+        })),
+      ],
+    }
+  }
+
+  it("tells two lines of the same millisecond apart by their nanoseconds", () => {
+    const merged = mergeTail(emptyTail, [
+      nsFrame(["1000000001", "1000000002", "1000000001"]),
+    ])
+    expect(rowCount(merged.frames)).toBe(2)
+  })
+
+  it("drops a repeated line even when the other fields differ", () => {
+    const seeded = mergeTail(emptyTail, [
+      nsFrame(["1000000001"], { level: ["info"], ID: ["a"] }),
+    ])
+    const next = mergeTail(seeded, [nsFrame(["1000000001", "1000000002"])])
+    expect(rowCount(next.frames)).toBe(2)
+    expect(next.added).toHaveLength(1)
+  })
+
+  it("keeps two streams that logged the same line at the same time", () => {
+    const merged = mergeTail(emptyTail, [
+      nsFrame(["1000000001"], {}, { service_name: "a" }),
+      nsFrame(["1000000001"], {}, { service_name: "b" }),
+    ])
+    expect(rowCount(merged.frames)).toBe(2)
+  })
+
+  it("keys on Time and the body when a frame has no TimeNs", () => {
+    const first = mergeTail(emptyTail, [logFrame([100, 200])])
+    const again = mergeTail(first, [logFrame([200, 300])])
+    expect(again.added).toHaveLength(1)
+    expect(rowCount(again.frames)).toBe(3)
   })
 })

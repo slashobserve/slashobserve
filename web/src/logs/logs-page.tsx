@@ -35,6 +35,7 @@ import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
+import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
 import { applyPills, decodePills } from "./pills"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
@@ -45,6 +46,7 @@ import {
   type LogsSearch,
 } from "./search"
 import { useLiveTail } from "./use-live-tail"
+import { useLogsShortcuts } from "./use-logs-shortcuts"
 import { VolumeStrip } from "./volume-strip"
 import {
   LogsWorkspaceContext,
@@ -190,12 +192,19 @@ function LogsWorkspaceView({
   } | null>(null)
   const drawerId = useId()
   const resultsScope = `${effectiveQuery ?? ""}|${range.from}|${range.to}`
+  const [tailScope, setTailScope] = useState(resultsScope)
+  if (tailScope !== resultsScope) {
+    setTailScope(resultsScope)
+    setTailing(false)
+    setTailShown(false)
+  }
   const current = held?.scope === resultsScope ? held : null
   const selection = current?.selection ?? null
   const detailTab = current?.tab ?? "table"
   const [adding, setAdding] = useState(false)
   const [addingToObservation, setAddingToObservation] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const savable = logsDraft({ uid, type, search, range })
   const [labelsOpen, setLabelsOpen] = useState(
@@ -238,6 +247,9 @@ function LogsWorkspaceView({
   useEffect(() => {
     if (focusTick > 0) queryFocus.current()
   }, [focusTick])
+
+  const focusQuery = () => setFocusTick((tick) => tick + 1)
+  useLogsShortcuts({ focusQuery, openHelp: () => setHelpOpen(true) })
 
   const registerQueryFocus = useCallback((focus: () => void) => {
     queryFocus.current = focus
@@ -323,7 +335,7 @@ function LogsWorkspaceView({
     mode,
     setMode,
     announce,
-    focusQuery: () => setFocusTick((tick) => tick + 1),
+    focusQuery,
     registerQueryFocus,
     labels: { open: labelsOpen, setOpen: setLabelsOpen },
     detail: {
@@ -447,6 +459,7 @@ function LogsWorkspaceView({
           id={drawerId}
         />
       ) : null}
+      <LogsShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
       {"draft" in savable ? (
         <SaveSearchDialog
           draft={savable.draft}

@@ -11,6 +11,7 @@ import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { DetailDrawer, documentGroups, entryJson } from "./detail-drawer"
+import { decodePills, encodePills, type NewPill, type Pill } from "./pills"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
 
 function datasource(
@@ -77,6 +78,24 @@ const searchDetails = texts([
   ["Fields.http.status", "503"],
 ])
 
+function withIds(filters: NewPill[]): Pill[] {
+  return filters.map((filter, index) => ({ ...filter, id: String(index) }))
+}
+
+function written(update: ReturnType<typeof vi.fn>): Pill[][] {
+  return update.mock.calls.map(([next]) => decodePills(next.f))
+}
+
+const status500: NewPill = {
+  kind: "is",
+  field: "status",
+  value: "500",
+  negate: false,
+  pinned: false,
+  paused: false,
+  line: true,
+}
+
 type SetupOptions = {
   ds: DatasourceStatus
   selection: LogSelection
@@ -84,7 +103,8 @@ type SetupOptions = {
   tab?: "table" | "json" | "context"
   onClose?: () => void
   query?: string
-  run?: (text: string) => void
+  filters?: NewPill[]
+  update?: (next: { f?: string }) => void
 }
 
 function Harness({
@@ -92,7 +112,8 @@ function Harness({
   selection: selected,
   tab: initialTab = "table",
   query,
-  run = () => {},
+  filters = [],
+  update = () => {},
 }: SetupOptions) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState(initialTab)
@@ -102,8 +123,8 @@ function Harness({
       value={
         {
           datasource: ds,
-          search: { q: query },
-          run,
+          search: { q: query, f: encodePills(withIds(filters)) },
+          update,
         } as unknown as LogsWorkspace
       }
     >
@@ -255,50 +276,82 @@ describe("DetailDrawer", () => {
 
     it.each([
       {
-        label: "a parsed field into a pipeline stage",
+        label: "a parsed field as a pipeline stage pill",
         button: "Include status 500",
-        expected: '{service_name="checkout"} | status="500"',
+        expected: { field: "status", value: "500", negate: false, line: true },
       },
       {
-        label: "an excluded parsed field into a negative stage",
+        label: "an excluded parsed field as a negated stage pill",
         button: "Exclude status 500",
-        expected: '{service_name="checkout"} | status!="500"',
+        expected: { field: "status", value: "500", negate: true, line: true },
       },
       {
-        label: "a per-line label into a pipeline stage, never the selector",
+        label: "a per-line label as a stage pill",
         button: "Include trace_id abc",
-        expected: '{service_name="checkout"} | trace_id="abc"',
+        expected: {
+          field: "trace_id",
+          value: "abc",
+          negate: false,
+          line: true,
+        },
       },
-    ])("writes $label through run", async ({ button, expected }) => {
-      const run = vi.fn()
+      {
+        label: "a stream label as a selector pill",
+        button: "Include service_name checkout",
+        expected: { field: "service_name", value: "checkout", negate: false },
+      },
+    ])("adds $label", async ({ button, expected }) => {
+      const update = vi.fn()
       const { user } = await open({
         ds: datasource("loki", "loki-1"),
         selection: lokiLine(),
         query: '{service_name="checkout"}',
-        run,
+        update,
       })
       await user.click(await screen.findByRole("button", { name: button }))
-      expect(run).toHaveBeenCalledExactlyOnceWith(expected)
+      const [pills] = written(update)
+      expect(pills).toHaveLength(1)
+      expect(pills[0]).toMatchObject({ kind: "is", ...expected })
+      expect(pills[0].line).toBe(expected.line)
     })
 
-    it("disables a button whose filter is already in the query", async () => {
-      const run = vi.fn()
+    it("keeps the pills already there when it adds one", async () => {
+      const update = vi.fn()
       const { user } = await open({
         ds: datasource("loki", "loki-1"),
         selection: lokiLine(),
-        query: '{service_name="checkout"} | status="500"',
-        run,
+        query: '{service_name="checkout"}',
+        filters: [status500],
+        update,
+      })
+      await user.click(
+        await screen.findByRole("button", { name: "Include trace_id abc" })
+      )
+      expect(written(update)[0].map((pill) => pill.field)).toEqual([
+        "status",
+        "trace_id",
+      ])
+    })
+
+    it("disables a button whose filter is already a pill", async () => {
+      const update = vi.fn()
+      const { user } = await open({
+        ds: datasource("loki", "loki-1"),
+        selection: lokiLine(),
+        query: '{service_name="checkout"}',
+        filters: [status500],
+        update,
       })
       const button = await screen.findByRole("button", {
         name: "Include status 500",
       })
       expect(button.getAttribute("aria-disabled")).toBe("true")
       await user.click(button)
-      expect(run).not.toHaveBeenCalled()
+      expect(update).not.toHaveBeenCalled()
     })
 
-    it("lists ClickHouse columns apart from attributes and writes into the WHERE clause", async () => {
-      const run = vi.fn()
+    it("lists ClickHouse columns apart from attributes and adds an attribute pill", async () => {
+      const update = vi.fn()
       const { user } = await open({
         ds: datasource("clickhouse", "ch-1"),
         selection: selection(
@@ -308,7 +361,7 @@ describe("DetailDrawer", () => {
           ])
         ),
         query: "SELECT * FROM otel_logs WHERE 1 LIMIT 5",
-        run,
+        update,
       })
       const drawer = await screen.findByRole("complementary", { name: "Line" })
       expect(
@@ -320,18 +373,18 @@ describe("DetailDrawer", () => {
       await user.click(
         within(drawer).getByRole("button", { name: "Include http.status 500" })
       )
-      expect(run).toHaveBeenCalledExactlyOnceWith(
-        "SELECT * FROM otel_logs WHERE 1 AND LogAttributes['http.status'] = '500' LIMIT 5"
-      )
+      expect(written(update)).toMatchObject([
+        [{ kind: "is", field: "http.status", value: "500", negate: false }],
+      ])
     })
 
-    it("appends KQL on a search document, offers exists and leaves core fields alone", async () => {
-      const run = vi.fn()
+    it("adds an include and an exists pill on a search document and leaves core fields alone", async () => {
+      const update = vi.fn()
       const { user } = await open({
         ds: datasource("elasticsearch", "es-1", { index: "logs-*" }),
         selection: selection(searchDetails),
         query: "level:error",
-        run,
+        update,
       })
       const drawer = await screen.findByRole("complementary", {
         name: "Document",
@@ -344,9 +397,9 @@ describe("DetailDrawer", () => {
       await user.click(
         within(drawer).getByRole("button", { name: "Require http.status" })
       )
-      expect(run.mock.calls).toEqual([
-        ['level:error and http.status:"503"'],
-        ["level:error and http.status:*"],
+      expect(written(update)).toMatchObject([
+        [{ kind: "is", field: "http.status", value: "503", negate: false }],
+        [{ kind: "exists", field: "http.status", negate: false }],
       ])
     })
 
