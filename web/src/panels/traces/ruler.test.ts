@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { niceTicks } from "./ruler"
+import { niceTicks, tickLimit } from "./ruler"
 
 describe("niceTicks", () => {
   it("steps a round duration in quarters", () => {
@@ -28,5 +28,36 @@ describe("niceTicks", () => {
       const step = ticks[1] / 10 ** Math.floor(Math.log10(ticks[1]))
       expect([1, 2, 2.5, 5]).toContainEqual(Number(step.toFixed(6)))
     }
+  })
+})
+
+describe("niceTicks on a narrow ruler", () => {
+  it("keeps three round ticks when only three fit", () => {
+    expect(niceTicks(1000, 3)).toEqual([0, 500, 1000])
+  })
+
+  it("keeps two round ticks when only two fit", () => {
+    expect(niceTicks(1630, 2)).toEqual([0, 1000])
+    expect(niceTicks(7, 2)).toEqual([0, 5])
+  })
+
+  it("never gives more ticks than fit", () => {
+    for (const limit of [2, 3, 4, 5, 6]) {
+      for (const duration of [0.37, 3, 12, 99, 312.4, 1630, 4321, 61_000]) {
+        expect(niceTicks(duration, limit).length).toBeLessThanOrEqual(limit)
+      }
+    }
+  })
+})
+
+describe("tickLimit", () => {
+  it("fits one label per 64 px of ruler", () => {
+    expect(tickLimit(640)).toBe(10)
+    expect(tickLimit(320)).toBe(5)
+  })
+
+  it("keeps the start and the end on a ruler too short for more", () => {
+    expect(tickLimit(166)).toBe(2)
+    expect(tickLimit(0)).toBe(2)
   })
 })

@@ -815,7 +815,7 @@ function TraceExplorer({
       />
       <div
         ref={ref}
-        className="min-h-64 min-w-0 flex-1 rounded-card border border-border"
+        className="min-h-64 min-w-0 flex-1 rounded-card border border-border narrow:min-h-[36rem]"
       >
         {width > 0 && height > 0 ? (
           <TraceView
