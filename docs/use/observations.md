@@ -104,8 +104,10 @@ The state line also shows who started the observation and when, and links to its
 
 ### Discuss beside the blocks
 
-The discussion is the observation's one comment thread, shown to the right of the blocks on a wide window and below them on a narrow one.
-**Hide discussion** closes it and **Show discussion** in the top row brings it back.
+The discussion is the observation's one comment thread, in a pane on the right of the page at full height on a wide window and below the blocks on a narrow one.
+Drag the pane's left edge to make it wider or narrower; it shares its width with a dashboard's activity pane.
+The **Discussion** button in the top row, which shows the number of messages, hides and shows the pane, and **Close panel** in the pane hides it.
+The pane lists the messages together with who started the observation and who added or suggested each block, newest at the bottom; **Show** narrows it to messages only or changes only, and a block's name scrolls the page to that block.
 A person who can comment writes messages in the box at its foot.
 Each message has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
 The message stays in the discussion as well.

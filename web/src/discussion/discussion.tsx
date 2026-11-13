@@ -1,18 +1,16 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
-import { PanelRightCloseIcon } from "lucide-react"
 
+import { withDayBreaks } from "@/activity/day-label"
+import { actorAvatar, EntryFrame } from "@/activity/entry-frame"
+import { ShowFilter, TimelineFilters } from "@/activity/show-filter"
+import {
+  DayBreakRow,
+  useStickToBottom,
+  useToday,
+} from "@/activity/timeline-list"
 import { threadKeys } from "@/api/keys"
-import { AuthorMark } from "@/components/author-mark"
 import { LoadProblem } from "@/components/load-problem"
-import { RelativeTime, useNow } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Composer } from "@/comments/composer"
@@ -32,42 +30,37 @@ import {
   type SentMessage,
 } from "@/comments/thread-queries"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
-import { markOf } from "@/lib/author"
-import { formatDate } from "@/lib/date-format"
 import { liveRegionText } from "@/lib/live-region"
-import { formatDateTime } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
-import { discussionModel } from "./discussion-model"
+import {
+  discussionEntries,
+  discussionModel,
+  type DiscussionChange,
+  type DiscussionShow,
+} from "./discussion-model"
 
-type DiscussionProps = {
+const showOptions: { value: DiscussionShow; label: string }[] = [
+  { value: "everything", label: "Everything" },
+  { value: "messages", label: "Messages only" },
+  { value: "changes", label: "Changes only" },
+]
+
+type DiscussionFeedProps = {
   target: string
   hint: string
   placeholder?: string
   emptyText: string
-  onHide?: () => void
-  messageActions?: (message: Message) => ReactNode
-  className?: string
-}
-
-const bottomSlack = 24
-
-function isAtBottom(list: HTMLElement): boolean {
-  return list.scrollHeight - list.scrollTop - list.clientHeight <= bottomSlack
-}
-
-function MessageTime({ iso }: { iso: string }) {
-  const now = useNow()
-  const ms = Date.parse(iso)
-  if (new Date(ms).toDateString() !== new Date(now).toDateString()) {
-    return <RelativeTime iso={iso} />
+  changes?: {
+    entries: readonly DiscussionChange[]
+    onSelect: (subjectId: string) => void
   }
-  return (
-    <time dateTime={iso} title={formatDateTime(iso)}>
-      {formatDate(ms, "HH:mm")}
-    </time>
-  )
+  messageActions?: (message: Message) => ReactNode
+}
+
+type DiscussionProps = Omit<DiscussionFeedProps, "changes"> & {
+  className?: string
 }
 
 function LoadingRows() {
@@ -86,15 +79,14 @@ function LoadingRows() {
   )
 }
 
-export function Discussion({
+export function DiscussionFeed({
   target,
   hint,
   placeholder,
   emptyText,
-  onHide,
+  changes,
   messageActions,
-  className,
-}: DiscussionProps) {
+}: DiscussionFeedProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const {
     threads,
@@ -112,6 +104,8 @@ export function Discussion({
     result: SentMessage
     agentName: string
   } | null>(null)
+  const [show, setShow] = useState<DiscussionShow>("everything")
+  const today = useToday()
   const { messages, replyThreadId, canWrite } = useMemo(
     () => discussionModel(threads, canComment),
     [threads, canComment]
@@ -120,16 +114,13 @@ export function Discussion({
     () => threadParticipants(messages.map((message) => message.actor)),
     [messages]
   )
-
-  const list = useRef<HTMLOListElement>(null)
-  const following = useRef(true)
-
-  useLayoutEffect(() => {
-    const element = list.current
-    if (element !== null && following.current) {
-      element.scrollTop = element.scrollHeight
-    }
-  }, [messages.length])
+  const entries = useMemo(
+    () => discussionEntries(messages, changes?.entries ?? [], show),
+    [messages, changes, show]
+  )
+  const stickRef = useStickToBottom(
+    `${entries.length}:${entries.at(-1)?.key ?? ""}`
+  )
 
   const seen = useRef<Set<string> | null>(null)
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
@@ -166,9 +157,6 @@ export function Discussion({
     if (askedAgent(result)) {
       setSent({ result, agentName: mentionedAgents(body)[0]?.name ?? "" })
     }
-    following.current = true
-    const element = list.current
-    if (element !== null) element.scrollTop = element.scrollHeight
   }
 
   let disabledReason: string | null = null
@@ -193,68 +181,94 @@ export function Discussion({
         />
       </div>
     )
-  } else if (messages.length === 0) {
-    body = (
-      <p className="px-4 py-3 text-[13px] text-muted-foreground">{emptyText}</p>
-    )
+  } else if (entries.length === 0) {
+    body =
+      show === "everything" ? (
+        <p className="px-4 py-3 text-[13px] text-muted-foreground">
+          {emptyText}
+        </p>
+      ) : (
+        <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+          <p>No entries match these filters.</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setShow("everything")}
+          >
+            Clear filters
+          </Button>
+        </div>
+      )
   } else {
     body = (
-      <ol
-        ref={list}
-        aria-label="Messages"
-        className="min-h-0 flex-1 overflow-auto py-1"
-        onScroll={(event) => {
-          following.current = isAtBottom(event.currentTarget)
-        }}
-      >
-        {messages.map((message) => (
-          <li key={message.id} className="flex gap-2.5 px-4 py-2.5">
-            <AuthorMark mark={markOf(message.actor)} size={24} />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[13px] font-semibold">
-                  {message.actor.label}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  <MessageTime iso={message.created_at} />
-                </span>
-              </div>
-              <MessageText
-                message={message}
-                people={people}
-                queryKey={threadKeys.list(target)}
-              />
-              {messageActions?.(message)}
-            </div>
-          </li>
-        ))}
+      <ol aria-label="Discussion" className="flex flex-col px-4 pt-1 pb-4">
+        {withDayBreaks(entries, today).map((row) => {
+          if (row.kind === "day") {
+            return <DayBreakRow key={row.key} label={row.label} />
+          }
+          const { entry } = row
+          if (entry.kind === "message") {
+            const { message } = entry
+            const actions = messageActions?.(message)
+            return (
+              <EntryFrame
+                key={entry.key}
+                avatar={actorAvatar(message.actor)}
+                who={message.actor.label}
+                verb={entry.verb}
+                at={message.created_at}
+                edited={message.edited_at !== null}
+              >
+                <MessageText
+                  message={message}
+                  people={people}
+                  queryKey={threadKeys.list(target)}
+                />
+                {actions ? (
+                  <span className="flex flex-wrap items-center gap-0.5">
+                    {actions}
+                  </span>
+                ) : null}
+              </EntryFrame>
+            )
+          }
+          const { change } = entry
+          const { subject } = change
+          return (
+            <EntryFrame
+              key={entry.key}
+              avatar={actorAvatar(change.actor)}
+              who={change.actor.label}
+              verb={change.verb}
+              at={change.at}
+              panel={
+                subject === null
+                  ? undefined
+                  : {
+                      title: subject.title,
+                      onSelect: () => changes?.onSelect(subject.id),
+                    }
+              }
+            />
+          )
+        })}
       </ol>
     )
   }
 
   return (
-    <aside
-      aria-label="Discussion"
-      className={cn(
-        "flex min-h-0 flex-col rounded-card border border-border bg-card",
-        className
+    <div className="flex min-h-0 flex-1 flex-col">
+      {changes === undefined ? null : (
+        <TimelineFilters>
+          <ShowFilter options={showOptions} value={show} onChange={setShow} />
+        </TimelineFilters>
       )}
-    >
-      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-        <h2 className="text-[13px] font-semibold">Discussion</h2>
-        {onHide === undefined ? null : (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Hide discussion"
-            onClick={onHide}
-          >
-            <PanelRightCloseIcon aria-hidden="true" />
-          </Button>
-        )}
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col">{body}</div>
-      <div className="p-4 pt-2">
+      <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
+        {body}
+      </div>
+      <div className="border-t px-4 pt-3 pb-4">
         {sent === null ? null : (
           <div className="pb-2">
             <RunStarted
@@ -277,6 +291,23 @@ export function Discussion({
       <p role="status" className="sr-only">
         {liveRegionText(announcement.text, announcement.count)}
       </p>
+    </div>
+  )
+}
+
+export function Discussion({ className, ...feed }: DiscussionProps) {
+  return (
+    <aside
+      aria-label="Discussion"
+      className={cn(
+        "flex min-h-0 flex-col rounded-card border border-border bg-card",
+        className
+      )}
+    >
+      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+        <h2 className="text-[13px] font-semibold">Discussion</h2>
+      </header>
+      <DiscussionFeed {...feed} />
     </aside>
   )
 }

@@ -60,7 +60,7 @@ export function useStickToBottom(depsKey: string) {
   return setElement
 }
 
-function useToday(): number {
+export function useToday(): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setTimeout(
@@ -72,7 +72,7 @@ function useToday(): number {
   return now
 }
 
-function DayBreakRow({ label }: { label: string }) {
+export function DayBreakRow({ label }: { label: string }) {
   return (
     <li
       data-day
