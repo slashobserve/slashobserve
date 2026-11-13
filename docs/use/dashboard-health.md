@@ -6,6 +6,20 @@ description: Find the dashboards that broke after a move from Grafana or rotted 
 Every dashboard is checked about once a day for panels that stopped working, and the health list shows each dashboard with a problem.
 It is the list to work through after [switching from Grafana](switch-from-grafana.md), and the one to come back to as datasources and metrics change.
 
+## In the dashboards list
+
+The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more" when it has other kinds, and the state of its repair.
+Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
+A dashboard with no known problem has an empty cell.
+
+The **Problem** menu narrows the list to the dashboards with one kind of problem, or with any problem, and the address keeps the choice, as `?kind=<kind or any>&folder=<folder id>`.
+The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
+For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards; see [Repair](switch-from-grafana.md#repair).
+
+A summary line above the list counts the dashboards that are failing, have no data, have not been opened in 90 days or share a title, and says when the last check finished or that one is going now.
+It shows to everyone when there is something to report.
+An Admin always sees it, with **Run now**, which is turned off while a run is going.
+
 ## The Health page
 
 Choose **Health** in the sidebar, or open `<public url>/health`.

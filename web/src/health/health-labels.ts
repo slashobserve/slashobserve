@@ -51,6 +51,18 @@ export function isHealthFilter(value: unknown): value is HealthFilter {
   return value === importedFilter || healthKinds.includes(value as HealthKind)
 }
 
+export type ProblemFilter = "any" | HealthKind | typeof importedFilter
+
+export function isProblemFilter(value: unknown): value is ProblemFilter {
+  return value === "any" || isHealthFilter(value)
+}
+
+export const problemFilterLabels: Record<ProblemFilter, string> = {
+  any: "Any problem",
+  ...kindLabels,
+  [importedFilter]: importedLabel,
+}
+
 export function sortProblems(problems: readonly HealthProblem[]) {
   return problems.toSorted(
     (a, b) =>
@@ -92,6 +104,13 @@ export function groupProblems(
     if (subject !== "") group.subjects.push(subject)
   }
   return [...groups.values()]
+}
+
+export function healthCellText(
+  item: HealthItem
+): { group: ProblemGroup; more: number } | null {
+  const [group, ...rest] = groupProblems(item.problems)
+  return group === undefined ? null : { group, more: rest.length }
 }
 
 export function subjectNoun(group: ProblemGroup): string {
@@ -151,6 +170,21 @@ export function repairAction(
       }
   }
   return canRepair(item) ? { kind: "repair", disabledReason } : { kind: "open" }
+}
+
+export function repairStatus(action: RepairAction): SummaryLabel | null {
+  switch (action.kind) {
+    case "queued":
+      return { tone: "running", label: "Repair queued" }
+    case "running":
+      return { tone: "running", label: "Repairing" }
+    case "repaired":
+      return { tone: "ok", label: "Repaired" }
+    case "failed":
+      return { tone: "critical", label: "Repair failed" }
+    default:
+      return null
+  }
 }
 
 function repairActive(item: HealthItem): boolean {

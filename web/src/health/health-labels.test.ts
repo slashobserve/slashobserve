@@ -4,13 +4,17 @@ import {
   canRepair,
   dashboardCount,
   groupProblems,
+  healthCellText,
   isHealthFilter,
+  isProblemFilter,
   lastRunProblem,
   pollHealth,
+  problemFilterLabels,
   problemSubject,
   problemText,
   repairAction,
   repairOutcomeText,
+  repairStatus,
   runStartWaitMs,
   sortProblems,
   subjectSummary,
@@ -498,5 +502,89 @@ describe("isHealthFilter", () => {
     [undefined, false],
   ])("%j is %s", (value, want) => {
     expect(isHealthFilter(value)).toBe(want)
+  })
+})
+
+describe("isProblemFilter", () => {
+  test.each([
+    ["any", true],
+    ["query_failed", true],
+    ["imported", true],
+    ["", false],
+    ["healthy", false],
+    [["no_data"], false],
+    [undefined, false],
+  ])("%j is %s", (value, want) => {
+    expect(isProblemFilter(value)).toBe(want)
+  })
+})
+
+describe("problemFilterLabels", () => {
+  test("names any problem, each kind and the import queue in menu order", () => {
+    expect(Object.entries(problemFilterLabels)).toEqual([
+      ["any", "Any problem"],
+      ["query_failed", "Query fails"],
+      ["variable_failed", "Variable resolves to nothing"],
+      ["no_data", "No data"],
+      ["duplicate_title", "Duplicate title"],
+      ["unopened", "Not opened in 90 days"],
+      ["imported", "Imported, not verified"],
+    ])
+  })
+})
+
+describe("healthCellText", () => {
+  test("is null for a dashboard with no problem", () => {
+    expect(healthCellText(item({ problems: [] }))).toBeNull()
+  })
+
+  test("takes the first group and counts the others", () => {
+    const cell = healthCellText(
+      item({
+        problems: [
+          problem({ kind: "no_data", panel_title: "Latency" }),
+          problem({
+            kind: "query_failed",
+            panel_title: "Orders",
+            message: "x",
+          }),
+          problem({ kind: "unopened" }),
+        ],
+      })
+    )
+    expect(cell?.group.kind).toBe("query_failed")
+    expect(cell?.group.subjects).toEqual(["Orders"])
+    expect(cell?.more).toBe(2)
+  })
+
+  test("counts no more groups for one kind with one message", () => {
+    const cell = healthCellText(
+      item({
+        problems: [
+          problem({ panel_title: "A", message: "m" }),
+          problem({ panel_title: "B", message: "m" }),
+        ],
+      })
+    )
+    expect(cell?.more).toBe(0)
+  })
+})
+
+describe("repairStatus", () => {
+  test.each([
+    [{ kind: "queued" }, { tone: "running", label: "Repair queued" }],
+    [{ kind: "running" }, { tone: "running", label: "Repairing" }],
+    [
+      { kind: "repaired", version: 2 },
+      { tone: "ok", label: "Repaired" },
+    ],
+    [
+      { kind: "failed", error: null, canRetry: true, disabledReason: null },
+      { tone: "critical", label: "Repair failed" },
+    ],
+    [{ kind: "repair", disabledReason: null }, null],
+    [{ kind: "open" }, null],
+  ] as const)("%j shows %j", (action, want) => {
+    expect(repairStatus(action)).toEqual(want)
   })
 })

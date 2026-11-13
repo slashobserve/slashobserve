@@ -10,7 +10,6 @@ import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { RelativeTime } from "@/components/relative-time"
 import { RoleGate } from "@/components/role-gate"
-import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,17 +32,14 @@ import {
   importedFilter,
   importedLabel,
   kindLabels,
-  lastRunProblem,
   pollHealth,
   repairOutcomeText,
-  summaryLabels,
   type HealthFilter,
   type HealthItem,
-  type HealthJob,
-  type HealthSummary,
   type RunRequest,
 } from "./health-labels"
 import { HealthRow } from "./health-row"
+import { SummaryLine } from "./summary-line"
 import { healthQuery, useRequestHealthRepair, useRunHealth } from "./queries"
 
 type Filters = { kind: HealthFilter | null; folderId: string | null }
@@ -217,42 +213,6 @@ export function HealthPage({ kind, folderId, onFilters }: Props) {
         </>
       )}
     </>
-  )
-}
-
-function SummaryLine({
-  summary,
-  job,
-}: {
-  summary: HealthSummary | null
-  job: HealthJob
-}) {
-  const runProblem = lastRunProblem(job)
-  return (
-    <div
-      role="status"
-      className="mb-3.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]"
-    >
-      {(summary === null ? [] : summaryLabels(summary)).map((label) => (
-        <span key={label.label} className="font-medium">
-          <StatusLabel tone={label.tone}>{label.label}</StatusLabel>
-        </span>
-      ))}
-      <span className="ml-auto flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-        {runProblem === null ? null : (
-          <StatusLabel tone={runProblem.tone}>{runProblem.label}</StatusLabel>
-        )}
-        {job.running ? (
-          <StatusLabel tone="running">Checking now</StatusLabel>
-        ) : job.last_finished_at === null ? (
-          <span>No check has finished yet</span>
-        ) : (
-          <span>
-            Last checked <RelativeTime iso={job.last_finished_at} />
-          </span>
-        )}
-      </span>
-    </div>
   )
 }
 

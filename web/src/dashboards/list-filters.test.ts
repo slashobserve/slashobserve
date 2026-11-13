@@ -30,7 +30,7 @@ describe("validateListSearch", () => {
   it("names every filter so a dropped value overrides the raw URL", () => {
     expect(
       Object.keys(validateListSearch({ made_by: "bogus" })).sort()
-    ).toEqual(["datasource", "folder", "made_by", "page", "q", "tag"])
+    ).toEqual(["datasource", "folder", "kind", "made_by", "page", "q", "tag"])
   })
 
   it("keeps a folder id in lower case and drops anything else", () => {
@@ -40,6 +40,18 @@ describe("validateListSearch", () => {
     expect(validateListSearch({ folder: [id, "x"] })).toEqual({ folder: id })
     for (const value of ["", "general", `${id}x`, ` ${id}`, 7, null]) {
       expect(validateListSearch({ folder: value })).toEqual({})
+    }
+  })
+
+  it("keeps a problem kind, any and imported, and drops anything else", () => {
+    for (const kind of ["any", "no_data", "query_failed", "imported"]) {
+      expect(validateListSearch({ kind })).toEqual({ kind })
+    }
+    expect(validateListSearch({ kind: ["unopened", "x"] })).toEqual({
+      kind: "unopened",
+    })
+    for (const kind of ["", "healthy", "NO_DATA", 7, null]) {
+      expect(validateListSearch({ kind })).toEqual({})
     }
   })
 
@@ -280,6 +292,13 @@ describe("toFilters and hasFilters", () => {
     expect(toFilters({ tag: ["a", "b"] }).tags).toEqual(["a", "b"])
   })
 
+  it("sends the problem kind to the server except the import queue", () => {
+    expect(toFilters({ kind: "no_data" }).problem).toBe("no_data")
+    expect(toFilters({ kind: "any" }).problem).toBe("any")
+    expect(toFilters({ kind: "imported" }).problem).toBeUndefined()
+    expect(toFilters({}).problem).toBeUndefined()
+  })
+
   it("reports whether any filter is set", () => {
     expect(hasFilters({})).toBe(false)
     expect(hasFilters({ q: "a" })).toBe(true)
@@ -287,6 +306,8 @@ describe("toFilters and hasFilters", () => {
     expect(hasFilters({ datasource: "prom" })).toBe(true)
     expect(hasFilters({ tag: ["a"] })).toBe(true)
     expect(hasFilters({ folder: id })).toBe(true)
+    expect(hasFilters({ kind: "any" })).toBe(true)
+    expect(hasFilters({ kind: "imported" })).toBe(true)
     expect(hasFilters({ tag: undefined })).toBe(false)
     expect(hasFilters({ page: 3 })).toBe(false)
   })

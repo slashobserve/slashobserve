@@ -10,6 +10,7 @@ import { ArrowUpRightIcon } from "lucide-react"
 
 import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
+import { HealthCell } from "@/health/health-cell"
 import { madeByChannel, madeByDetail } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
@@ -78,6 +79,14 @@ export const dashboardColumns = column.columns([
       cellClassName: "pl-11",
       skeletonClassName: "h-5 w-48 max-w-full",
     },
+  }),
+  column.display({
+    id: "health",
+    header: "Health",
+    cell: ({ row }) => (
+      <HealthCell dashboardId={row.original.id} title={row.original.title} />
+    ),
+    meta: { cellClassName: "min-w-36", skeletonClassName: "h-5 w-20" },
   }),
   column.display({
     id: "madeBy",

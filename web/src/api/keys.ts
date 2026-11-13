@@ -1,3 +1,5 @@
+import type { paths } from "@/api/schema.gen"
+
 export type Selections = Record<string, string[]>
 
 export type PanelDataParams = {
@@ -19,6 +21,9 @@ export type DashboardListFilters = {
   datasource?: string
   tags?: string[]
   folder?: string
+  problem?: NonNullable<
+    paths["/dashboards"]["get"]["parameters"]["query"]
+  >["problem"]
 }
 
 export const dashboardKeys = {
@@ -192,6 +197,10 @@ export const healthKeys = {
   all: ["health"] as const,
   list: (kind: string | null, folderId: string | null) =>
     ["health", "list", kind ?? "all", folderId ?? "all"] as const,
+  dashboards: (ids: readonly string[]) =>
+    ["health", "dashboards", [...ids].sort()] as const,
+  summary: (folderId: string | null) =>
+    ["health", "summary", folderId ?? "all"] as const,
 }
 
 export const outboundDomainKeys = {
