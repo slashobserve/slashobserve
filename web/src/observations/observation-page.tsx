@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
+import { opensByDefault } from "@/components/dock/card-width"
 import { LoadProblem } from "@/components/load-problem"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -74,7 +75,9 @@ function LoadedObservation({
   const revisions = useQuery(rcasQuery(observation.id))
   const hasRevisions = (revisions.data?.length ?? 0) > 0
   const rcaButton = useRef<HTMLButtonElement>(null)
-  const [discussionShown, setDiscussionShown] = useState(true)
+  const [discussionShown, setDiscussionShown] = useState(() =>
+    opensByDefault(window.innerWidth)
+  )
   const [moving, setMoving] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
