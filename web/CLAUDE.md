@@ -147,7 +147,7 @@ The rules below are how the code applies it.
   Every composer sends with the same square arrow button, and tabs and toggles are never filled black.
 - The page gutter is 24 (16 on phones), and inside cards and panels it is 16.
   App pages start on the top bar's left edge and document pages centre their column.
-  App pages run up to 1144 wide, reading pages 720 and pages with margin comments 1040, and the side panel is always 384.
+  App pages fill the content width like the dashboards list; Home and the chat pages centre a 720 reading column, and the side panel is always 384.
 - Type sizes are 12 for hints, 13 for secondary text, 14 for body, 15 for document text, 20 for page titles and 28 for document titles.
 - Under 1200 the sidebar folds to icons.
   Under 1100 the side panel and margin comments drop below the content, and Inbox shows the list alone.
