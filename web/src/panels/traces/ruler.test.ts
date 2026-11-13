@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { niceTicks, tickLimit } from "./ruler"
+import { niceTicks, tickAnchor, tickLimit } from "./ruler"
 
 describe("niceTicks", () => {
   it("steps a round duration in quarters", () => {
@@ -59,5 +59,29 @@ describe("tickLimit", () => {
   it("keeps the start and the end on a ruler too short for more", () => {
     expect(tickLimit(166)).toBe(2)
     expect(tickLimit(0)).toBe(2)
+  })
+})
+
+describe("tickAnchor", () => {
+  it("anchors the first and the last tick to the ruler's ends", () => {
+    expect(tickAnchor(0, 1000, 400)).toBe("start")
+    expect(tickAnchor(1000, 1000, 400)).toBe("end")
+  })
+
+  it("centres a tick with room for its label on both sides", () => {
+    expect(tickAnchor(500, 1000, 400)).toBe("middle")
+    expect(tickAnchor(250, 1000, 400)).toBe("middle")
+  })
+
+  it("pulls a tick whose label would run past the end back to the end", () => {
+    expect(tickAnchor(125, 129.9, 350)).toBe("end")
+  })
+
+  it("pulls a tick whose label would run past the start back to the start", () => {
+    expect(tickAnchor(10, 1000, 400)).toBe("start")
+  })
+
+  it("centres a tick on a ruler not measured yet", () => {
+    expect(tickAnchor(500, 1000, 0)).toBe("middle")
   })
 })
