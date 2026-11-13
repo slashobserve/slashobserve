@@ -1,7 +1,7 @@
 export const sidebarMinWidth = 200
 export const sidebarMaxWidth = 360
-export const sidebarDefaultWidth = 240
-export const sidebarCollapsedWidth = 44
+export const sidebarDefaultWidth = 248
+export const sidebarCollapsedWidth = 52
 const sidebarKeyStep = 8
 const sidebarShiftKeyStep = 40
 

@@ -17,6 +17,7 @@ describe("paletteGroups", () => {
       "Account",
     ])
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
+      "Home",
       "Inbox",
       "Observations",
       "Dashboards",
@@ -96,6 +97,7 @@ describe("paletteGroups", () => {
       (entry) => entry.label
     )
     expect(labels).toEqual([
+      "Home",
       "Inbox",
       "Observations",
       "Dashboards",

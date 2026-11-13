@@ -1,29 +1,28 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 
+import {
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuLinkItem,
+} from "@/components/ui/dropdown-menu"
 import { dashboardLink, dashboardPath } from "@/lib/links"
+import { cn } from "@/lib/utils"
+import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
+import { SubNavList, subNavLinkClass, subNavMoreClass } from "@/shell/sub-nav"
 
 import { usePins } from "./queries"
 
 const shown = 10
 
-export function PinnedDashboards({
-  collapsed,
-  onNavigate,
-}: {
-  collapsed: boolean
-  onNavigate?: () => void
-}) {
+export function PinnedDashboards({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const pins = usePins().data
-  if (collapsed || pins === undefined || pins.length === 0) return null
+  if (pins === undefined || pins.length === 0) return null
 
   return (
-    <ul
-      aria-label="Pinned dashboards"
-      className="ml-[18px] flex flex-col gap-0.5 border-l pl-1.5"
-    >
+    <SubNavList label="Pinned dashboards">
       {pins.slice(0, shown).map((pin) => (
         <li key={pin.id}>
           <Link
@@ -36,7 +35,7 @@ export function PinnedDashboards({
                 ? "page"
                 : undefined
             }
-            className="flex h-7 items-center rounded-control border border-transparent px-2 text-[13px] text-foreground no-underline outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-background"
+            className={subNavLinkClass}
           >
             <span className="truncate">{pin.title}</span>
           </Link>
@@ -48,12 +47,43 @@ export function PinnedDashboards({
             to="/dashboards"
             onClick={onNavigate}
             aria-label="More pinned dashboards"
-            className="flex h-7 items-center rounded-control px-2 text-xs text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className={subNavMoreClass}
           >
             More
           </Link>
         </li>
       ) : null}
-    </ul>
+    </SubNavList>
+  )
+}
+
+export function DashboardsFlyoutItems() {
+  const pins = usePins().data
+  return (
+    <>
+      <DropdownMenuLinkItem
+        render={<Link to="/dashboards" />}
+        className={cn(railFlyoutItemClass, "font-semibold")}
+      >
+        Dashboards
+      </DropdownMenuLinkItem>
+      {pins === undefined || pins.length === 0 ? null : (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className={railFlyoutLabelClass}>
+            Pinned
+          </DropdownMenuLabel>
+          {pins.slice(0, shown).map((pin) => (
+            <DropdownMenuLinkItem
+              key={pin.id}
+              render={<Link {...dashboardLink(pin.id, pin.title)} />}
+              title={pin.title}
+              className={railFlyoutItemClass}
+            >
+              <span className="truncate">{pin.title}</span>
+            </DropdownMenuLinkItem>
+          ))}
+        </DropdownMenuGroup>
+      )}
+    </>
   )
 }
