@@ -6,6 +6,7 @@ import {
   useState,
   type ClipboardEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
@@ -14,6 +15,7 @@ import { AskField } from "@/ask/ask-field"
 import { nextMode, type InputMode } from "@/ask/input-mode"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
+import { AgentMark } from "@/components/agent-mark"
 import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -61,7 +63,7 @@ const noModelText = "Add a model key to ask in plain language"
 const builderBlockedText = "The builder cannot show this query. Edit it as KQL."
 const unknownFieldMessage = /^unknown field "(.*)"$/
 const segmentClass =
-  "inline-flex h-full items-center rounded-control border px-2.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  "inline-flex h-full items-center rounded-chip border px-2.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
 const referenceUrls: Record<string, string> = {
   KQL: kqlReferenceUrl,
   LogQL: "https://grafana.com/docs/loki/latest/query/",
@@ -203,7 +205,7 @@ function ModeSwitch() {
       role="radiogroup"
       aria-label="Query mode"
       aria-keyshortcuts="Control+I Meta+I"
-      className="inline-flex h-8 items-center gap-0.5 rounded-control bg-muted p-0.5"
+      className="inline-flex h-8 items-center gap-0.5 rounded-control bg-muted p-0.5 narrow:h-11"
     >
       {modes.map((value) => (
         <span key={value} className="contents">
@@ -253,7 +255,7 @@ function RunFailure({ uid, search }: { uid: string; search: boolean }) {
   )
 }
 
-export function QueryBar() {
+export function QueryBar({ filters }: { filters?: ReactNode }) {
   const {
     datasource,
     search: urlSearch,
@@ -426,13 +428,28 @@ export function QueryBar() {
         })
       : []
 
+  const runButton = (
+    <Button
+      type="button"
+      variant={shown === "ask" ? "outline" : "default"}
+      size="sm"
+      disabled={emptyDraft}
+      title={emptyDraft ? "Write a query first." : "Run query"}
+      aria-keyshortcuts="Control+Enter Meta+Enter"
+      className="narrow:h-11"
+      onClick={submit}
+    >
+      Run query
+    </Button>
+  )
+
   return (
-    <div className="flex flex-col gap-3">
-      <div data-slot="builder" className="empty:hidden">
-        {builderInBar ? <BuilderBar /> : null}
-      </div>
-      {shown === "ask" ? (
-        <div className="[&_textarea]:pr-2.5">
+    <>
+      <div className="flex flex-col gap-2.5 px-4 pt-3 pb-4">
+        <div data-slot="builder" className="empty:hidden">
+          {builderInBar ? <BuilderBar /> : null}
+        </div>
+        {shown === "ask" ? (
           <AskField
             ref={askFieldRef}
             signal="logs"
@@ -443,219 +460,219 @@ export function QueryBar() {
             onCancel={ask.cancel}
             placeholder={askPlaceholder}
           />
-        </div>
-      ) : null}
-      {shown === "ask" && ask.answer !== null ? (
-        <div className="flex flex-col gap-1">
-          {ask.answer.explanation !== "" ? (
-            <p className="text-xs text-muted-foreground">
-              {ask.answer.explanation}
-            </p>
-          ) : null}
-          {ask.answer.warnings.map((warning) => (
-            <p key={warning} className="text-xs">
-              <StatusLabel tone="warning">{warning}</StatusLabel>
-            </p>
-          ))}
-        </div>
-      ) : null}
-      {ask.problem !== null ? (
-        <Alert variant="destructive">
-          <AlertDescription className="flex flex-col items-start gap-1">
-            {ask.problem.kind === "cannot_translate" ? (
-              <>
-                <p>I could not turn that into a query.</p>
-                <p className="text-muted-foreground">{ask.problem.reason}</p>
-              </>
-            ) : (
-              <p>{ask.problem.text}</p>
-            )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {labelsShown && editorShown ? (
-        <div
-          ref={labelsRef}
-          tabIndex={-1}
-          aria-label="Label browser"
-          role="region"
-          className="outline-none"
-        >
-          <LogLabelBrowser
-            datasourceUid={uid}
-            datasourceType={type}
-            onInsert={insert}
-          />
-        </div>
-      ) : null}
-      {editorShown ? (
-        <div className="flex flex-col gap-1">
+        ) : null}
+        {shown === "ask" && ask.answer !== null ? (
+          <div className="flex flex-col gap-1">
+            {ask.answer.explanation !== "" ? (
+              <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
+                <AgentMark size={20} className="text-primary" />
+                <span className="min-w-0">{ask.answer.explanation}</span>
+              </p>
+            ) : null}
+            {ask.answer.warnings.map((warning) => (
+              <p key={warning} className="text-xs">
+                <StatusLabel tone="warning">{warning}</StatusLabel>
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {ask.problem !== null ? (
+          <Alert variant="destructive">
+            <AlertDescription className="flex flex-col items-start gap-1">
+              {ask.problem.kind === "cannot_translate" ? (
+                <>
+                  <p>I could not turn that into a query.</p>
+                  <p className="text-muted-foreground">{ask.problem.reason}</p>
+                </>
+              ) : (
+                <p>{ask.problem.text}</p>
+              )}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {labelsShown && editorShown ? (
           <div
-            onKeyDownCapture={onEditorKeyDown}
-            onPasteCapture={onEditorPaste}
-            className={cn(shown === "ask" && "[&_.cm-editor]:max-h-44!")}
+            ref={labelsRef}
+            tabIndex={-1}
+            aria-label="Label browser"
+            role="region"
+            className="outline-none"
           >
-            <CodeEditor
-              value={draft}
-              onChange={onDraftChange}
-              datasource={{ type, uid }}
-              readOnly={false}
-              ariaLabel={`${modeLabel} query`}
-              onLint={setLint}
-              editorRef={editorRef}
+            <LogLabelBrowser
+              datasourceUid={uid}
+              datasourceType={type}
+              onInsert={insert}
             />
           </div>
-          {problem !== null ? (
-            <div role="status" className="flex flex-col gap-0.5">
-              <pre className="m-0 font-mono text-xs text-destructive">
-                {problem.caret}
-              </pre>
-              <p className="text-xs text-muted-foreground">
-                Nothing ran. Checked by the KQL parser before {typeName(type)}{" "}
-                is asked
-              </p>
-            </div>
-          ) : null}
-          {discoverNote === null ? null : (
-            <p
-              role="status"
-              className="flex items-center gap-2 text-xs text-muted-foreground"
+        ) : null}
+        {editorShown ? (
+          <div className="flex flex-col gap-1">
+            <div
+              onKeyDownCapture={onEditorKeyDown}
+              onPasteCapture={onEditorPaste}
+              className={cn(
+                "[&>div]:bg-background",
+                shown === "ask" && "[&_.cm-editor]:max-h-44!"
+              )}
             >
-              {discoverNote}
-              <Button
-                type="button"
-                variant="link"
-                size="xs"
-                onClick={() => setDiscoverNote(null)}
+              <CodeEditor
+                value={draft}
+                onChange={onDraftChange}
+                datasource={{ type, uid }}
+                readOnly={false}
+                ariaLabel={`${modeLabel} query`}
+                onLint={setLint}
+                editorRef={editorRef}
+              />
+            </div>
+            {problem !== null ? (
+              <div role="status" className="flex flex-col gap-0.5">
+                <pre className="m-0 font-mono text-xs text-destructive">
+                  {problem.caret}
+                </pre>
+                <p className="text-xs text-muted-foreground">
+                  Nothing ran. Checked by the KQL parser before {typeName(type)}{" "}
+                  is asked
+                </p>
+              </div>
+            ) : null}
+            {discoverNote === null ? null : (
+              <p
+                role="status"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
               >
-                Dismiss
-              </Button>
-            </p>
-          )}
-          {unknownFields.map((field) => (
-            <UnknownField
-              key={field}
-              field={field}
-              index={datasource.index}
-              onRemove={() => {
-                const next = withoutField(draft, field)
-                if (next !== null) setDraft(next)
-              }}
-              removable={withoutField(draft, field) !== null}
+                {discoverNote}
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => setDiscoverNote(null)}
+                >
+                  Dismiss
+                </Button>
+              </p>
+            )}
+            {unknownFields.map((field) => (
+              <UnknownField
+                key={field}
+                field={field}
+                index={datasource.index}
+                onRemove={() => {
+                  const next = withoutField(draft, field)
+                  if (next !== null) setDraft(next)
+                }}
+                removable={withoutField(draft, field) !== null}
+              />
+            ))}
+            {shown === "ask" ? null : (
+              <p className="text-xs text-muted-foreground">
+                {helpText(type, datasource.index)}{" "}
+                <a
+                  href={referenceUrls[modeLabel]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-3"
+                >
+                  {modeLabel} reference
+                </a>
+              </p>
+            )}
+          </div>
+        ) : null}
+        <div data-slot="query-problem" className="empty:hidden">
+          {problem !== null ? (
+            <QueryProblemCard
+              problem={problem}
+              text={draft}
+              agentAvailable={agentAvailable}
+              onFixWithAsk={fixWithAsk}
             />
-          ))}
-          {shown === "ask" ? null : (
-            <p className="text-xs text-muted-foreground">
-              {helpText(type, datasource.index)}{" "}
-              <a
-                href={referenceUrls[modeLabel]}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-3"
-              >
-                {modeLabel} reference
-              </a>
-            </p>
-          )}
+          ) : null}
         </div>
-      ) : null}
-      <div data-slot="query-problem" className="empty:hidden">
-        {problem !== null ? (
-          <QueryProblemCard
-            problem={problem}
-            text={draft}
-            agentAvailable={agentAvailable}
-            onFixWithAsk={fixWithAsk}
-          />
+        {results.isError && !problem ? (
+          <RunFailure uid={uid} search={search} />
         ) : null}
       </div>
-      {toolbarShown ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={shown === "ask" ? "outline" : "default"}
-            disabled={emptyDraft}
-            title={emptyDraft ? "Write a query first." : "Run query"}
-            aria-keyshortcuts="Control+Enter Meta+Enter"
-            onClick={submit}
-          >
-            Run query
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            or press {modChordLabel(navigator.userAgent, "")}Enter
-          </span>
-          <span
-            data-slot="language"
-            className="ml-auto flex items-center gap-2 empty:hidden"
-          >
-            {search && !builderInBar ? (
-              <>
-                {problem?.luceneSwitch === true ? (
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="xs"
-                    onClick={() => {
-                      const next = withForm(draft, "lucene")
-                      setDraft(next)
-                      run(next)
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-2.5 empty:hidden">
+        {filters}
+        {toolbarShown ? (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <span className="text-xs text-muted-foreground">
+              or press {modChordLabel(navigator.userAgent, "")}Enter
+            </span>
+            <span
+              data-slot="language"
+              className="flex items-center gap-2 empty:hidden"
+            >
+              {search && !builderInBar ? (
+                <>
+                  {problem?.luceneSwitch === true ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="xs"
+                      onClick={() => {
+                        const next = withForm(draft, "lucene")
+                        setDraft(next)
+                        run(next)
+                      }}
+                    >
+                      Switch to Lucene
+                    </Button>
+                  ) : null}
+                  <Select
+                    items={formItems}
+                    value={form}
+                    onValueChange={(next) => {
+                      if (next !== null) setDraft(withForm(draft, next))
                     }}
                   >
-                    Switch to Lucene
-                  </Button>
-                ) : null}
-                <Select
-                  items={formItems}
-                  value={form}
-                  onValueChange={(next) => {
-                    if (next !== null) setDraft(withForm(draft, next))
-                  }}
+                    <SelectTrigger size="sm" aria-label="Language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false} align="end">
+                      {formItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              ) : null}
+            </span>
+            {shown !== "ask" && ask.fromQuestion !== null ? (
+              <>
+                <span className="min-w-0 truncate text-xs text-muted-foreground">
+                  From: {ask.fromQuestion}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="narrow:h-11"
+                  onClick={askAgain}
                 >
-                  <SelectTrigger size="sm" aria-label="Language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} align="end">
-                    {formItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  Ask again
+                </Button>
               </>
             ) : null}
-          </span>
-          {shown === "ask" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => switchMode("code")}
-            >
-              Edit as {modeLabel}
-            </Button>
-          ) : null}
-          {shown !== "ask" && ask.fromQuestion !== null ? (
-            <>
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
-                From: {ask.fromQuestion}
-              </span>
+            {shown === "ask" ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={askAgain}
+                className="narrow:h-11"
+                onClick={() => switchMode("code")}
               >
-                Ask again
+                Edit as {modeLabel}
               </Button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-      {results.isError && !problem ? (
-        <RunFailure uid={uid} search={search} />
-      ) : null}
-    </div>
+            ) : null}
+            {runButton}
+          </div>
+        ) : null}
+      </div>
+    </>
   )
 }
 
