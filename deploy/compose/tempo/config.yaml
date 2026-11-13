@@ -18,10 +18,13 @@ storage:
       path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
+    block:
+      parquet_row_group_size_bytes: 16000000
 
 backend_scheduler:
   provider:
     compaction:
+      max_input_blocks: 2
       compaction:
         block_retention: 72h
 
