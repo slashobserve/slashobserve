@@ -95,6 +95,8 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 		{"list by kind", r.repairs, r.viewer, http.MethodGet, "/health?kind=duplicate_title&limit=1", "", http.StatusOK},
 		{"list a later page", r.repairs, r.viewer, http.MethodGet, "/health?limit=1&cursor=" + first.NextCursor, "", http.StatusOK},
 		{"list with an old cursor", r.repairs, r.viewer, http.MethodGet, "/health?cursor=" + httpapi.EncodeTimeCursor(time.Now(), empty.String()), "", http.StatusBadRequest},
+		{"list some dashboards", r.repairs, r.viewer, http.MethodGet, "/health?dashboard_id=" + empty.String() + "&dashboard_id=" + empty.String(), "", http.StatusOK},
+		{"list with a bad dashboard id", r.repairs, r.viewer, http.MethodGet, "/health?dashboard_id=shop", "", http.StatusBadRequest},
 		{"list with an unknown kind", r.repairs, r.viewer, http.MethodGet, "/health?kind=broken", "", http.StatusBadRequest},
 		{"list in an unknown folder", r.repairs, r.viewer, http.MethodGet, "/health?folder_id=0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61", "", http.StatusNotFound},
 		{"repair", r.repairs, r.editor, http.MethodPost, "/health/repairs", `{"dashboard_ids":["` + empty.String() + `"]}`, http.StatusAccepted},
@@ -182,5 +184,86 @@ func TestHTTPListCarriesTheSummaryOnlyOnTheFirstPageAndNullRepairs(t *testing.T)
 	}
 	if later := list("/health?limit=1&cursor=" + cursor); string(later["summary"]) != "null" {
 		t.Errorf("later page summary = %s, want null", later["summary"])
+	}
+}
+
+type idsBody struct {
+	Dashboards []struct {
+		ID       string          `json:"id"`
+		State    string          `json:"state"`
+		Problems json.RawMessage `json:"problems"`
+	} `json:"dashboards"`
+	Summary json.RawMessage `json:"summary"`
+}
+
+func TestHTTPListWithDashboardIDs(t *testing.T) {
+	r := newRig(t)
+	empty, failing, healthy, hidden := r.dashboardIDsFixture(t)
+	idsQuery := func(ids ...string) string {
+		query := "/health?"
+		for _, id := range ids {
+			query += "dashboard_id=" + id + "&"
+		}
+		return query
+	}
+	get := func(by auth.Principal, path string) (int, idsBody) {
+		t.Helper()
+		rec := serve(t, r.svc, r.repairs, &fakeJobs{}, by, http.MethodGet, path, "")
+		var body idsBody
+		if rec.Code == http.StatusOK {
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return rec.Code, body
+	}
+
+	status, body := get(r.editor, idsQuery(empty.String(), failing.String(), healthy.String(), hidden.String()))
+	got := make([]string, 0, len(body.Dashboards))
+	for _, d := range body.Dashboards {
+		got = append(got, d.ID)
+	}
+	slices.Sort(got)
+	want := []string{empty.String(), failing.String(), healthy.String()}
+	slices.Sort(want)
+	if status != http.StatusOK || !slices.Equal(got, want) || string(body.Summary) != "null" {
+		t.Errorf("status %d, dashboards %v, summary %s; want the three visible dashboards, the healthy one included, and a null summary", status, got, body.Summary)
+	}
+
+	status, body = get(r.editor, idsQuery(healthy.String()))
+	if status != http.StatusOK || len(body.Dashboards) != 1 || string(body.Dashboards[0].Problems) != "[]" || body.Dashboards[0].State != "healthy" {
+		t.Errorf("a healthy dashboard: status %d, %+v", status, body.Dashboards)
+	}
+
+	status, body = get(r.editor, idsQuery(failing.String(), healthy.String())+"kind=query_failed")
+	if status != http.StatusOK || len(body.Dashboards) != 1 || body.Dashboards[0].ID != failing.String() {
+		t.Errorf("dashboard_id with kind: status %d, %+v", status, body.Dashboards)
+	}
+
+	status, body = get(r.editor, "/health")
+	if status != http.StatusOK || len(body.Dashboards) != 2 {
+		t.Errorf("no dashboard_id: status %d, %d dashboards, want the 2 with a problem", status, len(body.Dashboards))
+	}
+
+	status, body = get(r.editor, idsQuery(empty.String(), empty.String()))
+	if status != http.StatusOK || len(body.Dashboards) != 1 {
+		t.Errorf("a repeated id: status %d, %d dashboards, want 1", status, len(body.Dashboards))
+	}
+
+	tooMany := make([]string, 51)
+	for i := range tooMany {
+		tooMany[i] = failing.String()
+	}
+	for name, path := range map[string]string{
+		"51 ids":      idsQuery(tooMany...),
+		"not a uuid":  idsQuery(empty.String(), "shop"),
+		"empty value": "/health?dashboard_id=",
+	} {
+		if status, _ := get(r.editor, path); status != http.StatusBadRequest {
+			t.Errorf("%s: status %d, want 400", name, status)
+		}
+	}
+	if status, _ := get(r.editor, idsQuery(tooMany[:50]...)); status != http.StatusOK {
+		t.Errorf("50 ids: status %d, want 200", status)
 	}
 }

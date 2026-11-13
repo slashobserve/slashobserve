@@ -141,6 +141,85 @@ describe("itemText", () => {
       text: { actor: "", verb: "Your run failed on", object: "a request" },
     },
     {
+      name: "a repair names its panels and dashboard",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id },
+        actor: { ...item().actor, label: "nightly-audit" },
+        data: withData({
+          result_version: 6,
+          dashboard_title: "Node resources",
+          panels_repaired: 2,
+        }),
+      },
+      text: {
+        actor: "nightly-audit",
+        verb: "repaired 2 panels on",
+        object: "Node resources",
+      },
+    },
+    {
+      name: "a repair of one panel reads in the singular",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id },
+        data: withData({
+          result_version: 6,
+          dashboard_title: "Node resources",
+          panels_repaired: 1,
+        }),
+      },
+      text: {
+        actor: "Ada",
+        verb: "repaired 1 panel on",
+        object: "Node resources",
+      },
+    },
+    {
+      name: "a repair recorded without the title names its version",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id },
+        data: withData({ result_version: 6 }),
+      },
+      text: { actor: "", verb: "Your repair saved", object: "version 6" },
+    },
+    {
+      name: "a repair recorded without the panel count names its version",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id },
+        data: withData({
+          result_version: 6,
+          dashboard_title: "Node resources",
+        }),
+      },
+      text: { actor: "", verb: "Your repair saved", object: "version 6" },
+    },
+    {
+      name: "a repair with no version or title names a version",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id },
+        data: withData({}),
+      },
+      text: { actor: "", verb: "Your repair saved", object: "a version" },
+    },
+    {
+      name: "a succeeded run without the repaired reason keeps the fallback",
+      over: {
+        type: "run.succeeded",
+        target: { kind: "run", id },
+        data: withData({ result_version: 6 }),
+      },
+      text: { actor: "Ada", verb: "succeeded", object: "a request" },
+    },
+    {
       name: "any other type takes its verb from the type name",
       over: {
         type: "dashboard.deleted",
@@ -200,6 +279,59 @@ describe("itemLink", () => {
     {
       name: "a run opens its chat",
       over: { target: { kind: "run", id } },
+      link: { to: `/c/${id}` },
+    },
+    {
+      name: "a repair opens the compare of the version it saved",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id: other },
+        dashboard_id: id,
+        data: withData({ result_version: 6 }),
+      },
+      link: { to: `/d/${id}/versions`, search: { from: 5, to: 6 } },
+    },
+    {
+      name: "a repair that saved version 1 opens that version alone",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id: other },
+        dashboard_id: id,
+        data: withData({ result_version: 1 }),
+      },
+      link: { to: `/d/${id}/versions`, search: { to: 1 } },
+    },
+    {
+      name: "a repair with no version opens the dashboard",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id: other },
+        dashboard_id: id,
+        data: withData({}),
+      },
+      link: { to: `/d/${id}` },
+    },
+    {
+      name: "a repair with no dashboard has no page",
+      over: {
+        type: "run.succeeded",
+        reason: "repaired",
+        target: { kind: "run", id: other },
+        dashboard_id: null,
+        data: withData({ result_version: 6 }),
+      },
+      link: null,
+    },
+    {
+      name: "a succeeded run without the repaired reason opens its chat",
+      over: {
+        type: "run.succeeded",
+        target: { kind: "run", id },
+        data: withData({ result_version: 6 }),
+      },
       link: { to: `/c/${id}` },
     },
     {
@@ -269,6 +401,7 @@ describe("reasonLabel", () => {
     ["mention", "Mention"],
     ["reply", "Reply"],
     ["run_failed", "Run failed"],
+    ["repaired", "Repaired"],
   ] as const)("%s reads %s", (reason, label) => {
     expect(reasonLabel(reason)).toBe(label)
   })

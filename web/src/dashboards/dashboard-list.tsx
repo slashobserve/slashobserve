@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
@@ -22,10 +22,16 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
+import { RoleGate } from "@/components/role-gate"
+import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { foldersQuery, type Folder } from "@/folders/queries"
+import { importedFilter } from "@/health/health-labels"
+import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
+import { RepairQueue } from "@/import/repair/repair-page"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -48,6 +54,7 @@ import {
   DatasourceMenu,
   FolderMenu,
   MadeByMenu,
+  ProblemMenu,
   TagsMenu,
 } from "./list-filter-menus"
 import {
@@ -91,6 +98,7 @@ function useDashboardList(search: ListSearch, page: number) {
               datasource: filters.datasource,
               tag: filters.tags,
               folder: filters.folder,
+              problem: filters.problem,
               order: "folder",
             },
           },
@@ -98,6 +106,7 @@ function useDashboardList(search: ListSearch, page: number) {
         })
         .then(unwrap)
         .then((list) => withOffset(list, offset)),
+    enabled: search.kind !== importedFilter,
     staleTime: 15_000,
     placeholderData: (previous) => previous,
   })
@@ -131,6 +140,7 @@ type FilterRowProps = {
   onSearchChange: (next: ListSearch) => void
   summary: string | undefined
   folderLocked: boolean
+  offerImported: boolean
 }
 
 function FilterRow({
@@ -138,7 +148,9 @@ function FilterRow({
   onSearchChange,
   summary,
   folderLocked,
+  offerImported,
 }: FilterRowProps) {
+  const health = useListHealthLoad()
   const [text, setText] = useState(search.q ?? "")
   const emitted = useRef(search.q)
   const typed = text.trim() === "" ? undefined : text.trim()
@@ -189,12 +201,33 @@ function FilterRow({
           onChange={(folder) => onSearchChange({ ...search, folder })}
         />
       )}
+      <ProblemMenu
+        value={search.kind}
+        offerImported={offerImported}
+        onChange={(kind) => onSearchChange({ ...search, kind })}
+      />
       <TagsMenu
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
       />
-      <span role="status" className="ml-auto text-xs text-muted-foreground">
-        {summary}
+      <span className="ml-auto flex items-center gap-x-2 text-xs text-muted-foreground">
+        <span role="status" className="flex items-center gap-x-2">
+          {summary}
+          {health.failed ? (
+            <StatusLabel tone="warning">Health could not load</StatusLabel>
+          ) : null}
+        </span>
+        {health.failed ? (
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={health.retrying}
+            aria-busy={health.retrying}
+            onClick={health.retry}
+          >
+            Retry
+          </Button>
+        ) : null}
       </span>
     </div>
   )
@@ -344,6 +377,7 @@ export function DashboardList({
   onSearchChange,
   folderId,
 }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const folderLocked = folderId !== undefined
   const page = search.page ?? 1
   const query = useDashboardList(
@@ -352,6 +386,10 @@ export function DashboardList({
   )
   const folderResult = useQuery(foldersQuery())
   const dashboards = query.data?.dashboards ?? emptyList
+  const healthIds = useMemo(
+    () => dashboards.map((dashboard) => dashboard.id),
+    [dashboards]
+  )
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
   const table = useListTable(dashboards)
@@ -400,11 +438,11 @@ export function DashboardList({
   const retryRef = useRef<HTMLButtonElement>(null)
   const focusIntent = useRef<number | null>(null)
 
-  const { q, made_by: madeBy, datasource, folder } = search
+  const { q, made_by: madeBy, datasource, folder, kind } = search
   const tags = search.tag?.join(",")
   useEffect(() => {
     focusIntent.current = null
-  }, [q, madeBy, datasource, tags, folder])
+  }, [q, madeBy, datasource, tags, folder, kind])
 
   useEffect(() => {
     if (clampTo === null) return
@@ -450,8 +488,34 @@ export function DashboardList({
         ? dashboardCountText(total)
         : listSummary(total, sections.length, page)
 
+  const offerImported =
+    roleAtLeast(principal.role, "editor") || kind === importedFilter
+  const kindOnly =
+    kind !== undefined && !hasFilters({ ...search, kind: undefined })
+
+  if (kind === importedFilter) {
+    return (
+      <>
+        <FilterRow
+          key={resetKey}
+          search={search}
+          onSearchChange={onFilterChange}
+          summary={undefined}
+          folderLocked={folderLocked}
+          offerImported={offerImported}
+        />
+        <RoleGate
+          min="editor"
+          note="Only Editors can see the imported dashboards that are not verified."
+        >
+          <RepairQueue folderId={folderId ?? search.folder ?? null} />
+        </RoleGate>
+      </>
+    )
+  }
+
   return (
-    <>
+    <ListHealthProvider ids={healthIds}>
       {noDashboards ? null : (
         <FilterRow
           key={resetKey}
@@ -459,6 +523,7 @@ export function DashboardList({
           onSearchChange={onFilterChange}
           summary={summary}
           folderLocked={folderLocked}
+          offerImported={offerImported}
         />
       )}
       {failedQuery === null ? null : (
@@ -502,7 +567,11 @@ export function DashboardList({
           ) : (
             <>
               <h2 className="text-lg font-semibold">
-                No dashboards match these filters.
+                {kindOnly
+                  ? kind === "any"
+                    ? "Every dashboard passed its last check."
+                    : "No dashboard has this problem."
+                  : "No dashboards match these filters."}
               </h2>
               <Button
                 variant="outline"
@@ -520,7 +589,7 @@ export function DashboardList({
       {showTable ? (
         <>
           <TableCard
-            minWidth={820}
+            minWidth={960}
             labelledBy={labelledBy}
             ref={regionRef}
             stackOnNarrow
@@ -572,6 +641,6 @@ export function DashboardList({
           ) : null}
         </>
       ) : null}
-    </>
+    </ListHealthProvider>
   )
 }

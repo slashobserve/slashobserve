@@ -5,23 +5,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-type Kind string
+type Kind = healthrule.Kind
 
 const (
-	KindNoData         Kind = "no_data"
-	KindQueryFailed    Kind = "query_failed"
-	KindVariableFailed Kind = "variable_failed"
-	KindDuplicateTitle Kind = "duplicate_title"
-	KindUnopened       Kind = "unopened"
+	KindNoData         = healthrule.KindNoData
+	KindQueryFailed    = healthrule.KindQueryFailed
+	KindVariableFailed = healthrule.KindVariableFailed
+	KindDuplicateTitle = healthrule.KindDuplicateTitle
+	KindUnopened       = healthrule.KindUnopened
 )
-
-var Kinds = []Kind{KindNoData, KindQueryFailed, KindVariableFailed, KindDuplicateTitle, KindUnopened}
-
-const unopenedAfter = 90 * 24 * time.Hour
 
 const variablesPointer = "/variables/"
 
@@ -89,9 +86,5 @@ func unopened(lastView *time.Time, created, now time.Time) bool {
 	if lastView != nil {
 		seen = *lastView
 	}
-	return seen.Before(unopenedBefore(now))
-}
-
-func unopenedBefore(now time.Time) time.Time {
-	return now.Add(-unopenedAfter)
+	return seen.Before(healthrule.UnopenedBefore(now))
 }

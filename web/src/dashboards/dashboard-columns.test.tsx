@@ -96,6 +96,7 @@ describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
     expect(dashboardColumns.map((c) => c.header)).toEqual([
       "Title",
+      "Health",
       "Made by",
       "Datasources",
       "Open comments",
@@ -109,6 +110,7 @@ describe("dashboardColumns", () => {
     expect(new Set(ids).size).toBe(dashboardColumns.length)
     expect(ids).toEqual([
       "title",
+      "health",
       "madeBy",
       "datasources",
       "openComments",
@@ -196,24 +198,24 @@ describe("dashboard list cells", () => {
     ]
     for (const { creator, text, hover } of cases) {
       const { cells, unmount } = await cellsOf(summary({ creator }))
-      expect(cells[1].textContent).toBe(text)
-      expect(cells[1].firstElementChild).toHaveAttribute("title", hover)
-      expect(cells[1].querySelectorAll("div")).toHaveLength(1)
+      expect(cells[2].textContent).toBe(text)
+      expect(cells[2].firstElementChild).toHaveAttribute("title", hover)
+      expect(cells[2].querySelectorAll("div")).toHaveLength(1)
       unmount()
     }
   })
 
   it("leaves Datasources and Open comments empty when there are none", async () => {
     const { cells, unmount } = await cellsOf(summary())
-    expect(cells[2].textContent).toBe("")
     expect(cells[3].textContent).toBe("")
+    expect(cells[4].textContent).toBe("")
     unmount()
 
     const filled = await cellsOf(
       summary({ datasource_uids: ["prom", "ch"], open_comment_count: 3 })
     )
-    expect(filled.cells[2].textContent).toBe("prom, ch")
-    expect(filled.cells[3].textContent).toBe("3")
+    expect(filled.cells[3].textContent).toBe("prom, ch")
+    expect(filled.cells[4].textContent).toBe("3")
   })
 
   it("clamps the description to one line and keeps the full text on hover", async () => {

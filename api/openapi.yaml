@@ -1355,7 +1355,7 @@ components:
         reason:
           type: string
           nullable: true
-          enum: [proposal, requested_block, mention, reply, run_failed]
+          enum: [proposal, requested_block, mention, reply, run_failed, repaired]
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean

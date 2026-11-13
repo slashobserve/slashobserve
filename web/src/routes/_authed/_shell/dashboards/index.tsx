@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { DashboardList } from "@/dashboards/dashboard-list"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
+import { ListHealthHeader } from "@/health/list-health-header"
 import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
@@ -54,6 +55,7 @@ function DashboardsPage() {
         onOpenChange={setCreatingFolder}
         onCreated={(folder) => toast.success(`Created folder ${folder.title}`)}
       />
+      <ListHealthHeader folderId={search.folder ?? null} />
       <DashboardList
         labelledBy={headingId}
         search={search}

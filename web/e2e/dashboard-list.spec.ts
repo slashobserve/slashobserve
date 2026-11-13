@@ -147,6 +147,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
   await expect(dashboardsCard(page)).toBeVisible()
   await expect(page.getByRole("columnheader")).toHaveText([
     "Title",
+    "Health",
     "Made by",
     "Datasources",
     "Open comments",
@@ -178,11 +179,12 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto("/dashboards")
       await filterByTitle(page, title)
       const cells = rowFor(page, title).getByRole("cell")
-      await expect(cells.nth(1)).toContainText(maker)
-      await expect(cells.nth(1)).toContainText("· Web")
-      await expect(cells.nth(2)).toContainText("prom")
-      await expect(cells.nth(3)).toHaveText("")
-      await expect(cells.nth(4)).toHaveText("v1")
+      await expect(cells.nth(1)).toHaveText("")
+      await expect(cells.nth(2)).toContainText(maker)
+      await expect(cells.nth(2)).toContainText("· Web")
+      await expect(cells.nth(3)).toContainText("prom")
+      await expect(cells.nth(4)).toHaveText("")
+      await expect(cells.nth(5)).toHaveText("v1")
 
       const card = dashboardsCard(page)
       await expect(card).toHaveCSS(

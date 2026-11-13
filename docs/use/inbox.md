@@ -1,6 +1,6 @@
 ---
 title: Inbox
-description: See what asks something of you, a proposal to merge, a block to keep, a mention, a reply or a failed run, with the reason it is there and an unread count that follows you across browsers.
+description: See what asks something of you, a proposal to merge, a block to keep, a mention, a reply, a failed run or a saved health repair, with the reason it is there and an unread count that follows you across browsers.
 ---
 
 The inbox is the activity you can see, filtered to what asks something of you now.
@@ -35,6 +35,7 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 | `mention` | A comment by someone else that mentions you by name. |
 | `reply` | A reply by someone else in a thread you wrote in, or a reply that an agent run wrote for a run you requested. |
 | `run_failed` | A run you requested that failed and that nobody has continued. |
+| `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
 
@@ -43,6 +44,8 @@ An item leaves the inbox when its reason stops being true, for example when the 
 A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
 A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
 A failed run opens its chat.
+A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
+An item recorded before the title and panel count were stored reads "Your repair saved version N".
 
 ## Views
 

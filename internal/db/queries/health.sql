@@ -32,15 +32,9 @@ FROM (
   FROM dashboard_health_status s
   WHERE s.folder_id = ANY(@folders::uuid[])
     AND (sqlc.narg('folder')::uuid IS NULL OR s.folder_id = sqlc.narg('folder')::uuid)
-    AND CASE @kind::text
-      WHEN '' THEN s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
-        OR coalesce(s.last_viewed_at, s.created_at) < @unopened_before::timestamptz
-      WHEN 'query_failed' THEN s.query_failed
-      WHEN 'no_data' THEN s.no_data
-      WHEN 'variable_failed' THEN s.variable_failed
-      WHEN 'duplicate_title' THEN s.duplicate_title
-      WHEN 'unopened' THEN coalesce(s.last_viewed_at, s.created_at) < @unopened_before::timestamptz
-      ELSE false END
+    AND (coalesce(cardinality(@dashboard_ids::uuid[]), 0) = 0 OR s.id = ANY(@dashboard_ids::uuid[]))
+    AND (@every_requested::boolean OR health_problem_matches(@kind::text, s.query_failed, s.no_data, s.variable_failed,
+      s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz))
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
@@ -62,8 +56,8 @@ LIMIT @row_limit;
 
 -- name: HealthSummary :one
 SELECT
-  count(*) FILTER (WHERE s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
-    OR coalesce(s.last_viewed_at, s.created_at) < @unopened_before::timestamptz) AS dashboards,
+  count(*) FILTER (WHERE health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed, s.duplicate_title,
+    s.last_viewed_at, s.created_at, @unopened_before::timestamptz)) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,

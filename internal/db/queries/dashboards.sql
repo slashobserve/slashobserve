@@ -78,6 +78,10 @@ WHERE (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
   AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
   AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
+  AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -109,6 +113,10 @@ WHERE (sqlc.narg('c_folder')::uuid IS NULL
   AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
   AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
+  AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -128,6 +136,10 @@ WHERE d.folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
   AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
+  AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0);

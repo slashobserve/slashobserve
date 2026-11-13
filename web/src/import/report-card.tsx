@@ -37,7 +37,7 @@ export function ReportCard({ report, imported, busy }: Props) {
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({})
   const counts = filterCounts(report)
   const lines = filterLines(report, filter)
-  const waitsInHealth =
+  const waitsInRepairQueue =
     imported && (report.counts.placeholder > 0 || report.counts.unverified > 0)
   const closingHint =
     imported && report.counts.unverified > 0
@@ -176,15 +176,16 @@ export function ReportCard({ report, imported, busy }: Props) {
         </div>
       ) : null}
       <p className="px-3.5 py-3 text-xs text-muted-foreground">{closingHint}</p>
-      {waitsInHealth ? (
+      {waitsInRepairQueue ? (
         <p className="flex flex-wrap items-baseline gap-x-2 border-t px-3.5 py-3 text-xs text-muted-foreground">
-          Placeholders and unverified panels wait in Health.
+          Placeholders and unverified panels wait in the repair queue on
+          Dashboards.
           <Link
-            to="/health"
+            to="/dashboards"
             search={{ kind: importedFilter }}
             className="text-[13px] font-medium text-foreground hover:text-muted-foreground"
           >
-            Open in Health
+            Open the repair queue
           </Link>
         </p>
       ) : null}

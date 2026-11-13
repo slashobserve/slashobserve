@@ -78,7 +78,7 @@ An Admin can stop a running import with **Stop import** on its progress card; th
 
 ## Repair
 
-The repair queue is the **Imported, not verified** filter on the [Health page](dashboard-health.md), at `/health?kind=imported`; it lists every dashboard whose latest version still has unverified panels or variables or placeholder panels, in the folders you can see.
+The repair queue is the **Imported, not verified** problem filter on the dashboards list, at `/dashboards?kind=imported`; it lists every dashboard whose latest version still has unverified panels or variables or placeholder panels, in the folders you can see.
 The old address `/import/repair` opens it too.
 Editors and Admins can open it from Import from Grafana, and from the Need repair group of an import's results.
 Each row shows the dashboard's folder, its unverified panels and variables, its placeholders, when it was imported, and its latest repair.
@@ -100,7 +100,7 @@ From an MCP client, read the dashboard with `get_dashboard`, whose `unverified` 
 ## Check health
 
 Repair fixes what failed at import time, but a query that runs can still return nothing, and a move is a good time to drop dashboards nobody opens.
-Every dashboard is checked about once a day, and the **Health** page lists each one with a panel that fails or returns no data over the last 7 days, a variable that resolves to nothing, a duplicate title in its folder, or no opens in 90 days.
+Every dashboard is checked about once a day, and the dashboards list marks each one with a panel that fails or returns no data over the last 7 days, a variable that resolves to nothing, a duplicate title in its folder, or no opens in 90 days.
 After a large import, an Admin can choose **Run now** instead of waiting for the hourly run, and an Editor can choose **Repair** on a row to queue the agent on its failing panels.
 Delete or merge the duplicates and the unopened dashboards before the next step, so nobody shares or commits them.
 See [Dashboard health](dashboard-health.md) for the rules and the API.
@@ -150,7 +150,7 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 | A dashboard changed in Grafana after the import | Run the import again: a dashboard whose Grafana `version` is newer is saved as a new version of the same dashboard, and the others are skipped. A new version runs every query like any later save, so one whose queries now fail is reported as failed and keeps its last version. | Changes |
 | A folder titled `My Dashboards` | Lands in the importing Admin's own My Dashboards, because that title names the default folder here; rename it in Grafana before the import to keep it shared. | Changes |
 | A dashboard imported from a file earlier | Holds its Grafana uid, since only the first import of a uid holds it, so the run updates that dashboard instead of making a copy. | Changes |
-| Panels whose queries fail | Imported as unverified, then repaired by the agent from the Health page. | Changes |
+| Panels whose queries fail | Imported as unverified, then repaired by the agent from the dashboards list or the dashboard. | Changes |
 | Public dashboards | [Public links](public-links.md) from the Share pane. | Changes |
 | Kiosk mode and playlists | TV mode, which cycles through a dashboard's rows or a folder's dashboards. Playlists themselves stay in Grafana. | Changes |
 | Provisioning files | The server's provisioning directory, or `observe dashboards apply` from Git. | Changes |

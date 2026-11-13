@@ -207,11 +207,11 @@ function Results({ results }: { results: GrafanaImportResult[] }) {
       {groups.needsRepair.length === 0 ? null : (
         <div className="border-b px-4 py-3 text-[13px]">
           <Link
-            to="/health"
+            to="/dashboards"
             search={{ kind: importedFilter }}
             className="text-[13px] font-medium hover:text-muted-foreground"
           >
-            Open in Health
+            Open the repair queue
           </Link>
         </div>
       )}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -18,7 +19,7 @@ func TestRepairPromptNamesEachFailingPanelAndVariable(t *testing.T) {
 		{Kind: KindQueryFailed, Code: "check_failed"},
 		{Kind: KindNoData, PanelID: "rps", PanelTitle: "Requests"},
 	})
-	want := repairPromptPrefix +
+	want := repairprompt.Prefix +
 		"\n- panel rps (\"Requests\") returns no data" +
 		"\n- panel lat fails" +
 		"\n- variable pod resolves to nothing"
@@ -45,7 +46,7 @@ func TestRepairPromptHasNothingToRepairWithoutAPanelOrVariable(t *testing.T) {
 
 func TestRepairPromptDropsControlCharactersAndCapsTitles(t *testing.T) {
 	got, ok := repairPrompt([]Problem{{Kind: KindNoData, PanelID: "a\u202eb", PanelTitle: "x\x00y\n" + strings.Repeat("t", 200)}})
-	want := repairPromptPrefix + "\n- panel ab (\"xy" + strings.Repeat("t", 78) + "\") returns no data"
+	want := repairprompt.Prefix + "\n- panel ab (\"xy" + strings.Repeat("t", 78) + "\") returns no data"
 	if !ok || got != want {
 		t.Errorf("repairPrompt = %q\nwant %q", got, want)
 	}
@@ -63,7 +64,7 @@ func TestRepairPromptStaysWithinThePromptLimit(t *testing.T) {
 	if n := utf8.RuneCountInString(got); n > revisions.MaxPromptRunes {
 		t.Errorf("prompt has %d runes, over %d", n, revisions.MaxPromptRunes)
 	}
-	if !strings.HasPrefix(got, repairPromptPrefix) || !strings.Contains(got, " more") {
+	if !strings.HasPrefix(got, repairprompt.Prefix) || !strings.Contains(got, " more") {
 		t.Errorf("prompt does not end with the remaining count: %q", got[len(got)-40:])
 	}
 	if _, valid := revisions.CleanPrompt(got); !valid {

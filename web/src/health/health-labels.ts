@@ -43,12 +43,33 @@ export const runStartWaitMs = 60_000
 
 export const importedFilter = "imported"
 
-export const importedLabel = "Imported, not verified"
+const importedLabel = "Imported, not verified"
 
-export type HealthFilter = HealthKind | typeof importedFilter
+export type ProblemFilter = "any" | HealthKind | typeof importedFilter
 
-export function isHealthFilter(value: unknown): value is HealthFilter {
-  return value === importedFilter || healthKinds.includes(value as HealthKind)
+export function isProblemFilter(value: unknown): value is ProblemFilter {
+  return (
+    value === "any" ||
+    value === importedFilter ||
+    healthKinds.includes(value as HealthKind)
+  )
+}
+
+export function healthRedirectSearch(search: Record<string, unknown>): {
+  kind: ProblemFilter
+  folder?: string
+} {
+  const { kind, folder } = search
+  return {
+    kind: isProblemFilter(kind) ? kind : "any",
+    ...(typeof folder === "string" && folder !== "" ? { folder } : {}),
+  }
+}
+
+export const problemFilterLabels: Record<ProblemFilter, string> = {
+  any: "Any problem",
+  ...kindLabels,
+  [importedFilter]: importedLabel,
 }
 
 export function sortProblems(problems: readonly HealthProblem[]) {
@@ -66,8 +87,54 @@ export function problemSubject(problem: HealthProblem): string {
   return ""
 }
 
+export function dashboardProblems(item: HealthItem): HealthProblem[] {
+  return item.problems.filter((p) => p.kind !== "unopened")
+}
+
+export function panelProblems(
+  item: HealthItem,
+  drawnVersion: number
+): ReadonlyMap<string, readonly HealthProblem[]> {
+  const byPanel = new Map<string, HealthProblem[]>()
+  if (item.checked_version !== drawnVersion) return byPanel
+  for (const problem of item.problems) {
+    if (problem.panel_id === null) continue
+    const list = byPanel.get(problem.panel_id) ?? []
+    list.push(problem)
+    byPanel.set(problem.panel_id, list)
+  }
+  return byPanel
+}
+
+function counted(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+export function problemCountText(count: number): string {
+  return counted(count, "problem", "problems")
+}
+
+export function dashboardCountText(count: number): string {
+  return counted(count, "dashboard", "dashboards")
+}
+
+export function moreProblemsText(count: number): string {
+  return counted(count, "more problem", "more problems")
+}
+
+export function worstTone(problems: readonly HealthProblem[]): StatusTone {
+  const [worst] = sortProblems(problems)
+  return worst === undefined ? "none" : kindTones[worst.kind]
+}
+
 export function canRepair(item: HealthItem): boolean {
   return item.can_edit && item.problems.some((p) => repairableKinds.has(p.kind))
+}
+
+export function repairLabel(problems: readonly HealthProblem[]): string {
+  return problems.filter((p) => repairableKinds.has(p.kind)).length > 1
+    ? "Repair all"
+    : "Repair"
 }
 
 export type ProblemGroup = {
@@ -92,6 +159,28 @@ export function groupProblems(
     if (subject !== "") group.subjects.push(subject)
   }
   return [...groups.values()]
+}
+
+export function healthCellText(
+  item: HealthItem
+): { group: ProblemGroup; more: number } | null {
+  const [group] = groupProblems(item.problems)
+  if (group === undefined) return null
+  const more = dashboardProblems(item).filter(
+    (p) => p.kind !== group.kind || p.message !== group.message
+  ).length
+  return { group, more }
+}
+
+export const healthyLabel = "Healthy"
+
+export function isHealthy(item: HealthItem): boolean {
+  return (
+    item.checked_at !== null &&
+    item.skipped === null &&
+    dashboardProblems(item).length === 0 &&
+    !repairActive(item)
+  )
 }
 
 export function subjectNoun(group: ProblemGroup): string {
@@ -153,6 +242,21 @@ export function repairAction(
   return canRepair(item) ? { kind: "repair", disabledReason } : { kind: "open" }
 }
 
+export function repairStatus(action: RepairAction): SummaryLabel | null {
+  switch (action.kind) {
+    case "queued":
+      return { tone: "running", label: "Repair queued" }
+    case "running":
+      return { tone: "running", label: "Repairing" }
+    case "repaired":
+      return { tone: "ok", label: "Repaired" }
+    case "failed":
+      return { tone: "critical", label: "Repair failed" }
+    default:
+      return null
+  }
+}
+
 function repairActive(item: HealthItem): boolean {
   return item.repair?.outcome === "queued" || item.repair?.outcome === "running"
 }
@@ -161,18 +265,17 @@ export type SummaryLabel = { tone: StatusTone; label: string }
 
 export function summaryLabels(summary: HealthSummary): SummaryLabel[] {
   const labels: [number, StatusTone, string][] = [
-    [summary.failing, "critical", `${summary.failing} failing`],
-    [summary.no_data, "warning", `${summary.no_data} without data`],
-    [summary.unopened, "none", `${summary.unopened} not opened in 90 days`],
-    [
-      summary.duplicate_titles,
-      "none",
-      `${summary.duplicate_titles} duplicate ${summary.duplicate_titles === 1 ? "title" : "titles"}`,
-    ],
+    [summary.failing, "critical", "failing"],
+    [summary.no_data, "warning", "without data"],
+    [summary.unopened, "none", "not opened in 90 days"],
+    [summary.duplicate_titles, "none", "with a duplicate title"],
   ]
   return labels
     .filter(([count]) => count > 0)
-    .map(([, tone, label]) => ({ tone, label }))
+    .map(([count, tone, state]) => ({
+      tone,
+      label: `${dashboardCountText(count)} ${state}`,
+    }))
 }
 
 const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {
@@ -192,22 +295,6 @@ export function repairOutcomeText(outcome: RepairsQueued): string {
   return skipped === undefined
     ? "No repair queued."
     : `No repair queued. ${skipTexts[skipped.reason]}`
-}
-
-const kindCounts: Record<HealthKind, keyof HealthSummary> = {
-  query_failed: "query_failed",
-  variable_failed: "variable_failed",
-  no_data: "no_data",
-  duplicate_title: "duplicate_titles",
-  unopened: "unopened",
-}
-
-export function dashboardCount(
-  summary: HealthSummary,
-  kind: HealthKind | null
-): string {
-  const count = summary[kind === null ? "dashboards" : kindCounts[kind]]
-  return `${count} ${count === 1 ? "dashboard" : "dashboards"}`
 }
 
 export function lastRunProblem(job: HealthJob): SummaryLabel | null {

@@ -92,8 +92,8 @@ func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUI
 
 const healthSummary = `-- name: HealthSummary :one
 SELECT
-  count(*) FILTER (WHERE s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
-    OR coalesce(s.last_viewed_at, s.created_at) < $1::timestamptz) AS dashboards,
+  count(*) FILTER (WHERE health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed, s.duplicate_title,
+    s.last_viewed_at, s.created_at, $1::timestamptz)) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
@@ -152,38 +152,34 @@ FROM (
   FROM dashboard_health_status s
   WHERE s.folder_id = ANY($1::uuid[])
     AND ($2::uuid IS NULL OR s.folder_id = $2::uuid)
-    AND CASE $3::text
-      WHEN '' THEN s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
-        OR coalesce(s.last_viewed_at, s.created_at) < $4::timestamptz
-      WHEN 'query_failed' THEN s.query_failed
-      WHEN 'no_data' THEN s.no_data
-      WHEN 'variable_failed' THEN s.variable_failed
-      WHEN 'duplicate_title' THEN s.duplicate_title
-      WHEN 'unopened' THEN coalesce(s.last_viewed_at, s.created_at) < $4::timestamptz
-      ELSE false END
+    AND (coalesce(cardinality($3::uuid[]), 0) = 0 OR s.id = ANY($3::uuid[]))
+    AND ($4::boolean OR health_problem_matches($5::text, s.query_failed, s.no_data, s.variable_failed,
+      s.duplicate_title, s.last_viewed_at, s.created_at, $6::timestamptz))
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.state, a.result_version, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
-  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $5::text)
+  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $7::text)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) rep ON true
-WHERE $6::integer IS NULL
-  OR r.rank > $6::integer
-  OR (r.rank = $6::integer AND (
-       r.seen_at < $7::timestamptz
-       OR (r.seen_at = $7::timestamptz
-           AND (r.title, r.id) > ($8::text, $9::uuid))))
+WHERE $8::integer IS NULL
+  OR r.rank > $8::integer
+  OR (r.rank = $8::integer AND (
+       r.seen_at < $9::timestamptz
+       OR (r.seen_at = $9::timestamptz
+           AND (r.title, r.id) > ($10::text, $11::uuid))))
 ORDER BY r.rank, r.seen_at DESC, r.title, r.id
-LIMIT $10
+LIMIT $12
 `
 
 type ListHealthParams struct {
 	Folders        []pgtype.UUID
 	Folder         pgtype.UUID
+	DashboardIds   []pgtype.UUID
+	EveryRequested bool
 	Kind           string
 	UnopenedBefore pgtype.Timestamptz
 	RepairPrefix   string
@@ -223,6 +219,8 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 	rows, err := q.db.Query(ctx, listHealth,
 		arg.Folders,
 		arg.Folder,
+		arg.DashboardIds,
+		arg.EveryRequested,
 		arg.Kind,
 		arg.UnopenedBefore,
 		arg.RepairPrefix,

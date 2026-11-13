@@ -55,6 +55,8 @@ The old forms keep working and redirect with `301 Moved Permanently`, keeping th
 | `/observe/<id>` | `/c/<id>` |
 | `/builds/<id>` | `/b/<id>` |
 
+The web app also sends `/health` to `/dashboards?kind=any` and `/import/repair` to `/dashboards?kind=imported`, keeping `kind` and `folder`; these are not server redirects.
+
 The server redirects only when the id is a UUID, and the web app does the same for links it follows itself.
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
@@ -111,6 +113,29 @@ After the first move a bar at the bottom of the screen says "Your layout changes
 When someone else saves a version, your moves stay on top of it; a panel you did not touch takes the other version's size and place.
 Leaving the dashboard, or opening an older version, with unsaved moves asks first.
 While you have unsaved moves, the actions that would change the dashboard in another way, such as Edit details, Duplicate, Delete, Inspect and View, say "finish the layout first".
+
+## Health on a dashboard
+
+When the last health check found a problem in the dashboard, its header has a button that counts the problems, such as **2 problems**.
+A dashboard that was checked and has no problem shows a quiet **Healthy** button instead, whose popover says "No problems found" and when and on which version it was checked.
+Choose the problem button to open a popover with every problem, when and on which version the dashboard was checked, and **Repair**.
+The popover says "before the latest version" when the dashboard has been saved since the check.
+**Not opened in 90 days** is never listed here, because you just opened the dashboard.
+
+A panel that failed the check, or returned no data, shows a badge in its title bar with the kind of the problem.
+Choose the badge to read the message of every problem in the panel.
+The badges show only while you look at the version that was checked.
+Another version, such as an older one or the latest one after a save, shows the header button but no badges.
+A panel that is also **Unverified** shows only its Unverified badge.
+
+An Editor sees **Repair** in the popover of the header button and in the popover of a badge.
+It asks the agent to fix every failing panel and variable on the dashboard in one revision, not only the panel you chose.
+The header says **Repair all** when more than one problem can be repaired.
+Both places show the same states: **Repair queued**, **Repairing**, **Repaired** with **See changes**, and **Repair failed** with the reason and **Repair** again.
+While you have unsaved layout changes, **Repair** is greyed and says "finish the layout first".
+Without a configured agent it is greyed too.
+
+The problems come from the last health check; see [Dashboard health](dashboard-health.md).
 
 ## One panel at full size
 

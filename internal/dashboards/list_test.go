@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
@@ -398,4 +399,61 @@ func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("second version", map[string]int{"ch": 1})
+}
+
+func (r *rig) recordCheck(t *testing.T, id, kind string) {
+	t.Helper()
+	r.db.Exec(t, `INSERT INTO dashboard_health (dashboard_id, version, checked_at, issues)
+		VALUES ($1, 1, now(), jsonb_build_array(jsonb_build_object('kind', $2::text)))`, id, kind)
+}
+
+func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
+	r := newRig(t, false)
+	other, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	elsewhere, _, err := r.service.Create(t.Context(), testUser, other.ID, specWithDatasources("Elsewhere", "", "prom"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := r.seedList(t)
+	r.recordCheck(t, elsewhere.ID, "no_data")
+	r.recordCheck(t, ids["Orders"], "no_data")
+	r.recordCheck(t, ids["Fleet"], "query_failed")
+	r.db.Exec(t, `UPDATE dashboards SET created_at = now() - interval '100 days' WHERE id = $1`, ids["Nodes"])
+
+	tests := []struct {
+		problem  string
+		updated  []string
+		byFolder []string
+	}{
+		{"no_data", []string{"Orders", "Elsewhere"}, []string{"Elsewhere", "Orders"}},
+		{"query_failed", []string{"Fleet"}, []string{"Fleet"}},
+		{"variable_failed", []string{}, []string{}},
+		{"unopened", []string{"Nodes"}, []string{"Nodes"}},
+		{"any", []string{"Nodes", "Fleet", "Orders", "Elsewhere"}, []string{"Elsewhere", "Nodes", "Fleet", "Orders"}},
+		{"", []string{"Queues", "Nodes", "Fleet", "Orders", "Checkout Latency", "Elsewhere"}, []string{"Elsewhere", "Queues", "Nodes", "Fleet", "Orders", "Checkout Latency"}},
+	}
+	for _, tt := range tests {
+		for _, byFolder := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%q by folder %v", tt.problem, byFolder), func(t *testing.T) {
+				want := tt.updated
+				if byFolder {
+					want = tt.byFolder
+				}
+				page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, Problem: tt.problem, ByFolder: byFolder})
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := make([]string, len(page.Items))
+				for i, item := range page.Items {
+					got[i] = item.Title
+				}
+				if !slices.Equal(got, want) || page.Total != len(want) {
+					t.Errorf("items %v with total %d, want %v with total %d", got, page.Total, want, len(want))
+				}
+			})
+		}
+	}
 }

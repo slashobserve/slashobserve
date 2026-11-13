@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -447,18 +448,20 @@ func (st store) unverified(ctx context.Context, id pgtype.UUID, number int) (Unv
 
 func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsParams{
-		Folders:     f.Folders,
-		Folder:      f.Folder,
-		CreatorKind: f.CreatorKind,
-		CreatorID:   f.CreatorID,
-		OnlyAgent:   f.OnlyAgent,
-		OnlyMcp:     f.OnlyMcp,
-		McpClient:   f.McpClient,
-		Datasource:  f.Datasource,
-		Q:           f.Q,
-		Tags:        f.Tags,
-		RowLimit:    httpapi.Int32(limit),
-		RowOffset:   httpapi.Int32(offset),
+		Folders:        f.Folders,
+		Folder:         f.Folder,
+		CreatorKind:    f.CreatorKind,
+		CreatorID:      f.CreatorID,
+		OnlyAgent:      f.OnlyAgent,
+		OnlyMcp:        f.OnlyMcp,
+		McpClient:      f.McpClient,
+		Datasource:     f.Datasource,
+		Q:              f.Q,
+		Tags:           f.Tags,
+		Problem:        f.Problem,
+		UnopenedBefore: f.UnopenedBefore,
+		RowLimit:       httpapi.Int32(limit),
+		RowOffset:      httpapi.Int32(offset),
 	}
 	if after != nil {
 		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
@@ -473,18 +476,20 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit, offs
 
 func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsByFolderParams{
-		Folders:     f.Folders,
-		Folder:      f.Folder,
-		CreatorKind: f.CreatorKind,
-		CreatorID:   f.CreatorID,
-		OnlyAgent:   f.OnlyAgent,
-		OnlyMcp:     f.OnlyMcp,
-		McpClient:   f.McpClient,
-		Datasource:  f.Datasource,
-		Q:           f.Q,
-		Tags:        f.Tags,
-		RowLimit:    httpapi.Int32(limit),
-		RowOffset:   httpapi.Int32(offset),
+		Folders:        f.Folders,
+		Folder:         f.Folder,
+		CreatorKind:    f.CreatorKind,
+		CreatorID:      f.CreatorID,
+		OnlyAgent:      f.OnlyAgent,
+		OnlyMcp:        f.OnlyMcp,
+		McpClient:      f.McpClient,
+		Datasource:     f.Datasource,
+		Q:              f.Q,
+		Tags:           f.Tags,
+		Problem:        f.Problem,
+		UnopenedBefore: f.UnopenedBefore,
+		RowLimit:       httpapi.Int32(limit),
+		RowOffset:      httpapi.Int32(offset),
 	}
 	if after != nil {
 		params.CFolder = after.FolderID
@@ -539,14 +544,16 @@ func (st store) count(ctx context.Context, f dbsqlc.CountDashboardsParams) (int,
 
 func filterOf(p ListParams, visible []pgtype.UUID) (dbsqlc.CountDashboardsParams, error) {
 	f := dbsqlc.CountDashboardsParams{
-		Folders:    visible,
-		Folder:     p.Folder,
-		OnlyAgent:  p.MadeBy.AgentOnly,
-		OnlyMcp:    p.MadeBy.MCPOnly,
-		McpClient:  optionalText(p.MadeBy.MCPClient),
-		Datasource: optionalText(p.Datasource),
-		Q:          optionalText(p.Query),
-		Tags:       p.Tags,
+		Folders:        visible,
+		Folder:         p.Folder,
+		OnlyAgent:      p.MadeBy.AgentOnly,
+		OnlyMcp:        p.MadeBy.MCPOnly,
+		McpClient:      optionalText(p.MadeBy.MCPClient),
+		Datasource:     optionalText(p.Datasource),
+		Q:              optionalText(p.Query),
+		Tags:           p.Tags,
+		Problem:        optionalText(p.Problem),
+		UnopenedBefore: pgtype.Timestamptz{Time: healthrule.UnopenedBefore(time.Now()), Valid: true},
 	}
 	if p.MadeBy.CreatorKind != "" {
 		id, err := db.ParseUUID(p.MadeBy.CreatorID)

@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -338,5 +339,65 @@ func TestARecordedTransitionNeverSendsASecondNotification(t *testing.T) {
 	sent := got.drain(t, d)
 	if len(sent) != 1 || sent[0]["status"] != "failed" || sent[0]["seq"] == nil {
 		t.Fatalf("cancel sent %v, want one revision.updated with a seq", sent)
+	}
+}
+
+const repairedParentSpec = `{"title":"Node resources","panels":[
+  {"id":"cpu","type":"timeseries","queries":[{"query":"bad"}]},
+  {"id":"mem","type":"timeseries","queries":[{"query":"bad"}]},
+  {"id":"disk","type":"timeseries","queries":[{"query":"bad"}]}]}`
+
+const repairedSavedSpec = `{"title":"Node resources","panels":[
+  {"id":"cpu","type":"timeseries","queries":[{"query":"good"}]},
+  {"id":"mem","type":"timeseries","queries":[{"query":"bad"}]},
+  {"id":"disk","type":"timeseries","queries":[{"query":"still bad"}]}]}`
+
+func seedRepairedDashboard(t *testing.T, d *dbtest.Database) pgtype.UUID {
+	t.Helper()
+	dash := seedDashboard(t, d, 2)
+	d.Exec(t, `UPDATE dashboard_versions SET spec = $2::jsonb WHERE dashboard_id = $1 AND version = 1`, dash, repairedParentSpec)
+	d.Exec(t, `UPDATE dashboard_versions SET spec = $2::jsonb, unverified = '{"panels":[{"panel_id":"disk","issues":[]}],"variables":[]}' WHERE dashboard_id = $1 AND version = 2`, dash, repairedSavedSpec)
+	return dash
+}
+
+func TestARepairRunThatSavedAVersionRecordsTheDashboardTitleAndRepairedPanelCount(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedRepairedDashboard(t, d)
+	prompt := repairprompt.Prefix + "\n- panel cpu (\"CPU\") fails\n- panel mem returns no data\n- panel disk fails\n- variable node resolves to nothing"
+	rev := submit(t, svc, dash, prompt)
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+
+	records := runRecords(t, d, mustUUID(t, rev.ID))
+	assertTypes(t, records, "run.queued", "run.started", "run.succeeded")
+	got := records[2].Data
+	if got["source"] != "prompt" || got["result_version"] != float64(2) {
+		t.Errorf("run.succeeded data = %v, want its source and result_version unchanged", got)
+	}
+	if got["dashboard_title"] != "Node resources" || got["panels_repaired"] != float64(1) {
+		t.Errorf("run.succeeded data = %v, want the dashboard title and one repaired panel", got)
+	}
+	for _, r := range records[:2] {
+		if _, ok := r.Data["dashboard_title"]; ok {
+			t.Errorf("%s carries dashboard_title, only run.succeeded does", r.Type)
+		}
+	}
+}
+
+func TestARunThatIsNotAHealthRepairRecordsNoRepairFields(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedRepairedDashboard(t, d)
+	rev := submit(t, svc, dash, "fix the cpu panel")
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+
+	got := runRecords(t, d, mustUUID(t, rev.ID))[2].Data
+	if _, ok := got["dashboard_title"]; ok {
+		t.Errorf("run.succeeded data = %v, want no repair fields", got)
+	}
+	if _, ok := got["panels_repaired"]; ok {
+		t.Errorf("run.succeeded data = %v, want no repair fields", got)
 	}
 }

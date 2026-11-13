@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -204,8 +205,24 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.Query = trimmed
 	}
-	ok = folderFilters(c, &params)
-	return params, ok
+	return params, problemFilter(c, &params) && folderFilters(c, &params)
+}
+
+func problemFilter(c *gin.Context, params *ListParams) bool {
+	raw, ok := httpapi.NonEmptyQuery(c, "problem")
+	if !ok {
+		return false
+	}
+	if raw == "" {
+		return true
+	}
+	problem, valid := healthrule.ValidFilter(raw)
+	if !valid {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "problem must be any, no_data, query_failed, variable_failed, duplicate_title or unopened")
+		return false
+	}
+	params.Problem = problem
+	return true
 }
 
 func folderFilters(c *gin.Context, params *ListParams) bool {

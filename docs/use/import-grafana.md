@@ -46,7 +46,7 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
-The **Imported, not verified** filter on the [Health page](dashboard-health.md) lists every dashboard that still has unverified panels or variables and sends them to the agent.
+The **Imported, not verified** problem filter on the [dashboards list](dashboard-health.md#in-the-dashboards-list) lists every dashboard that still has unverified panels or variables and sends them to the agent.
 
 Later saves keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged, and so does its panel type, time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 A save with `update_dashboard` runs every query.

@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { datasourcesQuery } from "@/datasources/queries"
 import { foldersQuery } from "@/folders/queries"
+import {
+  healthKinds,
+  importedFilter,
+  isProblemFilter,
+  problemFilterLabels,
+  type ProblemFilter,
+} from "@/health/health-labels"
 import { usersQuery } from "@/people/queries"
 
 import { folderText, madeByText, tagsText } from "./list-filters"
@@ -135,6 +142,50 @@ export function FolderMenu({ value, onChange }: MenuProps) {
               value={folder.id}
             >
               {folder.title}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+type ProblemMenuProps = {
+  value: ProblemFilter | undefined
+  offerImported: boolean
+  onChange: (value: ProblemFilter | undefined) => void
+}
+
+const problemChoices: readonly ProblemFilter[] = [
+  "any",
+  ...healthKinds,
+  importedFilter,
+]
+
+export function ProblemMenu({
+  value,
+  offerImported,
+  onChange,
+}: ProblemMenuProps) {
+  const choices = problemChoices.filter(
+    (choice) => offerImported || choice !== importedFilter
+  )
+  return (
+    <DropdownMenu>
+      <Trigger>{`Problem: ${value === undefined ? "any" : problemFilterLabels[value]}`}</Trigger>
+      <DropdownMenuContent className={contentClass}>
+        <DropdownMenuRadioGroup
+          value={value ?? ""}
+          onValueChange={(next) =>
+            onChange(isProblemFilter(next) ? next : undefined)
+          }
+        >
+          <DropdownMenuRadioItem closeOnClick value="">
+            Any
+          </DropdownMenuRadioItem>
+          {choices.map((choice) => (
+            <DropdownMenuRadioItem closeOnClick key={choice} value={choice}>
+              {problemFilterLabels[choice]}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

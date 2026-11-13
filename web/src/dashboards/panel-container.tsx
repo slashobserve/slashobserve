@@ -15,6 +15,8 @@ import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { PanelHealthBadge } from "@/health/panel-health-badge"
+import type { PanelHealth } from "@/health/use-dashboard-health"
 import { downloadCsv } from "@/inspect/csv"
 import type { InspectTarget } from "@/inspect/inspect-pane"
 import { savePanelPng } from "@/inspect/png"
@@ -123,6 +125,7 @@ type PanelContainerProps = {
   layoutSession: boolean
   openComments: number
   unverifiedReason: string | undefined
+  health?: PanelHealth
   highlighted: boolean
   selected?: boolean
   editingPanel: boolean
@@ -164,6 +167,7 @@ export const PanelContainer = memo(function PanelContainer({
   layoutSession,
   openComments,
   unverifiedReason,
+  health,
   highlighted,
   selected = false,
   editingPanel,
@@ -467,6 +471,9 @@ export const PanelContainer = memo(function PanelContainer({
                 title={panelTitle(panel)}
                 reason={unverifiedReason}
               />
+            ) : null}
+            {health ? (
+              <PanelHealthBadge title={panelTitle(panel)} {...health} />
             ) : null}
             <PanelCommentBadge
               panelId={panel.id}

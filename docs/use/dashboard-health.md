@@ -6,27 +6,24 @@ description: Find the dashboards that broke after a move from Grafana or rotted 
 Every dashboard is checked about once a day for panels that stopped working, and the health list shows each dashboard with a problem.
 It is the list to work through after [switching from Grafana](switch-from-grafana.md), and the one to come back to as datasources and metrics change.
 
-## The Health page
+## In the dashboards list
 
-Choose **Health** in the sidebar, or open `<public url>/health`.
-A summary line under the header counts the dashboards that are failing, have no data, have not been opened in 90 days or share a title, over every dashboard in the chosen folder whatever the problem filter, and says when the last check finished or that one is going now.
-When no dashboard has a problem, the page says that every dashboard passed its last check, and when.
+The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more problems" counting its other problems, and the state of its repair.
+Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
+A dashboard that was checked and has no problem shows a **Healthy** badge, whose popover says "No problems found" and when and on which version it was checked.
 
-The list shows one row per dashboard, ranked with failures first, then dashboards with no data, then duplicate titles and dashboards nobody opens; inside each rank, the most recently opened dashboard comes first.
-Each row shows the dashboard's folder, its problems, when it was last checked and on which version, and when anyone last opened it.
-Problems of one kind with the same message share one line with the number of panels, such as "No data · 13 panels", the message once, and **Show panels** to list them.
-On a phone each row is a short list entry with the problems, the times and the action.
+The **Problem** menu narrows the list to the dashboards with one kind of problem, or with any problem, and the address keeps the choice, as `?kind=<kind or any>&folder=<folder id>`.
+The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
+For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards; see [Repair](switch-from-grafana.md#repair).
 
-The **Problem** and **Folder** menus narrow the list to one kind of problem or one folder, and the address keeps the choice, as `?kind=no_data&folder=<folder id>`, so a filtered list can be shared.
-For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards with **Repair all**; see [Repair](switch-from-grafana.md#repair).
+A summary line above the list counts the dashboards that are failing, have no data, have not been opened in 90 days or have a duplicate title, such as **2 dashboards failing**, and says when the last check finished or that one is going now.
+It shows to everyone when there is something to report.
+An Admin always sees it, with **Run now**, which is turned off while a run is going.
 
-Each row ends with the next thing to do.
-**Repair** shows on a dashboard you can edit that has a problem the agent can repair, and it is turned off with the reason when no agent is configured.
-While the repair waits or runs, the row says **Repair queued** or **Repairing**.
-After a repair that saved a version, the row says **Repaired** with **See changes**, which opens the versions compare of that version, until the next check reads it.
-After a repair that failed, the row says **Repair failed** with the reason, and **Repair** again.
-Any other row offers **Open**.
-An Admin also sees **Run now**, which is turned off while a run is going; the page follows the run until it finishes.
+## Where health shows
+
+Health shows in two places: the [dashboards list](#in-the-dashboards-list) and [a dashboard](web.md#health-on-a-dashboard).
+`<public url>/health` opens the dashboards list filtered to dashboards with any problem, and keeps `kind` and `folder`.
 
 ## What counts as a problem
 
@@ -56,20 +53,25 @@ A check that cannot run at all is recorded as a `query_failed` problem with the 
 
 ## Repair
 
-An Editor can ask the agent to repair a dashboard, with **Repair** on the Health page or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
+An Editor can ask the agent to repair a dashboard, with **Repair** from the dashboards list or the dashboard, or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
 The repair is an ordinary revision with a prompt that names each failing panel and variable, so it shows in the dashboard's history and can be reviewed and reverted like any other.
 It needs a configured LLM provider and edit access to the dashboard, and a dashboard with a revision already queued or running is skipped.
 Each person can have 20 health repairs queued or running at once.
 
 ## Run now
 
-An Admin can start a run at once with **Run now**, for example right after a large import.
+An Admin can start a run at once with **Run now** above the dashboards list, for example right after a large import.
 It checks the dashboards that are due, as the hourly run does, and when a run is already going nothing more starts.
 
 ## API
 
 `GET /api/v1/health` lists the dashboards with a problem in folders the caller can see.
-It takes `folder_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
+It takes `folder_id`, `dashboard_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
+`dashboard_id` repeats up to 50 times and lists only those dashboards that the caller can see, whether or not they have a problem: a checked dashboard with no problem comes back with empty `problems`, and one that was never checked has `state` `unchecked` with null `checked_at` and `checked_version`.
+With `kind` as well, the list keeps only the dashboards with a problem of that kind.
+`summary` is null on every page when `dashboard_id` is given.
+The web reads a dashboard's Healthy badge this way.
+`GET /api/v1/dashboards?problem=<kind or any>` narrows the dashboards list to the dashboards with that problem by the same rules, keeping its order, paging and `total_count`.
 
 The list is ranked, so the dashboards most worth fixing come first:
 
@@ -171,7 +173,7 @@ Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows t
 
 ## From MCP clients
 
-MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
+MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard, answered even when it has no problem, with empty `problems`), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
 The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).

@@ -1,4 +1,9 @@
 import type { DashboardListFilters } from "@/api/keys"
+import {
+  importedFilter,
+  isProblemFilter,
+  type ProblemFilter,
+} from "@/health/health-labels"
 
 import { maxListPage } from "./list-pages"
 
@@ -8,6 +13,7 @@ export type ListSearch = {
   datasource?: string
   tag?: string[]
   folder?: string
+  kind?: ProblemFilter
   page?: number
 }
 
@@ -68,6 +74,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     datasource: undefined,
     tag: undefined,
     folder: undefined,
+    kind: undefined,
     page: undefined,
   }
   const q = firstString(raw.q)?.trim()
@@ -94,6 +101,8 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   if (folder !== undefined && folderPattern.test(folder)) {
     search.folder = folder.toLowerCase()
   }
+  const kind = firstString(raw.kind)
+  if (isProblemFilter(kind)) search.kind = kind
   const page = firstString(raw.page)
   if (page !== undefined && pagePattern.test(page)) {
     const n = Number(page)
@@ -117,6 +126,7 @@ export function toFilters(search: ListSearch): DashboardListFilters {
     datasource: search.datasource,
     tags: search.tag,
     folder: search.folder,
+    problem: search.kind === importedFilter ? undefined : search.kind,
   }
 }
 
@@ -126,7 +136,8 @@ export function hasFilters(search: ListSearch): boolean {
     search.made_by !== undefined ||
     search.datasource !== undefined ||
     search.tag !== undefined ||
-    search.folder !== undefined
+    search.folder !== undefined ||
+    search.kind !== undefined
   )
 }
 

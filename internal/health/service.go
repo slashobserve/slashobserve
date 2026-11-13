@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -50,10 +51,15 @@ func New(d Deps) *Service {
 }
 
 type ListParams struct {
-	FolderID pgtype.UUID
-	Kind     Kind
-	Cursor   string
-	Limit    int
+	FolderID     pgtype.UUID
+	DashboardIDs []pgtype.UUID
+	Kind         Kind
+	Cursor       string
+	Limit        int
+}
+
+func (p ListParams) ListsEveryRequested() bool {
+	return len(p.DashboardIDs) > 0 && p.Kind == ""
 }
 
 type Item struct {
@@ -113,14 +119,20 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 		return Page{}, ErrInvalidCursor
 	}
 	now := time.Now()
-	before := pgtype.Timestamptz{Time: unopenedBefore(now), Valid: true}
+	before := pgtype.Timestamptz{Time: healthrule.UnopenedBefore(now), Valid: true}
 	visible := levels.Visible()
+	kind := string(p.Kind)
+	if p.Kind == "" {
+		kind = healthrule.AnyProblem
+	}
 	params := dbsqlc.ListHealthParams{
 		Folders:        visible,
 		Folder:         p.FolderID,
-		Kind:           string(p.Kind),
+		DashboardIds:   p.DashboardIDs,
+		EveryRequested: p.ListsEveryRequested(),
+		Kind:           kind,
 		UnopenedBefore: before,
-		RepairPrefix:   repairPromptPrefix,
+		RepairPrefix:   repairprompt.Prefix,
 		RowLimit:       httpapi.Int32(p.Limit + 1),
 	}
 	if cursor != nil {
@@ -138,7 +150,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 		return Page{}, err
 	}
 	page := Page{Items: make([]Item, 0, min(len(rows), p.Limit)), Job: job}
-	if cursor == nil {
+	if cursor == nil && len(p.DashboardIDs) == 0 {
 		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID})
 		if err != nil {
 			return Page{}, fmt.Errorf("summarize health: %w", err)
@@ -264,11 +276,6 @@ func decodeProblems(raw []byte) ([]Problem, error) {
 		return nil, fmt.Errorf("decode health problems: %w", err)
 	}
 	return problems, nil
-}
-
-func ValidKind(raw string) (Kind, bool) {
-	k := Kind(raw)
-	return k, slices.Contains(Kinds, k)
 }
 
 func timeOf(t pgtype.Timestamptz) *time.Time {

@@ -16,13 +16,13 @@ SELECT count(*)::int
 FROM (
   SELECT 1
   FROM activity a
-  CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[]) AS reason) n
+  CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[], $3::text) AS reason) n
   LEFT JOIN inbox_cursors ic ON ic.user_id = $1::uuid
   WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
     AND a.created_at >= now() - interval '30 days'
-    AND (a.folder_id = ANY($3::uuid[])
-      OR (a.folder_id IS NULL AND ($4::boolean OR (a.actor_kind = $5::text AND a.actor_id = $1::uuid))))
-    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed')
+    AND (a.folder_id = ANY($4::uuid[])
+      OR (a.folder_id IS NULL AND ($5::boolean OR (a.actor_kind = $6::text AND a.actor_id = $1::uuid))))
+    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded')
     AND n.reason IS NOT NULL
     AND (ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
   LIMIT 101
@@ -30,11 +30,12 @@ FROM (
 `
 
 type InboxUnreadCountParams struct {
-	ReaderID   pgtype.UUID
-	Editable   []pgtype.UUID
-	Folders    []pgtype.UUID
-	Admin      bool
-	ReaderKind string
+	ReaderID     pgtype.UUID
+	Editable     []pgtype.UUID
+	RepairPrefix string
+	Folders      []pgtype.UUID
+	Admin        bool
+	ReaderKind   string
 }
 
 // The horizon and the scan must share this statement's snapshot; never move the horizon into a function or another query.
@@ -42,6 +43,7 @@ func (q *Queries) InboxUnreadCount(ctx context.Context, arg InboxUnreadCountPara
 	row := q.db.QueryRow(ctx, inboxUnreadCount,
 		arg.ReaderID,
 		arg.Editable,
+		arg.RepairPrefix,
 		arg.Folders,
 		arg.Admin,
 		arg.ReaderKind,
@@ -56,34 +58,35 @@ SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folde
        coalesce(n.reason, '')::text AS reason,
        (ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread
 FROM activity a
-CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[]) AS reason OFFSET 0) n
+CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[], $3::text) AS reason OFFSET 0) n
 LEFT JOIN inbox_cursors ic ON ic.user_id = $1::uuid
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND a.created_at >= now() - interval '30 days'
-  AND (a.folder_id = ANY($3::uuid[])
-    OR (a.folder_id IS NULL AND ($4::boolean OR (a.actor_kind = $5::text AND a.actor_id = $1::uuid))))
-  AND ($6::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed'))
-  AND (CASE WHEN $6::boolean
-         THEN n.reason IS NOT NULL OR NOT (a.actor_kind = $5::text AND a.actor_id = $1::uuid)
-         ELSE n.reason = ANY($7::text[])
+  AND (a.folder_id = ANY($4::uuid[])
+    OR (a.folder_id IS NULL AND ($5::boolean OR (a.actor_kind = $6::text AND a.actor_id = $1::uuid))))
+  AND ($7::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded'))
+  AND (CASE WHEN $7::boolean
+         THEN n.reason IS NOT NULL OR NOT (a.actor_kind = $6::text AND a.actor_id = $1::uuid)
+         ELSE n.reason = ANY($8::text[])
        END)
-  AND (NOT $8::boolean OR (a.xid, a.seq) < ($9::xid8, $10::bigint))
+  AND (NOT $9::boolean OR (a.xid, a.seq) < ($10::xid8, $11::bigint))
 ORDER BY a.xid DESC, a.seq DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListInboxParams struct {
-	ReaderID   pgtype.UUID
-	Editable   []pgtype.UUID
-	Folders    []pgtype.UUID
-	Admin      bool
-	ReaderKind string
-	Everything bool
-	Reasons    []string
-	HasCursor  bool
-	CursorXid  pgtype.Uint64
-	CursorSeq  int64
-	RowLimit   int32
+	ReaderID     pgtype.UUID
+	Editable     []pgtype.UUID
+	RepairPrefix string
+	Folders      []pgtype.UUID
+	Admin        bool
+	ReaderKind   string
+	Everything   bool
+	Reasons      []string
+	HasCursor    bool
+	CursorXid    pgtype.Uint64
+	CursorSeq    int64
+	RowLimit     int32
 }
 
 type ListInboxRow struct {
@@ -97,6 +100,7 @@ func (q *Queries) ListInbox(ctx context.Context, arg ListInboxParams) ([]ListInb
 	rows, err := q.db.Query(ctx, listInbox,
 		arg.ReaderID,
 		arg.Editable,
+		arg.RepairPrefix,
 		arg.Folders,
 		arg.Admin,
 		arg.ReaderKind,
