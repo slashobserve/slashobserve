@@ -113,20 +113,37 @@ export function AskField({
       <label htmlFor={fieldId} className="sr-only">
         Question
       </label>
-      <Textarea
-        ref={ref}
-        id={fieldId}
-        rows={1}
-        value={value}
-        placeholder={placeholder}
-        aria-controls={recentOpen ? recentId : undefined}
-        onChange={(event) => {
-          onChange(event.target.value)
-          setCursor(freshCursor)
-        }}
-        onKeyDown={onKeyDown}
-        className="max-h-[4.75rem] min-h-9 resize-none pr-36"
-      />
+      <div className="flex items-start gap-2">
+        <Textarea
+          ref={ref}
+          id={fieldId}
+          rows={1}
+          value={value}
+          placeholder={placeholder}
+          aria-controls={recentOpen ? recentId : undefined}
+          onChange={(event) => {
+            onChange(event.target.value)
+            setCursor(freshCursor)
+          }}
+          onKeyDown={onKeyDown}
+          className="max-h-[4.75rem] min-h-8 flex-1 resize-none bg-background narrow:min-h-11"
+        />
+        <Button
+          type="button"
+          size="sm"
+          className="mt-0.5 narrow:mt-0 narrow:h-11"
+          onClick={ask}
+          aria-busy={pending}
+        >
+          {pending ? (
+            <LoaderCircleIcon
+              aria-hidden="true"
+              className="motion-safe:animate-spin"
+            />
+          ) : null}
+          {pending ? "Writing query" : "Ask"}
+        </Button>
+      </div>
       {recentOpen ? (
         <div
           id={recentId}
@@ -149,17 +166,6 @@ export function AskField({
           ))}
         </div>
       ) : null}
-      <div className="flex items-center gap-2">
-        <Button type="button" onClick={ask} aria-busy={pending}>
-          {pending ? (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              className="motion-safe:animate-spin"
-            />
-          ) : null}
-          {pending ? "Writing query" : "Ask"}
-        </Button>
-      </div>
     </div>
   )
 }
