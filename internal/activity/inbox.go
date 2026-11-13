@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
@@ -34,9 +35,10 @@ const (
 	ReasonMention        Reason = "mention"
 	ReasonReply          Reason = "reply"
 	ReasonRunFailed      Reason = "run_failed"
+	ReasonRepaired       Reason = "repaired"
 )
 
-var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed}
+var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed, ReasonRepaired}
 
 const (
 	UnreadCap = 100
@@ -116,14 +118,15 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, cursor 
 	}
 	a := reader.audience
 	params := dbsqlc.ListInboxParams{
-		ReaderID:   a.ReaderID,
-		Editable:   reader.editable,
-		Folders:    visibleFolders(a),
-		Admin:      a.Admin,
-		ReaderKind: a.ReaderKind,
-		Everything: view == ViewEverything,
-		Reasons:    reasonsOf(view),
-		RowLimit:   httpapi.Int32(limit + 1),
+		ReaderID:     a.ReaderID,
+		Editable:     reader.editable,
+		Folders:      visibleFolders(a),
+		Admin:        a.Admin,
+		ReaderKind:   a.ReaderKind,
+		Everything:   view == ViewEverything,
+		Reasons:      reasonsOf(view),
+		RepairPrefix: repairprompt.Prefix,
+		RowLimit:     httpapi.Int32(limit + 1),
 	}
 	if cursor != "" {
 		from, err := decodeCursor(cursor)
@@ -153,11 +156,12 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, cursor 
 		})
 	}
 	count, err := q.InboxUnreadCount(ctx, dbsqlc.InboxUnreadCountParams{
-		ReaderID:   a.ReaderID,
-		Editable:   reader.editable,
-		Folders:    visibleFolders(a),
-		Admin:      a.Admin,
-		ReaderKind: a.ReaderKind,
+		ReaderID:     a.ReaderID,
+		Editable:     reader.editable,
+		Folders:      visibleFolders(a),
+		Admin:        a.Admin,
+		ReaderKind:   a.ReaderKind,
+		RepairPrefix: repairprompt.Prefix,
 	})
 	if err != nil {
 		return InboxPage{}, fmt.Errorf("count unread inbox items: %w", err)

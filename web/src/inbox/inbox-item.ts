@@ -34,6 +34,7 @@ const reasonLabels: Record<InboxReason, string> = {
   mention: "Mention",
   reply: "Reply",
   run_failed: "Run failed",
+  repaired: "Repaired",
 }
 
 function field(item: InboxItem, key: string): unknown {

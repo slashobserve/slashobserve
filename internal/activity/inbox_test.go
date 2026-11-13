@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 )
 
 var (
@@ -112,6 +113,33 @@ func (r rig) failedRun(t *testing.T, requester actor.Actor) (run pgtype.UUID, se
 	runActor := requester
 	runActor.RunID = run.String()
 	return run, r.append(t, Entry{Type: TypeRunFailed, TargetID: run, Owner: General(), Actor: runActor, Data: map[string]any{"source": "observe"}})
+}
+
+func (r rig) promptRun(t *testing.T, requester actor.Actor, prompt, state string, version any) pgtype.UUID {
+	t.Helper()
+	dashboard := r.dashboardIn(t, pgtype.UUID{})
+	failure := any(nil)
+	if state == "failed" {
+		failure = "internal"
+	}
+	return r.uuid(t, r.scalar(t, `INSERT INTO agent_requests (dashboard_id, base_version, source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, result_version)
+		VALUES ($1, 1, 'prompt', $2, 'user', $3::uuid, $4, $5, $5, $6, $7) RETURNING id::text`, dashboard.String(), prompt, requester.ID, requester.Name, state, failure, version))
+}
+
+func (r rig) endedPromptRun(t *testing.T, requester actor.Actor, prompt, state string, version any) (run pgtype.UUID, seq int64) {
+	t.Helper()
+	run = r.promptRun(t, requester, prompt, state, version)
+	runActor := requester
+	runActor.RunID = run.String()
+	typ := TypeRunSucceeded
+	data := map[string]any{"source": "prompt"}
+	if state == "failed" {
+		typ = TypeRunFailed
+	}
+	if version != nil {
+		data["result_version"] = version
+	}
+	return run, r.append(t, Entry{Type: typ, TargetID: run, Owner: General(), Actor: runActor, Data: data})
 }
 
 func (r rig) inbox(t *testing.T, by auth.Principal, view View) InboxPage {
@@ -232,6 +260,44 @@ func TestInboxListsAFailedRunUntilItIsContinued(t *testing.T) {
 
 	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, continues_id) VALUES ('observe', 'again', 'user', $1::uuid, 'Mia', $2::uuid)`, mia.ID, run.String())
 	wantReasons(t, "after a continuation", r.inbox(t, mia, ViewForYou))
+}
+
+func TestInboxListsASucceededHealthRepairForItsRequesterOnly(t *testing.T) {
+	r := newRig(t)
+	_, seq := r.endedPromptRun(t, miaActor, repairprompt.Prefix+"\n- panel rps fails", "succeeded", 4)
+	r.endedPromptRun(t, ola, repairprompt.Prefix+"\n- panel rps fails", "succeeded", 4)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a repair that saved a version", page, ReasonRepaired)
+	if got := inboxSeqs(page); !slices.Equal(got, []int64{seq}) || !page.Items[0].Unread {
+		t.Fatalf("seqs = %v unread = %v, want only %d unread", got, page.Items[0].Unread, seq)
+	}
+	if page.UnreadCount != 1 {
+		t.Fatalf("unread_count = %d, want 1", page.UnreadCount)
+	}
+	wantReasons(t, "the other requester", r.inbox(t, auth.Principal{Kind: auth.KindUser, ID: ola.ID, Name: ola.Name, Role: auth.RoleEditor}, ViewForYou), ReasonRepaired)
+	wantReasons(t, "proposals", r.inbox(t, mia, ViewProposals))
+	wantReasons(t, "mentions", r.inbox(t, mia, ViewMentions))
+	wantReasons(t, "everything", r.inbox(t, mia, ViewEverything), "", ReasonRepaired)
+}
+
+func TestInboxLeavesOutSucceededRunsThatAreNotRepairsOrSavedNothing(t *testing.T) {
+	r := newRig(t)
+	r.endedPromptRun(t, miaActor, "make the latency panel a heatmap", "succeeded", 4)
+	r.endedPromptRun(t, miaActor, repairprompt.Prefix, "succeeded", 4)
+	r.db.Exec(t, `UPDATE agent_requests SET result_version = NULL, result_kind = 'proposal' WHERE prompt = $1`, repairprompt.Prefix)
+
+	wantReasons(t, "ordinary and empty runs", r.inbox(t, mia, ViewForYou))
+	if page := r.inbox(t, mia, ViewForYou); page.UnreadCount != 0 {
+		t.Fatalf("unread_count = %d, want 0", page.UnreadCount)
+	}
+}
+
+func TestInboxKeepsAFailedHealthRepairAsAFailedRun(t *testing.T) {
+	r := newRig(t)
+	r.endedPromptRun(t, miaActor, repairprompt.Prefix+"\n- panel rps fails", "failed", nil)
+
+	wantReasons(t, "a failed repair", r.inbox(t, mia, ViewForYou), ReasonRunFailed)
 }
 
 func TestInboxLeavesOutItemsOlderThanThirtyDays(t *testing.T) {

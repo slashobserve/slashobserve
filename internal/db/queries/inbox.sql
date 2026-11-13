@@ -4,13 +4,13 @@ SELECT sqlc.embed(a),
        coalesce(n.reason, '')::text AS reason,
        (ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread
 FROM activity a
-CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[]) AS reason OFFSET 0) n
+CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[], @repair_prefix::text) AS reason OFFSET 0) n
 LEFT JOIN inbox_cursors ic ON ic.user_id = @reader_id::uuid
 WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND a.created_at >= now() - interval '30 days'
   AND (a.folder_id = ANY(@folders::uuid[])
     OR (a.folder_id IS NULL AND (@admin::boolean OR (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid))))
-  AND (@everything::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed'))
+  AND (@everything::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded'))
   AND (CASE WHEN @everything::boolean
          THEN n.reason IS NOT NULL OR NOT (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid)
          ELSE n.reason = ANY(@reasons::text[])
@@ -25,13 +25,13 @@ SELECT count(*)::int
 FROM (
   SELECT 1
   FROM activity a
-  CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[]) AS reason) n
+  CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[], @repair_prefix::text) AS reason) n
   LEFT JOIN inbox_cursors ic ON ic.user_id = @reader_id::uuid
   WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
     AND a.created_at >= now() - interval '30 days'
     AND (a.folder_id = ANY(@folders::uuid[])
       OR (a.folder_id IS NULL AND (@admin::boolean OR (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid))))
-    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed')
+    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded')
     AND n.reason IS NOT NULL
     AND (ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
   LIMIT 101

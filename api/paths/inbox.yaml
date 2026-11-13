@@ -12,6 +12,7 @@ inbox:
       `mention` is a comment that mentions the caller by name.
       `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested.
       `run_failed` is a failed run the caller requested that nobody has continued.
+      `repaired` is a health repair the caller started that saved a version.
       `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none.
       An item is unread when it is newer than the position `POST /api/v1/inbox/read` stored for the caller, and every item is unread until the caller reads once.
       `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more.

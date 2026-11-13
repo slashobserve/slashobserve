@@ -20,7 +20,7 @@ const (
 
 	codeUserSessionRequired = "user_session_required"
 
-	descListInbox = "List what is asked of the person you work for, newest first: proposals to review, observation blocks waiting for them, mentions, replies in their threads and their agent runs that failed. Each item is an activity event as list_activity returns it, plus the reason it needs them (proposal, requested_block, mention, reply, run_failed; null in the everything view) and whether it is unread. Views: for_you (default, everything that needs them), proposals, mentions (mentions and replies) and everything (all activity by others). unread_count counts unread for_you items and stops at 100. It works only for a signed-in person, never for a service-account key, and it does not mark anything read. Page with next_cursor."
+	descListInbox = "List what is asked of the person you work for, newest first: proposals to review, observation blocks waiting for them, mentions, replies in their threads, their agent runs that failed and health repairs of theirs that saved a version. Each item is an activity event as list_activity returns it, plus the reason it needs them (proposal, requested_block, mention, reply, run_failed, repaired; null in the everything view) and whether it is unread. Views: for_you (default, everything that needs them), proposals, mentions (mentions and replies) and everything (all activity by others). unread_count counts unread for_you items and stops at 100. It works only for a signed-in person, never for a service-account key, and it does not mark anything read. Page with next_cursor."
 )
 
 var schemaListInbox = `{"type":"object","properties":{` +
