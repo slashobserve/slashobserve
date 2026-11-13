@@ -24,7 +24,7 @@ export function TraceMinimap({
   const drag = useZoomDrag(zoom, onZoom)
   const zoomed = !isWholeTrace(zoom)
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border px-2">
+    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2">
       <span className="shrink-0 text-xs text-muted-foreground">
         Whole trace, drag to zoom
       </span>

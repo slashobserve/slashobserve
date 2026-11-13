@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -9,10 +10,12 @@ import {
 } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
+import { DownloadIcon, LogsIcon } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { PageHeader } from "@/components/page-header"
+import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,6 +26,7 @@ import {
   type TimeRangeValue,
 } from "@/dashboards/time-range-picker"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
+import { useDocumentTitle } from "@/lib/document-title"
 import { tracesLink, traceUrl } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
 import { describeRange, zonedDateTimeMs } from "@/lib/time"
@@ -35,6 +39,8 @@ import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
 import { SidePanel } from "@/shell/side-panel"
+import { TopRowActions } from "@/shell/top-row-actions"
+import { TopRowTitle } from "@/shell/top-row-title"
 import { foldGroups, foldThreshold } from "@/panels/traces/fold"
 import {
   criticalPath,
@@ -49,6 +55,8 @@ import {
   type Span,
 } from "@/panels/traces/trace-model"
 import {
+  kindLine,
+  SpanDetails,
   TraceView,
   type SearchLink,
   type TraceViewProps,
@@ -71,7 +79,7 @@ import {
   traceNotice,
   traceQuery,
 } from "./trace-query"
-import { TraceToolbar, type TraceService } from "./trace-toolbar"
+import { ServiceLegend, TraceToolbar, type TraceService } from "./trace-toolbar"
 
 type TraceModelData = TraceViewProps["model"]
 
@@ -116,18 +124,25 @@ function useTraceViewSearch() {
 
 export function TracePage({ traceId }: { traceId: string }) {
   const id = normaliseTraceId(traceId)
-  if (id === null) {
-    return (
-      <>
-        <PageHeader title="Trace" />
-        <p className="text-[13px] text-muted-foreground">
-          This is not a trace id. A trace id has 16 or 32 hexadecimal
-          characters.
-        </p>
-      </>
-    )
-  }
+  if (id === null) return <InvalidTraceId />
   return <TraceForId id={id} />
+}
+
+function InvalidTraceId() {
+  useDocumentTitle("Trace - SlashObserve")
+  return (
+    <>
+      <TopRowTitle>
+        <span aria-current="page" className="min-w-0 truncate font-medium">
+          Trace
+        </span>
+      </TopRowTitle>
+      <PageHeader title="Trace" />
+      <p className="text-[13px] text-muted-foreground">
+        This is not a trace id. A trace id has 16 or 32 hexadecimal characters.
+      </p>
+    </>
+  )
 }
 
 function TraceForId({ id }: { id: string }) {
@@ -137,35 +152,30 @@ function TraceForId({ id }: { id: string }) {
   const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
   const datasource = eligible.find((candidate) => candidate.uid === search.ds)
   const range = traceViewRange(search)
-  const actions = (
-    <>
-      <TimeRangeControl value={range} onChange={update} />
-      {datasource ? (
-        <CopyButton
-          variant="outline"
-          text={
-            window.location.origin +
-            traceUrl(id, datasource.uid, range, search.span)
-          }
-          label="Copy link"
-        >
-          Copy link
-        </CopyButton>
-      ) : null}
-      <Link
-        {...(datasource ? tracesLink(datasource.uid) : { to: "/traces" })}
-        className={cn(buttonVariants({ variant: "outline" }))}
-      >
+  const actions: PageActions = {
+    time: <TimeRangeControl value={range} onChange={update} />,
+    share: datasource ? (
+      <CopyButton
+        variant="ghost"
+        size="icon"
+        text={
+          window.location.origin +
+          traceUrl(id, datasource.uid, range, search.span)
+        }
+        label="Copy link"
+      />
+    ) : (
+      <Link to="/traces" className={cn(buttonVariants({ variant: "outline" }))}>
         Search traces
       </Link>
-    </>
-  )
+    ),
+  }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {datasources.isPending ? (
         <>
-          <TraceHeader id={id} actions={actions} />
+          <TraceHeader id={id} datasource={datasource} actions={actions} />
           <TraceSkeleton />
         </>
       ) : datasource ? (
@@ -178,7 +188,7 @@ function TraceForId({ id }: { id: string }) {
         />
       ) : (
         <>
-          <TraceHeader id={id} actions={actions} />
+          <TraceHeader id={id} datasource={datasource} actions={actions} />
           <div className="flex flex-col gap-3">
             <ExploreDatasourcePicker
               id={`${ids}-datasource`}
@@ -199,54 +209,72 @@ function TraceForId({ id }: { id: string }) {
   )
 }
 
+type PageActions = { time: ReactNode; share: ReactNode }
+type TraceActions = { logs: ReactNode; download: ReactNode }
+
 function TraceHeader({
   id,
+  datasource,
   model,
   traceActions,
   actions,
 }: {
   id: string
+  datasource?: DatasourceStatus
   model?: TraceModelData
-  traceActions?: ReactNode
-  actions: ReactNode
+  traceActions?: TraceActions
+  actions: PageActions
 }) {
   const title = model
     ? [model.rootService, model.rootOperation].filter(Boolean).join(" ")
     : ""
+  useDocumentTitle(
+    title
+      ? `${title} - Trace - SlashObserve`
+      : `Trace ${id.slice(0, 8)} - SlashObserve`
+  )
   return (
-    <PageHeader
-      title={title || "Trace"}
-      description={
-        model ? (
-          <TraceStats model={model} />
-        ) : (
-          <span className="inline-flex items-center gap-1">
-            <span className="font-mono">{id.slice(0, 8)}</span>
-            <CopyButton
-              variant="ghost"
-              size="icon-xs"
-              text={id}
-              label="Copy trace id"
-            />
-          </span>
-        )
-      }
-      actions={
-        <>
-          {model ? (
-            <CopyButton
-              variant="outline"
-              text={id}
-              label={`Copy trace id ${id}`}
+    <>
+      <TopRowTitle>
+        {datasource ? (
+          <>
+            <Link
+              {...tracesLink(datasource.uid)}
+              className="min-w-0 truncate rounded-control text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Copy trace id
-            </CopyButton>
-          ) : null}
-          {model ? traceActions : null}
-          {actions}
-        </>
-      }
-    />
+              {datasource.name}
+            </Link>
+            <span aria-hidden="true" className="text-muted-foreground">
+              /
+            </span>
+          </>
+        ) : null}
+        <span aria-current="page" className="min-w-0 truncate font-medium">
+          {title || "Trace"}
+        </span>
+      </TopRowTitle>
+      <TopRowActions>
+        {actions.time}
+        {traceActions?.logs}
+        {actions.share}
+        {traceActions?.download}
+      </TopRowActions>
+      <h1 className="sr-only text-xl font-semibold tracking-[-0.01em] narrow:not-sr-only">
+        {title || "Trace"}
+      </h1>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+        {model ? <ModelStats model={model} /> : null}
+        <Stat label="Trace">
+          <span className="font-mono text-xs">{id.slice(0, 8)}</span>
+          <CopyButton
+            variant="ghost"
+            size="icon-xs"
+            text={id}
+            label="Copy trace id"
+          />
+        </Stat>
+      </div>
+    </>
   )
 }
 
@@ -306,14 +334,14 @@ function slowestOnPath(
 
 function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span className="inline-flex gap-1.5">
+    <span className="inline-flex items-center gap-1.5">
       <span className="text-muted-foreground">{label}</span>
       {children}
     </span>
   )
 }
 
-function TraceStats({ model }: { model: TraceModelData }) {
+function ModelStats({ model }: { model: TraceModelData }) {
   const errors = model.spans.filter((span) => span.error).length
   const services = new Set(model.spans.map((span) => span.service)).size
   const slowest = useMemo(
@@ -321,7 +349,7 @@ function TraceStats({ model }: { model: TraceModelData }) {
     [model.spans]
   )
   return (
-    <span className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-foreground">
+    <>
       <Stat label="Duration">
         <span className="tabular-nums">
           {model.formatDuration(model.duration)}
@@ -361,7 +389,7 @@ function TraceStats({ model }: { model: TraceModelData }) {
           </span>
         </Stat>
       ) : null}
-    </span>
+    </>
   )
 }
 
@@ -386,17 +414,23 @@ function TraceResult({
   id: string
   search: TraceViewSearch
   update: SearchUpdate
-  actions: ReactNode
+  actions: PageActions
 }) {
   const range = traceViewRange(search)
   const result = useQuery(traceQuery(datasource.uid, id, range))
   const missing = (
-    <TraceMissing id={id} range={range} update={update} actions={actions} />
+    <TraceMissing
+      id={id}
+      datasource={datasource}
+      range={range}
+      update={update}
+      actions={actions}
+    />
   )
   if (result.fetchStatus === "paused" && !result.data) {
     return (
       <>
-        <TraceHeader id={id} actions={actions} />
+        <TraceHeader id={id} datasource={datasource} actions={actions} />
         <p className="text-[13px] text-muted-foreground">{offlineText}</p>
       </>
     )
@@ -407,7 +441,7 @@ function TraceResult({
     }
     return (
       <>
-        <TraceHeader id={id} actions={actions} />
+        <TraceHeader id={id} datasource={datasource} actions={actions} />
         <Alert variant="destructive">
           <AlertDescription className="flex flex-col items-start gap-2">
             {exploreErrorText(result.error)}
@@ -427,7 +461,7 @@ function TraceResult({
   if (!result.data) {
     return (
       <>
-        <TraceHeader id={id} actions={actions} />
+        <TraceHeader id={id} datasource={datasource} actions={actions} />
         <TraceSkeleton />
       </>
     )
@@ -448,18 +482,20 @@ function TraceResult({
 
 function TraceMissing({
   id,
+  datasource,
   range,
   update,
   actions,
 }: {
   id: string
+  datasource: DatasourceStatus
   range: TimeRangeValue
   update: SearchUpdate
-  actions: ReactNode
+  actions: PageActions
 }) {
   return (
     <>
-      <TraceHeader id={id} actions={actions} />
+      <TraceHeader id={id} datasource={datasource} actions={actions} />
       <div className="min-h-64 min-w-0 flex-1 rounded-card border border-border">
         <div className="flex flex-col items-start gap-2 p-4 text-[13px] text-muted-foreground">
           <p>
@@ -526,7 +562,7 @@ function TraceWaterfall({
   missing: ReactNode
   openId: string | null
   onOpenIdChange: (id: string | null) => void
-  actions: ReactNode
+  actions: PageActions
 }) {
   const panel = useMemo<DataPanel>(
     () => ({
@@ -591,10 +627,11 @@ function TraceExplorer({
   openId: string | null
   onOpenIdChange: (id: string | null) => void
   onDownload: () => void
-  actions: ReactNode
+  actions: PageActions
 }) {
   const { ref, width, height } = useElementSize<HTMLDivElement>()
-  const attributes = usePhone() ? "inline" : "pane"
+  const attributes = usePhone() ? "inline" : "external"
+  const detailsId = useId()
   const searchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState("")
   const [showPath, setShowPath] = useState(false)
@@ -605,6 +642,8 @@ function TraceExplorer({
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(noIds)
   const [logsOpen, setLogsOpen] = useState(false)
   const logsTrigger = useRef<HTMLButtonElement>(null)
+  const openedFrom = useRef<HTMLElement | null>(null)
+  const closedSpan = useRef<string | null>(null)
   const datasources = useDatasources()
   const all = datasources.data ?? noDatasources
   const spans = model.spans
@@ -638,6 +677,42 @@ function TraceExplorer({
     return rows.filter((span) => matched.has(span.id)).map((span) => span.id)
   }, [rows, filtered.matched, filters.search])
   const matchIndex = openId === null ? -1 : matchIds.indexOf(openId)
+  const openSpan = useMemo(
+    () =>
+      openId === null ? undefined : spans.find((span) => span.id === openId),
+    [spans, openId]
+  )
+  const spanPanelOpen =
+    attributes === "external" && openSpan !== undefined && !logsOpen
+
+  const changeOpenId = (next: string | null) => {
+    if (next === null) {
+      closedSpan.current = attributes === "external" ? openId : null
+    } else {
+      if (openId === null) {
+        openedFrom.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null
+      }
+      closedSpan.current = null
+      setLogsOpen(false)
+    }
+    onOpenIdChange(next)
+  }
+  const openLogs = () => {
+    onOpenIdChange(null)
+    setLogsOpen(true)
+  }
+
+  useEffect(() => {
+    if (spanPanelOpen || closedSpan.current === null) return
+    const row = ref.current?.querySelector<HTMLElement>(
+      `[data-span-id="${CSS.escape(closedSpan.current)}"]`
+    )
+    closedSpan.current = null
+    row?.focus()
+  }, [spanPanelOpen, ref])
 
   const openMatch = (step: 1 | -1) => {
     if (matchIds.length === 0) return
@@ -647,7 +722,7 @@ function TraceExplorer({
           ? 0
           : matchIds.length - 1
         : (matchIndex + step + matchIds.length) % matchIds.length
-    onOpenIdChange(matchIds[next])
+    changeOpenId(matchIds[next])
   }
   const toggleService = (name: string) =>
     setHiddenServices((current) => {
@@ -668,6 +743,7 @@ function TraceExplorer({
     showPath
       ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans add up to the ${model.formatDuration(model.duration)} total; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
       : "",
+    folded ? foldedToolbarHint : toolbarHint,
     folded ? foldedHint : "",
     keysHint,
   ]
@@ -675,36 +751,45 @@ function TraceExplorer({
     .join(" ")
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2" onKeyDown={onKeyDown}>
+    <div className="flex min-h-0 flex-1 flex-col gap-3" onKeyDown={onKeyDown}>
       <TraceHeader
         id={id}
+        datasource={datasource}
         model={model}
-        traceActions={
-          <>
+        traceActions={{
+          logs: (
             <Button
               ref={logsTrigger}
               type="button"
               variant="outline"
-              onClick={() => setLogsOpen(true)}
+              onClick={openLogs}
             >
+              <LogsIcon aria-hidden="true" data-icon="inline-start" />
               Logs for this trace
             </Button>
+          ),
+          download: (
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="icon"
+              aria-label="Download JSON"
+              title="Download JSON"
               onClick={onDownload}
             >
-              Download JSON
+              <DownloadIcon aria-hidden="true" />
             </Button>
-          </>
-        }
+          ),
+        }}
         actions={actions}
       />
       {notice !== null ? (
-        <Alert>
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
+        <p
+          role="status"
+          className="rounded-card border border-border p-3 text-[13px]"
+        >
+          <StatusLabel tone="warning">{notice}</StatusLabel>
+        </p>
       ) : null}
       <TraceToolbar
         search={search}
@@ -725,14 +810,8 @@ function TraceExplorer({
           )
         }
         onExpandAll={() => setCollapsed(noIds)}
-        hint={folded ? foldedToolbarHint : toolbarHint}
-        services={services}
-        hiddenServices={hiddenServices}
-        onToggleService={toggleService}
-        legendHint={folded ? foldedLegendHint : legendHint}
         onPrevMatch={() => openMatch(-1)}
         onNextMatch={() => openMatch(1)}
-        formatDuration={model.formatDuration}
       />
       <div
         ref={ref}
@@ -746,12 +825,22 @@ function TraceExplorer({
             width={width}
             height={height}
             attributes={attributes}
+            detailsId={detailsId}
             openId={openId}
-            onOpenIdChange={onOpenIdChange}
+            onOpenIdChange={changeOpenId}
             collapsed={collapsed}
             onCollapsedChange={setCollapsed}
             toolbar={
-              <TraceMinimap model={model} zoom={zoom} onZoom={setZoom} />
+              <>
+                <ServiceLegend
+                  services={services}
+                  hiddenServices={hiddenServices}
+                  onToggleService={toggleService}
+                  hint={folded ? foldedLegendHint : legendHint}
+                  formatDuration={model.formatDuration}
+                />
+                <TraceMinimap model={model} zoom={zoom} onZoom={setZoom} />
+              </>
             }
             highlighted={filtered.matched}
             criticalPathIds={showPath ? pathIds : undefined}
@@ -759,26 +848,45 @@ function TraceExplorer({
             zoom={zoom}
             onZoom={setZoom}
             header={false}
-            searchLink={searchLink}
             fold={folded ? groups : undefined}
-            traceLinks={{ ds: datasource.uid, from: range.from, to: range.to }}
-            spanPaneExtra={(span) => (
-              <TraceLogsSection
-                traceUid={datasource.uid}
-                traceId={id}
-                span={span}
-                trace={model}
-                all={all}
-                preview
-                onOpenTraceLogs={() => setLogsOpen(true)}
-              />
-            )}
           />
         ) : null}
       </div>
       <p aria-live="polite" className="text-xs text-muted-foreground">
         {status}
       </p>
+      {spanPanelOpen ? (
+        <SidePanel
+          title={openSpan.operation || openSpan.id}
+          description={kindLine(openSpan)}
+          onClose={() => changeOpenId(null)}
+          initialFocus={openedFrom}
+        >
+          <div id={detailsId}>
+            <SpanDetails
+              span={openSpan}
+              model={model}
+              searchLink={searchLink}
+              traceLinks={{
+                ds: datasource.uid,
+                from: range.from,
+                to: range.to,
+              }}
+              extra={
+                <TraceLogsSection
+                  traceUid={datasource.uid}
+                  traceId={id}
+                  span={openSpan}
+                  trace={model}
+                  all={all}
+                  preview
+                  onOpenTraceLogs={openLogs}
+                />
+              }
+            />
+          </div>
+        </SidePanel>
+      ) : null}
       {logsOpen ? (
         <SidePanel
           title="Logs for this trace"
