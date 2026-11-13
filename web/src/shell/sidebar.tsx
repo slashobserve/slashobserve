@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type PointerEvent } from "react"
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react"
 import {
   Link,
   useLinkProps,
@@ -27,6 +34,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
+import { PinnedDashboards } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
 import {
@@ -281,14 +289,18 @@ export function SidebarContent({
 
   function renderItems(items: readonly NavItem[]) {
     return items.map((item) => (
-      <NavLink
-        key={item.to}
-        item={item}
-        active={isNavItemActive(item.to, pathname)}
-        collapsed={collapsed}
-        unread={item.to === "/inbox" ? unreadInbox : null}
-        onNavigate={onNavigate}
-      />
+      <Fragment key={item.to}>
+        <NavLink
+          item={item}
+          active={isNavItemActive(item.to, pathname)}
+          collapsed={collapsed}
+          unread={item.to === "/inbox" ? unreadInbox : null}
+          onNavigate={onNavigate}
+        />
+        {item.to === "/dashboards" ? (
+          <PinnedDashboards collapsed={collapsed} onNavigate={onNavigate} />
+        ) : null}
+      </Fragment>
     ))
   }
 

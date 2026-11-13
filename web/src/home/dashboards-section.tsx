@@ -1,10 +1,9 @@
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useId, useState, type ReactNode } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 
 import type { components } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
-import { Button } from "@/components/ui/button"
 import {
   Combobox,
   ComboboxContent,
@@ -17,8 +16,8 @@ import { InputGroupAddon } from "@/components/ui/input-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dashboardLink } from "@/lib/links"
 
-import { useDashboardSearch, useFirstDashboards, useStars } from "./queries"
-import { recentToShow, useRecentDashboards } from "./recent"
+import { useDashboardSearch, useFirstDashboards } from "./queries"
+import { useRecentDashboards } from "./recent"
 import { isEmptySearch, parseHomeQuery, rankResults } from "./search"
 
 type ListItem = components["schemas"]["DashboardListItem"]
@@ -30,14 +29,9 @@ const searchDelayMs = 200
 
 export function DashboardsSection() {
   const headingId = useId()
-  const stars = useStars()
   const recent = useRecentDashboards()
-  const starredIds = useMemo(
-    () => new Set((stars.data ?? []).map((star) => star.id)),
-    [stars.data]
-  )
-  const recentRows = recentToShow(recent, starredIds, recentShown)
-  const nothingPersonal = stars.data?.length === 0 && recent.length === 0
+  const recentRows = recent.slice(0, recentShown)
+  const nothingPersonal = recent.length === 0
   const first = useFirstDashboards(nothingPersonal)
 
   if (nothingPersonal && first.data?.length === 0) return null
@@ -60,33 +54,6 @@ export function DashboardsSection() {
       </div>
       <div className="flex flex-col gap-3">
         <DashboardSearch />
-        {stars.isPending ? (
-          <PendingRows />
-        ) : stars.isError ? (
-          <div className="flex items-center gap-3 rounded-card border bg-background px-3.5 py-2.5">
-            <p className="text-xs text-muted-foreground">
-              Could not load starred dashboards.
-            </p>
-            <Button
-              variant="outline"
-              size="xs"
-              disabled={stars.isFetching}
-              focusableWhenDisabled
-              onClick={() => void stars.refetch()}
-            >
-              Retry
-            </Button>
-          </div>
-        ) : stars.data.length > 0 ? (
-          <DashboardRows
-            label="Starred"
-            rows={stars.data.map((star) => ({
-              id: star.id,
-              title: star.title,
-              detail: star.folder_title,
-            }))}
-          />
-        ) : null}
         {recentRows.length > 0 ? (
           <DashboardRows
             label="Recently viewed"

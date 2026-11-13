@@ -1,12 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import {
-  parseRecent,
-  recentLimit,
-  recentToShow,
-  recordRecent,
-  type RecentDashboard,
-} from "./recent"
+import { parseRecent, recentLimit, recordRecent } from "./recent"
 
 const now = new Date("2026-11-06T10:00:00Z")
 
@@ -83,19 +77,5 @@ describe("parseRecent", () => {
       Array.from({ length: 25 }, (_, i) => entry(`d${i}`))
     )
     expect(parseRecent(raw)).toHaveLength(20)
-  })
-})
-
-describe("recentToShow", () => {
-  test("leaves out starred dashboards and keeps the newest first", () => {
-    const list: RecentDashboard[] = [entry("a"), entry("b"), entry("c")]
-    expect(recentToShow(list, new Set(["b"]), 5).map((r) => r.id)).toEqual([
-      "a",
-      "c",
-    ])
-    expect(recentToShow(list, new Set(), 2).map((r) => r.id)).toEqual([
-      "a",
-      "b",
-    ])
   })
 })
