@@ -3,6 +3,7 @@ package revisions_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -30,12 +31,13 @@ var (
 
 type adminListed struct {
 	Requests []struct {
-		ID             string   `json:"id"`
-		DashboardTitle *string  `json:"dashboard_title"`
-		URL            *string  `json:"url"`
-		AllowedActions []string `json:"allowed_actions"`
-		State          string   `json:"state"`
-		Build          *struct {
+		ID               string   `json:"id"`
+		DashboardTitle   *string  `json:"dashboard_title"`
+		ObservationTitle *string  `json:"observation_title"`
+		URL              *string  `json:"url"`
+		AllowedActions   []string `json:"allowed_actions"`
+		State            string   `json:"state"`
+		Build            *struct {
 			Title *string `json:"title"`
 		} `json:"build"`
 		RequestedBy struct {
@@ -46,6 +48,10 @@ type adminListed struct {
 		} `json:"requested_by"`
 	} `json:"requests"`
 	NextCursor *string `json:"next_cursor"`
+	Summary    *struct {
+		Total  int64  `json:"total"`
+		People *int64 `json:"people"`
+	} `json:"summary"`
 }
 
 func (p adminListed) ids() []string {
@@ -349,3 +355,96 @@ func TestAdminReadsAnotherPersonsBuildButCannotSaveIt(t *testing.T) {
 		t.Errorf("the build was saved by %v, want the requester", builds.saved)
 	}
 }
+
+func observationIn(t *testing.T, d *dbtest.Database, folderSQL, title, runID string) {
+	t.Helper()
+	d.Exec(t, fmt.Sprintf(`INSERT INTO observations (id, folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, (%s), $2, 'user', $3::uuid, 'Ada')`, folderSQL), runID, title, userID)
+	d.Exec(t, `UPDATE agent_requests SET observation_id = $1::uuid WHERE id = $1::uuid`, runID)
+}
+
+func TestListObserveNamesTheObservationOnlyInFoldersTheCallerCanSee(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'ada', 'ada@example.com', 'ada')`, userID)
+	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'bea', 'bea@example.com', 'bea')`, adminID)
+
+	shared := observeFor(t, svc, user, "shared answer")
+	private := observeFor(t, svc, user, "private answer")
+	plain := observeFor(t, svc, user, "no observation")
+	observationIn(t, d, "SELECT general_folder_id()", "Checkout errors after the payments deploy", shared)
+	observationIn(t, d, "SELECT id FROM folders WHERE owner_id = '"+userID+"'::uuid", "Ada's private notes", private)
+
+	titles := func(who auth.Principal, query string) map[string]*string {
+		out := map[string]*string{}
+		for _, r := range listAdmin(t, who, svc, query).Requests {
+			out[r.ID] = r.ObservationTitle
+		}
+		return out
+	}
+	check := func(name string, got map[string]*string, want map[string]string) {
+		t.Helper()
+		for id, title := range want {
+			switch {
+			case title == "" && got[id] != nil:
+				t.Errorf("%s: %s names %q, want null", name, id, *got[id])
+			case title != "" && (got[id] == nil || *got[id] != title):
+				t.Errorf("%s: %s = %v, want %q", name, id, got[id], title)
+			}
+		}
+	}
+	want := map[string]string{shared: "Checkout errors after the payments deploy", private: "Ada's private notes", plain: ""}
+	check("the requester", titles(asEditor(user), ""), want)
+	want[private] = ""
+	check("an Admin reading everyone's chats", titles(bea, "?scope=all"), want)
+}
+
+func TestListObserveSummaryCountsEveryPageOnTheFirstOnly(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	adaFailed := observeFor(t, svc, user, "ada failed")
+	observeFor(t, svc, user, "ada queued")
+	observeFor(t, svc, bea, "bea queued")
+	observeFor(t, svc, account, "account queued")
+	setState(t, d, adaFailed, "failed")
+
+	cases := []struct {
+		name       string
+		who        auth.Principal
+		query      string
+		wantTotal  int64
+		wantPeople *int64
+	}{
+		{"mine counts the caller's chats and no people", asEditor(user), "?limit=1", 2, nil},
+		{"mine narrowed by state", asEditor(user), "?limit=1&state=failed", 1, nil},
+		{"mine narrowed by text", asEditor(user), "?q=queued", 1, nil},
+		{"everyone counts chats and distinct people", bea, "?scope=all&limit=1", 4, ptr(int64(3))},
+		{"everyone narrowed by state", bea, "?scope=all&state=failed", 1, ptr(int64(1))},
+		{"everyone with no match", bea, "?scope=all&q=nothing", 0, ptr(int64(0))},
+		{"mine with no chats", stranger, "", 0, nil},
+	}
+	for _, c := range cases {
+		page := listAdmin(t, c.who, svc, c.query)
+		switch {
+		case page.Summary == nil:
+			t.Errorf("%s: summary is null on the first page", c.name)
+		case page.Summary.Total != c.wantTotal || !equalCount(page.Summary.People, c.wantPeople):
+			t.Errorf("%s: summary = %+v, want total %d people %v", c.name, *page.Summary, c.wantTotal, c.wantPeople)
+		}
+	}
+
+	first := listAdmin(t, bea, svc, "?scope=all&limit=1")
+	if first.NextCursor == nil {
+		t.Fatal("the first page has no cursor")
+	}
+	if later := listAdmin(t, bea, svc, "?scope=all&limit=1&cursor="+url.QueryEscape(*first.NextCursor)); later.Summary != nil {
+		t.Errorf("a cursor page carries summary %+v, want null", *later.Summary)
+	}
+}
+
+func equalCount(got, want *int64) bool {
+	if got == nil || want == nil {
+		return got == want
+	}
+	return *got == *want
+}
+
+func ptr[T any](v T) *T { return &v }

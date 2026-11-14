@@ -5220,6 +5220,8 @@ export interface components {
              * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
              */
             observation_id: string | null;
+            /** @description The observation's current title; null when the request has no observation or the observation is in a folder you cannot see. */
+            observation_title?: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -10826,6 +10828,12 @@ export interface operations {
                     "application/json": {
                         requests: components["schemas"]["RequestSummary"][];
                         next_cursor: string | null;
+                        /** @description How many requests match the filters across every page, and how many people started them. Present on the first page only; null when a cursor is given. */
+                        summary: {
+                            total: number;
+                            /** @description The distinct requesters among the matches; null unless scope is all. */
+                            people: number | null;
+                        } | null;
                     };
                 };
             };

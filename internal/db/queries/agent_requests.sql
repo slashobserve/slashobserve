@@ -255,11 +255,12 @@ SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.title, r.pinned_at, r.observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
+  o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
-LEFT JOIN findings f ON f.agent_request_id = r.id
-  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
@@ -281,11 +282,12 @@ SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.title, r.pinned_at, r.observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
+  o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
-LEFT JOIN findings f ON f.agent_request_id = r.id
-  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
@@ -297,6 +299,28 @@ WHERE r.source <> 'suggest'
     OR (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
+
+-- name: CountAgentRequestsBy :one
+SELECT count(*) AS total
+FROM agent_requests r
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
+
+-- name: CountAgentRequestsAll :one
+SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id)) AS people
+FROM agent_requests r
+WHERE r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
 
 -- name: LockSuggestRequests :exec
 SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:suggest', 0));

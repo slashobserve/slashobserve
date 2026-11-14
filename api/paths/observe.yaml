@@ -87,7 +87,7 @@ observe:
             schema:
               type: object
               additionalProperties: false
-              required: [requests, next_cursor]
+              required: [requests, next_cursor, summary]
               properties:
                 requests:
                   type: array
@@ -96,6 +96,21 @@ observe:
                 next_cursor:
                   type: string
                   nullable: true
+                summary:
+                  type: object
+                  nullable: true
+                  additionalProperties: false
+                  required: [total, people]
+                  description: How many requests match the filters across every page, and how many people started them. Present on the first page only; null when a cursor is given.
+                  properties:
+                    total:
+                      type: integer
+                      minimum: 0
+                    people:
+                      type: integer
+                      minimum: 0
+                      nullable: true
+                      description: The distinct requesters among the matches; null unless scope is all.
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
