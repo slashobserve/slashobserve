@@ -7,7 +7,7 @@ import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import type { LogEntry, LogsDisplay } from "./logs-model"
-import { LogsView, type LogsViewProps } from "./logs-panel"
+import { columnTemplate, LogsView, type LogsViewProps } from "./logs-panel"
 
 const panel = {
   id: "p1",
@@ -99,5 +99,22 @@ describe("new lines in the log view", () => {
     expect(buttons[2]).toHaveFocus()
     await user.keyboard("k")
     expect(buttons[1]).toHaveFocus()
+  })
+})
+
+describe("columnTemplate", () => {
+  it.each([
+    [
+      { showTime: true, levelColumn: true, count: 1 },
+      "176px 92px 100px minmax(0,1fr)",
+    ],
+    [
+      { showTime: true, levelColumn: false, count: 2 },
+      "176px 100px 100px minmax(0,1fr)",
+    ],
+    [{ showTime: false, levelColumn: true, count: 0 }, "92px minmax(0,1fr)"],
+    [{ showTime: false, levelColumn: false, count: 0 }, "minmax(0,1fr)"],
+  ])("lays out %j as the board does", (layout, template) => {
+    expect(columnTemplate(layout)).toBe(template)
   })
 })
