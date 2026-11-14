@@ -3,13 +3,13 @@ import { ChevronDownIcon, ChevronUpIcon, TriangleAlertIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
+import { markOfAuthor } from "@/lib/author"
 import { cn } from "@/lib/utils"
 import { filterLines, statusLabel } from "@/import/report"
 import { countsText } from "@/import/record-summary"
 
 import type { AgentGate } from "./agent-gate"
 import {
-  avatarFor,
   boxClass,
   EntryAction,
   EntryFrame,
@@ -43,7 +43,7 @@ export function ImportEntry({
 
   return (
     <EntryFrame
-      avatar={avatarFor(record.created_by)}
+      avatar={markOfAuthor(record.created_by)}
       who={record.actor.label}
       verb="imported this dashboard from Grafana"
       at={entry.at}

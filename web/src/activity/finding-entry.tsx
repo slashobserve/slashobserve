@@ -1,4 +1,5 @@
 import { FindingCard } from "@/findings/finding-card"
+import { observeAgentMark } from "@/lib/author"
 
 import { EntryFrame } from "./entry-frame"
 import type { TimelineEntry } from "./timeline-model"
@@ -10,7 +11,7 @@ type Props = {
 export function FindingEntry({ entry }: Props) {
   return (
     <EntryFrame
-      avatar={{ kind: "agent" }}
+      avatar={observeAgentMark}
       who="Agent"
       verb="found"
       at={entry.at}

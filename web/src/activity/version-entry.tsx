@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router"
 
 import { versionChangesSearch } from "@/history/search"
+import { markOf, markOfAuthor } from "@/lib/author"
 import { versionActor } from "@/lib/origin"
 
-import { avatarFor, boxClass, DetailsLink, EntryFrame } from "./entry-frame"
+import { boxClass, DetailsLink, EntryFrame } from "./entry-frame"
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
@@ -19,7 +20,9 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
 
   return (
     <EntryFrame
-      avatar={actor.agent ? { kind: "agent" } : avatarFor(version.author)}
+      avatar={
+        actor.agent ? markOf(version.actor) : markOfAuthor(version.author)
+      }
       who={actor.who}
       verb={actor.verb}
       at={entry.at}

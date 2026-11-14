@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { RunningFor } from "@/chat/run-duration"
 import { StepTimeline } from "@/chat/step-timeline"
+import { observeAgentMark } from "@/lib/author"
 import { buildStatusText } from "@/observe/build"
 import { isTerminal, observeRequestQuery } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
@@ -73,7 +74,7 @@ export function RunningEntry({ entry }: Props) {
 
   return (
     <EntryFrame
-      avatar={{ kind: "agent" }}
+      avatar={observeAgentMark}
       who="Agent"
       verb="is working on it"
       at={entry.at}

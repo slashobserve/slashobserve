@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { markOf, personTint, type Actor } from "./author"
+import {
+  markOf,
+  markOfAuthor,
+  observeAgentMark,
+  personTint,
+  type Actor,
+} from "./author"
 
 function actor(overrides: Partial<Actor> = {}): Actor {
   return {
@@ -60,6 +66,32 @@ describe("markOf", () => {
         actor({ kind: "service_account", name: "ci-deploys", origin: "api" })
       )
     ).toEqual({ kind: "outside-agent", text: "CD", tint: null })
+  })
+})
+
+describe("markOfAuthor", () => {
+  const id = "6f1c1b0e-7a53-4c55-9d52-0a3d8a8d5b11"
+
+  it("gives a person a tinted mark with their initials", () => {
+    expect(markOfAuthor({ kind: "user", id, name: "Priya Raman" })).toEqual({
+      kind: "person",
+      text: "PR",
+      tint: personTint(id),
+    })
+  })
+
+  it("draws a service account outlined with its initials", () => {
+    expect(
+      markOfAuthor({ kind: "service_account", id, name: "ci-deploys" })
+    ).toEqual({ kind: "outside-agent", text: "CD", tint: null })
+  })
+
+  it("gives the built-in agent the slash on teal", () => {
+    expect(observeAgentMark).toEqual({
+      kind: "observe-agent",
+      text: "/",
+      tint: null,
+    })
   })
 })
 
