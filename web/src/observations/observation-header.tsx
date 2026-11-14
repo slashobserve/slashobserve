@@ -6,10 +6,11 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { LinkIcon, MoreHorizontalIcon, PanelRightOpenIcon } from "lucide-react"
+import { LinkIcon, MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
+import { DockToggle } from "@/components/dock/dock-toggle"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,7 +25,7 @@ import { cn } from "@/lib/utils"
 import { TopRowActions } from "@/shell/top-row-actions"
 
 import { blockWriteProblem } from "./errors"
-import { MovePanel } from "./move-panel"
+import { discussionToggleLabel } from "./discussion-changes"
 import {
   useUpdateObservation,
   type Observation,
@@ -36,9 +37,14 @@ const titleType = "text-[28px] leading-9 font-semibold tracking-[-0.01em]"
 
 type Props = {
   envelope: ObservationEnvelope
-  discussionHidden: boolean
-  onShowDiscussion: () => void
-  showDiscussionRef: RefObject<HTMLButtonElement | null>
+  discussion: {
+    shown: boolean
+    count: number
+    onToggle: () => void
+    toggleRef: RefObject<HTMLButtonElement | null>
+  }
+  onMove: () => void
+  moreButtonRef: RefObject<HTMLButtonElement | null>
   extraActions?: ReactNode
 }
 
@@ -155,14 +161,12 @@ async function copyLink(id: string) {
 
 export function ObservationHeader({
   envelope,
-  discussionHidden,
-  onShowDiscussion,
-  showDiscussionRef,
+  discussion: { shown, count, onToggle, toggleRef },
+  onMove,
+  moreButtonRef,
   extraActions,
 }: Props) {
   const { observation, folder } = envelope
-  const [moving, setMoving] = useState(false)
-  const moreButton = useRef<HTMLButtonElement>(null)
   const canMove = observation.allowed_actions.includes("move")
 
   return (
@@ -178,23 +182,19 @@ export function ObservationHeader({
           <LinkIcon aria-hidden="true" />
           Share
         </Button>
-        {discussionHidden ? (
-          <Button
-            ref={showDiscussionRef}
-            variant="ghost"
-            size="sm"
-            onClick={onShowDiscussion}
-          >
-            <PanelRightOpenIcon aria-hidden="true" />
-            Show discussion
-          </Button>
-        ) : null}
+        <DockToggle
+          ref={toggleRef}
+          label={discussionToggleLabel(count)}
+          count={count}
+          pressed={shown}
+          onToggle={onToggle}
+        />
         {canMove ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button
-                  ref={moreButton}
+                  ref={moreButtonRef}
                   variant="ghost"
                   size="icon-sm"
                   aria-label="More actions"
@@ -204,7 +204,7 @@ export function ObservationHeader({
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setMoving(true)}>
+              <DropdownMenuItem onClick={onMove}>
                 Move to folder
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -215,13 +215,6 @@ export function ObservationHeader({
         <EditableTitle observation={observation} />
         <StateControl observation={observation} folder={folder} />
       </div>
-      {moving ? (
-        <MovePanel
-          observation={observation}
-          trigger={moreButton}
-          onClose={() => setMoving(false)}
-        />
-      ) : null}
     </>
   )
 }

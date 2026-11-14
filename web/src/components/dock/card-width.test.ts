@@ -38,7 +38,7 @@ describe("clampWidth", () => {
   })
 
   it("falls back to the initial width for a width that is not a number", () => {
-    expect(clampWidth(Number.NaN, activityWidth, 1440)).toBe(400)
+    expect(clampWidth(Number.NaN, activityWidth, 1440)).toBe(384)
     expect(clampWidth(Number.POSITIVE_INFINITY, editWidth, 1440)).toBe(760)
   })
 
@@ -74,7 +74,7 @@ describe("panel widths", () => {
     expect(clampWidth(900, chatPaneWidth, 1440)).toBe(640)
     expect(clampWidth(900, panelWidth, 1440)).toBe(640)
     expect(clampWidth(100, panelWidth, 1440)).toBe(320)
-    expect(clampWidth(Number.NaN, panelWidth, 1440)).toBe(400)
+    expect(clampWidth(Number.NaN, panelWidth, 1440)).toBe(384)
   })
 })
 
