@@ -60,6 +60,7 @@ Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over th
 The page shows one page of lines at a time, newest first, 50 by default.
 
 On Loki the query must start with a stream selector.
+The link under the query opens the reference for the language of the source: LogQL on Loki, SQL on ClickHouse, and KQL on Elasticsearch and OpenSearch.
 When a run fails, the box says "No results." with the time and size of the last good run, and on Elasticsearch and OpenSearch a **Check the datasource** link.
 Under the lines a page bar sets 50, 100, 250 or 500 lines per page and moves between pages, as [Paging](#paging) describes.
 **Live tail**, **Add to dashboard** and **Add to observation** stay disabled until a query has run, and say "Run a query first."
