@@ -188,7 +188,7 @@ test("runs sign out from the palette", async ({ page, consoleErrors }) => {
   await expect(palette(page)).toHaveCount(0)
   await expect(page.getByText("Sign out failed. Try again.")).toBeVisible()
   expect(signOutRequests).toBe(1)
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
   dropLoggedFailures(consoleErrors, "500")
 })
 

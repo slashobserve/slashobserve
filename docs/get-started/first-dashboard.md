@@ -8,8 +8,7 @@ Without a model the chat shows "No model is connected to this server." and promp
 
 ## Ask for a dashboard
 
-Press `⌘K` or `Ctrl+K` and choose **Ask Observe Agent**, or open `/ask`.
-The page asks "What do you want to see?" and has a box labelled "Message the agent".
+Open Home at `/`; its **Ask Observe Agent** tab has a box labelled "Message the agent".
 Type a prompt and press Enter, or choose **Send**.
 Shift+Enter starts a new line, and pressing `/` anywhere on the page moves focus to the box.
 

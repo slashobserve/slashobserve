@@ -56,7 +56,7 @@ The page updates when someone else changes its blocks, its state or the discussi
 
 ### Start one
 
-**New observation** on the list and in the command palette opens a panel with a **Title** of 1 to 200 characters and a **Folder**.
+**New observation** on the list opens a panel with a **Title** of 1 to 200 characters and a **Folder**, and Home's **New observation** tab, which the command palette's **New observation** opens, asks for the same two fields.
 The folder choices are the folders you can edit.
 With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General.
 **Create** opens the new page.

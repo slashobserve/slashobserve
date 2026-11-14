@@ -19,6 +19,7 @@ import {
   folderChoices,
   requestedFolder,
 } from "./folder-choice"
+import type { HandedImport } from "./handoff"
 import {
   newSource,
   previewQuery,
@@ -30,6 +31,7 @@ import {
   MAX_FILE_BYTES,
   MAX_IMPORT_BYTES,
   TOO_LARGE_MESSAGE,
+  exceedsImportLimit,
   requestBytes,
   summaryLine,
 } from "./read-source"
@@ -43,9 +45,13 @@ function hasFiles(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes("Files") === true
 }
 
-export function ImportPage() {
+export function ImportPage({ initial }: { initial: HandedImport | null }) {
   const statusId = useId()
-  const [source, setSource] = useState<Source | null>(null)
+  const [source, setSource] = useState<Source | null>(() =>
+    initial === null
+      ? null
+      : newSource(initial.name, initial.text, initial.pasted)
+  )
   const [mapping, setMapping] = useState<Mapping>(noMapping)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -80,7 +86,7 @@ export function ImportPage() {
 
   const accept = useCallback(
     (name: string, text: string, pasted: boolean) => {
-      if (requestBytes(text, noMapping) > MAX_IMPORT_BYTES) {
+      if (exceedsImportLimit(text)) {
         refuse()
         return
       }
@@ -253,7 +259,8 @@ export function ImportPage() {
   ) : (
     <>
       <Link
-        to="/ask"
+        to="/"
+        search={{ tab: "import" }}
         className={cn(buttonVariants({ variant: "outline" }), "font-normal")}
       >
         Cancel

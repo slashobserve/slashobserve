@@ -29,8 +29,8 @@ The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewe
 
 ## Send a prompt
 
-Sign-in opens the [inbox](../use/inbox.md).
-Press `⌘K` or `Ctrl+K` and choose **Ask Observe Agent**, or open http://localhost:8080/ask, and type a prompt such as `checkout health by pod, last 6h` into the chat composer.
+Sign-in opens [Home](../use/home.md).
+Type a prompt such as `checkout health by pod, last 6h` into the chat composer on its **Ask Observe Agent** tab.
 
 ## Dashboards the demo provisions
 
@@ -54,7 +54,7 @@ The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk,
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY`, `SLASHOBSERVE_LLM_BASE_URL` and `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
-The Ask page then shows the three dashboards and the **Import from Grafana** link in place of the composer, so you can look around before you add a key.
+Home's **Ask Observe Agent** tab then says no model is connected and offers **Import from Grafana**, so you can look around before you add a key.
 
 ### Ports, rebuilds and shutdown
 

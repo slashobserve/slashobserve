@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react"
 
-const recentDashboardsKey = "slashobserve-recent-dashboards"
+const recentKeys = {
+  dashboard: "slashobserve-recent-dashboards",
+  observation: "slashobserve-recent-observations",
+} as const
+
+export type RecentKind = keyof typeof recentKeys
 export const recentLimit = 20
 
-export type RecentDashboard = { id: string; title: string; viewed_at: string }
+export type RecentEntry = { id: string; title: string; viewed_at: string }
 
-function isRecent(entry: unknown): entry is RecentDashboard {
+function isRecent(entry: unknown): entry is RecentEntry {
   if (typeof entry !== "object" || entry === null) return false
   const { id, title, viewed_at } = entry as Record<string, unknown>
   return (
@@ -17,7 +22,7 @@ function isRecent(entry: unknown): entry is RecentDashboard {
   )
 }
 
-export function parseRecent(raw: string | null): RecentDashboard[] {
+export function parseRecent(raw: string | null): RecentEntry[] {
   if (raw === null) return []
   let parsed: unknown
   try {
@@ -27,7 +32,7 @@ export function parseRecent(raw: string | null): RecentDashboard[] {
   }
   if (!Array.isArray(parsed)) return []
   const seen = new Set<string>()
-  const out: RecentDashboard[] = []
+  const out: RecentEntry[] = []
   for (const entry of parsed) {
     if (!isRecent(entry) || seen.has(entry.id)) continue
     seen.add(entry.id)
@@ -37,45 +42,44 @@ export function parseRecent(raw: string | null): RecentDashboard[] {
 }
 
 export function recordRecent(
-  list: readonly RecentDashboard[],
+  list: readonly RecentEntry[],
   entry: { id: string; title: string },
   now: Date
-): RecentDashboard[] {
+): RecentEntry[] {
   return [
     { id: entry.id, title: entry.title, viewed_at: now.toISOString() },
     ...list.filter((recent) => recent.id !== entry.id),
   ].slice(0, recentLimit)
 }
 
-function readRecent(): RecentDashboard[] {
+function readRecent(kind: RecentKind): RecentEntry[] {
   try {
-    return parseRecent(localStorage.getItem(recentDashboardsKey))
+    return parseRecent(localStorage.getItem(recentKeys[kind]))
   } catch {
     return []
   }
 }
 
-function writeRecent(list: readonly RecentDashboard[]) {
+function writeRecent(kind: RecentKind, list: readonly RecentEntry[]) {
   try {
-    localStorage.setItem(recentDashboardsKey, JSON.stringify(list))
+    localStorage.setItem(recentKeys[kind], JSON.stringify(list))
   } catch {
     return
   }
 }
 
 export function useRecordRecent(
-  dashboardId: string,
+  kind: RecentKind,
+  id: string,
   title: string | undefined
 ) {
   useEffect(() => {
     if (title === undefined) return
-    writeRecent(
-      recordRecent(readRecent(), { id: dashboardId, title }, new Date())
-    )
-  }, [dashboardId, title])
+    writeRecent(kind, recordRecent(readRecent(kind), { id, title }, new Date()))
+  }, [kind, id, title])
 }
 
-export function useRecentDashboards(): RecentDashboard[] {
-  const [recent] = useState(readRecent)
+export function useRecent(kind: RecentKind): RecentEntry[] {
+  const [recent] = useState(() => readRecent(kind))
   return recent
 }

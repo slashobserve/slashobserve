@@ -46,7 +46,7 @@ function NotFound() {
       <p className="text-sm text-muted-foreground">
         There is nothing at this address.
       </p>
-      <Link to="/inbox" className={cn(buttonVariants({ variant: "outline" }))}>
+      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
         Back to home
       </Link>
     </main>

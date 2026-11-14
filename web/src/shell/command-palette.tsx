@@ -36,7 +36,6 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { observationsLink } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -167,11 +166,11 @@ function PaletteBody({ close }: { close: () => void }) {
     } else if (isResult(entry)) {
       router.history.push(entry.path)
     } else if (entry.id === "action:new-observation") {
-      void navigate(observationsLink({ new: "1" }))
+      void navigate({ to: "/", search: { tab: "observe" } })
     } else if (entry.id === "action:ask") {
-      void navigate({ to: "/ask" })
+      void navigate({ to: "/", search: {} })
     } else if (entry.id === "action:import") {
-      void navigate({ to: "/import" })
+      void navigate({ to: "/", search: { tab: "import" } })
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {

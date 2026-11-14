@@ -75,7 +75,7 @@ export function DashboardTopRow({
       >
         <span className="hidden items-center gap-2 narrow:flex">
           <Link
-            to="/inbox"
+            to="/"
             aria-label="/observe home"
             title="/observe"
             className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"

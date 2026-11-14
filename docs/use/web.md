@@ -1,13 +1,14 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, the sidebar, and the light and dark theme.
+description: The short addresses of Home, the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, the sidebar, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
 
 | Address | Opens |
 | --- | --- |
-| `/inbox` | Your inbox: what happened on your observations, dashboards and requests. `view` and `item` in the query string reopen a view and an open item. `/` opens it. |
+| `/` | [Home](home.md): ask Observe Agent, start an observation or import a dashboard; `tab=observe` or `tab=import` opens that tab. |
+| `/inbox` | Your inbox: what happened on your observations, dashboards and requests. `view` and `item` in the query string reopen a view and an open item. |
 | `/ask` | The chat: ask the Observe Agent for a dashboard. |
 | `/observations` | The list of [observations](observations.md). |
 | `/o/<observation id>` | One observation, its blocks and its discussion; `rca=1` in the query string opens the Publish as RCA panel. |
@@ -25,7 +26,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
-The lists keep their names: `/dashboards` lists dashboards, `/` redirects to `/inbox`, and the chat that used to open at `/` is at `/ask`, with its query string kept.
+The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
 
 ## Public links
 

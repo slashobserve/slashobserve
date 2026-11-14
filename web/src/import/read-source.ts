@@ -15,6 +15,10 @@ export function requestBytes(
     .length
 }
 
+export function exceedsImportLimit(text: string): boolean {
+  return requestBytes(text, {}) > MAX_IMPORT_BYTES
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1_000_000) return `${Math.max(1, Math.round(bytes / 1000))} KB`
   return `${(bytes / 1_000_000).toFixed(1)} MB`

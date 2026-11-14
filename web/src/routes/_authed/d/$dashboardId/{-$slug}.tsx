@@ -106,7 +106,7 @@ function DashboardRoute() {
   useRecordView(dashboardId)
   const title = useQuery(latestDashboardQuery(queryClient, dashboardId)).data
     ?.dashboard.title
-  useRecordRecent(dashboardId, title)
+  useRecordRecent("dashboard", dashboardId, title)
   useEffect(() => {
     if (title === undefined) return
     const canonical = dashboardLink(dashboardId, title)

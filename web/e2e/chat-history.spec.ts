@@ -251,7 +251,7 @@ for (const scheme of ["light", "dark"] as const) {
       await palette
         .getByRole("option", { name: "Ask Observe Agent", exact: true })
         .click()
-      await expect(page).toHaveURL(/\/ask$/)
+      await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
       await expect(panel(page)).toBeVisible()
 
       await panel(page).getByRole("heading", { level: 2 }).focus()
