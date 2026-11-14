@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import {
@@ -5,12 +6,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuLinkItem,
 } from "@/components/ui/dropdown-menu"
+import { dashboardsHealthQuery } from "@/health/queries"
 import { dashboardLink, dashboardPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 import type { SubNavRow } from "@/shell/nav"
 import { SubNavList, subNavLinkClass, subNavMoreClass } from "@/shell/sub-nav"
 
+import { pinProblemText } from "./pin-problems"
 import type { Pin } from "./pins"
 import { usePins } from "./queries"
 
@@ -19,6 +22,19 @@ const shown = 10
 export function useVisiblePins() {
   const pins = usePins().data ?? []
   return { pins: pins.slice(0, shown), more: pins.length > shown }
+}
+
+function usePinHealth(pins: readonly Pin[]) {
+  return useQuery(dashboardsHealthQuery(pins.map(({ id }) => id))).data
+}
+
+function ProblemText({ text }: { text: string | null }) {
+  if (text === null) return null
+  return (
+    <span className="ml-auto flex-none text-xs text-muted-foreground">
+      {text}
+    </span>
+  )
 }
 
 export function pinRows(pins: readonly Pin[]): SubNavRow[] {
@@ -39,23 +55,28 @@ export function PinnedDashboards({
   currentId: string | null
   onNavigate?: () => void
 }) {
+  const health = usePinHealth(pins)
   if (pins.length === 0) return null
 
   return (
     <SubNavList label="Pinned dashboards">
-      {pins.map((pin) => (
-        <li key={pin.id}>
-          <Link
-            {...dashboardLink(pin.id, pin.title)}
-            onClick={onNavigate}
-            title={pin.title}
-            aria-current={pin.id === currentId ? "page" : undefined}
-            className={subNavLinkClass}
-          >
-            <span className="truncate">{pin.title}</span>
-          </Link>
-        </li>
-      ))}
+      {pins.map((pin) => {
+        const text = pinProblemText(health?.get(pin.id))
+        return (
+          <li key={pin.id}>
+            <Link
+              {...dashboardLink(pin.id, pin.title)}
+              onClick={onNavigate}
+              title={text === null ? pin.title : `${pin.title}, ${text}`}
+              aria-current={pin.id === currentId ? "page" : undefined}
+              className={subNavLinkClass}
+            >
+              <span className="truncate">{pin.title}</span>
+              <ProblemText text={text} />
+            </Link>
+          </li>
+        )
+      })}
       {more ? (
         <li>
           <Link
@@ -74,6 +95,8 @@ export function PinnedDashboards({
 
 export function DashboardsFlyoutItems() {
   const pins = usePins().data
+  const shownPins = pins?.slice(0, shown) ?? []
+  const health = usePinHealth(shownPins)
   return (
     <>
       <DropdownMenuLinkItem
@@ -82,21 +105,25 @@ export function DashboardsFlyoutItems() {
       >
         Dashboards
       </DropdownMenuLinkItem>
-      {pins === undefined || pins.length === 0 ? null : (
+      {shownPins.length === 0 ? null : (
         <DropdownMenuGroup>
           <DropdownMenuLabel className={railFlyoutLabelClass}>
             Pinned
           </DropdownMenuLabel>
-          {pins.slice(0, shown).map((pin) => (
-            <DropdownMenuLinkItem
-              key={pin.id}
-              render={<Link {...dashboardLink(pin.id, pin.title)} />}
-              title={pin.title}
-              className={railFlyoutItemClass}
-            >
-              <span className="truncate">{pin.title}</span>
-            </DropdownMenuLinkItem>
-          ))}
+          {shownPins.map((pin) => {
+            const text = pinProblemText(health?.get(pin.id))
+            return (
+              <DropdownMenuLinkItem
+                key={pin.id}
+                render={<Link {...dashboardLink(pin.id, pin.title)} />}
+                title={text === null ? pin.title : `${pin.title}, ${text}`}
+                className={railFlyoutItemClass}
+              >
+                <span className="truncate">{pin.title}</span>
+                <ProblemText text={text} />
+              </DropdownMenuLinkItem>
+            )
+          })}
         </DropdownMenuGroup>
       )}
     </>

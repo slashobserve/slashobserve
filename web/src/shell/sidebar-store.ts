@@ -29,14 +29,17 @@ function write(key: string, value: string | null) {
 type SidebarState = {
   width: number
   collapsed: boolean
+  sheetOpen: boolean
   setWidth: (width: number) => void
   resetWidth: () => void
   setCollapsed: (collapsed: boolean) => void
+  setSheetOpen: (open: boolean) => void
 }
 
 export const useSidebarStore = create<SidebarState>((set, get) => ({
   width: parseStoredWidth(read(widthKey)),
   collapsed: read(collapsedKey) === "true",
+  sheetOpen: false,
   setWidth: (width) => {
     const next = clampSidebarWidth(width)
     write(widthKey, String(next))
@@ -47,4 +50,5 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
     write(collapsedKey, collapsed ? "true" : null)
     set({ collapsed })
   },
+  setSheetOpen: (sheetOpen) => set({ sheetOpen }),
 }))

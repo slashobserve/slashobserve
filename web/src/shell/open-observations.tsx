@@ -25,6 +25,17 @@ export function useOpenObservationsPage() {
   }
 }
 
+function useUnreadIds() {
+  return unreadObservationIds(useInboxForYou().data?.pages[0]?.items ?? [])
+}
+
+export function useUnreadOpenCount(
+  observations: readonly OpenObservation[]
+): number {
+  const unread = useUnreadIds()
+  return observations.filter(({ id }) => unread.has(id)).length
+}
+
 type OpenObservation = ReturnType<
   typeof useOpenObservationsPage
 >["observations"][number]
@@ -46,9 +57,7 @@ export function OpenObservations({
   currentId: string | null
   onNavigate?: () => void
 }) {
-  const unread = unreadObservationIds(
-    useInboxForYou().data?.pages[0]?.items ?? []
-  )
+  const unread = useUnreadIds()
   if (observations.length === 0) return null
 
   return (
