@@ -16,6 +16,8 @@ import {
 } from "lucide-react"
 
 import { Mark } from "@/components/brand/mark"
+import { SourceFlyoutItems } from "@/datasources/source-menu"
+import { useExploreSources, useNavTarget } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
@@ -49,10 +51,6 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/settings": SettingsIcon,
 }
 
-const flyouts: Partial<Record<NavPath, ReactNode>> = {
-  "/dashboards": <DashboardsFlyoutItems />,
-}
-
 type RailBadge = {
   hint: string | null
   ariaLabel: string
@@ -69,10 +67,11 @@ function RailLink({
   badge: RailBadge
 }) {
   const Icon = navIcons[item.to]
+  const target = useNavTarget(item.to)
   return (
     <RailTip label={item.label} hint={badge.hint}>
       <Link
-        to={item.to}
+        {...target}
         aria-label={badge.ariaLabel}
         aria-current={active ? "page" : undefined}
         className={railItemClass}
@@ -179,6 +178,13 @@ export function RailContent({ forced }: { forced: boolean }) {
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
   const badges = useRailBadges()
+  const logs = useExploreSources("logs").sources.length > 1
+  const traces = useExploreSources("traces").sources.length > 1
+  const flyouts: Partial<Record<NavPath, ReactNode>> = {
+    "/dashboards": <DashboardsFlyoutItems />,
+    ...(logs ? { "/logs": <SourceFlyoutItems kind="logs" /> } : {}),
+    ...(traces ? { "/traces": <SourceFlyoutItems kind="traces" /> } : {}),
+  }
 
   function renderItems(list: readonly NavItem[]) {
     return list.map((item) => {

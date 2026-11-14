@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { CircleAlertIcon } from "lucide-react"
 
 import { AskField } from "@/ask/ask-field"
@@ -9,7 +9,7 @@ import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
 import { PageBar } from "@/components/page-bar"
-import { PageHeader } from "@/components/page-header"
+import { LoadProblem } from "@/components/load-problem"
 import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -21,11 +21,11 @@ import {
 } from "@/components/ui/tooltip"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
-import {
-  rememberDatasource,
-  rememberedDatasource,
-} from "@/datasources/datasource-memory"
-import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
+import { useSourceMemory } from "@/datasources/datasource-memory"
+import type { DatasourceStatus } from "@/datasources/queries"
+import { SourceTitle } from "@/datasources/source-title"
+import { useExploreSources } from "@/datasources/use-sources"
+import { useDocumentTitle } from "@/lib/document-title"
 import {
   defaultPageSize,
   pagesByOffset,
@@ -36,24 +36,17 @@ import { isModEnter } from "@/lib/shortcuts"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
 import { usePageCursors } from "@/lib/use-page-cursors"
-import {
-  eligibleDatasources,
-  ExploreDatasourcePicker,
-} from "@/logs/datasource-picker"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { useAgentInfo } from "@/observe/queries"
 import { tracesDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
+import { loadProblemText } from "@/service-accounts/queries"
 
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
-import {
-  traceDatasourceTypes,
-  tracesTimeRange,
-  type TraceSearch,
-} from "./search"
+import { tracesTimeRange, type TraceSearch } from "./search"
 import {
   attributeFilter,
   keepSelectionSearch,
@@ -93,8 +86,8 @@ type UpdateSearch = (
 ) => void
 
 function useTraceSearch() {
-  const search = useSearch({ from: "/_authed/_shell/traces" })
-  const navigate = useNavigate({ from: "/traces" })
+  const search = useSearch({ from: "/_authed/_shell/traces/$datasourceUid" })
+  const navigate = useNavigate({ from: "/traces/$datasourceUid" })
   const update: UpdateSearch = (next, options) =>
     void navigate({
       search: (state) => ({ ...state, page: undefined, ...next }),
@@ -103,42 +96,51 @@ function useTraceSearch() {
   return { search, update }
 }
 
-function useTraceDatasource(
-  current: DatasourceStatus | undefined,
-  eligible: readonly DatasourceStatus[]
-) {
-  const navigate = useNavigate()
-  const fallback =
-    current === undefined ? rememberedDatasource("traces", eligible) : undefined
-  const uid = current?.uid
-  useEffect(() => {
-    if (fallback === undefined) return
-    void navigate({
-      to: ".",
-      search: (state: Record<string, unknown>) => ({ ...state, ds: fallback }),
-      replace: true,
-    })
-  }, [fallback, navigate])
-  useEffect(() => {
-    if (uid !== undefined) rememberDatasource("traces", uid)
-  }, [uid])
-}
-
-export function TracesPage() {
-  const ids = useId()
+export function TracesPage({ uid }: { uid: string }) {
   const { search, update } = useTraceSearch()
-  const datasources = useDatasources()
-  const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
-  const datasource = eligible.find((candidate) => candidate.uid === search.ds)
-  useTraceDatasource(datasource, eligible)
+  const { sources, isPending, isError, error, refetch } =
+    useExploreSources("traces")
+  const datasource = sources.find((candidate) => candidate.uid === uid)
+  const rememberedUid = datasource?.uid
+  useDocumentTitle(
+    datasource
+      ? `Traces / ${datasource.name} - SlashObserve`
+      : "Traces - SlashObserve"
+  )
+  useEffect(() => {
+    if (rememberedUid !== undefined) {
+      useSourceMemory.getState().remember("traces", rememberedUid)
+    }
+  }, [rememberedUid])
   const range = tracesTimeRange(search)
   const [saving, setSaving] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
 
-  if (!datasources.isPending && eligible.length === 0) {
+  if (isPending) {
     return (
       <>
-        <PageHeader title="Traces" />
+        <h1 className="sr-only">Traces</h1>
+        <ResultSkeleton />
+      </>
+    )
+  }
+  if (isError) {
+    return (
+      <>
+        <h1 className="sr-only">Traces</h1>
+        <LoadProblem
+          title="Could not load the datasources"
+          detail={loadProblemText(error)}
+          retrying={false}
+          onRetry={() => void refetch()}
+        />
+      </>
+    )
+  }
+  if (sources.length === 0) {
+    return (
+      <>
+        <h1 className="sr-only">Traces</h1>
         <p className="text-[13px] text-muted-foreground">
           No traces datasource is configured. An Admin adds a Tempo or
           ClickHouse datasource in the datasources file.
@@ -146,58 +148,57 @@ export function TracesPage() {
       </>
     )
   }
+  if (datasource === undefined) {
+    return (
+      <>
+        <h1 className="sr-only">Traces</h1>
+        <p className="text-[13px] text-muted-foreground">
+          No trace source has the uid {uid}.
+        </p>
+        <Link
+          to="/traces"
+          className="mt-2 inline-block text-[13px] underline underline-offset-3"
+        >
+          Open Traces
+        </Link>
+      </>
+    )
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
-        title="Traces"
-        actions={
-          <>
-            <ExploreDatasourcePicker
-              id={`${ids}-datasource`}
-              types={traceDatasourceTypes}
-              value={datasource?.uid}
-              onChange={(ds) => update({ ds, ask: undefined })}
-              label="Datasource"
-            />
-            <TimeRangeControl value={range} onChange={update} />
-            <SavedSearchesMenu kind="traces" />
-            <Button
-              ref={saveTrigger}
-              type="button"
-              variant="outline"
-              disabled={datasource === undefined}
-              onClick={() => setSaving(true)}
-            >
-              Save search
-            </Button>
-          </>
-        }
+      <h1 className="sr-only">Traces in {datasource.name}</h1>
+      <SourceTitle kind="traces" source={datasource} />
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        <TimeRangeControl value={range} onChange={update} />
+        <SavedSearchesMenu kind="traces" />
+        <Button
+          ref={saveTrigger}
+          type="button"
+          variant="outline"
+          onClick={() => setSaving(true)}
+        >
+          Save search
+        </Button>
+      </div>
+      <SaveSearchDialog
+        draft={tracesDraft({
+          uid: datasource.uid,
+          type: datasource.type,
+          search,
+          range,
+        })}
+        open={saving}
+        onOpenChange={setSaving}
+        finalFocus={() => saveTrigger.current ?? true}
       />
-      {datasource ? (
-        <SaveSearchDialog
-          draft={tracesDraft({
-            uid: datasource.uid,
-            type: datasource.type,
-            search,
-            range,
-          })}
-          open={saving}
-          onOpenChange={setSaving}
-          finalFocus={() => saveTrigger.current ?? true}
-        />
-      ) : null}
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {datasource ? (
-          <TraceSearchWorkspace
-            key={datasource.uid}
-            datasource={datasource}
-            search={search}
-            update={update}
-          />
-        ) : (
-          <ResultSkeleton />
-        )}
+        <TraceSearchWorkspace
+          key={datasource.uid}
+          datasource={datasource}
+          search={search}
+          update={update}
+        />
       </div>
     </div>
   )

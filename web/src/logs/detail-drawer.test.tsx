@@ -166,7 +166,7 @@ async function open(options: SetupOptions) {
     <PanelHostContext value={host}>
       <Harness {...options} />
     </PanelHostContext>,
-    { queryClient, route: { path: "/logs", url: "/logs" } }
+    { queryClient, route: { path: "/logs/$datasourceUid", url: "/logs/loki" } }
   )
   await rendered.user.click(await screen.findByRole("button", { name: "Row" }))
   return { ...rendered, host }

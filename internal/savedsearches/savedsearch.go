@@ -88,13 +88,13 @@ type ListFilter struct {
 
 func URL(base *url.URL, s SavedSearch) string {
 	if s.Kind == KindLogs {
-		return links.Logs(base, s.address())
+		return links.Logs(base, s.DatasourceUID, s.address())
 	}
-	return links.Traces(base, s.address())
+	return links.Traces(base, s.DatasourceUID, s.address())
 }
 
 func (s SavedSearch) address() url.Values {
-	query := url.Values{"ds": {s.DatasourceUID}, "from": {s.From}, "to": {s.To}}
+	query := url.Values{"from": {s.From}, "to": {s.To}}
 	if s.Query != nil {
 		query.Set("q", *s.Query)
 	}

@@ -161,7 +161,7 @@ func TestASavedSearchLandsInMyDashboardsOrGeneral(t *testing.T) {
 	if mine.Actor.Name != editor.Name || mine.From != "now-1h" || mine.To != "now" || mine.Query == nil || len(mine.Filters.Columns) != 2 {
 		t.Fatalf("stored search %+v", mine)
 	}
-	if want := "/logs?cols=level%2Cmsg&ds=loki&from=now-1h&q=%7Bapp%3D%22checkout%22%7D+%7C%3D+%22error%22&to=now"; mine.URL != want {
+	if want := "/logs/loki?cols=level%2Cmsg&from=now-1h&q=%7Bapp%3D%22checkout%22%7D+%7C%3D+%22error%22&to=now"; mine.URL != want {
 		t.Fatalf("url %q, want %q", mine.URL, want)
 	}
 
@@ -169,7 +169,7 @@ func TestASavedSearchLandsInMyDashboardsOrGeneral(t *testing.T) {
 	if !shared.Folder.General || shared.Folder.ID != r.general(t) {
 		t.Fatalf("a service account's search went to %+v", shared.Folder)
 	}
-	if shared.Query != nil || shared.From != "now-6h" || !strings.HasPrefix(shared.URL, "/traces?") {
+	if shared.Query != nil || shared.From != "now-6h" || !strings.HasPrefix(shared.URL, "/traces/tempo?") {
 		t.Fatalf("trace search %+v", shared)
 	}
 
@@ -332,7 +332,7 @@ func TestRenameAndMoveAppendOneRowEachAndMoveTakesEarlierRowsAlong(t *testing.T)
 		t.Fatalf("move data %s: %v", events[2].Data, err)
 	}
 
-	if got, err := url.ParseQuery(strings.TrimPrefix(moved.URL, "/logs?")); err != nil || got.Get("ds") != "loki" {
+	if got, err := url.ParseQuery(strings.TrimPrefix(moved.URL, "/logs/loki?")); err != nil || got.Get("cols") == "" {
 		t.Fatalf("url %q: %v", moved.URL, err)
 	}
 }

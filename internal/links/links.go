@@ -66,12 +66,12 @@ func Finding(base *url.URL, id string) string {
 	return join(base, "findings", id)
 }
 
-func Logs(base *url.URL, query url.Values) string {
-	return withQuery(join(base, "logs"), query)
+func Logs(base *url.URL, datasourceUID string, query url.Values) string {
+	return withQuery(join(base, "logs", datasourceUID), query)
 }
 
-func Traces(base *url.URL, query url.Values) string {
-	return withQuery(join(base, "traces"), query)
+func Traces(base *url.URL, datasourceUID string, query url.Values) string {
+	return withQuery(join(base, "traces", datasourceUID), query)
 }
 
 func Public(base *url.URL, token string) string {

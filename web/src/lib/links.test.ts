@@ -7,6 +7,8 @@ import {
   dashboardPath,
   findingPath,
   folderPath,
+  logsLink,
+  logsPath,
   logsUrl,
   observationLink,
   observationPath,
@@ -15,6 +17,8 @@ import {
   proposalPath,
   slugOf,
   traceLink,
+  tracesLink,
+  tracesPath,
   traceUrl,
 } from "./links"
 
@@ -130,15 +134,33 @@ describe("logs and trace addresses", () => {
 
   it("percent-encodes the logs query", () => {
     expect(
-      logsUrl({
-        ds: "loki",
+      logsUrl("loki", {
         q: '{service_name="checkout"}',
         from: "now-1h",
         to: "now",
       })
     ).toBe(
-      "/logs?ds=loki&q=%7Bservice_name%3D%22checkout%22%7D&from=now-1h&to=now"
+      "/logs/loki?q=%7Bservice_name%3D%22checkout%22%7D&from=now-1h&to=now"
     )
+  })
+
+  it("escapes the datasource uid in the logs path", () => {
+    expect(logsUrl("a/b")).toBe("/logs/a%2Fb")
+    expect(logsPath("a/b")).toBe("/logs/a%2Fb")
+    expect(tracesPath("a/b")).toBe("/traces/a%2Fb")
+  })
+
+  it("gives the router the source page and its uid", () => {
+    expect(logsLink("loki", { q: "a" })).toEqual({
+      to: "/logs/$datasourceUid",
+      params: { datasourceUid: "loki" },
+      search: { q: "a" },
+    })
+    expect(tracesLink("tempo")).toEqual({
+      to: "/traces/$datasourceUid",
+      params: { datasourceUid: "tempo" },
+      search: {},
+    })
   })
 })
 

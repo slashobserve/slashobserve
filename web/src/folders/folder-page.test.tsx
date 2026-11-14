@@ -246,7 +246,7 @@ describe("FolderPage", () => {
     const search = await screen.findByRole("link", { name: "Checkout errors" })
     expect(search).toHaveAttribute(
       "href",
-      expect.stringMatching(/^\/logs\?.*ds=es.*q=level%3Aerror/)
+      expect.stringMatching(/^\/logs\/es\?.*q=level%3Aerror/)
     )
     const searches = screen.getByRole("region", { name: "Saved searches" })
     expect(within(searches).getByText("Logs")).toBeInTheDocument()

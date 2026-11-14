@@ -95,7 +95,7 @@ describe("traceLogsAddress", () => {
 
   it("builds the Loki address with the broadest selector", () => {
     const address = traceLogsAddress("loki", "loki", traceId, window)
-    expect(address.startsWith("/logs?ds=loki&q=")).toBe(true)
+    expect(address.startsWith("/logs/loki?q=")).toBe(true)
     expect(address.endsWith("&from=1&to=2")).toBe(true)
     expect(queryOf(address)).toBe(
       `{service_name=~".+"} | trace_id="${traceId}"`

@@ -76,9 +76,9 @@ describe("SavedSearchesMenu", () => {
     )
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({
-        to: "/logs",
+        to: "/logs/$datasourceUid",
+        params: { datasourceUid: "es" },
         search: {
-          ds: "es",
           q: "level:error",
           cols: "host",
           from: "now-6h",

@@ -1,49 +1,72 @@
-import type { DatasourceStatus } from "./queries"
+import { create } from "zustand"
 
-export type ExplorePage = "logs" | "traces"
+import type { ExploreKind } from "./sources"
 
 const storageKey = "slashobserve-explore-datasource"
+const rememberedCap = 20
 
-type Stored = Partial<Record<ExplorePage, string>>
+type Memory = Record<ExploreKind, string[]>
 
-function readStored(): Stored {
+function uidList(value: unknown): string[] {
+  if (typeof value === "string") return [value]
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((uid): uid is string => typeof uid === "string")
+    .slice(0, rememberedCap)
+}
+
+export function parseMemory(raw: string | null): Memory {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "")
-    if (typeof parsed !== "object" || parsed === null) return {}
-    const stored: Stored = {}
-    for (const page of ["logs", "traces"] as const) {
-      const uid = (parsed as Record<string, unknown>)[page]
-      if (typeof uid === "string") stored[page] = uid
+    const parsed: unknown = JSON.parse(raw ?? "")
+    if (typeof parsed !== "object" || parsed === null) {
+      return { logs: [], traces: [] }
     }
-    return stored
+    const stored = parsed as Record<string, unknown>
+    return { logs: uidList(stored.logs), traces: uidList(stored.traces) }
   } catch {
-    return {}
+    return { logs: [], traces: [] }
   }
 }
 
-function preferredType(page: ExplorePage): string | undefined {
-  return page === "traces" ? "tempo" : undefined
+export function rememberIn(list: readonly string[], uid: string): string[] {
+  return [uid, ...list.filter((other) => other !== uid)].slice(0, rememberedCap)
 }
 
-export function rememberedDatasource(
-  page: ExplorePage,
-  eligible: readonly DatasourceStatus[]
-): string | undefined {
-  const stored = readStored()[page]
-  if (eligible.some((datasource) => datasource.uid === stored)) return stored
-  const preferred = eligible.find(
-    (datasource) => datasource.type === preferredType(page)
-  )
-  return (preferred ?? eligible[0])?.uid
-}
-
-export function rememberDatasource(page: ExplorePage, uid: string): void {
+function read(): string | null {
   try {
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({ ...readStored(), [page]: uid })
-    )
+    return localStorage.getItem(storageKey)
+  } catch {
+    return null
+  }
+}
+
+function write(memory: Memory) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(memory))
   } catch {
     return
   }
+}
+
+type MemoryState = Memory & {
+  atLoad: Memory
+  remember: (kind: ExploreKind, uid: string) => void
+}
+
+export const useSourceMemory = create<MemoryState>((set, get) => {
+  const stored = parseMemory(read())
+  return {
+    ...stored,
+    atLoad: stored,
+    remember: (kind, uid) => {
+      const { logs, traces } = get()
+      const next = { logs, traces, [kind]: rememberIn(get()[kind], uid) }
+      write(next)
+      set(next)
+    },
+  }
+})
+
+export function recentSources(kind: ExploreKind): string[] {
+  return useSourceMemory.getState()[kind]
 }

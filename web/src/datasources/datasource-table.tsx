@@ -7,6 +7,7 @@ import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { logsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -142,8 +143,7 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
     <div className="flex justify-end gap-1.5">
       {targets.includes("logs") ? (
         <Link
-          to="/logs"
-          search={{ ds: datasource.uid }}
+          {...logsLink(datasource.uid)}
           aria-label={`Explore logs in ${datasource.uid}`}
           className={exploreLinkClass}
         >
@@ -152,8 +152,7 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
       ) : null}
       {targets.includes("traces") ? (
         <Link
-          to="/traces"
-          search={{ ds: datasource.uid }}
+          {...tracesLink(datasource.uid)}
           aria-label={`Search traces in ${datasource.uid}`}
           className={exploreLinkClass}
         >

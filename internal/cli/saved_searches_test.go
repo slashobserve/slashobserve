@@ -19,11 +19,11 @@ func savedSearchJSON(id, kind, title, folder, datasource, url string) string {
 
 func TestSavedSearchesCommands(t *testing.T) {
 	listBody := `{"saved_searches":[` + strings.Join([]string{
-		savedSearchJSON(testSavedSearch, "logs", "Checkout errors", "Payments", "loki", "/logs?ds=loki"),
-		savedSearchJSON("cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", "traces", "Slow checkout", "My Dashboards", "tempo", "/traces?ds=tempo"),
+		savedSearchJSON(testSavedSearch, "logs", "Checkout errors", "Payments", "loki", "/logs/loki"),
+		savedSearchJSON("cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", "traces", "Slow checkout", "My Dashboards", "tempo", "/traces/tempo"),
 	}, ",") + `],"next_cursor":"more"}`
-	saved := savedSearchJSON(testSavedSearch, "logs", "Checkout errors", "Payments", "loki", "https://observe.example.com/logs?ds=loki&q=x")
-	const savedURL = "https://observe.example.com/logs?ds=loki&q=x"
+	saved := savedSearchJSON(testSavedSearch, "logs", "Checkout errors", "Payments", "loki", "https://observe.example.com/logs/loki?q=x")
+	const savedURL = "https://observe.example.com/logs/loki?q=x"
 
 	cases := []struct {
 		name       string
