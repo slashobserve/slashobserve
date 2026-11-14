@@ -15,6 +15,7 @@ import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
 import { Route as PTokenRouteImport } from './routes/p/$token'
 import { Route as RcaTokenRouteImport } from './routes/rca/$token'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
+import { Route as AuthedShellChatsRouteImport } from './routes/_authed/_shell/chats'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/health'
 import { Route as AuthedShellInboxRouteImport } from './routes/_authed/_shell/inbox'
@@ -75,6 +76,11 @@ const RcaTokenRoute = RcaTokenRouteImport.update({
 } as any)
 const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
   id: '/_chat',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellChatsRoute = AuthedShellChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellDatasourcesRoute = AuthedShellDatasourcesRouteImport.update({
@@ -266,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
+  '/_authed/_shell/chats': typeof AuthedShellChatsRoute
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/health': typeof AuthedShellHealthRoute
   '/_authed/_shell/inbox': typeof AuthedShellInboxRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/chats'
     | '/datasources'
     | '/health'
     | '/inbox'
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/chats'
     | '/datasources'
     | '/health'
     | '/inbox'
@@ -469,6 +480,7 @@ export interface FileRouteTypes {
     | '/p/$token'
     | '/rca/$token'
     | '/_authed/_shell/_chat'
+    | '/_authed/_shell/chats'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/health'
     | '/_authed/_shell/inbox'
@@ -554,6 +566,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthedShellChatRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/chats': {
+      id: '/_authed/_shell/chats'
+      path: '/chats'
+      fullPath: '/chats'
+      preLoaderRoute: typeof AuthedShellChatsRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/datasources': {
@@ -815,6 +834,7 @@ const AuthedShellChatRouteWithChildren = AuthedShellChatRoute._addFileChildren(
 
 interface AuthedShellRouteChildren {
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
+  AuthedShellChatsRoute: typeof AuthedShellChatsRoute
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
   AuthedShellHealthRoute: typeof AuthedShellHealthRoute
   AuthedShellInboxRoute: typeof AuthedShellInboxRoute
@@ -840,6 +860,7 @@ interface AuthedShellRouteChildren {
 
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
+  AuthedShellChatsRoute: AuthedShellChatsRoute,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
   AuthedShellHealthRoute: AuthedShellHealthRoute,
   AuthedShellInboxRoute: AuthedShellInboxRoute,

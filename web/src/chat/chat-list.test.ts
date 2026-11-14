@@ -36,6 +36,7 @@ function summary(
     created_at: "2026-11-06T10:00:00Z",
     started_at: null,
     finished_at: null,
+    requested_by: { kind: "user", id: "user-1", name: "Ada" },
     ...overrides,
   }
 }

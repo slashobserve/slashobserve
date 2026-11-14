@@ -173,10 +173,7 @@ func (h *ObserveHandler) getBuild(c *gin.Context) {
 	}
 	ctx, caller := c.Request.Context(), httpapi.Caller(c)
 	idAttr := slog.String("agent_request_id", id.String())
-	row, err := h.service.GetObserve(ctx, id, caller)
-	if err == nil {
-		err = h.service.checkVisible(ctx, row.DashboardID, caller)
-	}
+	row, _, err := h.service.ReadObserve(ctx, id, caller)
 	if err != nil {
 		h.failBuild(c, "get agent request build", err, idAttr)
 		return
@@ -239,8 +236,8 @@ func decodeOptionalBody(c *gin.Context, dst any, limit int64) bool {
 	return httpapi.DecodeBody(c, dst, limit)
 }
 
-func (h *ObserveHandler) replyRequest(c *gin.Context, status int, row dbsqlc.AgentRequest) {
-	view, err := h.runs.render(c.Request.Context(), row, httpapi.Caller(c))
+func (h *ObserveHandler) replyRequest(c *gin.Context, status int, row dbsqlc.AgentRequest, readOnly bool) {
+	view, err := h.runs.render(c.Request.Context(), row, httpapi.Caller(c), readOnly)
 	if err != nil {
 		h.service.fail(c, "render agent request", err, slog.String("agent_request_id", row.ID.String()))
 		return
@@ -258,7 +255,7 @@ func (h *ObserveHandler) cancelObserve(c *gin.Context) {
 		h.failBuild(c, "cancel agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
-	h.replyRequest(c, http.StatusOK, row)
+	h.replyRequest(c, http.StatusOK, row, false)
 }
 
 func (h *ObserveHandler) retryObserve(c *gin.Context) {
@@ -277,7 +274,7 @@ func (h *ObserveHandler) retryObserve(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	h.replyRequest(c, http.StatusAccepted, row)
+	h.replyRequest(c, http.StatusAccepted, row, false)
 }
 
 func (h *ObserveHandler) continueObserve(c *gin.Context) {
@@ -300,5 +297,5 @@ func (h *ObserveHandler) continueObserve(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	h.replyRequest(c, http.StatusCreated, row)
+	h.replyRequest(c, http.StatusCreated, row, false)
 }

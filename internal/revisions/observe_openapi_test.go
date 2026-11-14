@@ -33,7 +33,7 @@ type documentedObserve struct {
 	router routers.Router
 }
 
-func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Principal, finding func(context.Context, pgtype.UUID) (json.RawMessage, bool, error)) *documentedObserve {
+func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Principal, finding func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error)) *documentedObserve {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
 	doc, err := api.Load(t.Context())
@@ -235,7 +235,7 @@ func TestAFinishedRequestReportsItsCostAsTheDocumentSays(t *testing.T) {
 	}
 }
 
-func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (string, func(context.Context, pgtype.UUID) (json.RawMessage, bool, error)) {
+func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (string, func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error)) {
 	t.Helper()
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
@@ -243,7 +243,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
 		t.Fatal(err)
 	}
-	finding := func(_ context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error) {
+	finding := func(_ context.Context, _ auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
 		if requestID != row.ID {
 			return nil, false, nil
 		}
@@ -405,3 +405,19 @@ func TestRetryAndTheRunStateFieldsMatchTheDocument(t *testing.T) {
 }
 
 const uuidNobodyOwns = "99999999-9999-4999-8999-999999999999"
+
+func TestAdminReadsMatchTheDocument(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	id := observeFor(t, svc, user, "someone else's chat")
+	h := newDocumentedObserve(t, svc, bea, nil)
+
+	list := h.call(t, http.MethodGet, "/api/v1/observe?scope=all&state=queued&state=failed", "", http.StatusOK)
+	if !strings.Contains(list.Body.String(), `"requested_by":{"kind":"user","id":"`+userID+`","name":"Ada"}`) {
+		t.Errorf("the list does not name the requester: %s", list.Body)
+	}
+	read := h.call(t, http.MethodGet, "/api/v1/observe/"+id, "", http.StatusOK)
+	if !strings.Contains(read.Body.String(), `"read_only":true`) || !strings.Contains(read.Body.String(), `"allowed_actions":[]`) {
+		t.Errorf("the read is not read only: %s", read.Body)
+	}
+	h.call(t, http.MethodGet, "/api/v1/observe?scope=bogus", "", http.StatusBadRequest)
+}
