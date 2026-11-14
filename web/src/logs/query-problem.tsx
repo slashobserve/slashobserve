@@ -1,13 +1,12 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { kqlReferenceUrl } from "@/datasources/sources"
 
 import { rowsOf } from "./builder"
 import { withForm } from "./query-form"
 import type { QueryProblem } from "./query-problem"
 import { useLogsWorkspace } from "./workspace"
 
-export const kqlReferenceUrl =
-  "https://slashobserve.com/docs/use/logs-and-traces#kql-on-elasticsearch-and-opensearch"
 const noModelText = "Add a model key to ask in plain language"
 
 export function QueryProblemCard({

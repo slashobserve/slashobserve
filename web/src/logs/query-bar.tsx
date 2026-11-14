@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { PanelDataResponse } from "@/dashboards/queries"
+import { languageReference } from "@/datasources/sources"
 import { formatDateTime } from "@/lib/time"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
@@ -53,7 +54,7 @@ import { LogLabelBrowser } from "./label-browser"
 import { addPill, decodePills, encodePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
 import { problemOf, type QueryProblem } from "./query-problem"
-import { kqlReferenceUrl, QueryProblemCard } from "./query-problem.tsx"
+import { QueryProblemCard } from "./query-problem.tsx"
 import { isSearchFamily, queryModeLabel, type LogsSearch } from "./search"
 import { useLogsWorkspace } from "./workspace"
 
@@ -64,11 +65,6 @@ const builderBlockedText = "The builder cannot show this query. Edit it as KQL."
 const unknownFieldMessage = /^unknown field "(.*)"$/
 const segmentClass =
   "inline-flex h-full items-center rounded-chip border px-2.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
-const referenceUrls: Record<string, string> = {
-  KQL: kqlReferenceUrl,
-  LogQL: "https://grafana.com/docs/loki/latest/query/",
-  SQL: "https://clickhouse.com/docs/sql-reference",
-}
 const formItems = (["kql", "lucene", "dsl"] as const).map((value) => ({
   value,
   label: formLabels[value],
@@ -273,6 +269,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const uid = datasource.uid
   const type = datasource.type
   const modeLabel = queryModeLabel(type)
+  const reference = languageReference("logs", type)
   const bar = useBarMode()
   const { shown, search, builderAvailable, agentAvailable } = bar
   const editorRef = useRef<CodeEditorHandle>(null)
@@ -567,14 +564,16 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
             {shown === "ask" ? null : (
               <p className="text-xs text-muted-foreground">
                 {helpText(type, datasource.index)}{" "}
-                <a
-                  href={referenceUrls[modeLabel]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-3"
-                >
-                  {modeLabel} reference
-                </a>
+                {reference === null ? null : (
+                  <a
+                    href={reference.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-3"
+                  >
+                    {reference.label}
+                  </a>
+                )}
               </p>
             )}
           </div>

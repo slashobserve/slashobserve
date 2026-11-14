@@ -4,6 +4,7 @@ import type { DatasourceStatus } from "./queries"
 import {
   carriesSearch,
   defaultSource,
+  languageReference,
   listedSources,
   logsSwitchSearch,
   orderSources,
@@ -271,5 +272,50 @@ describe("carriesSearch", () => {
 
   it.each([{ observation: "x" }, { q: "a" }])("is true for %o", (search) => {
     expect(carriesSearch(search)).toBe(true)
+  })
+})
+
+describe("languageReference", () => {
+  it.each([
+    [
+      "logs",
+      "elasticsearch",
+      "KQL reference",
+      "https://slashobserve.com/docs/use/logs-and-traces#kql-on-elasticsearch-and-opensearch",
+    ],
+    [
+      "logs",
+      "opensearch",
+      "KQL reference",
+      "https://slashobserve.com/docs/use/logs-and-traces#kql-on-elasticsearch-and-opensearch",
+    ],
+    [
+      "logs",
+      "loki",
+      "LogQL reference",
+      "https://grafana.com/docs/loki/latest/query/",
+    ],
+    [
+      "logs",
+      "clickhouse",
+      "SQL reference",
+      "https://clickhouse.com/docs/sql-reference",
+    ],
+    [
+      "traces",
+      "tempo",
+      "TraceQL reference",
+      "https://grafana.com/docs/tempo/latest/traceql/",
+    ],
+  ] as const)("names the %s reference of %s", (kind, type, label, url) => {
+    expect(languageReference(kind, type)).toEqual({ label, url })
+  })
+
+  it.each([
+    ["logs", "prometheus"],
+    ["traces", "clickhouse"],
+    ["traces", "jaeger"],
+  ] as const)("has none for the %s language of %s", (kind, type) => {
+    expect(languageReference(kind, type)).toBeNull()
   })
 })
