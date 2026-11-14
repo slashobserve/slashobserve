@@ -692,7 +692,7 @@ Sentence case everywhere. No uppercase labels. Weight carries hierarchy: 600 for
 A 4px base. The spacing scale is 4, 8, 12, 16, 24, 32.
 
 - **Gutters.** The page gutter is `gutter` (24px), and `gutter-phone` (16px) under 900px. The top bar, the page title and the content share that left edge. Inside cards and panels the gutter is `gutter-card` (16px).
-- **Widths.** App pages run up to `container` (1144px). Pages with margin comments centre a `container-doc` (1040px) column. Reading pages centre `container-reading` (720px). The side panel is always `side-panel` (384px).
+- **Widths.** App pages fill the content width, as the dashboards list does. Home and the chat pages centre a `container-reading` (720px) column. The side panel is always `side-panel` (384px).
 - **Shell.** A grey sidebar (`rail`, 248px) and a white page. The page has a top bar with the breadcrumb on the left and page actions on the right.
 - **Control heights.** 32px for page actions, 28px inside cards and panels, 24px for dense icon buttons, 44px for touch targets on phones.
 

@@ -111,6 +111,20 @@ export function toggleGroup(
   return allEventTypes.filter((candidate) => next.has(candidate))
 }
 
+export function groupCountText(
+  selected: readonly ActivityType[],
+  group: EventTypeGroup
+): string {
+  const chosen = group.types.filter((type) => selected.includes(type)).length
+  return `${chosen} of ${group.types.length}`
+}
+
+export function openGroupPrefixes(selected: readonly ActivityType[]): string[] {
+  return eventTypeGroups
+    .filter((group) => group.types.some((type) => selected.includes(type)))
+    .map((group) => group.prefix)
+}
+
 export function eventTypeSummary(types: readonly ActivityType[]): string {
   if (types.length === allEventTypes.length) return "All events"
   if (types.length <= 2) {

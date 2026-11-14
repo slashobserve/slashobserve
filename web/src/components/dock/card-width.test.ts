@@ -10,6 +10,7 @@ import {
   isNarrow,
   isStacked,
   maxWidthFor,
+  opensByDefault,
   panelWidth,
 } from "./card-width"
 
@@ -82,6 +83,15 @@ describe("isNarrow", () => {
   it("turns the panel into a bottom sheet at and below 760px, like the narrow variant", () => {
     expect(isNarrow(760)).toBe(true)
     expect(isNarrow(761)).toBe(false)
+  })
+})
+
+describe("opensByDefault", () => {
+  it("starts a side panel open beside the page and closed where it would be a sheet over it", () => {
+    expect(opensByDefault(1440)).toBe(true)
+    expect(opensByDefault(761)).toBe(true)
+    expect(opensByDefault(760)).toBe(false)
+    expect(opensByDefault(390)).toBe(false)
   })
 })
 

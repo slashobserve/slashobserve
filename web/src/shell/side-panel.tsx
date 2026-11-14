@@ -59,6 +59,14 @@ function PanelCard({
     const triggerElement = trigger?.current
     ;(initialFocus?.current ?? titleRef.current)?.focus()
     return () => {
+      const active = document.activeElement
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        active.isConnected
+      ) {
+        return
+      }
       const target =
         previous instanceof HTMLElement &&
         previous !== document.body &&

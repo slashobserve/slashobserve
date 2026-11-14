@@ -304,7 +304,7 @@ You can list and disconnect your connected agents over the API with `GET /api/v1
 Each connected agent in the list has a `state`, always `active` there because the list leaves out revoked and expired connections; see [States](../reference/states.md).
 Service-account keys cannot call any of them.
 
-Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's there too.
+Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's in Settings, Agent access.
 The [Agents page](agents.md) lists the same connections with their mode and presence, and its **Connect an agent** button shows the Claude Code command.
 
 Each client's setup:

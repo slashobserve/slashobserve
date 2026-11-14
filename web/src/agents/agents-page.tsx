@@ -77,7 +77,7 @@ export function AgentsPage({ connecting, onConnectingChange }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <>
       <PageHeader
         title="Agents"
         actions={
@@ -94,6 +94,6 @@ export function AgentsPage({ connecting, onConnectingChange }: Props) {
           trigger={connectButton}
         />
       ) : null}
-    </div>
+    </>
   )
 }

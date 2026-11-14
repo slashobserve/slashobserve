@@ -1,10 +1,8 @@
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
 
 import { instanceQuery } from "@/api/instance"
 import { StatusLabel } from "@/components/status-label"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 
 import {
   domainList,
@@ -13,7 +11,7 @@ import {
   providerLabel,
 } from "./sign-in-policy"
 
-export function SignInBanner() {
+export function SignInBanner({ action }: { action: ReactNode }) {
   const query = useQuery(instanceQuery())
   if (!query.data) return null
 
@@ -23,7 +21,7 @@ export function SignInBanner() {
   const neutral = !allowAll && domains.length === 0
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-card border px-3.5 py-3 text-[13px]">
+    <div className="flex flex-wrap items-center gap-2.5 rounded-card border px-3.5 py-3 text-[13px]">
       {neutral ? null : (
         <StatusLabel tone={allowAll ? "warning" : "ok"}>{null}</StatusLabel>
       )}
@@ -45,13 +43,7 @@ export function SignInBanner() {
           </>
         )}
       </span>
-      <Link
-        to="/settings"
-        hash="sign-in"
-        className={cn(buttonVariants({ variant: "outline" }), "font-normal")}
-      >
-        Sign-in settings
-      </Link>
+      {action}
     </div>
   )
 }

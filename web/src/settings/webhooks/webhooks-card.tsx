@@ -37,13 +37,14 @@ import { webhookProblemText } from "./webhook-problems"
 
 type Props = {
   webhooks: Webhook[]
-  onEdit: (webhook: Webhook) => void
+  editingId: string | null
+  onEdit: (webhookId: string) => void
   onSecret: (webhookName: string, secret: string) => void
 }
 
 type Confirming = { kind: "rotate" | "delete"; webhook: Webhook }
 
-export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
+export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
   const test = useTestWebhook()
   const update = useUpdateWebhook()
   const rotate = useRotateSecret()
@@ -100,7 +101,12 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
 
   return (
     <>
-      <TableCard label="Webhooks" minWidth={820} className="mb-4">
+      <TableCard
+        label="Webhooks"
+        minWidth={760}
+        stackOnNarrow
+        className="rounded-none border-0 border-t bg-transparent"
+      >
         <thead>
           <tr>
             <HeaderCell>Name</HeaderCell>
@@ -119,7 +125,11 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
             const open = viewing === webhook.id
             return (
               <Fragment key={webhook.id}>
-                <tr>
+                <tr
+                  className={
+                    webhook.id === editingId ? "bg-selection" : undefined
+                  }
+                >
                   <Cell className="font-medium wrap-anywhere">
                     {webhook.name}
                     <span className="block text-xs font-normal text-muted-foreground">
@@ -142,11 +152,12 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
                       )}
                     </div>
                   </Cell>
-                  <Cell>
+                  <Cell data-cell="action">
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="narrow:h-11"
                         disabled={testing}
                         focusableWhenDisabled
                         aria-busy={testing}
@@ -164,6 +175,7 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="narrow:h-11"
                         aria-expanded={open}
                         aria-label={`Attempts of ${webhook.name}`}
                         onClick={() => setViewing(open ? null : webhook.id)}
@@ -176,6 +188,7 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
                             <Button
                               variant="outline"
                               size="icon-sm"
+                              className="narrow:size-11"
                               aria-label={`More for ${webhook.name}`}
                             />
                           }
@@ -183,7 +196,7 @@ export function WebhooksCard({ webhooks, onEdit, onSecret }: Props) {
                           <EllipsisIcon aria-hidden="true" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(webhook)}>
+                          <DropdownMenuItem onClick={() => onEdit(webhook.id)}>
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem

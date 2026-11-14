@@ -217,12 +217,16 @@ The activity card and the Inspect pane show below the panels, and opening Inspec
 
 ## Connected agents
 
-Open Settings and choose **Connected agents** in its section list to see the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
+Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
+On a phone the section list is a **Settings section** menu at the top of the page.
+
+Open Settings and choose **Connected agents** in its section list to see **Your connected agents**: the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
+A note under the list explains the two modes: Direct saves change dashboards, and Propose saves become proposals an editor merges.
 **Disconnect** asks first and then ends the connection at once; the client has to be connected again from the agent to work.
 The API behind it also returns each connection's presence (working, listening or offline) and when it last asked for work; this section does not show them yet.
-The section also shows the command that adds this server to Claude Code.
+A **Connect another** card in the section shows the command that adds this server to Claude Code, and reads **Connect an agent** until you have connected one.
 The **Agents** page in the sidebar lists the same connections next to the Observe Agent and the service accounts, and each can switch between direct and propose mode there.
-An Admin sees a second card, **Everyone's connected agents**, with the person each belongs to, and can disconnect any of them.
+An Admin finds **Everyone's connected agents** under **Agent access**, with the person each belongs to, and can disconnect any of them there; **Agent access** also links to API keys.
 [Connect your own agent](mcp.md#connect-your-own-agent) describes how a client is approved.
 
 ## Theme

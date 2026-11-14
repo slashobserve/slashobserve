@@ -61,7 +61,7 @@ export function DeleteFolderCard({ folder }: { folder: Folder }) {
   return (
     <section
       aria-labelledby="delete-folder-heading"
-      className="mb-4 flex max-w-[860px] flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-card border bg-background px-4 py-3.5"
+      className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-card border bg-background px-4 py-3.5"
     >
       <div className="flex min-w-0 flex-col">
         <h2 id="delete-folder-heading" className="text-sm font-semibold">

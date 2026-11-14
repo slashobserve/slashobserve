@@ -15,11 +15,9 @@ function ChatsRoute() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <ChatsPage
-        search={search}
-        onSearch={(next) => void navigate({ search: next, replace: true })}
-      />
-    </div>
+    <ChatsPage
+      search={search}
+      onSearch={(next) => void navigate({ search: next, replace: true })}
+    />
   )
 }

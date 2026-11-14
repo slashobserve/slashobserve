@@ -1,14 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  FolderLockIcon,
-  LockIcon,
-  SearchIcon,
-  UsersIcon,
-} from "lucide-react"
+import { SearchIcon } from "lucide-react"
 import {
   useCallback,
   useEffect,
@@ -27,7 +20,8 @@ import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { foldersQuery, type Folder } from "@/folders/queries"
+import { FolderHeaderRow } from "@/folders/folder-header-row"
+import { foldersQuery } from "@/folders/queries"
 import { importedFilter } from "@/health/health-labels"
 import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
 import { RepairQueue } from "@/import/repair/repair-page"
@@ -42,12 +36,10 @@ import {
   type DashboardSummary,
 } from "./dashboard-columns"
 import {
-  accessSummary,
   dashboardCountText,
   groupPage,
   hasPeopleFolders,
   listSummary,
-  yourAccessText,
   type FolderSection,
 } from "./folder-groups"
 import {
@@ -233,82 +225,6 @@ function FilterRow({
   )
 }
 
-function FolderHeaderRow({
-  folder,
-  collapsed,
-  continued,
-  count,
-  columnCount,
-  onToggle,
-}: {
-  folder: Folder
-  collapsed: boolean
-  continued: boolean
-  count: number | null
-  columnCount: number
-  onToggle: () => void
-}) {
-  const AccessIcon = folder.personal
-    ? FolderLockIcon
-    : folder.restricted
-      ? LockIcon
-      : UsersIcon
-  const yourAccess = yourAccessText(folder)
-  return (
-    <tr>
-      <th
-        scope="rowgroup"
-        colSpan={columnCount}
-        className="border-b px-3.5 py-2.5 text-left font-normal"
-      >
-        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-expanded={!collapsed}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${folder.title}`}
-            onClick={onToggle}
-          >
-            {collapsed ? (
-              <ChevronRightIcon aria-hidden="true" />
-            ) : (
-              <ChevronDownIcon aria-hidden="true" />
-            )}
-          </Button>
-          <span className="font-semibold wrap-anywhere">{folder.title}</span>
-          {count === null ? null : (
-            <span className="text-xs text-muted-foreground">
-              {dashboardCountText(count)}
-            </span>
-          )}
-          {continued ? (
-            <span className="text-xs text-muted-foreground">
-              Continued from the previous page
-            </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
-            {accessSummary(folder)}
-          </span>
-          {yourAccess === null ? null : (
-            <span className="text-xs text-muted-foreground">{yourAccess}</span>
-          )}
-          {folder.permissions.manage ? (
-            <Link
-              to="/f/$folderId"
-              params={{ folderId: folder.id }}
-              search={{ settings: "1" }}
-              className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Folder settings
-            </Link>
-          ) : null}
-        </span>
-      </th>
-    </tr>
-  )
-}
-
 function sectionRows(
   sections: FolderSection[],
   collapsed: ReadonlySet<string>,
@@ -328,7 +244,9 @@ function sectionRows(
         folder={section.folder}
         collapsed={isCollapsed}
         continued={section.continued}
-        count={section.count}
+        countText={
+          section.count === null ? null : dashboardCountText(section.count)
+        }
         columnCount={columnCount}
         onToggle={() => toggle(section.folder.id)}
       />
@@ -357,6 +275,7 @@ function sectionRows(
                 data-cell={
                   cell.column.id === actionsColumn.id ? "action" : undefined
                 }
+                data-label={cell.column.columnDef.meta?.stackedLabel}
                 className={cell.column.columnDef.meta?.cellClassName}
               >
                 <table.FlexRender cell={cell} />

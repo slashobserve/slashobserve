@@ -24,15 +24,27 @@ import {
   type OutboundDomains,
 } from "./outbound-domains"
 import { SettingsCard, SettingsProblem, SettingsRow } from "./settings-card"
+import { SettingsSection } from "./settings-section"
 
-const hint =
+const description =
   "Sites the server may fetch for dashboards, such as news feeds. Nothing else is fetched."
+const cardHint =
+  "Webhook addresses must be on this list. A Grafana connection adds its own host."
 
-export function OutboundAccessCard() {
+export function OutboundAccessSection() {
+  return (
+    <SettingsSection title="Outbound access" description={description}>
+      <AllowedDomainsCard />
+    </SettingsSection>
+  )
+}
+
+function AllowedDomainsCard() {
   const query = useQuery(outboundDomainsQuery())
+  const title = "Allowed domains"
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard title="Outbound access" hint={hint}>
+      <SettingsCard title={title} hint={cardHint}>
         <SettingsProblem
           title="Could not load outbound access"
           detail={loadProblemText(query.error)}
@@ -46,7 +58,7 @@ export function OutboundAccessCard() {
   const list = query.data
   if (list === undefined) {
     return (
-      <SettingsCard title="Outbound access" hint={hint}>
+      <SettingsCard title={title} hint={cardHint}>
         <SettingsRow label="Allowed domains">
           <Skeleton className="h-4 w-32" />
         </SettingsRow>
@@ -55,7 +67,7 @@ export function OutboundAccessCard() {
   }
 
   return (
-    <SettingsCard title="Outbound access" hint={hint}>
+    <SettingsCard title={title} hint={cardHint}>
       <AllowedDomains list={list} />
     </SettingsCard>
   )
@@ -90,12 +102,12 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
   return (
     <>
       {list.domains.length === 0 ? (
-        <p className="border-b px-4 py-3 text-[13px] text-muted-foreground">
+        <p className="px-4 py-3 text-[13px] text-muted-foreground">
           No domains are allowed, so the server makes no outbound requests for
           dashboards.
         </p>
       ) : (
-        <ul>
+        <ul className="divide-y">
           {list.domains.map((entry) => (
             <DomainRow
               key={entry.domain}
@@ -112,14 +124,14 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
         </ul>
       )}
       {managedByConfig ? (
-        <p className="px-4 py-3 text-[13px] text-muted-foreground">
+        <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">
           Set by SLASHOBSERVE_OUTBOUND_DOMAINS on the server. Change it there
           and restart.
         </p>
       ) : isAdmin ? (
         <AllowDomainForm input={input} />
       ) : (
-        <RoleNote className="px-4 py-3">
+        <RoleNote className="border-t px-4 py-3">
           Only Admins can change outbound access.
         </RoleNote>
       )}
@@ -141,7 +153,7 @@ function DomainRow({
   buttonRef: (button: HTMLButtonElement | null) => void
 }) {
   return (
-    <li className="flex items-center gap-x-4 border-b px-4 py-3">
+    <li className="flex items-center gap-x-4 px-4 py-3">
       <div className="min-w-0 flex-1">
         <div className="font-mono text-[13px] wrap-anywhere">
           {entry.domain}
@@ -164,6 +176,7 @@ function DomainRow({
           ref={buttonRef}
           variant="outline"
           size="icon-sm"
+          className="narrow:size-11"
           aria-label={`Remove ${entry.domain}`}
           disabled={removing}
           focusableWhenDisabled
@@ -210,11 +223,12 @@ function AllowDomainForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2 px-4 py-3">
+    <form onSubmit={submit} className="flex flex-col gap-2 border-t px-4 py-3">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-[240px] flex-1">
           <Input
             ref={input}
+            className="narrow:h-11"
             aria-label="Domain"
             placeholder="example.com or *.example.com"
             maxLength={256}
@@ -236,6 +250,7 @@ function AllowDomainForm({
         </div>
         <Button
           type="submit"
+          className="narrow:h-11"
           disabled={empty || draftError !== null || allow.isPending}
           aria-busy={allow.isPending}
         >

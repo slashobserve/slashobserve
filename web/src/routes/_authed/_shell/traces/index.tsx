@@ -49,9 +49,5 @@ export const Route = createFileRoute("/_authed/_shell/traces/")({
 })
 
 function TracesListRoute() {
-  return (
-    <div className="mx-auto w-full max-w-6xl">
-      <ExploreList kind="traces" />
-    </div>
-  )
+  return <ExploreList kind="traces" />
 }

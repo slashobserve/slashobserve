@@ -1,28 +1,23 @@
-import { useId } from "react"
-
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { isThemePreference, themeChoices, useTheme } from "@/lib/theme"
 
 import { SettingsCard } from "./settings-card"
+import { SettingsSection } from "./settings-section"
 
-export function AppearanceCard() {
+export function AppearanceSection() {
   const { preference, setPreference } = useTheme()
-  const labelId = useId()
   return (
-    <SettingsCard
+    <SettingsSection
       title="Appearance"
-      hint="How the app looks in this browser. The choice stays on this device."
+      description="How the app looks in this browser. The choice stays on this device."
     >
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-3">
-        <span
-          id={labelId}
-          className="w-[200px] text-[13px] leading-4 text-muted-foreground"
-        >
-          Theme
-        </span>
+      <SettingsCard
+        title="Theme"
+        hint="Kept in this browser only, nothing is saved on the server."
+      >
         <RadioGroup
-          aria-labelledby={labelId}
-          className="min-w-[200px] flex-1"
+          aria-label="Theme"
+          className="gap-0 divide-y"
           value={preference}
           onValueChange={(value) => {
             if (isThemePreference(value)) setPreference(value)
@@ -31,14 +26,14 @@ export function AppearanceCard() {
           {themeChoices.map((choice) => (
             <label
               key={choice.value}
-              className="flex items-center gap-2 text-[13px]"
+              className="flex min-h-9 cursor-pointer items-center gap-2.5 px-4 text-[13px] hover:bg-canvas narrow:min-h-11"
             >
               <RadioGroupItem value={choice.value} />
               {choice.label}
             </label>
           ))}
         </RadioGroup>
-      </div>
-    </SettingsCard>
+      </SettingsCard>
+    </SettingsSection>
   )
 }
