@@ -57,7 +57,7 @@ export function PageBar({
     if (enabled) onPage(page)
   }
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-1 text-xs">
       <div className="flex min-w-0 flex-col gap-0.5">
         <p>{rangeText(state, noun, qualifier)}</p>
         {note !== undefined ? (
@@ -72,7 +72,11 @@ export function PageBar({
             if (size !== null) onPageSize(size)
           }}
         >
-          <SelectTrigger size="sm" aria-label="Rows per page">
+          <SelectTrigger
+            size="sm"
+            aria-label="Rows per page"
+            className="narrow:data-[size=sm]:h-11"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false} align="end">
@@ -91,6 +95,7 @@ export function PageBar({
                 variant="ghost"
                 size="sm"
                 aria-label="Previous page"
+                className="narrow:h-11"
                 aria-disabled={!state.hasPrev}
                 onClick={go(state.page - 1, state.hasPrev)}
               >
@@ -99,25 +104,35 @@ export function PageBar({
               </Button>
             </PaginationItem>
             {state.byOffset ? (
-              numberedItems(state).map((item) => (
-                <PaginationItem key={item}>
-                  {typeof item === "number" ? (
-                    <Button
-                      type="button"
-                      variant={item === state.page ? "outline" : "ghost"}
-                      size="sm"
-                      aria-label={`Page ${item}`}
-                      aria-current={item === state.page ? "page" : undefined}
-                      onClick={item === state.page ? undefined : go(item, true)}
-                      className="min-w-7 px-2 tabular-nums"
-                    >
-                      {item}
-                    </Button>
-                  ) : (
-                    <PaginationEllipsis />
-                  )}
-                </PaginationItem>
-              ))
+              [
+                ...numberedItems(state).map((item) => (
+                  <PaginationItem key={item}>
+                    {typeof item === "number" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Page ${item}`}
+                        aria-current={item === state.page ? "page" : undefined}
+                        onClick={
+                          item === state.page ? undefined : go(item, true)
+                        }
+                        className="size-7 px-0 tabular-nums aria-[current=page]:bg-muted narrow:hidden"
+                      >
+                        {item}
+                      </Button>
+                    ) : (
+                      <PaginationEllipsis className="narrow:hidden" />
+                    )}
+                  </PaginationItem>
+                )),
+                <PaginationItem
+                  key="phone-page"
+                  className="hidden narrow:block"
+                >
+                  <span className="px-2 tabular-nums">{`Page ${state.page}`}</span>
+                </PaginationItem>,
+              ]
             ) : (
               <PaginationItem>
                 <span
@@ -132,6 +147,7 @@ export function PageBar({
                 variant="ghost"
                 size="sm"
                 aria-label="Next page"
+                className="narrow:h-11"
                 aria-disabled={!state.hasNext}
                 onClick={go(state.page + 1, state.hasNext)}
               >

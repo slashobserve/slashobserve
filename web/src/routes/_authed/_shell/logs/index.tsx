@@ -2,8 +2,13 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { datasourcesQuery } from "@/datasources/queries"
 import { recentSources } from "@/datasources/datasource-memory"
-import { ExploreEntry } from "@/datasources/explore-entry"
-import { defaultSource, sourcesOf, withoutSource } from "@/datasources/sources"
+import { ExploreList } from "@/datasources/explore-list"
+import {
+  carriesSearch,
+  defaultSource,
+  sourcesOf,
+  withoutSource,
+} from "@/datasources/sources"
 import { validateLogsEntrySearch } from "@/logs/search"
 
 export const Route = createFileRoute("/_authed/_shell/logs/")({
@@ -19,6 +24,7 @@ export const Route = createFileRoute("/_authed/_shell/logs/")({
         replace: true,
       })
     }
+    if (!carriesSearch(rest)) return
     const listed = await context.queryClient
       .ensureQueryData(datasourcesQuery())
       .catch(() => undefined)
@@ -39,9 +45,13 @@ export const Route = createFileRoute("/_authed/_shell/logs/")({
       })
     }
   },
-  component: LogsEntryRoute,
+  component: LogsListRoute,
 })
 
-function LogsEntryRoute() {
-  return <ExploreEntry kind="logs" />
+function LogsListRoute() {
+  return (
+    <div className="mx-auto w-full max-w-6xl">
+      <ExploreList kind="logs" />
+    </div>
+  )
 }

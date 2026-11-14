@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { DatasourceStatus } from "./queries"
 import {
+  carriesSearch,
   defaultSource,
   listedSources,
   logsSwitchSearch,
@@ -256,5 +257,19 @@ describe("withoutSource", () => {
       uid: undefined,
       search: { q: "a" },
     })
+  })
+})
+
+describe("carriesSearch", () => {
+  it("is false for an empty search", () => {
+    expect(carriesSearch({})).toBe(false)
+  })
+
+  it("is false when every key is undefined", () => {
+    expect(carriesSearch({ q: undefined, page: undefined })).toBe(false)
+  })
+
+  it.each([{ observation: "x" }, { q: "a" }])("is true for %o", (search) => {
+    expect(carriesSearch(search)).toBe(true)
   })
 })

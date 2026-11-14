@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type ReactNode,
   type UIEvent,
 } from "react"
 
@@ -33,6 +34,7 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { typeName } from "./datasource-picker"
 import { exploreErrorText, offlineText } from "./explore"
+import { ExploreFailure } from "./explore-failure"
 import {
   keysOf,
   oldestFirstTimes,
@@ -369,7 +371,7 @@ export function ResultSkeleton() {
   )
 }
 
-export function ResultsSection() {
+export function ResultsSection({ actions }: { actions: ReactNode }) {
   const {
     datasource,
     search,
@@ -501,20 +503,11 @@ export function ResultsSection() {
     }
     if (!tail.shown && results.isError && kept === undefined) {
       return (
-        <div className="p-3">
-          <Alert variant="destructive">
-            <AlertDescription className="flex flex-col items-start gap-2">
-              {exploreErrorText(results.error)}
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => void results.refetch()}
-              >
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
+        <div className="p-4">
+          <ExploreFailure
+            text={exploreErrorText(results.error)}
+            onRetry={() => void results.refetch()}
+          />
         </div>
       )
     }
@@ -542,9 +535,9 @@ export function ResultsSection() {
     <section
       aria-label="Results"
       aria-busy={results.isFetching || tail.isFetching}
-      className="flex min-w-0 flex-1 flex-col rounded-card border border-border"
+      className="flex min-w-0 flex-1 flex-col"
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-3 py-2">
+      <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-1.5">
         <Tabs
           value={patterns ? "patterns" : "documents"}
           onValueChange={(next) => {
@@ -552,21 +545,32 @@ export function ResultsSection() {
             update({ view: next === "patterns" ? "patterns" : undefined })
           }}
         >
-          <TabsList variant="line">
-            <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsList className="h-7! rounded-control p-0.5 narrow:h-11!">
+            <TabsTrigger value="documents" className="rounded-chip text-[13px]">
+              Documents
+            </TabsTrigger>
             <span title={q === undefined ? "Run a query first." : undefined}>
-              <TabsTrigger value="patterns" disabled={q === undefined}>
+              <TabsTrigger
+                value="patterns"
+                disabled={q === undefined}
+                className="rounded-chip text-[13px]"
+              >
                 <PatternsTabLabel />
               </TabsTrigger>
             </span>
           </TabsList>
         </Tabs>
         {hits === null ? null : (
-          <p className="text-xs text-muted-foreground">{hits}</p>
+          <p className="text-[13px] text-muted-foreground tabular-nums narrow:order-last narrow:w-full">
+            {hits}
+          </p>
         )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {actions}
+        </div>
       </div>
       {hits === null ? null : (
-        <p className="border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+        <p className="border-b border-border px-4 py-1.5 text-xs text-muted-foreground">
           {shownData === undefined || pageState === null
             ? null
             : sourceText(
@@ -607,31 +611,26 @@ export function ResultsSection() {
       shownData !== undefined &&
       !patterns &&
       (pageState.rows > 0 || pageState.hasPrev) ? (
-        <div className="flex flex-col gap-2 border-t border-border px-3 py-2">
+        <div className="flex flex-col border-t border-border px-4">
           {results.isError && kept !== undefined ? (
-            <Alert variant="destructive">
-              <AlertDescription className="flex flex-col items-start gap-2">
-                {exploreErrorText(results.error)}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => void results.refetch()}
-                >
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
+            <div className="pt-2">
+              <ExploreFailure
+                text={exploreErrorText(results.error)}
+                onRetry={() => void results.refetch()}
+              />
+            </div>
           ) : null}
           {paging.lostPage !== null ? (
-            <p role="status" className="text-[13px] text-muted-foreground">
+            <p role="status" className="pt-2 text-[13px] text-muted-foreground">
               Page {paging.lostPage} could not be restored; showing page 1
             </p>
           ) : null}
           {shownData.meta.partial && isSearchFamily(datasource.type) ? (
-            <StatusLabel tone="warning">
-              Some shards did not answer; counts may be low
-            </StatusLabel>
+            <div className="pt-2">
+              <StatusLabel tone="warning">
+                Some shards did not answer; counts may be low
+              </StatusLabel>
+            </div>
           ) : null}
           <PageBar
             state={pageState}

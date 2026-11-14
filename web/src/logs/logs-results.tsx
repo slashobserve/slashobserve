@@ -125,7 +125,7 @@ function subscribePhone(onChange: () => void) {
   return () => media.removeEventListener("change", onChange)
 }
 
-function usePhone(): boolean {
+export function usePhone(): boolean {
   return useSyncExternalStore(
     subscribePhone,
     () => window.matchMedia(phoneQuery).matches,
@@ -185,7 +185,7 @@ function TogglePill({
       size="xs"
       aria-pressed={pressed}
       aria-label={label}
-      className="aria-pressed:bg-selection"
+      className="aria-pressed:bg-selection narrow:h-11"
       onClick={onToggle}
     >
       {children}
@@ -364,6 +364,7 @@ export function LogsResults({
             type="button"
             variant="outline"
             size="xs"
+            className="narrow:h-11"
             disabled={noContext !== undefined}
             title={noContext}
             onClick={() => onContext(selection)}
@@ -377,7 +378,10 @@ export function LogsResults({
               traceId={traceId}
               traceDatasource={traceDatasource}
               time={entry.time}
-              className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "xs" }),
+                "narrow:h-11"
+              )}
             >
               Open trace
             </OpenTraceLink>
@@ -387,6 +391,7 @@ export function LogsResults({
             label="Copy line"
             variant="outline"
             size="xs"
+            className="narrow:h-11"
             icon={false}
           >
             Copy line
@@ -402,10 +407,10 @@ export function LogsResults({
       <div
         role="toolbar"
         aria-label="Results view"
-        className="flex h-8 shrink-0 items-center gap-3 px-2 text-[13px]"
+        className="@container/toolbar flex h-8 shrink-0 items-center gap-3 px-4 text-[13px] narrow:h-11 narrow:border-b narrow:border-border"
       >
         <div className="flex items-center gap-2">
-          <Label htmlFor={sortId} className="text-[13px] font-normal">
+          <Label htmlFor={sortId} className="text-xs font-normal">
             Sort
           </Label>
           <Select
@@ -418,7 +423,10 @@ export function LogsResults({
               }
             }}
           >
-            <SelectTrigger id={sortId}>
+            <SelectTrigger
+              id={sortId}
+              className="py-0 text-xs data-[size=default]:h-6 narrow:data-[size=default]:h-11"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false} align="start">
@@ -450,7 +458,7 @@ export function LogsResults({
             onChange={onColumnsChange}
           />
         )}
-        <span className="ml-auto text-xs text-muted-foreground max-[760px]:hidden">
+        <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground @max-[620px]/toolbar:hidden">
           j and k move, Enter expands
         </span>
       </div>
@@ -472,23 +480,25 @@ export function LogsResults({
         </div>
       ) : null}
       {phone ? null : (
-        <ColumnsHeader
-          columns={shownColumns}
-          levelColumn={levelColumn}
-          order={view.order}
-          sort={view.columnSort}
-          onFlipOrder={() => {
-            if (orderLocked) return
-            onViewChange({
-              order: view.order === "newest" ? "oldest" : "newest",
-              columnSort: null,
-            })
-          }}
-          onSort={(columnSort) => {
-            if (!orderLocked) onViewChange({ columnSort })
-          }}
-          onColumnsChange={onColumnsChange}
-        />
+        <div className="shrink-0 bg-background">
+          <ColumnsHeader
+            columns={shownColumns}
+            levelColumn={levelColumn}
+            order={view.order}
+            sort={view.columnSort}
+            onFlipOrder={() => {
+              if (orderLocked) return
+              onViewChange({
+                order: view.order === "newest" ? "oldest" : "newest",
+                columnSort: null,
+              })
+            }}
+            onSort={(columnSort) => {
+              if (!orderLocked) onViewChange({ columnSort })
+            }}
+            onColumnsChange={onColumnsChange}
+          />
+        </div>
       )}
       <div ref={rowsRef} className="min-h-0 flex-1">
         {rowsHeight > 0 ? (

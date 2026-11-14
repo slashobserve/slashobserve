@@ -11,19 +11,22 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 ### Choose a source
 
 Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, has its own page at `/logs/<datasource uid>`.
+
+`/logs` lists the log sources, each with its query language and whether it answers, and under them the saved logs searches you can view, most recently changed first, with their source, folder, who saved them and when; a source or a search opens on its own page.
+
 With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
-The five you used last on this browser come first and the rest follow by name, and **More** opens the full list.
+The five you used last on this browser come first and the rest follow by name, and **More** opens the Logs list.
 The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
 A source added or removed meanwhile goes by name without moving the others.
-With one log source, **Logs** opens it and nothing is listed under it.
-On the collapsed sidebar the Logs icon opens the same list, and on a phone the source line under the page title does.
+With one log source nothing is listed under it, and **Logs** still opens the list.
+On the collapsed sidebar the Logs icon opens a menu with a **Logs** link and the same sources, and on a phone the source line under the page title opens the sources.
 The title names the source and its language, such as **Logs / ClickHouse** with an **SQL** tag.
 
 Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
-`/logs` opens the source you used last on this browser, else the first by name, and an old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
+An address that carries a search but no source, such as `/logs?q=...`, opens the source you used last on this browser, else the first by name, and an old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
 The page searches that one source in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
 On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
-The address keeps the source, `q`, `from` and `to`, so **Copy link** copies a search that opens the same way.
+The address keeps the source, `q`, `from` and `to`, so **Copy link** in the top bar copies a search that opens the same way.
 
 ### What the page shows first
 
@@ -35,7 +38,7 @@ With a model configured on the server, the query box opens in Ask mode, as [Ask 
 
 ### Query modes
 
-The mode switch in the top right corner of the query box has up to three segments.
+The mode switch at the top left of the query card has up to three segments.
 **Ask** takes a question.
 **Builder** edits the query as filter chips, and the last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
 ClickHouse has no Builder segment, because its query is SQL.
@@ -93,6 +96,8 @@ A field the mapping does not have is reported as a warning in lint, and the quer
 
 ### Share a search
 
+The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar.
+On a phone the bar keeps the time range and **Live tail**, and **Save search**, **Saved searches** and **Copy link** are under **More actions**.
 The address keeps the search as `/logs/<datasource uid>?q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
 
@@ -207,7 +212,7 @@ Click a line, or focus it and press Enter, to open its details; press `j` and `k
 Opening a line adds `line` to the address, closing it removes `line`, and **Copy link** in the line's details copies an address that opens that line.
 When the linked line is not in the results, the page says so and **Clear** removes `line` from the address.
 
-Open a line to see it in the panel on the right, beside the results, or inline under the line on a screen 760 pixels wide or narrower.
+Open a line to see it in the side panel on the right, beside the results, or inline under the line on a screen narrower than 900 pixels.
 The panel has a **Table** tab, a **JSON** tab that prints the whole line, and a **Context** tab; press Escape to close it and return to the line.
 On Elasticsearch and OpenSearch the panel is titled **Document** and the table groups **Core fields** (time, level, service, trace id, span id and document id) apart from **Other fields**, which hold the rest of the document and its index as `_index`.
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
@@ -282,7 +287,7 @@ Every pattern carries a `trend` of 30 equal buckets over the range, empty ones i
 
 ## Add to dashboard
 
-**Add to dashboard** keeps the query as a logs panel on a dashboard you can edit.
+**Add to dashboard**, in the header of the results, keeps the query as a logs panel on a dashboard you can edit.
 You need Edit on the target dashboard.
 The panel is full width and goes at the bottom of the dashboard, inside the last row when that row is collapsed, and the save makes a new version.
 The save runs the query over the dashboard's time range and refuses a panel that returns no lines there.
@@ -290,7 +295,7 @@ The panel's menu offers the way back with **Open in Logs** or **Open in Traces**
 
 ## Add to an observation
 
-**Add to observation** copies the search you ran into an [observation](observations.md) as a logs panel named Logs, with the datasource, the query and the time range the page shows.
+**Add to observation**, in the header of the results beside **Add to dashboard**, copies the search you ran into an [observation](observations.md) as a logs panel named Logs, with the datasource, the query and the time range the page shows.
 The side panel offers an open observation or a new one, the same as **Add to observation** in a dashboard panel's menu, and describes what is added and what is refused in [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs).
 When the page was opened from **Logs** in an observation's row of **Add a block**, its address carries `observation=<id>`, and that observation is preselected when it is open.
 The block stays live on the page, so it runs the query when the page is open.
@@ -304,7 +309,7 @@ On a Loki datasource or a ClickHouse datasource the address is pasted as plain t
 
 ## Ask on the logs page
 
-The mode switch in the top right corner of the query box switches between a question, the builder and the query.
+The mode switch at the top left of the query card switches between a question, the builder and the query.
 Ctrl+I or Cmd+I steps through the modes the datasource offers from anywhere on the page, the editor included, and skips a mode that is not available.
 The page remembers the mode you last chose with the switch, the shortcut or **Ask again**, and opens in the query when the address carries one.
 
@@ -326,8 +331,8 @@ Without a model, the page stays out of Ask, and the Ask segment is disabled and 
 ## Trace view
 
 A trace opens at `/t/<trace id>?ds=<datasource uid>`.
-The title reads the root service and the root span, such as **frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
-**Copy trace id** copies the whole id.
+The title in the top bar reads **Traces / <source> / <root service> <root span>**, such as **Traces / Tempo / frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
+The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
 A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
 
@@ -345,12 +350,13 @@ The view fills the window, and the waterfall scrolls inside it.
 
 ### Span details
 
-A click on a span shows its details in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
+A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
 A span's links are listed after its events: each shows the linked trace id, which opens that trace on the same datasource at the linked span, the linked span id and the link's attributes.
 
 While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
+The waterfall keeps its full width until a span is open, j and k move between spans while the panel stays open, and Escape closes it.
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
 
 ### Logs for a span or trace
@@ -358,7 +364,8 @@ The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-short
 A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
-**Logs for this trace** in the header opens a panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
+**Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
+The panel replaces the span details while it is open, because the page shows one side panel at a time, and opening a span closes it.
 A ClickHouse trace reads its logs from a ClickHouse datasource and a Tempo trace from Loki; with more than one logs datasource, a select in the section picks one and the choice is remembered in the browser.
 
 ### Time range and large traces
@@ -375,19 +382,23 @@ When Tempo did not search every block, a banner says that some spans may be miss
 
 ### Export and share
 
+**Download JSON** and **Copy link** are icon buttons in the top bar, beside the time range and **Logs for this trace**.
 **Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
-**Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same source at `/traces/<datasource uid>`.
+**Copy link** copies the address of the trace with its datasource, time range and open span.
+The source name in the title opens the trace search on the same source at `/traces/<datasource uid>`, and a trace opened without a known source shows **Search traces** in the top bar instead.
 
 ## Trace search
 
-Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
+Open **Traces** in the sidebar to see the trace sources and the saved trace searches, then open a source to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
 Each trace source, a Tempo or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
-With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the rest; with one, **Traces** opens it.
+With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the Traces list; with one, nothing is listed.
 As for logs, the order is set when the app loads and stays fixed until you reload.
-The collapsed sidebar and the phone title open the same list as they do for logs, and the title names the source and its language.
-`/traces` opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
-The time range sits above the fields, and the **Search traces** button sits under them with Ctrl+Enter or Cmd+Enter as its shortcut.
+The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
+
+`/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
+The time range, **Saved searches** and **Save search** sit in the top bar, and on a phone **Save search** and **Saved searches** are under **More actions**.
+The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
@@ -397,7 +408,6 @@ Press **Search traces**, or Enter in Service, Span name or a duration field, to 
 
 A count line above the results says how many traces are on the page.
 A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row.
-
 That p95 is of every trace the search matches in the range, not only the listed ones: the page asks the server for the duration distribution of the matching spans and reads the p95 as the upper edge of the bucket that holds it, so a service filter changes it.
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 
@@ -410,7 +420,7 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 - ClickHouse lists the newest traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
-When Tempo stopped searching at its time limit, a note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
+When Tempo stopped searching at its time limit, a **Partial** note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
 On a phone the table becomes a list.
 
 ### Paging
@@ -425,15 +435,16 @@ A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo pag
 
 Drag across the duration scatter to select traces by time and duration; the dots outside the selection fade, and the selection's start, end and duration floor are handles that the arrow keys move.
 The table then shows only the selection, and **Keep only the selection** turns it into the search: the time range and the duration bounds go into the fields, or on Tempo into the written TraceQL, where the button is disabled when the query has no spanset to add them to.
-**Clear** brings every trace back.
+**Clear** brings every trace back, and both buttons sit in the header of the scatter.
 
-While a selection exists, the **What is different about the selected traces** panel ranks the attribute values that appear in a larger share of the selected traces than of the other matching traces: span names, kinds, statuses and the span and resource attributes, each with its share of both sets.
+While a selection exists, the **What is different about the selected traces** panel opens beside the scatter, and under it on a screen 1,100 pixels wide or narrower.
+It ranks the attribute values that appear in a larger share of the selected traces than of the other matching traces: span names, kinds, statuses and the span and resource attributes, each with its share of both sets.
 It reads every span of the newest 50 selected and 150 other loaded traces, says when it could not read them all, and keeps the weaker differences behind **Show weaker differences**.
 **Filter** on a row adds that attribute value to the search: on Tempo it appends the condition to the TraceQL, and on ClickHouse it fills the Span name or Service field, so the other attributes have no **Filter** there.
 
 ## Ask on the trace search
 
-With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, in the row above the search box.
+With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, at the top left of the query card, with the question field beside it.
 Ctrl+I or Cmd+I switches it, Enter asks, Shift+Enter adds a line and Esc cancels a question that is still running.
 The mode you last chose on either page is the one both pages open in, and the trace search opens in Query when the address carries a search field.
 **Recent** and Up bring back earlier questions, kept apart from those of the logs page.
@@ -441,8 +452,8 @@ The mode you last chose on either page is the one both pages open in, and the tr
 The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
 A duration the form cannot read is left empty.
 The search runs at once, and the address keeps the question as `ask`.
-The explanation and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
-The Run row then shows a "From: <question>" line and **Ask again**, which brings the question back.
+The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
+The row under the form then shows a "From: <question>" line and **Ask again**, which brings the question back.
 
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
 Switching to another source drops the question, because it was answered for the other one.
@@ -474,9 +485,10 @@ A range written like that stays relative, so the search opens on the latest hour
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
 A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
-On the logs page and the trace search, **Save search** asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
+On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, and each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
 The folder list offers only the folders where you can create, and a refused save shows the server's message.
 
 A search is saved in a folder, which needs the Create permission there.

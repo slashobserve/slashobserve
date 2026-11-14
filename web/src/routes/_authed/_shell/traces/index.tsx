@@ -2,8 +2,13 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { datasourcesQuery } from "@/datasources/queries"
 import { recentSources } from "@/datasources/datasource-memory"
-import { ExploreEntry } from "@/datasources/explore-entry"
-import { defaultSource, sourcesOf, withoutSource } from "@/datasources/sources"
+import { ExploreList } from "@/datasources/explore-list"
+import {
+  carriesSearch,
+  defaultSource,
+  sourcesOf,
+  withoutSource,
+} from "@/datasources/sources"
 import { validateTraceEntrySearch } from "@/traces/search"
 
 export const Route = createFileRoute("/_authed/_shell/traces/")({
@@ -19,6 +24,7 @@ export const Route = createFileRoute("/_authed/_shell/traces/")({
         replace: true,
       })
     }
+    if (!carriesSearch(rest)) return
     const listed = await context.queryClient
       .ensureQueryData(datasourcesQuery())
       .catch(() => undefined)
@@ -39,9 +45,13 @@ export const Route = createFileRoute("/_authed/_shell/traces/")({
       })
     }
   },
-  component: TracesEntryRoute,
+  component: TracesListRoute,
 })
 
-function TracesEntryRoute() {
-  return <ExploreEntry kind="traces" />
+function TracesListRoute() {
+  return (
+    <div className="mx-auto w-full max-w-6xl">
+      <ExploreList kind="traces" />
+    </div>
+  )
 }

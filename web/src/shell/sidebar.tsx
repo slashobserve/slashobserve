@@ -17,7 +17,7 @@ import { PanelLeftCloseIcon } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
 import { sourceRows } from "@/datasources/sources"
-import { useListedSources, useNavTarget } from "@/datasources/use-sources"
+import { useListedSources } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
 import {
@@ -100,10 +100,9 @@ function NavLink({
   onNavigate?: () => void
 }) {
   const Icon = navIcons[item.to]
-  const target = useNavTarget(item.to)
   return (
     <Link
-      {...target}
+      to={item.to}
       onClick={onNavigate}
       activeOptions={{ exact: true }}
       aria-current={state === "current" ? "page" : undefined}

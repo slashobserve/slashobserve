@@ -74,7 +74,7 @@ export function InputModeToggle({
               onClick={() => choose(value)}
               onKeyDown={(event) => onKeyDown(event, value)}
               className={cn(
-                "inline-flex h-full items-center gap-1 rounded-control border px-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5",
+                "inline-flex h-full items-center gap-1.5 rounded-chip border px-2.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5",
                 selected
                   ? "border-border bg-background text-foreground"
                   : "border-transparent text-muted-foreground",
@@ -98,7 +98,7 @@ export function InputModeToggle({
       role="radiogroup"
       aria-label="Input mode"
       aria-keyshortcuts="Control+I Meta+I"
-      className="inline-flex h-6 items-center gap-0.5 rounded-control bg-muted p-0.5"
+      className="inline-flex h-8 items-center gap-0.5 rounded-control bg-muted p-0.5 narrow:h-11"
     >
       {modes.map(option)}
       {agentAvailable ? null : (

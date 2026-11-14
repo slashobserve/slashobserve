@@ -465,7 +465,7 @@ describe("DetailDrawer", () => {
     await screen.findByRole("complementary", { name: "Line" })
     const link = screen.queryByRole("link", { name: /Open trace/ })
     if (trace && ids) {
-      expect(link?.textContent).toBe("Open trace 4bf92f35")
+      expect(link?.textContent).toBe("Open trace")
     } else {
       expect(link).toBeNull()
     }
