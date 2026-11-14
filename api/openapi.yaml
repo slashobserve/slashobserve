@@ -3564,6 +3564,7 @@ components:
         - cancel_requested_at
         - canceled_by
         - can_cancel
+        - read_only
         - continues_id
         - continue_note
         - continued_by
@@ -3704,6 +3705,9 @@ components:
         can_cancel:
           type: boolean
           description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
+        read_only:
+          type: boolean
+          description: True when the caller sees this request only because it is an Admin; nothing may be done with it.
         continues_id:
           type: string
           format: uuid
@@ -3821,10 +3825,13 @@ components:
         - created_at
         - started_at
         - finished_at
+        - requested_by
       properties:
         id:
           type: string
           format: uuid
+        requested_by:
+          $ref: "#/components/schemas/Author"
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
@@ -3851,7 +3858,7 @@ components:
           items:
             type: string
             enum: [cancel, keep_build, continue, retry, pin, archive]
-          description: What the caller, who is always the requester in this list, may do with the request now.
+          description: What the caller may do with the request now; empty on another principal's request that the caller sees only as an Admin.
         dashboard_id:
           type: string
           format: uuid

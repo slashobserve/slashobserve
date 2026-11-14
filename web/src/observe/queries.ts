@@ -122,6 +122,8 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
+              scope: filters.scope,
+              state: filters.states,
               limit,
               cursor: pageParam,
             },

@@ -457,6 +457,27 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	return row, nil
 }
 
+func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, bool, error) {
+	row, err := s.GetObserve(ctx, id, by)
+	if err == nil {
+		err = s.checkVisible(ctx, row.DashboardID, by)
+	}
+	if err == nil {
+		return row, false, nil
+	}
+	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
+		return dbsqlc.AgentRequest{}, false, err
+	}
+	row, err = s.GetByID(ctx, id)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, false, err
+	}
+	if row.Source == string(SourceSuggest) {
+		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
+	}
+	return row, true, nil
+}
+
 func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revision, error) {
 	row, err := s.db.Queries().GetAgentRequest(ctx, dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dashboardID})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -494,17 +515,40 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	return items, next, nil
 }
 
+type ListScope string
+
+const (
+	ScopeMine ListScope = "mine"
+	ScopeAll  ListScope = "all"
+)
+
 type ListFilter struct {
+	Scope       ListScope
 	Source      string
 	DashboardID pgtype.UUID
 	Pinned      *bool
 	Query       string
+	States      []State
 }
 
-func (s *Service) ListMine(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+func (f ListFilter) stateNames() []string {
+	if len(f.States) == 0 {
+		return nil
+	}
+	names := make([]string, len(f.States))
+	for i, state := range f.States {
+		names[i] = string(state)
+	}
+	return names
+}
+
+func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
 	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
+	}
+	if filter.Scope == ScopeAll && !by.Role.AtLeast(auth.RoleAdmin) {
+		return nil, "", ErrForbidden
 	}
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
@@ -515,34 +559,63 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, filter ListFi
 	case errors.Is(err, folders.ErrForbidden):
 		return nil, "", ErrForbidden
 	case err != nil:
-		return nil, "", fmt.Errorf("list agent requests of requester: %w", err)
+		return nil, "", fmt.Errorf("list agent requests: %w", err)
 	}
-	params := dbsqlc.ListAgentRequestsByParams{
-		RequestedByKind: string(by.Kind),
-		RequestedByID:   requesterID,
-		Folders:         levels.Visible(),
-		Source:          pgtype.Text{String: filter.Source, Valid: filter.Source != ""},
-		DashboardID:     filter.DashboardID,
-		Pattern:         pgtype.Text{String: "%" + escapeLike(filter.Query) + "%", Valid: filter.Query != ""},
-		RowLimit:        httpapi.Int32(limit + 1),
-	}
+	source := pgtype.Text{String: filter.Source, Valid: filter.Source != ""}
+	pattern := pgtype.Text{String: "%" + escapeLike(filter.Query) + "%", Valid: filter.Query != ""}
+	var pinned pgtype.Bool
 	if filter.Pinned != nil {
-		params.Pinned = pgtype.Bool{Bool: *filter.Pinned, Valid: true}
+		pinned = pgtype.Bool{Bool: *filter.Pinned, Valid: true}
 	}
+	var cursorAt pgtype.Timestamptz
+	var cursorID pgtype.UUID
 	if after != nil {
-		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
-		params.CursorID = after.ID
-		params.CursorPinned = afterPinned
+		cursorAt, cursorID = pgtype.Timestamptz{Time: after.Time, Valid: true}, after.ID
 	}
-	rows, err := s.db.Queries().ListAgentRequestsBy(ctx, params)
-	if err != nil {
-		return nil, "", fmt.Errorf("list agent requests of requester: %w", err)
+	var rows []dbsqlc.ListAgentRequestsByRow
+	if filter.Scope == ScopeAll {
+		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
+			Folders:         levels.Visible(),
+			Source:          source,
+			DashboardID:     filter.DashboardID,
+			Pinned:          pinned,
+			Pattern:         pattern,
+			States:          filter.stateNames(),
+			CursorCreatedAt: cursorAt,
+			CursorID:        cursorID,
+			RowLimit:        httpapi.Int32(limit + 1),
+		})
+		if err != nil {
+			return nil, "", fmt.Errorf("list agent requests: %w", err)
+		}
+		rows = make([]dbsqlc.ListAgentRequestsByRow, len(all))
+		for i, row := range all {
+			rows[i] = dbsqlc.ListAgentRequestsByRow(row)
+		}
+	} else {
+		rows, err = s.db.Queries().ListAgentRequestsBy(ctx, dbsqlc.ListAgentRequestsByParams{
+			RequestedByKind: string(by.Kind),
+			RequestedByID:   requesterID,
+			Folders:         levels.Visible(),
+			Source:          source,
+			DashboardID:     filter.DashboardID,
+			Pinned:          pinned,
+			Pattern:         pattern,
+			States:          filter.stateNames(),
+			CursorCreatedAt: cursorAt,
+			CursorID:        cursorID,
+			CursorPinned:    afterPinned,
+			RowLimit:        httpapi.Int32(limit + 1),
+		})
+		if err != nil {
+			return nil, "", fmt.Errorf("list agent requests: %w", err)
+		}
 	}
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
 		last := rows[limit-1]
-		next = encodeListCursor(last.PinnedAt.Valid, last.CreatedAt.Time, last.ID.String())
+		next = encodeListCursor(filter.Scope != ScopeAll && last.PinnedAt.Valid, last.CreatedAt.Time, last.ID.String())
 	}
 	return rows, next, nil
 }

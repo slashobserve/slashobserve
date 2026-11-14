@@ -25,14 +25,11 @@ func NewRunReader(service *Service, opts ObserveOptions) *RunReader {
 }
 
 func (r *RunReader) Run(ctx context.Context, id pgtype.UUID, caller auth.Principal, maxSteps int) (json.RawMessage, error) {
-	row, err := r.service.GetObserve(ctx, id, caller)
-	if err == nil {
-		err = r.service.checkVisible(ctx, row.DashboardID, caller)
-	}
+	row, readOnly, err := r.service.ReadObserve(ctx, id, caller)
 	if err != nil {
 		return nil, err
 	}
-	out, err := r.render(ctx, row, caller)
+	out, err := r.render(ctx, row, caller, readOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +44,7 @@ func (r *RunReader) Run(ctx context.Context, id pgtype.UUID, caller auth.Princip
 	return raw, nil
 }
 
-func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal) (agentRequestJSON, error) {
+func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -56,17 +53,21 @@ func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller 
 	if err != nil {
 		return agentRequestJSON{}, err
 	}
-	facts, err := r.service.factsFor(ctx, row, states[row.ID], caller)
-	if err != nil {
-		return agentRequestJSON{}, err
+	var allowed []Action
+	if !readOnly {
+		facts, err := r.service.factsFor(ctx, row, states[row.ID], caller)
+		if err != nil {
+			return agentRequestJSON{}, err
+		}
+		allowed = allowedActions(facts)
 	}
-	allowed := allowedActions(facts)
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
+	out.ReadOnly = readOnly
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
 	}
 	if mayHaveFinding(row) && r.opts.Finding != nil {
-		if err := r.attachFinding(ctx, row, &out); err != nil {
+		if err := r.attachFinding(ctx, caller, row, &out); err != nil {
 			return agentRequestJSON{}, err
 		}
 	}
@@ -89,8 +90,8 @@ func mayHaveFinding(row dbsqlc.AgentRequest) bool {
 	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
 }
 
-func (r *RunReader) attachFinding(ctx context.Context, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
-	raw, found, err := r.opts.Finding(ctx, row.ID)
+func (r *RunReader) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
+	raw, found, err := r.opts.Finding(ctx, caller, row.ID)
 	if err != nil || !found {
 		return err
 	}

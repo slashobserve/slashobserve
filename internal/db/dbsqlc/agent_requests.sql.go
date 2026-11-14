@@ -1414,28 +1414,160 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 	return items, nil
 }
 
-const listAgentRequestsBy = `-- name: ListAgentRequestsBy :many
+const listAgentRequestsAll = `-- name: ListAgentRequestsAll :many
 SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
   f.id AS finding_id
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id
+  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY($1::uuid[]))
+WHERE r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND ($2::text IS NULL OR r.source = $2::text)
+  AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
+  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
+  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text)
+  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
+  AND ($7::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($7::timestamptz, $8::uuid))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $9
+`
+
+type ListAgentRequestsAllParams struct {
+	Folders         []pgtype.UUID
+	Source          pgtype.Text
+	DashboardID     pgtype.UUID
+	Pinned          pgtype.Bool
+	Pattern         pgtype.Text
+	States          []string
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	RowLimit        int32
+}
+
+type ListAgentRequestsAllRow struct {
+	ID              pgtype.UUID
+	Source          string
+	Trigger         string
+	Prompt          string
+	DashboardID     pgtype.UUID
+	PanelID         pgtype.Text
+	Status          string
+	State           string
+	ResultKind      string
+	Attempts        int32
+	ResultVersion   pgtype.Int4
+	Error           pgtype.Text
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	StartedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	FailureCode     pgtype.Text
+	BuildSavedAt    pgtype.Timestamptz
+	ContinuesID     pgtype.UUID
+	ContinueNote    pgtype.Text
+	Title           pgtype.Text
+	PinnedAt        pgtype.Timestamptz
+	ObservationID   pgtype.UUID
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+	RequestedByName string
+	DashboardTitle  pgtype.Text
+	FindingID       pgtype.UUID
+}
+
+func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequestsAllParams) ([]ListAgentRequestsAllRow, error) {
+	rows, err := q.db.Query(ctx, listAgentRequestsAll,
+		arg.Folders,
+		arg.Source,
+		arg.DashboardID,
+		arg.Pinned,
+		arg.Pattern,
+		arg.States,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentRequestsAllRow
+	for rows.Next() {
+		var i ListAgentRequestsAllRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.Trigger,
+			&i.Prompt,
+			&i.DashboardID,
+			&i.PanelID,
+			&i.Status,
+			&i.State,
+			&i.ResultKind,
+			&i.Attempts,
+			&i.ResultVersion,
+			&i.Error,
+			&i.Origin,
+			&i.OriginClient,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.FailureCode,
+			&i.BuildSavedAt,
+			&i.ContinuesID,
+			&i.ContinueNote,
+			&i.Title,
+			&i.PinnedAt,
+			&i.ObservationID,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
+			&i.DashboardTitle,
+			&i.FindingID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAgentRequestsBy = `-- name: ListAgentRequestsBy :many
+SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+  r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
+  r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
+  r.title, r.pinned_at, r.observation_id,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  d.title AS dashboard_title,
+  f.id AS finding_id
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id
+  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY($1::uuid[]))
 WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND ($4::text IS NULL OR r.source = $4::text)
   AND ($5::uuid IS NULL OR r.dashboard_id = $5::uuid)
   AND ($6::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $6::boolean)
   AND ($7::text IS NULL OR r.title ILIKE $7::text OR r.prompt ILIKE $7::text)
-  AND ($8::timestamptz IS NULL
-    OR ((r.pinned_at IS NOT NULL) = $9::boolean
-      AND (r.created_at, r.id) < ($8::timestamptz, $10::uuid))
-    OR ($9::boolean AND r.pinned_at IS NULL))
+  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
+  AND ($9::timestamptz IS NULL
+    OR ((r.pinned_at IS NOT NULL) = $10::boolean
+      AND (r.created_at, r.id) < ($9::timestamptz, $11::uuid))
+    OR ($10::boolean AND r.pinned_at IS NULL))
 ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListAgentRequestsByParams struct {
@@ -1446,6 +1578,7 @@ type ListAgentRequestsByParams struct {
 	DashboardID     pgtype.UUID
 	Pinned          pgtype.Bool
 	Pattern         pgtype.Text
+	States          []string
 	CursorCreatedAt pgtype.Timestamptz
 	CursorPinned    bool
 	CursorID        pgtype.UUID
@@ -1453,32 +1586,35 @@ type ListAgentRequestsByParams struct {
 }
 
 type ListAgentRequestsByRow struct {
-	ID             pgtype.UUID
-	Source         string
-	Trigger        string
-	Prompt         string
-	DashboardID    pgtype.UUID
-	PanelID        pgtype.Text
-	Status         string
-	State          string
-	ResultKind     string
-	Attempts       int32
-	ResultVersion  pgtype.Int4
-	Error          pgtype.Text
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	StartedAt      pgtype.Timestamptz
-	FinishedAt     pgtype.Timestamptz
-	FailureCode    pgtype.Text
-	BuildSavedAt   pgtype.Timestamptz
-	ContinuesID    pgtype.UUID
-	ContinueNote   pgtype.Text
-	Title          pgtype.Text
-	PinnedAt       pgtype.Timestamptz
-	ObservationID  pgtype.UUID
-	DashboardTitle pgtype.Text
-	FindingID      pgtype.UUID
+	ID              pgtype.UUID
+	Source          string
+	Trigger         string
+	Prompt          string
+	DashboardID     pgtype.UUID
+	PanelID         pgtype.Text
+	Status          string
+	State           string
+	ResultKind      string
+	Attempts        int32
+	ResultVersion   pgtype.Int4
+	Error           pgtype.Text
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	StartedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	FailureCode     pgtype.Text
+	BuildSavedAt    pgtype.Timestamptz
+	ContinuesID     pgtype.UUID
+	ContinueNote    pgtype.Text
+	Title           pgtype.Text
+	PinnedAt        pgtype.Timestamptz
+	ObservationID   pgtype.UUID
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+	RequestedByName string
+	DashboardTitle  pgtype.Text
+	FindingID       pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequestsByParams) ([]ListAgentRequestsByRow, error) {
@@ -1490,6 +1626,7 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 		arg.DashboardID,
 		arg.Pinned,
 		arg.Pattern,
+		arg.States,
 		arg.CursorCreatedAt,
 		arg.CursorPinned,
 		arg.CursorID,
@@ -1527,6 +1664,9 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.Title,
 			&i.PinnedAt,
 			&i.ObservationID,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
 			&i.DashboardTitle,
 			&i.FindingID,
 		); err != nil {

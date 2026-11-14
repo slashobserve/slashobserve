@@ -208,7 +208,7 @@ function SaveBuild({
 type Props = {
   request: BuildCardRequest
   build: BuildProgress
-  isRequester: boolean
+  mayReadBuild: boolean
   onContinued: (next: ObserveRequest) => void
   compact?: boolean
 }
@@ -216,14 +216,14 @@ type Props = {
 export function BuildCard({
   request,
   build,
-  isRequester,
+  mayReadBuild,
   onContinued,
   compact = false,
 }: Props) {
   const active = request.status === "queued" || request.status === "running"
   const result = useQuery({
     ...buildQuery(request.id, build.saves),
-    enabled: isRequester && !compact,
+    enabled: mayReadBuild && !compact,
     placeholderData: keepPreviousData,
   })
   const loaded = result.data
@@ -255,7 +255,7 @@ export function BuildCard({
           {active ? <StatusIcon tone="running" /> : null}
           {status}
         </p>
-        {isRequester && !compact ? (
+        {mayReadBuild && !compact ? (
           <Link
             to="/b/$requestId"
             params={{ requestId: request.id }}

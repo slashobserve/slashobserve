@@ -3,7 +3,6 @@ import { Link, useRouteContext } from "@tanstack/react-router"
 import { NotebookTextIcon, UploadIcon } from "lucide-react"
 
 import { chatOutcome, chatState } from "@/chat/chat-state"
-import { useHistoryPanel } from "@/chat/history-store"
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -22,7 +21,6 @@ import {
   SectionLink,
   SectionList,
   rowLinkClass,
-  textLinkClass,
 } from "./home-section"
 
 const shown = 5
@@ -38,26 +36,13 @@ function Time({ iso }: { iso: string }) {
 
 export function RecentChatsList() {
   const { requests, query } = useMyRequests({}, 20)
-  const setTab = useHistoryPanel((state) => state.setTab)
-  const setOpen = useHistoryPanel((state) => state.setOpen)
   const items =
     query.data === undefined ? undefined : newestChats(requests, shown)
 
   return (
     <HomeSection
       title="Recent chats"
-      action={
-        <button
-          type="button"
-          className={textLinkClass}
-          onClick={() => {
-            setTab("chats")
-            setOpen(true)
-          }}
-        >
-          All chats
-        </button>
-      }
+      action={<SectionLink to="/chats">All chats</SectionLink>}
     >
       <SectionList
         items={items}

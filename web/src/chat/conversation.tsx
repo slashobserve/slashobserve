@@ -214,6 +214,7 @@ type ViewProps = {
   historyFailed: boolean
   retryHistory: () => void
   historyBusy: boolean
+  readOnly: boolean
   onSent: (request: ObserveRequest) => void
 }
 
@@ -227,6 +228,7 @@ function ConversationView({
   historyFailed,
   retryHistory,
   historyBusy,
+  readOnly,
   onSent,
 }: ViewProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -317,34 +319,36 @@ function ConversationView({
           ))
         )}
       </div>
-      <div
-        style={{ viewTransitionName: "chat-composer" }}
-        className={cn(
-          "sticky w-full bg-background pt-2 pb-1",
-          pane ? "bottom-0" : "-bottom-7 max-w-[760px]"
-        )}
-      >
-        <ChatComposer
-          rows={2}
-          disabled={waitingForDashboard}
-          dashboardId={dashboardId ?? undefined}
-          dashboardTitle={dashboardTitle}
-          runningRequestId={runningRequestId}
-          placeholder={
-            hasDashboard
-              ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
-              : "Describe a dashboard, like: checkout health by pod, last 6h"
-          }
-          onSent={openSent}
-        />
-        {!agentOff && (hasDashboard || waitingForDashboard) ? (
-          <p className="mt-1.5 text-center text-xs text-muted-foreground">
-            {hasDashboard
-              ? "Each change is saved as a new version of the dashboard."
-              : "Wait for the dashboard, then ask for changes."}
-          </p>
-        ) : null}
-      </div>
+      {readOnly ? null : (
+        <div
+          style={{ viewTransitionName: "chat-composer" }}
+          className={cn(
+            "sticky w-full bg-background pt-2 pb-1",
+            pane ? "bottom-0" : "-bottom-7 max-w-[760px]"
+          )}
+        >
+          <ChatComposer
+            rows={2}
+            disabled={waitingForDashboard}
+            dashboardId={dashboardId ?? undefined}
+            dashboardTitle={dashboardTitle}
+            runningRequestId={runningRequestId}
+            placeholder={
+              hasDashboard
+                ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
+                : "Describe a dashboard, like: checkout health by pod, last 6h"
+            }
+            onSent={openSent}
+          />
+          {!agentOff && (hasDashboard || waitingForDashboard) ? (
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              {hasDashboard
+                ? "Each change is saved as a new version of the dashboard."
+                : "Wait for the dashboard, then ask for changes."}
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -360,13 +364,15 @@ export function Conversation({
   const root = useObserveRequest(requestId)
   const [sent, setSent] = useState<ObserveRequest[]>([])
   const dashboardId = root.data?.dashboard_id ?? null
+  const readOnly = root.data?.read_only === true
+  const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),
-    enabled: dashboardId !== null,
+    enabled: readsDashboard,
   })
   const latest = useQuery({
     ...latestDashboardQuery(queryClient, dashboardId ?? ""),
-    enabled: dashboardId !== null,
+    enabled: readsDashboard,
   })
 
   const turns = useMemo<Turn[]>(() => {
@@ -413,10 +419,9 @@ export function Conversation({
       dashboardId={dashboardId}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}
+      readOnly={readOnly}
       ready={
-        dashboardId === null ||
-        revisions.data !== undefined ||
-        revisions.isError
+        !readsDashboard || revisions.data !== undefined || revisions.isError
       }
       historyFailed={revisions.isError && revisions.data === undefined}
       retryHistory={() => void revisions.refetch()}

@@ -7,7 +7,7 @@ Every person and every service account has one of four instance roles, from the 
 
 | Role      | May                                                                                                                                                                                                          |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out and disconnect their agents), service accounts and keys, and the outbound allowlist. |
+| Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out and disconnect their agents), service accounts and keys, the outbound allowlist, and every chat with Observe Agent, read only. |
 | Editor    | Create, edit, import, duplicate, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                          |
 | Commenter | View dashboards and versions, add comments, and send requests to the agent, whose changes arrive as proposals. The role alone creates and edits dashboards only in their own My Dashboards.             |
 | Viewer    | View dashboards and versions only. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                              |

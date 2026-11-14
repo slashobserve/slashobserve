@@ -2,11 +2,16 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { chatOutcome, chatState } from "./chat-state"
+import { chatOutcome, chatState, statesFor } from "./chat-state"
 
 function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
   return {
     id: "00000000-0000-4000-8000-000000000001",
+    requested_by: {
+      kind: "user",
+      id: "00000000-0000-4000-8000-0000000000a1",
+      name: "Ada Lovelace",
+    },
     source: "observe",
     trigger: "person",
     prompt: "checkout health",
@@ -57,6 +62,16 @@ describe("chatState", () => {
     ["canceled", "Stopped", "warning"],
   ] as const)("shows %s as %s", (state, word, tone) => {
     expect(chatState(state)).toEqual({ word, tone })
+  })
+})
+
+describe("statesFor", () => {
+  test.each([
+    ["running", ["queued", "running", "canceling"]],
+    ["stopped", ["failed", "canceled"]],
+    ["done", ["succeeded"]],
+  ] as const)("lists the states shown as %s", (filter, states) => {
+    expect(statesFor(filter)).toEqual(states)
   })
 })
 

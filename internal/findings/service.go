@@ -87,8 +87,19 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	return f, nil
 }
 
-func (s *Service) ForRequest(ctx context.Context, requestID pgtype.UUID) (Finding, bool, error) {
-	return s.store.forRequest(ctx, requestID)
+func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
+	f, found, err := s.store.forRequest(ctx, requestID)
+	if err != nil || !found {
+		return Finding{}, false, err
+	}
+	_, _, err = s.place(ctx, by, f)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return Finding{}, false, nil
+	case err != nil:
+		return Finding{}, false, err
+	}
+	return f, true, nil
 }
 
 func (s *Service) EvidenceDashboard(ctx context.Context, by auth.Principal, id pgtype.UUID) (*spec.Dashboard, error) {

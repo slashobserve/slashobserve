@@ -43,7 +43,7 @@ There are three exceptions.
 
 - The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
 - The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
-  Only the signed-in user who made the request can call them, and for a revision only while they can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
+  Only the signed-in user who made the request, and a signed-in Admin, can call them, and for a revision only while the caller can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.
 - The explore query behind the logs page and trace view (`POST /api/v1/datasources/{uid}/query`) runs a query the caller writes against one datasource, for any signed-in role from Viewer and for service-account keys, under the same limits, and never caches or shares results.
 
@@ -61,6 +61,9 @@ ClickHouse is queried only as a read-only user.
   When an agent run fails, its build is kept for 7 days.
   The person or key that made the request can save it as one version with `POST /api/v1/observe/{id}/build/save`, if its role is Editor or higher and it can edit the dashboard (or create dashboards, for a new one); nobody else can, and the route answers them 404.
   No query runs when it is saved, because the agent checked each step as it made it.
+- **Admins can read every chat, and only read it.**
+  `GET /api/v1/observe?scope=all` lists everyone's requests for an Admin and answers anyone else 403; `GET /api/v1/observe/{id}` lets an Admin open any request with `read_only: true` and no allowed actions, and `GET /api/v1/observe/{id}/build` and the build data routes let an Admin read another person's build the same way.
+  Cancel, continue, retry, rename, pin, archive and build save stay with the requester, and an investigation's finding in someone's personal folder stays hidden, as does a build on a dashboard in someone's personal folder.
 - **Only the requester cancels or continues a request.**
   `POST /api/v1/observe/{id}/cancel` and `POST /api/v1/observe/{id}/continue` answer anyone else 403, or 404 for a new-dashboard request they cannot see, and no role or folder level overrides that.
   Continue also needs the access that starting a run needs, and it answers 409 when someone saved a newer version of the dashboard after the build started.

@@ -248,8 +248,11 @@ The dashboard reloads the new version, and panels the version added fade in once
 
 ## Your chats
 
-Your recent chats appear on the Observe page under "Recent chats", each with its title, its status and the dashboard it made.
-The **History** button lists older chats and Grafana imports.
+Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
+The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
+Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
+Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
+The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.

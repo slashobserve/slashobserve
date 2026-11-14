@@ -17,6 +17,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
 | `/f/<folder id>` | A folder's settings. |
 | `/c/<request id>` | The conversation of an agent request. |
+| `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
 | `/logs` | The logs page; `ds`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The trace search; `ds`, `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |

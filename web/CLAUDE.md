@@ -75,6 +75,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
 - `/` is Home; with a query string other than `tab` it redirects to `/ask` with that query string (`homeRedirect` in `web/src/home/home-tab.ts`); the chat is `/ask`.
   Agents are at `/agents` and `/agents/<ref>`, and `/keys` has no sidebar entry, because the Agents page links to it for Admins.
+- `/chats` lists the caller's chats, and an Admin's everyone's with `scope=all`; a conversation whose request has `read_only` (an Admin reading someone else's chat it sees only as an Admin) shows no composer and loads no dashboard history, and its build card reads the build without any action.
 - `/connect/$requestId` is the OAuth consent page, under `_authed` without the shell; it navigates to the server's `redirect_to` and never stores it.
 - `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.
   It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.

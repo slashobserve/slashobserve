@@ -531,9 +531,9 @@ func run() error {
 	return nil
 }
 
-func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, pgtype.UUID) (json.RawMessage, bool, error) {
-	return func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error) {
-		f, found, err := service.ForRequest(ctx, requestID)
+func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error) {
+	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
+		f, found, err := service.ForRequest(ctx, by, requestID)
 		if err != nil || !found {
 			return nil, found, err
 		}

@@ -135,7 +135,8 @@ export function RequestTurn({
   const build = request.build
   const answers = mayHaveFinding(request)
   const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
-  const isRequester = request.requested_by.id === principal.id
+  const mayReadBuild =
+    request.requested_by.id === principal.id || live?.read_only === true
   const active = isActive(request.status)
   const stalled = active && stopsPolling(query.error)
   const pollFailures = usePollFailures(summary.id)
@@ -174,7 +175,7 @@ export function RequestTurn({
                 <BuildCard
                   request={detail ?? request}
                   build={build}
-                  isRequester={isRequester}
+                  mayReadBuild={mayReadBuild}
                   onContinued={(next) => void openNewRun(next)}
                   compact={buildOnScreen}
                 />
@@ -266,7 +267,10 @@ export function RequestTurn({
           )}
           {savedBuild ? (
             <p className="text-[13px]">
-              You saved what was built as version {request.result_version}.
+              {request.requested_by.id === principal.id
+                ? "You"
+                : request.requested_by.name}{" "}
+              saved what was built as version {request.result_version}.
             </p>
           ) : null}
           {answers && request.status === "succeeded" ? (
@@ -302,7 +306,7 @@ export function RequestTurn({
             <BuildCard
               request={request}
               build={build}
-              isRequester={isRequester}
+              mayReadBuild={mayReadBuild}
               onContinued={(next) => void openNewRun(next)}
               compact={buildOnScreen}
             />

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -31,6 +32,8 @@ const (
 	maxQueryRunes       = 200
 )
 
+var listableStates = []State{StateQueued, StateRunning, StateCanceling, StateSucceeded, StateFailed, StateCanceled}
+
 var (
 	errWindowPair    = errors.New("from and to go together")
 	errWindowTime    = errors.New("from and to must be relative times like now-1h or epoch milliseconds")
@@ -44,7 +47,7 @@ type ObserveOptions struct {
 	Effort         string
 	DashboardURL   func(dashboardID, title string) string
 	ObservationURL func(observationID string) string
-	Finding        func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
 	LiveText       func(runID string, attempt int) (string, bool)
 }
 
@@ -120,6 +123,7 @@ type agentRequestJSON struct {
 	CancelRequestedAt *string     `json:"cancel_requested_at"`
 	CanceledBy        *authorJSON `json:"canceled_by"`
 	CanCancel         bool        `json:"can_cancel"`
+	ReadOnly          bool        `json:"read_only"`
 	AllowedActions    []string    `json:"allowed_actions"`
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
@@ -161,6 +165,7 @@ type requestSummaryJSON struct {
 	CreatedAt      string     `json:"created_at"`
 	StartedAt      *string    `json:"started_at"`
 	FinishedAt     *string    `json:"finished_at"`
+	RequestedBy    authorJSON `json:"requested_by"`
 
 	FailureCode  *string            `json:"failure_code"`
 	Build        *buildProgressJSON `json:"build"`
@@ -266,7 +271,7 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	h.replyRequest(c, http.StatusAccepted, row)
+	h.replyRequest(c, http.StatusAccepted, row, false)
 }
 
 func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest, prompt string) {
@@ -321,7 +326,7 @@ func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest,
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	h.replyRequest(c, http.StatusAccepted, row)
+	h.replyRequest(c, http.StatusAccepted, row, false)
 }
 
 func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time, error) {
@@ -377,7 +382,7 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, next, err := h.service.ListMine(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
+	rows, next, err := h.service.ListRequests(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.service.fail(c, "list agent requests", err, principalAttrs(c)...)
 		return
@@ -395,18 +400,24 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	starts := h.service.newStartChecks(caller)
 	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
 	for i, row := range rows {
-		mayStart, err := starts.may(c.Request.Context(), State(row.State), Source(row.Source), row.DashboardID)
-		if err != nil {
-			h.service.fail(c, "check who may start a listed agent request again", err, principalAttrs(c)...)
-			return
+		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
+		var allowed []Action
+		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
+			mayStart, err := starts.may(c.Request.Context(), State(row.State), Source(row.Source), row.DashboardID)
+			if err != nil {
+				h.service.fail(c, "check who may start a listed agent request again", err, principalAttrs(c)...)
+				return
+			}
+			mayEdit, err := starts.mayEdit(c.Request.Context(), State(row.State), row.DashboardID)
+			if err != nil {
+				h.service.fail(c, "check who may keep a listed agent request's build", err, principalAttrs(c)...)
+				return
+			}
+			allowed = allowedActions(newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
 		}
-		mayEdit, err := starts.mayEdit(c.Request.Context(), State(row.State), row.DashboardID)
-		if err != nil {
-			h.service.fail(c, "check who may keep a listed agent request's build", err, principalAttrs(c)...)
-			return
-		}
-		facts := newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], true, mayStart, mayEdit)
-		body.Requests[i] = h.summary(row, states[row.ID], allowedActions(facts))
+		state := states[row.ID]
+		state.build = state.progressFor(requester, caller)
+		body.Requests[i] = h.summary(row, state, allowed)
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -414,8 +425,32 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	c.JSON(http.StatusOK, body)
 }
 
+func scopeAndStates(c *gin.Context, filter *ListFilter) bool {
+	if raw, present := c.GetQuery("scope"); present {
+		switch ListScope(raw) {
+		case ScopeMine, ScopeAll:
+			filter.Scope = ListScope(raw)
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "scope must be mine or all")
+			return false
+		}
+	}
+	for _, raw := range c.QueryArray("state") {
+		state := State(raw)
+		if !slices.Contains(listableStates, state) {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "state must be queued, running, canceling, succeeded, failed or canceled")
+			return false
+		}
+		filter.States = append(filter.States, state)
+	}
+	return true
+}
+
 func listFilter(c *gin.Context) (ListFilter, bool) {
-	var filter ListFilter
+	filter := ListFilter{Scope: ScopeMine}
+	if !scopeAndStates(c, &filter) {
+		return filter, false
+	}
 	if raw, present := c.GetQuery("source"); present {
 		switch Source(raw) {
 		case SourceObserve, SourcePrompt, SourceComment, SourceInvestigate:
@@ -480,6 +515,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
 		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
 
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
@@ -531,15 +567,12 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 	if !ok {
 		return
 	}
-	row, err := h.service.GetObserve(c.Request.Context(), id, httpapi.Caller(c))
-	if err == nil {
-		err = h.service.checkVisible(c.Request.Context(), row.DashboardID, httpapi.Caller(c))
-	}
+	row, readOnly, err := h.service.ReadObserve(c.Request.Context(), id, httpapi.Caller(c))
 	if err != nil {
 		h.service.fail(c, "get agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
-	h.replyRequest(c, http.StatusOK, row)
+	h.replyRequest(c, http.StatusOK, row, readOnly)
 }
 
 func (h *ObserveHandler) patchObserve(c *gin.Context) {
@@ -574,7 +607,7 @@ func (h *ObserveHandler) patchObserve(c *gin.Context) {
 		h.failBuild(c, "update agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
-	h.replyRequest(c, http.StatusOK, row)
+	h.replyRequest(c, http.StatusOK, row, false)
 }
 
 func (h *ObserveHandler) archiveObserve(c *gin.Context) {

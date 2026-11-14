@@ -2079,6 +2079,10 @@ observe_id_of() {
   grep -o '"request":{"id":"[^"]*"' "$1" | head -1 | cut -d'"' -f6
 }
 
+observe_listed_ids() {
+  python3 -c 'import json,sys; print(*[r["id"] for r in json.load(open(sys.argv[1]))["requests"]], sep="\n")' "$1"
+}
+
 observe_wait() {
   local id="$1" tries="$2"
   until [[ "$(api GET "/observe/$id")" == 200 ]] && grep -Eq '"status":"(succeeded|failed)"' "$TMP/api.body"; do
@@ -2160,15 +2164,15 @@ observe_suite() {
   fpos="$(tr ',' '\n' <"$TMP/api.body" | grep -nF "\"id\":\"$fid\"" | head -1 | cut -d: -f1)"
   ipos="$(tr ',' '\n' <"$TMP/api.body" | grep -nF "\"id\":\"$id\"" | head -1 | cut -d: -f1)"
   ((fpos > 0 && fpos < ipos)) || fail "the observe list should show the follow-up before the chat request (positions '$fpos' and '$ipos')"
-  listed_first="$(sed -n 's/.*"requests":\[{"id":"\([^"]*\)".*/\1/p' "$TMP/api.body")"
-  listed_second="$(sed -n 's/^[^}]*},{"id":"\([^"]*\)".*/\1/p' "$TMP/api.body")"
+  listed_first="$(observe_listed_ids "$TMP/api.body" | sed -n 1p)"
+  listed_second="$(observe_listed_ids "$TMP/api.body" | sed -n 2p)"
   [[ -n "$listed_first" && -n "$listed_second" ]] || fail "the observe list should hold at least two requests ($(cat "$TMP/api.body"))"
   out="$(api GET "/observe?source=observe&limit=100")"
   if [[ "$out" != 200 ]] || ! grep -qF "\"id\":\"$id\"" "$TMP/api.body" || grep -qF "\"id\":\"$fid\"" "$TMP/api.body"; then
     fail "the observe list filtered by source=observe ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/observe?limit=1")"
-  page_id="$(sed -n 's/.*"requests":\[{"id":"\([^"]*\)".*/\1/p' "$TMP/api.body")"
+  page_id="$(observe_listed_ids "$TMP/api.body" | sed -n 1p)"
   [[ "$page_id" == "$listed_first" ]] || fail "the first observe page should hold the newest request ('$page_id' instead of '$listed_first')"
   cursor="$(sed -n 's/.*"next_cursor":"\([^"]*\)".*/\1/p' "$TMP/api.body")"
   if [[ "$out" != 200 || -z "$cursor" ]]; then
@@ -2176,7 +2180,7 @@ observe_suite() {
   fi
   out="$(api GET "/observe?limit=1&cursor=$(urlencode "$cursor")")"
   [[ "$out" == 200 ]] || fail "follow the observe list cursor ($out: $(cat "$TMP/api.body"))"
-  page_id="$(sed -n 's/.*"requests":\[{"id":"\([^"]*\)".*/\1/p' "$TMP/api.body")"
+  page_id="$(observe_listed_ids "$TMP/api.body" | sed -n 1p)"
   if [[ "$page_id" == "$listed_first" || "$page_id" != "$listed_second" ]]; then
     fail "the second observe page should hold the second request ('$page_id', expected '$listed_second' and not '$listed_first')"
   fi

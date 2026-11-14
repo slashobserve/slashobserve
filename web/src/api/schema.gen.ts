@@ -1579,8 +1579,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the caller's own agent requests, newest first.
-         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard. Archived requests are left out, and pinned requests come first, most recently pinned first. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
+         * List agent requests, newest first: the caller's own, or everyone's for an Admin.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
          */
         get: operations["listObserveRequests"];
         put?: never;
@@ -1606,7 +1606,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
+         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it and by Admins; anyone else gets 404. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -1636,7 +1636,7 @@ export interface paths {
         };
         /**
          * Read the dashboard an agent request has built so far, with its ObserveSpec.
-         * @description Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build. A new-dashboard request builds a dashboard that is not in any folder or list until it finishes. Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
+         * @description Only the principal that made the request and Admins can read its build, and for a revision only while the reader can still view the dashboard; everyone else gets 404, as does a request without a build. Saving a build stays with the requester. A new-dashboard request builds a dashboard that is not in any folder or list until it finishes. Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
          */
         get: operations["getObserveRequestBuild"];
         put?: never;
@@ -1747,7 +1747,7 @@ export interface paths {
         };
         /**
          * Run the queries of one panel of an agent request's build and return their frames.
-         * @description The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions. This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet. Only signed-in users who made the request may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404. The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions. This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet. Only signed-in users who made the request, and signed-in Admins, may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404. The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`. The response has the shape of panel data, with `meta.cached` always false.
          */
         get: operations["getBuildPanelData"];
         put?: never;
@@ -1770,7 +1770,7 @@ export interface paths {
         };
         /**
          * List the values of one variable of an agent request's build.
-         * @description Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request only, 403 `user_session_required` for a key, 404 for anyone else. Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+         * @description Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request and signed-in Admins only, 403 `user_session_required` for a key, 404 for anyone else. Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
          */
         get: operations["getBuildVariableValues"];
         put?: never;
@@ -5086,6 +5086,8 @@ export interface components {
             canceled_by: components["schemas"]["Author"] | null;
             /** @description Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion. */
             can_cancel: boolean;
+            /** @description True when the caller sees this request only because it is an Admin; nothing may be done with it. */
+            read_only: boolean;
             /**
              * Format: uuid
              * @description The stopped request this one continues.
@@ -5152,6 +5154,7 @@ export interface components {
         RequestSummary: {
             /** Format: uuid */
             id: string;
+            requested_by: components["schemas"]["Author"];
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /**
@@ -5172,7 +5175,7 @@ export interface components {
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
-            /** @description What the caller, who is always the requester in this list, may do with the request now. */
+            /** @description What the caller may do with the request now; empty on another principal's request that the caller sees only as an Admin. */
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** Format: uuid */
             dashboard_id: string | null;
@@ -10799,7 +10802,9 @@ export interface operations {
     listObserveRequests: {
         parameters: {
             query?: {
+                scope?: "mine" | "all";
                 source?: "observe" | "prompt" | "comment" | "investigate";
+                state?: ("queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled")[];
                 q?: string;
                 pinned?: boolean;
                 dashboard_id?: string;
@@ -10826,6 +10831,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };

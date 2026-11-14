@@ -33,6 +33,11 @@ func observeRouterFor(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	return observeRouterAs(svc, withRole(who))
 }
 
+func asEditor(p auth.Principal) auth.Principal {
+	p.Role = auth.RoleEditor
+	return p
+}
+
 func observeRouterAs(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -387,13 +392,13 @@ func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.
 		who  auth.Principal
 		want int
 	}{
-		"requester reads their own":              {private, user, http.StatusOK},
-		"another user":                           {private, auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "b"}, http.StatusNotFound},
+		"requester reads their own":              {private, asEditor(user), http.StatusOK},
+		"another user":                           {private, auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "b", Role: auth.RoleEditor}, http.StatusNotFound},
 		"service account":                        {private, account, http.StatusNotFound},
 		"same id other kind":                     {private, lookalike, http.StatusNotFound},
 		"request with a dashboard, other reader": {shared, stranger, http.StatusOK},
 	} {
-		rec := call(observeRouterFor(svc, c.who), http.MethodGet, "/api/v1/observe/"+c.id, "")
+		rec := call(observeRouterAs(svc, c.who), http.MethodGet, "/api/v1/observe/"+c.id, "")
 		if rec.Code != c.want {
 			t.Errorf("%s: %d %s, want %d", name, rec.Code, rec.Body, c.want)
 		}
