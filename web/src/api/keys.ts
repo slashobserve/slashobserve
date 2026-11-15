@@ -348,6 +348,9 @@ export const homeKeys = {
   firstDashboards: () => ["dashboards", "list", "home-first"] as const,
   search: (search: HomeSearch) =>
     ["dashboards", "list", "home-search", search] as const,
+  working: () => [...observeKeys.mineAll(), "working"] as const,
+  latestChange: (observationId: string) =>
+    [...observationKeys.one(observationId), "latest-change"] as const,
 }
 
 export const connectKeys = {

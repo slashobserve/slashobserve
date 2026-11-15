@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -6,6 +6,34 @@ import { homeKeys, type HomeSearch } from "@/api/keys"
 
 const firstDashboardsLimit = 8
 const searchLimit = 20
+const workingPollMs = 5000
+const latestChangeStaleMs = 60_000
+
+export function workingRunsQuery() {
+  return queryOptions({
+    queryKey: homeKeys.working(),
+    queryFn: ({ signal }) =>
+      api.GET("/agents/working", { signal }).then(unwrap),
+    staleTime: 10_000,
+    refetchInterval: (query) =>
+      (query.state.data?.items.length ?? 0) > 0 ? workingPollMs : false,
+  })
+}
+
+export function latestChangeQuery(observationId: string) {
+  return queryOptions({
+    queryKey: homeKeys.latestChange(observationId),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/activity", {
+          params: { query: { observation_id: observationId, limit: 1 } },
+          signal,
+        })
+        .then(unwrap)
+        .then((body) => body.activity[0] ?? null),
+    staleTime: latestChangeStaleMs,
+  })
+}
 
 export function useFirstDashboards(enabled: boolean) {
   return useQuery({
