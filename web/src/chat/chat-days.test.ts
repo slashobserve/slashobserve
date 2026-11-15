@@ -35,6 +35,7 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
     continued_by: null,
     continue_note: null,
     observation_id: null,
+    observation_title: null,
     origin: "web",
     origin_client: null,
     created_at: new Date(2026, 10, 13, 9).toISOString(),

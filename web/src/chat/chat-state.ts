@@ -49,7 +49,9 @@ function succeededOutcome(request: RequestSummary): string {
     case "partial_version":
       return savedText(request)
     case "observation":
-      return "Saved an observation"
+      return request.observation_title === null
+        ? "Saved an observation"
+        : `Answered in ${request.observation_title}`
     case "suggestion":
       return "Suggested a panel"
     case "proposal":

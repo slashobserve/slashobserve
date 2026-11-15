@@ -28,6 +28,7 @@ import { useMyRequests, type RequestSummary } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { groupChatsByDay } from "./chat-days"
+import { chatFooterText } from "./chat-footer"
 import {
   chatOutcome,
   chatState,
@@ -73,6 +74,10 @@ export function ChatsPage({ search, onSearch }: Props) {
       scope: everyone ? "all" : undefined,
     },
     pageSize
+  )
+  const footer = chatFooterText(
+    query.data?.pages[0]?.summary ?? null,
+    query.hasNextPage
   )
 
   const newChat = (
@@ -174,6 +179,9 @@ export function ChatsPage({ search, onSearch }: Props) {
       ) : (
         <>
           <ChatGroups requests={requests} everyone={everyone} />
+          {footer === null ? null : (
+            <p className="mt-2 text-xs text-muted-foreground">{footer}</p>
+          )}
           {query.hasNextPage ? (
             <NextPage
               failed={query.isFetchNextPageError}
