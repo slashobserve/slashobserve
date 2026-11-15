@@ -2,8 +2,12 @@ import { Link } from "@tanstack/react-router"
 
 import { useCrumbs } from "./crumbs"
 
-export function Breadcrumb() {
-  const crumbs = useCrumbs()
+export function Breadcrumb({
+  setTitleHost,
+}: {
+  setTitleHost: (element: HTMLSpanElement | null) => void
+}) {
+  const { crumbs, pageTitle } = useCrumbs()
   const last = crumbs.length - 1
   return (
     <nav
@@ -11,7 +15,7 @@ export function Breadcrumb() {
       className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]"
     >
       {crumbs.map((crumb, index) =>
-        index === last ? (
+        index === last && !pageTitle ? (
           <span key={crumb.label} aria-current="page" className="font-medium">
             {crumb.label}
           </span>
@@ -33,6 +37,7 @@ export function Breadcrumb() {
           </span>
         )
       )}
+      {pageTitle ? <span ref={setTitleHost} className="contents" /> : null}
     </nav>
   )
 }

@@ -76,12 +76,12 @@ func TestSavedSearchesRoundTripThroughSaveAndList(t *testing.T) {
 	if logs.IsError || !ok || savedLogs.Title != "Checkout errors" || savedLogs.From != "now-6h" || savedLogs.To != "now" || savedLogs.Folder.Title != "General" {
 		t.Fatalf("logs search: %#v", logs.Content)
 	}
-	if !strings.HasPrefix(savedLogs.URL, "/logs?") || !strings.Contains(savedLogs.URL, "cols=level%2Cmsg") {
+	if !strings.HasPrefix(savedLogs.URL, "/logs/logs?") || !strings.Contains(savedLogs.URL, "cols=level%2Cmsg") {
 		t.Errorf("logs url = %q", savedLogs.URL)
 	}
 	traces := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"traces","title":"Slow checkout","datasource_uid":"traces","filters":{"service":"checkout","min":"250ms","errors":true}}`)
 	savedTraces, ok := traces.Content.(savedsearches.SavedSearchJSON)
-	if traces.IsError || !ok || savedTraces.Query != nil || !strings.HasPrefix(savedTraces.URL, "/traces?") {
+	if traces.IsError || !ok || savedTraces.Query != nil || !strings.HasPrefix(savedTraces.URL, "/traces/traces?") {
 		t.Fatalf("traces search: %#v", traces.Content)
 	}
 

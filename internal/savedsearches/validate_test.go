@@ -131,11 +131,11 @@ func TestFitDatasourceMatchesTheTypeToTheKind(t *testing.T) {
 
 func TestAddressCarriesWhatReopensTheSearch(t *testing.T) {
 	logs := SavedSearch{Kind: KindLogs, DatasourceUID: "loki", Query: ptr(`{app="x"}`), From: "now-1h", To: "now", Filters: Filters{Columns: []string{"level", "msg"}}}
-	if got, want := logs.address().Encode(), "cols=level%2Cmsg&ds=loki&from=now-1h&q=%7Bapp%3D%22x%22%7D&to=now"; got != want {
+	if got, want := logs.address().Encode(), "cols=level%2Cmsg&from=now-1h&q=%7Bapp%3D%22x%22%7D&to=now"; got != want {
 		t.Errorf("logs address %q, want %q", got, want)
 	}
 	traces := SavedSearch{Kind: KindTraces, DatasourceUID: "tempo", From: "now-1h", To: "now", Filters: Filters{Service: "checkout", Min: "250ms", Errors: true}}
-	if got, want := traces.address().Encode(), "ds=tempo&errors=1&from=now-1h&min=250ms&service=checkout&to=now"; got != want {
+	if got, want := traces.address().Encode(), "errors=1&from=now-1h&min=250ms&service=checkout&to=now"; got != want {
 		t.Errorf("traces address %q, want %q", got, want)
 	}
 }

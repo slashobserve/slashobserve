@@ -37,9 +37,9 @@ describe("exploreTarget", () => {
       )
     ).toEqual({
       target: {
-        to: "/logs",
+        to: "/logs/$datasourceUid",
+        params: { datasourceUid: "loki" },
         search: {
-          ds: "loki",
           q: '{app="checkout"} |= "error"',
           from: "now-6h",
           to: "now",
@@ -62,8 +62,9 @@ describe("exploreTarget", () => {
       )
     ).toEqual({
       target: {
-        to: "/traces",
-        search: { ds: "tempo", q: "{ span.http.status_code = 500 }" },
+        to: "/traces/$datasourceUid",
+        params: { datasourceUid: "tempo" },
+        search: { q: "{ span.http.status_code = 500 }" },
       },
     })
   })
@@ -77,7 +78,11 @@ describe("exploreTarget", () => {
         {}
       )
     ).toEqual({
-      target: { to: "/logs", search: { ds: "loki", q: "{app=x}" } },
+      target: {
+        to: "/logs/$datasourceUid",
+        params: { datasourceUid: "loki" },
+        search: { q: "{app=x}" },
+      },
     })
   })
 
@@ -138,8 +143,9 @@ describe("exploreTarget", () => {
       )
     ).toEqual({
       target: {
-        to: "/logs",
-        search: { ds: "loki", q: '{app="shop"} |= "$12"' },
+        to: "/logs/$datasourceUid",
+        params: { datasourceUid: "loki" },
+        search: { q: '{app="shop"} |= "$12"' },
       },
     })
   })
@@ -154,8 +160,9 @@ describe("exploreTarget", () => {
       )
     ).toEqual({
       target: {
-        to: "/logs",
-        search: { ds: "ch", q: "SELECT Body FROM otel_logs" },
+        to: "/logs/$datasourceUid",
+        params: { datasourceUid: "ch" },
+        search: { q: "SELECT Body FROM otel_logs" },
       },
     })
   })

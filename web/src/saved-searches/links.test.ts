@@ -14,9 +14,9 @@ describe("savedSearchLocation", () => {
         to: "now",
       })
     ).toEqual({
-      to: "/logs",
+      to: "/logs/$datasourceUid",
+      params: { datasourceUid: "es" },
       search: {
-        ds: "es",
         q: "level:error",
         cols: "host,message",
         from: "now-6h",
@@ -54,9 +54,9 @@ describe("savedSearchLocation", () => {
         to: "now",
       })
     ).toEqual({
-      to: "/traces",
+      to: "/traces/$datasourceUid",
+      params: { datasourceUid: "tempo" },
       search: {
-        ds: "tempo",
         service: "checkout",
         span: "POST /pay",
         min: "250ms",

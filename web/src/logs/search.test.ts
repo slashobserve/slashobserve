@@ -6,13 +6,13 @@ import {
   queryModeLabel,
   validAsk,
   searchAfter,
+  validateLogsEntrySearch,
   validateLogsSearch,
 } from "./search"
 
 describe("validateLogsSearch", () => {
   it("keeps a valid search", () => {
     const search = {
-      ds: "loki",
       q: '{service_name="checkout"}',
       ask: "errors from checkout",
       from: "now-6h",
@@ -23,7 +23,6 @@ describe("validateLogsSearch", () => {
 
   it("lists every key so a dropped one overrides the raw URL", () => {
     expect(validateLogsSearch({})).toEqual({
-      ds: undefined,
       q: undefined,
       ask: undefined,
       from: undefined,
@@ -121,7 +120,18 @@ describe("validateLogsSearch", () => {
     ["has a slash", "lo/ki"],
     ["is too long", "a".repeat(41)],
   ])("drops a datasource uid that %s", (_, ds) => {
-    expect(validateLogsSearch({ ds }).ds).toBeUndefined()
+    expect(validateLogsEntrySearch({ ds }).ds).toBeUndefined()
+  })
+
+  it("keeps a valid datasource uid and the page keys in the entry search", () => {
+    expect(validateLogsEntrySearch({ ds: "loki", q: "{a}" })).toMatchObject({
+      ds: "loki",
+      q: "{a}",
+    })
+  })
+
+  it("leaves the datasource out of the page search", () => {
+    expect(validateLogsSearch({ ds: "loki" })).not.toHaveProperty("ds")
   })
 
   it.each([
@@ -147,7 +157,7 @@ describe("validateLogsSearch", () => {
   })
 
   it("keeps the first of repeated values", () => {
-    expect(validateLogsSearch({ ds: ["a", "b"] }).ds).toBe("a")
+    expect(validateLogsEntrySearch({ ds: ["a", "b"] }).ds).toBe("a")
   })
 
   it.each([
@@ -218,13 +228,12 @@ describe("the page and size keys", () => {
 })
 
 describe("searchAfter", () => {
-  const onPageThree = { ds: "loki", q: "{a}", cols: "level", page: 3 }
+  const onPageThree = { q: "{a}", cols: "level", page: 3 }
 
   it.each([
     { q: "{b}" },
     { f: "abc" },
     { from: "now-6h", to: "now" },
-    { ds: "ch" },
     { size: 100 as const },
   ])("returns to the first page when %j changes", (next) => {
     expect(searchAfter(onPageThree, next).page).toBeUndefined()
@@ -243,7 +252,6 @@ describe("searchAfter", () => {
 
   it("merges the new keys into the state", () => {
     expect(searchAfter(onPageThree, { q: "{b}" })).toMatchObject({
-      ds: "loki",
       q: "{b}",
       cols: "level",
     })

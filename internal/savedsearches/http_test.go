@@ -113,7 +113,7 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 	created := d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", logsBody, http.StatusCreated)
 	id := idOf(t, created)
 	traces := d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", `{"kind":"traces","title":"Slow","datasource_uid":"tempo","filters":{"service":"checkout","min":"250ms","errors":true},"folder_id":"`+shared.String()+`"}`, http.StatusCreated)
-	if !strings.Contains(traces.Body.String(), `"query":null`) || !strings.Contains(traces.Body.String(), `"url":"/traces?`) {
+	if !strings.Contains(traces.Body.String(), `"query":null`) || !strings.Contains(traces.Body.String(), `"url":"/traces/tempo?`) {
 		t.Fatalf("trace search %s", traces.Body)
 	}
 

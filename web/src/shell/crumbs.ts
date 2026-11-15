@@ -7,13 +7,20 @@ export type Crumb = { label: string; to?: NavPath | "/ask" | "/import" }
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     crumbs?: Crumb[]
+    pageTitle?: boolean
   }
 }
 
-export function useCrumbs(): Crumb[] {
+type RouteCrumbs = { crumbs: Crumb[]; pageTitle: boolean }
+
+export function useCrumbs(): RouteCrumbs {
   return useMatches({
-    select: (matches): Crumb[] =>
-      matches.findLast((match) => match.staticData.crumbs)?.staticData.crumbs ??
-      [],
+    select: (matches): RouteCrumbs => {
+      const match = matches.findLast((candidate) => candidate.staticData.crumbs)
+      return {
+        crumbs: match?.staticData.crumbs ?? [],
+        pageTitle: match?.staticData.pageTitle ?? false,
+      }
+    },
   })
 }

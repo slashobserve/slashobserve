@@ -3,6 +3,8 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { InboxIcon, MenuIcon } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
+import { PhoneSourceTitle } from "@/datasources/source-menu"
+import { useRouteSource } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { cn } from "@/lib/utils"
 
@@ -22,7 +24,10 @@ export function PhoneBar() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const title = phoneTitle(pathname, useCrumbs())
+  const { crumbs } = useCrumbs()
+  const title = phoneTitle(pathname, crumbs)
+  const exploreKind = pathname.startsWith("/traces/") ? "traces" : "logs"
+  const source = useRouteSource(exploreKind).current
   const unread = unreadBadge(useInboxCount())
   return (
     <header className="sticky top-0 z-10 hidden h-14 flex-none items-center gap-0.5 border-b bg-background px-1 narrow:flex">
@@ -51,6 +56,12 @@ export function PhoneBar() {
           >
             <Wordmark size={17} />
           </Link>
+        ) : source ? (
+          <PhoneSourceTitle
+            kind={exploreKind}
+            label={title.label}
+            source={source}
+          />
         ) : (
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-base leading-5 font-semibold">

@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { DatasourceStatus } from "@/datasources/queries"
 import { renderWithProviders } from "@/test/render"
 
 import { SidebarContent } from "./sidebar"
@@ -27,19 +28,35 @@ const pins = [
   },
 ]
 
+function source(uid: string, type: string, name = uid): DatasourceStatus {
+  return {
+    uid,
+    type,
+    name,
+    healthy: true,
+    checked_at: "2026-11-14T00:00:00Z",
+    dashboard_count: 0,
+  }
+}
+
+let datasources: DatasourceStatus[] = []
+
 beforeEach(() => {
+  datasources = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const { pathname } = new URL(request.url)
       const body = pathname.endsWith("/stars")
         ? { items: pins }
-        : pathname.endsWith("/observations")
-          ? {
-              observations: [{ id: "o1", title: "Slow pods", state: "open" }],
-              next_cursor: null,
-            }
-          : { items: [], next_cursor: null, unread_count: 0 }
+        : pathname.endsWith("/datasources")
+          ? { datasources }
+          : pathname.endsWith("/observations")
+            ? {
+                observations: [{ id: "o1", title: "Slow pods", state: "open" }],
+                next_cursor: null,
+              }
+            : { items: [], next_cursor: null, unread_count: 0 }
       return new Response(JSON.stringify(body), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -148,5 +165,80 @@ describe("SidebarContent", () => {
     ).toContainElement(observation)
     expect(precedes(observations, observation)).toBe(true)
     expect(precedes(observation, dashboards)).toBe(true)
+  })
+
+  it("opens the only log source straight from Logs and lists nothing under it", async () => {
+    datasources = [source("loki", "loki", "Loki")]
+    renderWithProviders(<SidebarContent />, { route })
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Logs" })).toHaveAttribute(
+        "href",
+        "/logs/loki"
+      )
+    )
+    expect(screen.queryByRole("list", { name: "Log sources" })).toBeNull()
+    expect(screen.getByRole("link", { name: "Traces" })).toHaveAttribute(
+      "href",
+      "/traces"
+    )
+  })
+
+  it("on a listed source's page highlights only that row and makes Logs semibold", async () => {
+    datasources = [
+      source("loki", "loki", "Loki"),
+      source("ch", "clickhouse", "ClickHouse"),
+    ]
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/logs/$datasourceUid", url: "/logs/loki" },
+    })
+
+    const list = await screen.findByRole("list", { name: "Log sources" })
+    const logs = screen.getByRole("link", { name: "Logs" })
+    expect(within(list).getByRole("link", { name: /Loki/ })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+    expect(logs).not.toHaveAttribute("aria-current")
+    expect(logs.querySelector(".font-semibold")).not.toBeNull()
+    expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
+  })
+
+  it("on the only source's page highlights Logs itself", async () => {
+    datasources = [source("loki", "loki", "Loki")]
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/logs/$datasourceUid", url: "/logs/loki" },
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Logs" })).toHaveAttribute(
+        "aria-current",
+        "page"
+      )
+    )
+    expect(
+      screen.getByRole("link", { name: "Logs" }).querySelector(".font-semibold")
+    ).toBeNull()
+  })
+
+  it("lists several log sources between Logs and Traces", async () => {
+    datasources = [
+      source("loki", "loki", "Loki"),
+      source("ch", "clickhouse", "ClickHouse"),
+      source("es", "elasticsearch", "Elasticsearch"),
+    ]
+    renderWithProviders(<SidebarContent />, { route })
+
+    const list = await screen.findByRole("list", { name: "Log sources" })
+    const logs = screen.getByRole("link", { name: "Logs" })
+    const traces = screen.getByRole("link", { name: "Traces" })
+    expect(logs).toHaveAttribute("href", "/logs")
+    expect(precedes(logs, list)).toBe(true)
+    expect(precedes(list, traces)).toBe(true)
+    expect(
+      within(list)
+        .getAllByRole("link")
+        .map((link) => link.textContent)
+    ).toEqual(["ClickHouseSQL", "ElasticsearchKQL", "LokiLogQL"])
   })
 })
