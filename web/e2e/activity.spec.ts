@@ -644,7 +644,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("fits a phone", async ({ page, request }) => {
       const { id } = await createOverview(request)
       await page.setViewportSize({ width: 390, height: 844 })
-      await openCard(page, id)
+      await openDashboard(page, id)
+      await expect(card(page)).toHaveCount(0)
+      await page.getByRole("button", { name: "Controls" }).click()
+      await page
+        .getByRole("dialog", { name: "Controls" })
+        .getByRole("button", { name: /^Activity/ })
+        .click()
+      await expect(card(page)).toBeVisible()
 
       await expect(
         page.getByRole("separator", { name: "Resize panel" })

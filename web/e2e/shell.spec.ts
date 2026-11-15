@@ -216,7 +216,8 @@ test("shows focus in a teal ring", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/settings")
   const datasources = sidebar(page).getByRole("link", { name: "Datasources" })
-  await tabUntilFocused(page, datasources, 15)
+  await sidebar(page).getByRole("link", { name: "Agents" }).focus()
+  await tabUntilFocused(page, datasources, 1)
   await expect
     .poll(() => datasources.evaluate((el) => getComputedStyle(el).boxShadow))
     .toContain("10, 127, 134")
