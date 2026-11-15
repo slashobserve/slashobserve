@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -36,6 +37,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useExploreSources } from "@/datasources/use-sources"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -46,6 +48,7 @@ import {
   type MatchSegment,
   type PaletteEntry,
   type ResultEntry,
+  type SourceEntry,
 } from "./palette-items"
 import { dashboardTitlesQuery, workspaceSearchQuery } from "./palette-queries"
 import { usePaletteStore } from "./palette-store"
@@ -74,6 +77,11 @@ const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
   saved_search: BookmarkIcon,
 }
 
+const sourceIcons: Record<SourceEntry["explore"], LucideIcon> = {
+  logs: LogsIcon,
+  traces: ChartGanttIcon,
+}
+
 const actionIcons: Record<
   Extract<PaletteEntry, { kind: "action" }>["id"],
   LucideIcon
@@ -97,11 +105,16 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
     const Icon = actionIcons[entry.id]
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
-  const Icon = resultIcons[entry.kind]
+  const Icon =
+    entry.kind === "source"
+      ? sourceIcons[entry.explore]
+      : resultIcons[entry.kind]
   return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
 }
 
-function isResult(entry: PaletteEntry | undefined): entry is ResultEntry {
+function hasPath(
+  entry: PaletteEntry | undefined
+): entry is ResultEntry | SourceEntry {
   return entry !== undefined && entry.kind !== "page" && entry.kind !== "action"
 }
 
@@ -141,29 +154,49 @@ function PaletteBody({ close }: { close: () => void }) {
   })
   const searchPending =
     searching && !search.isError && (settled !== needle || search.isFetching)
+  const logSources = useExploreSources("logs").sources
+  const traceSources = useExploreSources("traces").sources
+  const sources = useMemo(
+    () => [
+      ...logSources.map(({ uid, name, type }) => ({
+        explore: "logs" as const,
+        uid,
+        name,
+        type,
+      })),
+      ...traceSources.map(({ uid, name, type }) => ({
+        explore: "traces" as const,
+        uid,
+        name,
+        type,
+      })),
+    ],
+    [logSources, traceSources]
+  )
   const groups = paletteGroups(
     query,
     titles.data ?? [],
     search.data ?? [],
-    principal.role
+    principal.role,
+    sources
   )
 
   const highlighted = useRef<PaletteEntry | undefined>(undefined)
 
-  function openInNewTab(entry: ResultEntry) {
+  function openInNewTab(entry: ResultEntry | SourceEntry) {
     close()
     window.open(entry.path, "_blank", "noopener")
   }
 
   function select(entry: PaletteEntry, event: ReactMouseEvent) {
-    if (isResult(entry) && (event.metaKey || event.ctrlKey)) {
+    if (hasPath(entry) && (event.metaKey || event.ctrlKey)) {
       openInNewTab(entry)
       return
     }
     close()
     if (entry.kind === "page") {
       void navigate({ to: entry.to })
-    } else if (isResult(entry)) {
+    } else if (hasPath(entry)) {
       router.history.push(entry.path)
     } else if (entry.id === "action:new-observation") {
       void navigate({ to: "/", search: { tab: "observe" } })
@@ -183,7 +216,7 @@ function PaletteBody({ close }: { close: () => void }) {
     if (
       event.key !== "Enter" ||
       !(event.metaKey || event.ctrlKey) ||
-      !isResult(entry)
+      !hasPath(entry)
     ) {
       return
     }
@@ -237,12 +270,16 @@ function PaletteBody({ close }: { close: () => void }) {
                     <span className="max-w-[60%] flex-none truncate">
                       {entry.label}
                     </span>
-                    {isResult(entry) && entry.secondary.length > 0 ? (
+                    {entry.kind === "source" ? (
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        {entry.secondary}
+                      </span>
+                    ) : hasPath(entry) && entry.secondary.length > 0 ? (
                       <span className="min-w-0 truncate text-xs text-muted-foreground">
                         <Segments segments={entry.secondary} />
                       </span>
                     ) : null}
-                    {isResult(entry) ? (
+                    {hasPath(entry) ? (
                       <button
                         type="button"
                         tabIndex={-1}

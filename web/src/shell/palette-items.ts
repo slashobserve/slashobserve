@@ -1,5 +1,11 @@
 import type { components } from "@/api/schema.gen"
-import { dashboardPath, observationPath } from "@/lib/links"
+import { sourceLanguage, type ExploreKind } from "@/datasources/sources"
+import {
+  dashboardPath,
+  logsPath,
+  observationPath,
+  tracesPath,
+} from "@/lib/links"
 import { roleAtLeast, type Role } from "@/lib/roles"
 
 import { visibleNavItems, type NavPath } from "./nav"
@@ -21,6 +27,20 @@ export type ResultEntry = {
   secondary: MatchSegment[]
   path: string
 }
+export type SourceEntry = {
+  kind: "source"
+  id: string
+  label: string
+  secondary: string
+  path: string
+  explore: ExploreKind
+}
+export type PaletteSource = {
+  explore: ExploreKind
+  uid: string
+  name: string
+  type: string
+}
 type ActionId =
   | "action:new-observation"
   | "action:ask"
@@ -32,11 +52,12 @@ type ActionEntry = {
   id: ActionId
   label: string
 }
-export type PaletteEntry = PageEntry | ResultEntry | ActionEntry
+export type PaletteEntry = PageEntry | ResultEntry | SourceEntry | ActionEntry
 export type PaletteGroup = {
   value:
     | "Pages"
     | "Dashboards"
+    | "Sources"
     | "Observations"
     | "Comments"
     | "Annotations"
@@ -85,6 +106,7 @@ const signOutEntry: ActionEntry = {
 
 const dashboardLimit = 20
 const dashboardLimitWithoutQuery = 8
+const sourceLimit = 8
 
 export const minSearchLength = 2
 
@@ -152,11 +174,32 @@ function serverEntry(result: SearchResult, address: string): ResultEntry {
   }
 }
 
+function sourceEntries(
+  sources: readonly PaletteSource[],
+  needle: string
+): SourceEntry[] {
+  if (needle === "") return []
+  return sources
+    .filter(({ explore, name, type }) =>
+      [name, explore, type].some((text) => text.toLowerCase().includes(needle))
+    )
+    .slice(0, sourceLimit)
+    .map(({ explore, uid, name, type }) => ({
+      kind: "source",
+      id: `source:${explore}:${uid}`,
+      label: name,
+      secondary: `${explore === "logs" ? "Logs" : "Traces"}, ${sourceLanguage(explore, type)}`,
+      path: explore === "logs" ? logsPath(uid) : tracesPath(uid),
+      explore,
+    }))
+}
+
 export function paletteGroups(
   query: string,
   dashboards: { id: string; title: string }[],
   results: SearchResult[],
-  role: Role
+  role: Role,
+  sources: readonly PaletteSource[]
 ): PaletteGroup[] {
   const needle = query.trim().toLowerCase()
   const searching = needle.length >= minSearchLength
@@ -188,6 +231,7 @@ export function paletteGroups(
       items: pageEntries(role).filter((e) => matches(e.label)),
     },
     { value: "Dashboards", items: dashboardEntries },
+    { value: "Sources", items: sourceEntries(sources, needle) },
     ...serverGroups.map(({ value, kind }) => ({
       value,
       items: found.filter((entry) => entry.kind === kind),

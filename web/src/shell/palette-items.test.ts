@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest"
 
-import { paletteGroups, type SearchResult } from "./palette-items"
+import {
+  paletteGroups,
+  type PaletteSource,
+  type SearchResult,
+} from "./palette-items"
 
 const thirty = Array.from({ length: 30 }, (_, index) => ({
   id: `d${index}`,
@@ -9,7 +13,7 @@ const thirty = Array.from({ length: 30 }, (_, index) => ({
 
 describe("paletteGroups", () => {
   test("an empty query lists every page, the first 8 dashboards and the account actions", () => {
-    const groups = paletteGroups("", thirty, [], "admin")
+    const groups = paletteGroups("", thirty, [], "admin", [])
     expect(groups.map((group) => group.value)).toEqual([
       "Pages",
       "Dashboards",
@@ -44,7 +48,7 @@ describe("paletteGroups", () => {
   })
 
   test("a query matching one page omits the empty groups", () => {
-    const groups = paletteGroups("api", thirty, [], "admin")
+    const groups = paletteGroups("api", thirty, [], "admin", [])
     expect(groups).toHaveLength(1)
     expect(groups[0]?.value).toBe("Pages")
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual(["API keys"])
@@ -59,7 +63,8 @@ describe("paletteGroups", () => {
         { id: "b", title: "Billing" },
       ],
       [],
-      "admin"
+      "admin",
+      []
     )
     expect(groups).toHaveLength(1)
     expect(groups[0]?.value).toBe("Dashboards")
@@ -71,13 +76,13 @@ describe("paletteGroups", () => {
       id: `m${index}`,
       title: `Match ${index}`,
     }))
-    const groups = paletteGroups("match", many, [], "admin")
+    const groups = paletteGroups("match", many, [], "admin", [])
     expect(groups[0]?.value).toBe("Dashboards")
     expect(groups[0]?.items).toHaveLength(20)
   })
 
   test("finds sign out in the Account group", () => {
-    const groups = paletteGroups("sign", [], [], "admin")
+    const groups = paletteGroups("sign", [], [], "admin", [])
     expect(groups.map((group) => group.value)).toEqual(["Account"])
     expect(groups[0]?.items).toEqual([
       { kind: "action", id: "action:sign-out", label: "Sign out" },
@@ -85,7 +90,7 @@ describe("paletteGroups", () => {
   })
 
   test("finds switch theme in the Account group", () => {
-    const groups = paletteGroups("THEME", [], [], "viewer")
+    const groups = paletteGroups("THEME", [], [], "viewer", [])
     expect(groups.map((group) => group.value)).toEqual(["Account"])
     expect(groups[0]?.items).toEqual([
       { kind: "action", id: "action:theme", label: "Switch theme" },
@@ -93,7 +98,7 @@ describe("paletteGroups", () => {
   })
 
   test("a Viewer is offered no Admin-only pages", () => {
-    const labels = paletteGroups("", [], [], "viewer")[0]?.items.map(
+    const labels = paletteGroups("", [], [], "viewer", [])[0]?.items.map(
       (entry) => entry.label
     )
     expect(labels).toEqual([
@@ -106,26 +111,26 @@ describe("paletteGroups", () => {
       "Agents",
       "Settings",
     ])
-    expect(paletteGroups("people", [], [], "viewer")).toEqual([])
-    expect(paletteGroups("api keys", [], [], "editor")).toEqual([])
+    expect(paletteGroups("people", [], [], "viewer", [])).toEqual([])
+    expect(paletteGroups("api keys", [], [], "editor", [])).toEqual([])
   })
 
   test("a query finds the New actions by their words", () => {
-    const groups = paletteGroups("import", [], [], "viewer")
+    const groups = paletteGroups("import", [], [], "viewer", [])
     expect(groups.map((group) => group.value)).toEqual(["Actions"])
     expect(groups[0]?.items).toEqual([
       { kind: "action", id: "action:import", label: "Import a dashboard" },
     ])
-    const ask = paletteGroups("ask", [], [], "viewer")
+    const ask = paletteGroups("ask", [], [], "viewer", [])
     expect(ask[0]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
-    const agent = paletteGroups("agent", [], [], "viewer")
+    const agent = paletteGroups("agent", [], [], "viewer", [])
     expect(agent.map((group) => group.value)).toEqual(["Pages", "Actions"])
     expect(agent[0]?.items.map((entry) => entry.id)).toEqual(["page:/agents"])
     expect(agent[1]?.items.map((entry) => entry.id)).toEqual(["action:ask"])
   })
 
   test("a query matching nothing returns no groups", () => {
-    expect(paletteGroups("zzzz-no-match", thirty, [], "admin")).toEqual([])
+    expect(paletteGroups("zzzz-no-match", thirty, [], "admin", [])).toEqual([])
   })
 })
 
@@ -164,7 +169,7 @@ const everyKind: SearchResult[] = [
 
 describe("paletteGroups with search results", () => {
   test("below two characters the results are ignored", () => {
-    const groups = paletteGroups("d", thirty, everyKind, "admin")
+    const groups = paletteGroups("d", thirty, everyKind, "admin", [])
     expect(groups.map((group) => group.value)).toEqual([
       "Pages",
       "Dashboards",
@@ -173,13 +178,13 @@ describe("paletteGroups with search results", () => {
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(
       thirty.slice(0, 20).map((dashboard) => dashboard.id)
     )
-    expect(paletteGroups(" d ", [], everyKind, "admin")).toEqual(
-      paletteGroups("d", [], [], "admin")
+    expect(paletteGroups(" d ", [], everyKind, "admin", [])).toEqual(
+      paletteGroups("d", [], [], "admin", [])
     )
   })
 
   test("from two characters the groups follow Dashboards, Observations, Comments, Annotations, Saved searches", () => {
-    const groups = paletteGroups("ch", [], everyKind, "admin")
+    const groups = paletteGroups("ch", [], everyKind, "admin", [])
     expect(groups.map((group) => group.value)).toEqual([
       "Dashboards",
       "Observations",
@@ -201,7 +206,8 @@ describe("paletteGroups with search results", () => {
         result("dashboard", "d3", "Checkout errors"),
         result("dashboard", "d1", "Checkout latency"),
       ],
-      "admin"
+      "admin",
+      []
     )
     expect(groups[0]?.value).toBe("Dashboards")
     expect(groups[0]?.items.map((entry) => entry.id)).toEqual([
@@ -223,7 +229,8 @@ describe("paletteGroups with search results", () => {
         result("dashboard", "x1", "Match server one"),
         result("dashboard", "x2", "Match server two"),
       ],
-      "admin"
+      "admin",
+      []
     )
     const ids = groups[0]?.items.map((entry) => entry.id)
     expect(ids).toHaveLength(20)
@@ -235,7 +242,8 @@ describe("paletteGroups with search results", () => {
       "deploy",
       [],
       [result("annotation", "n1", "Deploy", { url: null })],
-      "admin"
+      "admin",
+      []
     )
     expect(groups).toEqual([])
   })
@@ -247,7 +255,7 @@ describe("paletteGroups with search results", () => {
         { text: "checkout", match: true },
       ],
     })
-    const groups = paletteGroups("checkout", [], [comment], "admin")
+    const groups = paletteGroups("checkout", [], [comment], "admin", [])
     expect(groups).toHaveLength(1)
     expect(groups[0]?.items[0]).toMatchObject({
       kind: "comment",
@@ -257,7 +265,7 @@ describe("paletteGroups with search results", () => {
   })
 
   test("dashboards and saved searches show their folder, the others their snippet", () => {
-    const groups = paletteGroups("checkout", [], everyKind, "admin")
+    const groups = paletteGroups("checkout", [], everyKind, "admin", [])
     const secondary = (value: string) =>
       groups
         .find((group) => group.value === value)
@@ -279,7 +287,8 @@ describe("paletteGroups with search results", () => {
           url: "https://observe.example.com/d/d1/checkout?from=1700000000000&to=1700000900000",
         }),
       ],
-      "admin"
+      "admin",
+      []
     )
     expect(groups[0]?.items[0]).toMatchObject({
       path: "/d/d1/checkout?from=1700000000000&to=1700000900000",
@@ -287,7 +296,7 @@ describe("paletteGroups with search results", () => {
   })
 
   test("an observation opens at its own page whatever address the server sent", () => {
-    const groups = paletteGroups("slow", [], everyKind, "admin")
+    const groups = paletteGroups("slow", [], everyKind, "admin", [])
     expect(
       groups.find((group) => group.value === "Observations")?.items
     ).toEqual([
@@ -305,13 +314,14 @@ describe("paletteGroups with search results", () => {
       "checkout",
       [{ id: "d1", title: "Checkout health" }],
       [],
-      "admin"
+      "admin",
+      []
     )
     expect(groups[0]?.items[0]).toMatchObject({ path: "/d/d1/checkout-health" })
   })
 
   test("pages and account actions are still filtered by the words while server results are kept whole", () => {
-    const groups = paletteGroups("sign", [], everyKind, "admin")
+    const groups = paletteGroups("sign", [], everyKind, "admin", [])
     expect(groups.map((group) => group.value)).toEqual([
       "Dashboards",
       "Observations",
@@ -320,5 +330,88 @@ describe("paletteGroups with search results", () => {
       "Saved searches",
       "Account",
     ])
+  })
+})
+
+describe("paletteGroups with log and trace sources", () => {
+  const sources: PaletteSource[] = [
+    { explore: "logs", uid: "lk", name: "Prod logs", type: "loki" },
+    { explore: "logs", uid: "es", name: "Search", type: "elasticsearch" },
+    { explore: "traces", uid: "tp", name: "Prod traces", type: "tempo" },
+  ]
+
+  function sourceGroup(query: string, list: PaletteSource[]) {
+    return paletteGroups(query, thirty, [], "admin", list).find(
+      (group) => group.value === "Sources"
+    )
+  }
+
+  test("a source is found by its name and lists its page and query language", () => {
+    expect(sourceGroup("prod l", sources)?.items).toEqual([
+      {
+        kind: "source",
+        id: "source:logs:lk",
+        label: "Prod logs",
+        secondary: "Logs, LogQL",
+        path: "/logs/lk",
+        explore: "logs",
+      },
+    ])
+    expect(sourceGroup("prod t", sources)?.items).toEqual([
+      {
+        kind: "source",
+        id: "source:traces:tp",
+        label: "Prod traces",
+        secondary: "Traces, TraceQL",
+        path: "/traces/tp",
+        explore: "traces",
+      },
+    ])
+  })
+
+  test("a source is found by its type when its name does not say it", () => {
+    expect(
+      sourceGroup("elastic", sources)?.items.map((entry) => entry.id)
+    ).toEqual(["source:logs:es"])
+    expect(
+      sourceGroup("LOKI", sources)?.items.map((entry) => entry.id)
+    ).toEqual(["source:logs:lk"])
+  })
+
+  test("the word logs or traces finds every source of that kind", () => {
+    expect(
+      sourceGroup("logs", sources)?.items.map((entry) => entry.id)
+    ).toEqual(["source:logs:lk", "source:logs:es"])
+    expect(
+      sourceGroup("traces", sources)?.items.map((entry) => entry.id)
+    ).toEqual(["source:traces:tp"])
+  })
+
+  test("an empty query lists no sources", () => {
+    expect(sourceGroup("", sources)).toBeUndefined()
+    expect(sourceGroup("   ", sources)).toBeUndefined()
+  })
+
+  test("the Sources group sits right after Dashboards", () => {
+    const groups = paletteGroups(
+      "prod",
+      [{ id: "p1", title: "Prod overview" }],
+      [],
+      "admin",
+      sources
+    )
+    const values = groups.map((group) => group.value)
+    expect(values).toContain("Sources")
+    expect(values.indexOf("Sources")).toBe(values.indexOf("Dashboards") + 1)
+  })
+
+  test("at most 8 sources are listed", () => {
+    const many: PaletteSource[] = Array.from({ length: 12 }, (_, index) => ({
+      explore: "logs",
+      uid: `u${index}`,
+      name: `Loki ${index}`,
+      type: "loki",
+    }))
+    expect(sourceGroup("loki", many)?.items).toHaveLength(8)
   })
 })
