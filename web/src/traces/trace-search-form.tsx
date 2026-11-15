@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { languageReference } from "@/datasources/sources"
 import { labelValuesQuery } from "@/panel-editor/queries"
 
 import type { TraceFormSearch, TraceSearch } from "./search"
@@ -111,6 +112,7 @@ export function TraceSearchForm({
   const [q, setQ] = useState(value.q ?? "")
   const [checked, setChecked] = useState(false)
   const tempo = type === "tempo"
+  const reference = languageReference("traces", type)
   const clickhouse = type === "clickhouse"
   const minProblem = checked && durationInvalid(min) ? durationProblem : null
   const maxProblem = checked && durationInvalid(max) ? durationProblem : null
@@ -198,7 +200,17 @@ export function TraceSearchForm({
             onChange={(event) => edited(setQ)(event.target.value)}
           />
           <p id={`${ids}-q-help`} className="text-xs text-muted-foreground">
-            Leave empty to search with the fields above.
+            Leave empty to search with the fields above.{" "}
+            {reference === null ? null : (
+              <a
+                href={reference.url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-3"
+              >
+                {reference.label}
+              </a>
+            )}
           </p>
         </div>
       ) : null}
