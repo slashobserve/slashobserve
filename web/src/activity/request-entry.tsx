@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router"
 
 import { tookText } from "@/chat/turn-model"
 import { versionChangesSearch } from "@/history/search"
+import { markOfAuthor } from "@/lib/author"
 
 import {
-  avatarFor,
   EntryBody,
   EntryFrame,
   EntryMeta,
@@ -85,7 +85,7 @@ export function RequestEntry({
 
   return (
     <EntryFrame
-      avatar={avatarFor(request.requested_by)}
+      avatar={markOfAuthor(request.requested_by)}
       who={request.requested_by.name}
       verb={verb}
       panel={panel}

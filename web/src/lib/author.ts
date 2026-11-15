@@ -19,12 +19,29 @@ export function personTint(id: string): PersonTint {
   return ((sum % 6) + 1) as PersonTint
 }
 
+export const observeAgentMark: AuthorMarkModel = {
+  kind: "observe-agent",
+  text: "/",
+  tint: null,
+}
+
+export function markOfAuthor(
+  author: Pick<Actor, "kind" | "id" | "name">
+): AuthorMarkModel {
+  if (author.kind === "service_account") {
+    return { kind: "outside-agent", text: initials(author.name), tint: null }
+  }
+  return {
+    kind: "person",
+    text: initials(author.name),
+    tint: personTint(author.id),
+  }
+}
+
 export function markOf(
   actor: Pick<Actor, "kind" | "id" | "name" | "origin" | "client" | "run_id">
 ): AuthorMarkModel {
-  if (actor.run_id !== null) {
-    return { kind: "observe-agent", text: "/", tint: null }
-  }
+  if (actor.run_id !== null) return observeAgentMark
   if (actor.origin === "mcp") {
     return {
       kind: "outside-agent",
@@ -32,12 +49,5 @@ export function markOf(
       tint: null,
     }
   }
-  if (actor.kind === "service_account") {
-    return { kind: "outside-agent", text: initials(actor.name), tint: null }
-  }
-  return {
-    kind: "person",
-    text: initials(actor.name),
-    tint: personTint(actor.id),
-  }
+  return markOfAuthor(actor)
 }

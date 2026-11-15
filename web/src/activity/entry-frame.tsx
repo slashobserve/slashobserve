@@ -2,49 +2,28 @@ import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { ArrowRightIcon } from "lucide-react"
 
-import { AgentMark } from "@/components/agent-mark"
-import { RelativeTime } from "@/components/relative-time"
+import { AuthorMark } from "@/components/author-mark"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
-import type { components } from "@/api/schema.gen"
 import type { Comment } from "@/comments/queries"
+import { markOf, markOfAuthor, type AuthorMarkModel } from "@/lib/author"
 import { isAgentActor } from "@/lib/origin"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
-import { initialOf } from "./initial"
+import { EntryTime } from "./entry-time"
 
-type EntryAvatar =
-  | { kind: "person"; name: string }
-  | { kind: "service"; name: string }
-  | { kind: "agent" }
-
-export function avatarFor(author: {
-  kind: "user" | "service_account"
-  name: string
-}): EntryAvatar {
-  return author.kind === "service_account"
-    ? { kind: "service", name: author.name }
-    : { kind: "person", name: author.name }
-}
-
-type Actor = components["schemas"]["Actor"]
-
-export function actorAvatar(
-  actor: Pick<Actor, "kind" | "name" | "run_id" | "origin">
-): EntryAvatar {
-  return isAgentActor(actor) ? { kind: "agent" } : avatarFor(actor)
-}
-
-export function commentAvatar(comment: Pick<Comment, "actor" | "author">) {
+export function commentAvatar(
+  comment: Pick<Comment, "actor" | "author">
+): AuthorMarkModel {
   return isAgentActor(comment.actor)
-    ? { kind: "agent" as const }
-    : avatarFor(comment.author)
+    ? markOf(comment.actor)
+    : markOfAuthor(comment.author)
 }
 
 type Props = {
-  avatar: EntryAvatar
+  avatar: AuthorMarkModel
   who: string
   verb: string
   panel?: { title: string; onSelect: () => void }
@@ -59,12 +38,6 @@ export const boxClass = "rounded-control border px-2.5 py-2 text-[13px]"
 
 export const panelLinkClass =
   "rounded-sm text-left font-medium wrap-anywhere text-foreground underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-
-const avatarShape: Record<EntryAvatar["kind"], string> = {
-  person: "rounded-full border bg-background text-foreground",
-  service: "rounded-control border bg-muted text-foreground",
-  agent: "rounded-full bg-primary text-primary-foreground",
-}
 
 export function EntryFrame({
   avatar,
@@ -94,23 +67,10 @@ export function EntryFrame({
       {nested ? null : (
         <span
           aria-hidden="true"
-          className="absolute top-[35px] bottom-0 left-[11px] w-px bg-border group-last/entry:hidden"
+          className="absolute top-[34px] bottom-0 left-[11px] w-px bg-border group-last/entry:hidden"
         />
       )}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "relative grid flex-none place-items-center text-[11px] font-semibold",
-          nested ? "size-[19px] text-[10px]" : "size-[23px]",
-          avatarShape[avatar.kind]
-        )}
-      >
-        {avatar.kind === "agent" ? (
-          <AgentMark size={nested ? 10 : 12} />
-        ) : (
-          initialOf(avatar.name)
-        )}
-      </span>
+      <AuthorMark mark={avatar} size={nested ? 20 : 24} />
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-baseline gap-2 text-[13px]">
           <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 gap-y-1">
@@ -130,7 +90,7 @@ export function EntryFrame({
           </p>
           <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground tabular-nums">
             {edited ? "edited · " : null}
-            <RelativeTime iso={at} />
+            <EntryTime iso={at} />
           </span>
         </div>
         {children}

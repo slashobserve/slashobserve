@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
 
 import { withDayBreaks } from "@/activity/day-label"
-import { actorAvatar, EntryFrame } from "@/activity/entry-frame"
+import { EntryFrame } from "@/activity/entry-frame"
 import { ShowFilter, TimelineFilters } from "@/activity/show-filter"
 import {
   DayBreakRow,
@@ -30,6 +30,7 @@ import {
   type SentMessage,
 } from "@/comments/thread-queries"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
@@ -215,7 +216,7 @@ export function DiscussionFeed({
             return (
               <EntryFrame
                 key={entry.key}
-                avatar={actorAvatar(message.actor)}
+                avatar={markOf(message.actor)}
                 who={message.actor.label}
                 verb={entry.verb}
                 at={message.created_at}
@@ -239,7 +240,7 @@ export function DiscussionFeed({
           return (
             <EntryFrame
               key={entry.key}
-              avatar={actorAvatar(change.actor)}
+              avatar={markOf(change.actor)}
               who={change.actor.label}
               verb={change.verb}
               at={change.at}

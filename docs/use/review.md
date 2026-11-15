@@ -16,7 +16,8 @@ Anyone with the dashboard open sees a toast saying that it was deleted.
 
 The card is headed "Activity" with the description "Comments, agent requests and saved versions."
 Without a model on the server it reads "Comments and saved versions."
-Entries are sorted by time and come in four kinds:
+Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
+They come in four kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
