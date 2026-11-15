@@ -84,6 +84,18 @@ func (s *store) threads(ctx context.Context, observationIDs []pgtype.UUID) (map[
 	return out, nil
 }
 
+func (s *store) messageCounts(ctx context.Context, observationIDs []pgtype.UUID) (map[pgtype.UUID]int, error) {
+	rows, err := s.db.Queries().CountObservationMessages(ctx, observationIDs)
+	if err != nil {
+		return nil, fmt.Errorf("count observation messages: %w", err)
+	}
+	out := make(map[pgtype.UUID]int, len(rows))
+	for _, r := range rows {
+		out[r.ObservationID] = int(r.Messages)
+	}
+	return out, nil
+}
+
 func appendEvent(ctx context.Context, q *dbsqlc.Queries, typ string, by actor.Actor, id pgtype.UUID, data any) error {
 	_, err := activity.Append(ctx, q, activity.Entry{
 		Type:     typ,
@@ -131,7 +143,7 @@ func actorOf(kind string, id pgtype.UUID, name string, origin, client pgtype.Tex
 	return actor.FromColumns(actor.Columns{Kind: kind, ID: id, Name: name, Origin: origin, Client: client, RunID: runID})
 }
 
-func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities folders.Abilities, thread pgtype.UUID) Observation {
+func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities folders.Abilities, thread pgtype.UUID, messages int) Observation {
 	return Observation{
 		ID:             row.ID.String(),
 		FolderID:       row.FolderID.String(),
@@ -142,6 +154,7 @@ func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities fold
 		To:             timePtr(row.TimeTo),
 		ThreadID:       thread.String(),
 		RunID:          row.RunID.String(),
+		MessageCount:   messages,
 		Actor:          actorOf(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.Origin, row.OriginClient, row.RunID),
 		CreatedAt:      row.CreatedAt.Time.UTC(),
 		UpdatedAt:      row.UpdatedAt.Time.UTC(),

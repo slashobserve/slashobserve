@@ -374,7 +374,7 @@ export interface paths {
         };
         /**
          * Follow workspace activity as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `observation_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
          */
         get: operations["streamActivity"];
         put?: never;
@@ -6213,6 +6213,8 @@ export interface components {
              * @description The agent request that made the observation, when one did.
              */
             run_id: string | null;
+            /** @description How many messages the observation's discussion thread holds, replies included; 0 while it has no thread. */
+            message_count: number;
             /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */
             url: string;
             created_by: components["schemas"]["Actor"];
@@ -7362,6 +7364,8 @@ export interface operations {
                 dashboard_id?: string;
                 /** @description Only events whose folder is this one. */
                 folder_id?: string;
+                /** @description Only events of this observation, its blocks, its RCA revisions and its discussion thread; the visibility rule still applies. */
+                observation_id?: string;
                 /** @description Only events of these types; repeat the parameter for several. */
                 type?: components["schemas"]["ActivityType"][];
                 /** @description RFC 3339 time; only events created at or after it. */
@@ -7396,6 +7400,7 @@ export interface operations {
             query?: {
                 dashboard_id?: string;
                 folder_id?: string;
+                observation_id?: string;
                 type?: components["schemas"]["ActivityType"][];
                 since?: string;
             };

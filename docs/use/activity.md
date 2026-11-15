@@ -75,7 +75,9 @@ An event appears once its own transaction and every older one have committed, so
 
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
-Narrow the list with `dashboard_id`, `folder_id`, a repeated `type` and `since` (an RFC 3339 time); a parameter that does not parse answers 400.
+Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, a repeated `type` and `since` (an RFC 3339 time); a parameter that does not parse answers 400.
+`observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
+It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 
 ```sh
 curl -fsS -H "Authorization: Bearer $OBSERVE_TOKEN" \
@@ -116,9 +118,10 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 
 ## Read it over MCP
 
-The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
+`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`.
 
 ## Send it to another system
 

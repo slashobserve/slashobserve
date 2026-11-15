@@ -44,6 +44,7 @@ type ObservationJSON struct {
 	To             *string      `json:"to"`
 	ThreadID       *string      `json:"thread_id"`
 	RunID          *string      `json:"run_id"`
+	MessageCount   int          `json:"message_count"`
 	URL            string       `json:"url"`
 	CreatedBy      actor.JSON   `json:"created_by"`
 	CreatedAt      string       `json:"created_at"`
@@ -137,6 +138,7 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		To:             timeString(o.To),
 		ThreadID:       httpapi.OptionalString(o.ThreadID),
 		RunID:          httpapi.OptionalString(o.RunID),
+		MessageCount:   o.MessageCount,
 		URL:            url,
 		CreatedBy:      o.Actor.JSON(),
 		CreatedAt:      httpapi.FormatTime(o.CreatedAt),

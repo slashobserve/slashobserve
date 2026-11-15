@@ -142,6 +142,8 @@ A panel's `repeat` setting is dropped.
 [MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block` and `publish_rca`.
 The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard` and `publish`.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
+Every observation the HTTP API and the MCP observation tools return carries `message_count`, how many messages its discussion holds, replies included, and 0 before anyone has written one.
+To read what changed on one observation, filter the [activity](activity.md) with `observation_id`.
 Searching the workspace finds observations too (see [Search](search.md)).
 
 ## Resolve with a summary

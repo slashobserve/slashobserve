@@ -38,15 +38,16 @@ func (s *Store) Audience(ctx context.Context, p auth.Principal) (folders.Audienc
 
 func (s *Store) List(ctx context.Context, a folders.Audience, f Filter, cursor string, limit int) (page []Event, next string, err error) {
 	params := dbsqlc.ListActivityParams{
-		Folders:     visibleFolders(a),
-		Admin:       a.Admin,
-		ReaderKind:  a.ReaderKind,
-		ReaderID:    a.ReaderID,
-		DashboardID: f.DashboardID,
-		FolderID:    f.FolderID,
-		Types:       typesOf(f),
-		Since:       sinceOf(f),
-		RowLimit:    httpapi.Int32(limit + 1),
+		Folders:       visibleFolders(a),
+		Admin:         a.Admin,
+		ReaderKind:    a.ReaderKind,
+		ReaderID:      a.ReaderID,
+		DashboardID:   f.DashboardID,
+		FolderID:      f.FolderID,
+		ObservationID: f.ObservationID,
+		Types:         typesOf(f),
+		Since:         sinceOf(f),
+		RowLimit:      httpapi.Int32(limit + 1),
 	}
 	if cursor != "" {
 		from, err := decodeCursor(cursor)
@@ -108,17 +109,18 @@ func (s *Store) Next(ctx context.Context, a folders.Audience, f Filter, from Pos
 		return nil, from, false, err
 	}
 	rows, err := s.db.Queries().ListActivityAfter(ctx, dbsqlc.ListActivityAfterParams{
-		Folders:     visibleFolders(a),
-		Admin:       a.Admin,
-		ReaderKind:  a.ReaderKind,
-		ReaderID:    a.ReaderID,
-		DashboardID: f.DashboardID,
-		FolderID:    f.FolderID,
-		Types:       typesOf(f),
-		Since:       sinceOf(f),
-		AfterXid:    pgtype.Uint64{Uint64: from.xid, Valid: true},
-		AfterSeq:    from.seq,
-		RowLimit:    httpapi.Int32(limit),
+		Folders:       visibleFolders(a),
+		Admin:         a.Admin,
+		ReaderKind:    a.ReaderKind,
+		ReaderID:      a.ReaderID,
+		DashboardID:   f.DashboardID,
+		FolderID:      f.FolderID,
+		ObservationID: f.ObservationID,
+		Types:         typesOf(f),
+		Since:         sinceOf(f),
+		AfterXid:      pgtype.Uint64{Uint64: from.xid, Valid: true},
+		AfterSeq:      from.seq,
+		RowLimit:      httpapi.Int32(limit),
 	})
 	if err != nil {
 		return nil, from, false, fmt.Errorf("read activity after a position: %w", err)

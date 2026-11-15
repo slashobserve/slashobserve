@@ -175,11 +175,15 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 	if err != nil {
 		return Observation{}, err
 	}
+	counts, err := s.store.messageCounts(ctx, []pgtype.UUID{id})
+	if err != nil {
+		return Observation{}, err
+	}
 	blocks, err := s.store.blocks(ctx, id)
 	if err != nil {
 		return Observation{}, err
 	}
-	o := observationOf(row, folder, abilities, thread)
+	o := observationOf(row, folder, abilities, thread, counts[id])
 	viewer := actor.Of(by, origin.Origin{}, "")
 	o.Blocks = make([]Block, len(blocks))
 	for i, b := range blocks {
@@ -236,9 +240,13 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 	if err != nil {
 		return nil, "", err
 	}
+	counts, err := s.store.messageCounts(ctx, rowIDs)
+	if err != nil {
+		return nil, "", err
+	}
 	out := make([]Observation, len(rows))
 	for i, row := range rows {
-		out[i] = observationOf(row, byID[row.FolderID], levels.Of(row.FolderID), threads[row.ID])
+		out[i] = observationOf(row, byID[row.FolderID], levels.Of(row.FolderID), threads[row.ID], counts[row.ID])
 	}
 	return out, next, nil
 }

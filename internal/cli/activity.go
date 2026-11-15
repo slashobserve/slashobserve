@@ -30,12 +30,13 @@ const (
 )
 
 type activityOptions struct {
-	dashboard string
-	folder    string
-	types     []string
-	since     string
-	limit     int
-	follow    bool
+	dashboard   string
+	folder      string
+	observation string
+	types       []string
+	since       string
+	limit       int
+	follow      bool
 }
 
 type activityActor struct {
@@ -99,6 +100,7 @@ func (a *app) activityCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&a.activity.dashboard, "dashboard", "", "only events of this dashboard id")
 	flags.StringVar(&a.activity.folder, "folder", "", "only events of this folder id")
+	flags.StringVar(&a.activity.observation, "observation", "", "only events of this observation id")
 	flags.StringSliceVar(&a.activity.types, "type", nil, "only events of this type, such as dashboard.moved; repeat for several")
 	flags.StringVar(&a.activity.since, "since", "", "only events since a duration ago such as 24h, or since an RFC 3339 time")
 	flags.IntVar(&a.activity.limit, "limit", defaultActivityLimit, "the newest events to print, 1 to 100")
@@ -124,6 +126,13 @@ func (o activityOptions) filters(now time.Time) (url.Values, error) {
 			return nil, err
 		}
 		query.Set("folder_id", id)
+	}
+	if o.observation != "" {
+		id, err := parseID(o.observation)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("observation_id", id)
 	}
 	for _, kind := range o.types {
 		query.Add("type", kind)

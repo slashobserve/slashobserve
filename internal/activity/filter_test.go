@@ -10,10 +10,11 @@ import (
 
 func TestParseFilterReadsEveryParameter(t *testing.T) {
 	q := url.Values{
-		"dashboard_id": {"11111111-1111-4111-8111-111111111111"},
-		"folder_id":    {"22222222-2222-4222-8222-222222222222"},
-		"type":         {"dashboard.moved", "run.failed"},
-		"since":        {"2026-11-01T10:00:00+02:00"},
+		"dashboard_id":   {"11111111-1111-4111-8111-111111111111"},
+		"folder_id":      {"22222222-2222-4222-8222-222222222222"},
+		"observation_id": {"33333333-3333-4333-8333-333333333333"},
+		"type":           {"dashboard.moved", "run.failed"},
+		"since":          {"2026-11-01T10:00:00+02:00"},
 	}
 
 	f, err := ParseFilter(q)
@@ -23,6 +24,9 @@ func TestParseFilterReadsEveryParameter(t *testing.T) {
 	}
 	if f.DashboardID.String() != "11111111-1111-4111-8111-111111111111" || f.FolderID.String() != "22222222-2222-4222-8222-222222222222" {
 		t.Errorf("ids = %v, %v", f.DashboardID, f.FolderID)
+	}
+	if f.ObservationID.String() != "33333333-3333-4333-8333-333333333333" {
+		t.Errorf("observation id = %v", f.ObservationID)
 	}
 	if !slices.Equal(f.Types, []string{"dashboard.moved", "run.failed"}) {
 		t.Errorf("types = %v", f.Types)
@@ -38,7 +42,7 @@ func TestParseFilterAcceptsNoParameters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.DashboardID.Valid || f.FolderID.Valid || len(f.Types) != 0 || !f.Since.IsZero() {
+	if f.DashboardID.Valid || f.FolderID.Valid || f.ObservationID.Valid || len(f.Types) != 0 || !f.Since.IsZero() {
 		t.Fatalf("got %+v", f)
 	}
 }
@@ -55,6 +59,7 @@ func TestParseFilterRefusesBadParametersAndNamesThem(t *testing.T) {
 	}{
 		{"dashboard id", url.Values{"dashboard_id": {"nope"}}, "dashboard_id"},
 		{"folder id", url.Values{"folder_id": {"11111111111141118111111111111111"}}, "folder_id"},
+		{"observation id", url.Values{"observation_id": {"not-a-uuid"}}, "observation_id must be a UUID"},
 		{"unknown type", url.Values{"type": {"dashboard.moved", "comment.created"}}, "comment.created"},
 		{"too many types", url.Values{"type": tooMany}, "type"},
 		{"since", url.Values{"since": {"yesterday"}}, "since"},

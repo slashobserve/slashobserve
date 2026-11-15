@@ -11,6 +11,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countObservationMessages = `-- name: CountObservationMessages :many
+SELECT t.observation_id, count(m.id)::int AS messages
+FROM threads t
+JOIN thread_messages m ON m.thread_id = t.id
+WHERE t.observation_id = ANY($1::uuid[])
+GROUP BY t.observation_id
+`
+
+type CountObservationMessagesRow struct {
+	ObservationID pgtype.UUID
+	Messages      int32
+}
+
+func (q *Queries) CountObservationMessages(ctx context.Context, observationIds []pgtype.UUID) ([]CountObservationMessagesRow, error) {
+	rows, err := q.db.Query(ctx, countObservationMessages, observationIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountObservationMessagesRow
+	for rows.Next() {
+		var i CountObservationMessagesRow
+		if err := rows.Scan(&i.ObservationID, &i.Messages); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createMessage = `-- name: CreateMessage :one
 WITH clock AS (SELECT coalesce($10::timestamptz, clock_timestamp()) AS at)
 INSERT INTO thread_messages (

@@ -97,7 +97,7 @@ func twoEventPage() string {
 
 func TestActivityPrintsTheNewestEventsOldestFirst(t *testing.T) {
 	f := newActivityFake(t, twoEventPage())
-	stdout, stderr, code := f.run("activity", "--dashboard", testDashboard, "--folder", testFolder, "--type", "run.failed", "--type", "dashboard.moved", "--since", "2026-11-01T00:00:00Z", "--limit", "5")
+	stdout, stderr, code := f.run("activity", "--dashboard", testDashboard, "--folder", testFolder, "--observation", testObservation, "--type", "run.failed", "--type", "dashboard.moved", "--since", "2026-11-01T00:00:00Z", "--limit", "5")
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
@@ -114,7 +114,7 @@ func TestActivityPrintsTheNewestEventsOldestFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantQuery := url.Values{
-		"dashboard_id": {testDashboard}, "folder_id": {testFolder}, "type": {"run.failed", "dashboard.moved"},
+		"dashboard_id": {testDashboard}, "folder_id": {testFolder}, "observation_id": {testObservation}, "type": {"run.failed", "dashboard.moved"},
 		"since": {"2026-11-01T00:00:00Z"}, "limit": {"5"},
 	}
 	if got.Encode() != wantQuery.Encode() {
@@ -156,6 +156,7 @@ func TestActivityRefusesBadFlagsBeforeAskingTheServer(t *testing.T) {
 		{"limit too high", []string{"--limit", "101"}, "--limit must be 1 to 100"},
 		{"dashboard", []string{"--dashboard", "nope"}, `"nope" is not a valid id`},
 		{"folder", []string{"--folder", "nope"}, `"nope" is not a valid id`},
+		{"observation", []string{"--observation", "nope"}, `"nope" is not a valid id`},
 		{"since word", []string{"--since", "yesterday"}, `--since "yesterday" is not a duration`},
 		{"since negative", []string{"--since", "-1h"}, `--since "-1h" is not a duration`},
 		{"since zero", []string{"--since", "0s"}, `--since "0s" is not a duration`},

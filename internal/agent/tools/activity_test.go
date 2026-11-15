@@ -52,6 +52,41 @@ func (r activityRig) dashboard(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 	return id
 }
 
+func (r activityRig) observation(t *testing.T, folder pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	var raw string
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, 'Checkout latency', 'user', gen_random_uuid(), 'Seed') RETURNING id::text`, folder.String()).Scan(&raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func (r activityRig) appendOnObservation(t *testing.T, eventType string, observation pgtype.UUID) int64 {
+	t.Helper()
+	var seq int64
+	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		var err error
+		seq, err = activity.Append(t.Context(), q, activity.Entry{
+			Type:     eventType,
+			TargetID: observation,
+			Owner:    activity.OnObservation(observation),
+			Actor:    actor.Of(editorCaller, origin.Origin{Kind: origin.MCP, Client: "claude-code"}, ""),
+			Data:     map[string]any{"title": "Checkout latency"},
+		}, nil)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("append %s: %v", eventType, err)
+	}
+	return seq
+}
+
 func (r activityRig) append(t *testing.T, eventType string, dashboard pgtype.UUID) int64 {
 	t.Helper()
 	var seq int64
@@ -162,6 +197,24 @@ func TestListActivityNarrowsByTypeAndDashboard(t *testing.T) {
 	}
 }
 
+func TestListActivityNarrowsToOneObservation(t *testing.T) {
+	r := newActivityRig(t)
+	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Incidents"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, other := r.observation(t, folder.ID), r.observation(t, folder.ID)
+	created := r.appendOnObservation(t, activity.TypeObservationCreated, one)
+	renamed := r.appendOnObservation(t, activity.TypeObservationUpdated, one)
+	r.appendOnObservation(t, activity.TypeObservationCreated, other)
+
+	got, _ := r.list(t, viewerCaller, `{"observation_id":"`+one.String()+`"}`)
+
+	if ids := seqsOfActivity(got); !slices.Equal(ids, []int64{renamed, created}) {
+		t.Fatalf("narrowed list %v, want [%d %d]", ids, renamed, created)
+	}
+}
+
 func TestListActivityHidesWhatTheKeyMayNotSee(t *testing.T) {
 	r := newActivityRig(t)
 	restricted := foldertest.Restricted(t, r.db, "Payroll", privateGroup)
@@ -192,6 +245,7 @@ func TestListActivityRefusesBadInput(t *testing.T) {
 		{"limit 101", `{"limit":101}`, "limit must be between 1 and 100"},
 		{"dashboard not a uuid", `{"dashboard_id":"shop"}`, "dashboard_id must be a UUID"},
 		{"folder not a uuid", `{"folder_id":"shop"}`, "folder_id must be a UUID"},
+		{"observation not a uuid", `{"observation_id":"shop"}`, "observation_id must be a UUID"},
 		{"unknown type", `{"types":["dashboard.exploded"]}`, `type "dashboard.exploded" is not an activity type`},
 		{"since not RFC 3339", `{"since":"yesterday"}`, "since must be an RFC 3339 time"},
 		{"cursor not a cursor", `{"cursor":"nope"}`, "cursor is not valid"},
