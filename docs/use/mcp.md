@@ -192,6 +192,7 @@ A comment id is the id of any message of the thread, and the first message's id 
 
 On an observation, `create_comment` and `reply_to_comment` take `block_id`, the block the message is about from `get_observation`, and omit it for the whole observation; a block of another observation, or a `block_id` on any other target, answers `invalid_request`.
 `reply_to_comment` also takes `reply_to_id`, a message of the same thread that the reply answers, which the web app shows quoted.
+Every comment the comment tools return carries `block_id` (null for the whole observation and on every other target) and `reply_to` (null when it quotes nothing, else the quoted message's `id`, its `author` as the web app labels it, and an `excerpt` of its first 200 characters).
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
 `create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.

@@ -49,6 +49,12 @@ type mentionOut struct {
 	Name string `json:"name"`
 }
 
+type replyToOut struct {
+	ID      string `json:"id"`
+	Author  string `json:"author"`
+	Excerpt string `json:"excerpt"`
+}
+
 type commentOut struct {
 	ID                string       `json:"id"`
 	ParentID          *string      `json:"parent_id"`
@@ -65,6 +71,8 @@ type commentOut struct {
 	BodyTruncated     bool         `json:"body_truncated,omitempty"`
 	ResolvedByVersion *int         `json:"resolved_by_version"`
 	Mentions          []mentionOut `json:"mentions"`
+	BlockID           *string      `json:"block_id"`
+	ReplyTo           *replyToOut  `json:"reply_to"`
 }
 
 type commentListOut struct {
@@ -144,6 +152,12 @@ func commentItem(ref commentRef) commentOut {
 	}
 	if t.PanelID != "" {
 		out.PanelID = &t.PanelID
+	}
+	if m.BlockID != "" {
+		out.BlockID = &m.BlockID
+	}
+	if m.ReplyTo != nil {
+		out.ReplyTo = &replyToOut{ID: m.ReplyTo.ID, Author: m.ReplyTo.Author.Label(), Excerpt: m.ReplyTo.Excerpt}
 	}
 	return out
 }

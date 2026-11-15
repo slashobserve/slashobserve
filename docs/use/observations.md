@@ -127,6 +127,7 @@ The message stays in the discussion as well.
 
 A message can be about one block of the page or about the whole observation, and a reply can quote the message it answers.
 Over the API, MCP and the CLI a message carries `block_id` and `reply_to`, both null when the message is about the whole page and quotes nothing; `reply_to` holds the quoted message's `id`, its `actor` and an `excerpt` of its first 200 characters.
+The MCP comment tools return `reply_to` with the author as `author`, the label the web app shows.
 Deleting a block keeps the messages written about it, which are then about the whole observation, and deleting a quoted message leaves the reply with no quote.
 A block that belongs to another observation answers 422 `invalid_block`, and a quoted message that is not in the discussion answers 422 `invalid_reply_to`.
 Editing a message changes neither.
