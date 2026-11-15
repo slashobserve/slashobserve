@@ -267,12 +267,14 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
   On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
-  Everything after the flags is the comment text, so `--on`, `--panel`, `--version`, `--start-runs`, `--json` and `-q` must come before it.
+  On an observation, `--block <block-id>` anchors the comment to one of its blocks, and without it the comment is about the whole observation; the server refuses `--block` on any other target.
+  Everything after the flags is the comment text, so `--on`, `--panel`, `--block`, `--version`, `--start-runs`, `--json` and `-q` must come before it.
   A thread started this way queues no agent run unless you add `--start-runs`; see [Start a run from a mention](#start-a-run-from-a-mention).
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
   `bin/observe comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint; when the first two arguments are both ids, the first is the dashboard id.
-  Everything after the ids is the reply text, so flags such as `--json`, `-q` or `--start-runs` must come before the ids.
-  `--start-runs` works only with the comment id alone, because the dashboard comment endpoint never starts a run.
+  Everything after the ids is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--start-runs` must come before the ids.
+  `--block <block-id>` anchors the reply to one block of an observation, and `--reply-to <comment-id>` names the comment of the same thread the reply answers, which the web app shows quoted.
+  `--start-runs`, `--block` and `--reply-to` work only with the comment id alone, because the dashboard comment endpoint takes none of them.
   Without `--json` it always prints the thread and the new reply id, even with `-q`.
 - `bin/observe comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.

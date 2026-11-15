@@ -377,6 +377,7 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 		Body    string  `json:"body"`
 		PanelID *string `json:"panel_id"`
 		Version *int    `json:"version"`
+		BlockID *string `json:"block_id"`
 
 		StartRuns bool `json:"start_runs"`
 	}
@@ -387,7 +388,7 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return commentFailure(err)
 	}
-	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, Body: in.Body}
+	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, BlockID: in.BlockID, Body: in.Body}
 	var thread threads.Thread
 	var message threads.Message
 	var run *threads.StartedRun
@@ -412,8 +413,10 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 		return res, err
 	}
 	var in struct {
-		CommentID string `json:"comment_id"`
-		Body      string `json:"body"`
+		CommentID string  `json:"comment_id"`
+		Body      string  `json:"body"`
+		BlockID   *string `json:"block_id"`
+		ReplyToID *string `json:"reply_to_id"`
 
 		StartRuns bool `json:"start_runs"`
 	}
@@ -424,17 +427,18 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	if !ok {
 		return res, nil
 	}
+	reply := threads.ReplyInput{Body: in.Body, BlockID: in.BlockID, ReplyToID: in.ReplyToID}
 	var thread threads.Thread
 	var message threads.Message
 	var run *threads.StartedRun
 	var refusal *threads.RunRefusal
 	switch {
 	case !in.StartRuns:
-		thread, message, err = r.deps.Threads.Reply(ctx, principal, commentID, in.Body, nil)
+		thread, message, err = r.deps.Threads.Reply(ctx, principal, commentID, reply, nil)
 	case r.deps.Mentions == nil:
 		return Result{}, errCommentsNotConfigured
 	default:
-		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, in.Body, true, threads.WithoutInvestigations())
+		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, reply, true, threads.WithoutInvestigations())
 	}
 	if err != nil {
 		return commentFailure(err)

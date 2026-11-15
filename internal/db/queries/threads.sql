@@ -9,11 +9,13 @@ RETURNING *;
 -- name: CreateMessage :one
 WITH clock AS (SELECT coalesce(sqlc.narg('created_at')::timestamptz, clock_timestamp()) AS at)
 INSERT INTO thread_messages (
-  id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at
+  id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at,
+  reply_to_id, observation_block_id
 )
 SELECT
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid,
-  @author_name::text, sqlc.narg('author_email')::text, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, clock.at, clock.at
+  @author_name::text, sqlc.narg('author_email')::text, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, clock.at, clock.at,
+  sqlc.narg('reply_to_id')::uuid, sqlc.narg('observation_block_id')::uuid
 FROM clock
 RETURNING *;
 
@@ -59,6 +61,19 @@ SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id 
 
 -- name: GetMessage :one
 SELECT * FROM thread_messages WHERE id = @id;
+
+-- name: LockObservationBlock :one
+SELECT id FROM observation_blocks WHERE id = @id AND observation_id = @observation_id FOR KEY SHARE;
+
+-- name: LockMessageInThread :one
+SELECT id FROM thread_messages WHERE id = @id AND thread_id = @thread_id FOR KEY SHARE;
+
+-- name: ListReplyQuotes :many
+SELECT m.id AS message_id, q.id AS quoted_id, q.author_kind, q.author_id, q.author_name, q.origin, q.origin_client,
+  q.run_id, q.run_assigned_kind, left(q.body, 200)::text AS excerpt
+FROM thread_messages m
+JOIN thread_messages q ON q.id = m.reply_to_id
+WHERE m.id = ANY(@message_ids::uuid[]);
 
 -- name: EditMessage :one
 UPDATE thread_messages

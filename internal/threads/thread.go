@@ -46,6 +46,14 @@ type Message struct {
 	EditedAt    *time.Time
 	Mentions    []Mention
 	CanEdit     bool
+	BlockID     string
+	ReplyTo     *ReplyTo
+}
+
+type ReplyTo struct {
+	ID      string
+	Author  actor.Actor
+	Excerpt string
 }
 
 func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, canComment bool) Thread {
@@ -98,13 +106,16 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 			Name:   row.AuthorName,
 			Origin: row.Origin,
 			Client: row.OriginClient,
-			RunID:  builtinRunID(row),
+			RunID:  builtinRunID(row.RunAssignedKind, row.RunID),
 		}),
 		AuthorEmail: row.AuthorEmail.String,
 		CreatedAt:   row.CreatedAt.Time.UTC(),
 		UpdatedAt:   row.UpdatedAt.Time.UTC(),
 		Mentions:    mentions,
 		CanEdit:     canComment && row.AuthorKind == string(reader.Kind) && row.AuthorID.String() == reader.ID,
+	}
+	if row.ObservationBlockID.Valid {
+		m.BlockID = row.ObservationBlockID.String()
 	}
 	if row.EditedAt.Valid {
 		at := row.EditedAt.Time.UTC()
@@ -113,11 +124,26 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 	return m
 }
 
-func builtinRunID(row dbsqlc.ThreadMessage) pgtype.UUID {
-	if row.RunAssignedKind.String != string(revisions.AssignBuiltin) {
+func replyToOf(row dbsqlc.ListReplyQuotesRow) *ReplyTo {
+	return &ReplyTo{
+		ID: row.QuotedID.String(),
+		Author: actor.FromColumns(actor.Columns{
+			Kind:   row.AuthorKind,
+			ID:     row.AuthorID,
+			Name:   row.AuthorName,
+			Origin: row.Origin,
+			Client: row.OriginClient,
+			RunID:  builtinRunID(row.RunAssignedKind, row.RunID),
+		}),
+		Excerpt: row.Excerpt,
+	}
+}
+
+func builtinRunID(assignedKind pgtype.Text, runID pgtype.UUID) pgtype.UUID {
+	if assignedKind.String != string(revisions.AssignBuiltin) {
 		return pgtype.UUID{}
 	}
-	return row.RunID
+	return runID
 }
 
 func actorOf(ctx context.Context, by auth.Principal) actor.Actor {

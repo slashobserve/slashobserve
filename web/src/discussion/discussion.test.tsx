@@ -43,6 +43,8 @@ function message(
     edited_at: null,
     mentions: [],
     can_edit: false,
+    block_id: null,
+    reply_to: null,
   }
 }
 

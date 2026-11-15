@@ -72,15 +72,15 @@ func (m *MentionRuns) Open(ctx context.Context, by auth.Principal, in OpenInput,
 	return thread, message, run.started(), run.refusal(), err
 }
 
-func (m *MentionRuns) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, body string, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
-	run, err := m.prepare(ctx, startRuns, body, func() (Target, error) {
+func (m *MentionRuns) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	run, err := m.prepare(ctx, startRuns, in.Body, func() (Target, error) {
 		_, sc, err := m.service.writableThread(ctx, by, threadID)
 		return sc.target, err
 	}, by, opts)
 	if err != nil {
 		return Thread{}, Message{}, nil, nil, err
 	}
-	thread, message, err := m.service.Reply(ctx, by, threadID, body, run.hook())
+	thread, message, err := m.service.Reply(ctx, by, threadID, in, run.hook())
 	return thread, message, run.started(), run.refusal(), err
 }
 

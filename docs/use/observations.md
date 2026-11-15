@@ -114,6 +114,12 @@ A person who can comment writes messages in the box at its foot.
 Each message has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
 The message stays in the discussion as well.
 
+A message can be about one block of the page or about the whole observation, and a reply can quote the message it answers.
+Over the API, MCP and the CLI a message carries `block_id` and `reply_to`, both null when the message is about the whole page and quotes nothing; `reply_to` holds the quoted message's `id`, its `actor` and an `excerpt` of its first 200 characters.
+Deleting a block keeps the messages written about it, which are then about the whole observation, and deleting a quoted message leaves the reply with no quote.
+A block that belongs to another observation answers 422 `invalid_block`, and a quoted message that is not in the discussion answers 422 `invalid_reply_to`.
+Editing a message changes neither.
+
 A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, starts an investigation for that agent that writes into this observation, and it needs the Editor role.
 The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>."
 The line is not the model's text, and it never resolves the discussion.

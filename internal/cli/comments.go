@@ -24,12 +24,35 @@ type commentListOptions struct {
 type commentAddOptions struct {
 	on        string
 	panel     string
+	block     string
 	version   int
 	startRuns bool
 }
 
 type commentReplyOptions struct {
+	block     string
+	replyTo   string
 	startRuns bool
+}
+
+func (o commentReplyOptions) checkDashboardForm() error {
+	if o.startRuns {
+		return usagef("--start-runs needs a reply by comment id alone, without a dashboard id")
+	}
+	if o.block != "" || o.replyTo != "" {
+		return usagef("--block and --reply-to need a reply by comment id alone, without a dashboard id")
+	}
+	return nil
+}
+
+func (o commentReplyOptions) addTo(payload map[string]any) error {
+	if o.startRuns {
+		payload["start_runs"] = true
+	}
+	if err := setID(payload, "block_id", o.block); err != nil {
+		return err
+	}
+	return setID(payload, "reply_to_id", o.replyTo)
 }
 
 type commentResolveOptions struct {
@@ -289,13 +312,14 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when the run cannot start, and the reason is printed.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe observations get, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when the run cannot start, and the reason is printed.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
 	cmd.Flags().SetInterspersed(false)
 	cmd.Flags().StringVar(&a.commentAdd.on, "on", "", "what to comment on, as <kind>:<id>")
 	cmd.Flags().StringVar(&a.commentAdd.panel, "panel", "", "the panel of the dashboard to comment on")
+	cmd.Flags().StringVar(&a.commentAdd.block, "block", "", "the block of the observation to comment on; the whole observation by default")
 	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
 	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
 	return cmd
@@ -312,6 +336,9 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 	}
 	if a.commentAdd.panel != "" {
 		payload["panel_id"] = a.commentAdd.panel
+	}
+	if err := setID(payload, "block_id", a.commentAdd.block); err != nil {
+		return err
 	}
 	if cmd.Flags().Changed("version") {
 		if a.commentAdd.version < 1 {
@@ -344,6 +371,18 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func setID(payload map[string]any, key, value string) error {
+	if value == "" {
+		return nil
+	}
+	id, err := parseID(value)
+	if err != nil {
+		return err
+	}
+	payload[key] = id
+	return nil
+}
+
 func reportRun(out *output, message threadMessage) {
 	if message.Run != nil {
 		out.confirm("Started run %s, taken by %s", text(message.Run.ID), text(message.Run.AssignedKind))
@@ -357,11 +396,13 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q or --start-runs must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\n--start-runs starts a run for the one agent the text mentions, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.",
+		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q, --block, --reply-to or --start-runs must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\n--start-runs starts a run for the one agent the text mentions, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.\n--block anchors the reply to one block of an observation and --reply-to names the comment of the thread the reply answers, which the web app shows quoted; both need the thread form too.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
 	cmd.Flags().SetInterspersed(false)
+	cmd.Flags().StringVar(&a.commentReply.block, "block", "", "the block of the observation the reply is about")
+	cmd.Flags().StringVar(&a.commentReply.replyTo, "reply-to", "", "the comment of this thread the reply answers")
 	cmd.Flags().BoolVar(&a.commentReply.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
 	return cmd
 }
@@ -389,8 +430,8 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	}
 	path, payload := "threads/"+commentID+"/messages", map[string]any{"body": body}
 	if withDashboard {
-		if a.commentReply.startRuns {
-			return usagef("--start-runs needs a reply by comment id alone, without a dashboard id")
+		if err := a.commentReply.checkDashboardForm(); err != nil {
+			return err
 		}
 		dashboardID, err := parseID(args[0])
 		if err != nil {
@@ -398,8 +439,8 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		}
 		path, payload = "dashboards/"+dashboardID+"/comments", map[string]any{"parent_id": commentID, "body": body}
 	}
-	if a.commentReply.startRuns {
-		payload["start_runs"] = true
+	if err := a.commentReply.addTo(payload); err != nil {
+		return err
 	}
 	if body == "" {
 		return usagef("reply needs text")
