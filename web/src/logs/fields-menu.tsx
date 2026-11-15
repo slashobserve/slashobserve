@@ -154,7 +154,7 @@ export function ColumnsHeader({
     <div
       aria-label="Column headers"
       role="group"
-      className="grid shrink-0 [scrollbar-gutter:stable] items-center gap-x-2 overflow-hidden border-y border-border px-2 text-[11px] text-muted-foreground"
+      className="grid h-7 shrink-0 [scrollbar-gutter:stable] items-center gap-x-2 overflow-hidden border-y border-border bg-canvas px-2 text-xs font-medium text-muted-foreground"
       style={{
         gridTemplateColumns: columnTemplate({
           showTime: true,

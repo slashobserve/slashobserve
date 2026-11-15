@@ -32,6 +32,25 @@ export function sourceLanguage(kind: ExploreKind, type: string): string {
   return "Query"
 }
 
+export const kqlReferenceUrl =
+  "https://slashobserve.com/docs/use/logs-and-traces#kql-on-elasticsearch-and-opensearch"
+
+const referenceUrls: Record<string, string> = {
+  KQL: kqlReferenceUrl,
+  LogQL: "https://grafana.com/docs/loki/latest/query/",
+  SQL: "https://clickhouse.com/docs/sql-reference",
+  TraceQL: "https://grafana.com/docs/tempo/latest/traceql/",
+}
+
+export function languageReference(
+  kind: ExploreKind,
+  type: string
+): { label: string; url: string } | null {
+  const language = sourceLanguage(kind, type)
+  const url = referenceUrls[language]
+  return url === undefined ? null : { label: `${language} reference`, url }
+}
+
 function byName(first: DatasourceStatus, second: DatasourceStatus): number {
   return (
     first.name.localeCompare(second.name, undefined, {

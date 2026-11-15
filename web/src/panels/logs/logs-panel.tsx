@@ -92,9 +92,9 @@ export type LogsViewModel = {
   selectionFor: (key: string) => LogSelection | null
 }
 
-const timeColumnWidth = "92px"
-const levelColumnWidth = "72px"
-const fieldColumnWidth = "92px"
+const timeColumnWidth = "176px"
+const levelColumnWidth = "92px"
+const fieldColumnWidth = "100px"
 
 export function columnTemplate(layout: {
   showTime: boolean
@@ -225,10 +225,10 @@ type RowProps = {
 }
 
 const rowButtonClasses =
-  "flex w-full items-start gap-2 px-2 py-1 text-left outline-none"
+  "flex min-h-7 w-full items-start gap-2 px-2 py-1 text-left outline-none"
 
 const gridRowClasses =
-  "grid w-full items-start gap-x-2 px-2 py-1 text-left outline-none"
+  "grid min-h-7 w-full items-start gap-x-2 px-2 py-1 text-left outline-none"
 
 const LogRow = memo(function LogRow({
   entry,
@@ -261,7 +261,7 @@ const LogRow = memo(function LogRow({
   const expanded = controlled ? selected : open
   const wraps = wrap || entry.message.includes("\n")
   const timeCell = showTime ? (
-    <span className="shrink-0 leading-5 text-muted-foreground tabular-nums">
+    <span className="shrink-0 font-mono leading-5 text-muted-foreground tabular-nums">
       {entry.time === null ? (
         "-"
       ) : (
@@ -285,7 +285,8 @@ const LogRow = memo(function LogRow({
       data-logs-level=""
       title={entry.level?.word}
       className={cn(
-        "flex w-[4.5rem] shrink-0 items-center gap-1 leading-5",
+        "flex shrink-0 items-center gap-1 leading-5",
+        columns === undefined ? "w-[4.5rem]" : "min-w-0",
         kind === "other" ? "text-muted-foreground" : "text-foreground"
       )}
     >
