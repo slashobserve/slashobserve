@@ -3904,6 +3904,7 @@ components:
         - continued_by
         - continue_note
         - observation_id
+        - observation_title
         - origin
         - origin_client
         - created_at

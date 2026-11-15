@@ -5282,7 +5282,7 @@ export interface components {
              */
             observation_id: string | null;
             /** @description The observation's current title; null when the request has no observation or the observation is in a folder you cannot see. */
-            observation_title?: string | null;
+            observation_title: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
