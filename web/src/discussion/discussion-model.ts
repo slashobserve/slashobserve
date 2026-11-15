@@ -1,5 +1,6 @@
 import { threadVerbText } from "@/activity/thread-view"
 import type { components } from "@/api/schema.gen"
+import { mentionSegments } from "@/comments/mentions"
 import type { Message, ThreadWithMessages } from "@/comments/thread-queries"
 
 type Actor = components["schemas"]["Actor"]
@@ -12,6 +13,7 @@ export type DiscussionChange = {
   actor: Actor
   verb: string
   subject: { id: string; title: string } | null
+  detail: string | null
 }
 
 export type DiscussionEntry =
@@ -61,6 +63,9 @@ export function discussionModel(
 }
 
 export function messageVerb(message: Message): string {
+  if (message.reply_to !== null) {
+    return `replied to ${message.reply_to.actor.label}`
+  }
   if (message.id !== message.thread_id) return "replied"
   const asked = message.mentions.some((mention) => mention.kind !== "user")
   return threadVerbText(asked, null, null)
@@ -73,33 +78,33 @@ function byTime(a: DiscussionEntry, b: DiscussionEntry): number {
   return a.key.localeCompare(b.key)
 }
 
+export function quotedText(excerpt: string): string {
+  return mentionSegments(excerpt)
+    .map((segment) =>
+      segment.kind === "text" ? segment.text : `@${segment.name}`
+    )
+    .join("")
+}
+
 export function discussionEntries(
   messages: readonly Message[],
-  changes: readonly DiscussionChange[],
-  show: DiscussionShow
+  changes: readonly DiscussionChange[]
 ): DiscussionEntry[] {
-  const entries: DiscussionEntry[] = []
-  if (show !== "changes") {
-    for (const message of messages) {
-      entries.push({
-        kind: "message",
-        key: `message:${message.id}`,
-        at: message.created_at,
-        message,
-        verb: messageVerb(message),
-      })
-    }
-  }
-  if (show !== "messages") {
-    for (const change of changes) {
-      entries.push({
-        kind: "change",
-        key: `change:${change.key}`,
-        at: change.at,
-        change,
-      })
-    }
-  }
+  const entries: DiscussionEntry[] = [
+    ...messages.map((message): DiscussionEntry => ({
+      kind: "message",
+      key: `message:${message.id}`,
+      at: message.created_at,
+      message,
+      verb: messageVerb(message),
+    })),
+    ...changes.map((change): DiscussionEntry => ({
+      kind: "change",
+      key: `change:${change.key}`,
+      at: change.at,
+      change,
+    })),
+  ]
   return entries.sort(byTime)
 }
 

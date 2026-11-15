@@ -391,6 +391,8 @@ export const observationKeys = {
     ["observations", "blocks", blockId, "data", params] as const,
   snapshot: (snapshotId: string) =>
     ["observations", "snapshots", snapshotId] as const,
+  changes: (id: string, updatedAt: string) =>
+    ["observations", id, "changes", updatedAt] as const,
   rcas: (id: string) => ["observations", id, "rcas"] as const,
   rca: (id: string, revision: number) =>
     ["observations", id, "rcas", revision] as const,

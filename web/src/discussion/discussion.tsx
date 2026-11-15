@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
+import { XIcon } from "lucide-react"
 
 import { withDayBreaks } from "@/activity/day-label"
-import { EntryFrame } from "@/activity/entry-frame"
-import { ShowFilter, TimelineFilters } from "@/activity/show-filter"
+import { EntryAction, EntryFrame, EntryMeta } from "@/activity/entry-frame"
 import {
   DayBreakRow,
   useStickToBottom,
@@ -12,6 +12,13 @@ import {
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Composer } from "@/comments/composer"
 import {
@@ -36,17 +43,18 @@ import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
 import {
+  filterEntries,
+  isFiltered,
+  noFilter,
+  type BlockRef,
+  type DiscussionFilter,
+} from "./discussion-filter"
+import {
   discussionEntries,
   discussionModel,
+  quotedText,
   type DiscussionChange,
-  type DiscussionShow,
 } from "./discussion-model"
-
-const showOptions: { value: DiscussionShow; label: string }[] = [
-  { value: "everything", label: "Everything" },
-  { value: "messages", label: "Messages only" },
-  { value: "changes", label: "Changes only" },
-]
 
 type DiscussionFeedProps = {
   target: string
@@ -57,11 +65,74 @@ type DiscussionFeedProps = {
     entries: readonly DiscussionChange[]
     onSelect: (subjectId: string) => void
   }
-  messageActions?: (message: Message) => ReactNode
+  blocks?: {
+    items: readonly BlockRef[]
+    anchor: string | null
+    onAnchorChange: (blockId: string | null) => void
+    onShow: (blockId: string) => void
+  }
+  view?: { filter: DiscussionFilter; onClear: () => void }
+  messageActions?: (
+    message: Message,
+    tools: { reply: (() => void) | null }
+  ) => ReactNode
 }
 
-type DiscussionProps = Omit<DiscussionFeedProps, "changes"> & {
+type DiscussionProps = Omit<
+  DiscussionFeedProps,
+  "changes" | "blocks" | "view"
+> & {
   className?: string
+}
+
+const noBlock = "none"
+
+export function BlockSelect({
+  id,
+  label,
+  noneLabel,
+  optionPrefix = "",
+  blocks,
+  value,
+  onChange,
+  className,
+}: {
+  id?: string
+  label: string
+  noneLabel: string
+  optionPrefix?: string
+  blocks: readonly BlockRef[]
+  value: string | null
+  onChange: (blockId: string | null) => void
+  className?: string
+}) {
+  const items = [
+    { value: noBlock, label: noneLabel },
+    ...blocks.map((block) => ({
+      value: block.id,
+      label: `${optionPrefix}${block.title}`,
+    })),
+  ]
+  return (
+    <Select
+      items={items}
+      value={value ?? noBlock}
+      onValueChange={(next) => {
+        if (next !== null) onChange(next === noBlock ? null : next)
+      }}
+    >
+      <SelectTrigger id={id} size="sm" aria-label={label} className={className}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent alignItemWithTrigger={false} align="start">
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }
 
 function LoadingRows() {
@@ -86,6 +157,8 @@ export function DiscussionFeed({
   placeholder,
   emptyText,
   changes,
+  blocks,
+  view,
   messageActions,
 }: DiscussionFeedProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -105,7 +178,8 @@ export function DiscussionFeed({
     result: SentMessage
     agentName: string
   } | null>(null)
-  const [show, setShow] = useState<DiscussionShow>("everything")
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+  const filter = view?.filter ?? noFilter
   const today = useToday()
   const { messages, replyThreadId, canWrite } = useMemo(
     () => discussionModel(threads, canComment),
@@ -116,9 +190,15 @@ export function DiscussionFeed({
     [messages]
   )
   const entries = useMemo(
-    () => discussionEntries(messages, changes?.entries ?? [], show),
-    [messages, changes, show]
+    () =>
+      filterEntries(
+        discussionEntries(messages, changes?.entries ?? []),
+        filter
+      ),
+    [messages, changes, filter]
   )
+  const anchor =
+    blocks?.items.find((block) => block.id === blocks.anchor)?.id ?? null
   const stickRef = useStickToBottom(
     `${entries.length}:${entries.at(-1)?.key ?? ""}`
   )
@@ -153,8 +233,11 @@ export function DiscussionFeed({
             threadId: replyThreadId,
             body,
             startRuns,
+            blockId: anchor,
+            replyToId: replyingTo?.id,
           })
-        : await openThread.mutateAsync({ body, startRuns })
+        : await openThread.mutateAsync({ body, startRuns, blockId: anchor })
+    setReplyingTo(null)
     if (askedAgent(result)) {
       setSent({ result, agentName: mentionedAgents(body)[0]?.name ?? "" })
     }
@@ -183,25 +266,22 @@ export function DiscussionFeed({
       </div>
     )
   } else if (entries.length === 0) {
-    body =
-      show === "everything" ? (
-        <p className="px-4 py-3 text-[13px] text-muted-foreground">
-          {emptyText}
-        </p>
-      ) : (
-        <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
-          <p>No entries match these filters.</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => setShow("everything")}
-          >
-            Clear filters
-          </Button>
-        </div>
-      )
+    body = !isFiltered(filter) ? (
+      <p className="px-4 py-3 text-[13px] text-muted-foreground">{emptyText}</p>
+    ) : (
+      <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+        <p>No entries match these filters.</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={view?.onClear}
+        >
+          Clear filters
+        </Button>
+      </div>
+    )
   } else {
     body = (
       <ol aria-label="Discussion" className="flex flex-col px-4 pt-1 pb-4">
@@ -212,7 +292,14 @@ export function DiscussionFeed({
           const { entry } = row
           if (entry.kind === "message") {
             const { message } = entry
-            const actions = messageActions?.(message)
+            const actions = messageActions?.(message, {
+              reply:
+                disabledReason === null ? () => setReplyingTo(message) : null,
+            })
+            const block =
+              message.block_id === null
+                ? undefined
+                : blocks?.items.find((item) => item.id === message.block_id)
             return (
               <EntryFrame
                 key={entry.key}
@@ -222,11 +309,28 @@ export function DiscussionFeed({
                 at={message.created_at}
                 edited={message.edited_at !== null}
               >
+                {message.reply_to === null ? null : (
+                  <p className="border-l-2 pl-2 text-[13px] wrap-anywhere text-muted-foreground">
+                    {quotedText(message.reply_to.excerpt)}
+                  </p>
+                )}
                 <MessageText
                   message={message}
                   people={people}
                   queryKey={threadKeys.list(target)}
                 />
+                {block === undefined ? null : (
+                  <EntryMeta>
+                    <span>On {block.title}</span>
+                    <EntryAction
+                      icon={null}
+                      aria-label={`Show ${block.title}`}
+                      onClick={() => blocks?.onShow(block.id)}
+                    >
+                      Show
+                    </EntryAction>
+                  </EntryMeta>
+                )}
                 {actions ? (
                   <span className="flex flex-wrap items-center gap-0.5">
                     {actions}
@@ -252,7 +356,11 @@ export function DiscussionFeed({
                       onSelect: () => changes?.onSelect(subject.id),
                     }
               }
-            />
+            >
+              {change.detail === null ? null : (
+                <EntryMeta>{change.detail}</EntryMeta>
+              )}
+            </EntryFrame>
           )
         })}
       </ol>
@@ -261,11 +369,6 @@ export function DiscussionFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {changes === undefined ? null : (
-        <TimelineFilters>
-          <ShowFilter options={showOptions} value={show} onChange={setShow} />
-        </TimelineFilters>
-      )}
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         {body}
       </div>
@@ -279,10 +382,39 @@ export function DiscussionFeed({
             />
           </div>
         )}
+        {replyingTo === null ? null : (
+          <div className="flex items-center gap-1 pb-2 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate">
+              Replying to {replyingTo.actor.label}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Stop replying"
+              onClick={() => setReplyingTo(null)}
+            >
+              <XIcon aria-hidden="true" />
+            </Button>
+          </div>
+        )}
         <Composer
           label="Message"
           placeholder={placeholder ?? "Message, or type @ to ask an agent"}
           hint={hint}
+          leading={
+            blocks === undefined ? undefined : (
+              <BlockSelect
+                label="Write on"
+                noneLabel="On the whole page"
+                optionPrefix="On "
+                blocks={blocks.items}
+                value={anchor}
+                onChange={blocks.onAnchorChange}
+                className="max-w-full min-w-0"
+              />
+            )
+          }
           people={people}
           agents={agents}
           disabledReason={disabledReason}

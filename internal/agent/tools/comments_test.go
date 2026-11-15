@@ -199,6 +199,35 @@ func TestCommentItem(t *testing.T) {
 			t.Fatalf("out = %+v", out)
 		}
 	})
+	t.Run("anchored to a block and quoting a message", func(t *testing.T) {
+		message := threads.Message{ID: dashA, BlockID: dashB, ReplyTo: &threads.ReplyTo{
+			ID:      dashB,
+			Author:  actor.Actor{Name: "Grace", RunID: dashA},
+			Excerpt: "p95 rose after the deploy",
+		}}
+		out := commentItem(commentRef{threads.Thread{ID: dashA}, message})
+		body, err := json.Marshal(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			`"block_id":"` + dashB + `"`,
+			`"reply_to":{"id":"` + dashB + `","author":"Observe Agent for Grace","excerpt":"p95 rose after the deploy"}`,
+		} {
+			if !strings.Contains(string(body), want) {
+				t.Errorf("json = %s, want %s", body, want)
+			}
+		}
+	})
+	t.Run("about the whole page and quoting nothing", func(t *testing.T) {
+		body, err := json.Marshal(commentItem(commentRef{threads.Thread{ID: dashA}, threads.Message{ID: dashA}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(body), `"block_id":null`) || !strings.Contains(string(body), `"reply_to":null`) {
+			t.Fatalf("json = %s", body)
+		}
+	})
 	t.Run("off a dashboard", func(t *testing.T) {
 		thread := threads.Thread{ID: dashA, Target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashB)}, PanelPresent: true}
 		out := targetedCommentItem(commentRef{thread, threads.Message{ID: dashA}})
@@ -637,6 +666,9 @@ func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testi
 	}
 
 	reply := commentOutOf(t, r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+opened.ID+`","body":"checked","reply_to_id":"`+opened.ID+`"}`))
+	if reply.ReplyTo == nil || reply.ReplyTo.ID != opened.ID || reply.ReplyTo.Excerpt != "is it the cache?" {
+		t.Errorf("reply_to_comment returned reply_to %+v", reply.ReplyTo)
+	}
 	parsed, err := threads.ParseTarget(target)
 	if err != nil {
 		t.Fatal(err)

@@ -159,6 +159,7 @@ export function useOpenThread(target: string) {
       startRuns: boolean
       version?: number
       panelId?: string | null
+      blockId?: string | null
     }) =>
       api
         .POST("/threads", {
@@ -167,6 +168,7 @@ export function useOpenThread(target: string) {
             body: input.body,
             ...(input.version === undefined ? {} : { version: input.version }),
             ...(input.panelId == null ? {} : { panel_id: input.panelId }),
+            ...(input.blockId == null ? {} : { block_id: input.blockId }),
             ...(input.startRuns ? { start_runs: true } : {}),
           },
         })
@@ -184,12 +186,18 @@ export function useReplyToThread(target: string) {
       threadId: string
       body: string
       startRuns: boolean
+      blockId?: string | null
+      replyToId?: string | null
     }) =>
       api
         .POST("/threads/{thread_id}/messages", {
           params: { path: { thread_id: input.threadId } },
           body: {
             body: input.body,
+            ...(input.blockId == null ? {} : { block_id: input.blockId }),
+            ...(input.replyToId == null
+              ? {}
+              : { reply_to_id: input.replyToId }),
             ...(input.startRuns ? { start_runs: true } : {}),
           },
         })

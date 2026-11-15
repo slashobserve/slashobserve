@@ -11,6 +11,7 @@ import {
   discussionModel,
   messageCount,
   messageVerb,
+  quotedText,
   type DiscussionChange,
 } from "./discussion-model"
 
@@ -140,7 +141,14 @@ describe("discussionModel", () => {
 })
 
 function change(key: string, at: string): DiscussionChange {
-  return { key, at, actor: ada, verb: "added a block", subject: null }
+  return {
+    key,
+    at,
+    actor: ada,
+    verb: "added a block",
+    subject: null,
+    detail: null,
+  }
 }
 
 describe("discussionEntries", () => {
@@ -154,16 +162,21 @@ describe("discussionEntries", () => {
   ]
 
   it("interleaves messages and changes by time", () => {
-    expect(
-      discussionEntries(messages, changes, "everything").map((e) => e.key)
-    ).toEqual(["change:started", "message:m1", "change:b1", "message:m2"])
+    expect(discussionEntries(messages, changes).map((e) => e.key)).toEqual([
+      "change:started",
+      "message:m1",
+      "change:b1",
+      "message:m2",
+    ])
   })
 
   it("puts a change before a message at the same instant", () => {
     const tied = [change("b2", "2026-11-10T09:00:00Z")]
-    expect(
-      discussionEntries(messages, tied, "everything").map((e) => e.key)
-    ).toEqual(["change:b2", "message:m1", "message:m2"])
+    expect(discussionEntries(messages, tied).map((e) => e.key)).toEqual([
+      "change:b2",
+      "message:m1",
+      "message:m2",
+    ])
   })
 
   it("orders changes at the same instant by key", () => {
@@ -171,18 +184,10 @@ describe("discussionEntries", () => {
       change("b", "2026-11-10T09:00:00Z"),
       change("a", "2026-11-10T09:00:00Z"),
     ]
-    expect(discussionEntries([], tied, "everything").map((e) => e.key)).toEqual(
-      ["change:a", "change:b"]
-    )
-  })
-
-  it("keeps only messages or only changes when filtered", () => {
-    expect(
-      discussionEntries(messages, changes, "messages").map((e) => e.key)
-    ).toEqual(["message:m1", "message:m2"])
-    expect(
-      discussionEntries(messages, changes, "changes").map((e) => e.key)
-    ).toEqual(["change:started", "change:b1"])
+    expect(discussionEntries([], tied).map((e) => e.key)).toEqual([
+      "change:a",
+      "change:b",
+    ])
   })
 })
 
@@ -221,6 +226,34 @@ describe("messageVerb", () => {
     expect(messageVerb(message("m2", "m1", "2026-11-10T09:00:00Z"))).toBe(
       "replied"
     )
+  })
+})
+
+describe("messageVerb on a quoting reply", () => {
+  it("names the author of the quoted message", () => {
+    const quoting = {
+      ...message("m2", "m1", "2026-11-10T09:00:00Z"),
+      reply_to: {
+        id: "m1",
+        actor: { ...ada, label: "Observe Agent" },
+        excerpt: "p95 rose",
+      },
+    }
+    expect(messageVerb(quoting)).toBe("replied to Observe Agent")
+  })
+})
+
+describe("quotedText", () => {
+  it.each([
+    ["p95 rose after the deploy", "p95 rose after the deploy"],
+    [
+      "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look at this",
+      "@Grace look at this",
+    ],
+    ["@observe why", "@observe why"],
+    ["cut mid token @[Gra", "cut mid token @[Gra"],
+  ])("shows %j as %j", (excerpt, text) => {
+    expect(quotedText(excerpt)).toBe(text)
   })
 })
 

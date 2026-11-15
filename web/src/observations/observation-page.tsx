@@ -169,6 +169,7 @@ function LoadedObservation({
       {discussionShown ? (
         <DiscussionPane
           observation={observation}
+          folderTitle={envelope.folder.title}
           canAdd={canAdd}
           canEdit={permissions.edit}
           hidden={rca.open || moving}
