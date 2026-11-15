@@ -199,7 +199,8 @@ A pinned dashboard, in the sidebar and in the Dashboards menu, shows its problem
 ## Search
 
 Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the top bar on a phone), and type at least two characters.
-The command palette lists the pages and your dashboards that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
+The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
+Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
 [Search](search.md) describes what each kind matches and how to write a query.
