@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { Message, Thread } from "@/comments/thread-queries"
 import { renderWithProviders } from "@/test/render"
 
-import { Discussion } from "./discussion"
+import { Discussion, DiscussionFeed } from "./discussion"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -302,5 +302,137 @@ describe("Discussion", () => {
     expect(posts[0].body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
     })
+  })
+})
+
+describe("DiscussionFeed on an observation", () => {
+  const blocks = [
+    { id: "b1", title: "Panel: Latency" },
+    { id: "b2", title: "Text" },
+  ]
+
+  function renderFeed(onShow = vi.fn(), anchor: string | null = null) {
+    const onAnchorChange = vi.fn()
+    const rendered = renderWithProviders(
+      <DiscussionFeed
+        target={target}
+        hint="Posted to everyone who can see this"
+        emptyText="No messages yet."
+        blocks={{ items: blocks, anchor, onAnchorChange, onShow }}
+        messageActions={(m, { reply }) =>
+          reply === null ? null : (
+            <button type="button" onClick={reply}>
+              Reply to {m.id}
+            </button>
+          )
+        }
+      />
+    )
+    return { ...rendered, onShow, onAnchorChange }
+  }
+
+  it("quotes the message a reply answers and names its author in the verb", async () => {
+    const quoting: Message = {
+      ...later,
+      reply_to: { id: "m1", actor: grace, excerpt: "p95 rose after deploy" },
+    }
+    mockServer({ threads: [thread], messages: () => [earlier, quoting] })
+    renderFeed()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    const rows = within(list)
+      .getAllByRole("listitem")
+      .filter((row) => !row.hasAttribute("data-day"))
+    expect(rows[1]).toHaveTextContent("replied to Grace")
+    expect(rows[1]).toHaveTextContent("p95 rose after deploy")
+  })
+
+  it("shows the block a message is on and shows it on the page", async () => {
+    const onBlock: Message = { ...later, block_id: "b1" }
+    mockServer({ threads: [thread], messages: () => [earlier, onBlock] })
+    const { user, onShow } = renderFeed()
+    await screen.findByRole("list", { name: "Discussion" })
+    expect(screen.getByText("On Panel: Latency")).toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", { name: "Show Panel: Latency" })
+    )
+    expect(onShow).toHaveBeenCalledWith("b1")
+  })
+
+  it("shows nothing extra for a block that no longer exists", async () => {
+    const gone: Message = { ...later, block_id: "deleted" }
+    mockServer({ threads: [thread], messages: () => [earlier, gone] })
+    renderFeed()
+    await screen.findByRole("list", { name: "Discussion" })
+    expect(
+      screen.queryByRole("button", { name: /^Show / })
+    ).not.toBeInTheDocument()
+  })
+
+  it("sends the reply with the quoted message and drops the quote after sending", async () => {
+    const posts = mockServer({
+      threads: [thread],
+      messages: () => [earlier, later],
+    })
+    const { user } = renderFeed()
+    await screen.findByRole("list", { name: "Discussion" })
+    await user.click(screen.getByRole("button", { name: "Reply to m1" }))
+    expect(screen.getByText("Replying to Grace")).toBeInTheDocument()
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Yes")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await waitFor(() =>
+      expect(posts).toEqual([
+        {
+          path: "/api/v1/threads/t1/messages",
+          body: { body: "Yes", reply_to_id: "m1" },
+        },
+      ])
+    )
+    await waitFor(() =>
+      expect(screen.queryByText("Replying to Grace")).not.toBeInTheDocument()
+    )
+  })
+
+  it("stops replying when the quote is removed", async () => {
+    const posts = mockServer({ threads: [thread], messages: () => [earlier] })
+    const { user } = renderFeed()
+    await screen.findByRole("list", { name: "Discussion" })
+    await user.click(screen.getByRole("button", { name: "Reply to m1" }))
+    await user.click(screen.getByRole("button", { name: "Stop replying" }))
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toEqual({ body: "Hi" })
+  })
+
+  it("anchors a new message to the chosen block", async () => {
+    const posts = mockServer({ threads: [], messages: () => [] })
+    const { user } = renderFeed(vi.fn(), "b1")
+    await screen.findByText("No messages yet.")
+    expect(
+      screen.getByRole("combobox", { name: "Write on" })
+    ).toHaveTextContent("On Panel: Latency")
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Why")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await waitFor(() =>
+      expect(posts).toEqual([
+        {
+          path: "/api/v1/threads",
+          body: { target, body: "Why", block_id: "b1" },
+        },
+      ])
+    )
+  })
+
+  it("writes on the whole page when the anchor block is gone", async () => {
+    const posts = mockServer({ threads: [thread], messages: () => [earlier] })
+    const { user } = renderFeed(vi.fn(), "deleted")
+    await screen.findByRole("list", { name: "Discussion" })
+    expect(
+      screen.getByRole("combobox", { name: "Write on" })
+    ).toHaveTextContent("On the whole page")
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toEqual({ body: "Hi" })
   })
 })

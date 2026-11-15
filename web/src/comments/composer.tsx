@@ -29,6 +29,7 @@ type ComposerProps = {
   formLabel?: string
   placeholder: string
   hint?: ReactNode
+  leading?: ReactNode
   people: readonly MentionPerson[]
   agents?: readonly MentionAgent[]
   agentsBlocked?: string | null
@@ -92,6 +93,7 @@ export function Composer({
   formLabel = label,
   placeholder,
   hint,
+  leading,
   people,
   agents = [],
   agentsBlocked,
@@ -157,6 +159,9 @@ export function Composer({
       }}
       onKeyDown={onKeyDown}
     >
+      {leading === undefined ? null : (
+        <div className="px-1.5 pt-1.5">{leading}</div>
+      )}
       <Textarea
         ref={textarea}
         aria-label={label}

@@ -109,9 +109,20 @@ The state line also shows who started the observation and when, and links to its
 The discussion is the observation's one comment thread, in a pane on the right of the page at full height on a wide window and below the blocks on a narrow one.
 Drag the pane's left edge to make it wider or narrower; it shares its width with a dashboard's activity pane.
 The **Discussion** button in the top row, which shows the number of messages, hides and shows the pane, and **Close panel** in the pane hides it.
-The pane lists the messages together with who started the observation and who added or suggested each block, newest at the bottom, grouped under a heading for each day, with each entry showing its author's mark and the time of day; **Show** narrows it to messages only or changes only, and a block's name scrolls the page to that block.
+The pane lists the messages together with the changes to the page, newest at the bottom, grouped under a heading for each day, with each entry showing its author's mark and the time of day.
+The changes are who started the observation (with its title, its folder and whether it is open or resolved), who added or suggested each block (a panel block also names its datasource and says it is live), who removed a block, and who renamed the observation.
+A removed block is drawn without a name, because the block is gone.
+A block's name scrolls the page to that block.
+
+Two lists under the heading filter what the pane shows.
+**Show** narrows it to messages only or changes only, and **Block** narrows it to one block: that block's messages, the changes to it, and the replies that quote those messages.
+When nothing matches, the pane says so and **Clear filters** shows everything again.
+
 A person who can comment writes messages in the box at its foot.
-Each message has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
+The control above the box says where the message goes: **On the whole page**, or **On** one block, which is the block chosen in **Block** until you pick another.
+A message written on a block shows "On" and the block's name with **Show**, which scrolls the page to the block; a message written on a block that has since been deleted shows nothing extra.
+**Reply** on a message puts "Replying to" and its author above the box, with a button that removes it; the reply then shows the quoted message above its text and reads "replied to" and the quoted author.
+Each message also has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
 The message stays in the discussion as well.
 
 A message can be about one block of the page or about the whole observation, and a reply can quote the message it answers.
