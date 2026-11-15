@@ -2690,6 +2690,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/grafana/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch a Grafana dashboard from its link through a stored connection.
+         * @description Only Admins can call this endpoint, because the stored connection's token is an Admin's credential. The link must be a dashboard link (`/d/<uid>` or `/d-solo/<uid>`) on the address of a stored connection, under that address's path; the server only fetches from hosts an Admin already stored. `json` is the dashboard as Grafana returns it, in a string that `POST /imports` takes as its `json`. Redirects are not followed.
+         */
+        post: operations["fetchGrafanaLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks": {
         parameters: {
             query?: never;
@@ -5953,6 +5973,18 @@ export interface components {
             dashboard_id: string;
             /** @description The web app path of the dashboard. */
             url: string;
+        };
+        FetchGrafanaLinkRequest: {
+            /** @description A link to a Grafana dashboard on the address of a stored connection, such as `https://grafana.example.com/d/<uid>/<slug>?orgId=1`. */
+            url: string;
+        };
+        GrafanaLinkedDashboard: {
+            /** Format: uuid */
+            connection_id: string;
+            uid: string;
+            title: string;
+            /** @description The dashboard as Grafana returned it, a JSON document in a string that `POST /imports` takes as its `json`. */
+            json: string;
         };
         /** @description Variable selections by variable name; `$__all` selects All. */
         PublicLinkSelections: {
@@ -13515,6 +13547,79 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    fetchGrafanaLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FetchGrafanaLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaLinkedDashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No stored connection matches the link (`no_connection`), or Grafana has no dashboard with that uid that the connection's token can read (`dashboard_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or cannot read the stored token (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The link is not a Grafana dashboard link (`not_a_dashboard_link`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listWebhooks: {

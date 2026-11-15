@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g.GET("", auth.RoleAdmin, h.list)
 	g.POST("", auth.RoleAdmin, h.create)
 	g.GET("/resolve/:uid", auth.RoleViewer, h.resolve)
+	g.POST("/link", auth.RoleAdmin, h.fetchLink)
 	g.GET("/:id", auth.RoleAdmin, h.get)
 	g.PATCH("/:id", auth.RoleAdmin, h.update)
 	g.DELETE("/:id", auth.RoleAdmin, h.remove)
@@ -111,6 +113,13 @@ type datasourceJSON struct {
 	Kind       *string  `json:"kind"`
 	Candidates []string `json:"candidates"`
 	MatchedUID *string  `json:"matched_uid"`
+}
+
+type linkedJSON struct {
+	ConnectionID string `json:"connection_id"`
+	UID          string `json:"uid"`
+	Title        string `json:"title"`
+	JSON         string `json:"json"`
 }
 
 type resolvedJSON struct {
@@ -391,8 +400,45 @@ func (h *Handler) resolve(c *gin.Context) {
 	c.JSON(http.StatusOK, resolvedJSON{DashboardID: id.String(), URL: dashboardPath(id.String())})
 }
 
+func (h *Handler) fetchLink(c *gin.Context) {
+	var body struct {
+		URL *string `json:"url"`
+	}
+	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
+		return
+	}
+	if body.URL == nil || strings.TrimSpace(*body.URL) == "" || len(*body.URL) > maxURLBytes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "url is required and at most 2048 characters")
+		return
+	}
+	linked, err := h.svc.FetchLink(c.Request.Context(), httpapi.Caller(c), *body.URL)
+	if err != nil {
+		h.fail(c, "fetch grafana dashboard from a link", err)
+		return
+	}
+	c.JSON(http.StatusOK, linkedJSON{ConnectionID: linked.ConnectionID, UID: linked.UID, Title: linked.Title, JSON: string(linked.JSON)})
+}
+
 func dashboardPath(id string) string {
 	return links.Dashboard(nil, id, "")
+}
+
+func linkFailure(err error) (status int, code, message string, ok bool) {
+	switch {
+	case errors.Is(err, ErrNoMatchingConnection):
+		return http.StatusNotFound, "no_connection", "No Grafana connection matches this link. An Admin can add one in Settings.", true
+	case errors.Is(err, ErrDashboardNotFound):
+		return http.StatusNotFound, "dashboard_not_found", "Grafana has no dashboard at this link that the connection's token can read.", true
+	case errors.Is(err, ErrNotDashboardLink):
+		return http.StatusUnprocessableEntity, "not_a_dashboard_link", "Paste a link to a Grafana dashboard, like https://grafana.example.com/d/<uid>.", true
+	case errors.Is(err, ErrGrafanaUnavailable):
+		message, described := describeFetch(err)
+		if !described {
+			message = "Grafana could not return the dashboard."
+		}
+		return http.StatusBadGateway, "grafana_unavailable", message, true
+	}
+	return 0, "", "", false
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error) {
@@ -400,6 +446,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var hostErr *egress.HostError
 	var refusal *lifecycle.Refusal
 	if clientgone.Handle(c, h.svc.logger, action, err) {
+		return
+	}
+	if status, code, message, ok := linkFailure(err); ok {
+		httpapi.AbortError(c, status, code, message)
 		return
 	}
 	switch {

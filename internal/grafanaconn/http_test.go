@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
+	"github.com/slashobserve/slashobserve/internal/imports"
 )
 
 type httpRig struct {
@@ -296,4 +297,93 @@ func TestHTTPCancelsARunningImportOnce(t *testing.T) {
 	expect(t, h.call(t, http.MethodPost, base+"/imports/unknown/cancel", ""), http.StatusNotFound, "not_found")
 	close(hold)
 	h.svc.Wait()
+}
+
+func linkBody(link string) string {
+	body, err := json.Marshal(map[string]string{"url": link})
+	if err != nil {
+		panic(err)
+	}
+	return string(body)
+}
+
+func TestHTTPFetchesADashboardFromItsLinkAndThePreviewTakesIt(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", folder: "f-k8s", model: simpleModel("graf-prom", "prometheus"), version: 3})
+	id := h.connect(t).ID
+
+	rec := h.call(t, http.MethodPost, "/api/v1/grafana/link", linkBody(grafanaURL+"/d/checkout/checkout?orgId=1&from=now-6h"))
+	expect(t, rec, http.StatusOK, "")
+	got := decode[struct {
+		ConnectionID string `json:"connection_id"`
+		UID          string `json:"uid"`
+		Title        string `json:"title"`
+		JSON         string `json:"json"`
+	}](t, rec)
+	if got.ConnectionID != id || got.UID != "checkout" || got.Title != "Checkout" {
+		t.Fatalf("answer %s", rec.Body)
+	}
+	for _, header := range h.grafana.authHeaders() {
+		if header != "Bearer "+grafanaToken {
+			t.Fatalf("grafana saw authorization %q", header)
+		}
+	}
+	preview, err := h.imports.Preview(t.Context(), h.admin, imports.Request{JSON: []byte(got.JSON)})
+	if err != nil || preview.Spec == nil || preview.Spec.Title != "Checkout" {
+		t.Fatalf("preview %+v, %v", preview, err)
+	}
+}
+
+func TestHTTPFetchLinkAnswersEachFailureWithItsCode(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	h.grafana.add(&fakeDashboard{uid: "broken", title: "Broken", model: simpleModel("graf-prom", "prometheus"), version: 1, status: http.StatusInternalServerError})
+	h.connect(t)
+
+	cases := []struct {
+		name   string
+		body   string
+		status int
+		code   string
+	}{
+		{"another host", linkBody("https://other.example.org/d/checkout"), http.StatusNotFound, "no_connection"},
+		{"a page that is not a dashboard", linkBody(grafanaURL + "/dashboards"), http.StatusUnprocessableEntity, "not_a_dashboard_link"},
+		{"text that is not a link", linkBody("checkout"), http.StatusUnprocessableEntity, "not_a_dashboard_link"},
+		{"a dashboard Grafana does not have", linkBody(grafanaURL + "/d/missing"), http.StatusNotFound, "dashboard_not_found"},
+		{"a Grafana that fails", linkBody(grafanaURL + "/d/broken"), http.StatusBadGateway, "grafana_unavailable"},
+		{"no url", `{}`, http.StatusBadRequest, "invalid_request"},
+		{"a blank url", linkBody("  "), http.StatusBadRequest, "invalid_request"},
+		{"a url over 2048 characters", linkBody(grafanaURL + "/d/" + strings.Repeat("a", 2048)), http.StatusBadRequest, "invalid_request"},
+		{"an unknown field", `{"url":"` + grafanaURL + `/d/checkout","token":"x"}`, http.StatusBadRequest, "invalid_request"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			expect(t, h.call(t, http.MethodPost, "/api/v1/grafana/link", c.body), c.status, c.code)
+		})
+	}
+}
+
+func TestHTTPFetchLinkNamesAGrafanaThatRefusesTheToken(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	h.grafana.token = "rotated"
+	h.connect(t)
+	rec := h.call(t, http.MethodPost, "/api/v1/grafana/link", linkBody(grafanaURL+"/d/checkout"))
+	expect(t, rec, http.StatusBadGateway, "grafana_unavailable")
+	if !strings.Contains(rec.Body.String(), "Grafana refused the token (status 401).") {
+		t.Fatalf("body %s", rec.Body)
+	}
+}
+
+func TestHTTPFetchLinkIsForAdminsOnly(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	h.connect(t)
+	for _, who := range []auth.Principal{h.viewer, {Kind: auth.KindUser, ID: h.viewer.ID, Name: "eve", Role: auth.RoleEditor}} {
+		h.caller = who
+		expect(t, h.call(t, http.MethodPost, "/api/v1/grafana/link", linkBody(grafanaURL+"/d/checkout")), http.StatusForbidden, "forbidden_role")
+	}
+	if asked := h.grafana.authHeaders(); len(asked) != 0 {
+		t.Fatalf("grafana was asked %d times", len(asked))
+	}
 }
