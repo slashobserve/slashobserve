@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/slashobserve-server ./cmd/slashobserve-server
 
-FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:6a2a3346335b94d3be0732472245f42ca3ce3cc1135a9521a2bda4b677f2ef0d
+FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:89815d620ac01d8de13cdaf04d19ed874447ca2296d4985b14b818f6e5e47854
 COPY --from=server /out/slashobserve-server /usr/local/bin/slashobserve-server
 COPY --from=agent /out/observe-agent /usr/local/bin/observe-agent
 ENV SLASHOBSERVE_HTTP_ADDR=:8080
