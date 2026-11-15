@@ -18,14 +18,14 @@ import { SidebarSheet } from "./sidebar-sheet"
 const iconButton =
   "grid size-11 flex-none place-items-center rounded-control text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
 
-export function PhoneBar() {
+export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLButtonElement>(null)
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const { crumbs } = useCrumbs()
-  const title = phoneTitle(pathname, crumbs)
+  const title = phoneTitle(pathname, crumbs, pageTitle)
   const exploreKind = pathname.startsWith("/traces/") ? "traces" : "logs"
   const source = useRouteSource(exploreKind).current
   const unread = unreadBadge(useInboxCount())

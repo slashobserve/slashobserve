@@ -211,7 +211,8 @@ Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.
 
 ## On a phone
 
-Under 900 pixels wide, every page except a dashboard has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
+Under 900 pixels wide, every page has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
+On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name, and on a dashboard the breadcrumb and **Controls** sit under it.
 A page's own actions, such as **Share** on an observation or **History** on a chat, sit in a row under the bar.
 Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.

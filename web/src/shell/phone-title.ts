@@ -4,8 +4,10 @@ export type PhoneTitle = { kind: "wordmark" } | { kind: "text"; label: string }
 
 export function phoneTitle(
   pathname: string,
-  crumbs: readonly Crumb[]
+  crumbs: readonly Crumb[],
+  override?: string
 ): PhoneTitle {
+  if (override) return { kind: "text", label: override }
   const last = crumbs.at(-1)
   if (pathname === "/" || last === undefined) return { kind: "wordmark" }
   return { kind: "text", label: last.label }

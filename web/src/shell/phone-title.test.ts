@@ -24,6 +24,29 @@ describe("phoneTitle", () => {
       ])
     ).toEqual({ kind: "text", label: "Observation" })
   })
+
+  it("shows the page's own title over the crumbs and over Home", () => {
+    expect(phoneTitle("/d/abc", [], "Checkout")).toEqual({
+      kind: "text",
+      label: "Checkout",
+    })
+    expect(phoneTitle("/logs", [{ label: "Logs" }], "Checkout")).toEqual({
+      kind: "text",
+      label: "Checkout",
+    })
+    expect(phoneTitle("/", [], "Checkout")).toEqual({
+      kind: "text",
+      label: "Checkout",
+    })
+  })
+
+  it("falls back to the crumbs when the page's title is empty", () => {
+    expect(phoneTitle("/logs", [{ label: "Logs" }], "")).toEqual({
+      kind: "text",
+      label: "Logs",
+    })
+    expect(phoneTitle("/d/abc", [], "")).toEqual({ kind: "wordmark" })
+  })
 })
 
 describe("headingInPhoneBar", () => {
