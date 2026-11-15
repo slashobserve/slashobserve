@@ -7,13 +7,17 @@ import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { myImportsQuery } from "@/import/record-queries"
-import { importStatus } from "@/import/record-summary"
-import { markOf } from "@/lib/author"
+import { markOf, markOfAuthor } from "@/lib/author"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { observationsInfiniteQuery } from "@/observations/queries"
 import { useMyRequests } from "@/observe/queries"
 
-import { createdBy, newestChats } from "./home-lists"
+import {
+  createdBy,
+  importMeta,
+  messageCountText,
+  newestChats,
+} from "./home-lists"
 import {
   HomeSection,
   IconTile,
@@ -98,23 +102,27 @@ export function OpenObservationsList() {
         getKey={(observation) => observation.id}
         emptyText="You have no open observations."
         errorText="Could not load open observations."
-        renderRow={(observation) => (
-          <Link {...observationLink(observation.id)} className={rowLinkClass}>
-            <IconTile>
-              <NotebookTextIcon />
-            </IconTile>
-            <RowText
-              title={observation.title}
-              meta={
-                <>
-                  <span>Started by {observation.created_by.label}</span>
-                  <RelativeTime iso={observation.created_at} />
-                </>
-              }
-            />
-            <AuthorMark mark={markOf(observation.created_by)} size={20} />
-          </Link>
-        )}
+        renderRow={(observation) => {
+          const messages = messageCountText(observation.message_count)
+          return (
+            <Link {...observationLink(observation.id)} className={rowLinkClass}>
+              <IconTile>
+                <NotebookTextIcon />
+              </IconTile>
+              <RowText
+                title={observation.title}
+                meta={
+                  <>
+                    <span>Started by {observation.created_by.label}</span>
+                    <RelativeTime iso={observation.created_at} />
+                    {messages === null ? null : <span>{messages}</span>}
+                  </>
+                }
+              />
+              <AuthorMark mark={markOf(observation.created_by)} size={20} />
+            </Link>
+          )
+        }}
       />
     </HomeSection>
   )
@@ -137,7 +145,7 @@ export function RecentImportsList() {
         emptyText="No imports yet."
         errorText="Could not load your imports."
         renderRow={(entry) => {
-          const status = importStatus(entry.counts)
+          const meta = importMeta(entry.counts)
           return (
             <Link
               {...dashboardLink(entry.dashboard_id, entry.title)}
@@ -150,15 +158,17 @@ export function RecentImportsList() {
                 title={entry.title}
                 meta={
                   <>
-                    <StatusLabel tone={status.tone}>{status.text}</StatusLabel>
-                    <span>
-                      {entry.counts.total}{" "}
-                      {entry.counts.total === 1 ? "panel" : "panels"}
-                    </span>
+                    {meta.status === null ? null : (
+                      <StatusLabel tone={meta.status.tone}>
+                        {meta.status.text}
+                      </StatusLabel>
+                    )}
+                    <span>{meta.counts}</span>
                   </>
                 }
               />
               <Time iso={entry.created_at} />
+              <AuthorMark mark={markOfAuthor(entry.created_by)} size={20} />
             </Link>
           )
         }}
