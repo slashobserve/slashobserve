@@ -1,3 +1,4 @@
+import { createContext, useContext, useLayoutEffect } from "react"
 import { useMatches } from "@tanstack/react-router"
 
 import type { NavPath } from "./nav"
@@ -23,4 +24,21 @@ export function useCrumbs(): RouteCrumbs {
       }
     },
   })
+}
+
+export const HideCrumbContext = createContext<(hidden: boolean) => void>(
+  () => undefined
+)
+
+export function useHideCrumbWhenHeadingRepeats(title: string): boolean {
+  const { crumbs, pageTitle } = useCrumbs()
+  const setHidden = useContext(HideCrumbContext)
+  const repeats =
+    !pageTitle && crumbs.length === 1 && crumbs[0]?.label === title
+  useLayoutEffect(() => {
+    if (!repeats) return
+    setHidden(true)
+    return () => setHidden(false)
+  }, [repeats, setHidden])
+  return repeats
 }

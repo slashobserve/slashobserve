@@ -27,6 +27,15 @@ export function modeLabel(mode: GrantMode): string {
   return modeChoices.find((choice) => choice.value === mode)?.label ?? mode
 }
 
+export function modeNote(): string {
+  return modeChoices
+    .map(
+      (choice) =>
+        `${choice.label}: ${choice.description.charAt(0).toLowerCase()}${choice.description.slice(1)}.`
+    )
+    .join(" ")
+}
+
 export function agentName(name: string | null): string {
   return name ?? "Unnamed MCP client"
 }

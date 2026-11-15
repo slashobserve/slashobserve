@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { AppearanceCard } from "./appearance-card"
+import { AppearanceSection } from "./appearance-card"
 
 const storageKey = "slashobserve-theme"
 
-describe("AppearanceCard", () => {
+describe("AppearanceSection", () => {
   it("offers the three theme choices under a Theme label", () => {
-    renderWithProviders(<AppearanceCard />)
+    renderWithProviders(<AppearanceSection />)
     const group = screen.getByRole("radiogroup", { name: "Theme" })
     expect(screen.getAllByRole("radio")).toHaveLength(3)
     expect(group).toContainElement(screen.getByRole("radio", { name: "Light" }))
@@ -26,7 +26,7 @@ describe("AppearanceCard", () => {
   ])(
     "applies and stores the preference when $name is clicked",
     async ({ name, dark, stored }) => {
-      const { user } = renderWithProviders(<AppearanceCard />)
+      const { user } = renderWithProviders(<AppearanceSection />)
       await user.click(screen.getByRole("radio", { name }))
       expect(screen.getByRole("radio", { name })).toBeChecked()
       expect(document.documentElement.classList.contains("dark")).toBe(dark)

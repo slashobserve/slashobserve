@@ -21,7 +21,7 @@ import { RecentWork } from "./recent-work"
 import { accountMark } from "./service-accounts-table"
 import { scopeLine, statCells, type Stats } from "./stats"
 
-const columnClass = "flex w-full max-w-[720px] min-w-0 flex-col gap-6"
+const columnClass = "flex w-full min-w-0 flex-col gap-6"
 
 function NotFound() {
   return (

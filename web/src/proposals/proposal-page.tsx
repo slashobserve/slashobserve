@@ -19,7 +19,7 @@ import { ProposalBody } from "./proposal-body"
 import type { Picks } from "./proposal-view"
 import { proposalQuery, type Proposal } from "./queries"
 
-const columnClass = "flex w-full max-w-[720px] min-w-0 flex-col gap-6"
+const columnClass = "flex w-full min-w-0 flex-col gap-6"
 
 function ProposalSkeleton() {
   return (

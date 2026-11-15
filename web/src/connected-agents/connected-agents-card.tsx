@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 
 import { instanceQuery } from "@/api/instance"
 import { RelativeTime } from "@/components/relative-time"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { roleAtLeast } from "@/lib/roles"
 import { CodeSnippet } from "@/service-accounts/code-snippet"
 import { loadProblemText } from "@/service-accounts/queries"
 import {
@@ -14,6 +13,7 @@ import {
   SettingsProblem,
   SettingsRow,
 } from "@/settings/settings-card"
+import { SettingsSection } from "@/settings/settings-section"
 
 import { DisconnectButton } from "./disconnect-button"
 import { ModeSelect } from "./mode-select"
@@ -22,22 +22,33 @@ import {
   agentName,
   connectPrompt,
   modeLabel,
+  modeNote,
   type ConnectedAgent,
   type GrantScope,
 } from "./rows"
 import { claudeOAuthSnippet } from "./snippets"
 
 const myHint = "MCP clients you approved. Each acts as you."
+const ownHint =
+  "Change how an agent saves, or disconnect it. Disconnecting ends it at once."
+const connectHint =
+  "Run this where the agent lives, then approve it in the browser."
 const everyoneHint =
   "Every MCP client anyone approved. Disconnecting one ends it at once."
 
 export function ConnectedAgentsSection() {
-  const { principal } = useRouteContext({ from: "/_authed" })
   return (
-    <>
-      <MyAgentsCard />
-      {roleAtLeast(principal.role, "admin") ? <EveryonesAgentsCard /> : null}
-    </>
+    <SettingsSection title="Connected agents" description={myHint}>
+      <MyAgentsCards />
+      <p className="text-[13px] text-muted-foreground">
+        Observe Agent, your connected agents and the service accounts that take
+        runs are on the{" "}
+        <Link to="/agents" className="underline underline-offset-4">
+          Agents page
+        </Link>
+        .
+      </p>
+    </SettingsSection>
   )
 }
 
@@ -52,12 +63,12 @@ function ConnectSnippet() {
   )
 }
 
-function MyAgentsCard() {
+function MyAgentsCards() {
   const query = useMyGrants()
-  const title = "Connected agents"
+  const title = "Your connected agents"
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard title={title} hint={myHint}>
+      <SettingsCard title={title} hint={ownHint}>
         <SettingsProblem
           title="Could not load connected agents"
           detail={loadProblemText(query.error)}
@@ -70,7 +81,7 @@ function MyAgentsCard() {
   const grants = query.data
   if (grants === undefined) {
     return (
-      <SettingsCard title={title} hint={myHint}>
+      <SettingsCard title={title} hint={ownHint}>
         <SettingsRow label="Agents">
           <Skeleton className="h-4 w-32" />
         </SettingsRow>
@@ -79,26 +90,35 @@ function MyAgentsCard() {
   }
   const prompt = connectPrompt(grants.length)
   return (
-    <SettingsCard title={title} hint={myHint}>
-      {prompt === "none" ? (
-        <p className="px-4 pt-4 text-[13px] text-muted-foreground">
-          No agents connected.
-        </p>
-      ) : (
-        <GrantsTable grants={grants} scope="mine" label="Connected agents" />
-      )}
-      <MoreButton query={query} />
-      <div className="flex flex-col gap-2 p-4">
-        {prompt === "another" ? (
-          <h3 className="text-[13px] font-medium">Connect another</h3>
-        ) : null}
-        <ConnectSnippet />
-      </div>
-    </SettingsCard>
+    <>
+      <SettingsCard title={title} hint={ownHint}>
+        {prompt === "none" ? (
+          <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">
+            No agents connected.
+          </p>
+        ) : (
+          <>
+            <GrantsTable grants={grants} scope="mine" label={title} />
+            <MoreButton query={query} />
+            <p className="border-t px-4 py-3 text-xs text-muted-foreground">
+              {modeNote()}
+            </p>
+          </>
+        )}
+      </SettingsCard>
+      <SettingsCard
+        title={prompt === "another" ? "Connect another" : "Connect an agent"}
+        hint={connectHint}
+      >
+        <div className="border-t p-4">
+          <ConnectSnippet />
+        </div>
+      </SettingsCard>
+    </>
   )
 }
 
-function EveryonesAgentsCard() {
+export function EveryonesAgentsCard() {
   const query = useAllGrants()
   const title = "Everyone's connected agents"
   if (query.isError && query.data === undefined) {
@@ -121,7 +141,7 @@ function EveryonesAgentsCard() {
           <Skeleton className="h-4 w-32" />
         </SettingsRow>
       ) : grants.length === 0 ? (
-        <p className="p-4 text-[13px] text-muted-foreground">
+        <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">
           No agents connected.
         </p>
       ) : (
@@ -142,7 +162,7 @@ function MoreButton({
 }) {
   if (!query.hasNextPage) return null
   return (
-    <div className="px-4 pb-4">
+    <div className="border-t px-4 py-3">
       <Button
         variant="outline"
         size="sm"
@@ -169,7 +189,7 @@ function GrantsTable({
       label={label}
       minWidth={scope === "all" ? 720 : 600}
       stackOnNarrow
-      className="rounded-none border-0"
+      className="rounded-none border-0 border-t bg-transparent"
     >
       <thead>
         <tr>

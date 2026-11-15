@@ -10,6 +10,7 @@ import {
   clampWidth,
   editWidth,
   isStacked,
+  opensByDefault,
   panelWidth,
 } from "@/components/dock/card-width"
 
@@ -80,7 +81,7 @@ function sanitize(saved: unknown, current: ActivityState): ActivityState {
 export const useActivityStore = create<ActivityState>()(
   persist(
     (set) => ({
-      open: true,
+      open: opensByDefault(window.innerWidth),
       width: activityWidth.initial,
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,

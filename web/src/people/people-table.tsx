@@ -79,8 +79,8 @@ export function PeopleTable() {
             <Cell>
               <PersonRole person={user} />
             </Cell>
-            <Cell>{user.dashboard_count}</Cell>
-            <Cell>{user.key_count}</Cell>
+            <Cell data-label="Dashboards">{user.dashboard_count}</Cell>
+            <Cell data-label="API keys">{user.key_count}</Cell>
             <Cell>
               {isOnline(user.last_seen_at, now) ? (
                 <StatusLabel tone="ok">Online now</StatusLabel>

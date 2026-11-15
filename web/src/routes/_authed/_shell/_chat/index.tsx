@@ -10,7 +10,6 @@ import {
 import { useDocumentTitle } from "@/lib/document-title"
 
 export const Route = createFileRoute("/_authed/_shell/_chat/")({
-  staticData: { crumbs: [{ label: "Home" }] },
   validateSearch: (search: Record<string, unknown>): HomeRouteSearch =>
     homeSearch(parseHomeTab(search.tab)),
   beforeLoad: ({ location }) => {

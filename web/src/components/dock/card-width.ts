@@ -37,6 +37,10 @@ export function isNarrow(viewport: number): boolean {
   return viewport <= narrowBreakpoint
 }
 
+export function opensByDefault(viewport: number): boolean {
+  return !isNarrow(viewport)
+}
+
 export type HandleSide = "left" | "right"
 
 export function draggedWidth(

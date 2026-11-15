@@ -1,5 +1,5 @@
-import { useRef } from "react"
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useMemo, useRef, useState } from "react"
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
@@ -14,6 +14,9 @@ import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FolderHeaderRow } from "@/folders/folder-header-row"
+import { countText, groupByFolder } from "@/folders/group-by-folder"
+import { foldersQuery } from "@/folders/queries"
 import { markOf } from "@/lib/author"
 import { observationLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -40,6 +43,7 @@ function isStateFilter(value: unknown): value is ObservationStateFilter {
 }
 
 const tableWidth = 720
+const columnCount = 4
 const skeletonRows = 3
 const tableLabel = "Observations"
 
@@ -48,7 +52,28 @@ export function ObservationList({ state, creating, onChange }: Props) {
   const list = useInfiniteQuery(
     observationsInfiniteQuery(state === "all" ? {} : { state })
   )
-  const items = list.data?.pages.flatMap((page) => page.observations) ?? []
+  const folderResult = useQuery(foldersQuery())
+  const pages = list.data?.pages
+  const folders = folderResult.data
+  const items = useMemo(
+    () => pages?.flatMap((page) => page.observations) ?? [],
+    [pages]
+  )
+  const sections = useMemo(
+    () =>
+      folders === undefined
+        ? null
+        : groupByFolder(folders, items, (observation) => observation.folder_id),
+    [folders, items]
+  )
+  const partial = list.hasNextPage
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const toggle = (folderId: string) =>
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (!next.delete(folderId)) next.add(folderId)
+      return next
+    })
   const filtered = state !== "open"
 
   function clearFilters() {
@@ -65,10 +90,7 @@ export function ObservationList({ state, creating, onChange }: Props) {
   return (
     <>
       <PageHeader title="Observations" actions={newObservation} />
-      <FilterToolbar
-        label="Observation filters"
-        onClear={filtered ? clearFilters : undefined}
-      >
+      <FilterToolbar label="Observation filters">
         <Tabs
           value={state}
           onValueChange={(next) => {
@@ -111,20 +133,51 @@ export function ObservationList({ state, creating, onChange }: Props) {
             </EmptyState>
           )}
         </div>
+      ) : folderResult.isError ? (
+        <LoadProblem
+          title="Could not load folders"
+          detail={loadProblemText(folderResult.error)}
+          retrying={folderResult.isFetching}
+          onRetry={() => void folderResult.refetch()}
+        />
+      ) : sections === null ? (
+        <ObservationSkeleton />
       ) : (
         <>
           <TableCard label={tableLabel} stackOnNarrow minWidth={tableWidth}>
             <ObservationColumns />
             <tbody>
-              {items.map((observation) => (
-                <ObservationRow
-                  key={observation.id}
-                  observation={observation}
-                />
-              ))}
+              {sections.flatMap(({ folder, rows }) => {
+                const isCollapsed = collapsed.has(folder.id)
+                const header = (
+                  <FolderHeaderRow
+                    key={`folder:${folder.id}`}
+                    folder={folder}
+                    collapsed={isCollapsed}
+                    countText={
+                      partial
+                        ? null
+                        : countText(rows.length, "observation", "observations")
+                    }
+                    columnCount={columnCount}
+                    onToggle={() => toggle(folder.id)}
+                  />
+                )
+                return isCollapsed
+                  ? [header]
+                  : [
+                      header,
+                      ...rows.map((observation) => (
+                        <ObservationRow
+                          key={observation.id}
+                          observation={observation}
+                        />
+                      )),
+                    ]
+              })}
             </tbody>
           </TableCard>
-          {list.hasNextPage ? (
+          {partial ? (
             <div className="mt-3 flex justify-center">
               <Button
                 variant="outline"

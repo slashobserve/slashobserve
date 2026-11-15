@@ -15,7 +15,7 @@ function serverURL(): string {
 }
 
 function card(page: Page, name: string) {
-  return page.getByRole("region", { name, exact: true })
+  return page.getByRole("region", { name, exact: true }).last()
 }
 
 function row(page: Page, cardName: string, label: string) {
@@ -41,7 +41,9 @@ function sectionNav(page: Page) {
 
 async function selectSection(page: Page, name: string) {
   await sectionNav(page).getByRole("link", { name, exact: true }).click()
-  await expect(card(page, name)).toBeVisible()
+  await expect(
+    page.getByRole("main").getByRole("heading", { level: 2, name, exact: true })
+  ).toBeVisible()
 }
 
 async function mockAgent(page: Page, body: Record<string, unknown>) {
@@ -77,7 +79,6 @@ test("shows the server's settings", async ({ page }) => {
     value(page, "Agent", "Status").locator('[data-status="ok"]')
   ).toHaveText("Connected")
 
-  await selectSection(page, "This server")
   await expect(value(page, "This server", "Public URL")).toHaveText(serverURL())
   await expect(value(page, "This server", "MCP URL")).toHaveText(
     `${serverURL()}/mcp`
@@ -123,7 +124,7 @@ test("keeps the row height when the server settings load", async ({ page }) => {
   ).toBeLessThanOrEqual(0.5)
 })
 
-test("puts the section list at the inset and the cards beside it", async ({
+test("puts the title above the section list and the cards beside it, filling the width", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1800, height: 900 })
@@ -138,26 +139,37 @@ test("puts the section list at the inset and the cards beside it", async ({
   expect(index).not.toBeNull()
   expect(heading).not.toBeNull()
   expect(Math.abs((index?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
-  const indexRight = (index?.x ?? 0) + (index?.width ?? 0)
-  expect(heading?.x ?? 0).toBeGreaterThan(indexRight)
+  expect((heading?.y ?? 0) + (heading?.height ?? 0)).toBeLessThanOrEqual(
+    index?.y ?? 0
+  )
 
   const mainRight = (main?.x ?? 0) + (main?.width ?? 0)
-  for (const name of ["Agent", "This server", "Sign-in", "Outbound access"]) {
-    await selectSection(page, name)
-    const box = await card(page, name).boundingBox()
+  const sectionHeading = page
+    .getByRole("main")
+    .getByRole("heading", { level: 2 })
+  for (const [section, cardName] of [
+    ["Server", "This server"],
+    ["Sign-in", "Sign-in"],
+    ["Outbound access", "Allowed domains"],
+  ]) {
+    await selectSection(page, section)
+    const title = await sectionHeading.boundingBox()
+    const box = await card(page, cardName).boundingBox()
+    expect(title).not.toBeNull()
     expect(box).not.toBeNull()
-    expect(Math.abs((box?.x ?? 0) - (heading?.x ?? 0))).toBeLessThanOrEqual(1)
-    expect(box?.width).toBeLessThanOrEqual(720)
-    expect(mainRight - ((box?.x ?? 0) + (box?.width ?? 0))).toBeGreaterThan(200)
+    expect(Math.abs((box?.x ?? 0) - (title?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(mainRight - ((box?.x ?? 0) + (box?.width ?? 0))).toBeLessThanOrEqual(
+      25
+    )
   }
 })
 
 test("shows only the selected section", async ({ page }) => {
   await openSettings(page)
   const headings = page.getByRole("main").getByRole("heading", { level: 2 })
-  await expect(headings).toHaveText(["Agent"])
+  await expect(headings).toHaveText(["Server"])
   await expect(
-    sectionNav(page).getByRole("link", { name: "Agent", exact: true })
+    sectionNav(page).getByRole("link", { name: "Server", exact: true })
   ).toHaveAttribute("aria-current", "page")
 
   await selectSection(page, "Outbound access")

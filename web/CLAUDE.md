@@ -81,6 +81,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
   Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
+  A lone crumb that a `PageHeader` repeats as its heading is not drawn in the top row (`useHideCrumbWhenHeadingRepeats`), so a title shows once; the phone bar still shows it.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
   The one sheet is the dashboard top row's "Controls" on narrow screens, which mounts the controls only once, so ids such as the More menu's stay unique.
 - Inspect (`web/src/inspect/`) takes the activity card's slot and never sends its own request: `PanelContainer` publishes the inspected panel's query key, response and prepared frames, and the request time comes from the query cache events of that key.
@@ -146,7 +147,7 @@ The rules below are how the code applies it.
   Every composer sends with the same square arrow button, and tabs and toggles are never filled black.
 - The page gutter is 24 (16 on phones), and inside cards and panels it is 16.
   App pages start on the top bar's left edge and document pages centre their column.
-  App pages run up to 1144 wide, reading pages 720 and pages with margin comments 1040, and the side panel is always 384.
+  App pages fill the content width like the dashboards list; Home and the chat pages centre a 720 reading column, and the side panel is always 384.
 - Type sizes are 12 for hints, 13 for secondary text, 14 for body, 15 for document text, 20 for page titles and 28 for document titles.
 - Under 1200 the sidebar folds to icons.
   Under 1100 the side panel and margin comments drop below the content, and Inbox shows the list alone.
