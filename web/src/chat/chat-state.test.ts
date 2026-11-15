@@ -128,7 +128,16 @@ describe("chatOutcome", () => {
       { result_kind: "partial_version", dashboard_title: "Checkout" },
       "Saved Checkout",
     ],
-    ["an observation", { result_kind: "observation" }, "Saved an observation"],
+    [
+      "an observation the caller can see",
+      { result_kind: "observation", observation_title: "Checkout errors" },
+      "Answered in Checkout errors",
+    ],
+    [
+      "an observation the caller cannot see",
+      { result_kind: "observation", observation_title: null },
+      "Saved an observation",
+    ],
     ["a suggestion", { result_kind: "suggestion" }, "Suggested a panel"],
     ["a proposal", { result_kind: "proposal" }, "Opened a proposal"],
     ["nothing", { result_kind: "none" }, "Nothing saved"],
