@@ -360,6 +360,81 @@ func (q *Queries) CountActiveSuggestRequestsBy(ctx context.Context, requestedByI
 	return count, err
 }
 
+const countAgentRequestsAll = `-- name: CountAgentRequestsAll :one
+SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id)) AS people
+FROM agent_requests r
+WHERE r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND ($1::text IS NULL OR r.source = $1::text)
+  AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
+  AND ($3::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $3::boolean)
+  AND ($4::text IS NULL OR r.title ILIKE $4::text OR r.prompt ILIKE $4::text)
+  AND ($5::text[] IS NULL OR r.state = ANY($5::text[]))
+`
+
+type CountAgentRequestsAllParams struct {
+	Source      pgtype.Text
+	DashboardID pgtype.UUID
+	Pinned      pgtype.Bool
+	Pattern     pgtype.Text
+	States      []string
+}
+
+type CountAgentRequestsAllRow struct {
+	Total  int64
+	People int64
+}
+
+func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentRequestsAllParams) (CountAgentRequestsAllRow, error) {
+	row := q.db.QueryRow(ctx, countAgentRequestsAll,
+		arg.Source,
+		arg.DashboardID,
+		arg.Pinned,
+		arg.Pattern,
+		arg.States,
+	)
+	var i CountAgentRequestsAllRow
+	err := row.Scan(&i.Total, &i.People)
+	return i, err
+}
+
+const countAgentRequestsBy = `-- name: CountAgentRequestsBy :one
+SELECT count(*) AS total
+FROM agent_requests r
+WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.source <> 'suggest'
+  AND r.archived_at IS NULL
+  AND ($3::text IS NULL OR r.source = $3::text)
+  AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
+  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
+  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text)
+  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
+`
+
+type CountAgentRequestsByParams struct {
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+	Source          pgtype.Text
+	DashboardID     pgtype.UUID
+	Pinned          pgtype.Bool
+	Pattern         pgtype.Text
+	States          []string
+}
+
+func (q *Queries) CountAgentRequestsBy(ctx context.Context, arg CountAgentRequestsByParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgentRequestsBy,
+		arg.RequestedByKind,
+		arg.RequestedByID,
+		arg.Source,
+		arg.DashboardID,
+		arg.Pinned,
+		arg.Pattern,
+		arg.States,
+	)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const countQueuedAgentRequestsBefore = `-- name: CountQueuedAgentRequestsBefore :one
 SELECT count(*) FROM agent_requests
 WHERE status = 'queued' AND (created_at, id) < ($1::timestamptz, $2::uuid)
@@ -1421,11 +1496,12 @@ SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.title, r.pinned_at, r.observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
+  o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
-LEFT JOIN findings f ON f.agent_request_id = r.id
-  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY($1::uuid[]))
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND ($2::text IS NULL OR r.source = $2::text)
@@ -1452,35 +1528,36 @@ type ListAgentRequestsAllParams struct {
 }
 
 type ListAgentRequestsAllRow struct {
-	ID              pgtype.UUID
-	Source          string
-	Trigger         string
-	Prompt          string
-	DashboardID     pgtype.UUID
-	PanelID         pgtype.Text
-	Status          string
-	State           string
-	ResultKind      string
-	Attempts        int32
-	ResultVersion   pgtype.Int4
-	Error           pgtype.Text
-	Origin          pgtype.Text
-	OriginClient    pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	StartedAt       pgtype.Timestamptz
-	FinishedAt      pgtype.Timestamptz
-	FailureCode     pgtype.Text
-	BuildSavedAt    pgtype.Timestamptz
-	ContinuesID     pgtype.UUID
-	ContinueNote    pgtype.Text
-	Title           pgtype.Text
-	PinnedAt        pgtype.Timestamptz
-	ObservationID   pgtype.UUID
-	RequestedByKind string
-	RequestedByID   pgtype.UUID
-	RequestedByName string
-	DashboardTitle  pgtype.Text
-	FindingID       pgtype.UUID
+	ID               pgtype.UUID
+	Source           string
+	Trigger          string
+	Prompt           string
+	DashboardID      pgtype.UUID
+	PanelID          pgtype.Text
+	Status           string
+	State            string
+	ResultKind       string
+	Attempts         int32
+	ResultVersion    pgtype.Int4
+	Error            pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	StartedAt        pgtype.Timestamptz
+	FinishedAt       pgtype.Timestamptz
+	FailureCode      pgtype.Text
+	BuildSavedAt     pgtype.Timestamptz
+	ContinuesID      pgtype.UUID
+	ContinueNote     pgtype.Text
+	Title            pgtype.Text
+	PinnedAt         pgtype.Timestamptz
+	ObservationID    pgtype.UUID
+	RequestedByKind  string
+	RequestedByID    pgtype.UUID
+	RequestedByName  string
+	DashboardTitle   pgtype.Text
+	ObservationTitle pgtype.Text
+	FindingID        pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequestsAllParams) ([]ListAgentRequestsAllRow, error) {
@@ -1531,6 +1608,7 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 			&i.RequestedByID,
 			&i.RequestedByName,
 			&i.DashboardTitle,
+			&i.ObservationTitle,
 			&i.FindingID,
 		); err != nil {
 			return nil, err
@@ -1550,11 +1628,12 @@ SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.title, r.pinned_at, r.observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
+  o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
-LEFT JOIN findings f ON f.agent_request_id = r.id
-  AND EXISTS (SELECT 1 FROM observations o WHERE o.id = r.observation_id AND o.folder_id = ANY($1::uuid[]))
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND ($4::text IS NULL OR r.source = $4::text)
@@ -1586,35 +1665,36 @@ type ListAgentRequestsByParams struct {
 }
 
 type ListAgentRequestsByRow struct {
-	ID              pgtype.UUID
-	Source          string
-	Trigger         string
-	Prompt          string
-	DashboardID     pgtype.UUID
-	PanelID         pgtype.Text
-	Status          string
-	State           string
-	ResultKind      string
-	Attempts        int32
-	ResultVersion   pgtype.Int4
-	Error           pgtype.Text
-	Origin          pgtype.Text
-	OriginClient    pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	StartedAt       pgtype.Timestamptz
-	FinishedAt      pgtype.Timestamptz
-	FailureCode     pgtype.Text
-	BuildSavedAt    pgtype.Timestamptz
-	ContinuesID     pgtype.UUID
-	ContinueNote    pgtype.Text
-	Title           pgtype.Text
-	PinnedAt        pgtype.Timestamptz
-	ObservationID   pgtype.UUID
-	RequestedByKind string
-	RequestedByID   pgtype.UUID
-	RequestedByName string
-	DashboardTitle  pgtype.Text
-	FindingID       pgtype.UUID
+	ID               pgtype.UUID
+	Source           string
+	Trigger          string
+	Prompt           string
+	DashboardID      pgtype.UUID
+	PanelID          pgtype.Text
+	Status           string
+	State            string
+	ResultKind       string
+	Attempts         int32
+	ResultVersion    pgtype.Int4
+	Error            pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	StartedAt        pgtype.Timestamptz
+	FinishedAt       pgtype.Timestamptz
+	FailureCode      pgtype.Text
+	BuildSavedAt     pgtype.Timestamptz
+	ContinuesID      pgtype.UUID
+	ContinueNote     pgtype.Text
+	Title            pgtype.Text
+	PinnedAt         pgtype.Timestamptz
+	ObservationID    pgtype.UUID
+	RequestedByKind  string
+	RequestedByID    pgtype.UUID
+	RequestedByName  string
+	DashboardTitle   pgtype.Text
+	ObservationTitle pgtype.Text
+	FindingID        pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequestsByParams) ([]ListAgentRequestsByRow, error) {
@@ -1668,6 +1748,7 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.RequestedByID,
 			&i.RequestedByName,
 			&i.DashboardTitle,
+			&i.ObservationTitle,
 			&i.FindingID,
 		); err != nil {
 			return nil, err

@@ -252,6 +252,8 @@ Home's **Recent chats** lists your five newest chats, and **All chats** opens th
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
 Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
+The list ends with how many chats match the search and state, and on Everyone how many people started them.
+A chat that saved its finding names the observation it was saved to, as long as you can open that observation's folder.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.

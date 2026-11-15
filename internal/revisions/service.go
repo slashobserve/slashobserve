@@ -542,6 +542,67 @@ func (f ListFilter) stateNames() []string {
 	return names
 }
 
+type listMatch struct {
+	source  pgtype.Text
+	pattern pgtype.Text
+	pinned  pgtype.Bool
+	states  []string
+}
+
+func (f ListFilter) match() listMatch {
+	m := listMatch{
+		source:  pgtype.Text{String: f.Source, Valid: f.Source != ""},
+		pattern: pgtype.Text{String: "%" + escapeLike(f.Query) + "%", Valid: f.Query != ""},
+		states:  f.stateNames(),
+	}
+	if f.Pinned != nil {
+		m.pinned = pgtype.Bool{Bool: *f.Pinned, Valid: true}
+	}
+	return m
+}
+
+type RequestCount struct {
+	Total  int64
+	People *int64
+}
+
+func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter ListFilter) (RequestCount, error) {
+	if filter.Scope == ScopeAll && !by.Role.AtLeast(auth.RoleAdmin) {
+		return RequestCount{}, ErrForbidden
+	}
+	requesterID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return RequestCount{}, fmt.Errorf("requester id: %w", err)
+	}
+	match := filter.match()
+	if filter.Scope == ScopeAll {
+		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
+			Source:      match.source,
+			DashboardID: filter.DashboardID,
+			Pinned:      match.pinned,
+			Pattern:     match.pattern,
+			States:      match.states,
+		})
+		if err != nil {
+			return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
+		}
+		return RequestCount{Total: row.Total, People: &row.People}, nil
+	}
+	total, err := s.db.Queries().CountAgentRequestsBy(ctx, dbsqlc.CountAgentRequestsByParams{
+		RequestedByKind: string(by.Kind),
+		RequestedByID:   requesterID,
+		Source:          match.source,
+		DashboardID:     filter.DashboardID,
+		Pinned:          match.pinned,
+		Pattern:         match.pattern,
+		States:          match.states,
+	})
+	if err != nil {
+		return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
+	}
+	return RequestCount{Total: total}, nil
+}
+
 func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
 	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
@@ -561,12 +622,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 	case err != nil:
 		return nil, "", fmt.Errorf("list agent requests: %w", err)
 	}
-	source := pgtype.Text{String: filter.Source, Valid: filter.Source != ""}
-	pattern := pgtype.Text{String: "%" + escapeLike(filter.Query) + "%", Valid: filter.Query != ""}
-	var pinned pgtype.Bool
-	if filter.Pinned != nil {
-		pinned = pgtype.Bool{Bool: *filter.Pinned, Valid: true}
-	}
+	match := filter.match()
 	var cursorAt pgtype.Timestamptz
 	var cursorID pgtype.UUID
 	if after != nil {
@@ -576,11 +632,11 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 	if filter.Scope == ScopeAll {
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
-			Source:          source,
+			Source:          match.source,
 			DashboardID:     filter.DashboardID,
-			Pinned:          pinned,
-			Pattern:         pattern,
-			States:          filter.stateNames(),
+			Pinned:          match.pinned,
+			Pattern:         match.pattern,
+			States:          match.states,
 			CursorCreatedAt: cursorAt,
 			CursorID:        cursorID,
 			RowLimit:        httpapi.Int32(limit + 1),
@@ -597,11 +653,11 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			RequestedByKind: string(by.Kind),
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
-			Source:          source,
+			Source:          match.source,
 			DashboardID:     filter.DashboardID,
-			Pinned:          pinned,
-			Pattern:         pattern,
-			States:          filter.stateNames(),
+			Pinned:          match.pinned,
+			Pattern:         match.pattern,
+			States:          match.states,
 			CursorCreatedAt: cursorAt,
 			CursorID:        cursorID,
 			CursorPinned:    afterPinned,

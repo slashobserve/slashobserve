@@ -174,13 +174,20 @@ type requestSummaryJSON struct {
 	ContinuedBy  *string            `json:"continued_by"`
 	ContinueNote *string            `json:"continue_note"`
 
-	ObservationID  *string  `json:"observation_id"`
-	AllowedActions []string `json:"allowed_actions"`
+	ObservationID    *string  `json:"observation_id"`
+	ObservationTitle *string  `json:"observation_title"`
+	AllowedActions   []string `json:"allowed_actions"`
+}
+
+type requestCountJSON struct {
+	Total  int64  `json:"total"`
+	People *int64 `json:"people"`
 }
 
 type requestListJSON struct {
 	Requests   []requestSummaryJSON `json:"requests"`
 	NextCursor *string              `json:"next_cursor"`
+	Summary    *requestCountJSON    `json:"summary"`
 }
 
 type agentRequestEnvelopeJSON struct {
@@ -422,6 +429,14 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	if next != "" {
 		body.NextCursor = &next
 	}
+	if c.Query("cursor") == "" {
+		count, err := h.service.CountRequests(c.Request.Context(), caller, filter)
+		if err != nil {
+			h.service.fail(c, "count agent requests", err, principalAttrs(c)...)
+			return
+		}
+		body.Summary = &requestCountJSON{Total: count.Total, People: count.People}
+	}
 	c.JSON(http.StatusOK, body)
 }
 
@@ -524,8 +539,9 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		ContinuedBy:  state.continuedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
-		ObservationID:  optionalUUID(row.ObservationID),
-		AllowedActions: actionStrings(allowed),
+		ObservationID:    optionalUUID(row.ObservationID),
+		ObservationTitle: optionalText(row.ObservationTitle),
+		AllowedActions:   actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
