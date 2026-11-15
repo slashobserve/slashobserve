@@ -6,6 +6,7 @@ import { AgentMark } from "@/components/agent-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
+import type { components } from "@/api/schema.gen"
 import type { Comment } from "@/comments/queries"
 import { isAgentActor } from "@/lib/origin"
 import { lowerFirst } from "@/lib/text"
@@ -26,6 +27,14 @@ export function avatarFor(author: {
   return author.kind === "service_account"
     ? { kind: "service", name: author.name }
     : { kind: "person", name: author.name }
+}
+
+type Actor = components["schemas"]["Actor"]
+
+export function actorAvatar(
+  actor: Pick<Actor, "kind" | "name" | "run_id" | "origin">
+): EntryAvatar {
+  return isAgentActor(actor) ? { kind: "agent" } : avatarFor(actor)
 }
 
 export function commentAvatar(comment: Pick<Comment, "actor" | "author">) {
@@ -54,7 +63,7 @@ export const panelLinkClass =
 const avatarShape: Record<EntryAvatar["kind"], string> = {
   person: "rounded-full border bg-background text-foreground",
   service: "rounded-control border bg-muted text-foreground",
-  agent: "rounded-control bg-primary text-primary-foreground",
+  agent: "rounded-full bg-primary text-primary-foreground",
 }
 
 export function EntryFrame({

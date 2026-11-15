@@ -60,7 +60,7 @@ export function useStickToBottom(depsKey: string) {
   return setElement
 }
 
-function useToday(): number {
+export function useToday(): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setTimeout(
@@ -70,6 +70,18 @@ function useToday(): number {
     return () => clearTimeout(timer)
   }, [now])
   return now
+}
+
+export function DayBreakRow({ label }: { label: string }) {
+  return (
+    <li
+      data-day
+      className="flex items-center gap-2 pt-3 pb-1 text-xs text-muted-foreground"
+    >
+      {label}
+      <span aria-hidden="true" className="h-px flex-1 bg-border" />
+    </li>
+  )
 }
 
 function Message({ children, role }: { children: ReactNode; role?: "alert" }) {
@@ -194,14 +206,7 @@ export function TimelineList({
       >
         {withDayBreaks(entries, today).map((row) =>
           row.kind === "day" ? (
-            <li
-              key={row.key}
-              data-day
-              className="flex items-center gap-2 pt-3 pb-1 text-xs text-muted-foreground"
-            >
-              {row.label}
-              <span aria-hidden="true" className="h-px flex-1 bg-border" />
-            </li>
+            <DayBreakRow key={row.key} label={row.label} />
           ) : (
             <Fragment key={row.entry.key}>{renderEntry(row.entry)}</Fragment>
           )

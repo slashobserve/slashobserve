@@ -6,7 +6,13 @@ import type {
   ThreadWithMessages,
 } from "@/comments/thread-queries"
 
-import { discussionModel } from "./discussion-model"
+import {
+  discussionEntries,
+  discussionModel,
+  messageCount,
+  messageVerb,
+  type DiscussionChange,
+} from "./discussion-model"
 
 const ada = {
   kind: "user" as const,
@@ -128,5 +134,111 @@ describe("discussionModel", () => {
       replyThreadId: null,
       canWrite: false,
     })
+  })
+})
+
+function change(key: string, at: string): DiscussionChange {
+  return { key, at, actor: ada, verb: "added a block", subject: null }
+}
+
+describe("discussionEntries", () => {
+  const messages = [
+    message("m1", "m1", "2026-11-10T09:00:00Z"),
+    message("m2", "m1", "2026-11-10T09:30:00Z"),
+  ]
+  const changes = [
+    change("started", "2026-11-10T08:00:00Z"),
+    change("b1", "2026-11-10T09:10:00Z"),
+  ]
+
+  it("interleaves messages and changes by time", () => {
+    expect(
+      discussionEntries(messages, changes, "everything").map((e) => e.key)
+    ).toEqual(["change:started", "message:m1", "change:b1", "message:m2"])
+  })
+
+  it("puts a change before a message at the same instant", () => {
+    const tied = [change("b2", "2026-11-10T09:00:00Z")]
+    expect(
+      discussionEntries(messages, tied, "everything").map((e) => e.key)
+    ).toEqual(["change:b2", "message:m1", "message:m2"])
+  })
+
+  it("orders changes at the same instant by key", () => {
+    const tied = [
+      change("b", "2026-11-10T09:00:00Z"),
+      change("a", "2026-11-10T09:00:00Z"),
+    ]
+    expect(discussionEntries([], tied, "everything").map((e) => e.key)).toEqual(
+      ["change:a", "change:b"]
+    )
+  })
+
+  it("keeps only messages or only changes when filtered", () => {
+    expect(
+      discussionEntries(messages, changes, "messages").map((e) => e.key)
+    ).toEqual(["message:m1", "message:m2"])
+    expect(
+      discussionEntries(messages, changes, "changes").map((e) => e.key)
+    ).toEqual(["change:started", "change:b1"])
+  })
+})
+
+describe("messageVerb", () => {
+  const mention = (kind: "user" | "agent" | "grant") => ({
+    kind,
+    id: "x",
+    name: "x",
+  })
+
+  it("says commented for a first message that asks nobody", () => {
+    expect(messageVerb(message("m1", "m1", "2026-11-10T09:00:00Z"))).toBe(
+      "commented"
+    )
+    expect(
+      messageVerb({
+        ...message("m1", "m1", "2026-11-10T09:00:00Z"),
+        mentions: [mention("user")],
+      })
+    ).toBe("commented")
+  })
+
+  it.each(["agent", "grant"] as const)(
+    "says asked the agent for a first message mentioning %s",
+    (kind) => {
+      expect(
+        messageVerb({
+          ...message("m1", "m1", "2026-11-10T09:00:00Z"),
+          mentions: [mention(kind)],
+        })
+      ).toBe("asked the agent")
+    }
+  )
+
+  it("says replied for a later message", () => {
+    expect(messageVerb(message("m2", "m1", "2026-11-10T09:00:00Z"))).toBe(
+      "replied"
+    )
+  })
+})
+
+describe("messageCount", () => {
+  it("totals the messages of every thread", () => {
+    const one = entry(
+      "t1",
+      ["reply"],
+      [message("m1", "t1", "2026-11-10T09:00:00Z")]
+    )
+    const two = entry(
+      "t2",
+      ["reply"],
+      [
+        message("m2", "t2", "2026-11-10T09:00:00Z"),
+        message("m3", "t2", "2026-11-10T09:01:00Z"),
+      ]
+    )
+    expect(messageCount([])).toBe(0)
+    expect(messageCount([one])).toBe(1)
+    expect(messageCount([one, two])).toBe(3)
   })
 })

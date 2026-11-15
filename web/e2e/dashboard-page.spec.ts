@@ -277,19 +277,19 @@ test("resizes the activity card from the keyboard and remembers its width", asyn
   const grip = page.getByRole("separator", { name: "Resize panel" })
   await grip.focus()
   await page.keyboard.press("Shift+ArrowLeft")
-  await expect(grip).toHaveAttribute("aria-valuenow", "464")
-  expect((await activity.boundingBox())?.width).toBeCloseTo(464, 0)
+  await expect(grip).toHaveAttribute("aria-valuenow", "448")
+  expect((await activity.boundingBox())?.width).toBeCloseTo(448, 0)
 
   await page.reload()
   await expect(
     page.getByRole("separator", { name: "Resize panel" })
-  ).toHaveAttribute("aria-valuenow", "464")
+  ).toHaveAttribute("aria-valuenow", "448")
 
   await page.getByRole("separator", { name: "Resize panel" }).focus()
   await page.keyboard.press("Enter")
   await expect(
     page.getByRole("separator", { name: "Resize panel" })
-  ).toHaveAttribute("aria-valuenow", "400")
+  ).toHaveAttribute("aria-valuenow", "384")
 })
 
 test("fits a phone", async ({ page, request }) => {

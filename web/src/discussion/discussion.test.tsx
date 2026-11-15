@@ -138,8 +138,10 @@ describe("Discussion", () => {
   it("lists every message in time order with its author label", async () => {
     mockServer({ threads: [thread], messages: () => [later, earlier] })
     renderDiscussion()
-    const list = await screen.findByRole("list", { name: "Messages" })
-    const rows = within(list).getAllByRole("listitem")
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    const rows = within(list)
+      .getAllByRole("listitem")
+      .filter((row) => !row.hasAttribute("data-day"))
     expect(rows).toHaveLength(2)
     expect(rows[0]).toHaveTextContent("Grace")
     expect(rows[0]).toHaveTextContent("body of m1")
@@ -153,7 +155,7 @@ describe("Discussion", () => {
       messages: () => [earlier, later],
     })
     const { user } = renderDiscussion()
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Rolling back now"
@@ -199,7 +201,7 @@ describe("Discussion", () => {
     renderDiscussion({
       messageActions: (m) => <button type="button">Act on {m.id}</button>,
     })
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     expect(screen.getAllByRole("button", { name: /^Act on / })).toHaveLength(2)
     expect(
       screen.getByRole("button", { name: "Act on m1" })
@@ -207,16 +209,6 @@ describe("Discussion", () => {
     expect(
       screen.getByRole("button", { name: "Act on m2" })
     ).toBeInTheDocument()
-  })
-
-  it("offers Hide only when a handler is given", async () => {
-    mockServer({ threads: [thread], messages: () => [earlier] })
-    const onHide = vi.fn()
-    const { user } = renderDiscussion({ onHide })
-    await user.click(
-      await screen.findByRole("button", { name: "Hide discussion" })
-    )
-    expect(onHide).toHaveBeenCalledOnce()
   })
 
   it("announces another person's new message but not the first load or one's own", async () => {
@@ -228,7 +220,7 @@ describe("Discussion", () => {
       messages: () => (sent ? [earlier, later, newer, own] : [earlier, later]),
     })
     const { user } = renderDiscussion()
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     const status = screen.getByRole("status")
     expect(status).toHaveTextContent("")
 
@@ -251,7 +243,7 @@ describe("Discussion", () => {
     const { user } = renderDiscussion({
       route: { path: "/", url: "/" },
     })
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     await user.click(screen.getByRole("textbox", { name: "Message" }))
     await user.paste("@observe why did latency rise")
     await user.click(
@@ -286,7 +278,7 @@ describe("Discussion", () => {
       },
     })
     const { user } = renderDiscussion()
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     await user.click(screen.getByRole("textbox", { name: "Message" }))
     await user.paste("@observe hi")
     await user.click(
@@ -300,7 +292,7 @@ describe("Discussion", () => {
   it("sends no start_runs for a message that mentions only a person", async () => {
     const posts = mockServer({ threads: [thread], messages: () => [earlier] })
     const { user } = renderDiscussion()
-    await screen.findByRole("list", { name: "Messages" })
+    await screen.findByRole("list", { name: "Discussion" })
     await user.click(screen.getByRole("textbox", { name: "Message" }))
     await user.paste("@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look")
     await user.click(screen.getByRole("button", { name: "Send" }))

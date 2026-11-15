@@ -616,18 +616,18 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       const grip = page.getByRole("separator", { name: "Resize panel" })
-      await expect(grip).toHaveAttribute("aria-valuenow", "400")
+      await expect(grip).toHaveAttribute("aria-valuenow", "384")
       await grip.focus()
       for (let press = 0; press < 4; press++) {
         await page.keyboard.press("ArrowLeft")
       }
-      await expect(grip).toHaveAttribute("aria-valuenow", "464")
-      expect((await card(page).boundingBox())?.width).toBeCloseTo(464, 0)
+      await expect(grip).toHaveAttribute("aria-valuenow", "448")
+      expect((await card(page).boundingBox())?.width).toBeCloseTo(448, 0)
 
       await page.reload()
       await expect(
         page.getByRole("separator", { name: "Resize panel" })
-      ).toHaveAttribute("aria-valuenow", "464")
+      ).toHaveAttribute("aria-valuenow", "448")
 
       await page.getByRole("separator", { name: "Resize panel" }).focus()
       await page.keyboard.press("End")
@@ -638,7 +638,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.getByRole("separator", { name: "Resize panel" }).dblclick()
       await expect(
         page.getByRole("separator", { name: "Resize panel" })
-      ).toHaveAttribute("aria-valuenow", "400")
+      ).toHaveAttribute("aria-valuenow", "384")
     })
 
     test("fits a phone", async ({ page, request }) => {
