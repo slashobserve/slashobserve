@@ -66,6 +66,25 @@ WHERE r.assigned_kind = @assigned_kind
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 
+-- name: ListWorkingRuns :many
+SELECT r.id, r.source, r.title, r.prompt, r.state, r.created_at, r.started_at,
+       r.assigned_kind, r.assigned_id,
+       r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+       d.id AS visible_dashboard_id, d.title AS dashboard_title,
+       o.id AS visible_observation_id, o.title AS observation_title
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(@folders::uuid[])
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(@folders::uuid[])
+WHERE r.state IN ('queued', 'running', 'canceling')
+  AND r.source <> 'suggest' AND r.archived_at IS NULL
+  AND (
+    (r.requested_by_kind = @caller_kind AND r.requested_by_id = @caller_id)
+    OR (d.id IS NOT NULL AND d.created_by_kind = @caller_kind AND d.created_by_id = @caller_id)
+    OR (o.id IS NOT NULL AND o.created_by_kind = @caller_kind AND o.created_by_id = @caller_id)
+  )
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT @row_limit;
+
 -- name: GrantOwnedBy :one
 SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = @id AND user_id = @user_id);
 

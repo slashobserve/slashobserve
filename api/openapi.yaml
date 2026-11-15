@@ -304,6 +304,8 @@ paths:
     $ref: "./paths/agents.yaml#/agents"
   /agents/runs:
     $ref: "./paths/agents.yaml#/agent-runs"
+  /agents/working:
+    $ref: "./paths/agents.yaml#/agents-working"
   /inbox:
     $ref: "./paths/inbox.yaml#/inbox"
   /inbox/read:
@@ -840,6 +842,88 @@ components:
         next_cursor:
           type: string
           nullable: true
+    WorkingRuns:
+      type: object
+      additionalProperties: false
+      required: [items, truncated]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, source, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
+            properties:
+              id:
+                type: string
+                format: uuid
+              source:
+                type: string
+                enum: [comment, prompt, observe, investigate]
+              state:
+                type: string
+                enum: [queued, running, canceling]
+              created_at:
+                type: string
+                format: date-time
+              started_at:
+                type: string
+                format: date-time
+                nullable: true
+              mine:
+                type: boolean
+                description: True when the caller requested the run.
+              title:
+                type: string
+                nullable: true
+                description: Null unless the caller requested the run.
+              agent:
+                type: object
+                additionalProperties: false
+                required: [kind, name]
+                properties:
+                  kind:
+                    type: string
+                    enum: [builtin, grant, service_account]
+                  name:
+                    type: string
+              requested_by:
+                type: object
+                additionalProperties: false
+                required: [kind, name]
+                properties:
+                  kind:
+                    type: string
+                  name:
+                    type: string
+              dashboard:
+                type: object
+                additionalProperties: false
+                nullable: true
+                required: [id, title]
+                description: Null when the run has no dashboard or the caller cannot see its folder.
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+              observation:
+                type: object
+                additionalProperties: false
+                nullable: true
+                required: [id, title]
+                description: Null when the run has no observation or the caller cannot see its folder.
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+        truncated:
+          type: boolean
+          description: True when more active runs exist than `limit`.
     AgentsOverview:
       type: object
       additionalProperties: false

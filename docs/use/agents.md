@@ -86,3 +86,12 @@ A dashboard or observation in a folder you cannot see is left out of its row.
 A run opens only for the person who asked for it, so other people's runs show as plain text.
 Suggestion runs are not listed because they have no page to open, although the seven day counts above still include them.
 Archived runs are listed, because archiving only hides a run from its requester's own list.
+
+## Working now
+
+`GET /api/v1/agents/working` lists the runs that are queued, running or canceling and that you started, together with the runs any agent is doing on dashboards and observations you created, newest first.
+It returns 20 runs by default and at most 50 with `limit`, has no cursor, and says `truncated: true` when more active runs exist.
+A run someone else started names the agent and the dashboard or observation, never the request: its `title` is null and `mine` is false.
+A dashboard or observation in a folder you cannot see no longer brings someone else's run into your list, and it comes back as null on a run you started.
+An Admin gets no wider list here, because the Agents page above already shows the whole workspace.
+It needs a signed-in person, and a service-account key gets 403 `user_session_required`.
