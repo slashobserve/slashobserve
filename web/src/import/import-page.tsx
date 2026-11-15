@@ -55,12 +55,16 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
   const [mapping, setMapping] = useState<Mapping>(noMapping)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [folder, setFolder] = useState(automaticFolder)
+  const [pickedFolder, setPickedFolder] = useState<string | null>(null)
   const folders = useQuery(foldersQuery())
   const choices = useMemo(
     () => folderChoices(folders.data ?? []),
     [folders.data]
   )
+  const handedFolder = folders.data?.find(
+    (candidate) => candidate.id === initial?.folder
+  )?.title
+  const folder = pickedFolder ?? handedFolder ?? automaticFolder
   const importDashboard = useImportDashboard()
   const resetImport = importDashboard.reset
   const result = importDashboard.data ?? null
@@ -304,7 +308,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
             value={requestedFolder(folder, choices) ?? automaticFolder}
             failed={folders.isError}
             disabled={result !== null || importDashboard.isPending}
-            onChange={setFolder}
+            onChange={setPickedFolder}
           />
           {datasources ? (
             <DatasourcesCard

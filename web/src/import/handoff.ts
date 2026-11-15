@@ -1,4 +1,9 @@
-export type HandedImport = { name: string; text: string; pasted: boolean }
+export type HandedImport = {
+  name: string
+  text: string
+  pasted: boolean
+  folder?: string
+}
 
 let handed: HandedImport | null = null
 

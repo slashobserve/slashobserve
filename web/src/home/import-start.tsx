@@ -6,23 +6,34 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { CircleAlertIcon, FileJsonIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  adminOnlyLinkText,
+  fetchGrafanaLink,
+  linkFailureText,
+  looksLikeLink,
+} from "@/import/grafana-link"
 import { handOffImport, type HandedImport } from "@/import/handoff"
 import {
   MAX_FILE_BYTES,
   TOO_LARGE_MESSAGE,
   exceedsImportLimit,
 } from "@/import/read-source"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
+import { FolderSelect } from "@/observations/folder-select"
 
 import { IconTile } from "./home-section"
 
 const textId = "home-import-json"
+const folderId = "home-import-folder"
+const adminPlaceholder = "Paste a dashboard link or its JSON"
+const memberPlaceholder = "Paste the dashboard's JSON"
 
 function hasFiles(event: DragEvent): boolean {
   return event.dataTransfer.types.includes("Files")
@@ -30,11 +41,15 @@ function hasFiles(event: DragEvent): boolean {
 
 export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
   const navigate = useNavigate()
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const isAdmin = roleAtLeast(principal.role, "admin")
   const jsonInput = useRef<HTMLInputElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const [text, setText] = useState("")
   const [problem, setProblem] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [folder, setFolder] = useState<string | null>(null)
+  const [fetching, setFetching] = useState(false)
 
   useEffect(() => {
     if (autoFocus) jsonInput.current?.focus()
@@ -45,14 +60,34 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
       setProblem(TOO_LARGE_MESSAGE)
       return
     }
-    handOffImport(next)
+    handOffImport({ ...next, ...(folder === null ? {} : { folder }) })
     void navigate({ to: "/import" })
+  }
+
+  async function submitLink(url: string) {
+    if (!isAdmin) {
+      setProblem(adminOnlyLinkText)
+      return
+    }
+    setFetching(true)
+    try {
+      const dashboard = await fetchGrafanaLink(url)
+      hand({ name: dashboard.title, text: dashboard.json, pasted: true })
+    } catch (error) {
+      setProblem(linkFailureText(error))
+    } finally {
+      setFetching(false)
+    }
   }
 
   function submit(event: FormEvent) {
     event.preventDefault()
     const trimmed = text.trim()
-    if (trimmed === "") return
+    if (trimmed === "" || fetching) return
+    if (looksLikeLink(trimmed)) {
+      void submitLink(trimmed)
+      return
+    }
     hand({ name: "Pasted JSON", text: trimmed, pasted: true })
   }
 
@@ -86,14 +121,14 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={textId}>Grafana dashboard JSON</Label>
+        <Label htmlFor={textId}>Grafana dashboard</Label>
         <Input
           id={textId}
           ref={jsonInput}
           value={text}
           autoComplete="off"
           spellCheck={false}
-          placeholder='{ "title": ... }'
+          placeholder={isAdmin ? adminPlaceholder : memberPlaceholder}
           className="font-mono text-xs narrow:h-11"
           onChange={(event) => {
             setText(event.target.value)
@@ -114,9 +149,7 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
         <IconTile>
           <FileJsonIcon />
         </IconTile>
-        <p className="min-w-0 flex-1 text-[13px]">
-          Drop a Grafana dashboard JSON file here
-        </p>
+        <p className="min-w-0 flex-1 text-[13px]">Or drop a JSON file here</p>
         <Button
           type="button"
           variant="outline"
@@ -134,6 +167,15 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
           className="sr-only"
           tabIndex={-1}
           onChange={onChosen}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={folderId}>Folder</Label>
+        <FolderSelect
+          id={folderId}
+          value={folder}
+          disabled={fetching}
+          onChange={setFolder}
         />
       </div>
       <p className="text-xs text-muted-foreground">
@@ -154,7 +196,8 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
           type="submit"
           size="sm"
           className="narrow:h-11"
-          disabled={text.trim() === ""}
+          disabled={text.trim() === "" || fetching}
+          aria-busy={fetching}
         >
           Preview
         </Button>

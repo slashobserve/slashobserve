@@ -1,6 +1,9 @@
 import { useState } from "react"
 
+import { TopRowActions } from "@/shell/top-row-actions"
+
 import { NeedsYouList, PickUpList, WorkingNowList } from "./activity-lists"
+import { homeDate } from "./home-date"
 import type { HomeTab } from "./home-tab"
 import {
   OpenObservationsList,
@@ -23,6 +26,11 @@ export function HomePage({ tab, onTabChange }: Props) {
 
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 pt-[26px] pb-5 narrow:pt-2.5">
+      <TopRowActions>
+        <span className="text-xs text-muted-foreground narrow:hidden">
+          {homeDate(new Date())}
+        </span>
+      </TopRowActions>
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.01em]">

@@ -1,4 +1,4 @@
-import { useId, useRef } from "react"
+import { useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   LoaderCircleIcon,
@@ -35,6 +35,7 @@ function NewObservationTab({ autoFocus }: { autoFocus: boolean }) {
   const formId = `${useId()}-form`
   const titleRef = useRef<HTMLInputElement>(null)
   const create = useCreateObservation()
+  const [busy, setBusy] = useState(false)
   return (
     <div className="flex flex-col gap-4 p-4">
       <NewObservationForm
@@ -42,6 +43,9 @@ function NewObservationTab({ autoFocus }: { autoFocus: boolean }) {
         formId={formId}
         titleRef={titleRef}
         autoFocus={autoFocus}
+        withNote
+        withAgentStart
+        onBusyChange={setBusy}
       />
       <div className="flex justify-end">
         <Button
@@ -49,17 +53,17 @@ function NewObservationTab({ autoFocus }: { autoFocus: boolean }) {
           form={formId}
           size="sm"
           focusableWhenDisabled
-          disabled={create.isPending}
-          aria-busy={create.isPending}
+          disabled={busy}
+          aria-busy={busy}
           className="narrow:h-11"
         >
-          {create.isPending ? (
+          {busy ? (
             <LoaderCircleIcon
               aria-hidden="true"
               className="size-3.5 motion-safe:animate-spin"
             />
           ) : null}
-          Create
+          Start observation
         </Button>
       </div>
     </div>

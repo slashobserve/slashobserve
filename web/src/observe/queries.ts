@@ -207,6 +207,7 @@ export type ObserveInput = {
   panelId?: string
   from?: string
   to?: string
+  observationId?: string
 }
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
@@ -231,6 +232,7 @@ export function useCreateObserveRequest() {
       panelId,
       from,
       to,
+      observationId,
     }: ObserveInput) =>
       api
         .POST("/observe", {
@@ -241,6 +243,9 @@ export function useCreateObserveRequest() {
             ...(panelId === undefined ? {} : { panel_id: panelId }),
             ...(from === undefined ? {} : { from }),
             ...(to === undefined ? {} : { to }),
+            ...(observationId === undefined
+              ? {}
+              : { observation_id: observationId }),
           },
         })
         .then(unwrap)

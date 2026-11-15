@@ -58,7 +58,7 @@ The page updates when someone else changes its blocks, its state or the discussi
 
 ### Start one
 
-**New observation** on the list opens a panel with a **Title** of 1 to 200 characters and a **Folder**, and Home's **New observation** tab, which the command palette's **New observation** opens, asks for the same two fields.
+**New observation** on the list opens a panel with a **Title** of 1 to 200 characters and a **Folder**, and Home's **New observation** tab, which the command palette's **New observation** opens, asks for the same two fields plus an optional first note, which becomes the first text block, and links in it to a logs search, a trace or a dashboard panel of this app become panel blocks; see [Home](home.md#new-observation).
 The folder choices are the folders you can edit.
 With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General.
 **Create** opens the new page.

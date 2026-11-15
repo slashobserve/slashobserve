@@ -1,28 +1,159 @@
 import { useEffect, useState, type FormEvent, type RefObject } from "react"
+import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
+import { datasourcesQuery } from "@/datasources/queries"
 import { observationLink } from "@/lib/links"
+import { useAgentInfo, useCreateObserveRequest } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { FolderSelect } from "./folder-select"
-import type { useCreateObservation } from "./queries"
+import {
+  dashboardPanelBody,
+  logsLinkBody,
+  noteLinks,
+  traceLinkBody,
+  type NoteLink,
+  type PanelBlockBody,
+} from "./note-links"
+import { useAddBlockTo, type useCreateObservation } from "./queries"
 
 type Props = {
   create: ReturnType<typeof useCreateObservation>
   formId: string
   titleRef: RefObject<HTMLInputElement | null>
   autoFocus?: boolean
+  withNote?: boolean
+  withAgentStart?: boolean
+  onBusyChange?: (busy: boolean) => void
 }
 
 const maxTitleLength = 200
+const maxNoteLength = 4000
 const titleProblem = "Enter a title of 1 to 200 characters."
+const agentStartHint =
+  "It reads the note, runs the first queries and writes what it finds as blocks you can keep or discard."
+const noteHint =
+  "Links to a logs search, a trace or a dashboard panel in this app become blocks."
 
 function titleError(title: string): string | null {
   const length = title.trim().length
   return length >= 1 && length <= maxTitleLength ? null : titleProblem
+}
+
+function unaddedLinksText(count: number): string {
+  return count === 1
+    ? "1 link in the note could not be added as a block."
+    : `${count} links in the note could not be added as blocks.`
+}
+
+async function linkBody(
+  queryClient: QueryClient,
+  link: NoteLink
+): Promise<PanelBlockBody | null> {
+  const now = Date.now()
+  switch (link.kind) {
+    case "logs": {
+      if (link.search.f === undefined) return logsLinkBody(link, undefined, now)
+      const listed = await queryClient.ensureQueryData(datasourcesQuery())
+      const type = listed.datasources.find((one) => one.uid === link.uid)?.type
+      return logsLinkBody(link, type, now)
+    }
+    case "trace":
+      return traceLinkBody(link, now)
+    case "panel": {
+      const envelope = await queryClient.fetchQuery(
+        latestDashboardQuery(queryClient, link.dashboardId)
+      )
+      return dashboardPanelBody(
+        link,
+        asDashboardSpec(envelope.version.spec),
+        now
+      )
+    }
+  }
+}
+
+function useStartFollowUps() {
+  const queryClient = useQueryClient()
+  const addBlock = useAddBlockTo()
+  const observe = useCreateObserveRequest()
+
+  return async function followUps(input: {
+    observationId: string
+    links: NoteLink[]
+    prompt: string | null
+  }) {
+    let failed = 0
+    for (const link of input.links) {
+      try {
+        const body = await linkBody(queryClient, link)
+        if (body === null) {
+          failed += 1
+          continue
+        }
+        await addBlock.mutateAsync({
+          observationId: input.observationId,
+          kind: "panel",
+          body,
+        })
+      } catch {
+        failed += 1
+      }
+    }
+    if (failed > 0) toast.error(unaddedLinksText(failed))
+    if (input.prompt === null) return
+    try {
+      await observe.mutateAsync({
+        prompt: input.prompt,
+        kind: "investigate",
+        observationId: input.observationId,
+      })
+    } catch (error) {
+      toast.error(
+        `The observation was created, but Observe Agent did not start. ${loadProblemText(error)}`
+      )
+    }
+  }
+}
+
+function AgentStartField({
+  id,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string
+  checked: boolean
+  disabled: boolean
+  onChange: (checked: boolean) => void
+}) {
+  const agent = useAgentInfo()
+  if (agent.data?.available !== true) return null
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={id}>Ask Observe Agent to start</Label>
+        <Switch
+          id={id}
+          checked={checked}
+          disabled={disabled}
+          aria-describedby={`${id}-hint`}
+          onCheckedChange={onChange}
+        />
+      </div>
+      <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        {agentStartHint}
+      </p>
+    </div>
+  )
 }
 
 export function NewObservationForm({
@@ -30,48 +161,71 @@ export function NewObservationForm({
   formId,
   titleRef,
   autoFocus = false,
+  withNote = false,
+  withAgentStart = false,
+  onBusyChange,
 }: Props) {
   const navigate = useNavigate()
+  const followUps = useStartFollowUps()
   const [title, setTitle] = useState("")
+  const [note, setNote] = useState("")
   const [folderId, setFolderId] = useState<string | null>(null)
+  const [agentStart, setAgentStart] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
   useEffect(() => {
     if (autoFocus) titleRef.current?.focus()
   }, [autoFocus, titleRef])
 
+  const busy = starting || create.isPending
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
+
   const invalid = titleError(title)
   const showError = invalid !== null && (submitted || title.length > 0)
   const errorId = `${formId}-title-error`
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
     setSubmitted(true)
-    if (create.isPending) return
+    if (busy) return
     if (invalid !== null) {
       titleRef.current?.focus()
       return
     }
     setProblem(null)
-    create.mutate(
-      {
+    setStarting(true)
+    const text = withNote ? note.trim() : ""
+    try {
+      const envelope = await create.mutateAsync({
         title: title.trim(),
         ...(folderId === null ? {} : { folder_id: folderId }),
-      },
-      {
-        onSuccess: (envelope) =>
-          void navigate(observationLink(envelope.observation.id)),
-        onError: (error) => setProblem(loadProblemText(error)),
-      }
-    )
+        ...(text === ""
+          ? {}
+          : { first_block: { kind: "text", body: { markdown: text } } }),
+      })
+      const observationId = envelope.observation.id
+      await followUps({
+        observationId,
+        links: noteLinks(text, window.location.origin),
+        prompt: agentStart ? text || title.trim() : null,
+      })
+      void navigate(observationLink(observationId))
+    } catch (error) {
+      setProblem(loadProblemText(error))
+    } finally {
+      setStarting(false)
+    }
   }
 
   return (
     <form
       id={formId}
       noValidate
-      onSubmit={submit}
+      onSubmit={(event) => void submit(event)}
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1.5">
@@ -82,7 +236,7 @@ export function NewObservationForm({
           value={title}
           autoComplete="off"
           required
-          readOnly={create.isPending}
+          readOnly={busy}
           aria-invalid={showError}
           aria-describedby={showError ? errorId : undefined}
           onChange={(event) => setTitle(event.target.value)}
@@ -93,15 +247,42 @@ export function NewObservationForm({
           </p>
         ) : null}
       </div>
+      {withNote ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${formId}-note`}>First note (optional)</Label>
+          <Textarea
+            id={`${formId}-note`}
+            value={note}
+            maxLength={maxNoteLength}
+            readOnly={busy}
+            aria-describedby={`${formId}-note-hint`}
+            onChange={(event) => setNote(event.target.value)}
+          />
+          <p
+            id={`${formId}-note-hint`}
+            className="text-xs text-muted-foreground"
+          >
+            {noteHint}
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${formId}-folder`}>Folder</Label>
         <FolderSelect
           id={`${formId}-folder`}
           value={folderId}
-          disabled={create.isPending}
+          disabled={busy}
           onChange={setFolderId}
         />
       </div>
+      {withAgentStart ? (
+        <AgentStartField
+          id={`${formId}-agent`}
+          checked={agentStart}
+          disabled={busy}
+          onChange={setAgentStart}
+        />
+      ) : null}
       {problem !== null ? (
         <Alert variant="destructive">
           <AlertDescription>{problem}</AlertDescription>
