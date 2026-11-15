@@ -483,3 +483,63 @@ grafana-resolve-uid:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-link:
+  post:
+    operationId: fetchGrafanaLink
+    summary: Fetch a Grafana dashboard from its link through a stored connection.
+    description: >-
+      Only Admins can call this endpoint, because the stored connection's token is an Admin's credential.
+      The link must be a dashboard link (`/d/<uid>` or `/d-solo/<uid>`) on the address of a stored connection, under that address's path; the server only fetches from hosts an Admin already stored.
+      `json` is the dashboard as Grafana returns it, in a string that `POST /imports` takes as its `json`.
+      Redirects are not followed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/FetchGrafanaLinkRequest"
+    responses:
+      "200":
+        description: The dashboard.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaLinkedDashboard"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: No stored connection matches the link (`no_connection`), or Grafana has no dashboard with that uid that the connection's token can read (`dashboard_not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or cannot read the stored token (`token_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The link is not a Grafana dashboard link (`not_a_dashboard_link`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

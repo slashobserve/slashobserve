@@ -8,6 +8,12 @@ The page and `observe import` call `POST /api/v1/imports` with the dashboard JSO
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
 Home's **Import a dashboard** tab starts the web page: paste the JSON or choose a file there and Home opens the page with it; see [Home](home.md).
 
+An Admin can also paste a dashboard link instead of the JSON, such as `https://grafana.example.com/d/abc123/checkout?orgId=1`, when that Grafana has a [connection](switch-from-grafana.md#connect) in Settings.
+`POST /api/v1/grafana/link` takes the link as `url`, fetches the dashboard with the connection's token and returns it as `json`, which `POST /api/v1/imports/preview` and `POST /api/v1/imports` take as they are.
+It is only for Admins, because the token is an Admin's credential and could read every dashboard it is allowed to; everyone else pastes the JSON.
+The link must be a `/d/<uid>` or `/d-solo/<uid>` link under the connection's address, and the server fetches only from the hosts of stored connections.
+A link with no matching connection answers `404 no_connection`, a Grafana page that is not a dashboard `422 not_a_dashboard_link`, a dashboard the token cannot read `404 dashboard_not_found`, and a Grafana that fails or refuses the token `502 grafana_unavailable`.
+
 To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
 
 ## Match datasources

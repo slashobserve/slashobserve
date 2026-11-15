@@ -82,6 +82,7 @@ var exceptions = map[string]exception{
 	"getGrafanaImport":        {MCP: notBuilt},
 	"cancelGrafanaImport":     {MCP: notBuilt, CLI: notBuilt},
 	"resolveGrafanaUID":       {MCP: notBuilt},
+	"fetchGrafanaLink":        {MCP: notBuilt, CLI: notBuilt},
 
 	"listMyGrants":      {MCP: connectedAgents, CLI: connectedAgents},
 	"updateMyGrant":     {MCP: connectedAgents, CLI: connectedAgents},

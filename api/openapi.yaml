@@ -250,6 +250,8 @@ paths:
     $ref: "./paths/grafana.yaml#/grafana-id-imports-syncid-cancel"
   /grafana/resolve/{uid}:
     $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
+  /grafana/link:
+    $ref: "./paths/grafana.yaml#/grafana-link"
   /webhooks:
     $ref: "./paths/webhooks.yaml#/webhooks-list"
   /webhooks/{id}:
@@ -5357,6 +5359,31 @@ components:
         url:
           type: string
           description: The web app path of the dashboard.
+    FetchGrafanaLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: A link to a Grafana dashboard on the address of a stored connection, such as `https://grafana.example.com/d/<uid>/<slug>?orgId=1`.
+    GrafanaLinkedDashboard:
+      type: object
+      additionalProperties: false
+      required: [connection_id, uid, title, json]
+      properties:
+        connection_id:
+          type: string
+          format: uuid
+        uid:
+          type: string
+        title:
+          type: string
+        json:
+          type: string
+          description: The dashboard as Grafana returned it, a JSON document in a string that `POST /imports` takes as its `json`.
     PublicLinkSelections:
       type: object
       description: Variable selections by variable name; `$__all` selects All.
