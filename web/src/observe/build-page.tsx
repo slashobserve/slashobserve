@@ -18,6 +18,8 @@ import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
 import { createSharedCursor } from "@/panels/shared-cursor"
+import { CommandPalette } from "@/shell/command-palette"
+import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
@@ -239,9 +241,10 @@ export function BuildPage({ requestId }: { requestId: string }) {
       </main>
     )
 
+  const heading = knownTitle ?? (dashboardId === null ? "New dashboard" : title)
   const topRow = (
     <DashboardTopRow
-      title={knownTitle ?? (dashboardId === null ? "New dashboard" : title)}
+      title={heading}
       madeBy={null}
       versionControl={null}
       controls={[]}
@@ -252,12 +255,16 @@ export function BuildPage({ requestId }: { requestId: string }) {
   return (
     <div className="flex min-h-svh bg-chrome">
       <Sidebar rail />
-      <div className={cn(pageClass(stacked), "min-w-0 flex-1")}>
-        <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-          {topRow}
-          {body}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <PhoneBar title={heading} />
+        <CommandPalette />
+        <div className={cn(pageClass(stacked), "min-w-0 narrow:flex-1")}>
+          <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+            {topRow}
+            {body}
+          </div>
+          <ChatPane requestId={requestId} />
         </div>
-        <ChatPane requestId={requestId} />
       </div>
     </div>
   )

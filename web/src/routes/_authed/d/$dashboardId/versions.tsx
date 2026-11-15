@@ -14,6 +14,8 @@ import { useKnownLatestVersion } from "@/history/use-version-history"
 import { VersionDiff } from "@/history/version-diff"
 import { VersionList } from "@/history/version-list"
 import { dashboardLink } from "@/lib/links"
+import { CommandPalette } from "@/shell/command-palette"
+import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 
 type FocusRequest = { from: number; to: number }
@@ -100,6 +102,8 @@ function HistoryRoute() {
     <div className="flex min-h-svh bg-chrome">
       <Sidebar rail />
       <div className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
+        <PhoneBar title={title ? `Versions of ${title}` : "Versions"} />
+        <CommandPalette />
         <header className="flex items-start gap-x-6 border-b px-6 py-2.5">
           <div className="flex min-h-[30px] min-w-0 flex-row items-center gap-2.5 narrow:flex-col narrow:items-start narrow:gap-1">
             <Link
