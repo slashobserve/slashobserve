@@ -233,6 +233,94 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 	return items, nil
 }
 
+const listWorkingRuns = `-- name: ListWorkingRuns :many
+SELECT r.id, r.source, r.title, r.prompt, r.state, r.created_at, r.started_at,
+       r.assigned_kind, r.assigned_id,
+       r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+       d.id AS visible_dashboard_id, d.title AS dashboard_title,
+       o.id AS visible_observation_id, o.title AS observation_title
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+WHERE r.state IN ('queued', 'running', 'canceling')
+  AND r.source <> 'suggest' AND r.archived_at IS NULL
+  AND (
+    (r.requested_by_kind = $2 AND r.requested_by_id = $3)
+    OR (d.id IS NOT NULL AND d.created_by_kind = $2 AND d.created_by_id = $3)
+    OR (o.id IS NOT NULL AND o.created_by_kind = $2 AND o.created_by_id = $3)
+  )
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $4
+`
+
+type ListWorkingRunsParams struct {
+	Folders    []pgtype.UUID
+	CallerKind string
+	CallerID   pgtype.UUID
+	RowLimit   int32
+}
+
+type ListWorkingRunsRow struct {
+	ID                   pgtype.UUID
+	Source               string
+	Title                pgtype.Text
+	Prompt               string
+	State                string
+	CreatedAt            pgtype.Timestamptz
+	StartedAt            pgtype.Timestamptz
+	AssignedKind         string
+	AssignedID           pgtype.UUID
+	RequestedByKind      string
+	RequestedByID        pgtype.UUID
+	RequestedByName      string
+	VisibleDashboardID   pgtype.UUID
+	DashboardTitle       pgtype.Text
+	VisibleObservationID pgtype.UUID
+	ObservationTitle     pgtype.Text
+}
+
+func (q *Queries) ListWorkingRuns(ctx context.Context, arg ListWorkingRunsParams) ([]ListWorkingRunsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkingRuns,
+		arg.Folders,
+		arg.CallerKind,
+		arg.CallerID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkingRunsRow
+	for rows.Next() {
+		var i ListWorkingRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.Title,
+			&i.Prompt,
+			&i.State,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.AssignedKind,
+			&i.AssignedID,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
+			&i.VisibleDashboardID,
+			&i.DashboardTitle,
+			&i.VisibleObservationID,
+			&i.ObservationTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const runTakingServiceAccounts = `-- name: RunTakingServiceAccounts :many
 SELECT s.id, s.name,
        w.seen_at AS worker_seen_at,

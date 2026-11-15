@@ -101,3 +101,48 @@ agent-runs:
               $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+agents-working:
+  get:
+    operationId: listWorkingRuns
+    summary: List the active runs working on the caller's things.
+    description: >-
+      Lists the runs that are queued, running or canceling and that the caller requested, or that act on a dashboard or observation the caller created, newest first.
+      A dashboard or observation counts only while it is in a folder the caller can see, and comes back as null otherwise, never with its id or title.
+      An Admin gets no wider view: the list is about the caller's own runs and things.
+      Suggestion runs and archived runs are left out.
+      `mine` is true when the caller requested the run.
+      `title` is the requester's title or the start of the prompt for a run the caller requested, and null for a run someone else requested, because a request is private to its author.
+      `agent` names who works on it: `Observe Agent` for the built-in agent, the client name of a connected agent or the name of a service account.
+      There is no cursor: `limit` caps the list and `truncated` is true when more active runs exist.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+    responses:
+      "200":
+        description: The active runs.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WorkingRuns"
+      "400":
+        description: The limit is not valid (`invalid_request`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

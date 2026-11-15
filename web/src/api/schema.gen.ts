@@ -3297,6 +3297,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/working": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active runs working on the caller's things.
+         * @description Lists the runs that are queued, running or canceling and that the caller requested, or that act on a dashboard or observation the caller created, newest first. A dashboard or observation counts only while it is in a folder the caller can see, and comes back as null otherwise, never with its id or title. An Admin gets no wider view: the list is about the caller's own runs and things. Suggestion runs and archived runs are left out. `mine` is true when the caller requested the run. `title` is the requester's title or the start of the prompt for a run the caller requested, and null for a run someone else requested, because a request is private to its author. `agent` names who works on it: `Observe Agent` for the built-in agent, the client name of a connected agent or the name of a service account. There is no cursor: `limit` caps the list and `truncated` is true when more active runs exist. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         */
+        get: operations["listWorkingRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/inbox": {
         parameters: {
             query?: never;
@@ -3606,6 +3626,47 @@ export interface components {
             scope: "workspace" | "you";
             items: components["schemas"]["AgentRun"][];
             next_cursor: string | null;
+        };
+        WorkingRuns: {
+            items: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                source: "comment" | "prompt" | "observe" | "investigate";
+                /** @enum {string} */
+                state: "queued" | "running" | "canceling";
+                /** Format: date-time */
+                created_at: string;
+                /** Format: date-time */
+                started_at: string | null;
+                /** @description True when the caller requested the run. */
+                mine: boolean;
+                /** @description Null unless the caller requested the run. */
+                title: string | null;
+                agent: {
+                    /** @enum {string} */
+                    kind: "builtin" | "grant" | "service_account";
+                    name: string;
+                };
+                requested_by: {
+                    kind: string;
+                    name: string;
+                };
+                /** @description Null when the run has no dashboard or the caller cannot see its folder. */
+                dashboard: {
+                    /** Format: uuid */
+                    id: string;
+                    title: string;
+                } | null;
+                /** @description Null when the run has no observation or the caller cannot see its folder. */
+                observation: {
+                    /** Format: uuid */
+                    id: string;
+                    title: string;
+                } | null;
+            }[];
+            /** @description True when more active runs exist than `limit`. */
+            truncated: boolean;
         };
         AgentsOverview: {
             observe_agent: {
@@ -14660,6 +14721,48 @@ export interface operations {
             };
             /** @description The grant is not the caller's or the service account does not exist (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listWorkingRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The active runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingRuns"];
+                };
+            };
+            /** @description The limit is not valid (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
