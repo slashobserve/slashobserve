@@ -77,7 +77,9 @@ function setup({
   names = ["log.level", "message", "http.response.status_code"],
   facets = esFacets,
   effectiveQuery = search.q,
+  openLine = false,
 }: {
+  openLine?: boolean
   type?: string
   search?: LogsSearch
   effectiveQuery?: string
@@ -101,6 +103,7 @@ function setup({
     range,
     run,
     setDraft,
+    detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
   queryClient.setQueryData(datasourceKeys.labels("ds", range), {
@@ -275,5 +278,15 @@ describe("FieldsAside", () => {
     expect(
       screen.getByRole("complementary", { name: "Fields, hidden" })
     ).toBeVisible()
+  })
+
+  it("folds while a line is open without forgetting the stored choice", async () => {
+    const { user } = setup({ openLine: true })
+    expect(
+      screen.getByRole("complementary", { name: "Fields, hidden" })
+    ).toBeVisible()
+    expect(localStorage.getItem("slashobserve-logs-facets-open")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Show fields" }))
+    expect(screen.getByRole("complementary", { name: "Fields" })).toBeVisible()
   })
 })

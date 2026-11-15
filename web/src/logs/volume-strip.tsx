@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { zonedDateTime } from "@/lib/time"
+import { timeTicks } from "@/lib/time-ticks"
 import { cn } from "@/lib/utils"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
 
@@ -48,7 +49,11 @@ const kindClasses: Record<LogLevelKind, string> = {
 }
 
 const chipClasses =
-  "text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+  "border-transparent bg-transparent text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+
+const cardClasses = "flex flex-col gap-2 rounded-card border bg-card px-4 py-3"
+
+const tickCount = 6
 
 function count(value: number): string {
   return value.toLocaleString("en")
@@ -78,8 +83,8 @@ export function VolumeStrip({
   const volume = useQuery(logVolumeQuery(uid, { query, from, to }))
   if (volume.isError) {
     return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-3 text-xs leading-4 text-muted-foreground">
+      <div className={cardClasses}>
+        <div className="flex h-7 items-center justify-between gap-3 text-xs leading-4 text-muted-foreground">
           <p>Counts arrive with the volume</p>
           <div
             role="group"
@@ -139,7 +144,7 @@ export function VolumeStrip({
     )
   }
   if (volume.data === undefined) {
-    return <Skeleton aria-hidden="true" className="h-12 rounded-control" />
+    return <Skeleton aria-hidden="true" className="h-[132px] rounded-card" />
   }
   return (
     <VolumeBars
@@ -286,10 +291,37 @@ function VolumeBars({
   const ratio = hover === null ? 0 : (hover + 0.5) / bucketCount
   const label = volumeLabel(total, totals)
 
+  const ticks = timeTicks(
+    buckets.map((bucket) => Date.parse(bucket.start)),
+    tickCount,
+    undefined
+  )
+
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-3 text-xs leading-4 text-muted-foreground">
-        <p>{volumeCaption(total, from, to)}</p>
+    <div className={cardClasses}>
+      <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <p>{volumeCaption(total, from, to)}</p>
+          {selection === null ? null : (
+            <>
+              <p className="text-[13px] text-foreground tabular-nums">
+                {selectionText(volume, selection.from, selection.to, undefined)}
+              </p>
+              <Button type="button" variant="outline" size="xs" onClick={zoom}>
+                Zoom to selection
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-label="Clear the selection"
+                onClick={() => setSelection(null)}
+              >
+                Clear
+              </Button>
+            </>
+          )}
+        </div>
         <div
           role="group"
           aria-label="Levels"
@@ -415,25 +447,20 @@ function VolumeBars({
             : `${zonedDateTime(hovered.start, undefined)}, ${volumeBucketText(hovered)}`}
         </p>
       </div>
-      {selection === null ? null : (
-        <div className="flex h-7 items-center gap-2 text-[13px]">
-          <p className="tabular-nums">
-            {selectionText(volume, selection.from, selection.to, undefined)}
-          </p>
-          <Button type="button" size="xs" onClick={zoom}>
-            Zoom to selection
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            aria-label="Clear the selection"
-            onClick={() => setSelection(null)}
+      <div
+        aria-hidden="true"
+        className="relative h-4 text-[11px] text-muted-foreground tabular-nums"
+      >
+        {ticks.map((tick) => (
+          <span
+            key={tick.index}
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: `${(tick.index / bucketCount) * 100}%` }}
           >
-            Clear
-          </Button>
-        </div>
-      )}
+            {tick.label}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }

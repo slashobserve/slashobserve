@@ -55,7 +55,7 @@ function renderSection(value: LogsWorkspace) {
   }
   return renderWithProviders(
     <LogsWorkspaceContext value={value}>
-      <ResultsSection />
+      <ResultsSection actions={null} />
     </LogsWorkspaceContext>,
     { queryClient }
   )

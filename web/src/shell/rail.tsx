@@ -17,7 +17,7 @@ import {
 
 import { Mark } from "@/components/brand/mark"
 import { SourceFlyoutItems } from "@/datasources/source-menu"
-import { useExploreSources, useNavTarget } from "@/datasources/use-sources"
+import { useExploreSources } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
@@ -67,11 +67,10 @@ function RailLink({
   badge: RailBadge
 }) {
   const Icon = navIcons[item.to]
-  const target = useNavTarget(item.to)
   return (
     <RailTip label={item.label} hint={badge.hint}>
       <Link
-        {...target}
+        to={item.to}
         aria-label={badge.ariaLabel}
         aria-current={active ? "page" : undefined}
         className={railItemClass}

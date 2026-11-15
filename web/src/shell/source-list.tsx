@@ -1,9 +1,6 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { SourceFlyoutItems, SourceLink } from "@/datasources/source-menu"
+import { Link } from "@tanstack/react-router"
+
+import { SourceLink } from "@/datasources/source-menu"
 import type { DatasourceStatus } from "@/datasources/queries"
 import type { ExploreKind } from "@/datasources/sources"
 import { cn } from "@/lib/utils"
@@ -41,26 +38,14 @@ export function SourceList({
       ))}
       {more ? (
         <li>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label={`More ${word} sources`}
-                  className={cn(subNavMoreClass, "w-full")}
-                />
-              }
-            >
-              More
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="right"
-              align="start"
-              className="w-[248px] rounded-card p-1"
-            >
-              <SourceFlyoutItems kind={kind} />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Link
+            to={kind === "logs" ? "/logs" : "/traces"}
+            onClick={onNavigate}
+            aria-label={`More ${word} sources`}
+            className={subNavMoreClass}
+          >
+            More
+          </Link>
         </li>
       ) : null}
     </SubNavList>
