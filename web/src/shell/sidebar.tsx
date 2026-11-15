@@ -19,6 +19,7 @@ import { Wordmark } from "@/components/brand/wordmark"
 import { sourceRows } from "@/datasources/sources"
 import { useListedSources } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
+import { modChordLabel } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
   PinnedDashboards,
@@ -43,6 +44,7 @@ import {
 } from "./open-observations"
 import { PaletteButton } from "./palette-button"
 import { navIcons, RailContent } from "./rail"
+import { sidebarChordKey, sidebarKeyShortcuts } from "./sidebar-shortcut"
 import { useSidebarStore } from "./sidebar-store"
 import { SourceList } from "./source-list"
 import {
@@ -233,7 +235,8 @@ function CollapseButton() {
     <button
       type="button"
       aria-label="Collapse sidebar"
-      title="Collapse sidebar"
+      title={`Collapse sidebar  ${modChordLabel(navigator.userAgent, sidebarChordKey)}`}
+      aria-keyshortcuts={sidebarKeyShortcuts}
       aria-expanded={true}
       aria-controls="app-sidebar"
       onClick={() => setCollapsed(true)}

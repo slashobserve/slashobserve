@@ -190,8 +190,11 @@ Open observations are listed indented under **Observations** the same way.
 On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
+`⌘\` or `Ctrl+\` does the same as these buttons on every page that shows the sidebar, including while you type in a field, and does nothing on a phone.
+
 Hovering or focusing an icon on the rail shows its name.
-On the rail, Inbox shows its unread count, Observations shows a green dot while any observation is open, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs and Traces open a menu with a link to their list and the sources.
+On the rail, Inbox shows its unread count, Observations shows a teal dot while one of your open observations has something unread, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs and Traces open a menu with a link to their list and the sources.
+A pinned dashboard, in the sidebar and in the Dashboards menu, shows its problem count from the last health check, such as "1 problem", and nothing while it has none.
 
 ## Search
 

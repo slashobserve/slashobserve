@@ -21,6 +21,7 @@ Press `?` on a dashboard to see them all in the app.
 | `?` | Show the keyboard shortcuts. |
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
+| `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
 
 ## Which panel a key acts on
 

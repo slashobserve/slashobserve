@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react"
+import { useRef, type ReactNode } from "react"
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router"
 import {
   BotIcon,
@@ -32,10 +32,14 @@ import {
   type NavItem,
   type NavPath,
 } from "./nav"
-import { useOpenObservationsPage } from "./open-observations"
+import {
+  useOpenObservationsPage,
+  useUnreadOpenCount,
+} from "./open-observations"
 import { PaletteButton } from "./palette-button"
 import { RailFlyout, RailTip, railItemClass } from "./rail-flyout"
 import { SidebarSheet } from "./sidebar-sheet"
+import { sidebarChordKey, sidebarKeyShortcuts } from "./sidebar-shortcut"
 import { useSidebarStore } from "./sidebar-store"
 
 export const navIcons: Record<NavPath, LucideIcon> = {
@@ -86,6 +90,8 @@ function useRailBadges(): Partial<Record<NavPath, RailBadge>> {
   const unread = unreadBadge(useInboxCount())
   const open = useOpenObservationsPage()
   const openCount = countLabel(open.observations.length, open.more)
+  const unreadOpen = useUnreadOpenCount(open.observations)
+  const unreadNote = unreadOpen > 0 ? `, ${unreadOpen} unread` : ""
   return {
     "/inbox":
       unread === null
@@ -104,22 +110,25 @@ function useRailBadges(): Partial<Record<NavPath, RailBadge>> {
       openCount === null
         ? undefined
         : {
-            hint: `${openCount} open`,
-            ariaLabel: `Observations, ${openCount} open`,
-            decoration: (
-              <span
-                aria-hidden="true"
-                className="absolute top-1.5 right-1.5 size-2 rounded-full border-2 border-chrome bg-status-ok"
-              />
-            ),
+            hint: `${openCount} open${unreadNote}`,
+            ariaLabel: `Observations, ${openCount} open${unreadNote}`,
+            decoration:
+              unreadOpen > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1.5 right-1.5 size-2 rounded-full border-2 border-chrome bg-primary"
+                />
+              ) : null,
           },
   }
 }
 
 function ExpandButton({ forced }: { forced: boolean }) {
   const setCollapsed = useSidebarStore((state) => state.setCollapsed)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const sheetOpen = useSidebarStore((state) => state.sheetOpen)
+  const setSheetOpen = useSidebarStore((state) => state.setSheetOpen)
   const expandRef = useRef<HTMLButtonElement>(null)
+  const expandHint = modChordLabel(navigator.userAgent, sidebarChordKey)
   const icon = (
     <PanelLeftOpenIcon
       aria-hidden="true"
@@ -130,10 +139,11 @@ function ExpandButton({ forced }: { forced: boolean }) {
 
   if (!forced) {
     return (
-      <RailTip label="Expand sidebar">
+      <RailTip label="Expand sidebar" hint={expandHint}>
         <button
           type="button"
           aria-label="Expand sidebar"
+          aria-keyshortcuts={sidebarKeyShortcuts}
           aria-expanded={false}
           aria-controls="app-sidebar"
           onClick={() => setCollapsed(false)}
@@ -146,11 +156,12 @@ function ExpandButton({ forced }: { forced: boolean }) {
   }
   return (
     <>
-      <RailTip label="Expand sidebar">
+      <RailTip label="Expand sidebar" hint={expandHint}>
         <button
           ref={expandRef}
           type="button"
           aria-label="Expand sidebar"
+          aria-keyshortcuts={sidebarKeyShortcuts}
           aria-haspopup="dialog"
           aria-expanded={sheetOpen}
           onClick={() => setSheetOpen(true)}

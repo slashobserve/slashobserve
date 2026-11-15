@@ -1,16 +1,50 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Outlet } from "@tanstack/react-router"
+
+import { isModChord } from "@/lib/shortcuts"
 
 import { CommandPalette } from "./command-palette"
 import { HideCrumbContext } from "./crumbs"
 import { PhoneBar } from "./phone-bar"
 import { Sidebar } from "./sidebar"
 import { PanelHostContext } from "./side-panel"
+import { sidebarChordKey, sidebarShortcut } from "./sidebar-shortcut"
+import { useSidebarStore } from "./sidebar-store"
 import { TopRow } from "./top-row"
 import { ActionsHostContext } from "./top-row-actions"
 import { TitleHostContext } from "./top-row-title"
+import { useFoldedByWidth } from "./use-folded"
+
+const phoneQuery = "(max-width: 899px)"
+
+function useSidebarShortcut() {
+  const forced = useFoldedByWidth()
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!isModChord(event, sidebarChordKey)) return
+      event.preventDefault()
+      const { collapsed, sheetOpen, setCollapsed, setSheetOpen } =
+        useSidebarStore.getState()
+      const action = sidebarShortcut({
+        phone: window.matchMedia(phoneQuery).matches,
+        forced,
+        collapsed,
+        sheetOpen,
+      })
+      if (action === "collapse") setCollapsed(true)
+      else if (action === "expand") setCollapsed(false)
+      else if (action === "open-sheet") setSheetOpen(true)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [forced])
+  useEffect(() => {
+    if (!forced) useSidebarStore.getState().setSheetOpen(false)
+  }, [forced])
+}
 
 export function AppShell() {
+  useSidebarShortcut()
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   const [titleHost, setTitleHost] = useState<HTMLSpanElement | null>(null)
