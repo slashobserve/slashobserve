@@ -341,6 +341,7 @@ A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in 
 
 The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
 The view fills the window, and the waterfall scrolls inside it.
+Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 
 - **Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
 - **Critical path** outlines the spans on the longest chain, the ones that add up to the trace's duration, and dims the rest; the line under the waterfall says how many spans are on it.
@@ -398,11 +399,14 @@ As for logs, the order is set when the app loads and stays fixed until you reloa
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
 `/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
-The time range, **Saved searches** and **Save search** sit in the top bar, and on a phone **Save search** and **Saved searches** are under **More actions**.
+The time range, **Live**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
+**Live** runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live** to end it.
+It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
+On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
-On Tempo you can also write TraceQL, which replaces the fields.
+On Tempo you can also write TraceQL, which replaces the fields, and the link under the TraceQL field opens the TraceQL reference.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 
 ### Results

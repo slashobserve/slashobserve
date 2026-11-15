@@ -11,8 +11,11 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   BookmarkIcon,
   FolderSearchIcon,
+  LinkIcon,
   MoreHorizontalIcon,
+  RadioIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { AskField } from "@/ask/ask-field"
 import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
@@ -20,6 +23,7 @@ import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
 import { AgentMark } from "@/components/agent-mark"
+import { CopyButton } from "@/components/copy-button"
 import { PageBar } from "@/components/page-bar"
 import { LoadProblem } from "@/components/load-problem"
 import { StatusLabel } from "@/components/status-label"
@@ -80,6 +84,7 @@ import {
   traceSearchParamsWithCursor,
   traceStatsFilter,
 } from "./search-query"
+import { isRelativeRange, liveBlockedText, liveRefreshMs } from "./live-refresh"
 import { traceFilterChips } from "./trace-filters"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
@@ -141,7 +146,9 @@ export function TracesPage({ uid }: { uid: string }) {
   }, [rememberedUid])
   const range = tracesTimeRange(search)
   const [saving, setSaving] = useState(false)
+  const [live, setLive] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
+  if (live && !isRelativeRange(range)) setLive(false)
 
   if (isPending) {
     return (
@@ -199,6 +206,8 @@ export function TracesPage({ uid }: { uid: string }) {
       <TraceSearchActions
         range={range}
         onRangeChange={update}
+        live={live}
+        onLiveChange={setLive}
         saveTrigger={saveTrigger}
         onSave={() => setSaving(true)}
       />
@@ -218,9 +227,19 @@ export function TracesPage({ uid }: { uid: string }) {
         datasource={datasource}
         search={search}
         update={update}
+        live={live}
       />
     </div>
   )
+}
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    toast.success("Link copied")
+  } catch {
+    toast.error("Could not copy. Select the text and press Ctrl+C or Cmd+C.")
+  }
 }
 
 function SavedSearchItems() {
@@ -253,21 +272,38 @@ function SavedSearchItems() {
 function TraceSearchActions({
   range,
   onRangeChange,
+  live,
+  onLiveChange,
   saveTrigger,
   onSave,
 }: {
   range: { from: string; to: string }
   onRangeChange: UpdateSearch
+  live: boolean
+  onLiveChange: (next: boolean) => void
   saveTrigger: RefObject<HTMLButtonElement | null>
   onSave: () => void
 }) {
   const phone = usePhone()
+  const relative = isRelativeRange(range)
   return (
     <TopRowActions>
       <div className="flex items-center gap-2">
         <span className={cn("contents", phone && "[&_button]:h-11")}>
           <TimeRangeControl value={range} onChange={onRangeChange} />
         </span>
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={live}
+          disabled={!relative}
+          title={relative ? undefined : liveBlockedText}
+          className={cn(phone && "h-11")}
+          onClick={() => onLiveChange(!live)}
+        >
+          <RadioIcon aria-hidden="true" />
+          {live ? "Stop live" : "Live"}
+        </Button>
         {phone ? (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -297,6 +333,13 @@ function TraceSearchActions({
                   <SavedSearchItems />
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              <DropdownMenuItem
+                className="min-h-11"
+                onClick={() => void copyLink()}
+              >
+                <LinkIcon aria-hidden="true" />
+                Copy link
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
@@ -312,6 +355,12 @@ function TraceSearchActions({
               <BookmarkIcon aria-hidden="true" />
               <span className="@max-[780px]/top:sr-only">Save search</span>
             </Button>
+            <CopyButton
+              text={window.location.href}
+              label="Copy link"
+              variant="ghost"
+              size="icon"
+            />
           </>
         )}
       </div>
@@ -334,10 +383,12 @@ function TraceSearchWorkspace({
   datasource,
   search,
   update,
+  live,
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
   update: UpdateSearch
+  live: boolean
 }) {
   const formId = useId()
   const uid = datasource.uid
@@ -563,7 +614,12 @@ function TraceSearchWorkspace({
           </div>
         ) : null}
       </section>
-      <TraceResults datasource={datasource} search={search} update={update} />
+      <TraceResults
+        datasource={datasource}
+        search={search}
+        update={update}
+        live={live}
+      />
     </>
   )
 }
@@ -584,12 +640,18 @@ function TraceResults({
   datasource,
   search,
   update,
+  live,
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
   update: UpdateSearch
+  live: boolean
 }) {
   const range = tracesTimeRange(search)
+  const polling = {
+    refetchInterval: liveRefreshMs(live, range),
+    refetchIntervalInBackground: false,
+  }
   const byOffset = pagesByOffset(datasource.type)
   const pageSize: PageSize = search.size ?? defaultPageSize
   const base = traceSearchParams(datasource.type, {
@@ -610,13 +672,17 @@ function TraceResults({
     { ...base, page },
     byOffset ? undefined : cursors.cursorFor(page)
   )
-  const results = useQuery(exploreQuery(datasource.uid, params))
-  const stats = useQuery(
-    traceStatsQuery(datasource.uid, {
+  const results = useQuery({
+    ...exploreQuery(datasource.uid, params),
+    ...polling,
+  })
+  const stats = useQuery({
+    ...traceStatsQuery(datasource.uid, {
       query: traceStatsFilter(datasource.type, search),
       ...range,
-    })
-  )
+    }),
+    ...polling,
+  })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
   const fresh =

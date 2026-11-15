@@ -62,11 +62,10 @@ import {
   type SpanAttribute,
 } from "./trace-model"
 
-const rowHeight = 30
+const rowHeight = 32
 const windowAfter = 200
 const overscan = 10
 const indentStep = 12
-const wideNameColumn = 600
 const ErrorIcon = thresholdIcons.critical
 
 export type TraceSearchLink = { uid: string; q: string }
@@ -189,15 +188,10 @@ const tickClass: Record<TickAnchor, string> = {
   end: "right-0",
 }
 
-function nameColumns(width: number): string {
-  return width < wideNameColumn
-    ? "grid-cols-[minmax(12rem,40%)_minmax(0,1fr)]"
-    : "grid-cols-[300px_minmax(0,1fr)]"
-}
+const spanColumns = "grid-cols-[min(288px,40%)_minmax(0,1fr)_60px]"
 
 function SpanRow({
   span,
-  columns,
   collapsed,
   open,
   matched,
@@ -212,7 +206,6 @@ function SpanRow({
   onOpen,
 }: {
   span: Span
-  columns: string
   collapsed: boolean
   open: boolean
   matched: boolean | null
@@ -234,8 +227,8 @@ function SpanRow({
   return (
     <div
       className={cn(
-        "grid min-h-[30px] items-center text-xs",
-        columns,
+        "grid items-center text-xs",
+        spanColumns,
         open && "bg-selection",
         (dim || onPath === false) && "opacity-[.42]"
       )}
@@ -295,9 +288,6 @@ function SpanRow({
               Error
             </span>
           ) : null}
-          <span className="shrink-0 text-muted-foreground tabular-nums">
-            {formatDuration(span.duration)}
-          </span>
         </button>
       </div>
       <div className="h-full min-w-0 px-2" onClick={onOpen}>
@@ -306,7 +296,7 @@ function SpanRow({
             <div
               aria-hidden="true"
               className={cn(
-                "absolute top-[9px] h-3 rounded-[2px]",
+                "absolute top-[10px] h-3 rounded-[2px]",
                 span.error && "bg-status-critical",
                 matched === false && "opacity-30",
                 onPath &&
@@ -326,11 +316,17 @@ function SpanRow({
             <span
               key={index}
               aria-hidden="true"
-              className="absolute top-3 size-1.5 -translate-x-1/2 rounded-full bg-foreground"
+              className="absolute top-[13px] size-1.5 -translate-x-1/2 rounded-full bg-foreground"
               style={{ left: `${at * 100}%` }}
             />
           ))}
         </div>
+      </div>
+      <div
+        className="pr-2 text-right text-muted-foreground tabular-nums"
+        onClick={onOpen}
+      >
+        {formatDuration(span.duration)}
       </div>
     </div>
   )
@@ -341,7 +337,6 @@ const foldHatch =
 
 function FoldRow({
   group,
-  columns,
   open,
   matched,
   needle,
@@ -352,7 +347,6 @@ function FoldRow({
   onToggle,
 }: {
   group: FoldGroup
-  columns: string
   open: boolean
   matched: boolean | null
   needle: string
@@ -370,8 +364,8 @@ function FoldRow({
   return (
     <div
       className={cn(
-        "grid min-h-[30px] items-center text-xs",
-        columns,
+        "grid items-center text-xs",
+        spanColumns,
         (dim || onPath === false) && "opacity-[.42]"
       )}
       style={{ height: rowHeight - 1 }}
@@ -422,7 +416,7 @@ function FoldRow({
               <div
                 aria-hidden="true"
                 className={cn(
-                  "absolute top-[9px] h-3 rounded-[2px]",
+                  "absolute top-[10px] h-3 rounded-[2px]",
                   foldHatch,
                   matched === false && "opacity-30",
                   onPath &&
@@ -443,7 +437,7 @@ function FoldRow({
               </div>
               <span
                 aria-hidden="true"
-                className="absolute top-[6px] max-w-full truncate rounded-[2px] bg-background/80 px-1 leading-4 text-muted-foreground tabular-nums"
+                className="absolute top-[7px] max-w-full truncate rounded-[2px] bg-background/80 px-1 leading-4 text-muted-foreground tabular-nums"
                 style={{
                   left: `min(${bar.offset * 100}%, calc(100% - 12rem))`,
                 }}
@@ -461,17 +455,15 @@ function FoldRow({
 function MoreRow({
   group,
   shown,
-  columns,
   onMore,
 }: {
   group: FoldGroup
   shown: number
-  columns: string
   onMore: () => void
 }) {
   return (
     <div
-      className={cn("grid items-center text-xs", columns)}
+      className={cn("grid items-center text-xs", spanColumns)}
       style={{ height: rowHeight - 1 }}
     >
       <div
@@ -930,7 +922,6 @@ export function TraceView(props: TraceViewProps) {
       })
     : { start: 0, end: rows.length, before: 0, after: 0 }
   const detailRendered = openIndex >= range.start && openIndex < range.end
-  const columns = nameColumns(width)
   const matchedIds = props.highlighted ?? filtered.matched
   const needle = props.highlighted ? filters.search : ""
   const ruler = useZoomDrag(zoom, props.onZoom)
@@ -1109,7 +1100,7 @@ export function TraceView(props: TraceViewProps) {
           <div
             className={cn(
               "sticky top-0 z-10 grid border-b border-border bg-background text-xs text-muted-foreground",
-              columns
+              spanColumns
             )}
           >
             <span className="px-2 py-1">Service and operation</span>
@@ -1174,7 +1165,6 @@ export function TraceView(props: TraceViewProps) {
                   >
                     <FoldRow
                       group={group}
-                      columns={columns}
                       open={isOpen}
                       matched={
                         matchedIds === null
@@ -1219,7 +1209,6 @@ export function TraceView(props: TraceViewProps) {
                     <MoreRow
                       group={group}
                       shown={row.shown}
-                      columns={columns}
                       onMore={() => showFold(group, row.shown + foldPage)}
                     />
                   </li>
@@ -1242,7 +1231,6 @@ export function TraceView(props: TraceViewProps) {
                 >
                   <SpanRow
                     span={span}
-                    columns={columns}
                     collapsed={collapsed.has(span.id)}
                     open={isOpen}
                     matched={
