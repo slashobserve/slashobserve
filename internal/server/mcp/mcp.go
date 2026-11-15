@@ -143,6 +143,7 @@ func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 		mcpserver.WithStateLess(true),
 		mcpserver.WithDisableStreaming(true),
 		mcpserver.WithDisableLocalhostProtection(true),
+		mcpserver.WithMaxRequestBodyBytes(maxBodyBytes),
 		mcpserver.WithStreamableHTTPLogger(h.logger),
 		mcpserver.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = origin.With(ctx, origin.From(r.Context()))
