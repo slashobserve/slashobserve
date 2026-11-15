@@ -98,7 +98,7 @@ func (r *rig) openWithRun(t *testing.T, by auth.Principal, in OpenInput) (Thread
 
 func (r *rig) replyWithRun(t *testing.T, by auth.Principal, thread, body string) (Message, *StartedRun, *RunRefusal) {
 	t.Helper()
-	_, message, run, refusal, err := r.mentions.Reply(t.Context(), by, mustParse(t, thread), body, true)
+	_, message, run, refusal, err := r.mentions.Reply(t.Context(), by, mustParse(t, thread), ReplyInput{Body: body}, true)
 	if err != nil {
 		t.Fatalf("reply to %s: %v", thread, err)
 	}
@@ -150,7 +150,7 @@ func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
 	if err != nil || run != nil || refusal != nil {
 		t.Fatalf("open = %v, %+v, %+v", err, run, refusal)
 	}
-	if _, _, run, refusal, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), "@observe again", false); err != nil || run != nil || refusal != nil {
+	if _, _, run, refusal, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe again"}, false); err != nil || run != nil || refusal != nil {
 		t.Fatalf("reply = %v, %+v, %+v", err, run, refusal)
 	}
 	if runs := r.queuedRuns(t); len(runs) != 0 {
@@ -244,7 +244,7 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 		}
 	}
 	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "first"})
-	_, _, _, _, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), bodies[0], true)
+	_, _, _, _, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: bodies[0]}, true)
 	var invalid *InvalidInputError
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
 		t.Fatalf("reply: err = %v, want too_many_agents", err)
@@ -569,7 +569,7 @@ func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t 
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
 
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), "@observe and the week before?", true, WithoutInvestigations())
+	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -609,7 +609,7 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 	if run == nil || refusal != nil || run.AssignedKind != "builtin" {
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), "@observe and the legend", true, WithoutInvestigations())
+	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}

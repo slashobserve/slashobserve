@@ -2486,7 +2486,7 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit]
+      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, block_id, reply_to]
       properties:
         id:
           type: string
@@ -2516,6 +2516,26 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The block of the observation this message is about; null for the whole observation, on every other target, and after the block was deleted.
+        reply_to:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, actor, excerpt]
+          description: The message this one answers; null when it quotes nothing or the quoted message was deleted.
+          properties:
+            id:
+              type: string
+              format: uuid
+            actor:
+              $ref: "#/components/schemas/Actor"
+            excerpt:
+              type: string
+              description: The first 200 characters of the quoted message's current text.
         run:
           type: object
           nullable: true
@@ -6344,7 +6364,7 @@ components:
               - $ref: "#/components/schemas/InvalidTransition"
     ThreadRefused:
       description: >-
-        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent).
+        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_block` (`block_id` is not a block of this observation, or the target is not an observation), `invalid_reply_to` (`reply_to_id` is not a message of this thread), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent).
       content:
         application/json:
           schema:

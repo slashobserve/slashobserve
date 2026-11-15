@@ -190,6 +190,9 @@ Each comment has its `version`, which is null off a dashboard, `edited_at` and i
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
 A comment id is the id of any message of the thread, and the first message's id is the thread's.
 
+On an observation, `create_comment` and `reply_to_comment` take `block_id`, the block the message is about from `get_observation`, and omit it for the whole observation; a block of another observation, or a `block_id` on any other target, answers `invalid_request`.
+`reply_to_comment` also takes `reply_to_id`, a message of the same thread that the reply answers, which the web app shows quoted.
+
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
 `create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.

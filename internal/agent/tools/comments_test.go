@@ -614,3 +614,40 @@ func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
 		t.Fatalf("%d runs queued, err %v", queued, err)
 	}
 }
+
+func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testing.T) {
+	r := newAccessRig(t)
+	finding := r.privateFinding(t, adminCaller)
+	target := "observation:" + finding.ObservationID
+	missing := "00000000-0000-4000-8000-000000000001"
+
+	refused := r.call(t, adminCaller, nameCreateComment, `{"target":"`+target+`","body":"here","block_id":"`+missing+`"}`)
+	if errorCode(t, refused) != codeInvalidRequest || refused.Content.(errorBody).Message != "block_id must be a block of this observation" {
+		t.Fatalf("create_comment with an unknown block = %s", textOf(t, refused))
+	}
+	opened := commentOutOf(t, r.call(t, adminCaller, nameCreateComment, `{"target":"`+target+`","body":"is it the cache?"}`))
+
+	refused = r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+opened.ID+`","body":"here","block_id":"`+missing+`"}`)
+	if errorCode(t, refused) != codeInvalidRequest || refused.Content.(errorBody).Message != "block_id must be a block of this observation" {
+		t.Fatalf("reply_to_comment with an unknown block = %s", textOf(t, refused))
+	}
+	refused = r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+opened.ID+`","body":"here","reply_to_id":"`+missing+`"}`)
+	if errorCode(t, refused) != codeInvalidRequest || refused.Content.(errorBody).Message != "reply_to_id must be a message in this thread" {
+		t.Fatalf("reply_to_comment with an unknown quoted message = %s", textOf(t, refused))
+	}
+
+	reply := commentOutOf(t, r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+opened.ID+`","body":"checked","reply_to_id":"`+opened.ID+`"}`))
+	parsed, err := threads.ParseTarget(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := r.threads.List(t.Context(), adminCaller, threads.ListQuery{Target: parsed, Status: threads.StatusAll, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range page.Messages {
+		if m.ID == reply.ID && (m.ReplyTo == nil || m.ReplyTo.ID != opened.ID || m.ReplyTo.Excerpt != "is it the cache?") {
+			t.Errorf("the reply quotes %+v", m.ReplyTo)
+		}
+	}
+}

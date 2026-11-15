@@ -55,7 +55,14 @@ type OpenInput struct {
 	Target  Target
 	Version *int
 	PanelID *string
+	BlockID *string
 	Body    string
+}
+
+type ReplyInput struct {
+	Body      string
+	BlockID   *string
+	ReplyToID *string
 }
 
 type ListQuery struct {
@@ -156,6 +163,10 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
+	refs, err := parseRefs(in.Target.Kind, in.BlockID, nil)
+	if err != nil {
+		return Thread{}, Message{}, err
+	}
 	author := actorOf(ctx, by)
 	var thread Thread
 	var message Message
@@ -167,7 +178,10 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return fmt.Errorf("create thread: %w", err)
 		}
-		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{id: threadRow.ID, threadID: threadRow.ID, body: body, createdAt: threadRow.CreatedAt})
+		if err := refs.lock(ctx, q, sc.target, threadRow.ID); err != nil {
+			return err
+		}
+		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{id: threadRow.ID, threadID: threadRow.ID, body: body, createdAt: threadRow.CreatedAt, refs: refs})
 		if err != nil {
 			return err
 		}
@@ -202,12 +216,16 @@ func (s *Service) existingObservationThread(ctx context.Context, observationID p
 	return &ObservationThreadExistsError{ThreadID: id}
 }
 
-func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, body string, hook MessageHook) (Thread, Message, error) {
+func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, in ReplyInput, hook MessageHook) (Thread, Message, error) {
 	row, sc, err := s.writableThread(ctx, by, id)
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
-	cleaned, mentions, err := checkBody(body)
+	cleaned, mentions, err := checkBody(in.Body)
+	if err != nil {
+		return Thread{}, Message{}, err
+	}
+	refs, err := parseRefs(sc.target.Kind, in.BlockID, in.ReplyToID)
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
@@ -222,7 +240,10 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if current, err = q.GetThreadForShare(ctx, row.ID); err != nil {
 			return threadLookup(err)
 		}
-		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{threadID: current.ID, body: cleaned})
+		if err := refs.lock(ctx, q, sc.target, current.ID); err != nil {
+			return err
+		}
+		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{threadID: current.ID, body: cleaned, refs: refs})
 		if err != nil {
 			return err
 		}
@@ -230,7 +251,12 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err != nil {
 			return err
 		}
+		quotes, err := quotesOf(ctx, q, []dbsqlc.ThreadMessage{messageRow})
+		if err != nil {
+			return err
+		}
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
+		message.ReplyTo = quotes[messageRow.ID]
 		if err := (emitter{scope: sc, thread: current, actor: author}).replied(ctx, q, messageRow, recorded); err != nil {
 			return err
 		}
@@ -295,8 +321,12 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, threadGone(err)
 	}
+	message, err := s.presentMessage(ctx, messageRow, recorded, by, sc.abilities.Comment)
+	if err != nil {
+		return Thread{}, Message{}, false, err
+	}
 	thread, err := s.present(ctx, row, sc.abilities.Comment)
-	return thread, messageOf(messageRow, recorded, by, sc.abilities.Comment), changed, err
+	return thread, message, changed, err
 }
 
 func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UUID, status string, resolvedByVersion *int) (Thread, bool, error) {
@@ -416,10 +446,16 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 		return Page{}, err
 	}
 	ids := make([]pgtype.UUID, len(rows))
+	messageRows := make([]dbsqlc.ThreadMessage, len(rows))
 	for i, r := range rows {
 		ids[i] = r.ThreadMessage.ID
+		messageRows[i] = r.ThreadMessage
 	}
 	mentions, err := s.mentionsByMessage(ctx, s.db.Queries(), ids)
+	if err != nil {
+		return Page{}, err
+	}
+	quotes, err := quotesOf(ctx, s.db.Queries(), messageRows)
 	if err != nil {
 		return Page{}, err
 	}
@@ -429,7 +465,9 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 			seen[r.Thread.ID] = true
 			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.abilities.Comment))
 		}
-		page.Messages = append(page.Messages, messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment))
+		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
+		message.ReplyTo = quotes[r.ThreadMessage.ID]
+		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
 }
@@ -470,7 +508,7 @@ func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.
 	if err != nil {
 		return Message{}, err
 	}
-	return messageOf(row, mentions, by, sc.abilities.Comment), nil
+	return s.presentMessage(ctx, row, mentions, by, sc.abilities.Comment)
 }
 
 func (s *Service) writableThread(ctx context.Context, by auth.Principal, id pgtype.UUID) (dbsqlc.Thread, scope, error) {
@@ -502,6 +540,7 @@ type newMessage struct {
 	threadID  pgtype.UUID
 	body      string
 	createdAt pgtype.Timestamptz
+	refs      messageRefs
 }
 
 func createMessage(ctx context.Context, q *dbsqlc.Queries, author actor.Actor, email string, m newMessage) (dbsqlc.ThreadMessage, error) {
@@ -520,11 +559,94 @@ func createMessage(ctx context.Context, q *dbsqlc.Queries, author actor.Actor, e
 		Origin:       cols.Origin,
 		OriginClient: cols.Client,
 		CreatedAt:    m.createdAt,
+
+		ReplyToID:          m.refs.replyTo,
+		ObservationBlockID: m.refs.block,
 	})
 	if err != nil {
 		return dbsqlc.ThreadMessage{}, fmt.Errorf("create message: %w", err)
 	}
 	return row, nil
+}
+
+type messageRefs struct {
+	block   pgtype.UUID
+	replyTo pgtype.UUID
+}
+
+func parseRefs(kind Kind, blockID, replyToID *string) (messageRefs, error) {
+	var refs messageRefs
+	if blockID != nil {
+		if kind != KindObservation {
+			return refs, errInvalidBlock
+		}
+		id, err := db.ParseUUID(*blockID)
+		if err != nil {
+			return refs, errInvalidBlock
+		}
+		refs.block = id
+	}
+	if replyToID != nil {
+		id, err := db.ParseUUID(*replyToID)
+		if err != nil {
+			return refs, errInvalidReplyTo
+		}
+		refs.replyTo = id
+	}
+	return refs, nil
+}
+
+func (r messageRefs) lock(ctx context.Context, q *dbsqlc.Queries, target Target, threadID pgtype.UUID) error {
+	if r.block.Valid {
+		_, err := q.LockObservationBlock(ctx, dbsqlc.LockObservationBlockParams{ID: r.block, ObservationID: target.ID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errInvalidBlock
+		}
+		if err != nil {
+			return fmt.Errorf("lock observation block: %w", err)
+		}
+	}
+	if r.replyTo.Valid {
+		_, err := q.LockMessageInThread(ctx, dbsqlc.LockMessageInThreadParams{ID: r.replyTo, ThreadID: threadID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errInvalidReplyTo
+		}
+		if err != nil {
+			return fmt.Errorf("lock quoted message: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) presentMessage(ctx context.Context, row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Principal, canComment bool) (Message, error) {
+	quotes, err := quotesOf(ctx, s.db.Queries(), []dbsqlc.ThreadMessage{row})
+	if err != nil {
+		return Message{}, err
+	}
+	message := messageOf(row, mentions, reader, canComment)
+	message.ReplyTo = quotes[row.ID]
+	return message, nil
+}
+
+func quotesOf(ctx context.Context, q *dbsqlc.Queries, rows []dbsqlc.ThreadMessage) (map[pgtype.UUID]*ReplyTo, error) {
+	var ids []pgtype.UUID
+	for _, r := range rows {
+		if r.ReplyToID.Valid {
+			ids = append(ids, r.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	quoted, err := q.ListReplyQuotes(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list reply quotes: %w", err)
+	}
+	quotes := make(map[pgtype.UUID]*ReplyTo, len(quoted))
+	for _, r := range quoted {
+		quotes[r.MessageID] = replyToOf(r)
+	}
+	return quotes, nil
 }
 
 func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {

@@ -53,8 +53,16 @@ type messageJSON struct {
 	EditedAt   *string         `json:"edited_at"`
 	Mentions   []mentionJSON   `json:"mentions"`
 	CanEdit    bool            `json:"can_edit"`
+	BlockID    *string         `json:"block_id"`
+	ReplyTo    *replyToJSON    `json:"reply_to"`
 	Run        *startedRunJSON `json:"run"`
 	RunRefusal *runRefusalJSON `json:"run_refusal"`
+}
+
+type replyToJSON struct {
+	ID      string     `json:"id"`
+	Actor   actor.JSON `json:"actor"`
+	Excerpt string     `json:"excerpt"`
 }
 
 type startedRunJSON struct {
@@ -88,6 +96,7 @@ type openThreadRequest struct {
 	Target  string  `json:"target"`
 	Version *int    `json:"version"`
 	PanelID *string `json:"panel_id"`
+	BlockID *string `json:"block_id"`
 	Body    string  `json:"body"`
 
 	StartRuns bool `json:"start_runs"`
@@ -98,8 +107,10 @@ type messageBodyRequest struct {
 }
 
 type replyRequest struct {
-	Body      string `json:"body"`
-	StartRuns bool   `json:"start_runs"`
+	Body      string  `json:"body"`
+	BlockID   *string `json:"block_id"`
+	ReplyToID *string `json:"reply_to_id"`
+	StartRuns bool    `json:"start_runs"`
 }
 
 type resolveThreadRequest struct {
@@ -168,7 +179,7 @@ func (th *Threads) open(c *gin.Context) {
 		return
 	}
 	thread, message, run, refusal, err := th.runs.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
-		Target: target, Version: req.Version, PanelID: req.PanelID, Body: req.Body,
+		Target: target, Version: req.Version, PanelID: req.PanelID, BlockID: req.BlockID, Body: req.Body,
 	}, req.StartRuns)
 	if err != nil {
 		th.fail(c, "open thread", err)
@@ -186,7 +197,7 @@ func (th *Threads) reply(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
-	thread, message, run, refusal, err := th.runs.Reply(c.Request.Context(), httpapi.Caller(c), id, req.Body, req.StartRuns)
+	thread, message, run, refusal, err := th.runs.Reply(c.Request.Context(), httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID}, req.StartRuns)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
 		return
@@ -343,6 +354,10 @@ func newMessageJSON(m Message) messageJSON {
 		UpdatedAt: httpapi.FormatTime(m.UpdatedAt),
 		Mentions:  newMentionsJSON(m.Mentions),
 		CanEdit:   m.CanEdit,
+		BlockID:   httpapi.OptionalString(m.BlockID),
+	}
+	if m.ReplyTo != nil {
+		out.ReplyTo = &replyToJSON{ID: m.ReplyTo.ID, Actor: m.ReplyTo.Author.JSON(), Excerpt: m.ReplyTo.Excerpt}
 	}
 	if m.EditedAt != nil {
 		at := httpapi.FormatTime(*m.EditedAt)

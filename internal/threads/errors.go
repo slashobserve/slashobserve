@@ -16,6 +16,11 @@ var (
 
 var errInvalidMention = &InvalidInputError{Code: CodeInvalidMention, Message: "you can mention only your own connected agents and service accounts that take runs"}
 
+var (
+	errInvalidBlock   = &InvalidInputError{Code: CodeInvalidBlock, Message: "block_id must be a block of this observation"}
+	errInvalidReplyTo = &InvalidInputError{Code: CodeInvalidReplyTo, Message: "reply_to_id must be a message in this thread"}
+)
+
 type ObservationThreadExistsError struct {
 	ThreadID pgtype.UUID
 }
@@ -45,6 +50,8 @@ const (
 	CodeUnknownVersion  = "unknown_version"
 	CodeInvalidMention  = "invalid_mention"
 	CodeTooManyAgents   = "too_many_agents"
+	CodeInvalidBlock    = "invalid_block"
+	CodeInvalidReplyTo  = "invalid_reply_to"
 
 	CodeObservationThreadExists = "observation_thread_exists"
 )
