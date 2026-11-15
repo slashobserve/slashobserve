@@ -257,7 +257,7 @@ The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled`,
 The built-in agent has the same tool.
 
 `list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
-Narrow it with `dashboard_id`, `folder_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
+Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
 It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.

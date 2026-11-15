@@ -140,3 +140,10 @@ WHERE m.thread_id = @thread_id
   AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = @before_id)
 ORDER BY m.created_at DESC, m.id DESC
 LIMIT @row_limit;
+
+-- name: CountObservationMessages :many
+SELECT t.observation_id, count(m.id)::int AS messages
+FROM threads t
+JOIN thread_messages m ON m.thread_id = t.id
+WHERE t.observation_id = ANY(@observation_ids::uuid[])
+GROUP BY t.observation_id;

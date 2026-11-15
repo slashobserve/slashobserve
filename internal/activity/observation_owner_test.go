@@ -1,12 +1,15 @@
 package activity
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 )
 
 func (r rig) observationIn(t *testing.T, folder pgtype.UUID) pgtype.UUID {
@@ -68,5 +71,56 @@ func TestMovingAnObservationRewritesOnlyItsOwnRows(t *testing.T) {
 		if got := r.folderOf(t, seq); got != want.String() {
 			t.Errorf("activity %d folder = %s, want %s", seq, got, want)
 		}
+	}
+}
+
+func TestAnObservationFilterReturnsOnlyThatObservationsEventsWithinTheCallersFolders(t *testing.T) {
+	r := newRig(t)
+	ctx := t.Context()
+	open := r.openFolder(t, "Incidents")
+	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
+	wanted, other, hidden := r.observationIn(t, open), r.observationIn(t, open), r.observationIn(t, restricted)
+
+	created := r.append(t, Entry{Type: TypeObservationCreated, TargetID: wanted, Owner: OnObservation(wanted)})
+	renamed := r.append(t, Entry{Type: TypeObservationUpdated, TargetID: wanted, Owner: OnObservation(wanted)})
+	r.append(t, Entry{Type: TypeObservationCreated, TargetID: other, Owner: OnObservation(other)})
+	hiddenCreated := r.append(t, Entry{Type: TypeObservationCreated, TargetID: hidden, Owner: OnObservation(hidden)})
+
+	tests := []struct {
+		name   string
+		who    auth.Principal
+		filter Filter
+		want   []int64
+	}{
+		{"the observation's own events, newest first", plain, Filter{ObservationID: wanted}, []int64{renamed, created}},
+		{"an observation in a folder the caller cannot view", plain, Filter{ObservationID: hidden}, []int64{}},
+		{"the same observation for a member of the folder's group", payroll, Filter{ObservationID: hidden}, []int64{hiddenCreated}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, err := r.store.List(ctx, r.audience(t, tt.who), tt.filter, "", 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(seqsOf(got), tt.want) {
+				t.Fatalf("got %v, want %v", seqsOf(got), tt.want)
+			}
+		})
+	}
+}
+
+func TestAnObservationFilterAppliesToFollowers(t *testing.T) {
+	r := newRig(t)
+	open := r.openFolder(t, "Incidents")
+	wanted, other := r.observationIn(t, open), r.observationIn(t, open)
+	r.append(t, Entry{Type: TypeObservationCreated, TargetID: other, Owner: OnObservation(other)})
+	created := r.append(t, Entry{Type: TypeObservationCreated, TargetID: wanted, Owner: OnObservation(wanted)})
+
+	got, _, _, err := r.store.Next(t.Context(), r.audience(t, admin), Filter{ObservationID: wanted}, Position{}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(seqsOf(got), []int64{created}) {
+		t.Fatalf("got %v, want [%d]", seqsOf(got), created)
 	}
 }

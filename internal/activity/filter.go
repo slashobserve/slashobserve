@@ -12,10 +12,11 @@ import (
 )
 
 type Filter struct {
-	DashboardID pgtype.UUID
-	FolderID    pgtype.UUID
-	Types       []string
-	Since       time.Time
+	DashboardID   pgtype.UUID
+	FolderID      pgtype.UUID
+	ObservationID pgtype.UUID
+	Types         []string
+	Since         time.Time
 }
 
 func ParseFilter(q url.Values) (Filter, error) {
@@ -29,6 +30,11 @@ func ParseFilter(q url.Values) (Filter, error) {
 	if raw := q.Get("folder_id"); raw != "" {
 		if f.FolderID, err = db.ParseUUID(raw); err != nil {
 			return Filter{}, errors.New("folder_id must be a UUID")
+		}
+	}
+	if raw := q.Get("observation_id"); raw != "" {
+		if f.ObservationID, err = db.ParseUUID(raw); err != nil {
+			return Filter{}, errors.New("observation_id must be a UUID")
 		}
 	}
 	types := q["type"]

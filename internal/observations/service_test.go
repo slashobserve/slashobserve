@@ -656,6 +656,36 @@ func TestTheDiscussionThreadIsReportedOnTheObservation(t *testing.T) {
 	}
 }
 
+func TestAnObservationReportsHowManyMessagesItsDiscussionHolds(t *testing.T) {
+	r := newRig(t)
+	quiet := r.create(t, editor, r.shared)
+	noThread := r.create(t, editor, r.shared)
+	talked := r.create(t, editor, r.shared)
+	r.db.Exec(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid)`, quiet.ID)
+	r.db.Exec(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid)`, talked.ID)
+	for _, body := range []string{"first", "a reply", "another reply"} {
+		r.db.Exec(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name)
+SELECT id, $2, 'user', gen_random_uuid(), 'Sam' FROM threads WHERE observation_id = $1::uuid`, talked.ID, body)
+	}
+
+	got, err := r.service.Get(t.Context(), editor, mustUUID(t, talked.ID))
+	if err != nil || got.MessageCount != 3 {
+		t.Fatalf("get: count %d, %v", got.MessageCount, err)
+	}
+	list, _, err := r.service.List(t.Context(), editor, observations.ListFilter{}, 10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[string]int{}
+	for _, o := range list {
+		counts[o.ID] = o.MessageCount
+	}
+	want := map[string]int{talked.ID: 3, quiet.ID: 0, noThread.ID: 0}
+	if len(counts) != len(want) || counts[talked.ID] != 3 || counts[quiet.ID] != 0 || counts[noThread.ID] != 0 {
+		t.Fatalf("list counts %v, want %v", counts, want)
+	}
+}
+
 func TestAccessNamesTheFolderAbilitiesAndTheActivityOwner(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)

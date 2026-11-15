@@ -19,12 +19,13 @@ const (
 	defaultListActivity = 50
 	maxListActivity     = 100
 
-	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads (opened, replied, edited, resolved, reopened, mentioned) and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed to one dashboard or folder, to some types, or to events since a time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor."
+	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads (opened, replied, edited, resolved, reopened, mentioned) and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed to one dashboard, folder or observation, to some types, or to events since a time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor."
 )
 
 var schemaListActivity = `{"type":"object","properties":{` +
 	`"dashboard_id":{"type":"string","format":"uuid","description":"Only this dashboard's activity, from list_dashboards."},` +
 	`"folder_id":{"type":"string","format":"uuid","description":"Only activity in this folder, from list_folders."},` +
+	`"observation_id":{"type":"string","format":"uuid","description":"Only this observation's activity, from list_observations."},` +
 	`"types":{"type":"array","maxItems":` + strconv.Itoa(len(activity.Types())) + `,"items":{"type":"string","enum":["` + strings.Join(activity.Types(), `","`) + `"]},"description":"Only events of any of these types."},` +
 	`"since":{"type":"string","format":"date-time","description":"Only events at or after this RFC 3339 time."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Events per page. Default 50."},` +
@@ -41,12 +42,13 @@ func (r *Registry) activityEntries() []entry {
 }
 
 type listActivityInput struct {
-	DashboardID string   `json:"dashboard_id"`
-	FolderID    string   `json:"folder_id"`
-	Types       []string `json:"types"`
-	Since       string   `json:"since"`
-	Limit       *int     `json:"limit"`
-	Cursor      string   `json:"cursor"`
+	DashboardID   string   `json:"dashboard_id"`
+	FolderID      string   `json:"folder_id"`
+	ObservationID string   `json:"observation_id"`
+	Types         []string `json:"types"`
+	Since         string   `json:"since"`
+	Limit         *int     `json:"limit"`
+	Cursor        string   `json:"cursor"`
 }
 
 type activityListOut struct {
@@ -100,7 +102,7 @@ func (r *Registry) listActivity(ctx context.Context, input json.RawMessage) (Res
 
 func activityValues(in listActivityInput) url.Values {
 	v := url.Values{}
-	for key, value := range map[string]string{"dashboard_id": in.DashboardID, "folder_id": in.FolderID, "since": in.Since} {
+	for key, value := range map[string]string{"dashboard_id": in.DashboardID, "folder_id": in.FolderID, "observation_id": in.ObservationID, "since": in.Since} {
 		if value != "" {
 			v.Set(key, value)
 		}

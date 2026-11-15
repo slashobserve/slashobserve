@@ -20,6 +20,7 @@ type Observation struct {
 	From, To       *time.Time
 	ThreadID       string
 	RunID          string
+	MessageCount   int
 	Actor          actor.Actor
 	CreatedAt      time.Time
 	UpdatedAt      time.Time

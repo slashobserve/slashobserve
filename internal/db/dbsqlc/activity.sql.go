@@ -125,26 +125,28 @@ WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
     OR (a.folder_id IS NULL AND ($2::boolean OR (a.actor_kind = $3::text AND a.actor_id = $4::uuid))))
   AND ($5::uuid IS NULL OR a.dashboard_id = $5::uuid)
   AND ($6::uuid IS NULL OR a.folder_id = $6::uuid)
-  AND (cardinality($7::text[]) = 0 OR a.type = ANY($7::text[]))
-  AND ($8::timestamptz IS NULL OR a.created_at >= $8::timestamptz)
-  AND (NOT $9::boolean OR (a.xid, a.seq) < ($10::xid8, $11::bigint))
+  AND ($7::uuid IS NULL OR a.observation_id = $7::uuid)
+  AND (cardinality($8::text[]) = 0 OR a.type = ANY($8::text[]))
+  AND ($9::timestamptz IS NULL OR a.created_at >= $9::timestamptz)
+  AND (NOT $10::boolean OR (a.xid, a.seq) < ($11::xid8, $12::bigint))
 ORDER BY a.xid DESC, a.seq DESC
-LIMIT $12
+LIMIT $13
 `
 
 type ListActivityParams struct {
-	Folders     []pgtype.UUID
-	Admin       bool
-	ReaderKind  string
-	ReaderID    pgtype.UUID
-	DashboardID pgtype.UUID
-	FolderID    pgtype.UUID
-	Types       []string
-	Since       pgtype.Timestamptz
-	HasCursor   bool
-	CursorXid   pgtype.Uint64
-	CursorSeq   int64
-	RowLimit    int32
+	Folders       []pgtype.UUID
+	Admin         bool
+	ReaderKind    string
+	ReaderID      pgtype.UUID
+	DashboardID   pgtype.UUID
+	FolderID      pgtype.UUID
+	ObservationID pgtype.UUID
+	Types         []string
+	Since         pgtype.Timestamptz
+	HasCursor     bool
+	CursorXid     pgtype.Uint64
+	CursorSeq     int64
+	RowLimit      int32
 }
 
 // The horizon and the scan must share this statement's snapshot; never move the horizon into a function or another query.
@@ -156,6 +158,7 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 		arg.ReaderID,
 		arg.DashboardID,
 		arg.FolderID,
+		arg.ObservationID,
 		arg.Types,
 		arg.Since,
 		arg.HasCursor,
@@ -208,25 +211,27 @@ WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
     OR (a.folder_id IS NULL AND ($2::boolean OR (a.actor_kind = $3::text AND a.actor_id = $4::uuid))))
   AND ($5::uuid IS NULL OR a.dashboard_id = $5::uuid)
   AND ($6::uuid IS NULL OR a.folder_id = $6::uuid)
-  AND (cardinality($7::text[]) = 0 OR a.type = ANY($7::text[]))
-  AND ($8::timestamptz IS NULL OR a.created_at >= $8::timestamptz)
-  AND (a.xid, a.seq) > ($9::xid8, $10::bigint)
+  AND ($7::uuid IS NULL OR a.observation_id = $7::uuid)
+  AND (cardinality($8::text[]) = 0 OR a.type = ANY($8::text[]))
+  AND ($9::timestamptz IS NULL OR a.created_at >= $9::timestamptz)
+  AND (a.xid, a.seq) > ($10::xid8, $11::bigint)
 ORDER BY a.xid, a.seq
-LIMIT $11
+LIMIT $12
 `
 
 type ListActivityAfterParams struct {
-	Folders     []pgtype.UUID
-	Admin       bool
-	ReaderKind  string
-	ReaderID    pgtype.UUID
-	DashboardID pgtype.UUID
-	FolderID    pgtype.UUID
-	Types       []string
-	Since       pgtype.Timestamptz
-	AfterXid    pgtype.Uint64
-	AfterSeq    int64
-	RowLimit    int32
+	Folders       []pgtype.UUID
+	Admin         bool
+	ReaderKind    string
+	ReaderID      pgtype.UUID
+	DashboardID   pgtype.UUID
+	FolderID      pgtype.UUID
+	ObservationID pgtype.UUID
+	Types         []string
+	Since         pgtype.Timestamptz
+	AfterXid      pgtype.Uint64
+	AfterSeq      int64
+	RowLimit      int32
 }
 
 // The horizon and the scan must share this statement's snapshot; never move the horizon into a function or another query.
@@ -238,6 +243,7 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 		arg.ReaderID,
 		arg.DashboardID,
 		arg.FolderID,
+		arg.ObservationID,
 		arg.Types,
 		arg.Since,
 		arg.AfterXid,
