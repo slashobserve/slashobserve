@@ -1,0 +1,27 @@
+name: Set up Go
+description: Install the Go toolchain of go.mod and restore a module and build cache that belongs to one job.
+
+inputs:
+  cache-name:
+    description: Names the cache, so jobs that compile different things (race tests, lint, release build) do not overwrite each other.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false
+
+    - name: Restore the Go caches
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-
+          go-${{ inputs.cache-name }}-${{ runner.os }}-
