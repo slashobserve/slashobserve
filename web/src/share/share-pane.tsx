@@ -19,6 +19,7 @@ import type { Dashboard } from "@/spec"
 
 import {
   dashboardShareUrl,
+  linkHint,
   panelChoices,
   panelShareUrl,
   type ShareOptions,
@@ -93,9 +94,7 @@ export function SharePane({
         />
         <LinkRow url={dashboardShareUrl(origin, dashboard, current, options)} />
         <p className="text-xs text-muted-foreground">
-          {folder.personal
-            ? "Only you can open this link until you publish the dashboard."
-            : 'Links need sign-in. Someone without access to the folder sees "You don\'t have access to this dashboard".'}
+          {linkHint(folder.personal)}
         </p>
       </section>
       {selected === undefined ? null : (
