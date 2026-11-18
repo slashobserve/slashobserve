@@ -136,6 +136,7 @@ Its buckets are whole steps that start at or before the start of the range and e
 It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
+
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
