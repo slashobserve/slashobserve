@@ -62,6 +62,7 @@ import {
   startDraft,
   type EditablePanel,
 } from "./draft"
+import { restoreBackup, useDraftBackup } from "./draft-backup"
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
@@ -172,6 +173,7 @@ export default function PanelEditor({
     [draft.base, draft.panel]
   )
   const dirty = changes.length > 0
+  const backup = useDraftBackup(dashboardId, draft, dirty)
   const [jsonValid, setJsonValid] = useState(true)
   const [metricsOpen, setMetricsOpen] = useState(false)
   const [activeRef, setActiveRef] = useState("")
@@ -440,6 +442,34 @@ export default function PanelEditor({
         ref={bodyRef}
         className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3.5"
       >
+        {backup.kept ? (
+          <Alert>
+            <AlertTitle>Your unsaved changes were kept.</AlertTitle>
+            <AlertDescription>
+              <p>They were still open when your session ended.</p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    const kept = backup.kept
+                    backup.drop()
+                    if (kept) {
+                      dispatch({
+                        type: "replace",
+                        panel: restoreBackup(kept, draft.panel),
+                      })
+                    }
+                  }}
+                >
+                  Restore my changes
+                </Button>
+                <Button size="xs" variant="outline" onClick={backup.drop}>
+                  Discard them
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <PreviewSection
           dashboardId={dashboardId}
           spec={spec}
