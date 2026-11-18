@@ -27,6 +27,7 @@ datasources-uid-query:
       ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly;
       Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact.
       `prev` is the cursor that produced the page.
+      `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk.
       With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
     requestBody:
       required: true
@@ -82,6 +83,11 @@ datasources-uid-query:
                 type: string
                 maxLength: 2048
                 description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused.
+              sort:
+                type: string
+                maxLength: 65
+                pattern: "^-?[A-Za-z_][A-Za-z0-9_]{0,63}$"
+                description: A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 400 when the column is not in the result. Without it rows come newest first.
     responses:
       "200":
         description: The frames the query returned.

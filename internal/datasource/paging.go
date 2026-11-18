@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -21,7 +22,10 @@ const (
 	cursorForeign       = "cursor does not belong to this query"
 	cursorUnreadable    = "cursor is not readable"
 	PageTimestampShared = "more than page_size rows share one timestamp; raise page_size or narrow the query"
+	SortRule            = "sort is a result column, with a leading minus for descending, such as -Duration"
 )
+
+var sortColumn = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 
 type TotalRelation string
 
@@ -40,12 +44,26 @@ type PageCursor struct {
 	Seen   []string `json:"seen,omitempty"`
 }
 
+type PageSort struct {
+	Column     string
+	Descending bool
+}
+
+func ParsePageSort(text string) (*PageSort, error) {
+	column, descending := strings.CutPrefix(text, "-")
+	if !sortColumn.MatchString(column) {
+		return nil, Errorf(ErrInvalidQuery, "%s", SortRule)
+	}
+	return &PageSort{Column: column, Descending: descending}, nil
+}
+
 type PageRequest struct {
 	Query    Query
 	Range    TimeRange
 	Page     int
 	PageSize int
 	Cursor   *PageCursor
+	Sort     *PageSort
 }
 
 type PageInfo struct {
@@ -60,6 +78,10 @@ type PageInfo struct {
 type PageSource interface {
 	QueryPage(ctx context.Context, req PageRequest) ([]Frame, PageInfo, error)
 	PagesByOffset() bool
+}
+
+type SortablePages interface {
+	SortsPages() bool
 }
 
 type wireCursor struct {

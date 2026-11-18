@@ -46,8 +46,9 @@ const (
 	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows when you need to walk results."}`
 	propPage     = `"page":{"type":"integer","minimum":1,"description":"Page to read, from 1; on Loki and Tempo pass cursor instead of a page above 1."}`
 	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page of the same query."}`
+	propSort     = `"sort":{"type":"string","maxLength":65,"description":"With page_size on ClickHouse: sort the whole result by this result column before paging, a minus in front for descending, such as -Duration. Without it rows come newest first."}`
 
-	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `},"required":["datasource","query"],"additionalProperties":false}`
+	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `,` + propSort + `},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
@@ -147,6 +148,7 @@ type instantInput struct {
 	PageSize *int   `json:"page_size"`
 	Page     *int   `json:"page"`
 	Cursor   string `json:"cursor"`
+	Sort     string `json:"sort"`
 }
 
 type rangeInput struct {
@@ -180,6 +182,9 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 	}
 	if in.Page != nil || in.Cursor != "" {
 		return invalid("%s", queryproxy.PageNeedsSize), nil
+	}
+	if in.Sort != "" {
+		return invalid("%s", queryproxy.SortNeedsSize), nil
 	}
 	return r.runAdhoc(ctx, spec.Table, in, "", 0)
 }
@@ -217,6 +222,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		Page:     page,
 		PageSize: size,
 		Cursor:   in.Cursor,
+		Sort:     in.Sort,
 	})
 	if err != nil {
 		return datasourceFailure("Ran a query on "+inst.UID, err)

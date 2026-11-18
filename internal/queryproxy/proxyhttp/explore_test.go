@@ -520,6 +520,8 @@ func TestExploreRejectsBadPaging(t *testing.T) {
 		{"page_size with limit", "logs", with(func(b map[string]any) { b["limit"] = 10 }), "limit and page_size cannot both be given"},
 		{"page without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["page"] = 2 }), "page and cursor need page_size"},
 		{"cursor without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["cursor"] = "x" }), "page and cursor need page_size"},
+		{"sort without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["sort"] = "-Duration" }), "sort needs page_size"},
+		{"sort on a datasource that cannot sort", "logs", with(func(b map[string]any) { b["sort"] = "-Duration" }), queryproxy.SortUnsupported},
 		{"page_size below 50", "logs", with(func(b map[string]any) { b["page_size"] = 49 }), "page_size must be from 50 to 500"},
 		{"page_size above 500", "logs", with(func(b map[string]any) { b["page_size"] = 501 }), "page_size must be from 50 to 500"},
 		{"page zero", "logs", with(func(b map[string]any) { b["page"] = 0 }), "page must be at least 1"},

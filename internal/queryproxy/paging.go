@@ -18,6 +18,8 @@ const (
 	PageBelowOne     = "page must be at least 1"
 	CursorTooLong    = "cursor must be at most 2 KiB"
 	PageWalkSentence = "pass next as cursor for more"
+	SortNeedsSize    = "sort needs page_size"
+	SortUnsupported  = "sort applies to ClickHouse datasources; this datasource pages in its own order"
 )
 
 type PageParams struct {
@@ -27,6 +29,7 @@ type PageParams struct {
 	Page     int
 	PageSize int
 	Cursor   string
+	Sort     string
 }
 
 type PageResult struct {
@@ -52,6 +55,16 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	}
 	scope := datasource.CursorScope(p.UID, p.Query.Text)
 	req := datasource.PageRequest{Query: p.Query, Range: p.Range, Page: max(p.Page, 1), PageSize: p.PageSize}
+	if p.Sort != "" {
+		sort, err := datasource.ParsePageSort(p.Sort)
+		if err != nil {
+			return PageResult{}, invalidPage(cursorMessage(err))
+		}
+		if sortable, ok := source.(datasource.SortablePages); !ok || !sortable.SortsPages() {
+			return PageResult{}, invalidPage(SortUnsupported)
+		}
+		req.Sort = sort
+	}
 	if p.Cursor != "" {
 		cursor, err := datasource.DecodeCursor(p.Cursor, scope)
 		if err != nil {

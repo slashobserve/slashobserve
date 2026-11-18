@@ -132,3 +132,47 @@ func TestRunPageRefusesCursorsOfOtherQueriesAndDatasources(t *testing.T) {
 		t.Fatalf("%d pages ran for refused cursors", len(source.pages))
 	}
 }
+
+type sortablePageSource struct{ *fakePageSource }
+
+func (sortablePageSource) SortsPages() bool { return true }
+
+func TestRunPagePassesTheSortToDatasourcesThatSort(t *testing.T) {
+	source := &fakePageSource{fakeDatasource: newFake("clickhouse"), byOffset: true}
+	inst := datasource.Instance{UID: "logs", Datasource: sortablePageSource{source}}
+	r := newRunnerOf(t, discardLogger(), inst)
+	params := pageParams(1, "")
+	params.Sort = "-Duration"
+	if _, err := r.RunPage(context.Background(), inst, params); err != nil {
+		t.Fatal(err)
+	}
+	if len(source.pages) != 1 || source.pages[0].Sort == nil || source.pages[0].Sort.Column != "Duration" || !source.pages[0].Sort.Descending {
+		t.Fatalf("pages = %+v, want the sort -Duration", source.pages)
+	}
+}
+
+func TestRunPageRefusesASortOnDatasourcesThatCannotSort(t *testing.T) {
+	source := &fakePageSource{fakeDatasource: newFake("tempo")}
+	r, inst := pageRunner(t, source)
+	params := pageParams(1, "")
+	params.Sort = "-Duration"
+	_, err := r.RunPage(context.Background(), inst, params)
+	if !errors.Is(err, ErrInvalidRequest) || err.Error() != SortUnsupported {
+		t.Fatalf("err = %v, want %q", err, SortUnsupported)
+	}
+	if len(source.pages) != 0 {
+		t.Fatalf("the datasource ran %d pages, want none", len(source.pages))
+	}
+}
+
+func TestRunPageRefusesASortThatIsNotAColumnName(t *testing.T) {
+	source := &fakePageSource{fakeDatasource: newFake("clickhouse"), byOffset: true}
+	inst := datasource.Instance{UID: "logs", Datasource: sortablePageSource{source}}
+	r := newRunnerOf(t, discardLogger(), inst)
+	params := pageParams(1, "")
+	params.Sort = "Duration; DROP"
+	_, err := r.RunPage(context.Background(), inst, params)
+	if !errors.Is(err, ErrInvalidRequest) || err.Error() != datasource.SortRule {
+		t.Fatalf("err = %v, want %q", err, datasource.SortRule)
+	}
+}

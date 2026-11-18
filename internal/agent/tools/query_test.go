@@ -654,15 +654,18 @@ func TestQueryInstantRejectsBadPaging(t *testing.T) {
 	}}
 	r := newPageRegistry(t, ds)
 	for name, input := range map[string]string{
-		"page_size below 50":           `{"datasource":"fake","query":"up","page_size":10}`,
-		"page_size above 500":          `{"datasource":"fake","query":"up","page_size":501}`,
-		"page zero":                    `{"datasource":"fake","query":"up","page_size":50,"page":0}`,
-		"page without page_size":       `{"datasource":"fake","query":"up","page":2}`,
-		"cursor without page_size":     `{"datasource":"fake","query":"up","cursor":"x"}`,
-		"cursor over 2 KiB":            `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,
-		"page 2 without a cursor":      `{"datasource":"fake","query":"up","page_size":50,"page":2}`,
-		"a cursor of another query":    `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("fake", "other"), Page: 2}) + `"}`,
-		"page_size on a plain instant": `{"datasource":"fake","query":"up","page_size":"many"}`,
+		"page_size below 50":               `{"datasource":"fake","query":"up","page_size":10}`,
+		"page_size above 500":              `{"datasource":"fake","query":"up","page_size":501}`,
+		"page zero":                        `{"datasource":"fake","query":"up","page_size":50,"page":0}`,
+		"page without page_size":           `{"datasource":"fake","query":"up","page":2}`,
+		"cursor without page_size":         `{"datasource":"fake","query":"up","cursor":"x"}`,
+		"sort without page_size":           `{"datasource":"fake","query":"up","sort":"-Duration"}`,
+		"sort that is not a column":        `{"datasource":"fake","query":"up","page_size":50,"sort":"Duration; DROP"}`,
+		"sort on a datasource that cannot": `{"datasource":"fake","query":"up","page_size":50,"sort":"-Duration"}`,
+		"cursor over 2 KiB":                `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,
+		"page 2 without a cursor":          `{"datasource":"fake","query":"up","page_size":50,"page":2}`,
+		"a cursor of another query":        `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("fake", "other"), Page: 2}) + `"}`,
+		"page_size on a plain instant":     `{"datasource":"fake","query":"up","page_size":"many"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			res, err := call(t, r, nameQueryInstant, input)

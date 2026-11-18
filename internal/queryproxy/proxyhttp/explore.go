@@ -36,6 +36,7 @@ type exploreRequest struct {
 	PageSize      *int    `json:"page_size"`
 	Page          *int    `json:"page"`
 	Cursor        *string `json:"cursor"`
+	Sort          *string `json:"sort"`
 }
 
 func init() {
@@ -152,6 +153,8 @@ func (r exploreRequest) pagingRule() string {
 	switch {
 	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
 		return queryproxy.PageNeedsSize
+	case r.PageSize == nil && r.Sort != nil:
+		return queryproxy.SortNeedsSize
 	case r.PageSize == nil:
 		return ""
 	case r.Kind == string(queryproxy.KindRange):
@@ -181,6 +184,9 @@ func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user da
 	}
 	if r.Cursor != nil {
 		p.Cursor = *r.Cursor
+	}
+	if r.Sort != nil {
+		p.Sort = *r.Sort
 	}
 	return p
 }
