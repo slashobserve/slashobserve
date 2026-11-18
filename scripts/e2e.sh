@@ -3024,11 +3024,22 @@ PY
   fi
 }
 
+built_cli_is_current() {
+  local newer
+  [[ -x "$ROOT/bin/observe" ]] || return 1
+  newer="$(find "$ROOT/cmd" "$ROOT/internal" "$ROOT/pkg" "$ROOT/go.mod" "$ROOT/go.sum" \( -name '*.go' -o -name go.mod -o -name go.sum \) -newer "$ROOT/bin/observe" -print -quit)"
+  [[ -z "$newer" ]]
+}
+
 cli_suite() {
   api_token
   local config="$TMP/xdg/slashobserve/cli.json" url did title perms request_id
 
-  (cd "$ROOT" && go build -o "$TMP/observe" ./cmd/observe) || fail "build the observe CLI"
+  if built_cli_is_current; then
+    cp "$ROOT/bin/observe" "$TMP/observe"
+  else
+    (cd "$ROOT" && go build -o "$TMP/observe" ./cmd/observe) || fail "build the observe CLI"
+  fi
 
   printf '%s\n' "$API_TOKEN" >"$TMP/cli.key"
   CLI_STDIN="$TMP/cli.key" cli_run login --server "$BASE_URL" --with-token
