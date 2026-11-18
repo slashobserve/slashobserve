@@ -25,8 +25,9 @@ Usage: scripts/evals-stack.sh <command>
 
   warm [--k8s] replay|<env-file>
                       prepare fixtures and series and start every service except the server, without
-                      waiting for health, then return; 'up' adopts it within ${WARM_MAX_AGE}s and skips
-                      prepare, so the synthetic history accumulates while the server image is built;
+                      waiting for health, then return; 'up' of the same mode (replay or env file, with or
+                      without --k8s) adopts it within ${WARM_MAX_AGE}s and skips prepare, and resets
+                      the stack of any other warm start, so the synthetic history accumulates while the server image is built;
                       it needs the shop image, not the server image
   up [--k8s] [--no-history] replay
                       prepare fixtures and series, then boot the isolated ${PROJECT}
@@ -170,16 +171,33 @@ warm_marker() {
   printf '%s/warm' "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
 }
 
+stack_mode() {
+  printf 'k8s=%s %s' "$K8S" "$1"
+}
+
+warm_adoptable() {
+  local running server
+  running="$(compose "$ENV_FILE" ps --status running -q prometheus </dev/null)" || return 1
+  server="$(compose "$ENV_FILE" ps --all -q server </dev/null)" || return 1
+  [[ -n "$running" && -z "$server" ]]
+}
+
 take_warm() {
-  local marker waited=0 state="" stamp=""
+  local marker mode="$1" waited=0 state="" stamp="" warmed=""
   marker="$(warm_marker)"
   while [[ -f "$marker" ]]; do
-    read -r state stamp <"$marker" || true
+    read -r state stamp warmed <"$marker" || true
     [[ "$state" == pending && "$stamp" =~ ^[0-9]+$ ]] && kill -0 "$stamp" 2>/dev/null && ((waited++ < WARM_WAIT)) || break
     sleep 1
   done
+  [[ -f "$marker" ]] || return 1
   rm -f "$marker"
-  [[ "$state" == ready && "$stamp" =~ ^[0-9]+$ ]] && (($(date +%s) - stamp <= WARM_MAX_AGE))
+  if [[ "$state" == ready && "$stamp" =~ ^[0-9]+$ && "$warmed" == "$mode" ]] &&
+    (($(date +%s) - stamp <= WARM_MAX_AGE)) && warm_adoptable; then
+    return 0
+  fi
+  compose /dev/null down -v --remove-orphans
+  return 1
 }
 
 warm_services() {
@@ -212,9 +230,9 @@ cmd_warm() {
   select_provider "$1"
   cd "$ROOT"
   marker="$(warm_marker)"
-  rm -f "$marker"
-  prepare_runtime
-  printf 'pending %s\n' "$$" >"$marker"
+  mkdir -p "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
+  printf 'pending %s %s\n' "$$" "$(stack_mode "$1")" >"$marker"
+  prepare_runtime || { rm -f "$marker"; die "the fixtures and series were not prepared"; }
   mapfile -t services < <(warm_services)
   [[ ${#services[@]} -gt 0 ]] || { rm -f "$marker"; die "docker compose config listed no services"; }
   if [[ "$BUILD" == 1 ]]; then
@@ -222,7 +240,7 @@ cmd_warm() {
   else
     compose "$ENV_FILE" up -d --no-build --pull missing "${services[@]}" || { rm -f "$marker"; die "the warm services did not start"; }
   fi
-  printf 'ready %s\n' "$(date +%s)" >"$marker"
+  printf 'ready %s %s\n' "$(date +%s)" "$(stack_mode "$1")" >"$marker"
 }
 
 cmd_up() {
@@ -238,7 +256,7 @@ cmd_up() {
   [[ $# -eq 1 ]] || die "up needs 'replay' or an env file"
   select_provider "$1"
   cd "$ROOT"
-  take_warm || prepare_runtime
+  take_warm "$(stack_mode "$1")" || prepare_runtime
   if [[ "$BUILD" == 1 ]]; then
     compose_build "$ENV_FILE" up -d --build --wait --wait-timeout 300
   else
