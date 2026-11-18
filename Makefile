@@ -81,6 +81,7 @@ test-scripts:
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
 	scripts/docs-lint-test.sh
+	scripts/ci-changes-test.sh
 
 lint: lint-go lint-web lint-agent lint-deploy
 

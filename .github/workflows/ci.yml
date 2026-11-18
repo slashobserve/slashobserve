@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -14,8 +16,47 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      go: ${{ steps.groups.outputs.go }}
+      web: ${{ steps.groups.outputs.web }}
+      build: ${{ steps.groups.outputs.build }}
+      stack: ${{ steps.groups.outputs.stack }}
+      evals: ${{ steps.groups.outputs.evals }}
+      audit: ${{ steps.groups.outputs.audit }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Decide which job groups the changed files need
+        id: groups
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          case "$EVENT" in
+            pull_request)
+              gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+                --jq '.[] | .filename, (.previous_filename // empty)' | scripts/ci-changes.sh
+              ;;
+            schedule) scripts/ci-changes.sh audit-only ;;
+            *) scripts/ci-changes.sh all ;;
+          esac | tee -a "$GITHUB_OUTPUT"
+
   go-lint:
     name: go-lint
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -41,6 +82,8 @@ jobs:
 
   go-test:
     name: go-test (${{ matrix.shard }})
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -60,7 +103,6 @@ jobs:
 
       - name: Go tests
         env:
-          COVER: "1"
           SHARD: ${{ matrix.shard }}
         run: make test-go GO_TEST_PKGS="$(scripts/go-test-shard.sh "$SHARD")"
 
@@ -68,15 +110,10 @@ jobs:
         if: matrix.shard == 'rest'
         run: make test-shop
 
-      - name: Upload the coverage profile
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-go-${{ matrix.shard }}
-          path: coverage.out
-          retention-days: 1
-
   web-lint:
     name: web-lint
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -102,6 +139,8 @@ jobs:
 
   web-test:
     name: web-test (${{ matrix.shard }}/2)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -129,18 +168,12 @@ jobs:
       - name: Web tests
         env:
           SHARD: ${{ matrix.shard }}
-        run: make test-web WEB_TEST_FLAGS="--coverage --shard=$SHARD/2 --reporter=default --reporter=blob"
-
-      - name: Upload the test and coverage report
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-web-${{ matrix.shard }}
-          path: web/.vitest/blob/
-          include-hidden-files: true
-          retention-days: 1
+        run: make test-web WEB_TEST_FLAGS="--shard=$SHARD/2"
 
   build:
     name: build
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -177,72 +210,21 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [go-lint, go-test, web-lint, web-test, build]
+    needs: [changes, go-lint, go-test, web-lint, web-test, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every lint, test and build job passed
+      - name: Every lint, test and build job the change needs passed
         env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          for result in $RESULTS; do
-            test "$result" = success
-          done
-
-  coverage:
-    name: coverage
-    needs: [go-test, web-test]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: web/package.json
-
-      - name: Restore Bun packages
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Download the Go coverage profiles
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: coverage-go-*
-          path: coverage
-
-      - name: Download the web reports
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: coverage-web-*
-          path: web/.vitest/blob
-          merge-multiple: true
-
-      - name: Merge the web coverage
-        run: |
-          make web-deps
-          cd web && bunx vitest --merge-reports --coverage
-
-      - name: Add coverage to the job summary
-        run: |
-          go_total="$(cat coverage/coverage-go-*/coverage.out | awk '$1 != "mode:" { total += $2; if ($3 > 0) covered += $2 } END { printf "%.1f%%", 100 * covered / total }')"
-          web_total="$(jq -r '.total.statements.pct' web/coverage/coverage-summary.json)%"
-          {
-            echo "| Coverage | Statements |"
-            echo "| --- | --- |"
-            echo "| Go | $go_total |"
-            echo "| Web | $web_total |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          jq -r 'to_entries[] | "\(.key) \(.value.result)"' <<<"$NEEDS"
+          jq -e '.changes.result == "success" and all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" >/dev/null
 
   audit:
     name: audit
+    needs: changes
+    if: needs.changes.outputs.audit == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -270,6 +252,8 @@ jobs:
 
   e2e-api:
     name: e2e-api
+    needs: changes
+    if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -306,6 +290,8 @@ jobs:
 
   e2e-browser:
     name: e2e-browser (${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -368,6 +354,8 @@ jobs:
 
   evals-replay:
     name: evals-replay
+    needs: changes
+    if: needs.changes.outputs.evals == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:

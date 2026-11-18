@@ -44,7 +44,7 @@ A change to how the Grafana importer converts a dashboard needs `make golden`; r
 ## Run the evals
 
 The eval runner measures the agent on create, revise, fix, suggest and paste-import tasks against an isolated `slashobserve-evals` stack that never touches the demo stack.
-The replay suite needs no model and no key, and CI runs it on every pull request.
+The replay suite needs no model and no key, and CI runs it on every pull request that changes the agent, its prompts, the Spec or the stack.
 
 | Command | What it does |
 | --- | --- |
