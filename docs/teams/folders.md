@@ -26,6 +26,8 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
   Only the people on the list, the person who created the folder and Admins see it.
   Everyone else gets no trace of its dashboards: they are missing from lists, search, tags and datasource counts, their panel data, events and comments are refused, and the agent cannot reach them.
   Removing the last entry opens the folder to everyone again.
+  Choosing **Only the people and groups below** restricts nothing until someone is listed, and the page says so; the server stores no empty restriction.
+  An instance Admin gets suggestions from the people who have signed in as they type an address; everyone else types the address, and a group is always typed as its name.
 
 ## My Dashboards
 
