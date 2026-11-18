@@ -46,7 +46,7 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary, range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id). Send a block's version when you update or keep it."
+	descGetObservation     = "Read an observation: its state, summary, range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, snapshot id) and, for a panel block, its full panel as update_block takes it, so you can read what you added before you revise it. Send a block's version when you update or keep it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. A stale version answers version_conflict."
@@ -195,22 +195,23 @@ type observationViewOut struct {
 }
 
 type blockViewOut struct {
-	ID                string   `json:"id"`
-	Kind              string   `json:"kind"`
-	State             string   `json:"state"`
-	Position          int      `json:"position"`
-	Width             string   `json:"width"`
-	Version           int      `json:"version"`
-	AllowedActions    []string `json:"allowed_actions"`
-	Markdown          string   `json:"markdown,omitempty"`
-	MarkdownTruncated bool     `json:"markdown_truncated,omitempty"`
-	Title             string   `json:"title,omitempty"`
-	Type              string   `json:"type,omitempty"`
-	Datasources       []string `json:"datasources,omitempty"`
-	From              string   `json:"from,omitempty"`
-	To                string   `json:"to,omitempty"`
-	SnapshotID        string   `json:"snapshot_id,omitempty"`
-	RunID             string   `json:"run_id,omitempty"`
+	ID                string          `json:"id"`
+	Kind              string          `json:"kind"`
+	State             string          `json:"state"`
+	Position          int             `json:"position"`
+	Width             string          `json:"width"`
+	Version           int             `json:"version"`
+	AllowedActions    []string        `json:"allowed_actions"`
+	Markdown          string          `json:"markdown,omitempty"`
+	MarkdownTruncated bool            `json:"markdown_truncated,omitempty"`
+	Title             string          `json:"title,omitempty"`
+	Type              string          `json:"type,omitempty"`
+	Datasources       []string        `json:"datasources,omitempty"`
+	Panel             json.RawMessage `json:"panel,omitempty"`
+	From              string          `json:"from,omitempty"`
+	To                string          `json:"to,omitempty"`
+	SnapshotID        string          `json:"snapshot_id,omitempty"`
+	RunID             string          `json:"run_id,omitempty"`
 }
 
 type observationListOut struct {
@@ -690,7 +691,7 @@ func blockView(b observations.Block) blockViewOut {
 	base := observations.BlockOf(b)
 	out := blockViewOut{
 		ID: base.ID, Kind: base.Kind, State: base.State, Position: base.Position, Width: base.Width, Version: base.Version,
-		AllowedActions: base.AllowedActions, SnapshotID: b.SnapshotID, RunID: b.RunID,
+		AllowedActions: withoutRemove(base.AllowedActions), SnapshotID: b.SnapshotID, RunID: b.RunID,
 	}
 	switch b.Kind {
 	case observations.KindText:
@@ -703,6 +704,7 @@ func blockView(b observations.Block) blockViewOut {
 		if json.Unmarshal(b.Body, &body) != nil {
 			break
 		}
+		out.Panel = body.Panel
 		var panel spec.Panel
 		if json.Unmarshal(body.Panel, &panel) == nil {
 			out.Title, out.Type, out.Datasources = panel.Title, string(panel.Type), panelDatasources(panel)
@@ -712,6 +714,10 @@ func blockView(b observations.Block) blockViewOut {
 		}
 	}
 	return out
+}
+
+func withoutRemove(actions []string) []string {
+	return slices.DeleteFunc(slices.Clone(actions), func(a string) bool { return a == string(observations.BlockRemove) })
 }
 
 func panelDatasources(p spec.Panel) []string {
