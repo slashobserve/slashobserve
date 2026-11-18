@@ -305,6 +305,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	authService.RecordChanges(database, activity.AuthChanges{})
 	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
 		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
 	}); err != nil {

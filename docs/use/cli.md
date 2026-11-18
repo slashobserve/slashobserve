@@ -573,6 +573,7 @@ You find only what the key can read.
 bin/observe activity
 bin/observe activity --dashboard <dashboard-id> --since 24h
 bin/observe activity --follow --type run.failed --type run.canceled
+bin/observe activity --admin --actor <person-id> --since 7d
 ```
 
 ```text
@@ -580,7 +581,8 @@ bin/observe activity --follow --type run.failed --type run.canceled
 2026-11-01T10:05:09Z  Sam  saved version 12 of "Checkout"
 ```
 
-`--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
+`--dashboard`, `--folder`, `--observation` and `--actor` take ids, `--type` takes an event type and repeats, and `--since` and `--until` take a duration such as `24h` or an RFC 3339 time.
+`--admin` lists only the [admin changes](activity.md#admin-changes), who changed a role, a key, a webhook or a connection, and needs an Admin key; the other keys get a 403 that says so.
 `--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
 You see only the events of the folders the key can see, and an empty log prints `No activity yet`.
 

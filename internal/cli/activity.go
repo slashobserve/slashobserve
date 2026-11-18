@@ -35,6 +35,9 @@ type activityOptions struct {
 	observation string
 	types       []string
 	since       string
+	until       string
+	actor       string
+	admin       bool
 	limit       int
 	follow      bool
 }
@@ -44,6 +47,7 @@ type activityActor struct {
 }
 
 type activityData struct {
+	raw           json.RawMessage
 	Version       int      `json:"version"`
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
@@ -60,6 +64,15 @@ type activityData struct {
 		Kind string `json:"kind"`
 		Name string `json:"name"`
 	} `json:"mentioned"`
+}
+
+func (d *activityData) UnmarshalJSON(b []byte) error {
+	type plain activityData
+	if err := json.Unmarshal(b, (*plain)(d)); err != nil {
+		return err
+	}
+	d.raw = slices.Clone(b)
+	return nil
 }
 
 type activityEvent struct {
@@ -90,10 +103,11 @@ func (a *app) activityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity",
 		Short: "List and follow what changed in the workspace",
-		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
+		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, keys, webhooks, connected agents, outbound domains and Grafana connections.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
 		Example: "  observe activity\n" +
 			"  observe activity --dashboard <id> --since 24h\n" +
-			"  observe activity --follow --type run.failed --type run.canceled",
+			"  observe activity --follow --type run.failed --type run.canceled\n" +
+			"  observe activity --admin --actor <person-id> --since 7d",
 		Args: noArgs,
 		RunE: a.runActivity,
 	}
@@ -103,6 +117,9 @@ func (a *app) activityCommand() *cobra.Command {
 	flags.StringVar(&a.activity.observation, "observation", "", "only events of this observation id")
 	flags.StringSliceVar(&a.activity.types, "type", nil, "only events of this type, such as dashboard.moved; repeat for several")
 	flags.StringVar(&a.activity.since, "since", "", "only events since a duration ago such as 24h, or since an RFC 3339 time")
+	flags.StringVar(&a.activity.until, "until", "", "only events until a duration ago such as 1h, or until an RFC 3339 time")
+	flags.StringVar(&a.activity.actor, "actor", "", "only events made by this person or service account id")
+	flags.BoolVar(&a.activity.admin, "admin", false, "only admin changes: roles, keys, webhooks, connected agents, outbound domains and Grafana connections; needs an Admin")
 	flags.IntVar(&a.activity.limit, "limit", defaultActivityLimit, "the newest events to print, 1 to 100")
 	flags.BoolVar(&a.activity.follow, "follow", false, "keep printing new events until Ctrl-C")
 	return cmd
@@ -137,17 +154,34 @@ func (o activityOptions) filters(now time.Time) (url.Values, error) {
 	for _, kind := range o.types {
 		query.Add("type", kind)
 	}
-	since, err := parseSince(o.since, now)
+	since, err := parseTimeFlag("--since", o.since, now)
 	if err != nil {
 		return nil, err
 	}
 	if since != "" {
 		query.Set("since", since)
 	}
+	until, err := parseTimeFlag("--until", o.until, now)
+	if err != nil {
+		return nil, err
+	}
+	if until != "" {
+		query.Set("until", until)
+	}
+	if o.actor != "" {
+		id, err := parseID(o.actor)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("actor_id", id)
+	}
+	if o.admin {
+		query.Set("scope", "admin")
+	}
 	return query, nil
 }
 
-func parseSince(raw string, now time.Time) (string, error) {
+func parseTimeFlag(flag, raw string, now time.Time) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", nil
@@ -158,7 +192,7 @@ func parseSince(raw string, now time.Time) (string, error) {
 	if span, err := time.ParseDuration(raw); err == nil && span > 0 {
 		return now.Add(-span).UTC().Format(time.RFC3339), nil
 	}
-	return "", usagef("--since %q is not a duration such as 24h or an RFC 3339 time such as 2026-11-01T10:00:00Z", text(raw))
+	return "", usagef("%s %q is not a duration such as 24h or an RFC 3339 time such as 2026-11-01T10:00:00Z", flag, text(raw))
 }
 
 func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
@@ -277,6 +311,9 @@ func describe(e activityEvent) string {
 		return phrase
 	}
 	if phrase, ok := describeProposal(e); ok {
+		return phrase
+	}
+	if phrase, ok := describeAdmin(e); ok {
 		return phrase
 	}
 	return text(e.Type)

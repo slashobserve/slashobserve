@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
@@ -38,6 +39,8 @@ type Config struct {
 type Service struct {
 	cfg           Config
 	queries       *dbsqlc.Queries
+	database      *db.DB
+	changes       ChangeLog
 	logger        *slog.Logger
 	client        *http.Client
 	csrf          *http.CrossOriginProtection
@@ -66,6 +69,7 @@ func New(cfg Config, queries *dbsqlc.Queries, logger *slog.Logger) (*Service, er
 	s := &Service{
 		cfg:           cfg,
 		queries:       queries,
+		changes:       unrecorded{},
 		logger:        logger,
 		client:        newBackChannelClient(issuer, cfg.InternalURL),
 		csrf:          csrf,

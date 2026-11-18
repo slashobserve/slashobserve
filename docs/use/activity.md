@@ -3,7 +3,7 @@ title: Activity
 description: Read and follow what changed in your workspace, from dashboard saves to agent runs, through the HTTP API and MCP, with each person seeing only the folders they can view.
 ---
 
-The activity log records every change to a dashboard, annotation, finding, saved search or observation, and every agent run, in the order it happened.
+The activity log records every change to a dashboard, annotation, finding, saved search or observation, every agent run, and the changes an Admin makes to who can do what, in the order it happened.
 Each change appends one event in the same transaction as the change, so the log never shows something that did not happen and never misses something that did.
 You read it as a list with `GET /api/v1/activity` and follow it live as Server-Sent Events with `GET /api/v1/activity/stream`.
 Both need the Viewer role or higher, and both work with a session or a service-account key.
@@ -35,6 +35,21 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
 
+## Admin changes
+
+These events record what an Admin changes about people, keys, integrations and access.
+Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks.md) and in Settings, Audit log.
+
+| Target | Event types | Written when |
+| --- | --- | --- |
+| Person | `user.role_changed` | An Admin sets or clears a person's role override; `data` has the person's `name`, `from_role`, `to_role` and `manual`, which is false when the override was cleared. |
+| Person | `user.signed_out_everywhere` | An Admin signs a person out everywhere; `data` has `name`, `sessions` and `grants`, how many sessions and connected agents ended. |
+| Service account | `service_account.created`, `service_account.updated` | An Admin creates a service account, or changes its role or whether it takes runs; an update lists each changed field as `{from, to}`. |
+| Service account | `service_account.key_created`, `service_account.key_revoked` | An Admin creates or revokes a key; `data` has the key's `key_id` and `key_name`, never the key. |
+
+Each event has an `actor`, the Admin, with the same `label` and origin as any other event, so an event made through a key says which key and an event made over MCP says which client.
+`data` never holds a secret: a key, a webhook secret or a Grafana token appears only as the fact that it was created, rotated or replaced.
+
 Every event has a `seq`, a `type`, a `target` (its `kind` and `id`), the `dashboard_id` and `folder_id` it belongs to, an `actor`, a `data` object and `created_at`.
 The `actor` is the same object the rest of the API uses, with a `label` that is the one text to show for who made the change.
 
@@ -59,6 +74,8 @@ You see an event when any of these holds:
 - It belongs to no folder and you made the change.
 - It belongs to no folder and you are an Admin.
 
+An [admin change](#admin-changes) is the exception to the second rule: only an Admin sees it, even the one who made it once they are no longer an Admin.
+
 An event takes the folder of its dashboard.
 A global annotation takes General, which everyone with a role can view, so everyone who can read global annotations sees its events.
 An observation, a finding without a dashboard and a saved search belong to their folder, and the discussion of a finding belongs to its observation; a run whose dashboard does not exist yet belongs to no folder.
@@ -75,7 +92,8 @@ An event appears once its own transaction and every older one have committed, so
 
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
-Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, a repeated `type` and `since` (an RFC 3339 time); a parameter that does not parse answers 400.
+Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, `actor_id` (a person or a service account), a repeated `type`, `since` and `until` (RFC 3339 times); a parameter that does not parse answers 400.
+`scope=admin` lists only [admin changes](#admin-changes) and public link events, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
 `observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
 It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 
@@ -118,10 +136,10 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 
 ## Read it over MCP
 
-The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `scope`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes, and `scope: "admin"` with another key is refused.
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
-`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`.
+`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>`, `--until` and `--admin` match `actor_id`, `until` and `scope=admin`.
 
 ## Send it to another system
 
