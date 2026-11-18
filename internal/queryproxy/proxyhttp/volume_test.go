@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -377,6 +378,26 @@ func TestVolumeAsksACapabilityDatasourceForTheAlignedWindow(t *testing.T) {
 	}
 	if held := hn.heldSlots(); held != 0 {
 		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestVolumeCountsTheTrailingPartialBucket(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		h := logvolume.New(req.Range.From, req.Step, req.Buckets())
+		h.Add(req.Range.From.Add(60*req.Step), logvolume.Info, 5)
+		return h, nil
+	}
+	body := volumeBody(`service.name:checkout`)
+	body["from"] = strconv.FormatInt(volumeStart.Add(20*time.Second).UnixMilli(), 10)
+	body["to"] = strconv.FormatInt(volumeStart.Add(time.Hour+20*time.Second).UnixMilli(), 10)
+	got := decodeVolume(t, hn.volume("search", body))
+	reqs := search.volumeRequests()
+	if len(reqs) != 1 || !reqs[0].Range.To.Equal(volumeStart.Add(61*time.Minute)) {
+		t.Fatalf("requests %+v", reqs)
+	}
+	if len(got.Buckets) != 61 || got.Total != 5 {
+		t.Fatalf("%d buckets, total %d", len(got.Buckets), got.Total)
 	}
 }
 
