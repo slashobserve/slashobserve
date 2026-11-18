@@ -17,6 +17,7 @@ type Props = {
   title: string
   folder?: { id: string; title: string } | null
   madeBy: string | null
+  views?: string | null
   versionControl: ReactNode
   controls: ReactNode[]
   actions: ReactNode[]
@@ -54,6 +55,7 @@ export function DashboardTopRow({
   title,
   folder,
   madeBy,
+  views,
   versionControl,
   controls,
   actions,
@@ -101,6 +103,9 @@ export function DashboardTopRow({
         </h1>
         {madeBy ? (
           <span className="text-xs text-muted-foreground">{madeBy}</span>
+        ) : null}
+        {views ? (
+          <span className="text-xs text-muted-foreground">{views}</span>
         ) : null}
         {versionControl}
       </nav>

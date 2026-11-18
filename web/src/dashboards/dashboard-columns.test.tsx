@@ -51,6 +51,7 @@ function summary(extra: Partial<DashboardSummary> = {}): DashboardSummary {
     },
     datasource_uids: [],
     open_comment_count: 0,
+    view_count: 0,
     folder: {
       id: "5d0c7a2e-2f43-4a4e-9a55-0d0b8f3c1a77",
       title: "Shop",
@@ -101,6 +102,7 @@ describe("dashboardColumns", () => {
       "Datasources",
       "Open comments",
       "Version",
+      "Views",
       "Updated",
     ])
   })
@@ -115,6 +117,7 @@ describe("dashboardColumns", () => {
       "datasources",
       "openComments",
       "version",
+      "views",
       "updated",
     ])
   })
@@ -216,6 +219,11 @@ describe("dashboard list cells", () => {
     )
     expect(filled.cells[3].textContent).toBe("prom, ch")
     expect(filled.cells[4].textContent).toBe("3")
+  })
+
+  it("shows how many people opened the dashboard in the window", async () => {
+    const { cells } = await cellsOf(summary({ view_count: 12 }))
+    expect(cells[6].textContent).toBe("12")
   })
 
   it("clamps the description to one line and keeps the full text on hover", async () => {

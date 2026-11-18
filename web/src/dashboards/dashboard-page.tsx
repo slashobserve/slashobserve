@@ -137,6 +137,7 @@ import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
+import { useViewsText } from "./views"
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -430,6 +431,7 @@ function DashboardView({
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const folders = useQuery(foldersQuery()).data ?? []
+  const viewsText = useViewsText(dashboardId)
   const duplicate = duplicateTargets(folders, envelope.dashboard.folder.id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -841,6 +843,7 @@ function DashboardView({
                 title={spec.title}
                 folder={access.folder}
                 madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                views={viewsText}
                 versionControl={
                   <VersionMenu
                     dashboardId={dashboardId}
