@@ -21,8 +21,9 @@ The tab asks for a **Title** of 1 to 200 characters, an optional **First note** 
 A non-empty note becomes the observation's first text block.
 A link in the note to a logs search (`/logs/<datasource>?q=...`), a trace (`/t/<trace id>?ds=<datasource>`) or a dashboard panel (`/d/<dashboard>?panel=<panel id>`) on this app's own address also becomes a panel block, over the range the link carries, at most 10 links and each once; any other link stays text.
 A trace link on a ClickHouse datasource becomes a block that reads the trace by its id, as one Tempo trace does.
+A link to a panel that uses variables keeps their definitions, with the values in the link's `var-` parameters, or the dashboard's defaults without them.
 A link that cannot be added is skipped, and one message says how many were and why; the observation still opens.
-The reasons include a panel that no longer exists, a panel that uses dashboard variables (a block runs without them), and what the server answered, such as a datasource you cannot read.
+The reasons include a panel that no longer exists, a panel that uses a dashboard variable the dashboard no longer defines (`variable_missing`), and what the server answered, such as a datasource you cannot read.
 
 Where [Observe Agent](chat.md) is set up, **Ask Observe Agent to start** is off by default; turned on, it starts an investigation that writes into the new observation from the note, or from the title when the note is empty, and you see what it finds as blocks you can keep or discard.
 If that run cannot start, the observation still exists and a message says the agent did not start.
