@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
@@ -27,10 +27,7 @@ func reportBody(t *testing.T, report grafana.Report) map[string]any {
 
 func validateReport(t *testing.T, body any) error {
 	t.Helper()
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	return doc.Components.Schemas["ImportReport"].Value.VisitJSON(body)
 }
 
