@@ -147,13 +147,6 @@ func panelIssues(body PanelBody) []spec.Issue {
 	case err != nil:
 		return []spec.Issue{{Path: panelIssuePath, Code: spec.CodeSchema, Message: err.Error()}}
 	}
-	canonical, err := json.Marshal(d)
-	if err != nil {
-		return []spec.Issue{{Path: panelIssuePath, Code: spec.CodeSchema, Message: "the panel cannot be encoded"}}
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return repath(issues)
-	}
 	switch panel := d.Panels[0]; {
 	case panel.Type == spec.Text:
 		return []spec.Issue{{Path: panelIssuePath + "/type", Code: spec.CodeSchema, Message: "a text panel is not a panel block; use a text block"}}

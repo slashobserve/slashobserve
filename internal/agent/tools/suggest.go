@@ -57,13 +57,6 @@ func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, r
 	if issues := importOnlyIssues(candidate, run.Base); len(issues) > 0 {
 		return suggestionRejected(issues), nil
 	}
-	canonical, err := json.Marshal(candidate)
-	if err != nil {
-		return Result{}, err
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return suggestionRejected(issues), nil
-	}
 	if head.Type.IsData() {
 		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, time.Now(), queryproxy.UserFor(principal), []string{run.PanelID})
 		if err != nil {

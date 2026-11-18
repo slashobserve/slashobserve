@@ -67,6 +67,9 @@ func parse(data []byte, touched map[string]bool) (*Dashboard, error) {
 	if err != nil {
 		return nil, err
 	}
+	if bytes.Contains(data, nulEscape) {
+		issues = append(issues, NULIssues(data)...)
+	}
 	if len(issues) > 0 {
 		return nil, newValidationError(issues)
 	}

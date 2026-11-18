@@ -661,9 +661,6 @@ func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
 	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return nil, nil, &InvalidSpecError{Issues: issues}
-	}
 	return parsed, canonical, nil
 }
 
