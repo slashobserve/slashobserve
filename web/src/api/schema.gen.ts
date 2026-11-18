@@ -258,13 +258,13 @@ export interface paths {
         };
         /**
          * List the domains the server may fetch content from.
-         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry; dashboard feeds, actions and assets are fetched on demand and not listed. Service accounts cannot call this endpoint.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry; dashboard feeds, actions and assets are fetched on demand and not listed. Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`. Service accounts cannot call this endpoint.
          */
         get: operations["listOutboundDomains"];
         put?: never;
         /**
          * Allow a domain.
-         * @description Any signed-in person may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
+         * @description Only an Admin may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
          */
         post: operations["allowOutboundDomain"];
         delete?: never;

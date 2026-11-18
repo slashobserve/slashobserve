@@ -43,7 +43,7 @@ type listJSON struct {
 
 func (s *Store) Register(api auth.Routes) {
 	g := api.Group("/outbound-domains")
-	g.GET("", auth.RoleViewer, auth.RequireUser, s.list)
+	g.GET("", auth.RoleEditor, auth.RequireUser, s.list)
 	g.POST("", auth.RoleAdmin, auth.RequireUser, s.add)
 	g.DELETE("/:domain", auth.RoleAdmin, auth.RequireUser, s.remove)
 }

@@ -26,7 +26,8 @@ Every fetch follows the same rules, whatever the domain:
 - Each fetch has a size cap (1 MiB unless the feature asks for more, 8 MiB at most), a 10 second time limit and a content type check.
 - Results are cached for 15 minutes, and removing a domain stops its cached results from being served.
 
-Any signed-in person can see the list; only an Admin can allow or remove a domain in Settings or through `/api/v1/outbound-domains`, and service-account keys cannot.
+An Editor or an Admin can see the list, because the canvas actions editor needs it; a Commenter or a Viewer gets `403`.
+Only an Admin can allow or remove a domain in Settings or through `/api/v1/outbound-domains`, and service-account keys cannot.
 Every change is logged at INFO as `allowed an outbound domain` or `removed an outbound domain` with the person's id (`actor_id`) and the domain.
 The table also keeps who added each entry and when, but a removed entry leaves only the log line.
 Each entry in `GET /api/v1/outbound-domains` carries `used_by`, the webhooks and Grafana connections whose address it allows, and Settings names them in the confirmation before it removes the entry.
