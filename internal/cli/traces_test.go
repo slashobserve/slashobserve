@@ -6,9 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 const traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -306,11 +309,23 @@ func TestTracesAskUsageErrors(t *testing.T) {
 }
 
 func TestTracesAskPrintsWhyTheListIsIncompleteAndHowToGetMore(t *testing.T) {
-	note := "the page is full and more rows exist; pass next as cursor for more"
-	body := strings.Replace(traceSearchFrames, `{"frames"`, `{"meta":{"note":"`+note+`"},"frames"`, 1)
-	f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, body)
-	stdout, stderr, code := f.run("traces", "--ask", "all")
-	if code != 0 || !strings.Contains(stderr, "Note: "+note) || strings.Contains(stdout, "Note:") {
-		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	cases := map[string]string{
+		queryproxy.FullPageNote:                                 "the page is full and more rows exist; narrow --from and --to or the question to see the rest",
+		queryproxy.FullPageNote + ". " + queryproxy.PartialNote: "the page is full and more rows exist; narrow --from and --to or the question to see the rest. " + queryproxy.PartialNote,
+		queryproxy.PartialNote:                                  queryproxy.PartialNote,
+	}
+	for note, want := range cases {
+		body := strings.Replace(traceSearchFrames, `{"frames"`, `{"meta":{"note":`+strconv.Quote(note)+`},"frames"`, 1)
+		f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, body)
+		stdout, stderr, code := f.run("traces", "--ask", "all")
+		if code != 0 || !strings.Contains(stderr, "Note: "+want) || strings.Contains(stderr, "cursor") || strings.Contains(stdout, "Note:") {
+			t.Fatalf("%q: exit %d, stdout %q, stderr %q", note, code, stdout, stderr)
+		}
+	}
+}
+
+func TestTheCLIRewritesTheWalkSentenceItAlsoReadsFromTheServer(t *testing.T) {
+	if !strings.Contains(queryproxy.FullPageNote, serverWalkSentence) {
+		t.Fatalf("%q no longer holds %q", queryproxy.FullPageNote, serverWalkSentence)
 	}
 }

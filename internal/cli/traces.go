@@ -12,7 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const maxTraceSpans = 1000
+const (
+	maxTraceSpans      = 1000
+	serverWalkSentence = "pass next as cursor for more"
+)
 
 var traceIDPattern = regexp.MustCompile(`^(?:[0-9a-fA-F]{16}|[0-9a-fA-F]{32})$`)
 
@@ -185,7 +188,7 @@ func (a *app) searchTraces(ctx context.Context, c *client, kind string, sort *tr
 		out.table(traceSearchHeaders, rows)
 	}
 	if body.Meta.Note != "" {
-		out.notice("Note: %s", body.Meta.Note)
+		out.notice("Note: %s", strings.Replace(body.Meta.Note, serverWalkSentence, "narrow --from and --to or the question to see the rest", 1))
 	}
 	return nil
 }
