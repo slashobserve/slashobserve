@@ -27,22 +27,29 @@ const (
 )
 
 type personJSON struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Email          string  `json:"email"`
-	CreatedAt      string  `json:"created_at"`
-	LastLoginAt    string  `json:"last_login_at"`
-	LastSeenAt     string  `json:"last_seen_at"`
-	DashboardCount int     `json:"dashboard_count"`
-	KeyCount       int     `json:"key_count"`
-	SessionCount   int     `json:"session_count"`
-	Role           string  `json:"role"`
-	RoleSource     string  `json:"role_source"`
-	RoleGroup      *string `json:"role_group"`
-	RoleSetBy      *string `json:"role_set_by"`
-	RoleLocked     bool    `json:"role_locked"`
-	DeactivatedAt  *string `json:"deactivated_at"`
-	DeactivatedBy  *string `json:"deactivated_by"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	Email          string             `json:"email"`
+	CreatedAt      string             `json:"created_at"`
+	LastLoginAt    string             `json:"last_login_at"`
+	LastSeenAt     string             `json:"last_seen_at"`
+	DashboardCount int                `json:"dashboard_count"`
+	KeyCount       int                `json:"key_count"`
+	SessionCount   int                `json:"session_count"`
+	Role           string             `json:"role"`
+	RoleSource     string             `json:"role_source"`
+	RoleGroup      *string            `json:"role_group"`
+	RoleSetBy      *string            `json:"role_set_by"`
+	RoleLocked     bool               `json:"role_locked"`
+	DeactivatedAt  *string            `json:"deactivated_at"`
+	DeactivatedBy  *string            `json:"deactivated_by"`
+	PersonalItems  *personalItemsJSON `json:"personal_items"`
+}
+
+type personalItemsJSON struct {
+	Dashboards    int `json:"dashboards"`
+	Observations  int `json:"observations"`
+	SavedSearches int `json:"saved_searches"`
 }
 
 type listJSON struct {
@@ -68,6 +75,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g.DELETE("/:id/sessions", auth.RoleAdmin, auth.RequireUser, h.signOut)
 	g.POST("/:id/deactivate", auth.RoleAdmin, auth.RequireUser, h.deactivate)
 	g.POST("/:id/reactivate", auth.RoleAdmin, auth.RequireUser, h.reactivate)
+	g.DELETE("/:id", auth.RoleAdmin, auth.RequireUser, h.remove)
 	h.registerInvites(api)
 }
 
@@ -141,6 +149,11 @@ func newPersonJSON(r dbsqlc.ListUsersRow) personJSON {
 		p.DeactivatedAt = &at
 		if r.DeactivatedByName.Valid {
 			p.DeactivatedBy = &r.DeactivatedByName.String
+		}
+		p.PersonalItems = &personalItemsJSON{
+			Dashboards:    int(r.PersonalDashboardCount),
+			Observations:  int(r.PersonalObservationCount),
+			SavedSearches: int(r.PersonalSavedSearchCount),
 		}
 	}
 	return p

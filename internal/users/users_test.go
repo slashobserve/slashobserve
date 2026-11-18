@@ -174,6 +174,7 @@ func TestServiceAccountsCannotUseThePeopleRoutes(t *testing.T) {
 		{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
 		{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
 		{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
+		{http.MethodDelete, "/api/v1/users/" + user.String()},
 	} {
 		rec := r.do(tc.method, tc.path, sa)
 		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden"`) {
@@ -197,6 +198,7 @@ func TestOnlyAdminsCanUseThePeopleRoutes(t *testing.T) {
 			{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
 			{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
 			{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
+			{http.MethodDelete, "/api/v1/users/" + user.String()},
 		} {
 			rec := r.do(tc.method, tc.path, caller)
 			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {

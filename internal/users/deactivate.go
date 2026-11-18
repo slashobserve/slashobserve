@@ -69,3 +69,40 @@ func (h *Handler) reactivate(c *gin.Context) {
 	h.logger.InfoContext(ctx, "reactivated a person", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("user_id", id.String()))
 	c.JSON(http.StatusOK, person)
 }
+
+func (h *Handler) remove(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	ctx := c.Request.Context()
+	active := false
+	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.RemoveDeactivatedUser(ctx, id)
+		if err != nil || n > 0 {
+			return err
+		}
+		exists, err := q.UserExists(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return auth.ErrNoUser
+		}
+		active = true
+		return nil
+	})
+	switch {
+	case errors.Is(err, auth.ErrNoUser):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
+		return
+	case err != nil:
+		h.fail(c, "remove a person", err, slog.String("user_id", id.String()))
+		return
+	case active:
+		httpapi.AbortError(c, http.StatusConflict, "not_deactivated", "deactivate this person first; only a deactivated person can be removed")
+		return
+	}
+	h.logger.InfoContext(ctx, "removed a person", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("user_id", id.String()))
+	c.Status(http.StatusNoContent)
+}

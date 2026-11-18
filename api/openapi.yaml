@@ -663,6 +663,7 @@ components:
         - role_locked
         - deactivated_at
         - deactivated_by
+        - personal_items
       properties:
         id:
           type: string
@@ -717,6 +718,22 @@ components:
           type: string
           nullable: true
           description: The name of the Admin who deactivated the person.
+        personal_items:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [dashboards, observations, saved_searches]
+          description: What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person.
+          properties:
+            dashboards:
+              type: integer
+              minimum: 0
+            observations:
+              type: integer
+              minimum: 0
+            saved_searches:
+              type: integer
+              minimum: 0
     ConnectedAgent:
       type: object
       additionalProperties: false

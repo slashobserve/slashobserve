@@ -4,7 +4,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -13,6 +16,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE sqlc.narg('cursor_created_at')::timestamptz IS NULL
   OR (u.created_at, u.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
 ORDER BY u.created_at DESC, u.id DESC
@@ -24,7 +32,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -33,6 +44,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE u.id = @id;
 
 -- name: UserExists :one
@@ -73,3 +89,6 @@ WHERE id = @id AND deactivated_at IS NULL;
 -- name: ReactivateUser :execrows
 UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
 WHERE id = @id;
+
+-- name: RemoveDeactivatedUser :execrows
+DELETE FROM users WHERE id = @id AND deactivated_at IS NOT NULL;

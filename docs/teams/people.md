@@ -1,6 +1,6 @@
 ---
 title: People
-description: How people join, how an Admin invites, deactivates and reactivates them, and what happens to what they made.
+description: How people join, how an Admin invites, deactivates, reactivates and removes them, and what happens to what they made.
 ---
 
 The People page lists everyone who has signed in, and the people invited who have not signed in yet.
@@ -53,11 +53,22 @@ Choose Reactivate on a deactivated person.
 They can sign in again at once, with the role the rules give them.
 The agents they had connected stay disconnected until they connect them again.
 
+## Remove a person
+
+Only a deactivated person can be removed: choose Remove in their menu.
+The dialog says how many dashboards, observations and saved searches are in their My Dashboards, because those are deleted with them.
+Their saved prompts, stars, views, inbox state and folder grants are deleted too.
+
+What they made in shared folders stays, under the name it was saved with: dashboards and their versions, observations, comments, proposals and activity.
+Service accounts and API keys they created stay and keep working.
+Removal cannot be undone; if the same identity-provider account signs in later, it joins as a new person with an empty My Dashboards.
+
 ## Over the API
 
 `POST /api/v1/invites`, `GET /api/v1/invites` and `DELETE /api/v1/invites/{id}` take an Admin signed in or an Admin service-account key, so an agent with an Admin key can invite people through [`observe people`](../use/cli.md#people).
 Inviting a pending email again answers 200 and changes its role.
 No MCP tool manages people: who may sign in, and with which role, is an Admin's decision, as a webhook is.
 
-`POST /api/v1/users/{id}/deactivate` and `POST /api/v1/users/{id}/reactivate` need an Admin signed in to the web app.
+`POST /api/v1/users/{id}/deactivate`, `POST /api/v1/users/{id}/reactivate` and `DELETE /api/v1/users/{id}` need an Admin signed in to the web app.
+Removing an active person answers 409 with code `not_deactivated`; a deactivated person's `personal_items` gives the counts the removal deletes.
 A service-account key cannot call them, because keys never end another person's sessions or connected agents, so the `observe` CLI and MCP have no command for them.

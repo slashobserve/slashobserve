@@ -25,6 +25,7 @@ import {
 import {
   actionsFor,
   lifecycleProblemText,
+  removalText,
   usePersonAction,
   type PersonAction,
 } from "./person-lifecycle"
@@ -33,6 +34,17 @@ import type { User } from "./queries"
 const labels: Record<PersonAction, string> = {
   deactivate: "Deactivate",
   reactivate: "Reactivate",
+  remove: "Remove",
+}
+
+const done: Record<PersonAction, string> = {
+  deactivate: "Deactivated",
+  reactivate: "Reactivated",
+  remove: "Removed",
+}
+
+function destructive(action: PersonAction): boolean {
+  return action !== "reactivate"
 }
 
 function keysNote(count: number): string {
@@ -41,6 +53,19 @@ function keysNote(count: number): string {
 }
 
 function Description({ user, action }: { user: User; action: PersonAction }) {
+  if (action === "remove") {
+    return (
+      <AlertDialogDescription>
+        This deletes <span className="wrap-anywhere">{user.email}</span> for
+        good.{" "}
+        {user.personal_items === null ? null : removalText(user.personal_items)}{" "}
+        Their saved prompts, stars, inbox and folder grants go too. Dashboards,
+        observations and comments they made in shared folders stay under their
+        name, and API keys they created keep working. If they sign in again they
+        join as a new person.
+      </AlertDialogDescription>
+    )
+  }
   if (action === "reactivate") {
     return (
       <AlertDialogDescription>
@@ -94,11 +119,7 @@ export function PersonMenu({ user }: { user: User }) {
       { id: user.id, action },
       {
         onSuccess: () => {
-          toast.success(
-            action === "deactivate"
-              ? `Deactivated ${user.name}`
-              : `Reactivated ${user.name}`
-          )
+          toast.success(`${done[action]} ${user.name}`)
           setConfirming(null)
         },
       }
@@ -125,7 +146,7 @@ export function PersonMenu({ user }: { user: User }) {
           {actions.map((action) => (
             <DropdownMenuItem
               key={action}
-              variant={action === "deactivate" ? "destructive" : "default"}
+              variant={destructive(action) ? "destructive" : "default"}
               onClick={() => setConfirming(action)}
             >
               {labels[action]}
@@ -155,9 +176,7 @@ export function PersonMenu({ user }: { user: User }) {
                   Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  variant={
-                    confirming === "deactivate" ? "destructive" : "default"
-                  }
+                  variant={destructive(confirming) ? "destructive" : "default"}
                   disabled={change.isPending}
                   focusableWhenDisabled
                   aria-busy={change.isPending}

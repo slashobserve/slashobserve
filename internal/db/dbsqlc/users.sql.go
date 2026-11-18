@@ -45,7 +45,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -54,6 +57,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE u.id = $2
 `
 
@@ -63,21 +71,24 @@ type GetPersonParams struct {
 }
 
 type GetPersonRow struct {
-	ID                pgtype.UUID
-	Email             string
-	Name              string
-	CreatedAt         pgtype.Timestamptz
-	LastLoginAt       pgtype.Timestamptz
-	LastSeenAt        pgtype.Timestamptz
-	Role              string
-	RoleSource        string
-	RoleGroup         pgtype.Text
-	ManualRoleByName  pgtype.Text
-	DeactivatedAt     pgtype.Timestamptz
-	DeactivatedByName pgtype.Text
-	DashboardCount    int32
-	KeyCount          int32
-	SessionCount      int32
+	ID                       pgtype.UUID
+	Email                    string
+	Name                     string
+	CreatedAt                pgtype.Timestamptz
+	LastLoginAt              pgtype.Timestamptz
+	LastSeenAt               pgtype.Timestamptz
+	Role                     string
+	RoleSource               string
+	RoleGroup                pgtype.Text
+	ManualRoleByName         pgtype.Text
+	DeactivatedAt            pgtype.Timestamptz
+	DeactivatedByName        pgtype.Text
+	DashboardCount           int32
+	KeyCount                 int32
+	SessionCount             int32
+	PersonalDashboardCount   int32
+	PersonalObservationCount int32
+	PersonalSavedSearchCount int32
 }
 
 func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPersonRow, error) {
@@ -99,6 +110,9 @@ func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPerson
 		&i.DashboardCount,
 		&i.KeyCount,
 		&i.SessionCount,
+		&i.PersonalDashboardCount,
+		&i.PersonalObservationCount,
+		&i.PersonalSavedSearchCount,
 	)
 	return i, err
 }
@@ -175,7 +189,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -184,6 +201,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE $2::timestamptz IS NULL
   OR (u.created_at, u.id) < ($2::timestamptz, $3::uuid)
 ORDER BY u.created_at DESC, u.id DESC
@@ -198,21 +220,24 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID                pgtype.UUID
-	Email             string
-	Name              string
-	CreatedAt         pgtype.Timestamptz
-	LastLoginAt       pgtype.Timestamptz
-	LastSeenAt        pgtype.Timestamptz
-	Role              string
-	RoleSource        string
-	RoleGroup         pgtype.Text
-	ManualRoleByName  pgtype.Text
-	DeactivatedAt     pgtype.Timestamptz
-	DeactivatedByName pgtype.Text
-	DashboardCount    int32
-	KeyCount          int32
-	SessionCount      int32
+	ID                       pgtype.UUID
+	Email                    string
+	Name                     string
+	CreatedAt                pgtype.Timestamptz
+	LastLoginAt              pgtype.Timestamptz
+	LastSeenAt               pgtype.Timestamptz
+	Role                     string
+	RoleSource               string
+	RoleGroup                pgtype.Text
+	ManualRoleByName         pgtype.Text
+	DeactivatedAt            pgtype.Timestamptz
+	DeactivatedByName        pgtype.Text
+	DashboardCount           int32
+	KeyCount                 int32
+	SessionCount             int32
+	PersonalDashboardCount   int32
+	PersonalObservationCount int32
+	PersonalSavedSearchCount int32
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
@@ -245,6 +270,9 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.DashboardCount,
 			&i.KeyCount,
 			&i.SessionCount,
+			&i.PersonalDashboardCount,
+			&i.PersonalObservationCount,
+			&i.PersonalSavedSearchCount,
 		); err != nil {
 			return nil, err
 		}
@@ -332,6 +360,18 @@ WHERE id = $1
 
 func (q *Queries) ReactivateUser(ctx context.Context, id pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, reactivateUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const removeDeactivatedUser = `-- name: RemoveDeactivatedUser :execrows
+DELETE FROM users WHERE id = $1 AND deactivated_at IS NOT NULL
+`
+
+func (q *Queries) RemoveDeactivatedUser(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, removeDeactivatedUser, id)
 	if err != nil {
 		return 0, err
 	}

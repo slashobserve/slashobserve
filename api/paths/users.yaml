@@ -79,6 +79,30 @@ users-id:
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: removePerson
+    summary: Remove a deactivated person and their My Dashboards.
+    description: >-
+      Admin only, from a person's session; service-account keys cannot.
+      Only a deactivated person can be removed; an active one answers 409 with code not_deactivated.
+      Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants.
+      Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created.
+      A new sign-in with the same identity-provider account afterwards makes a new person.
+    responses:
+      "204":
+        description: The person is removed.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/Conflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 users-id-sessions:
   parameters:
     - name: id

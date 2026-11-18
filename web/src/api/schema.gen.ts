@@ -217,7 +217,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove a deactivated person and their My Dashboards.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         */
+        delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
@@ -3653,6 +3657,12 @@ export interface components {
             deactivated_at: string | null;
             /** @description The name of the Admin who deactivated the person. */
             deactivated_by: string | null;
+            /** @description What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person. */
+            personal_items: {
+                dashboards: number;
+                observations: number;
+                saved_searches: number;
+            } | null;
         };
         ConnectedAgent: {
             /** Format: uuid */
@@ -7172,6 +7182,32 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    removePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["Internal"];
         };
     };
