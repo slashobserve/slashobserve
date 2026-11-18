@@ -49,6 +49,7 @@ import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
 import { useExploreSources } from "@/datasources/use-sources"
+import { foldersQuery } from "@/folders/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import {
   defaultPageSize,
@@ -65,7 +66,7 @@ import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
 import { usePhone } from "@/logs/logs-results"
 import { useAgentInfo } from "@/observe/queries"
-import { tracesDraft } from "@/saved-searches/draft"
+import { saveBlockedText, tracesDraft } from "@/saved-searches/draft"
 import { savedSearchLocation } from "@/saved-searches/links"
 import { savedSearchesQuery } from "@/saved-searches/queries"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
@@ -146,6 +147,8 @@ export function TracesPage({ uid }: { uid: string }) {
     }
   }, [rememberedUid])
   const range = tracesTimeRange(search)
+  const folders = useQuery(foldersQuery())
+  const saveBlocked = saveBlockedText(folders.data)
   const [saving, setSaving] = useState(false)
   const [live, setLive] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
@@ -210,6 +213,7 @@ export function TracesPage({ uid }: { uid: string }) {
         live={live}
         onLiveChange={setLive}
         saveTrigger={saveTrigger}
+        saveBlocked={saveBlocked}
         onSave={() => setSaving(true)}
       />
       <SaveSearchDialog
@@ -276,6 +280,7 @@ function TraceSearchActions({
   live,
   onLiveChange,
   saveTrigger,
+  saveBlocked,
   onSave,
 }: {
   range: { from: string; to: string }
@@ -283,6 +288,7 @@ function TraceSearchActions({
   live: boolean
   onLiveChange: (next: boolean) => void
   saveTrigger: RefObject<HTMLButtonElement | null>
+  saveBlocked: string | undefined
   onSave: () => void
 }) {
   const phone = usePhone()
@@ -321,7 +327,12 @@ function TraceSearchActions({
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem className="min-h-11" onClick={onSave}>
+              <DropdownMenuItem
+                className="min-h-11"
+                disabled={saveBlocked !== undefined}
+                title={saveBlocked}
+                onClick={onSave}
+              >
                 <BookmarkIcon aria-hidden="true" />
                 Save search
               </DropdownMenuItem>
@@ -351,6 +362,8 @@ function TraceSearchActions({
               ref={saveTrigger}
               type="button"
               variant="ghost"
+              disabled={saveBlocked !== undefined}
+              title={saveBlocked}
               onClick={onSave}
             >
               <BookmarkIcon aria-hidden="true" />

@@ -500,6 +500,7 @@ The Logs and Traces lists show the saved searches of their kind, up to the 100 m
 A folder with no saved search of that kind is not listed, and a folder's header counts its searches unless the list is cut at 100.
 Each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
 The folder list offers only the folders where you can create, and a refused save shows the server's message.
+On the trace search, **Save search** is disabled and says why when you cannot create in any folder.
 
 A search is saved in a folder, which needs the Create permission there.
 Without a folder it goes to your My Dashboards, and a service account saves it in General.
