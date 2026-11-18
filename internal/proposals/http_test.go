@@ -199,6 +199,7 @@ func TestDiscardReasonIsReturnedAndBounded(t *testing.T) {
 	path := "/api/v1/proposals/" + pid
 
 	d.send(t, editor, http.MethodPost, path+"/discard", `{"reason":"`+strings.Repeat("x", 501)+`"}`, http.StatusBadRequest)
+	d.send(t, editor, http.MethodPost, path+"/discard", `{"reason":"a\u0000b"}`, http.StatusBadRequest)
 	got := decode[ProposalJSON](t, d.send(t, editor, http.MethodGet, path, "", http.StatusOK))
 	if got.State != "open" || got.CloseReason != nil {
 		t.Fatalf("after a refused reason = %+v", got.SummaryJSON)

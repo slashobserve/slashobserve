@@ -561,6 +561,10 @@ func TestADiscardReasonOverTheLimitIsRefusedAndTheProposalStaysOpen(t *testing.T
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want invalid input", err)
 	}
+	_, err = r.service.Discard(t.Context(), editor, proposalID(t, ref), "a\x00b")
+	if !errors.As(err, &invalid) {
+		t.Fatalf("NUL err = %v, want invalid input", err)
+	}
 	open, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
 	if err != nil || open.State != StateOpen {
 		t.Fatalf("proposal = %+v, err = %v, want it still open", open.Item, err)

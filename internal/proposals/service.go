@@ -443,6 +443,9 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if utf8.RuneCountInString(reason) > maxReasonRunes {
 		return Proposal{}, &dashboards.InvalidInputError{Message: fmt.Sprintf("reason must be at most %d characters", maxReasonRunes)}
 	}
+	if strings.ContainsRune(reason, 0) {
+		return Proposal{}, &dashboards.InvalidInputError{Message: "reason must not contain the NUL character"}
+	}
 	h, access, err := s.load(ctx, by, id)
 	if err != nil {
 		return Proposal{}, err
