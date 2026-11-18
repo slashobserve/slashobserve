@@ -170,6 +170,11 @@ func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Act
 		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
+			if _, err := q.DashboardFolder(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			} else if err != nil {
+				return fmt.Errorf("read dashboard folder: %w", err)
+			}
 			return errFolderMoved
 		case isFolderGone(err):
 			return ErrFolderNotFound
