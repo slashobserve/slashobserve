@@ -6,7 +6,7 @@ import {
   type Panel,
 } from "@/spec"
 
-export type PanelSlot = { id: string; y: number }
+type PanelSlot = { id: string; y: number }
 
 export type PanelBuilder = (slot: PanelSlot) => DataPanel
 
