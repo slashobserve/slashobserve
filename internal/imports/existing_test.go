@@ -3,6 +3,7 @@ package imports_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -165,5 +166,39 @@ func TestRefuseExistingDoesNotRevealADashboardTheCallerCannotSee(t *testing.T) {
 	rec := r.serve(t, editorNoGrant, http.MethodPost, "/imports", map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "refuse_existing": true})
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAnUpdateNeedsTheFileTheDashboardWasImportedFrom(t *testing.T) {
+	r := newRig(t)
+	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := []byte(strings.Replace(string(grafanaJSON("Other", "prom", 2)), `"uid":"abc"`, `"uid":"zzz"`, 1))
+	rec := r.serve(t, ada, http.MethodPost, "/imports", map[string]string{"json": string(other), "update_dashboard": first.Dashboard.ID})
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"grafana_uid_mismatch"`) || !strings.Contains(rec.Body.String(), `abc`) || !strings.Contains(rec.Body.String(), `zzz`) {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
+		t.Fatalf("latest = %d, err %v, want the dashboard untouched", latest, err)
+	}
+}
+
+func TestAnUpdateOfACopyMadeAsNewChecksTheFilesUIDToo(t *testing.T) {
+	r := newRig(t)
+	if _, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); err != nil {
+		t.Fatal(err)
+	}
+	copied, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop copy", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := []byte(strings.Replace(string(grafanaJSON("Other", "prom", 2)), `"uid":"abc"`, `"uid":"zzz"`, 1))
+	if rec := r.serve(t, ada, http.MethodPost, "/imports", map[string]string{"json": string(other), "update_dashboard": copied.Dashboard.ID}); rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := r.serve(t, ada, http.MethodPost, "/imports", map[string]string{"json": string(grafanaJSON("Shop copy v2", "prom", 2)), "update_dashboard": copied.Dashboard.ID}); rec.Code != http.StatusOK {
+		t.Fatalf("same-uid update status %d: %s", rec.Code, rec.Body.String())
 	}
 }

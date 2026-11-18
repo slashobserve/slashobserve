@@ -288,6 +288,7 @@ MCP clients can also hand the server a Grafana dashboard with `import_grafana_da
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
 A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the call fails with `already_imported` and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
 Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version (it needs Edit, keeps the folder, and answers `updated: true`), or set `import_as_new` to make another dashboard on purpose.
+An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
 A retried call of the same agent request still answers with the dashboard it made.
 The built-in agent in a run that creates a dashboard may not use `update_dashboard` on this tool, because that run may not save a version of an existing dashboard; it is told where the dashboard is, or may set `import_as_new`.
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.

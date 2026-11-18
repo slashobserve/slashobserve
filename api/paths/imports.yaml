@@ -67,7 +67,7 @@ imports:
       Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
       The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
       With `update_dashboard`, the converted Spec is saved as the next version of that earlier import's dashboard instead, and the answer is 200 with the same body as a new import;
-      it needs Edit on the dashboard (404 `not_found` when the caller cannot see it, 403 when they cannot edit it, 404 `not_imported` when no import made it).
+      it needs Edit on the dashboard and a file with the Grafana uid the dashboard was imported from (409 `grafana_uid_mismatch` otherwise; a dashboard imported from a file without a uid takes any file) (404 `not_found` when the caller cannot see it, 403 when they cannot edit it, 404 `not_imported` when no import made it).
       With `refuse_existing`, a file whose Grafana uid an earlier import holds, in a dashboard the caller can see, answers 409 `already_imported` instead of making a second dashboard, so a client that retries or reruns an import cannot duplicate it; the MCP tool and the CLI send it unless told to import as new.
     requestBody:
       required: true
@@ -104,11 +104,15 @@ imports:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it.
+        description: >-
+          The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it.
+          Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/AlreadyImported"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/AlreadyImported"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

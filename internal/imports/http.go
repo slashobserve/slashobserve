@@ -329,6 +329,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var input *grafana.InputError
 	var unresolved *UnresolvedError
 	var already *AlreadyImportedError
+	var mismatch *UIDMismatchError
 	var invalid *dashboards.InvalidSpecError
 	if clientgone.Handle(c, h.svc.logger, action, err) {
 		return
@@ -340,6 +341,8 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, unresolvedJSON{Error: unresolved.Error(), Code: "datasources_unresolved", Datasources: unresolved.Datasources})
 	case errors.As(err, &already):
 		c.AbortWithStatusJSON(http.StatusConflict, alreadyImportedJSON{Error: already.Error(), Code: "already_imported", Existing: *newExistingJSON(&already.Existing)})
+	case errors.As(err, &mismatch):
+		httpapi.AbortError(c, http.StatusConflict, "grafana_uid_mismatch", mismatch.Error())
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.Is(err, ErrBusy):

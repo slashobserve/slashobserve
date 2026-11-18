@@ -23,6 +23,7 @@ const (
 	codeTooManyImports        = "too_many_imports"
 	codeAlreadyImported       = "already_imported"
 	codeNotImported           = "not_imported"
+	codeGrafanaUIDMismatch    = "grafana_uid_mismatch"
 
 	statusImported   grafana.Status = "imported"
 	statusUnverified grafana.Status = "unverified"
@@ -258,7 +259,10 @@ func (r *Registry) importFailed(err error, scoped bool) (Result, error) {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
 	var already *imports.AlreadyImportedError
+	var mismatch *imports.UIDMismatchError
 	switch {
+	case errors.As(err, &mismatch):
+		return importFailure(codeGrafanaUIDMismatch, mismatch.Error()), nil
 	case errors.As(err, &already):
 		return failure(errorStep(nameImportGrafana, codeAlreadyImported), alreadyImportedOut{
 			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing, scoped), Code: codeAlreadyImported},

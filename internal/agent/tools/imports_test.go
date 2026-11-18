@@ -246,3 +246,12 @@ func TestImportFailedInARunDoesNotOfferTheUpdate(t *testing.T) {
 		t.Fatalf("res = %#v, err = %v", res.Content, err)
 	}
 }
+
+func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"}, false)
+	body, ok := res.Content.(importErrorOut)
+	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Error, `"abc"`) || !strings.Contains(body.Error, `"zzz"`) || !strings.Contains(body.Error, "new dashboard") {
+		t.Fatalf("res = %#v, err = %v", res.Content, err)
+	}
+}

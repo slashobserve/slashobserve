@@ -82,6 +82,20 @@ func (e *AlreadyImportedError) Error() string {
 	return fmt.Sprintf("this Grafana dashboard was already imported as %q (dashboard %s, version %d)", e.Existing.Title, e.Existing.DashboardID, e.Existing.Version)
 }
 
+type UIDMismatchError struct {
+	DashboardID string
+	Held        string
+	Given       string
+}
+
+func (e *UIDMismatchError) Error() string {
+	given := "has no uid"
+	if e.Given != "" {
+		given = fmt.Sprintf("has the uid %q", e.Given)
+	}
+	return fmt.Sprintf("dashboard %s was imported from the Grafana dashboard with uid %q, but this file %s; import the file as a new dashboard instead", e.DashboardID, e.Held, given)
+}
+
 type GrafanaImport struct {
 	DashboardID    pgtype.UUID
 	GrafanaVersion int
@@ -329,7 +343,7 @@ func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err := checkLimits(req); err != nil {
 		return Imported{}, err
 	}
-	return s.reimport(ctx, by, dashboardID, req)
+	return s.reimport(ctx, by, dashboardID, req, "")
 }
 
 func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
@@ -342,16 +356,20 @@ func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgt
 	case !access.Abilities.Has(folders.NeedEdit):
 		return Imported{}, folders.ErrForbidden
 	}
-	if _, err := s.ForDashboard(ctx, dashboardID); err != nil {
+	held, err := s.ForDashboard(ctx, dashboardID)
+	if err != nil {
 		return Imported{}, err
 	}
-	return s.reimport(ctx, by, dashboardID, req)
+	return s.reimport(ctx, by, dashboardID, req, held.Summary.UID)
 }
 
-func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
+func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request, wantUID string) (Imported, error) {
 	result, err := grafana.Convert(req.JSON, s.options(req))
 	if err != nil {
 		return Imported{}, err
+	}
+	if wantUID != "" && result.Summary.UID != wantUID {
+		return Imported{}, &UIDMismatchError{DashboardID: dashboardID.String(), Held: wantUID, Given: result.Summary.UID}
 	}
 	if !result.Ready() {
 		return Imported{}, &UnresolvedError{Datasources: result.Datasources}
