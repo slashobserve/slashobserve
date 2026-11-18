@@ -369,6 +369,7 @@ A span's details end with **Logs for this span**: the first lines that carry its
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
 **Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
+Messages wrap in the panel instead of being cut off.
 The panel replaces the span details while it is open, because the page shows one side panel at a time, and opening a span closes it.
 A ClickHouse trace reads its logs from a ClickHouse datasource and a Tempo trace from Loki; with more than one logs datasource, a select in the section picks one and the choice is remembered in the browser.
 

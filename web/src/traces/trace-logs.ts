@@ -216,3 +216,9 @@ export function matchNote(
     ? "Matched on trace_id and span_id in every stream."
     : `Matched on trace_id and span_id in the ${span.service} stream.`
 }
+
+export const minLogsBodyHeight = 320
+
+export function logsBodyHeight(measured: number): number {
+  return Math.max(measured, minLogsBodyHeight)
+}
