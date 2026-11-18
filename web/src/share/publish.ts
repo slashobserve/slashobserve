@@ -14,5 +14,5 @@ export function publishAudience(
   const names = folder.grantees.join(", ")
   const listed =
     more > 0 ? `${names} and ${more} more` : names === "" ? "nobody" : names
-  return `${folder.title} is restricted, so only the people and groups on its list (${listed}) and instance admins can open it.`
+  return `${folder.title} is restricted, so only the people and groups on its list (${listed}), the person who created it and instance admins can open it.`
 }

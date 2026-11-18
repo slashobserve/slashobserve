@@ -85,7 +85,7 @@ describe("publishAudience", () => {
         })
       )
     ).toBe(
-      "Payments is restricted, so only the people and groups on its list (Ada, sre) and instance admins can open it."
+      "Payments is restricted, so only the people and groups on its list (Ada, sre), the person who created it and instance admins can open it."
     )
   })
 
