@@ -10,6 +10,7 @@ import {
   formatShortRelative,
   formatTimeValue,
   isAbsoluteOrdered,
+  isRangeTooLong,
   isSubMinuteOffset,
   isTimeValue,
   parseUserTime,
@@ -462,5 +463,28 @@ describe("zoned formatting", () => {
     expect(zonedDateTime(Date.UTC(2026, 10, 1, 6, 0, 0), zone)).toBe(
       "2026-11-01 01:00:00"
     )
+  })
+})
+
+describe("isRangeTooLong", () => {
+  const now = Date.parse("2026-11-18T12:00:00Z")
+
+  it("accepts a range of exactly 400 days and refuses a longer one", () => {
+    expect(isRangeTooLong("now-400d", "now", now)).toBe(false)
+    expect(isRangeTooLong("now-401d", "now", now)).toBe(true)
+    expect(isRangeTooLong("now-500d", "now", now)).toBe(true)
+  })
+
+  it("reads absolute times", () => {
+    expect(
+      isRangeTooLong("2024-01-01T00:00:00Z", "2026-01-01T00:00:00Z", now)
+    ).toBe(true)
+    expect(
+      isRangeTooLong("2026-11-01T00:00:00Z", "2026-11-18T00:00:00Z", now)
+    ).toBe(false)
+  })
+
+  it("leaves an unreadable time to the other checks", () => {
+    expect(isRangeTooLong("nonsense", "now", now)).toBe(false)
   })
 })

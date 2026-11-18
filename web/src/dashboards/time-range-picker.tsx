@@ -17,6 +17,8 @@ import {
   describeRange,
   formatTimeValue,
   isAbsoluteOrdered,
+  isRangeTooLong,
+  maxRangeDays,
   parseUserTime,
   quickRanges as defaultQuickRanges,
   type QuickRange,
@@ -68,6 +70,10 @@ export function TimeRangeControl({
     }
     if (!isAbsoluteOrdered(parsedFrom, parsedTo)) {
       setError("From must be earlier than To.")
+      return
+    }
+    if (isRangeTooLong(parsedFrom, parsedTo)) {
+      setError(`The range can be at most ${maxRangeDays} days.`)
       return
     }
     choose(parsedFrom, parsedTo)

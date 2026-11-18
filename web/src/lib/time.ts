@@ -466,6 +466,20 @@ export function isAbsoluteOrdered(
   return start < end
 }
 
+export const maxRangeDays = 400
+
+export function isRangeTooLong(
+  from: string,
+  to: string,
+  now = Date.now(),
+  options: TimeOptions = {}
+): boolean {
+  const start = resolveTime(from, now, false, options)
+  const end = resolveTime(to, now, true, options)
+  if (Number.isNaN(start) || Number.isNaN(end)) return false
+  return end - start > maxRangeDays * 86_400_000
+}
+
 const relativeUnits: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] =
   [
     { unit: "year", seconds: 365 * 86400 },

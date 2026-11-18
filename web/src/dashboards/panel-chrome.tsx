@@ -7,7 +7,6 @@ import {
   TriangleAlertIcon,
 } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -28,8 +27,8 @@ import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
+import { panelProblem } from "./panel-problem"
 import { timeOverrideLabel } from "./time-override"
-import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
@@ -43,21 +42,31 @@ export function panelBodySize(width: number, height: number) {
   }
 }
 
-const errorTitles: Record<string, string> = {
-  query_timeout: "Query timed out",
-  datasource_unavailable: "Datasource unavailable",
-  limit_exceeded: "Too much data",
-  query_invalid: "Query error",
-  query_forbidden: "Query not allowed",
-  variable_empty: "Variable has no values",
-}
-
-function errorTitle(error: unknown): string {
-  if (error instanceof VariableLoadError) return "Variable failed to load"
-  if (error instanceof ApiError && Object.hasOwn(errorTitles, error.code)) {
-    return errorTitles[error.code]
+function PanelProblemState({
+  error,
+  onRetry,
+}: {
+  error: unknown
+  onRetry: (() => void) | undefined
+}) {
+  const problem = panelProblem(error)
+  if (problem.empty) {
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-1 p-3 text-center">
+        <p className="text-sm text-muted-foreground">{problem.title}</p>
+        <p className="line-clamp-3 text-xs text-muted-foreground">
+          {problem.message}
+        </p>
+      </div>
+    )
   }
-  return "Panel failed to load"
+  return (
+    <PanelErrorState
+      title={problem.title}
+      message={problem.message}
+      onRetry={problem.retry ? onRetry : undefined}
+    />
+  )
 }
 
 type Props = {
@@ -252,11 +261,7 @@ export function PanelChrome({
           </div>
         ) : null}
         {state === "error" ? (
-          <PanelErrorState
-            title={errorTitle(error)}
-            error={error}
-            onRetry={onRetry}
-          />
+          <PanelProblemState error={error} onRetry={onRetry} />
         ) : null}
         {state === "unsupported" ? (
           <div className="flex size-full items-center justify-center p-3 text-center text-sm text-muted-foreground">
