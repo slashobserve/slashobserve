@@ -33,7 +33,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts lint lint-go lint-web lint-agent lint-deploy ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -92,12 +92,20 @@ lint-go:
 	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../.golangci.yaml ./...
 	$(SQLC) diff
 
-lint-web: web-deps
+lint-web: lint-web-types lint-web-eslint lint-web-knip lint-web-format
+
+lint-web-types: web-deps
 	cd web && bun run typecheck
 	cd web && bun run spec:check
 	cd web && bun run api:check
+
+lint-web-eslint: web-deps
 	cd web && bun run lint
+
+lint-web-knip: web-deps
 	cd web && bun run knip
+
+lint-web-format: web-deps
 	cd web && bun run format:check
 
 lint-agent: agent-deps
