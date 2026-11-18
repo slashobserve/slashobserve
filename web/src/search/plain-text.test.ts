@@ -34,4 +34,22 @@ describe("plainSegments", () => {
       { text: "errors", match: true },
     ])
   })
+
+  it("keeps a dash, quote or star that begins a later segment of a sentence", () => {
+    const out = plainSegments([
+      { text: "timeout", match: true },
+      { text: " - retrying after 5s > 3 * 2", match: false },
+    ])
+    expect(out.map((segment) => segment.text).join("")).toBe(
+      "timeout - retrying after 5s > 3 * 2"
+    )
+  })
+
+  it("still drops a list marker after a line break in a later segment", () => {
+    const out = plainSegments([
+      { text: "cause", match: true },
+      { text: "\n- slow query", match: false },
+    ])
+    expect(out[1]?.text).toBe("\nslow query")
+  })
 })
