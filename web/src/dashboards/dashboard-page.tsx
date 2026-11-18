@@ -115,6 +115,7 @@ import {
   type DashboardEnvelope,
 } from "./queries"
 import { useAddPanel } from "./add-panel-action"
+import { SpecJsonPane } from "./spec-json/spec-json-pane"
 import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
@@ -411,8 +412,15 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const [specOpen, setSpecOpen] = useState(false)
+  const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
-    panelInUrl || search.share === true || editing || inspecting || kiosk
+    panelInUrl ||
+    search.share === true ||
+    editing ||
+    inspecting ||
+    kiosk ||
+    specShown
       ? undefined
       : search.chat
   const threadInUrl = search.thread !== undefined
@@ -420,6 +428,7 @@ function DashboardView({
     (open || panelInUrl || search.share === true || threadInUrl) &&
     !editing &&
     !inspecting &&
+    !specShown &&
     !kiosk &&
     chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
@@ -725,6 +734,7 @@ function DashboardView({
       deleteBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
       onAddPanel={addPanel}
+      onEditJson={() => setSpecOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -838,7 +848,8 @@ function DashboardView({
             pageClass(
               (cardVisible && cardLayout.stacked) ||
                 (chatRequestId !== undefined && chatLayout.stacked) ||
-                (inspecting && inspectLayout.stacked)
+                (inspecting && inspectLayout.stacked) ||
+                (specShown && inspectLayout.stacked)
             ),
             "min-w-0 narrow:flex-1"
           )}
@@ -964,6 +975,15 @@ function DashboardView({
               variables={variables}
               zone={displayZone(inspectPanel.timezone, spec.timezone)}
               onClose={closeInspect}
+            />
+          ) : null}
+          {specOpen ? (
+            <SpecJsonPane
+              dashboardId={dashboardId}
+              spec={envelopeSpec}
+              version={envelopeVersion}
+              hidden={!specShown}
+              onClose={() => setSpecOpen(false)}
             />
           ) : null}
           <UnsavedBar dashboardId={dashboardId} />

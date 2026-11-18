@@ -1,4 +1,5 @@
 import {
+  BracesIcon,
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
@@ -33,6 +34,7 @@ type Props = {
   mayEdit: boolean
   detailsBlockedBy: string | null
   onAddPanel: (() => void) | null
+  onEditJson: () => void
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
   onEditDetails: () => void
@@ -49,6 +51,7 @@ export function MoreMenu({
   mayEdit,
   detailsBlockedBy,
   onAddPanel,
+  onEditJson,
   duplicateBlockedBy,
   deleteBlockedBy,
   onEditDetails,
@@ -67,7 +70,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, add panel, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, add panel, edit Spec JSON, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -101,6 +104,17 @@ export function MoreMenu({
             {detailsBlockedBy === null
               ? "Add panel"
               : `Add panel (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={onEditJson}
+          >
+            <BracesIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Edit Spec JSON"
+              : `Edit Spec JSON (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={onExport}>
