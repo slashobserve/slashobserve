@@ -35,9 +35,16 @@ Each dashboard goes through the same importer as [Import Grafana dashboards](imp
 Open Settings and choose Grafana connection in its section list; only Admins see it.
 Choose **Add connection**, give the connection a name, the Grafana URL and the service account token in the panel that opens, and choose **Add connection** in the panel.
 The token is stored encrypted and is never shown again, not in the web app and not in the API.
-Choose Test on the connection to check it: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`
+The server tests the connection as soon as it is saved, and a message says whether the test passed or what failed.
+A failed test still keeps the connection, so you can fix it with Edit instead of adding it again.
+
+Choose Test on the connection to check it again: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`
 A Grafana that cannot be reached or refuses the token shows a fixed message such as `Grafana refused the token (status 401).`
-To change the token, delete the connection from its row's menu and add it again; imported dashboards stay when a connection is deleted.
+
+To change the name, the URL or the token, choose Edit in the row's menu.
+Leave the token empty to keep the stored one; a new URL needs the token again, so a stored token never reaches another host.
+Saving tests the connection again.
+Deleting a connection from the same menu keeps the dashboards it imported.
 
 ### Who can connect, and why private hosts are allowed
 

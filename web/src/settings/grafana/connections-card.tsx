@@ -35,6 +35,10 @@ import { summaryText } from "./results"
 type Props = {
   connections: GrafanaConnection[]
   onImport: (connection: GrafanaConnection) => void
+  onEdit: (
+    connection: GrafanaConnection,
+    trigger: HTMLButtonElement | undefined
+  ) => void
 }
 
 function LastTest({ connection }: { connection: GrafanaConnection }) {
@@ -69,7 +73,7 @@ function LastImport({ connection }: { connection: GrafanaConnection }) {
   )
 }
 
-export function ConnectionsCard({ connections, onImport }: Props) {
+export function ConnectionsCard({ connections, onImport, onEdit }: Props) {
   const test = useTestConnection()
   const remove = useDeleteConnection()
   const [deleting, setDeleting] = useState<GrafanaConnection | null>(null)
@@ -185,6 +189,16 @@ export function ConnectionsCard({ connections, onImport }: Props) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() =>
+                            onEdit(
+                              connection,
+                              deleteButtons.current.get(connection.id)
+                            )
+                          }
+                        >
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           variant="destructive"
                           onClick={() => {
                             deleteTarget.current = connection.id
@@ -215,8 +229,8 @@ export function ConnectionsCard({ connections, onImport }: Props) {
             <AlertDialogDescription>
               The stored URL and token are removed, and so is its host on the
               Outbound access list unless a webhook, another connection or an
-              entry added by hand uses it. Dashboards imported from this
-              Grafana stay, with their folders and import records.
+              entry added by hand uses it. Dashboards imported from this Grafana
+              stay, with their folders and import records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {remove.isError ? (
