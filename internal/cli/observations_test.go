@@ -280,6 +280,25 @@ func TestObservationCommands(t *testing.T) {
 			wantOut:    []string{"Deleted observation " + testObservation},
 		},
 		{
+			name:       "withdraw with --yes deletes the revision",
+			args:       []string{"o", "withdraw", testObservation, "2", "--yes"},
+			wantMethod: http.MethodDelete,
+			wantPath:   "/api/v1/observations/" + testObservation + "/rcas/2",
+			wantOut:    []string{"Withdrew revision 2 of " + testObservation},
+		},
+		{
+			name:     "withdraw asks for --yes",
+			args:     []string{"o", "withdraw", testObservation, "2"},
+			wantCode: 2,
+			wantErr:  "rerun with --yes",
+		},
+		{
+			name:     "withdraw needs a revision number",
+			args:     []string{"o", "withdraw", testObservation, "latest", "--yes"},
+			wantCode: 2,
+			wantErr:  "is not a revision",
+		},
+		{
 			name:     "delete asks for --yes",
 			args:     []string{"o", "delete", testObservation},
 			wantCode: 2,

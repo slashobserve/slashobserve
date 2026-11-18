@@ -35,6 +35,7 @@ const (
 	TypeObservationResolved       = "observation.resolved"
 	TypeObservationReopened       = "observation.reopened"
 	TypeObservationPublished      = "observation.published"
+	TypeObservationRCAWithdrawn   = "observation.rca_withdrawn"
 	TypeObservationBlockAdded     = "observation.block_added"
 	TypeObservationBlockUpdated   = "observation.block_updated"
 	TypeObservationBlockKept      = "observation.block_kept"
@@ -86,6 +87,7 @@ var knownTypes = []string{
 	TypeObservationResolved,
 	TypeObservationReopened,
 	TypeObservationPublished,
+	TypeObservationRCAWithdrawn,
 	TypeObservationBlockAdded,
 	TypeObservationBlockUpdated,
 	TypeObservationBlockKept,

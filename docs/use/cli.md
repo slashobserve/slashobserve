@@ -231,6 +231,10 @@ No MCP tool deletes anything, so an agent cannot do this.
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
 
+`bin/observe o withdraw <observation-id> <revision> --yes` deletes one published revision and prints `Withdrew revision <n> of <observation-id>`, as in [Observations](observations.md#withdraw-a-revision).
+It needs Edit on the observation's folder, answers `rca_shared` while the revision has a live public link, and cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
+
 `bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
 `bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 

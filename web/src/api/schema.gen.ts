@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -2194,7 +2194,11 @@ export interface paths {
         get: operations["getRca"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Withdraw one published revision of an observation's RCA.
+         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["withdrawRca"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3966,7 +3970,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.rca_withdrawn" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -12441,6 +12445,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    withdrawRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The revision is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

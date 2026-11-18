@@ -228,6 +228,7 @@ Every write answers `code: ok` with the ids, the `state` of what it changed, the
 `publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
+No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
 A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.

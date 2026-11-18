@@ -117,6 +117,35 @@ observations-id-rcas-revision:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: withdrawRca
+    x-surfaces:
+      cli: [observe o withdraw]
+    summary: Withdraw one published revision of an observation's RCA.
+    description: >-
+      Needs Edit on the folder, and the same states as publishing.
+      A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it.
+      Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision.
+      No MCP tool deletes anything, so an agent cannot call this.
+    responses:
+      "204":
+        description: The revision is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-rcas-revision-public-links:
   parameters:
     - name: id

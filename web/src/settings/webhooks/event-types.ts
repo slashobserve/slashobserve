@@ -24,6 +24,7 @@ export const eventTypeLabels = {
   "observation.resolved": "Observation resolved",
   "observation.reopened": "Observation reopened",
   "observation.published": "RCA published",
+  "observation.rca_withdrawn": "RCA revision withdrawn",
   "observation.block_added": "Block added",
   "observation.block_updated": "Block updated",
   "observation.block_kept": "Block kept",

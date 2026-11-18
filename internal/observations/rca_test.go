@@ -523,6 +523,48 @@ func TestRCAHTTPRefusalsUseTheDocumentedCodes(t *testing.T) {
 	}
 }
 
+func TestRCAHTTPWithdrawingARevisionDeletesItUnlessALivePublicLinkReachesIt(t *testing.T) {
+	d := newRCADocumented(t)
+	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"Started after the deploy"}}`).Observation.ID
+	path := "/api/v1/observations/" + id + "/rcas"
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+
+	for _, by := range []auth.Principal{viewer, commenter} {
+		if got := errorCode(t, d.call(t, by, http.MethodDelete, path+"/1", http.StatusForbidden)); got != "forbidden_role" {
+			t.Errorf("%s withdrawing: code %q", by.ID, got)
+		}
+	}
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/abc", http.StatusBadRequest)); got != "invalid_request" {
+		t.Errorf("a revision that is not a number: code %q", got)
+	}
+
+	d.call(t, editor, http.MethodDelete, path+"/1", http.StatusNoContent)
+	listed := decode[rcaList](t, d.call(t, viewer, http.MethodGet, path, http.StatusOK))
+	if len(listed.RCAs) != 1 || listed.RCAs[0].Revision != 2 {
+		t.Errorf("after withdrawing revision 1: %+v", listed)
+	}
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/1", http.StatusNotFound)); got != "not_found" {
+		t.Errorf("withdrawing it twice: code %q", got)
+	}
+
+	link := `INSERT INTO public_links (rca_id, token_hash, display_prefix, variables, expires_at, created_by_kind, created_by_id, created_by_name)
+		SELECT id, sha256(id::text::bytea), 'abc', 'frozen', $3::timestamptz, 'user', $2::uuid, 'Eve' FROM observation_rcas WHERE observation_id = $1::uuid AND revision = 2`
+	d.db.Exec(t, link, id, editor.ID, nil)
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/2", http.StatusConflict)); got != "rca_shared" {
+		t.Errorf("a revision with a live link: code %q", got)
+	}
+	d.db.Exec(t, `UPDATE public_links SET expires_at = now() - interval '1 hour'`)
+	d.call(t, editor, http.MethodDelete, path+"/2", http.StatusNoContent)
+
+	if n := d.count(t, `SELECT count(*) FROM observation_rcas WHERE observation_id = $1::uuid`, id); n != 0 {
+		t.Errorf("%d revisions left", n)
+	}
+	if n := d.count(t, `SELECT count(*) FROM activity WHERE observation_id = $1::uuid AND type = 'observation.rca_withdrawn' AND (data ->> 'revision')::int IN (1, 2)`, id); n != 2 {
+		t.Errorf("%d withdrawn events, want 2", n)
+	}
+}
+
 func TestRCAHTTPAnObservationEditedWhileFreezingAnswers409(t *testing.T) {
 	d := newRCADocumented(t)
 	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"before"}}`).Observation.ID
