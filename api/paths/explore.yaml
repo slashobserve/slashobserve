@@ -87,7 +87,7 @@ datasources-uid-query:
                 type: string
                 maxLength: 65
                 pattern: "^-?[A-Za-z_][A-Za-z0-9_]{0,63}$"
-                description: A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 400 when the column is not in the result. Without it rows come newest first.
+                description: A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first.
     responses:
       "200":
         description: The frames the query returned.

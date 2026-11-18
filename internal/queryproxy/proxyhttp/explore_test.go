@@ -568,3 +568,12 @@ func TestExplorePageMapsDatasourceErrors(t *testing.T) {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
+
+func TestExploreAnswers422WhenTheSortColumnIsNotInTheResult(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "sort column Nope is not in the result; the columns are Timestamp, Body")
+	}
+	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
+}
