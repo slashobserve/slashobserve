@@ -2006,7 +2006,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: The summary of the first revision, cut to 200 characters.
+          description: The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary.
         revision:
           type: integer
           minimum: 1

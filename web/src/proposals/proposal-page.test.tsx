@@ -109,7 +109,13 @@ function mockServer(options: {
       if (pathname === `/api/v1/dashboards/${dashboardId}`) {
         return json({
           dashboard: { id: dashboardId, title: "Checkout" },
-          version: { version: 4, spec: { specVersion: "0", panels: [] } },
+          version: {
+            version: 4,
+            spec: {
+              specVersion: "0",
+              panels: [{ id: "p-errors", title: "Error ratio" }],
+            },
+          },
         })
       }
       if (pathname === `/api/v1/dashboards/${dashboardId}/versions/3`) {
@@ -168,8 +174,16 @@ describe("ProposalPage", () => {
     expect(screen.getByText("Observe Agent for Ada")).toBeTruthy()
     expect(screen.getByText("Errors")).toBeTruthy()
     expect(
-      screen.getByText("Both you and the proposal changed Errors.")
+      screen.getByText(
+        'Panel "Errors" was changed on the dashboard and in this proposal.'
+      )
     ).toBeTruthy()
+    expect(
+      (await screen.findByText("Dashboard:")).nextSibling?.textContent
+    ).toBe("Error ratio")
+    expect(screen.getByText("Proposal:").nextSibling?.textContent).toBe(
+      "Errors"
+    )
     expect(screen.getByRole("radiogroup", { name: "Errors" })).toBeTruthy()
     expect(
       screen.getByRole("link", { name: "Open the dashboard at version 3" })
@@ -308,6 +322,22 @@ describe("ProposalPage", () => {
     renderPage()
     expect(await screen.findByRole("button", { name: "Discard" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Merge" })).toBeNull()
+    expect(
+      screen.getByText(
+        "Only someone who can edit this dashboard can merge a proposal. You can discard this one because you opened it."
+      )
+    ).toBeTruthy()
+  })
+
+  it("explains who can merge when the caller may do neither", async () => {
+    mockServer({ proposals: [proposal({ allowed_actions: [] })] })
+    renderPage()
+    expect(
+      await screen.findByText(
+        "Only someone who can edit this dashboard can merge a proposal."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull()
   })
 
   it("shows the merged line and no action bar on a closed proposal", async () => {

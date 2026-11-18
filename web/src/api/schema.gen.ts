@@ -4265,7 +4265,7 @@ export interface components {
             dashboard_id: string;
             /** @enum {string} */
             state: "open" | "merged" | "discarded";
-            /** @description The summary of the first revision, cut to 200 characters. */
+            /** @description The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary. */
             title: string;
             /** @description The head revision; every save by the author while the proposal is open adds one. */
             revision: number;

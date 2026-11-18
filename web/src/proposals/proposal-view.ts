@@ -16,6 +16,8 @@ export type ChangeRow = {
   label: string
   change: string
   conflict: MergeConflict | null
+  dashboardTitle: string | null
+  proposalTitle: string | null
 }
 
 export type Picks = Record<string, "ours" | "theirs">
@@ -44,11 +46,32 @@ function labelOf(
   return id
 }
 
+export function conflictText(conflict: MergeConflict, label: string): string {
+  if (conflict.reason === "invalid") return conflict.message
+  const unit =
+    conflict.kind === "panel"
+      ? `Panel "${label}"`
+      : conflict.kind === "variable"
+        ? `Variable "${conflict.id}"`
+        : `The dashboard's ${conflict.id} setting`
+  return conflict.reason === "both_changed"
+    ? `${unit} was changed on the dashboard and in this proposal.`
+    : `${unit} was removed on one side and changed on the other.`
+}
+
 export function changeRows(
   proposal: Pick<Proposal, "spec" | "changes" | "conflicts">,
   latestTitles: Map<string, string>
 ): ChangeRow[] {
-  const titles = [panelTitles(proposal.spec), latestTitles]
+  const proposalTitles = panelTitles(proposal.spec)
+  const titles = [proposalTitles, latestTitles]
+  const sideTitles = (kind: ChangeKind, id: string) =>
+    kind === "panel"
+      ? {
+          dashboardTitle: latestTitles.get(id) ?? null,
+          proposalTitle: proposalTitles.get(id) ?? null,
+        }
+      : { dashboardTitle: null, proposalTitle: null }
   const conflicts = new Map(
     proposal.conflicts.map((conflict) => [unitKey(conflict), conflict])
   )
@@ -62,6 +85,7 @@ export function changeRows(
       label: labelOf(kind, id, titles),
       change,
       conflict: conflicts.get(key) ?? null,
+      ...sideTitles(kind, id),
     })
   }
   for (const [key, conflict] of conflicts) {
@@ -73,6 +97,7 @@ export function changeRows(
       label: labelOf(conflict.kind, conflict.id, titles),
       change: "conflict",
       conflict,
+      ...sideTitles(conflict.kind, conflict.id),
     })
   }
   return [...rows.values()].sort(

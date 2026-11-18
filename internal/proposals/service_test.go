@@ -138,6 +138,30 @@ func TestASecondSaveByTheSameAuthorAddsARevision(t *testing.T) {
 	}
 }
 
+func TestAProposalTitleFollowsItsNewestSummary(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+	first := r.propose(t, commenter, id, 1, changed, second)
+
+	_, err := r.dashboards.Save(t.Context(), commenter, dashboards.SaveInput{
+		DashboardID:     id,
+		Parent:          1,
+		Spec:            specOf("t", changed, panel{id: "b", query: "node_load1"}),
+		Summary:         "second summary",
+		ProposeIfNeeded: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := r.service.Get(t.Context(), commenter, proposalID(t, first))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Title != "second summary" || p.Summary != "second summary" {
+		t.Fatalf("title = %q, summary = %q, want both to be the newest summary", p.Title, p.Summary)
+	}
+}
+
 func TestAnotherCommenterOpensASeparateProposal(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)

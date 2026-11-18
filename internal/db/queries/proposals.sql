@@ -23,7 +23,7 @@ WHERE dashboard_id = @dashboard_id AND state = 'open' AND run_id = @run_id
 FOR UPDATE;
 
 -- name: AdvanceProposalRevision :one
-UPDATE proposals SET revision = revision + 1, updated_at = clock_timestamp()
+UPDATE proposals SET revision = revision + 1, title = @title, updated_at = clock_timestamp()
 WHERE id = @id AND state = 'open'
 RETURNING revision;
 

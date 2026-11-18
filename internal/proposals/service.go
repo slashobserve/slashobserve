@@ -220,7 +220,10 @@ func insertProposal(ctx context.Context, q *dbsqlc.Queries, in dashboards.Propos
 }
 
 func addRevision(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID, title string, dashboardID pgtype.UUID, next revisionContent, who actor.Actor) (dashboards.ProposalRef, error) {
-	revision, err := q.AdvanceProposalRevision(ctx, id)
+	if summary := truncate(next.summary, maxTitleRunes); summary != "" {
+		title = summary
+	}
+	revision, err := q.AdvanceProposalRevision(ctx, dbsqlc.AdvanceProposalRevisionParams{ID: id, Title: title})
 	if err != nil {
 		return dashboards.ProposalRef{}, fmt.Errorf("advance proposal revision: %w", err)
 	}

@@ -27,6 +27,7 @@ When they cannot be combined, the new revision holds the new save alone.
 
 Each revision is kept with the version it builds on.
 `revision` on a proposal is the newest one, and a merge names the revision the caller read.
+The proposal's `title` is the newest revision's summary, so the title and the summary under it agree.
 
 ## Behind and conflicts
 
@@ -69,8 +70,9 @@ A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id
 The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, the list of changes by panel, "Variable <name>" and "Dashboard settings", and below it the field-by-field difference from the version the proposal builds on, with each query or option before and after, as the [version history](../concepts/versions.md) shows two versions.
 A link opens the dashboard at the version the proposal builds on, or at the merged version once it is merged, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
 
-When a change conflicts, its row asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
+When a change conflicts, its row says in words which panel, variable or setting changed on both sides, shows the panel's title on the dashboard and in the proposal, and asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
+Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
 **Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
 **Discard** asks "Discard this proposal?" and shows to the author and to anyone who may merge.
 If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.

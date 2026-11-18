@@ -41,6 +41,10 @@ type Props = {
   onMergingChange?: (merging: boolean) => void
 }
 
+const whoMergesText =
+  "Only someone who can edit this dashboard can merge a proposal."
+const authorDiscardText = `${whoMergesText} You can discard this one because you opened it.`
+
 function DiscardButton({
   proposal,
   onStale,
@@ -189,7 +193,11 @@ export function ProposalActions({
     )
   }
 
-  if (!canMerge && !canDiscard) return null
+  if (proposal.state !== "open") return null
+
+  if (!canMerge && !canDiscard) {
+    return <p className="text-xs text-muted-foreground">{whoMergesText}</p>
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -219,6 +227,9 @@ export function ProposalActions({
           <DiscardButton proposal={proposal} onStale={refetch} />
         ) : null}
       </div>
+      {canMerge ? null : (
+        <p className="text-xs text-muted-foreground">{authorDiscardText}</p>
+      )}
       {hint === null ? null : (
         <p id={hintId} className="text-xs text-muted-foreground">
           {hint}

@@ -57,6 +57,8 @@ function Row({
         <ConflictChoices
           conflict={row.conflict}
           label={row.label}
+          dashboardTitle={row.dashboardTitle}
+          proposalTitle={row.proposalTitle}
           value={picks[row.key]}
           disabled={disabled}
           onChange={(side) => onPick(row.key, side)}

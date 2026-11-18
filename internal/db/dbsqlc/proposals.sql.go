@@ -12,13 +12,18 @@ import (
 )
 
 const advanceProposalRevision = `-- name: AdvanceProposalRevision :one
-UPDATE proposals SET revision = revision + 1, updated_at = clock_timestamp()
-WHERE id = $1 AND state = 'open'
+UPDATE proposals SET revision = revision + 1, title = $1, updated_at = clock_timestamp()
+WHERE id = $2 AND state = 'open'
 RETURNING revision
 `
 
-func (q *Queries) AdvanceProposalRevision(ctx context.Context, id pgtype.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, advanceProposalRevision, id)
+type AdvanceProposalRevisionParams struct {
+	Title string
+	ID    pgtype.UUID
+}
+
+func (q *Queries) AdvanceProposalRevision(ctx context.Context, arg AdvanceProposalRevisionParams) (int32, error) {
+	row := q.db.QueryRow(ctx, advanceProposalRevision, arg.Title, arg.ID)
 	var revision int32
 	err := row.Scan(&revision)
 	return revision, err
