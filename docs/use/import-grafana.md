@@ -67,6 +67,7 @@ The **Imported, not verified** problem filter on the [dashboards list](dashboard
 
 Later saves keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged, and so does its panel type, time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 A save with `update_dashboard` runs every query.
+A panel or row that repeats on a variable is checked as one copy, with the first value the variable offers or the first value selected, the way the dashboard draws each copy with a single value; its query is not run with All, so a healthy repeated panel is not marked unverified.
 A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query; either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 
 ### The import report
