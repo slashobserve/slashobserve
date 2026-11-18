@@ -72,7 +72,7 @@ func (a *app) metricsQueryCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query [<promql>] --datasource <uid>",
 		Short: "Run a PromQL query and print one line per series",
-		Long:  "query runs a PromQL query on a Prometheus datasource over a time range and prints each series with its point count, last, min, max and mean.\nWith --instant it evaluates the query at the end of the range and prints one value per series.\nWith --ask the server writes the PromQL from a question and prints it first.\nThe server caps a result at 200 series and 100,000 points and says which limit it hit.",
+		Long:  "query runs a PromQL query on a Prometheus datasource over a time range and prints each series with its point count, last, min, max and mean.\nWith --instant it evaluates the query at the end of the range and prints one value per series.\nWith --ask the server writes the PromQL from a question and prints it first.\nThe server caps every query by time, series and points and says which limit it hit.",
 		Example: "  observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datasource prom --from now-6h\n" +
 			"  observe metrics query 'up == 0' --datasource prom --instant\n" +
 			"  observe metrics query --ask \"requests per second by service\" --datasource prom --dry-run",

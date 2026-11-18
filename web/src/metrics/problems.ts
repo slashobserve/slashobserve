@@ -29,7 +29,7 @@ export function syntaxProblem(
 }
 
 const limitHint =
-  "A query may return at most 200 series and 100,000 points. Add label matchers, aggregate with sum by (label), or narrow the time range."
+  "The query returned more than the server allows. Add label matchers, aggregate with sum by (label), or narrow the time range."
 const timeoutHint =
   "The query took too long. Narrow the time range or aggregate it, for example with sum by (label)."
 

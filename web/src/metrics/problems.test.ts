@@ -50,7 +50,8 @@ describe("syntaxProblem", () => {
 describe("failureHint", () => {
   it("names the limit and how to narrow the query", () => {
     const hint = failureHint(new ApiError(422, "limit_exceeded", "too many"))
-    expect(hint).toContain("200 series")
+    expect(hint).toContain("label matchers")
+    expect(hint).not.toMatch(/\d/)
   })
 
   it("explains a timeout", () => {

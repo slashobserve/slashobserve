@@ -530,7 +530,7 @@ Each line shows the series name with its labels, then the number of points and t
 `--ask` takes a question instead of the query, and the server writes the PromQL with [Ask](metrics.md#ask-in-plain-language) and prints it to stderr with its explanation and warnings before it runs.
 `--dry-run` prints them and runs nothing, and needs `--ask`; giving a query and `--ask` together exits 2.
 `--json` prints the response body.
-An invalid query exits 1 with the datasource's message, and so does a query that hits the server's limit of 15 seconds, 200 series or 100,000 points; the message names the limit.
+An invalid query exits 1 with the datasource's message, and so does a query that hits a server limit on time, series or points; the message names the limit.
 The [Metrics](metrics.md) page runs the same queries in the web app.
 
 `bin/observe metrics names --datasource <uid>` lists the metric names with their type and help text.

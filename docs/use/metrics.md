@@ -63,8 +63,8 @@ The names come from the server, which asks the datasource, so the browser never 
 **Table** runs an instant query at the end of the range and lists one row per series with its labels and value.
 The choice is in the address as `mode=table`; with no `mode` the page shows the graph.
 
-The server caps every query at 15 seconds, 200 series and 100,000 points.
-A query that exceeds a limit fails with a message that names it, and the page says how to narrow the query: add label matchers, aggregate with `sum by (label)`, or shorten the range.
+The server caps every query by time, series and points, and a datasource may set lower caps.
+A query that exceeds a limit fails with a message that names the limit it hit, and the page says how to narrow the query: add label matchers, aggregate with `sum by (label)`, or shorten the range.
 The step follows the range and the width of the chart, so a longer range draws coarser points.
 
 ## Save a search
