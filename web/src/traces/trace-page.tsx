@@ -234,6 +234,7 @@ function TraceHeader({
   traceActions?: TraceActions
   actions: PageActions
 }) {
+  const phone = usePhone()
   const title = model
     ? [model.rootService, model.rootOperation].filter(Boolean).join(" ")
     : ""
@@ -264,12 +265,18 @@ function TraceHeader({
       </TopRowTitle>
       <TopRowActions>
         {actions.time}
-        {traceActions?.logs}
-        {traceActions?.keep}
+        {phone ? null : traceActions?.logs}
+        {phone ? null : traceActions?.keep}
         {actions.share}
         {traceActions?.download}
       </TopRowActions>
       <BackToOrigin />
+      {phone ? (
+        <div className="flex flex-wrap gap-2">
+          {traceActions?.logs}
+          {traceActions?.keep}
+        </div>
+      ) : null}
       <h1 className="sr-only text-xl font-semibold tracking-[-0.01em] narrow:not-sr-only">
         {title || "Trace"}
       </h1>

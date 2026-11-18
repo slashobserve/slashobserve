@@ -364,6 +364,7 @@ A span's links are listed after its events: each shows the linked trace id, whic
 While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
 The waterfall keeps its full width until a span is open, j and k move between spans while the panel stays open, and Escape closes it.
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
+On a phone each row stacks the service and operation, with the duration at the right, above a thinner bar, so the whole name shows instead of its first few characters; **Logs for this trace**, **Add to dashboard** and **Add to observation** move out of the top bar into a row under the title, and the legend hint wraps instead of scrolling sideways.
 
 ### Logs for a span or trace
 

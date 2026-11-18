@@ -189,7 +189,11 @@ const tickClass: Record<TickAnchor, string> = {
   end: "right-0",
 }
 
-const spanColumns = "grid-cols-[min(288px,40%)_minmax(0,1fr)_76px]"
+const spanColumns =
+  "grid-cols-[min(288px,40%)_minmax(0,1fr)_76px] narrow:grid-cols-[minmax(0,1fr)_auto] narrow:grid-rows-[18px_minmax(0,1fr)]"
+const nameCell = "narrow:col-start-1 narrow:row-start-1"
+const barCell = "narrow:col-span-2 narrow:col-start-1 narrow:row-start-2"
+const durationCell = "narrow:col-start-2 narrow:row-start-1"
 
 function SpanRow({
   span,
@@ -236,7 +240,7 @@ function SpanRow({
       style={{ height: rowHeight - 1 }}
     >
       <div
-        className="flex min-w-0 items-center gap-1 pr-2"
+        className={cn("flex min-w-0 items-center gap-1 pr-2", nameCell)}
         style={{ paddingLeft: 8 + span.depth * indentStep }}
       >
         {span.hasChildren ? (
@@ -291,13 +295,13 @@ function SpanRow({
           ) : null}
         </button>
       </div>
-      <div className="h-full min-w-0 px-2" onClick={onOpen}>
+      <div className={cn("h-full min-w-0 px-2", barCell)} onClick={onOpen}>
         <div className="relative h-full">
           {bar ? (
             <div
               aria-hidden="true"
               className={cn(
-                "absolute top-[10px] h-3 rounded-[2px]",
+                "absolute top-[10px] h-3 rounded-[2px] narrow:top-0 narrow:h-2",
                 span.error && "bg-status-critical",
                 matched === false && "opacity-30",
                 onPath &&
@@ -317,14 +321,17 @@ function SpanRow({
             <span
               key={index}
               aria-hidden="true"
-              className="absolute top-[13px] size-1.5 -translate-x-1/2 rounded-full bg-foreground"
+              className="absolute top-[13px] size-1.5 -translate-x-1/2 rounded-full bg-foreground narrow:top-px"
               style={{ left: `${at * 100}%` }}
             />
           ))}
         </div>
       </div>
       <div
-        className="pr-2 text-right whitespace-nowrap text-muted-foreground tabular-nums"
+        className={cn(
+          "pr-2 text-right whitespace-nowrap text-muted-foreground tabular-nums",
+          durationCell
+        )}
         onClick={onOpen}
       >
         {formatDuration(span.duration)}
@@ -372,7 +379,7 @@ function FoldRow({
       style={{ height: rowHeight - 1 }}
     >
       <div
-        className="flex min-w-0 items-center gap-1 pr-2"
+        className={cn("flex min-w-0 items-center gap-1 pr-2", nameCell)}
         style={{ paddingLeft: 8 + group.depth * indentStep }}
       >
         <button
@@ -410,14 +417,14 @@ function FoldRow({
           <span className="text-muted-foreground"> x {count} folded</span>
         </button>
       </div>
-      <div className="h-full min-w-0 px-2" onClick={onToggle}>
+      <div className={cn("h-full min-w-0 px-2", barCell)} onClick={onToggle}>
         <div className="relative h-full">
           {bar ? (
             <>
               <div
                 aria-hidden="true"
                 className={cn(
-                  "absolute top-[10px] h-3 rounded-[2px]",
+                  "absolute top-[10px] h-3 rounded-[2px] narrow:top-0 narrow:h-2",
                   foldHatch,
                   matched === false && "opacity-30",
                   onPath &&
@@ -438,7 +445,7 @@ function FoldRow({
               </div>
               <span
                 aria-hidden="true"
-                className="absolute top-[7px] max-w-full truncate rounded-[2px] bg-background/80 px-1 leading-4 text-muted-foreground tabular-nums"
+                className="absolute top-[7px] max-w-full truncate rounded-[2px] bg-background/80 px-1 leading-4 text-muted-foreground tabular-nums narrow:hidden"
                 style={{
                   left: `min(${bar.offset * 100}%, calc(100% - 12rem))`,
                 }}
@@ -448,6 +455,15 @@ function FoldRow({
             </>
           ) : null}
         </div>
+      </div>
+      <div
+        className={cn(
+          "hidden pr-2 text-right whitespace-nowrap text-muted-foreground tabular-nums narrow:block",
+          durationCell
+        )}
+        onClick={onToggle}
+      >
+        {bar ? label : null}
       </div>
     </div>
   )
@@ -464,7 +480,10 @@ function MoreRow({
 }) {
   return (
     <div
-      className={cn("grid items-center text-xs", spanColumns)}
+      className={cn(
+        "grid items-center text-xs narrow:grid-rows-1",
+        spanColumns
+      )}
       style={{ height: rowHeight - 1 }}
     >
       <div
@@ -481,7 +500,7 @@ function MoreRow({
           {moreLabel(group, shown)}
         </Button>
       </div>
-      <div className="h-full" />
+      <div className="h-full narrow:hidden" />
     </div>
   )
 }
@@ -1109,10 +1128,12 @@ export function TraceView(props: TraceViewProps) {
               spanColumns
             )}
           >
-            <span className="px-2 py-1">Service and operation</span>
+            <span className="px-2 py-1 narrow:sr-only">
+              Service and operation
+            </span>
             <div
               className={cn(
-                "relative h-6 px-2",
+                "relative h-6 px-2 narrow:col-span-2 narrow:col-start-1",
                 props.onZoom && "cursor-col-resize touch-none select-none"
               )}
               aria-hidden="true"
