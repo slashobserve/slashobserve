@@ -179,7 +179,7 @@ export function observeRequestQuery(id: string) {
         .GET("/observe/{id}", { params: { path: { id } }, signal })
         .then(unwrap)
         .then((body) => body.request),
-    staleTime: 0,
+    staleTime: 2_000,
     refetchInterval: (query) => {
       if (isTerminal(query.state.data)) return false
       const { error } = query.state
