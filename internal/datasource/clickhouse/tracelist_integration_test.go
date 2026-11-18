@@ -34,6 +34,9 @@ type traceListRow struct {
 
 func provisionTraceList(ctx context.Context, t *testing.T) {
 	t.Helper()
+	if testsSkipped {
+		t.Skip("integration tests need Docker")
+	}
 	admin, err := rawConn("admin", adminPass)
 	if err != nil {
 		t.Fatal(err)
