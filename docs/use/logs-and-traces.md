@@ -158,6 +158,7 @@ The column on the left of the results lists the fields of the datasource: the ma
 The note under **Fields** says where the list comes from, and the search box narrows it by name.
 A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
+On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
 A badge beside each name says its kind: keyword, text, number, date, boolean, IP, or on Loki a label, a parsed field or structured metadata.
 
 Open a field to see its top five values with their counts and a bar scaled to the largest.
@@ -230,7 +231,7 @@ On Elasticsearch and OpenSearch the panel is titled **Document** and the table g
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
 The panel offers **Show context**, **Copy line**, which copies the line's text, and **Copy link**, and an **Open trace** link when the line carries a trace id.
 
-Each field in the table has **Filter in** and **Filter out** buttons, shown when you hover or focus the row, that add a [filter pill](#filters) for the field and its value, and the page runs the query again with it.
+Each field in the table has **Include** and **Exclude** buttons, shown when you hover or focus the row, that add a [filter pill](#filters) for the field and its value, and the page runs the query again with it.
 On Elasticsearch and OpenSearch **Require** adds an exists pill for a field that has a value; the core fields have no buttons.
 On Loki a stream label becomes a pill that goes into the stream selector, and a parsed field or structured metadata value a pill that goes into a `|` stage at the end of the query; on ClickHouse a column or a `LogAttributes` key goes into the `WHERE` clause.
 A button is disabled when the row's pill is already in the row of filters, when the row holds 50 filters, when the value is longer than 200 characters, or on Elasticsearch and OpenSearch when the query is Lucene or Query DSL.

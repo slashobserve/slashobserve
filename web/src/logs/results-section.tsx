@@ -32,7 +32,7 @@ import { describeRange } from "@/lib/time"
 import type { LogEntry } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
-import { typeName } from "./datasource-picker"
+import { distinctName, typeName } from "./datasource-picker"
 import { exploreErrorText, offlineText } from "./explore"
 import { ExploreFailure } from "./explore-failure"
 import {
@@ -102,7 +102,7 @@ function sourceText(
   const noun = isSearchFamily(type) ? "hits" : "lines"
   return [
     typeName(type),
-    name,
+    distinctName(type, name),
     index,
     rangeText(state, noun, tookText(data.meta.elapsed_ms)),
   ]

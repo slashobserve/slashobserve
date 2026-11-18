@@ -102,7 +102,7 @@ function ValueRow({
           <FilterXIcon aria-hidden="true" />
         </TooltipTrigger>
         <TooltipContent>
-          {excluded === null ? "Cannot edit this query" : "Filter out"}
+          {excluded === null ? "Cannot edit this query" : "Exclude"}
         </TooltipContent>
       </Tooltip>
     </div>

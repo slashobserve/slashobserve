@@ -142,6 +142,8 @@ describe("appendKql", () => {
     ["  a:1  ", "c", "d", false, 'a:1 and c:"d"'],
     ["", "c", 'x"y\\z', false, 'c:"x\\"y\\\\z"'],
     ["a:", "c", "d", false, '(a:) and c:"d"'],
+    ["*", "c", "d", false, 'c:"d"'],
+    [" * ", "c", "d", true, 'not c:"d"'],
   ] as const)(
     "appends to %j the field %s and value %s (negate %s) as %s",
     (text, field, value, negate, want) => {
