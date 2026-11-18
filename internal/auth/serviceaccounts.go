@@ -226,7 +226,7 @@ func (s *Service) createKey(c *gin.Context) {
 		}
 		expiresAt = pgtype.Timestamptz{Time: *req.ExpiresAt, Valid: true}
 	}
-	if !s.serviceAccountExists(c, accountID) {
+	if !s.changeableServiceAccount(c, accountID) {
 		return
 	}
 	token, hash, err := opaquetoken.New(keyPrefix)
