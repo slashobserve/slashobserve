@@ -226,7 +226,8 @@ When a run started with `start_runs` ends, whatever the outcome, the server post
 
 `save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
 It takes `kind` (`logs` or `traces`), `title` and `datasource` (the old name `datasource_uid` still works, as it does on `draft_query`), and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
-The query is linted as `lint_query` does it, and one that fails the lint is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
+The query is linted as `lint_query` does it, and one with a lint error is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
+When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved as the HTTP API and the CLI save it.
 A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 

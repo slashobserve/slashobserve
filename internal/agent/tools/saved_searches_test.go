@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -36,6 +37,9 @@ func newSearchRig(t *testing.T) *searchRig {
 				return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "unexpected end of input"}}, nil
 			}
 			return []datasource.Diagnostic{{Severity: datasource.SeverityWarning, Message: "slow regex"}}, nil
+		}}},
+		datasource.Instance{UID: "lintdown", Name: "Unreachable", Datasource: &fakeDS{typ: "loki", lintFn: func(context.Context, string) ([]datasource.Diagnostic, error) {
+			return nil, errors.New("connection refused")
 		}}},
 	)
 	if err != nil {
@@ -249,5 +253,13 @@ func TestSaveSearchReplaysOnlyWithinTheFolderItWouldBeSavedIn(t *testing.T) {
 	inOpsAgain, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`,"folder_id":"`+ops.String()+`"}`).Content.(savedSearchReplayOut)
 	if !ok || inOpsAgain.ID != savedInOps.ID {
 		t.Fatalf("a repeat into Ops = %#v, want the Ops search replayed", inOpsAgain)
+	}
+}
+
+func TestSaveSearchStillSavesWhenTheLintCheckCannotRun(t *testing.T) {
+	r := newSearchRig(t)
+	res := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource":"lintdown","query":"{app=\"x\"}"}`)
+	if saved, ok := res.Content.(savedsearches.SavedSearchJSON); res.IsError || !ok || saved.DatasourceUID != "lintdown" {
+		t.Fatalf("a save while the lint check is down: %#v", res.Content)
 	}
 }

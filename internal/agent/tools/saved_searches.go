@@ -23,7 +23,7 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query must pass lint_query, or it is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
+	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. A query with a lint_query error is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
 	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
@@ -198,9 +198,12 @@ func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *str
 	if !found {
 		return Result{}, true, nil
 	}
-	diagnostics, res, ok, err := r.lint(ctx, inst, *query)
-	if err != nil || !ok {
-		return res, false, err
+	diagnostics, _, ran, err := r.lint(ctx, inst, *query)
+	if ctx.Err() != nil {
+		return Result{}, false, ctx.Err()
+	}
+	if err != nil || !ran {
+		return Result{}, true, nil
 	}
 	for _, d := range diagnostics {
 		if d.Severity == datasource.SeverityError {
