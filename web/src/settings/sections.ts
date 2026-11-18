@@ -9,6 +9,7 @@ export type SettingsSectionId =
   | "agent-access"
   | "grafana"
   | "webhooks"
+  | "audit-log"
 
 type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -48,6 +49,7 @@ const adminGroups: readonly SettingsGroup[] = [
     sections: [
       ...memberWorkspaceSections,
       { id: "agent-access", label: "Agent access" },
+      { id: "audit-log", label: "Audit log" },
     ],
   },
   {

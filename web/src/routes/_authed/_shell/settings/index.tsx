@@ -9,6 +9,7 @@ import { ConnectedAgentsSection } from "@/connected-agents/connected-agents-card
 import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
 import { AgentAccessSection } from "@/settings/agent-access-section"
+import { AuditSettings } from "@/settings/audit/audit-settings"
 import { AppearanceSection } from "@/settings/appearance-card"
 import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
 import { OutboundAccessSection } from "@/settings/outbound-access-card"
@@ -135,5 +136,7 @@ function SelectedSection({
       )
     case "webhooks":
       return <WebhooksSettings panel={panel} onPanel={onPanel} />
+    case "audit-log":
+      return <AuditSettings />
   }
 }

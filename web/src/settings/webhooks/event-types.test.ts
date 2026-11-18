@@ -22,6 +22,13 @@ describe("eventTypeGroups", () => {
       "proposal",
       "thread",
       "run",
+      "public_link",
+      "user",
+      "service_account",
+      "webhook",
+      "mcp_client",
+      "outbound_domain",
+      "grafana_connection",
     ])
     expect(eventTypeGroups.flatMap((group) => group.types)).toEqual(
       allEventTypes
@@ -42,11 +49,18 @@ describe("eventTypeGroups", () => {
       "Proposals",
       "Comment threads",
       "Agent runs",
+      "Public links",
+      "People",
+      "Service accounts",
+      "Webhooks",
+      "Connected agents",
+      "Outbound access",
+      "Grafana connections",
     ])
   })
 
   test("has a label for every type", () => {
-    expect(allEventTypes).toHaveLength(43)
+    expect(allEventTypes).toHaveLength(62)
     for (const type of allEventTypes) expect(eventTypeLabels[type]).not.toBe("")
   })
 })
