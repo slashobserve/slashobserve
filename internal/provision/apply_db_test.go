@@ -15,6 +15,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/provision"
@@ -127,6 +128,35 @@ func TestApplyRefusesAmbiguousAndProvisionedDashboards(t *testing.T) {
 	r.run(t)
 	if res := r.apply(t, r.editor, "prov.json", specJSON("Provisioned", "rate(up[1m])")); res.Outcome != provision.OutcomeFailed || res.Code != provision.CodeProvisioned {
 		t.Errorf("provisioned apply = %+v", res)
+	}
+}
+
+func TestApplyTreatsAFolderTheCallerCannotSeeAsAbsent(t *testing.T) {
+	r := newApplyRig(t)
+	admin := auth.Principal{Kind: auth.KindUser, ID: r.editor.ID, Name: "root", Role: auth.RoleAdmin}
+	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, title := range []string{"Twin", "twin"} {
+		if _, _, err := r.dashboards.Create(t.Context(), admin, folder.ID, []byte(specJSON(title, "up")), "by hand"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	vic, err := db.ParseUUID(r.viewer.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO folder_permissions (folder_id, user_id, level) VALUES ($1, $2, 'view')`, folder.ID, vic); err != nil {
+		t.Fatal(err)
+	}
+
+	res := r.apply(t, r.editor, "Secret/twin.json", specJSON("TWIN", "up"))
+	if res.Code == provision.CodeAmbiguous {
+		t.Fatalf("apply told an Editor who cannot see the folder that it holds two dashboards with the title: %+v", res)
+	}
+	if res.Outcome != provision.OutcomeCreated {
+		t.Errorf("apply into a hidden folder = %+v, want a new dashboard as if the folder were absent", res)
 	}
 }
 

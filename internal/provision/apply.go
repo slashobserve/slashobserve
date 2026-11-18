@@ -138,6 +138,17 @@ func (a *Applier) Apply(ctx context.Context, by auth.Principal, path string, raw
 			return Result{}, err
 		}
 		if folderID.Valid {
+			_, abilities, err := a.folders.Folder(ctx, by, folderID)
+			switch {
+			case errors.Is(err, folders.ErrNotFound):
+				folderID = pgtype.UUID{}
+			case err != nil:
+				return Result{}, err
+			case !abilities.Edit:
+				return failure(res, folders.ErrForbidden)
+			}
+		}
+		if folderID.Valid {
 			candidates, err := a.db.Queries().ApplyCandidates(ctx, dbsqlc.ApplyCandidatesParams{FolderID: folderID, Title: specTitle(raw)})
 			if err != nil {
 				return Result{}, fmt.Errorf("find dashboards to adopt: %w", err)
