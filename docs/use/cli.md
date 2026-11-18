@@ -138,7 +138,7 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | Command | What it does |
 | --- | --- |
 | `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
-| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
+| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
@@ -260,6 +260,8 @@ Changing or removing a live block is done in the web app or through the HTTP API
 `--kind logs|traces` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
 
 `bin/observe saved-searches save --kind logs|traces --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
+A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
+The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
 A flag of the other kind is refused with exit code 2 before any request is sent.
@@ -355,6 +357,7 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+An `--at` more than a day in the future still saves the annotation and prints a warning on standard error, because a wrong year is the usual cause.
 
 `bin/observe annotations list` prints annotations newest first as `ID`, `TIME`, `DASHBOARD`, `TAGS` and `TEXT` columns:
 
@@ -598,6 +601,7 @@ bin/observe activity --follow --type run.failed --type run.canceled
 2026-11-01T10:05:09Z  Sam  saved version 12 of "Checkout"
 ```
 
+Observation events read as sentences too, such as `started the observation "Slow checkout"` and `requested a panel block on the observation "Slow checkout"`.
 `--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
 `--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
 You see only the events of the folders the key can see, and an empty log prints `No activity yet`.

@@ -48,6 +48,8 @@ type activityData struct {
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
 	Kind          string   `json:"kind"`
+	BlockKind     string   `json:"block_kind"`
+	State         string   `json:"state"`
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
 	Revision      int      `json:"revision"`
@@ -270,6 +272,9 @@ func describe(e activityEvent) string {
 	if phrase, ok := describeDashboard(e); ok {
 		return phrase
 	}
+	if phrase, ok := describeObservation(e); ok {
+		return phrase
+	}
 	if phrase, ok := describeRun(e); ok {
 		return phrase
 	}
@@ -280,6 +285,47 @@ func describe(e activityEvent) string {
 		return phrase
 	}
 	return text(e.Type)
+}
+
+func quotedObservation(title string) string {
+	if title == "" {
+		return "an observation"
+	}
+	return "the observation " + `"` + text(title) + `"`
+}
+
+func describeObservation(e activityEvent) (string, bool) {
+	d := e.Data
+	target := quotedObservation(d.Title)
+	block := text(d.BlockKind) + " block"
+	switch e.Type {
+	case "observation.created":
+		return "started " + target, true
+	case "observation.updated":
+		return "edited " + target, true
+	case "observation.moved":
+		return "moved " + target, true
+	case "observation.resolved":
+		return "resolved " + target, true
+	case "observation.reopened":
+		return "reopened " + target, true
+	case "observation.published":
+		return fmt.Sprintf("published revision %d of %s", d.Revision, target), true
+	case "observation.block_added":
+		if d.State == "requested" {
+			return "requested a " + block + " on " + target, true
+		}
+		return "added a " + block + " to " + target, true
+	case "observation.block_updated":
+		return "changed a " + block + " on " + target, true
+	case "observation.block_kept":
+		return "kept a " + block + " on " + target, true
+	case "observation.block_discarded":
+		return "discarded a " + block + " on " + target, true
+	case "observation.block_removed":
+		return "removed a " + block + " from " + target, true
+	}
+	return "", false
 }
 
 func quotedProposal(title string) string {
@@ -403,6 +449,8 @@ func objectPhrase(kind string) string {
 		return "a " + kind
 	case "annotation":
 		return "an annotation"
+	case "observation":
+		return "an observation"
 	}
 	return "an object"
 }

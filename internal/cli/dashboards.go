@@ -23,6 +23,9 @@ type dashboardSummary struct {
 	LatestVersion int    `json:"latest_version"`
 	UpdatedAt     string `json:"updated_at"`
 	UpdatedBy     author `json:"updated_by"`
+	Folder        struct {
+		Title string `json:"title"`
+	} `json:"folder"`
 }
 
 type actorLabel struct {
@@ -122,9 +125,9 @@ func (a *app) runList(cmd *cobra.Command, _ []string) error {
 	}
 	rows := make([][]string, 0, len(page.Dashboards))
 	for _, d := range page.Dashboards {
-		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), when(d.UpdatedAt), text(d.UpdatedBy.Name)})
+		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), when(d.UpdatedAt), text(d.UpdatedBy.Name), text(d.Folder.Title)})
 	}
-	out.table([]string{"ID", "TITLE", "VERSION", "UPDATED", "UPDATED BY"}, rows)
+	out.table([]string{"ID", "TITLE", "VERSION", "UPDATED", "UPDATED BY", "FOLDER"}, rows)
 	pageFooter(out, len(page.Dashboards), page.TotalCount, page.NextCursor)
 	return nil
 }
@@ -175,6 +178,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.fields([][2]string{
 		{"Title", text(shown.Dashboard.Title)},
 		{"ID", text(shown.Dashboard.ID)},
+		{"Folder", text(shown.Dashboard.Folder.Title)},
 		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
 		{"Author", text(shown.Version.Actor.Label)},
