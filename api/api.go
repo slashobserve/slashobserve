@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
@@ -14,7 +15,26 @@ var files embed.FS
 
 const rootName = "openapi.yaml"
 
+var (
+	loadMu sync.Mutex
+	loaded *openapi3.T
+)
+
 func Load(ctx context.Context) (*openapi3.T, error) {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+	if loaded != nil {
+		return loaded, nil
+	}
+	doc, err := load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	loaded = doc
+	return doc, nil
+}
+
+func load(ctx context.Context) (*openapi3.T, error) {
 	data, err := files.ReadFile(rootName)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", rootName, err)
