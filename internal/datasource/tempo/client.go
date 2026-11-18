@@ -124,7 +124,7 @@ func statusError(status int, raw []byte) error {
 	return datasource.Errorf(kind, "%s", text)
 }
 
-var searchRangeExceeds = regexp.MustCompile(`range specified by start and end exceeds (\d+h\d+m\d+s)`)
+var searchRangeExceeds = regexp.MustCompile(`range specified by start and end exceeds ((?:\d+h)?(?:\d+m)?\d+s)`)
 
 func searchRangeLimit(text string) (string, bool) {
 	match := searchRangeExceeds.FindStringSubmatch(text)
@@ -135,11 +135,22 @@ func searchRangeLimit(text string) (string, bool) {
 	if err != nil || limit <= 0 {
 		return "", false
 	}
-	hours := int(limit.Hours())
-	if hours%24 == 0 {
-		return fmt.Sprintf("%d days", hours/24), true
+	switch {
+	case limit >= 24*time.Hour && limit%(24*time.Hour) == 0:
+		return plural(int(limit/(24*time.Hour)), "day"), true
+	case limit >= time.Hour && limit%time.Hour == 0:
+		return plural(int(limit/time.Hour), "hour"), true
+	case limit >= time.Minute:
+		return plural(int(limit/time.Minute), "minute"), true
 	}
-	return fmt.Sprintf("%d hours", hours), true
+	return "", false
+}
+
+func plural(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return fmt.Sprintf("%d %ss", n, unit)
 }
 
 func upstreamText(raw []byte) string {

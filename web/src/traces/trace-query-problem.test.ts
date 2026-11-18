@@ -66,6 +66,21 @@ describe("shorterRange", () => {
     ).toEqual({ from: "now-36h", label: "Last 36 hours" })
   })
 
+  it("names limits under a day in hours or minutes", () => {
+    expect(
+      shorterRange("Tempo searches at most 90 minutes at a time; pick one")
+    ).toEqual({ from: "now-90m", label: "Last 90 minutes" })
+    expect(
+      shorterRange("Tempo searches at most 30 minutes at a time; pick one")
+    ).toEqual({ from: "now-30m", label: "Last 30 minutes" })
+    expect(
+      shorterRange("Tempo searches at most 1 hour at a time; pick one")
+    ).toEqual({ from: "now-1h", label: "Last 1 hour" })
+    expect(
+      shorterRange("Tempo searches at most 1 day at a time; pick one")
+    ).toEqual({ from: "now-1d", label: "Last 1 day" })
+  })
+
   it("leaves other failures alone", () => {
     expect(shorterRange("query timed out")).toBeNull()
   })

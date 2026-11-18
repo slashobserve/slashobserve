@@ -33,16 +33,17 @@ export function traceQLProblem(message: string, query: string): string {
   return `Invalid TraceQL at ${where}${after}: ${readable(match[3])}.`
 }
 
-const searchLimit = /Tempo searches at most (\d+) (days|hours) at a time/
+const searchLimit = /Tempo searches at most (\d+) (day|hour|minute)s? at a time/
 
 export function shorterRange(
   message: string
 ): { from: string; label: string } | null {
   const match = searchLimit.exec(message)
   if (match === null) return null
-  const unit = match[2] === "days" ? "d" : "h"
+  const count = Number(match[1])
+  const unit = match[2]
   return {
-    from: `now-${match[1]}${unit}`,
-    label: `Last ${match[1]} ${match[2]}`,
+    from: `now-${count}${unit === "minute" ? "m" : unit[0]}`,
+    label: `Last ${count} ${unit}${count === 1 ? "" : "s"}`,
   }
 }
