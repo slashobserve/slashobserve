@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -180,11 +181,11 @@ func (s *Service) PanelDashboard(ctx context.Context, by auth.Principal, blockID
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, err
 	}
-	parent, _, _, err := s.open(ctx, by, block.ObservationID)
+	parent, _, abilities, err := s.open(ctx, by, block.ObservationID)
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, err
 	}
-	if Kind(block.Kind) != KindPanel {
+	if Kind(block.Kind) != KindPanel || !visibleTo(block, abilities, actor.Of(by, origin.Origin{}, "")) {
 		return nil, time.Time{}, time.Time{}, ErrNotFound
 	}
 	return wrapBlock(parent, block)

@@ -187,9 +187,14 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 	}
 	viewer := actor.Of(by, origin.Origin{}, "")
 	o := observationOf(row, folder, abilities, viewer, thread, counts[id])
-	o.Blocks = make([]Block, len(blocks))
-	for i, b := range blocks {
-		o.Blocks[i] = blockOf(b, abilities, viewer)
+	o.Blocks = make([]Block, 0, len(blocks))
+	for _, b := range blocks {
+		if !visibleTo(b, abilities, viewer) {
+			continue
+		}
+		shown := blockOf(b, abilities, viewer)
+		shown.Position = len(o.Blocks)
+		o.Blocks = append(o.Blocks, shown)
 	}
 	return o, nil
 }

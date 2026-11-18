@@ -1930,7 +1930,7 @@ export interface paths {
         };
         /**
          * Read one observation with its blocks.
-         * @description Anyone who can view the observation's folder reads every block, requested ones included. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
+         * @description Anyone who can view the observation's folder reads the live blocks. A requested block is returned only to its author and to people who can edit the folder, and `position` stays dense in what the caller sees. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
          */
         get: operations["getObservation"];
         put?: never;

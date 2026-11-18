@@ -916,3 +916,55 @@ func TestAddingBlocksOfTheKindsAPersonMayNotAdd(t *testing.T) {
 		t.Errorf("the freezer ran %d times for refused snapshots", r.freezer.calls)
 	}
 }
+
+func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "live")
+	asked, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("asked")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.addText(t, editor, o, "after")
+	askedPanel, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	withIt := []string{"live", "asked", "after", ""}
+	without := []string{"live", "after"}
+	for _, c := range []struct {
+		name string
+		by   auth.Principal
+		want []string
+	}{
+		{"its author", commenter, withIt},
+		{"an editor", editor, withIt},
+		{"another editor", otherEditor, withIt},
+		{"an admin", admin, withIt},
+		{"a viewer", viewer, without},
+		{"another commenter", otherCommen, without},
+	} {
+		if got := r.positions(t, c.by, o); !slices.Equal(got, c.want) {
+			t.Errorf("%s sees %v, want %v", c.name, got, c.want)
+		}
+	}
+	for _, by := range []auth.Principal{viewer, otherCommen} {
+		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); !errors.Is(err, observations.ErrNotFound) {
+			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
+		}
+	}
+	for _, by := range []auth.Principal{commenter, editor} {
+		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); err != nil {
+			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
+		}
+	}
+
+	if _, err := r.service.KeepBlock(t.Context(), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.positions(t, viewer, o); !slices.Equal(got, []string{"live", "asked", "after"}) {
+		t.Errorf("a viewer sees %v after the editor kept it", got)
+	}
+}

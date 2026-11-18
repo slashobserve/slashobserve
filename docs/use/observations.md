@@ -35,7 +35,8 @@ An observation lives in one folder and follows that folder's access, as a dashbo
 - A person who can manage the folder creates public links to its RCA, and deletes any observation in it.
 - A person who started the observation and can still edit it deletes it.
 
-A requested block is visible but is not part of the page's settled content until someone who can edit keeps it.
+A requested block is not part of the page's settled content until someone who can edit keeps it.
+Until then only its author, editors and admins see it; viewers and other commenters read the page without it, in the app, over the API, in MCP and in the CLI.
 An editor keeps a requested block or discards it, and the one who asked for it may discard it too.
 Each block has a `version`, and a change or a keep that names an older one is refused with `version_conflict`, so two people never overwrite each other unseen.
 An observation in My Dashboards is private to its owner.

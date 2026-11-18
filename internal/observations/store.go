@@ -179,6 +179,13 @@ func offered(folder folders.Folder, actions []Action) []Action {
 	return slices.DeleteFunc(actions, func(a Action) bool { return a == ActionPublish })
 }
 
+func visibleTo(row dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor) bool {
+	if BlockState(row.State) != BlockRequested || abilities.Edit {
+		return true
+	}
+	return row.CreatedByKind == string(viewer.Kind) && row.CreatedByID.String() == viewer.ID
+}
+
 func blockOf(row dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor) Block {
 	author := actorOf(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.Origin, row.OriginClient, row.RunID)
 	mine := author.Kind == viewer.Kind && author.ID == viewer.ID
