@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/tooltip"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { languageReference } from "@/datasources/sources"
+import { matcherInsert } from "@/panel-editor/insert-text"
 import { formatDateTime } from "@/lib/time"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
@@ -51,6 +52,7 @@ import {
 } from "./discover-url"
 import { parseKql } from "./kql"
 import { LogLabelBrowser } from "./label-browser"
+import { withFilter } from "./query-filters"
 import { decodePills, encodePills, mergePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
 import { problemOf, unreadableKql, type QueryProblem } from "./query-problem"
@@ -401,13 +403,19 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
     )
   }
 
-  function insert(text: string) {
+  function pickLabel(label: string, value: string) {
     if (mode === "ask") setMode("code", false)
+    const text = matcherInsert(type, label, value)
     if (type === "loki" && emptyDraft) {
       setDraft(`{${text}}`)
       return
     }
-    if (editorRef.current === null) setDraft(draft + text)
+    const inSelector =
+      type === "loki"
+        ? withFilter(draft, "loki", "loki-stream", label, value, false)
+        : null
+    if (inSelector !== null) setDraft(inSelector)
+    else if (editorRef.current === null) setDraft(draft + text)
     else editorRef.current.insertAtCursor(text)
   }
 
@@ -502,7 +510,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
             <LogLabelBrowser
               datasourceUid={uid}
               datasourceType={type}
-              onInsert={insert}
+              onPick={pickLabel}
             />
           </div>
         ) : null}

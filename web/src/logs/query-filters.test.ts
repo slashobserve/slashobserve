@@ -26,6 +26,16 @@ type Case = {
 
 const cases: Case[] = [
   {
+    name: "replaces the value of a label the selector already holds and keeps the line filter",
+    type: "loki",
+    target: "loki-stream",
+    query: '{service_name="frontend"} |= "error"',
+    field: "service_name",
+    value: "checkout",
+    negate: false,
+    expected: '{service_name="checkout"} |= "error"',
+  },
+  {
     name: "adds a matcher inside the selector",
     type: "loki",
     target: "loki-stream",
