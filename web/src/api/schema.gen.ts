@@ -4630,6 +4630,8 @@ export interface components {
             truncated: boolean;
             /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
             partial: boolean;
+            /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat with `page_size`, narrow `from` and `to`, or add a filter. */
+            note?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
@@ -9525,7 +9527,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

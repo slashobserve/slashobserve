@@ -176,3 +176,29 @@ func TestRunPageRefusesASortThatIsNotAColumnName(t *testing.T) {
 		t.Fatalf("err = %v, want %q", err, datasource.SortRule)
 	}
 }
+
+func TestLimitNoteTellsHowToGetMore(t *testing.T) {
+	cases := []struct {
+		name                        string
+		truncated, partial, hasNext bool
+		want                        string
+	}{
+		{"nothing to say", false, false, false, ""},
+		{"row limit", true, false, false, MoreRowsNote},
+		{"full page", false, false, true, FullPageNote},
+		{"time limit", false, true, false, PartialNote},
+		{"full page and time limit", false, true, true, FullPageNote + ". " + PartialNote},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := LimitNote(tc.truncated, tc.partial, tc.hasNext); got != tc.want {
+				t.Fatalf("note = %q, want %q", got, tc.want)
+			}
+		})
+	}
+	for note, want := range map[string]string{MoreRowsNote: "page_size", FullPageNote: "cursor", PartialNote: "add a filter"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("%q does not name %q", note, want)
+		}
+	}
+}

@@ -214,9 +214,9 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 		meta datasource.FrameMeta
 		want string
 	}{
-		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to)"},
-		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (partial: the datasource did not search every block)"},
-		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to) (partial: the datasource did not search every block)"},
+		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (" + queryproxy.MoreRowsNote + ")"},
+		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + ")"},
+		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.MoreRowsNote + ") (" + queryproxy.PartialNote + ")"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -701,5 +701,13 @@ func TestPageDescribeNamesTheTotalAndTheWalk(t *testing.T) {
 				t.Fatalf("describe = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSummaryNoteTellsHowToGetMore(t *testing.T) {
+	frame := datasource.Frame{Fields: []datasource.Field{{Name: "TraceId", Type: datasource.FieldString, Values: []any{"a"}}}, Meta: &datasource.FrameMeta{Partial: true}}
+	summary := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}})
+	if summary.Note != queryproxy.PartialNote {
+		t.Fatalf("note = %q", summary.Note)
 	}
 }

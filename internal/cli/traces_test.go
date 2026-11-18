@@ -304,3 +304,13 @@ func TestTracesAskUsageErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestTracesAskPrintsWhyTheListIsIncompleteAndHowToGetMore(t *testing.T) {
+	note := "the page is full and more rows exist; pass next as cursor for more"
+	body := strings.Replace(traceSearchFrames, `{"frames"`, `{"meta":{"note":"`+note+`"},"frames"`, 1)
+	f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, body)
+	stdout, stderr, code := f.run("traces", "--ask", "all")
+	if code != 0 || !strings.Contains(stderr, "Note: "+note) || strings.Contains(stdout, "Note:") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+}

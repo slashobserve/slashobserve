@@ -177,9 +177,12 @@ func (a *app) searchTraces(ctx context.Context, c *client, kind string, sort *tr
 	rows := traceSearchRows(body.Frames, clientSort)
 	if len(rows) == 0 {
 		out.notice("No traces between %s and %s", text(opts.from), text(opts.to))
-		return nil
+	} else {
+		out.table(traceSearchHeaders, rows)
 	}
-	out.table(traceSearchHeaders, rows)
+	if body.Meta.Note != "" {
+		out.notice("Note: %s", body.Meta.Note)
+	}
 	return nil
 }
 

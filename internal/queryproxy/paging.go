@@ -3,6 +3,7 @@ package queryproxy
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -20,7 +21,25 @@ const (
 	PageWalkSentence = "pass next as cursor for more"
 	SortNeedsSize    = "sort needs page_size"
 	SortUnsupported  = "sort applies to ClickHouse datasources; this datasource pages in its own order"
+
+	MoreRowsNote = "more rows exist than were returned; repeat with page_size to read them in pages, or narrow from and to"
+	FullPageNote = "the page is full and more rows exist; " + PageWalkSentence
+	PartialNote  = "the datasource stopped before it searched everything, so some matches may be missing; narrow from and to or add a filter, then repeat"
 )
+
+func LimitNote(truncated, partial, hasNext bool) string {
+	var notes []string
+	switch {
+	case hasNext:
+		notes = append(notes, FullPageNote)
+	case truncated:
+		notes = append(notes, MoreRowsNote)
+	}
+	if partial {
+		notes = append(notes, PartialNote)
+	}
+	return strings.Join(notes, ". ")
+}
 
 type PageParams struct {
 	UID      string

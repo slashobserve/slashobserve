@@ -322,6 +322,9 @@ func TestExploreMetaCarriesJobsAndElapsed(t *testing.T) {
 	if meta.JobsDone != 1 || meta.JobsTotal != 6 || meta.InspectedBytes != 10 || !meta.Partial || meta.Bytes != 0 {
 		t.Fatalf("meta = %+v, want 1 of 6 jobs, 10 inspected bytes, partial and no payload size", meta)
 	}
+	if meta.Note != queryproxy.PartialNote {
+		t.Fatalf("note = %q, want the partial note", meta.Note)
+	}
 	if meta.ElapsedMS < 2 {
 		t.Fatalf("elapsed_ms = %d, want at least the time the datasource took", meta.ElapsedMS)
 	}

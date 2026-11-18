@@ -34,6 +34,9 @@ type frame struct {
 
 type exploreResponse struct {
 	Frames []frame `json:"frames"`
+	Meta   struct {
+		Note string `json:"note"`
+	} `json:"meta"`
 }
 
 func explore(ctx context.Context, c *client, uid string, req exploreRequest) ([]byte, exploreResponse, error) {

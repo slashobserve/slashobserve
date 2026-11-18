@@ -233,6 +233,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		Range:   out.Range,
 	})
 	summary.Page = pageOutOf(out)
+	summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, summary.Page != nil && summary.Page.HasNext)
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -411,6 +412,7 @@ type querySummary struct {
 	Truncated bool            `json:"truncated"`
 	MoreRows  bool            `json:"more_rows,omitempty"`
 	Partial   bool            `json:"partial,omitempty"`
+	Note      string          `json:"note,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 	Page      *pageOut        `json:"page,omitempty"`
@@ -437,10 +439,10 @@ func (s querySummary) describeData() string {
 func (s querySummary) describeLimits() string {
 	var out string
 	if s.MoreRows {
-		out += " (more rows exist; narrow from and to)"
+		out += " (" + queryproxy.MoreRowsNote + ")"
 	}
 	if s.Partial {
-		out += " (partial: the datasource did not search every block)"
+		out += " (" + queryproxy.PartialNote + ")"
 	}
 	if s.Page != nil {
 		out += s.Page.describe()
@@ -460,6 +462,7 @@ func summarize(res queryproxy.Result) querySummary {
 		Frames:   len(frames),
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
+		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false),
 	}
 	if s.Empty {
 		return s

@@ -501,6 +501,7 @@ It prints the answer on standard error, as `Filters: service=checkout min=2s err
 Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
 `--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
+When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
 ### Compare traces
