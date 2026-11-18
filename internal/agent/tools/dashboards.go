@@ -161,7 +161,7 @@ type dashboardOut struct {
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
 	ViewCount                *int            `json:"view_count,omitempty"`
-	ViewWindowDays           int             `json:"view_window_days,omitempty"`
+	WindowDays               int             `json:"window_days,omitempty"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -254,7 +254,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		if err != nil {
 			return Result{}, err
 		}
-		out.ViewCount, out.ViewWindowDays = &views.Count, views.WindowDays
+		out.ViewCount, out.WindowDays = &views.Count, views.WindowDays
 	}
 	body, err := json.Marshal(out)
 	if err != nil {

@@ -244,7 +244,7 @@ func withViewCount(data []byte, views dashboardViews) ([]byte, error) {
 	}
 	count, _ := json.Marshal(views.ViewCount)
 	window, _ := json.Marshal(views.WindowDays)
-	fields["view_count"], fields["view_window_days"] = count, window
+	fields["view_count"], fields["window_days"] = count, window
 	return json.Marshal(fields)
 }
 

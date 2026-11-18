@@ -93,7 +93,7 @@ Opening a dashboard writes once for the page, never for each panel, and a servic
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
 The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
 The daily records are kept for 90 days.
-`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `view_window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
 
 ## Home dashboard
 

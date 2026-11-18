@@ -203,15 +203,15 @@ func TestDashboardsShowPrintsViewsAndAddsThemToJSON(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 	var body struct {
-		ViewCount      int             `json:"view_count"`
-		ViewWindowDays int             `json:"view_window_days"`
-		Dashboard      json.RawMessage `json:"dashboard"`
-		Version        json.RawMessage `json:"version"`
+		ViewCount  int             `json:"view_count"`
+		WindowDays int             `json:"window_days"`
+		Dashboard  json.RawMessage `json:"dashboard"`
+		Version    json.RawMessage `json:"version"`
 	}
 	if err := json.Unmarshal([]byte(out), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.ViewCount != 9 || body.ViewWindowDays != 30 || len(body.Dashboard) == 0 || len(body.Version) == 0 {
+	if body.ViewCount != 9 || body.WindowDays != 30 || len(body.Dashboard) == 0 || len(body.Version) == 0 {
 		t.Errorf("json = %s", out)
 	}
 }

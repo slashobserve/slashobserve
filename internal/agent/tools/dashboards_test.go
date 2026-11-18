@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -238,5 +241,31 @@ func TestListDashboardsSchemaOffersBothOrders(t *testing.T) {
 		if !strings.Contains(text, "view") {
 			t.Errorf("description does not mention views: %s", text)
 		}
+	}
+}
+
+func TestGetDashboardNamesTheViewWindowLikeTheAPI(t *testing.T) {
+	r := newAccessRig(t)
+	access := folders.NewAccess(r.db.DB)
+	logger := slog.New(slog.DiscardHandler)
+	withHealth := *r
+	withHealth.registry = New(Deps{Dashboards: r.service, Folders: access, Health: health.New(health.Deps{DB: r.db.DB, Access: access, Logger: logger, Job: "dashboard_health"}), Logger: logger})
+	eve := r.person(t, "eve", auth.RoleViewer)
+	id := r.seed(t, "Board")
+
+	res := withHealth.call(t, eve, nameGetDashboard, `{"dashboard_id":"`+id.String()+`"}`)
+	raw, err := json.Marshal(res.Content)
+	if err != nil || res.IsError {
+		t.Fatalf("get_dashboard = %s (%v)", textOf(t, res), err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if string(fields["view_count"]) != "0" || string(fields["window_days"]) != "30" {
+		t.Errorf("view_count = %s, window_days = %s, want 0 and 30", fields["view_count"], fields["window_days"])
+	}
+	if _, old := fields["view_window_days"]; old {
+		t.Error("get_dashboard still answers view_window_days")
 	}
 }
