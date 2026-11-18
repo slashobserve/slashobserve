@@ -213,4 +213,23 @@ describe("link blocks", () => {
         "That panel uses dashboard variables, and a block runs without them.",
     })
   })
+
+  it("treats built-in names the way the panel menu does", () => {
+    const withBuiltIn = {
+      ...spec,
+      panels: [
+        {
+          id: "rate",
+          type: "timeseries",
+          datasource: "prom",
+          gridPos: { x: 0, y: 0, w: 12, h: 8 },
+          queries: [{ query: "rate(up[$__rate_interval])" }],
+        },
+      ],
+    } as unknown as Dashboard
+    const link = noteLinks(`${origin}/d/${dashboardId}?panel=rate`, origin)[0]
+    if (link?.kind !== "panel") throw new Error("expected a panel link")
+    const outcome = dashboardPanelBody(link, withBuiltIn, now)
+    expect(outcome).toHaveProperty("body")
+  })
 })
