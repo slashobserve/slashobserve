@@ -7,17 +7,28 @@ export type WebhookStatus = {
   tone: StatusTone
   label: string
   detail: string | null
+  waiting: string | null
+}
+
+export function waitingText(waiting: Webhook["waiting_events"]): string | null {
+  if (waiting === null || waiting.count === 0) return null
+  if (waiting.more) return `${waiting.count} or more events waiting`
+  return `${waiting.count} ${waiting.count === 1 ? "event" : "events"} waiting`
 }
 
 export function webhookStatus(
-  webhook: Pick<Webhook, "state" | "disabled_reason" | "consecutive_failures">
+  webhook: Pick<
+    Webhook,
+    "state" | "disabled_reason" | "consecutive_failures" | "waiting_events"
+  >
 ): WebhookStatus {
   switch (webhook.state) {
     case "disabled":
       return {
-        tone: "critical",
+        tone: webhook.disabled_reason === "manual" ? "none" : "critical",
         label: "Disabled",
         detail: disabledReasonText(webhook.disabled_reason),
+        waiting: waitingText(webhook.waiting_events),
       }
     case "retrying": {
       const n = webhook.consecutive_failures
@@ -25,10 +36,11 @@ export function webhookStatus(
         tone: "warning",
         label: "Retrying",
         detail: `${n} ${n === 1 ? "attempt" : "attempts"} in a row failed`,
+        waiting: waitingText(webhook.waiting_events),
       }
     }
     case "sending":
-      return { tone: "ok", label: "Sending", detail: null }
+      return { tone: "ok", label: "Sending", detail: null, waiting: null }
   }
 }
 
@@ -38,6 +50,7 @@ const errorTexts: Record<string, string> = {
   blocked_address: "The address resolves to a private address",
   domain_not_allowed: "The domain is not on the outbound allowlist",
   too_large: "The event is larger than 64 KiB",
+  skipped_by_admin: "An Admin skipped this event",
 }
 
 export function errorText(code: string | null): string {

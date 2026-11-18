@@ -601,13 +601,17 @@ bin/observe webhooks test <webhook id>
 ```
 
 - `list` prints each webhook's id, name, address, number of event types and status, which is `sending`, `retrying` or `disabled (<reason>)`.
+  A retrying webhook also shows how many events wait behind the failing one and when the next attempt is due, such as `retrying (3 waiting, next 2026-11-11T09:15Z)`; `100+` means more than 100.
 - `add --name <name> --url <https address> --event <type>` creates a webhook, and `--event` repeats for several types.
   It prints the webhook and its signing secret once, and a notice on standard error says the secret is not shown again, so copy it then; `-q` hides the notice but not the secret.
   An address whose domain is not on the [outbound allowlist](../operate/outbound-access.md) fails with `outbound_domain_not_allowed`.
-- `update <id>` changes the `--name`, `--url` or `--event` list you pass and leaves the rest; with none of them it exits 2.
+  `--format slack` or `--format teams` sends one line of text for a Slack or Teams address instead of the signed JSON envelope (`generic`, the default).
+- `update <id>` changes the `--name`, `--url`, `--format` or `--event` list you pass and leaves the rest; with none of them it exits 2.
 - `enable <id>` and `disable <id>` turn a webhook on, clearing its failures, or off.
 - `test <id>` sends a `webhook.test` event now and prints its outcome, the receiver's status, the duration and the error code.
   It exits 1 when the event was not delivered.
+- `skip <id>` passes a retrying webhook over the oldest event it is stuck on, so the events behind it go out; the skipped event is never sent to that receiver and shows in `deliveries` as `skipped`.
+  It exits 1 with `nothing_to_skip` when the webhook is not retrying, and with `webhook_busy` while a server is delivering for it.
 - `rotate-secret <id>` makes a new signing secret and prints it once; the old one stops working at once.
 - `delete <id>` deletes the webhook and its recorded attempts.
 - `deliveries <id>` prints the newest attempts first as a table of time, event, outcome, status, duration and error code, up to `--limit` of them (1 to 100, 20 by default).

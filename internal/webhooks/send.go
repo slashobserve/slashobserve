@@ -19,6 +19,7 @@ const (
 	errorBlockedAddress   = "blocked_address"
 	errorDomainNotAllowed = "domain_not_allowed"
 	errorTooLarge         = "too_large"
+	errorSkippedByAdmin   = "skipped_by_admin"
 )
 
 type Sender interface {

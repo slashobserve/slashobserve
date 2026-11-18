@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -426,5 +427,110 @@ func TestHTTPAnEnabledWebhookCreatedNowSendsOnlyLaterEvents(t *testing.T) {
 
 	if got, want := seqsSent(t, r.sender.all()), []int64{later}; len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("sent %v, want only %v", got, want)
+	}
+}
+
+func failFirstEvent(r *rig) {
+	r.sender.script(func(int, call) (egress.SendResult, error) {
+		return egress.SendResult{Status: http.StatusInternalServerError}, nil
+	})
+}
+
+func TestHTTPARetryingWebhookCountsTheEventsWaitingAndSkipMovesPastTheOldest(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	created := h.create(t, activity.TypeFindingCreated)
+	first := h.append(t, activity.TypeFindingCreated)
+	second := h.append(t, activity.TypeFindingCreated)
+	third := h.append(t, activity.TypeFindingCreated)
+	failFirstEvent(h.rig)
+	h.pass(t)
+
+	type listed struct {
+		Webhooks []struct {
+			State   string `json:"state"`
+			Waiting *struct {
+				Count int  `json:"count"`
+				More  bool `json:"more"`
+			} `json:"waiting_events"`
+		} `json:"webhooks"`
+	}
+	got := decode[listed](t, h.call(t, http.MethodGet, "/api/v1/webhooks", ""))
+	if len(got.Webhooks) != 1 || got.Webhooks[0].State != StateRetrying || got.Webhooks[0].Waiting == nil || got.Webhooks[0].Waiting.Count != 3 || got.Webhooks[0].Waiting.More {
+		t.Fatalf("list after a failure %+v, want retrying with 3 events waiting", got)
+	}
+
+	rec := h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("skip answered %d %s", rec.Code, rec.Body)
+	}
+	skipped := decode[struct {
+		Skipped struct {
+			DeliveryID  string  `json:"delivery_id"`
+			ActivitySeq int64   `json:"activity_seq"`
+			Outcome     string  `json:"outcome"`
+			ErrorCode   *string `json:"error_code"`
+		} `json:"skipped"`
+		Webhook struct {
+			State string `json:"state"`
+		} `json:"webhook"`
+	}](t, rec)
+	if skipped.Skipped.ActivitySeq != first || skipped.Skipped.Outcome != outcomeSkipped || skipped.Skipped.ErrorCode == nil || *skipped.Skipped.ErrorCode != errorSkippedByAdmin || skipped.Webhook.State != StateSending {
+		t.Fatalf("skip answered %s", rec.Body)
+	}
+
+	h.sender.script(nil)
+	h.makeDue(t, created.Webhook.ID)
+	h.pass(t)
+	sent := seqsSent(t, h.sender.all())
+	if want := []int64{first, second, third}; !slices.Equal(sent, want) {
+		t.Fatalf("sent %v, want the failed attempt of %d and then %d and %d without %d again", sent, first, second, third, first)
+	}
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", ""), http.StatusConflict, "nothing_to_skip")
+}
+
+func TestHTTPSkipRefusesAnUnknownWebhookAndOneThatIsNotHoldingAnEventBack(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/6c1f0f1e-6a53-4c8e-9c63-2f4d5f0b8a11/skip", ""), http.StatusNotFound, "not_found")
+	created := h.create(t)
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", ""), http.StatusConflict, "nothing_to_skip")
+}
+
+func TestHTTPSkipRefusesWhileAWorkerHoldsTheLease(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	created := h.create(t, activity.TypeFindingCreated)
+	h.append(t, activity.TypeFindingCreated)
+	failFirstEvent(h.rig)
+	h.pass(t)
+	h.db.Exec(t, `UPDATE webhooks SET lease_id = gen_random_uuid(), leased_by = 'other', lease_until = now() + interval '1 minute' WHERE id = $1::uuid`, created.Webhook.ID)
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", ""), http.StatusConflict, "webhook_busy")
+}
+
+func TestHTTPASlackWebhookPostsOneTextLineAndRejectsAnUnknownFormat(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks", `{"name":"x","url":"`+receiverURL+`","format":"discord","event_types":["finding.created"]}`), http.StatusBadRequest, "invalid_request")
+	rec := h.call(t, http.MethodPost, "/api/v1/webhooks", `{"name":"Chat","url":"`+receiverURL+`","format":"slack","event_types":["finding.created"]}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create answered %d %s", rec.Code, rec.Body)
+	}
+	created := decode[struct {
+		Webhook struct {
+			ID     string `json:"id"`
+			Format string `json:"format"`
+		} `json:"webhook"`
+	}](t, rec)
+	if created.Webhook.Format != FormatSlack {
+		t.Fatalf("format %q, want slack", created.Webhook.Format)
+	}
+	h.append(t, activity.TypeFindingCreated)
+	h.pass(t)
+	calls := h.sender.all()
+	if len(calls) != 1 || !strings.HasPrefix(string(calls[0].Body), `{"text":"`) {
+		t.Fatalf("a slack webhook sent %v", calls)
+	}
+	rec = h.call(t, http.MethodPatch, "/api/v1/webhooks/"+created.Webhook.ID, `{"format":"teams"}`)
+	if rec.Code != http.StatusOK || decode[struct {
+		Format string `json:"format"`
+	}](t, rec).Format != FormatTeams {
+		t.Fatalf("patch answered %d %s", rec.Code, rec.Body)
 	}
 }

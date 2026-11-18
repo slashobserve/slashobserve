@@ -39,23 +39,36 @@ func (h *Handler) Register(api auth.Routes) {
 	g.DELETE("/:id", auth.RoleAdmin, h.remove)
 	g.POST("/:id/secret", auth.RoleAdmin, h.rotate)
 	g.POST("/:id/test", auth.RoleAdmin, h.test)
+	g.POST("/:id/skip", auth.RoleAdmin, h.skip)
 	g.GET("/:id/deliveries", auth.RoleAdmin, h.deliveries)
 }
 
 type webhookJSON struct {
-	ID                  string     `json:"id"`
-	Name                string     `json:"name"`
-	URL                 string     `json:"url"`
-	EventTypes          []string   `json:"event_types"`
-	Owner               actor.JSON `json:"owner"`
-	Enabled             bool       `json:"enabled"`
-	State               string     `json:"state"`
-	DisabledReason      *string    `json:"disabled_reason"`
-	DisabledAt          *string    `json:"disabled_at"`
-	ConsecutiveFailures int        `json:"consecutive_failures"`
-	NextAttemptAt       string     `json:"next_attempt_at"`
-	CreatedAt           string     `json:"created_at"`
-	UpdatedAt           string     `json:"updated_at"`
+	ID                  string       `json:"id"`
+	Name                string       `json:"name"`
+	URL                 string       `json:"url"`
+	Format              string       `json:"format"`
+	EventTypes          []string     `json:"event_types"`
+	Owner               actor.JSON   `json:"owner"`
+	Enabled             bool         `json:"enabled"`
+	State               string       `json:"state"`
+	DisabledReason      *string      `json:"disabled_reason"`
+	DisabledAt          *string      `json:"disabled_at"`
+	ConsecutiveFailures int          `json:"consecutive_failures"`
+	NextAttemptAt       string       `json:"next_attempt_at"`
+	Waiting             *waitingJSON `json:"waiting_events"`
+	CreatedAt           string       `json:"created_at"`
+	UpdatedAt           string       `json:"updated_at"`
+}
+
+type waitingJSON struct {
+	Count int  `json:"count"`
+	More  bool `json:"more"`
+}
+
+type skippedJSON struct {
+	Webhook webhookJSON  `json:"webhook"`
+	Skipped deliveryJSON `json:"skipped"`
 }
 
 type createdJSON struct {
@@ -77,13 +90,16 @@ type deliveryJSON struct {
 
 func newWebhookJSON(w Webhook) webhookJSON {
 	out := webhookJSON{
-		ID: w.ID, Name: w.Name, URL: w.URL, EventTypes: w.EventTypes, Owner: w.Owner.JSON(), Enabled: w.Enabled, State: stateOf(w.Enabled, w.ConsecutiveFailures),
+		ID: w.ID, Name: w.Name, URL: w.URL, Format: w.Format, EventTypes: w.EventTypes, Owner: w.Owner.JSON(), Enabled: w.Enabled, State: stateOf(w.Enabled, w.ConsecutiveFailures),
 		DisabledReason: httpapi.OptionalString(w.DisabledReason), ConsecutiveFailures: w.ConsecutiveFailures,
 		NextAttemptAt: httpapi.FormatTime(w.NextAttemptAt), CreatedAt: httpapi.FormatTime(w.CreatedAt), UpdatedAt: httpapi.FormatTime(w.UpdatedAt),
 	}
 	if w.DisabledAt != nil {
 		at := httpapi.FormatTime(*w.DisabledAt)
 		out.DisabledAt = &at
+	}
+	if w.Waiting != nil {
+		out.Waiting = &waitingJSON{Count: w.Waiting.Count, More: w.Waiting.More}
 	}
 	return out
 }
@@ -113,6 +129,7 @@ func (h *Handler) create(c *gin.Context) {
 	var body struct {
 		Name       *string   `json:"name"`
 		URL        *string   `json:"url"`
+		Format     *string   `json:"format"`
 		EventTypes *[]string `json:"event_types"`
 	}
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
@@ -122,7 +139,7 @@ func (h *Handler) create(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "name, url and event_types are required")
 		return
 	}
-	created, err := h.svc.Create(c.Request.Context(), httpapi.Caller(c), Input{Name: *body.Name, URL: *body.URL, EventTypes: *body.EventTypes})
+	created, err := h.svc.Create(c.Request.Context(), httpapi.Caller(c), Input{Name: *body.Name, URL: *body.URL, Format: deref(body.Format), EventTypes: *body.EventTypes})
 	if err != nil {
 		h.fail(c, "create webhook", err)
 		return
@@ -138,13 +155,14 @@ func (h *Handler) update(c *gin.Context) {
 	var body struct {
 		Name       *string   `json:"name"`
 		URL        *string   `json:"url"`
+		Format     *string   `json:"format"`
 		EventTypes *[]string `json:"event_types"`
 		Enabled    *bool     `json:"enabled"`
 	}
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
-	updated, err := h.svc.Update(c.Request.Context(), httpapi.Caller(c), id, Patch{Name: body.Name, URL: body.URL, EventTypes: body.EventTypes, Enabled: body.Enabled})
+	updated, err := h.svc.Update(c.Request.Context(), httpapi.Caller(c), id, Patch{Name: body.Name, URL: body.URL, Format: body.Format, EventTypes: body.EventTypes, Enabled: body.Enabled})
 	if err != nil {
 		h.fail(c, "update webhook", err)
 		return
@@ -190,6 +208,26 @@ func (h *Handler) test(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"delivery": newDeliveryJSON(tested)})
 }
 
+func (h *Handler) skip(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	skipped, updated, err := h.svc.SkipEvent(c.Request.Context(), httpapi.Caller(c), id)
+	if err != nil {
+		h.fail(c, "skip webhook event", err)
+		return
+	}
+	c.JSON(http.StatusOK, skippedJSON{Webhook: newWebhookJSON(updated), Skipped: newDeliveryJSON(skipped)})
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func (h *Handler) deliveries(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -232,6 +270,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusConflict, "secret_key_missing", err.Error())
 	case errors.Is(err, ErrSecretUnreadable):
 		httpapi.AbortError(c, http.StatusConflict, "secret_unreadable", err.Error())
+	case errors.Is(err, ErrNothingToSkip):
+		httpapi.AbortError(c, http.StatusConflict, "nothing_to_skip", "the webhook has no failing event to skip; skipping applies only while it is retrying")
+	case errors.Is(err, ErrBusy):
+		httpapi.AbortError(c, http.StatusConflict, "webhook_busy", err.Error())
 	case errors.Is(err, ErrTooMany):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_webhooks", "at most 20 webhooks can be set up")
 	case errors.Is(err, egress.ErrNotAllowed) && errors.As(err, &hostErr):

@@ -2754,7 +2754,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a webhook's name, address, event types or state.
+         * Change a webhook's name, address, format, event types or state.
          * @description Only Admins can call this endpoint. The caller becomes the webhook's owner, so it delivers only what the caller can read from now on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
          */
         patch: operations["updateWebhook"];
@@ -2798,6 +2798,28 @@ export interface paths {
          * @description Only Admins can call this endpoint. The server sends a signed `webhook.test` event with no `event` and waits for the answer, up to 10 seconds. It works on a disabled webhook, records the attempt in the delivery history and changes nothing else. A receiver that cannot be reached or answers with an error still gives 200, with `outcome` `failed` and its `error_code`.
          */
         post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pass over the oldest event a failing webhook is stuck on.
+         * @description Only Admins can call this endpoint. A webhook delivers in order, so one event the receiver keeps refusing holds back every event behind it. This moves the webhook's position past the oldest event it still has to send, records that event as a `skipped` attempt with the error `skipped_by_admin`, clears the failure count and makes the webhook send the next event at once. The skipped event is never sent to this receiver. It answers 409 `nothing_to_skip` when the webhook is not retrying or has no event left to send, and 409 `webhook_busy` while a server is delivering for it; try again after a few seconds.
+         */
+        post: operations["skipWebhookEvent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5793,6 +5815,7 @@ export interface components {
             name: string;
             /** @description The https address events are posted to. */
             url: string;
+            format: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
             owner: components["schemas"]["Actor"];
             enabled: boolean;
@@ -5814,11 +5837,23 @@ export interface components {
              * @description The earliest time of the next attempt; in the past while the webhook has nothing to send.
              */
             next_attempt_at: string;
+            /** @description How many events the webhook still has to send, while `consecutive_failures` is above 0 and the owner can be read; null otherwise. */
+            waiting_events: {
+                /** @description The events waiting, counted up to 100, the failing one included. */
+                count: number;
+                /** @description True when more than 100 events are waiting. */
+                more: boolean;
+            } | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description `generic` is the signed JSON envelope of the webhooks guide; `slack` posts `{"text": ...}` and `teams` an Adaptive Card message, each with one line that names the actor, the event type and its title.
+         * @enum {string}
+         */
+        WebhookFormat: "generic" | "slack" | "teams";
         WebhookList: {
             webhooks: components["schemas"]["Webhook"][];
         };
@@ -5831,11 +5866,13 @@ export interface components {
             name: string;
             /** @description An https address on port 443 with a domain name, no user info and no fragment. */
             url: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
         };
         UpdateWebhookRequest: {
             name?: string;
             url?: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types?: components["schemas"]["ActivityType"][];
             enabled?: boolean;
         };
@@ -5859,10 +5896,14 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+        };
+        WebhookSkipResult: {
+            webhook: components["schemas"]["Webhook"];
+            skipped: components["schemas"]["WebhookDelivery"];
         };
         WebhookTestResult: {
             delivery: components["schemas"]["WebhookDelivery"];
@@ -13826,6 +13867,42 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored secret cannot be read with it (`secret_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    skipWebhookEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook after the skip and the attempt that records it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSkipResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The webhook has no failing event to skip (`nothing_to_skip`), or is delivering right now (`webhook_busy`). */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -24,36 +24,41 @@ import (
 )
 
 type Deps struct {
-	DB       *db.DB
-	Activity *activity.Store
-	Domains  egress.Allowlist
-	Sender   Sender
-	Key      sealed.Key
-	Logger   *slog.Logger
+	DB         *db.DB
+	Activity   *activity.Store
+	Principals Principals
+	Domains    egress.Allowlist
+	Sender     Sender
+	Key        sealed.Key
+	Logger     *slog.Logger
 }
 
 type Service struct {
-	db       *db.DB
-	activity *activity.Store
-	domains  egress.Allowlist
-	sender   Sender
-	key      sealed.Key
-	logger   *slog.Logger
+	db         *db.DB
+	activity   *activity.Store
+	source     source
+	principals Principals
+	domains    egress.Allowlist
+	sender     Sender
+	key        sealed.Key
+	logger     *slog.Logger
 }
 
 func NewService(d Deps) *Service {
-	return &Service{db: d.DB, activity: d.Activity, domains: d.Domains, sender: d.Sender, key: d.Key, logger: d.Logger}
+	return &Service{db: d.DB, activity: d.Activity, source: source{store: d.Activity}, principals: d.Principals, domains: d.Domains, sender: d.Sender, key: d.Key, logger: d.Logger}
 }
 
 type Input struct {
 	Name       string
 	URL        string
+	Format     string
 	EventTypes []string
 }
 
 type Patch struct {
 	Name       *string
 	URL        *string
+	Format     *string
 	EventTypes *[]string
 	Enabled    *bool
 }
@@ -145,6 +150,10 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	if err != nil {
 		return Created{}, err
 	}
+	format, err := cleanFormat(cmp.Or(in.Format, FormatGeneric))
+	if err != nil {
+		return Created{}, err
+	}
 	types, err := cleanEventTypes(in.EventTypes)
 	if err != nil {
 		return Created{}, err
@@ -185,7 +194,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 			return ErrTooMany
 		}
 		if _, err := q.InsertWebhook(ctx, dbsqlc.InsertWebhookParams{
-			ID: id, Name: name, Url: address, SecretCiphertext: ciphertext, EventTypes: types,
+			ID: id, Name: name, Url: address, Format: format, SecretCiphertext: ciphertext, EventTypes: types,
 			OwnerKind: ownerKind, OwnerID: ownerID,
 			CursorXid: pgtype.Uint64{Uint64: head.xid, Valid: true}, CursorSeq: head.seq,
 		}); err != nil {
@@ -214,7 +223,7 @@ func view(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (Webhook, erro
 
 func wrapStore(action string, err error) error {
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTooMany), errors.Is(err, context.Canceled):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTooMany), errors.Is(err, ErrNothingToSkip), errors.Is(err, ErrBusy), errors.Is(err, context.Canceled):
 		return err
 	}
 	return fmt.Errorf("%s: %w", action, err)
@@ -227,15 +236,83 @@ func (s *Service) List(ctx context.Context) ([]Webhook, error) {
 	}
 	out := make([]Webhook, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, webhookOf(dbsqlc.GetWebhookRow(r)))
+		w := webhookOf(dbsqlc.GetWebhookRow(r))
+		if w.ConsecutiveFailures > 0 {
+			w.Waiting = s.waiting(ctx, r.OwnerKind, r.OwnerID.String(), r.EventTypes, w.at)
+		}
+		out = append(out, w)
 	}
 	return out, nil
 }
 
+func (s *Service) pending(ctx context.Context, ownerKind, ownerID string, types []string, from cursor, limit int) ([]activity.Event, error) {
+	owner, err := s.principals.Principal(ctx, auth.PrincipalKind(ownerKind), ownerID)
+	if err != nil {
+		return nil, err
+	}
+	audience, err := s.source.audience(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	page, _, err := s.source.next(ctx, audience, types, time.Now().Add(-expiry), from, limit)
+	return page, err
+}
+
+func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types []string, from cursor) *Waiting {
+	page, err := s.pending(ctx, ownerKind, ownerID, types, from, maxWaitingCount+1)
+	if err != nil {
+		return nil
+	}
+	return &Waiting{Count: min(len(page), maxWaitingCount), More: len(page) > maxWaitingCount}
+}
+
+func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UUID) (skipped Delivery, updated Webhook, err error) {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		row, err := q.GetWebhookForUpdate(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if row.ConsecutiveFailures == 0 {
+			return ErrNothingToSkip
+		}
+		if row.LeaseUntil.Valid && row.LeaseUntil.Time.After(time.Now()) {
+			return ErrBusy
+		}
+		page, err := s.pending(ctx, row.OwnerKind, row.OwnerID.String(), row.EventTypes, cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq}, 1)
+		if errors.Is(err, auth.ErrPrincipalGone) || (err == nil && len(page) == 0) {
+			return ErrNothingToSkip
+		}
+		if err != nil {
+			return err
+		}
+		e := page[0]
+		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, id.String()+"."+strconv.FormatInt(e.Seq, 10), e.Type,
+			pgtype.Int8{Int64: e.Seq, Valid: true}, attempt{outcome: outcomeSkipped, errorCode: errorSkippedByAdmin}))
+		if err != nil {
+			return err
+		}
+		at := cursorOf(e)
+		if _, err := q.SkipWebhookEvent(ctx, dbsqlc.SkipWebhookEventParams{ID: id, CursorXid: pgtype.Uint64{Uint64: at.xid, Valid: true}, CursorSeq: at.seq}); err != nil {
+			return err
+		}
+		skipped = deliveryOf(stored)
+		updated, err = view(ctx, q, id)
+		return err
+	})
+	if err != nil {
+		return Delivery{}, Webhook{}, wrapStore("skip webhook event", err)
+	}
+	s.logger.InfoContext(ctx, "webhook event skipped", slog.String("webhook_id", updated.ID), slog.String("actor_id", by.ID), slog.String("event_type", skipped.EventType))
+	return skipped, updated, nil
+}
+
 type cleanedPatch struct {
-	name, address string
-	types         []string
-	enabled       *bool
+	name, address, format string
+	types                 []string
+	enabled               *bool
 }
 
 func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
@@ -255,6 +332,11 @@ func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 			return cleanedPatch{}, err
 		}
 	}
+	if p.Format != nil {
+		if c.format, err = cleanFormat(*p.Format); err != nil {
+			return cleanedPatch{}, err
+		}
+	}
 	if p.EventTypes != nil {
 		if c.types, err = cleanEventTypes(*p.EventTypes); err != nil {
 			return cleanedPatch{}, err
@@ -266,7 +348,7 @@ func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 func (c cleanedPatch) apply(current dbsqlc.Webhook, ownerKind string, ownerID pgtype.UUID, now time.Time) dbsqlc.UpdateWebhookParams {
 	at := pgtype.Timestamptz{Time: now, Valid: true}
 	params := dbsqlc.UpdateWebhookParams{
-		Name: cmp.Or(c.name, current.Name), Url: cmp.Or(c.address, current.Url), EventTypes: current.EventTypes,
+		Name: cmp.Or(c.name, current.Name), Url: cmp.Or(c.address, current.Url), Format: cmp.Or(c.format, current.Format), EventTypes: current.EventTypes,
 		OwnerKind: ownerKind, OwnerID: ownerID,
 		ConsecutiveFailures: current.ConsecutiveFailures, NextAttemptAt: current.NextAttemptAt,
 		DisabledAt: current.DisabledAt, DisabledReason: current.DisabledReason,
@@ -381,7 +463,7 @@ func (s *Service) Test(ctx context.Context, id pgtype.UUID) (Delivery, error) {
 	if err != nil {
 		return Delivery{}, err
 	}
-	body, deliveryID, err := testPayload(id.String())
+	body, deliveryID, err := testPayload(id.String(), row.Format)
 	if err != nil {
 		return Delivery{}, err
 	}

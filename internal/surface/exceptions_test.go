@@ -193,5 +193,6 @@ var exceptions = map[string]exception{
 	"deleteWebhook":         {MCP: webhookAdmin},
 	"rotateWebhookSecret":   {MCP: webhookAdmin},
 	"testWebhook":           {MCP: webhookAdmin},
+	"skipWebhookEvent":      {MCP: webhookAdmin},
 	"listWebhookDeliveries": {MCP: webhookAdmin},
 }

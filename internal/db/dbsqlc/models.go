@@ -727,6 +727,7 @@ type Webhook struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 }
 
 type WebhookDelivery struct {

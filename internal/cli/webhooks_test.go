@@ -69,6 +69,8 @@ func newWebhooksFake(t *testing.T) *webhooksFake {
 		case r.Method == http.MethodPost && r.URL.Path == prefix+"/test":
 			_, _ = fmt.Fprintf(w, `{"delivery":{"id":"3","delivery_id":"d.test","event_type":"webhook.test","activity_seq":null,"attempted_at":"2026-11-11T09:31:00Z","duration_ms":120,"status_code":%s,"outcome":%q,"error_code":%s}}`,
 				f.testStatus, f.testOutcome, map[bool]string{true: "null", false: `"status"`}[f.testOutcome == "delivered"])
+		case r.Method == http.MethodPost && r.URL.Path == prefix+"/skip":
+			_, _ = fmt.Fprintf(w, `{"webhook":%s,"skipped":{"id":"4","delivery_id":"d.9","event_type":"dashboard.moved","activity_seq":9,"attempted_at":"2026-11-11T09:32:00Z","duration_ms":0,"status_code":null,"outcome":"skipped","error_code":"skipped_by_admin"}}`, webhookJSON(true, ""))
 		case r.Method == http.MethodGet && r.URL.Path == prefix+"/deliveries":
 			_, _ = io.WriteString(w, f.deliveries)
 		default:
@@ -165,6 +167,7 @@ func TestWebhooksUpdateSendsOnlyTheChangedFields(t *testing.T) {
 	}{
 		{[]string{"--name", "Renamed"}, `{"name":"Renamed"}`},
 		{[]string{"--url", "https://b.example.com/x"}, `{"url":"https://b.example.com/x"}`},
+		{[]string{"--format", "slack"}, `{"format":"slack"}`},
 		{[]string{"--event", "run.failed", "--event", "run.succeeded"}, `{"event_types":["run.failed","run.succeeded"]}`},
 	}
 	for _, tc := range cases {
@@ -182,7 +185,7 @@ func TestWebhooksUpdateSendsOnlyTheChangedFields(t *testing.T) {
 func TestWebhooksUpdateWithNothingToChangeIsAUsageError(t *testing.T) {
 	f := newWebhooksFake(t)
 	_, stderr, code := f.run("update", testWebhook)
-	if code != 2 || !strings.Contains(stderr, "at least one of --name, --url or --event") || len(f.requests) != 0 {
+	if code != 2 || !strings.Contains(stderr, "at least one of --name, --url, --format or --event") || len(f.requests) != 0 {
 		t.Fatalf("exit %d, stderr %q, requests %d", code, stderr, len(f.requests))
 	}
 }
@@ -299,7 +302,7 @@ func TestWebhooksJSONPrintsTheResponseBodyUnchanged(t *testing.T) {
 }
 
 func TestWebhooksRefuseABadID(t *testing.T) {
-	for _, verb := range []string{"update", "enable", "disable", "test", "rotate-secret", "delete", "deliveries"} {
+	for _, verb := range []string{"update", "enable", "disable", "test", "skip", "rotate-secret", "delete", "deliveries"} {
 		f := newWebhooksFake(t)
 		args := []string{verb, "nope"}
 		if verb == "update" {
@@ -321,6 +324,10 @@ func TestWebhookStatusReadsTheServerState(t *testing.T) {
 	}{
 		{"sending", webhookView{State: "sending"}, "sending"},
 		{"retrying", webhookView{State: "retrying"}, "retrying"},
+		{"retrying with a backlog", webhookView{State: "retrying", NextAttemptAt: "2026-11-11T09:15:00Z", Waiting: &struct {
+			Count int  `json:"count"`
+			More  bool `json:"more"`
+		}{Count: 100, More: true}}, "retrying (100+ waiting, next 2026-11-11T09:15Z)"},
 		{"disabled with a reason", webhookView{State: "disabled", DisabledReason: &reason}, "disabled (gone)"},
 		{"disabled without a reason", webhookView{State: "disabled"}, "disabled (-)"},
 	}
@@ -338,5 +345,24 @@ func TestWebhooksSurfaceAPIErrors(t *testing.T) {
 	_, stderr, code := f.run("delete", "ffffffff-0000-4000-8000-0000000000aa")
 	if code != 1 || stderr == "" {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestWebhooksAddSendsTheFormat(t *testing.T) {
+	f := newWebhooksFake(t)
+	_, stderr, code := f.run("add", "--name", "Chat", "--url", "https://hooks.slack.com/services/x", "--format", "slack", "--event", "run.failed")
+	if code != 0 || !strings.Contains(f.requests[0].body, `"format":"slack"`) {
+		t.Fatalf("exit %d, body %s, stderr %q", code, f.requests[0].body, stderr)
+	}
+}
+
+func TestWebhooksSkipPostsAndNamesTheSkippedEvent(t *testing.T) {
+	f := newWebhooksFake(t)
+	stdout, stderr, code := f.run("skip", testWebhook)
+	if code != 0 || f.requests[0].method != http.MethodPost || f.requests[0].path != "/api/v1/webhooks/"+testWebhook+"/skip" {
+		t.Fatalf("exit %d, request %+v, stderr %q", code, f.requests[0], stderr)
+	}
+	if !strings.Contains(stdout, "Skipped dashboard.moved on webhook "+testWebhook) {
+		t.Fatalf("stdout %q", stdout)
 	}
 }

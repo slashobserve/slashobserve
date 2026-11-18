@@ -20,6 +20,14 @@ const (
 	maxWebhooks  = 20
 	maxNameRunes = 100
 	maxURLBytes  = 2048
+
+	maxWaitingCount = 100
+)
+
+const (
+	FormatGeneric = "generic"
+	FormatSlack   = "slack"
+	FormatTeams   = "teams"
 )
 
 const (
@@ -36,6 +44,8 @@ var (
 	ErrNoSecretKey      = errors.New("SLASHOBSERVE_SECRET_KEY must be set to use webhooks")
 	ErrSecretUnreadable = errors.New("the signing secret cannot be read with the current SLASHOBSERVE_SECRET_KEY; rotate the webhook's secret")
 	ErrInvalidCursor    = errors.New("invalid cursor")
+	ErrNothingToSkip    = errors.New("the webhook is not holding back an event")
+	ErrBusy             = errors.New("the webhook is sending right now; try again in a few seconds")
 )
 
 type InvalidError struct {
@@ -48,6 +58,7 @@ type Webhook struct {
 	ID                  string
 	Name                string
 	URL                 string
+	Format              string
 	EventTypes          []string
 	Owner               actor.Actor
 	Enabled             bool
@@ -57,6 +68,13 @@ type Webhook struct {
 	NextAttemptAt       time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	Waiting             *Waiting
+	at                  cursor
+}
+
+type Waiting struct {
+	Count int
+	More  bool
 }
 
 func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
@@ -64,6 +82,7 @@ func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
 		ID:         row.ID.String(),
 		Name:       row.Name,
 		URL:        row.Url,
+		Format:     row.Format,
 		EventTypes: row.EventTypes,
 		Owner: actor.FromColumns(actor.Columns{
 			Kind: row.OwnerKind,
@@ -75,6 +94,7 @@ func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
 		NextAttemptAt:       row.NextAttemptAt.Time.UTC(),
 		CreatedAt:           row.CreatedAt.Time.UTC(),
 		UpdatedAt:           row.UpdatedAt.Time.UTC(),
+		at:                  cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq},
 	}
 	if row.DisabledAt.Valid {
 		at := row.DisabledAt.Time.UTC()
@@ -125,6 +145,14 @@ func cleanURL(raw string) (address, host string, err error) {
 
 func urlProblem(format string, args ...any) error {
 	return &InvalidError{Message: fmt.Sprintf(format, args...)}
+}
+
+func cleanFormat(raw string) (string, error) {
+	switch raw {
+	case FormatGeneric, FormatSlack, FormatTeams:
+		return raw, nil
+	}
+	return "", &InvalidError{Message: fmt.Sprintf("format must be %s, %s or %s", FormatGeneric, FormatSlack, FormatTeams)}
 }
 
 func cleanEventTypes(types []string) ([]string, error) {

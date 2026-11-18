@@ -1,7 +1,10 @@
 import { Fragment, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { EllipsisIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { webhookKeys } from "@/api/keys"
+import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -24,16 +27,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { DeliveriesList } from "./deliveries-list"
-import { eventTypeSummary } from "./event-types"
+import {
+  eventTypeLabels,
+  eventTypeSummary,
+  type ActivityType,
+} from "./event-types"
 import {
   useDeleteWebhook,
   useRotateSecret,
+  useSkipWebhookEvent,
   useTestWebhook,
   useUpdateWebhook,
   type Webhook,
 } from "./queries"
 import { deliverySummary, webhookStatus } from "./status"
-import { webhookProblemText } from "./webhook-problems"
+import { formatLabels, webhookProblemText } from "./webhook-problems"
 
 type Props = {
   webhooks: Webhook[]
@@ -42,17 +50,34 @@ type Props = {
   onSecret: (webhookName: string, secret: string) => void
 }
 
-type Confirming = { kind: "rotate" | "delete"; webhook: Webhook }
+type Confirming = { kind: "rotate" | "delete" | "skip"; webhook: Webhook }
+
+function NextAttempt({ iso }: { iso: string }) {
+  const now = useNow()
+  if (Date.parse(iso) <= now) return <>next attempt is due now</>
+  return (
+    <>
+      next attempt <RelativeTime iso={iso} />
+    </>
+  )
+}
 
 export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
   const test = useTestWebhook()
   const update = useUpdateWebhook()
   const rotate = useRotateSecret()
   const remove = useDeleteWebhook()
+  const skip = useSkipWebhookEvent()
+  const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
-  const busy = rotate.isPending || remove.isPending
-  const failed = confirming?.kind === "rotate" ? rotate : remove
+  const busy = rotate.isPending || remove.isPending || skip.isPending
+  const failed =
+    confirming?.kind === "rotate"
+      ? rotate
+      : confirming?.kind === "skip"
+        ? skip
+        : remove
 
   function runTest(webhook: Webhook) {
     test.mutate(webhook.id, {
@@ -77,6 +102,12 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
     setConfirming(null)
     rotate.reset()
     remove.reset()
+    skip.reset()
+  }
+
+  function toggleAttempts(webhook: Webhook, open: boolean) {
+    setViewing(open ? null : webhook.id)
+    void queryClient.invalidateQueries({ queryKey: webhookKeys.list() })
   }
 
   function confirm() {
@@ -87,6 +118,17 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
         onSuccess: (rotated) => {
           setConfirming(null)
           onSecret(rotated.webhook.name, rotated.secret)
+        },
+      })
+      return
+    }
+    if (kind === "skip") {
+      skip.mutate(webhook.id, {
+        onSuccess: ({ skipped }) => {
+          setConfirming(null)
+          toast.success(
+            `Skipped ${eventTypeLabels[skipped.event_type as ActivityType] ?? skipped.event_type} on ${webhook.name}`
+          )
         },
       })
       return
@@ -136,10 +178,17 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                       Owner: {webhook.owner.label}
                     </span>
                   </Cell>
-                  <Cell className="font-mono text-xs wrap-anywhere">
-                    {webhook.url}
+                  <Cell className="text-xs wrap-anywhere">
+                    <span className="font-mono">{webhook.url}</span>
+                    {webhook.format === "generic" ? null : (
+                      <span className="block text-muted-foreground">
+                        Sends {formatLabels[webhook.format]}
+                      </span>
+                    )}
                   </Cell>
-                  <Cell>{eventTypeSummary(webhook.event_types)}</Cell>
+                  <Cell className="wrap-break-word">
+                    {eventTypeSummary(webhook.event_types)}
+                  </Cell>
                   <Cell>
                     <div className="flex flex-col gap-0.5">
                       <StatusLabel tone={status.tone}>
@@ -148,6 +197,16 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                       {status.detail === null ? null : (
                         <span className="text-xs text-muted-foreground">
                           {status.detail}
+                        </span>
+                      )}
+                      {status.waiting === null ? null : (
+                        <span className="text-xs text-muted-foreground">
+                          {status.waiting}
+                          {webhook.enabled ? (
+                            <>
+                              , <NextAttempt iso={webhook.next_attempt_at} />
+                            </>
+                          ) : null}
                         </span>
                       )}
                     </div>
@@ -178,7 +237,7 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                         className="narrow:h-11"
                         aria-expanded={open}
                         aria-label={`Attempts of ${webhook.name}`}
-                        onClick={() => setViewing(open ? null : webhook.id)}
+                        onClick={() => toggleAttempts(webhook, open)}
                       >
                         Attempts
                       </Button>
@@ -204,6 +263,15 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                           >
                             {webhook.enabled ? "Disable" : "Enable"}
                           </DropdownMenuItem>
+                          {webhook.consecutive_failures > 0 ? (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setConfirming({ kind: "skip", webhook })
+                              }
+                            >
+                              Skip stuck event
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuItem
                             onClick={() =>
                               setConfirming({ kind: "rotate", webhook })
@@ -242,13 +310,17 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
             <AlertDialogTitle className="wrap-anywhere">
               {confirming?.kind === "rotate"
                 ? "Rotate the secret of"
-                : "Delete"}{" "}
+                : confirming?.kind === "skip"
+                  ? "Skip the stuck event of"
+                  : "Delete"}{" "}
               {confirming?.webhook.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirming?.kind === "rotate"
                 ? "The old secret stops working with the next request, so update the receiver. You become the webhook's owner."
-                : "The webhook and its recorded attempts are removed. Events already sent stay sent."}
+                : confirming?.kind === "skip"
+                  ? "The oldest event this webhook is waiting to send is never sent to the receiver. The events behind it go out next, in order. Attempts lists the skipped event."
+                  : "The webhook and its recorded attempts are removed. Events already sent stay sent."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {failed.isError ? (
@@ -277,7 +349,9 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
               ) : null}
               {confirming?.kind === "rotate"
                 ? "Rotate secret"
-                : "Delete webhook"}
+                : confirming?.kind === "skip"
+                  ? "Skip event"
+                  : "Delete webhook"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
