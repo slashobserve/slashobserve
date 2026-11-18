@@ -59,11 +59,15 @@ function num(data: Data, key: string): number {
   return typeof value === "number" ? value : 0
 }
 
+function shown(value: unknown): string {
+  return Array.isArray(value) ? String(value.length) : String(value)
+}
+
 function change(data: Data, key: string): string | null {
   const value = data[key]
   if (typeof value !== "object" || value === null) return null
   const { from, to } = value as { from?: unknown; to?: unknown }
-  return `${key.replaceAll("_", " ")} ${String(from)} to ${String(to)}`
+  return `${key.replaceAll("_", " ")} ${shown(from)} to ${shown(to)}`
 }
 
 function quoted(kind: string, name: string): string {
@@ -71,8 +75,9 @@ function quoted(kind: string, name: string): string {
 }
 
 function changes(data: Data, keys: readonly string[]): string {
+  const source = (data.changes as Data | undefined) ?? data
   return keys
-    .map((key) => change(data, key))
+    .map((key) => change(source, key))
     .filter((part) => part !== null)
     .join(", ")
 }

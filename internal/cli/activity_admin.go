@@ -7,24 +7,23 @@ import (
 )
 
 type adminData struct {
-	Name         string          `json:"name"`
-	FromRole     string          `json:"from_role"`
-	ToRole       string          `json:"to_role"`
-	Manual       bool            `json:"manual"`
-	Sessions     int             `json:"sessions"`
-	Grants       int             `json:"grants"`
-	KeyName      string          `json:"key_name"`
-	Client       string          `json:"client"`
-	PersonName   string          `json:"person_name"`
-	Reason       string          `json:"reason"`
-	Domain       string          `json:"domain"`
-	Host         string          `json:"host"`
-	URLChanged   bool            `json:"url_changed"`
-	TokenChanged bool            `json:"token_changed"`
-	Role         json.RawMessage `json:"role"`
-	TakesRuns    json.RawMessage `json:"takes_runs"`
-	Enabled      json.RawMessage `json:"enabled"`
-	EventTypes   json.RawMessage `json:"event_types"`
+	Name         string                     `json:"name"`
+	FromRole     string                     `json:"from_role"`
+	ToRole       string                     `json:"to_role"`
+	Manual       bool                       `json:"manual"`
+	Sessions     int                        `json:"sessions"`
+	Grants       int                        `json:"grants"`
+	KeyName      string                     `json:"key_name"`
+	Client       string                     `json:"client"`
+	PersonName   string                     `json:"person_name"`
+	Reason       string                     `json:"reason"`
+	Domain       string                     `json:"domain"`
+	Host         string                     `json:"host"`
+	URLChanged   bool                       `json:"url_changed"`
+	TokenChanged bool                       `json:"token_changed"`
+	Role         json.RawMessage            `json:"role"`
+	TakesRuns    json.RawMessage            `json:"takes_runs"`
+	Changes      map[string]json.RawMessage `json:"changes"`
 }
 
 func (d activityData) admin() adminData {
@@ -46,7 +45,15 @@ func changeText(raw json.RawMessage) string {
 		To   json.RawMessage `json:"to"`
 	}
 	if err := json.Unmarshal(raw, &pair); err == nil && pair.From != nil {
-		return text(strings.Trim(string(pair.From), `"`)) + " to " + text(strings.Trim(string(pair.To), `"`))
+		return valueText(pair.From) + " to " + valueText(pair.To)
+	}
+	return text(strings.Trim(string(raw), `"`))
+}
+
+func valueText(raw json.RawMessage) string {
+	var list []json.RawMessage
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return fmt.Sprint(len(list))
 	}
 	return text(strings.Trim(string(raw), `"`))
 }
@@ -82,7 +89,7 @@ func describeAdmin(e activityEvent) (string, bool) {
 	case "webhook.created":
 		return "created " + quotedName("webhook", d.Name) + " to " + text(d.Host), true
 	case "webhook.updated":
-		return "changed " + quotedName("webhook", d.Name) + secretNote(d), true
+		return changedText(quotedName("webhook", d.Name), d, "name", "host", "enabled", "event_types"), true
 	case "webhook.secret_rotated":
 		return "rotated the secret of " + quotedName("webhook", d.Name), true
 	case "webhook.deleted":
@@ -98,11 +105,19 @@ func describeAdmin(e activityEvent) (string, bool) {
 	case "grafana_connection.created":
 		return "connected Grafana " + text(d.Host) + " as " + quotedName("connection", d.Name), true
 	case "grafana_connection.updated":
-		return "changed " + quotedName("Grafana connection", d.Name) + secretNote(d), true
+		return changedText(quotedName("Grafana connection", d.Name), d, "name", "host"), true
 	case "grafana_connection.deleted":
 		return "removed " + quotedName("Grafana connection", d.Name), true
 	}
 	return "", false
+}
+
+func changedText(subject string, d adminData, order ...string) string {
+	out := "changed " + subject
+	if parts := changes(d.Changes, order...); parts != "" {
+		out += ": " + parts
+	}
+	return out + secretNote(d)
 }
 
 func secretNote(d adminData) string {

@@ -59,8 +59,15 @@ func storedOf(row dbsqlc.GrafanaConnection) (stored, error) {
 	return stored{Connection: c, id: row.ID, sealed: row.TokenCiphertext}, nil
 }
 
-func (s store) insert(ctx context.Context, params dbsqlc.InsertGrafanaConnectionParams) (stored, error) {
-	row, err := s.db.Queries().InsertGrafanaConnection(ctx, params)
+func (s store) insert(ctx context.Context, params dbsqlc.InsertGrafanaConnectionParams, record recorder) (stored, error) {
+	var row dbsqlc.GrafanaConnection
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if row, err = q.InsertGrafanaConnection(ctx, params); err != nil {
+			return err
+		}
+		return record(ctx, q)
+	})
 	if err != nil {
 		return stored{}, fmt.Errorf("insert grafana connection: %w", err)
 	}
@@ -134,8 +141,15 @@ func (s store) list(ctx context.Context) ([]Connection, error) {
 	return out, nil
 }
 
-func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnectionParams) (stored, error) {
-	row, err := s.db.Queries().UpdateGrafanaConnection(ctx, params)
+func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnectionParams, record recorder) (stored, error) {
+	var row dbsqlc.GrafanaConnection
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if row, err = q.UpdateGrafanaConnection(ctx, params); err != nil {
+			return err
+		}
+		return record(ctx, q)
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return stored{}, ErrNotFound
 	}
@@ -145,13 +159,22 @@ func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnection
 	return s.one(ctx, row)
 }
 
-func (s store) delete(ctx context.Context, id pgtype.UUID) error {
-	n, err := s.db.Queries().DeleteGrafanaConnection(ctx, id)
+func (s store) delete(ctx context.Context, id pgtype.UUID, record recorder) error {
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.DeleteGrafanaConnection(ctx, id)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return record(ctx, q)
+	})
+	if errors.Is(err, ErrNotFound) {
+		return err
+	}
 	if err != nil {
 		return fmt.Errorf("delete grafana connection: %w", err)
-	}
-	if n == 0 {
-		return ErrNotFound
 	}
 	return nil
 }

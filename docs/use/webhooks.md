@@ -89,6 +89,7 @@ Changing the address keeps the webhook's place in the log, clears the failure co
 Whoever changes a webhook, with a `PATCH` or by rotating its secret, becomes its owner, so from then on it sends what that Admin can read.
 
 `event_types` takes the type names from [What is recorded](activity.md#what-is-recorded), at least one and each at most once.
+The [admin changes](activity.md#admin-changes) are among them, and a webhook sends one only while its owner is an Admin, so an Admin can forward the audit trail to another system.
 
 ## The request
 

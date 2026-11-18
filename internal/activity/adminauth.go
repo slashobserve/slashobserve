@@ -3,6 +3,7 @@ package activity
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -89,4 +90,18 @@ func (AuthChanges) KeyCreated(ctx context.Context, q *dbsqlc.Queries, by auth.Pr
 
 func (AuthChanges) KeyRevoked(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, a dbsqlc.ServiceAccount, keyID pgtype.UUID, keyName string) error {
 	return AppendAdmin(ctx, q, By(ctx, by), TypeServiceAccountKeyRevoked, a.ID, keyData{Name: a.Name, KeyID: keyID.String(), KeyName: keyName})
+}
+
+var domainNamespace = uuid.MustParse("5b0c1f0e-6a54-5d57-9c4e-6a3f0b6c2d11")
+
+func DomainID(domain string) pgtype.UUID {
+	return pgtype.UUID{Bytes: uuid.NewSHA1(domainNamespace, []byte(domain)), Valid: true}
+}
+
+type domainData struct {
+	Domain string `json:"domain"`
+}
+
+func DomainChange(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, typ, domain string) error {
+	return AppendAdmin(ctx, q, By(ctx, by), typ, DomainID(domain), domainData{Domain: domain})
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -85,7 +86,22 @@ func (s *Store) Add(ctx context.Context, by auth.Principal, pattern domains.Patt
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrExists
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return activity.DomainChange(ctx, q, by, activity.TypeOutboundDomainAdded, row.Domain)
 	})
 	return row, err
+}
+
+func (s *Store) Remove(ctx context.Context, by auth.Principal, pattern domains.Pattern) (removed bool, err error) {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.DeleteOutboundDomain(ctx, pattern.String())
+		if err != nil || n == 0 {
+			return err
+		}
+		removed = true
+		return activity.DomainChange(ctx, q, by, activity.TypeOutboundDomainRemoved, pattern.String())
+	})
+	return removed, err
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -65,5 +66,47 @@ func TestAddRefusesWhenConfigurationLocksTheList(t *testing.T) {
 	store := New(nil, Lock{Locked: true, Domains: parseList(t, "grafana.example.com")}, slog.New(slog.DiscardHandler))
 	if _, err := store.Add(t.Context(), auth.Principal{}, pattern(t, "other.example.com")); !errors.Is(err, ErrLocked) {
 		t.Fatalf("error = %v, want ErrLocked", err)
+	}
+}
+
+func TestAddAndRemoveRecordOneAdminEventEach(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	ada := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
+
+	if _, err := store.Add(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add(t.Context(), ada, pattern(t, "grafana.example.com")); !errors.Is(err, ErrExists) {
+		t.Fatalf("second add error = %v", err)
+	}
+	if removed, err := store.Remove(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil || !removed {
+		t.Fatalf("remove = %v, %v", removed, err)
+	}
+	if removed, err := store.Remove(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil || removed {
+		t.Fatalf("second remove = %v, %v", removed, err)
+	}
+
+	rows, err := database.SQLDB(t).QueryContext(t.Context(), `SELECT type, target_kind, data->>'domain', target_id::text FROM activity ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	var ids []string
+	for rows.Next() {
+		var typ, kind, domain, id string
+		if err := rows.Scan(&typ, &kind, &domain, &id); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, typ+" "+kind+" "+domain)
+		ids = append(ids, id)
+	}
+	want := []string{"outbound_domain.added outbound_domain grafana.example.com", "outbound_domain.removed outbound_domain grafana.example.com"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("events %v, want %v", got, want)
+	}
+	if ids[0] != ids[1] || ids[0] != activity.DomainID("grafana.example.com").String() {
+		t.Fatalf("target ids %v differ for one domain", ids)
 	}
 }

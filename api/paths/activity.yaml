@@ -27,10 +27,10 @@ activity:
       Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now.
       `user.role_changed` carries `name`, `from_role`, `to_role` and `manual`, false when an override was cleared; `user.signed_out_everywhere` carries `name`, `sessions` and `grants`;
       `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key;
-      `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed and `url_changed` when only the path changed, never the address path or the secret;
+      `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret;
       `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`;
       `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain;
-      `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `{from, to}` for each of `name` and `host` that changed and `token_changed` when the token did, never the token.
+      `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token.
       Suggestions and build progress are not recorded.
       The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
     parameters:

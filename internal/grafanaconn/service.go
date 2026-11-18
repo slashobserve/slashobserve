@@ -264,7 +264,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if creator, err := db.ParseUUID(by.ID); err == nil {
 		params.CreatedBy = creator
 	}
-	created, err := s.store.insert(ctx, params)
+	created, err := s.store.insert(ctx, params, recordCreated(by, id, name, u.String()))
 	if err != nil {
 		return Connection{}, err
 	}
@@ -310,7 +310,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 			return Connection{}, err
 		}
 	}
-	updated, err := s.store.update(ctx, params)
+	updated, err := s.store.update(ctx, params, recordUpdated(by, id, current.Connection, params, p.Token != nil))
 	if err != nil {
 		return Connection{}, err
 	}
@@ -319,7 +319,11 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
-	if err := s.store.delete(ctx, id); err != nil {
+	current, err := s.store.get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.store.delete(ctx, id, recordDeleted(by, id, current.Name, current.URL)); err != nil {
 		return err
 	}
 	s.logger.InfoContext(ctx, "grafana connection deleted", slog.String("connection_id", id.String()), slog.String("actor_id", by.ID))

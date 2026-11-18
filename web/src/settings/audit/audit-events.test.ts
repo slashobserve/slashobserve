@@ -91,6 +91,24 @@ describe("describeAuditEvent", () => {
     ).toBe('Created the key "deploy" for the service account "ci"')
   })
 
+  test("summarizes a webhook change without the address path", () => {
+    expect(
+      describeAuditEvent(
+        event("webhook.updated", {
+          name: "SIEM",
+          host: "hooks.example.com",
+          url_changed: true,
+          changes: {
+            enabled: { from: false, to: true },
+            event_types: { from: ["a.b"], to: ["a.b", "c.d"] },
+          },
+        })
+      )
+    ).toBe(
+      'Changed the webhook "SIEM": enabled false to true, event types 1 to 2, address path'
+    )
+  })
+
   test("notes a replaced Grafana token without the token", () => {
     expect(
       describeAuditEvent(

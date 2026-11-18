@@ -130,12 +130,12 @@ func (s *Store) remove(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	n, err := s.db.Queries().DeleteOutboundDomain(ctx, pattern.String())
+	removed, err := s.Remove(ctx, httpapi.Caller(c), pattern)
 	if err != nil {
 		s.fail(c, "remove outbound domain", err)
 		return
 	}
-	if n == 0 {
+	if !removed {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "domain is not allowed")
 		return
 	}

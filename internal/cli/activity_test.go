@@ -281,7 +281,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"service_account.key_created", `{"name":"ci","key_id":"k","key_name":"laptop"}`, `created the key "laptop" for the service account "ci"`},
 		{"service_account.key_revoked", `{"name":"ci","key_id":"k","key_name":"laptop"}`, `revoked the key "laptop" of the service account "ci"`},
 		{"webhook.created", `{"name":"SIEM","host":"hooks.example.com","event_types":["user.role_changed"]}`, `created the webhook "SIEM" to hooks.example.com`},
-		{"webhook.updated", `{"name":"SIEM","host":"hooks.example.com","url_changed":true}`, `changed the webhook "SIEM" (address changed)`},
+		{"webhook.updated", `{"name":"SIEM","host":"hooks.example.com","url_changed":true,"changes":{"enabled":{"from":false,"to":true},"event_types":{"from":["a.b"],"to":["a.b","c.d"]}}}`, `changed the webhook "SIEM": enabled false to true, event types 1 to 2 (address changed)`},
 		{"webhook.secret_rotated", `{"name":"SIEM","host":"hooks.example.com"}`, `rotated the secret of the webhook "SIEM"`},
 		{"webhook.deleted", `{"name":"SIEM","host":"hooks.example.com"}`, `deleted the webhook "SIEM"`},
 		{"mcp_client.connected", `{"client":"Claude Code","person_name":"Bob","mode":"direct"}`, `connected the agent "Claude Code" for Bob`},
@@ -289,7 +289,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"outbound_domain.added", `{"domain":"example.com"}`, `allowed the outbound domain example.com`},
 		{"outbound_domain.removed", `{"domain":"example.com"}`, `removed the outbound domain example.com`},
 		{"grafana_connection.created", `{"name":"Prod","host":"grafana.example.com"}`, `connected Grafana grafana.example.com as the connection "Prod"`},
-		{"grafana_connection.updated", `{"name":"Prod","host":"grafana.example.com","token_changed":true}`, `changed the Grafana connection "Prod" (token replaced)`},
+		{"grafana_connection.updated", `{"name":"Prod","host":"grafana.example.com","token_changed":true,"changes":{"host":{"from":"old.example.com","to":"grafana.example.com"}}}`, `changed the Grafana connection "Prod": host old.example.com to grafana.example.com (token replaced)`},
 		{"grafana_connection.deleted", `{"name":"Prod","host":"grafana.example.com"}`, `removed the Grafana connection "Prod"`},
 	}
 	for _, tc := range cases {
