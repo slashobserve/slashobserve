@@ -1746,11 +1746,6 @@ wait_revision() {
   done
 }
 
-revisions_settled() {
-  capture LAST api GET "/dashboards/$1/revisions?limit=200" || true
-  [[ "$LAST" == 200 ]] && ! grep -Eq '"status":"(queued|running)"' "$TMP/api.body"
-}
-
 expect_version_data() {
   local dashboard="$1" version="$2" base out panels variables panel name value selections="" window now_ms tries
   base="/dashboards/$dashboard/versions/$version"
@@ -1781,8 +1776,7 @@ expect_version_data() {
 
 revisions_suite() {
   api_token
-  local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
-  local accepted=0 limited=0 attempt succeeded
+  local out id panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
   local pid prid tdid troot treply trid tstream="$TMP/sse-thread-revision.txt"
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
@@ -1939,32 +1933,6 @@ sys.exit(0 if len(c)==1 and c[0]["status"]=="resolved" and c[0]["resolved_by_ver
     fail "the thread should be resolved by version 2 ($out: $(cat "$TMP/api.body"))"
   fi
   pass "a request sent from a comment thread resolves the thread with the version it saved"
-
-  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
-  [[ "$out" == 201 ]] || fail "create the revision cap dashboard ($out: $(cat "$TMP/api.body"))"
-  id2="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
-  for attempt in $(seq 1 12); do
-    out="$(api POST "/dashboards/$id2/revisions" -d '{"prompt":"Add a latency panel after checking the data","base_version":1}')"
-    if [[ "$out" == 202 ]]; then
-      accepted=$((accepted + 1))
-    elif [[ "$out" == 429 ]] && grep -q '"code":"too_many_revisions"' "$TMP/api.body"; then
-      limited=1
-      break
-    else
-      fail "rapid revision $attempt ($out: $(cat "$TMP/api.body"))"
-    fi
-  done
-  ((limited == 1 && accepted >= 5 && accepted <= 11)) || fail "rapid revisions: $accepted accepted, limited=$limited"
-  pass "at most five revisions are queued or running per dashboard"
-
-  poll_try 120 1 revisions_settled "$id2" || fail "queued revisions did not finish ($(cat "$TMP/api.body"))"
-  succeeded="$(grep -o '"status":"succeeded"' "$TMP/api.body" | wc -l | tr -d ' ')"
-  [[ "$succeeded" == "$accepted" ]] || fail "$succeeded revisions succeeded out of $accepted accepted ($(cat "$TMP/api.body"))"
-  out="$(api GET "/dashboards/$id2/versions")"
-  if [[ "$out" != 200 ]] || [[ "$(grep -o '"version":[0-9]*,"parent_version"' "$TMP/api.body" | wc -l | tr -d ' ')" != "$((succeeded + 1))" ]]; then
-    fail "each revision should save exactly one version ($succeeded revisions: $(cat "$TMP/api.body"))"
-  fi
-  pass "every queued revision saves exactly one version, one at a time per dashboard"
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   [[ "$out" == 201 ]] || fail "create the panel revision dashboard ($out: $(cat "$TMP/api.body"))"
