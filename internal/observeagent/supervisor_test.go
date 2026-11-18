@@ -170,7 +170,7 @@ func TestSupervisorGivesChildATokenAndAuthenticatesIt(t *testing.T) {
 	if !h.s.Authenticate(token) {
 		t.Fatal("Authenticate refused the running child's token")
 	}
-	for _, other := range []string{"", token + "x", token[:len(token)-1], "soa_other"} {
+	for _, other := range []string{"", token + "x", token[:len(token)-1], "sob_other"} {
 		if h.s.Authenticate(other) {
 			t.Fatalf("Authenticate accepted %q", other)
 		}
