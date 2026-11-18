@@ -120,6 +120,18 @@ func (q *Queries) CreateServiceAccountKey(ctx context.Context, arg CreateService
 	return i, err
 }
 
+const deleteServiceAccount = `-- name: DeleteServiceAccount :execrows
+DELETE FROM service_accounts WHERE id = $1 AND NOT provisioned
+`
+
+func (q *Queries) DeleteServiceAccount(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteServiceAccount, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getKeyPrincipal = `-- name: GetKeyPrincipal :one
 SELECT k.id AS key_id, sa.id AS service_account_id, sa.name, sa.role, k.last_used_at
 FROM service_account_keys k JOIN service_accounts sa ON sa.id = k.service_account_id

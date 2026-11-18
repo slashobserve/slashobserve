@@ -74,3 +74,6 @@ WITH revoked AS (
 )
 INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash)
 VALUES (@service_account_id, @name, @display_prefix, @token_hash);
+
+-- name: DeleteServiceAccount :execrows
+DELETE FROM service_accounts WHERE id = @id AND NOT provisioned;

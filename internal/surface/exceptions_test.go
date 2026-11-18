@@ -172,6 +172,7 @@ var exceptions = map[string]exception{
 	"createServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
 	"listServiceAccountKeys":   {MCP: accountKeys, CLI: accountKeys},
 	"revokeServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
+	"deleteServiceAccount":     {MCP: accountKeys, CLI: accountKeys},
 
 	"starDashboard":   {CLI: personOnly},
 	"unstarDashboard": {CLI: personOnly},
