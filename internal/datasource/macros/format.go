@@ -70,7 +70,7 @@ func expandVariable(d Dialect, dsType spec.DatasourceType, query string, ref spe
 		format = defaultFormat(d, c)
 	}
 	regexMatcher := d == PromQL && c.kind == ctxString && c.matcher == matcherRegex
-	text, err := applyFormat(ref, format, v, regexMatcher, allRegex(dsType))
+	text, err := applyFormat(ref, format, v, regexMatcher, allRegex(dsType, query, ref))
 	if err != nil {
 		return "", err
 	}
@@ -228,11 +228,39 @@ func defaultFormat(d Dialect, c ctx) string {
 	}
 }
 
-func allRegex(dsType spec.DatasourceType) string {
-	if dsType == spec.Loki {
+func allRegex(dsType spec.DatasourceType, query string, ref spec.Reference) string {
+	if dsType == spec.Loki && inStreamSelector(query, ref.Start) {
 		return ".+"
 	}
 	return ".*"
+}
+
+func inStreamSelector(query string, offset int) bool {
+	offset = min(offset, len(query))
+	depth := 0
+	var quote byte
+	for i := 0; i < offset; i++ {
+		ch := query[i]
+		switch {
+		case quote == '`':
+			if ch == '`' {
+				quote = 0
+			}
+		case quote != 0:
+			if ch == '\\' {
+				i++
+			} else if ch == quote {
+				quote = 0
+			}
+		case ch == '"' || ch == '\'' || ch == '`':
+			quote = ch
+		case ch == '{':
+			depth++
+		case ch == '}':
+			depth--
+		}
+	}
+	return depth > 0
 }
 
 func applyFormat(ref spec.Reference, format string, v datasource.Variable, regexMatcher bool, allText string) (string, error) {

@@ -159,7 +159,7 @@ On another datasource, or when the dashboard already holds 20 variables, `enable
 
 A Loki query variable imports as written, and one saved in the label values form becomes `label_values(<stream>, <label>)`; a Loki label names variable and any Tempo query variable keep their saved values as a fixed list, and an ad hoc variable on Loki or Tempo is dropped and reported.
 
-While a Loki variable selects All, `${var}` in a stream selector becomes `.+`, because Loki refuses a selector whose matchers all match an empty value.
+While a Loki variable selects All, `${var}` in a stream selector becomes `.+`, because Loki refuses a selector whose matchers all match an empty value; in a label or line filter after the selector it stays `.*`.
 A custom All value that matches an empty value, such as `.*`, is kept as written and reported when a Loki query uses the variable, so change it to `.+`.
 
 ## Queries
