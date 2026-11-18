@@ -13,12 +13,13 @@ import (
 )
 
 type source struct {
-	format Format
-	bytes  int
-	dash   map[string]any
-	nodes  []*panelNode
-	clones []string
-	legacy bool
+	format  Format
+	bytes   int
+	dash    map[string]any
+	nodes   []*panelNode
+	clones  []string
+	legacy  bool
+	skipped []string
 
 	folderTitle string
 }
@@ -85,8 +86,9 @@ func load(raw []byte) (*source, error) {
 		return nil, inputErrorf(codeNotADashboard, "the JSON is not a Grafana dashboard: it has no panels or rows")
 	}
 	inlineLibraryPanels(src.dash)
-	top, legacy := buildNodes(src.dash)
+	top, legacy, skipped := buildNodes(src.dash)
 	src.legacy = legacy
+	src.skipped = skipped
 	src.nodes, src.clones = arrange(top)
 	total := 0
 	src.walk(func(*panelNode) { total++ })

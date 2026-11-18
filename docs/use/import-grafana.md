@@ -284,6 +284,7 @@ A time series, state timeline or status history panel's single time zone (`optio
 ### Layout and panels that reuse another panel
 
 Panels in a collapsed row keep their layout relative to the topmost one, whatever order they were saved in.
+An entry of a panel list that is not an object, and a row inside a collapsed row, are not kept, and the report lists each one by its path under "panels".
 
 Grafana's `-- Dashboard --` query, which shows another panel's results, imports as a query that reuses that panel (see [Reusing another panel's results](../concepts/observespec.md#reusing-another-panels-results)), and panels that reuse another are converted after all the others.
 Its `withTransforms` setting is kept, and `adHocFiltersEnabled` imports as `adHocFilters`, which filters the reused rows by the dashboard's ad hoc filters.
