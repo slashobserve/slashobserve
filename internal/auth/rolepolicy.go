@@ -16,10 +16,11 @@ type RolePolicy struct {
 }
 
 type RoleInputs struct {
-	Email     string
-	Groups    []string
-	FirstUser bool
-	Manual    *Role
+	Email        string
+	EmailTrusted bool
+	Groups       []string
+	FirstUser    bool
+	Manual       *Role
 }
 
 type RoleDecision struct {
@@ -29,10 +30,8 @@ type RoleDecision struct {
 }
 
 func ResolveRole(in RoleInputs, policy RolePolicy) RoleDecision {
-	for _, e := range policy.AdminEmails {
-		if strings.EqualFold(e, in.Email) {
-			return RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails}
-		}
+	if in.EmailTrusted && slices.ContainsFunc(policy.AdminEmails, func(e string) bool { return strings.EqualFold(e, in.Email) }) {
+		return RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails}
 	}
 	if len(policy.AdminEmails) == 0 && in.FirstUser {
 		return RoleDecision{Role: RoleAdmin, Source: SourceFirstUser}
