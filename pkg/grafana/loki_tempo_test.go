@@ -436,3 +436,19 @@ func TestLokiDatasourceVariable(t *testing.T) {
 	}
 	wantNote(t, res, "logs", "No Loki datasource is configured.")
 }
+
+func TestAQueryWithAnUnsupportedVariableFormatIsDroppedAndNotItsPanel(t *testing.T) {
+	doc := panelOn(lokiRef, "timeseries", strings.Join([]string{
+		`{"refId":"A","expr":"sum(rate({app=\"web\"}[5m]))"}`,
+		`{"refId":"B","expr":"sum(rate({app=~\"${env:json}\"}[5m]))"}`,
+	}, ","))
+	doc = strings.Replace(doc, `"panels":`, `"templating":{"list":[{"name":"env","type":"custom","query":"a,b"}]},"panels":`, 1)
+
+	res := convertDoc(t, doc)
+
+	entry, _ := res.Spec.FindPanel("p1")
+	if entry.Panel.Type == spec.Placeholder || len(entry.Panel.Queries) != 1 {
+		t.Fatalf("panel = %+v, want the panel kept with its first query", entry.Panel)
+	}
+	wantReported(t, panelLine(t, res, "p1"), "targets[1]", "It uses ${env:json}, which SlashObserve does not support.")
+}

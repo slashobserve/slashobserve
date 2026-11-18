@@ -103,6 +103,16 @@ func (c *converter) declaredVariables() map[string]bool {
 	return declared
 }
 
+func (c *converter) adhocVariables() map[string]bool {
+	adhoc := map[string]bool{}
+	for _, v := range c.vars {
+		if v.v.Type == spec.AdhocVariable {
+			adhoc[v.v.Name] = true
+		}
+	}
+	return adhoc
+}
+
 func (b *panelBuild) convertQueries() {
 	items, _ := asArray(b.raw["targets"])
 	b.lines = make([]QueryLine, min(len(items), maxPanelPaths))
@@ -544,14 +554,14 @@ func (tb *targetBuild) finishQuery(q spec.Query, declared map[string]bool) (spec
 	if len(text) > maxQueryLength {
 		return spec.Query{}, "Its query is longer than 20000 bytes."
 	}
-	if reason := checkReferences(text, tb.src.kind, declared); reason != "" {
+	if reason := checkReferences(text, tb.src.kind, declared, tb.b.c.adhocVariables()); reason != "" {
 		return spec.Query{}, reason
 	}
 	q.Query = text
 	return q, ""
 }
 
-func checkReferences(text, kind string, declared map[string]bool) string {
+func checkReferences(text, kind string, declared, adhoc map[string]bool) string {
 	refs, err := spec.ScanQuery(text)
 	if err != nil {
 		return unsupportedReference(scanErrorLabel(text, err))
@@ -561,16 +571,16 @@ func checkReferences(text, kind string, declared map[string]bool) string {
 		macros[m.Name] = m
 	}
 	for _, ref := range spec.FlattenReferences(refs) {
-		if !referenceSupported(ref, macros, declared) {
+		if !referenceSupported(ref, macros, declared, adhoc) {
 			return unsupportedReference(referenceLabel(text, ref))
 		}
 	}
 	return ""
 }
 
-func referenceSupported(ref spec.Reference, macros map[string]spec.Macro, declared map[string]bool) bool {
+func referenceSupported(ref spec.Reference, macros map[string]spec.Macro, declared, adhoc map[string]bool) bool {
 	if ref.Kind != spec.MacroRef {
-		return declared[ref.Name]
+		return declared[ref.Name] && spec.VariableFormatIssue(ref, adhoc[ref.Name]) == nil
 	}
 	macro, ok := macros[ref.Name]
 	if !ok {
