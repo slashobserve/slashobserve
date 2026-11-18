@@ -1,10 +1,13 @@
 import { describe, expect, test } from "vitest"
 
 import {
-  paletteGroups,
+  paletteGroups as allGroups,
   type PaletteSource,
   type SearchResult,
 } from "./palette-items"
+
+const paletteGroups = (...args: Parameters<typeof allGroups>) =>
+  allGroups(...args).filter((group) => group.value !== "Search")
 
 const thirty = Array.from({ length: 30 }, (_, index) => ({
   id: `d${index}`,
@@ -428,5 +431,57 @@ describe("paletteGroups with log and trace sources", () => {
       type: "loki",
     }))
     expect(sourceGroup("loki", many)?.items).toHaveLength(8)
+  })
+})
+
+describe("search all and recent observations", () => {
+  const recent = [
+    { id: "o1", title: "Checkout slowed down" },
+    { id: "o2", title: "Queue backlog" },
+  ]
+
+  test("from two characters the last group before the actions offers all results", () => {
+    const groups = allGroups("checkout", [], [], "viewer", [])
+    const search = groups.find((group) => group.value === "Search")
+    expect(search?.items).toEqual([
+      {
+        kind: "action",
+        id: "action:search-all",
+        label: 'See all results for "checkout"',
+      },
+    ])
+  })
+
+  test("the query is trimmed in the entry label", () => {
+    const groups = allGroups("  checkout  ", [], [], "viewer", [])
+    expect(
+      groups.find((group) => group.value === "Search")?.items[0]?.label
+    ).toBe('See all results for "checkout"')
+  })
+
+  test("one character offers no search entry", () => {
+    expect(
+      allGroups("c", [], [], "viewer", []).some(
+        (group) => group.value === "Search"
+      )
+    ).toBe(false)
+  })
+
+  test("an empty query lists the recent observations that were opened", () => {
+    const group = allGroups("", [], [], "viewer", [], recent).find(
+      (entry) => entry.value === "Recent observations"
+    )
+    expect(group?.items.map((entry) => entry.label)).toEqual([
+      "Checkout slowed down",
+      "Queue backlog",
+    ])
+  })
+
+  test("a query hides the recent observations", () => {
+    expect(
+      allGroups("check", [], [], "viewer", [], recent).some(
+        (group) => group.value === "Recent observations"
+      )
+    ).toBe(false)
   })
 })

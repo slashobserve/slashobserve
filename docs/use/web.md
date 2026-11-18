@@ -212,7 +212,12 @@ Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the
 The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
-A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
+A comment opens the page of what it is on, and an annotation that is on no dashboard is left out of the palette, because it has no page.
+
+Snippets show plain text, with Markdown links and emphasis flattened.
+With nothing typed, the palette lists the observations you opened last under **Recent observations**.
+**See all results** at the end of a search, or the address `/search?q=checkout`, opens the Search page: every match in pages of 20 with **Show more**, one button per kind to narrow them, and global annotations as rows with no link.
+Search matches whole words, their English stems and the start of the last word, so a misspelling finds nothing, and the empty result says so.
 **Help and docs** in the palette, and in the account menu, opens these docs in a new tab.
 [Search](search.md) describes what each kind matches and how to write a query.
 

@@ -8,6 +8,8 @@ import {
 } from "@/lib/links"
 import type { Role } from "@/lib/roles"
 
+import { plainSegments } from "@/search/plain-text"
+
 import { visibleNavItems, type NavPath } from "./nav"
 
 export type SearchResult = components["schemas"]["SearchResult"]
@@ -48,6 +50,7 @@ type ActionId =
   | "action:sign-out"
   | "action:theme"
   | "action:docs"
+  | "action:search-all"
 type ActionEntry = {
   kind: "action"
   id: ActionId
@@ -59,11 +62,13 @@ export type PaletteGroup = {
     | "Pages"
     | "Dashboards"
     | "Sources"
+    | "Recent observations"
     | "Observations"
     | "Comments"
     | "Annotations"
     | "Saved searches"
     | "Actions"
+    | "Search"
     | "Help"
     | "Account"
   items: PaletteEntry[]
@@ -126,7 +131,10 @@ function folderText(result: SearchResult): MatchSegment[] {
     : [{ text: result.folder.title, match: false }]
 }
 
-function serverEntry(result: SearchResult, address: string): ResultEntry {
+export function serverEntry(
+  result: SearchResult,
+  address: string
+): ResultEntry {
   const path = pathOf(address)
   switch (result.kind) {
     case "dashboard":
@@ -150,7 +158,7 @@ function serverEntry(result: SearchResult, address: string): ResultEntry {
         kind: "observation",
         id: `observation:${result.id}`,
         label: result.title,
-        secondary: result.snippet,
+        secondary: plainSegments(result.snippet),
         path: observationPath(result.id),
       }
     case "comment":
@@ -158,7 +166,7 @@ function serverEntry(result: SearchResult, address: string): ResultEntry {
         kind: "comment",
         id: `comment:${result.id}`,
         label: `Comment on ${result.title}`,
-        secondary: result.snippet,
+        secondary: plainSegments(result.snippet),
         path,
       }
     default:
@@ -166,7 +174,7 @@ function serverEntry(result: SearchResult, address: string): ResultEntry {
         kind: result.kind,
         id: `${result.kind}:${result.id}`,
         label: result.title,
-        secondary: result.snippet,
+        secondary: plainSegments(result.snippet),
         path,
       }
   }
@@ -192,12 +200,15 @@ function sourceEntries(
     }))
 }
 
+const recentObservationLimit = 5
+
 export function paletteGroups(
   query: string,
   dashboards: { id: string; title: string }[],
   results: SearchResult[],
   role: Role,
-  sources: readonly PaletteSource[]
+  sources: readonly PaletteSource[],
+  recentObservations: readonly { id: string; title: string }[] = []
 ): PaletteGroup[] {
   const needle = query.trim().toLowerCase()
   const searching = needle.length >= minSearchLength
@@ -230,10 +241,37 @@ export function paletteGroups(
     },
     { value: "Dashboards", items: dashboardEntries },
     { value: "Sources", items: sourceEntries(sources, needle) },
+    {
+      value: "Recent observations",
+      items:
+        needle === ""
+          ? recentObservations
+              .slice(0, recentObservationLimit)
+              .map((observation): ResultEntry => ({
+                kind: "observation",
+                id: `recent-observation:${observation.id}`,
+                label: observation.title,
+                secondary: [],
+                path: observationPath(observation.id),
+              }))
+          : [],
+    },
     ...serverGroups.map(({ value, kind }) => ({
       value,
       items: found.filter((entry) => entry.kind === kind),
     })),
+    {
+      value: "Search",
+      items: searching
+        ? [
+            {
+              kind: "action",
+              id: "action:search-all",
+              label: `See all results for "${query.trim()}"`,
+            },
+          ]
+        : [],
+    },
     {
       value: "Actions",
       items: newActionEntries.filter((e) => matches(e.label)),

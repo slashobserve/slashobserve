@@ -22,6 +22,7 @@ import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/h
 import { Route as AuthedShellInboxRouteImport } from './routes/_authed/_shell/inbox'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
+import { Route as AuthedShellSearchRouteImport } from './routes/_authed/_shell/search'
 import { Route as AuthedBRequestIdRouteImport } from './routes/_authed/b/$requestId'
 import { Route as AuthedBuildsRequestIdRouteImport } from './routes/_authed/builds/$requestId'
 import { Route as AuthedConnectRequestIdRouteImport } from './routes/_authed/connect/$requestId'
@@ -114,6 +115,11 @@ const AuthedShellKeysRoute = AuthedShellKeysRouteImport.update({
 const AuthedShellPeopleRoute = AuthedShellPeopleRouteImport.update({
   id: '/people',
   path: '/people',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellSearchRoute = AuthedShellSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedBRequestIdRoute = AuthedBRequestIdRouteImport.update({
@@ -299,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/search': typeof AuthedShellSearchRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -342,6 +349,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/search': typeof AuthedShellSearchRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -388,6 +396,7 @@ export interface FileRoutesById {
   '/_authed/_shell/inbox': typeof AuthedShellInboxRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
+  '/_authed/_shell/search': typeof AuthedShellSearchRoute
   '/_authed/b/$requestId': typeof AuthedBRequestIdRoute
   '/_authed/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/_authed/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -434,6 +443,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/keys'
     | '/people'
+    | '/search'
     | '/b/$requestId'
     | '/builds/$requestId'
     | '/connect/$requestId'
@@ -477,6 +487,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/keys'
     | '/people'
+    | '/search'
     | '/b/$requestId'
     | '/builds/$requestId'
     | '/connect/$requestId'
@@ -522,6 +533,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/inbox'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
+    | '/_authed/_shell/search'
     | '/_authed/b/$requestId'
     | '/_authed/builds/$requestId'
     | '/_authed/connect/$requestId'
@@ -653,6 +665,13 @@ declare module '@tanstack/react-router' {
       path: '/people'
       fullPath: '/people'
       preLoaderRoute: typeof AuthedShellPeopleRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/search': {
+      id: '/_authed/_shell/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AuthedShellSearchRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/b/$requestId': {
@@ -900,6 +919,7 @@ interface AuthedShellRouteChildren {
   AuthedShellInboxRoute: typeof AuthedShellInboxRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
+  AuthedShellSearchRoute: typeof AuthedShellSearchRoute
   AuthedShellAgentsAgentRefRoute: typeof AuthedShellAgentsAgentRefRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
@@ -929,6 +949,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellInboxRoute: AuthedShellInboxRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
+  AuthedShellSearchRoute: AuthedShellSearchRoute,
   AuthedShellAgentsAgentRefRoute: AuthedShellAgentsAgentRefRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
