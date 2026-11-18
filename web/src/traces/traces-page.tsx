@@ -92,6 +92,7 @@ import {
   histogramPercentile,
   p95Label,
   partialNote,
+  partialReason,
   traceStatsQuery,
 } from "./trace-stats"
 import { TraceTable } from "./trace-table"
@@ -784,8 +785,7 @@ function TraceResults({
         >
           <StatusLabel tone="warning">Partial</StatusLabel>
           <p className="min-w-0 flex-1">
-            Tempo stopped searching at its time limit, so older traces may be
-            missing.
+            {partialReason(rows.length, pageSize)}
             {covered !== null ? ` ${covered.text}` : null}
           </p>
           {covered !== null ? (
@@ -810,6 +810,7 @@ function TraceResults({
           rows={rows}
           p95={p95}
           label={label}
+          fitWindow={meta.partial}
         />
         {pageBar}
       </div>
@@ -859,6 +860,7 @@ function SelectableTraceTable({
   rows,
   p95,
   label,
+  fitWindow,
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
@@ -866,6 +868,7 @@ function SelectableTraceTable({
   rows: TraceRow[]
   p95: number | null | undefined
   label: string
+  fitWindow: boolean
 }) {
   const range = tracesTimeRange(search)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -882,6 +885,7 @@ function SelectableTraceTable({
       range={range}
       p95Ms={p95}
       p95Label={label}
+      fitWindow={fitWindow}
       footerNote={
         p95 === undefined || p95 === null
           ? undefined

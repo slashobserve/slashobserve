@@ -427,7 +427,8 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 - ClickHouse lists the newest traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
-When Tempo stopped searching at its time limit, a **Partial** note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
+When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, so more traces match than the ones shown, or Tempo stopped at its time limit, so some matching traces may be missing.
+The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 
 ### Paging

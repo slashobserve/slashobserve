@@ -61,6 +61,12 @@ export function p95Label(search: TraceSearch): string {
     : `p95 of all ${search.service} traces`
 }
 
+export function partialReason(rowCount: number, pageSize: number): string {
+  return rowCount >= pageSize
+    ? `Tempo stopped at its limit of ${pageSize.toLocaleString("en")} traces for this page, so more traces match than the ones shown.`
+    : "Tempo stopped searching at its time limit, so some matching traces may be missing."
+}
+
 export function partialNote(
   rows: readonly TraceRow[],
   zone: string | undefined

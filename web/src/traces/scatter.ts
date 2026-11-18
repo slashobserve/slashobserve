@@ -68,10 +68,27 @@ export function scatterPoints(
   return points
 }
 
-const minute = 60_000
+const minFittedSpanMs = 1000
+
+export function fittedWindow(rows: readonly TraceRow[]): TimeWindow | null {
+  const starts = rows.flatMap((row) => (row.start === null ? [] : [row.start]))
+  if (starts.length === 0) return null
+  const first = Math.min(...starts)
+  const last = Math.max(...starts)
+  const pad = Math.max((last - first) * 0.05, minFittedSpanMs / 2)
+  return { start: first - pad, end: last + pad }
+}
+
+const second = 1000
+const minute = 60 * second
 const hour = 60 * minute
 const day = 24 * hour
 const timeSteps = [
+  second,
+  5 * second,
+  10 * second,
+  15 * second,
+  30 * second,
   minute,
   2 * minute,
   5 * minute,

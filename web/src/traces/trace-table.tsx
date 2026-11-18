@@ -17,7 +17,12 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "@/panels/colors"
 
 import { DurationScatter } from "./duration-scatter"
-import { selectedRows, type Selection, type TimeWindow } from "./scatter"
+import {
+  fittedWindow,
+  selectedRows,
+  type Selection,
+  type TimeWindow,
+} from "./scatter"
 import {
   countText,
   defaultTraceSort,
@@ -278,6 +283,7 @@ type TraceP95 = {
   p95Ms?: number | null
   p95Label?: string
   footerNote?: string
+  fitWindow?: boolean
 }
 
 type TraceSelection = {
@@ -296,6 +302,7 @@ function SortedTraceTable({
   p95Ms,
   p95Label = rowsP95Label,
   footerNote,
+  fitWindow = false,
   selection,
   onSelectionChange,
   selectionActions,
@@ -316,8 +323,10 @@ function SortedTraceTable({
   )
   const sorted = useMemo(() => sortTraceRows(listed, sort), [listed, sort])
   const window = useMemo(
-    () => resolveWindow(range.from, range.to),
-    [range.from, range.to]
+    () =>
+      (fitWindow ? fittedWindow(rows) : null) ??
+      resolveWindow(range.from, range.to),
+    [fitWindow, rows, range.from, range.to]
   )
   const slots = useMemo(() => serviceSlots(rows), [rows])
 
@@ -347,7 +356,7 @@ function SortedTraceTable({
     <div className="flex flex-col gap-3">
       <div
         className={cn(
-          "grid gap-4",
+          "grid items-start gap-4",
           selectionPanel !== undefined
             ? "grid-cols-[minmax(0,1fr)_384px] max-[1100px]:grid-cols-1"
             : "narrow:hidden"
