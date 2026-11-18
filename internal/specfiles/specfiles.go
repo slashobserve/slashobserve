@@ -14,12 +14,16 @@ type File struct {
 }
 
 var (
-	dirEscaper   = strings.NewReplacer("%", "%25", "/", "%2F")
-	dirUnescaper = strings.NewReplacer("%2F", "/", "%25", "%")
+	dirEscaper   = strings.NewReplacer("%", "%25", "/", "%2F", "\\", "%5C")
+	dirUnescaper = strings.NewReplacer("%2F", "/", "%5C", "\\", "%2E", ".", "%25", "%")
 )
 
 func DirName(folderTitle string) string {
-	return dirEscaper.Replace(folderTitle)
+	name := dirEscaper.Replace(folderTitle)
+	if strings.HasPrefix(name, ".") {
+		return "%2E" + name[1:]
+	}
+	return name
 }
 
 func FolderTitle(dirName string) string {

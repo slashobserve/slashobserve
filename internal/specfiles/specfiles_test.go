@@ -9,7 +9,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/specfiles"
 )
 
-func TestDirNameEscapesOnlyPercentAndSlashAndRoundTrips(t *testing.T) {
+func TestDirNameEscapesPathSyntaxAndRoundTrips(t *testing.T) {
 	cases := []struct{ title, dir string }{
 		{"Payments", "Payments"},
 		{"Team / Payments", "Team %2F Payments"},
@@ -19,6 +19,11 @@ func TestDirNameEscapesOnlyPercentAndSlashAndRoundTrips(t *testing.T) {
 		{"Größe & Café ✓", "Größe & Café ✓"},
 		{"  spaced  out  ", "  spaced  out  "},
 		{"", ""},
+		{"..", "%2E."},
+		{".", "%2E"},
+		{".hidden", "%2Ehidden"},
+		{`a\b`, "a%5Cb"},
+		{"../../etc", "%2E.%2F..%2Fetc"},
 	}
 	for _, c := range cases {
 		if got := specfiles.DirName(c.title); got != c.dir {

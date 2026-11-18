@@ -31,7 +31,8 @@ dashboards/
 ```
 
 A file directly in the directory belongs to General, and a file in a subdirectory belongs to the folder named by that directory.
-The directory name is the folder title with `%` written as `%25` and `/` as `%2F`, so `Team / Ops` becomes `Team %2F Ops` and any title survives a round trip.
+The directory name is the folder title with `%` written as `%25`, `/` as `%2F`, `\` as `%5C` and a leading `.` as `%2E`, so `Team / Ops` becomes `Team %2F Ops` and any title survives a round trip.
+Export refuses to write a file outside `--dir`, so a folder titled `..` cannot reach a parent directory.
 Deeper subdirectories are not allowed, and files and directories whose names start with `.` are skipped.
 The server's [provisioning directory](../operate/provisioning.md) uses the same layout.
 
