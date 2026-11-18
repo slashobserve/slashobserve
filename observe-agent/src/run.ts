@@ -413,6 +413,7 @@ class RunLoop {
     const started = Date.now()
     let answer
     try {
+      this.reporter.startMessage()
       answer = await session.next(results, {
         signal: this.cancel.signal,
         onText: (text) => this.reporter.push(text),
