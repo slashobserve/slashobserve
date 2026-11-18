@@ -49,7 +49,7 @@ test("never shows connection details", async ({ page }) => {
   await expect(datasourceRow(page, "prom")).toBeVisible()
   await expect(
     page.getByText(
-      "Addresses, users and secrets stay on the server and never reach the browser."
+      "Addresses and users are shown only to Admins, and passwords, tokens and header values never leave the server."
     )
   ).toBeVisible()
 
@@ -146,10 +146,10 @@ test("shows empty and error states", async ({ page, consoleErrors }) => {
   await page.route(isList, empty)
   await openDatasources(page)
   await expect(
-    page.getByRole("heading", { name: "No datasources configured" })
+    page.getByRole("heading", { name: "No datasources yet" })
   ).toBeVisible()
   await expect(
-    page.getByText("Add them to the datasources file and restart the server.")
+    page.getByText("Add one to let dashboards and the agent query your data.")
   ).toBeVisible()
   await page.unroute(isList, empty)
 
@@ -175,10 +175,10 @@ test("shows empty and error states", async ({ page, consoleErrors }) => {
 test("links to the operator guide", async ({ page }) => {
   await openDatasources(page)
   const link = page.getByRole("link", {
-    name: "How to add a datasource (opens in a new tab)",
+    name: "How datasources work (opens in a new tab)",
   })
   await expect(link).toHaveAttribute("target", "_blank")
-  await expect(link).toHaveAttribute("href", /\/datasources-file\.md$/)
+  await expect(link).toHaveAttribute("href", /\/datasources-in-the-app\.md$/)
 })
 
 test("draws both themes", async ({ page }) => {

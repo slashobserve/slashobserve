@@ -13,6 +13,8 @@ import { logsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { RemoveDatasourceButton } from "./remove-datasource"
+
 import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
 import {
   datasourcesQuery,
@@ -21,7 +23,7 @@ import {
 } from "./queries"
 
 const columnCount = 6
-const tableMinWidth = 760
+const tableMinWidth = 900
 
 function Header() {
   return (
@@ -40,7 +42,12 @@ function Header() {
   )
 }
 
-export function DatasourceTable() {
+type Props = {
+  onAdd: (trigger: HTMLElement) => void
+  onEdit: (uid: string, trigger: HTMLElement) => void
+}
+
+export function DatasourceTable({ onAdd, onEdit }: Props) {
   const datasources = useQuery({
     ...datasourcesQuery(),
     refetchInterval: 30_000,
@@ -91,10 +98,16 @@ export function DatasourceTable() {
   if (datasources.data.length === 0) {
     return (
       <div className="rounded-card border px-4 py-10 text-center">
-        <h2 className="text-sm font-semibold">No datasources configured</h2>
+        <h2 className="text-sm font-semibold">No datasources yet</h2>
         <p className="text-[13px] text-muted-foreground">
-          Add them to the datasources file and restart the server.
+          Add one to let dashboards and the agent query your data.
         </p>
+        <Button
+          className="mt-3"
+          onClick={(event) => onAdd(event.currentTarget)}
+        >
+          Add datasource
+        </Button>
       </div>
     )
   }
@@ -110,7 +123,16 @@ export function DatasourceTable() {
               <Cell>
                 <DatasourceName datasource={datasource} />
               </Cell>
-              <Cell>{typeLabel(datasource.type)}</Cell>
+              <Cell>
+                <div className="flex flex-col">
+                  <span>{typeLabel(datasource.type)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {datasource.source === "file"
+                      ? "From file"
+                      : "Added in the app"}
+                  </span>
+                </div>
+              </Cell>
               <Cell>
                 <div className="flex flex-col gap-0.5">
                   <div className="flex">
@@ -141,6 +163,21 @@ export function DatasourceTable() {
                     onRecheck={() => runRecheck(datasource)}
                   />
                   <ExploreLinks datasource={datasource} />
+                  {datasource.source === "app" ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        aria-label={`Edit ${datasource.uid}`}
+                        onClick={(event) =>
+                          onEdit(datasource.uid, event.currentTarget)
+                        }
+                      >
+                        Edit
+                      </Button>
+                      <RemoveDatasourceButton datasource={datasource} />
+                    </>
+                  ) : null}
                 </div>
               </Cell>
             </tr>

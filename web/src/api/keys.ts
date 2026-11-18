@@ -123,6 +123,7 @@ export type NameListParams = {
 export const datasourceKeys = {
   all: ["datasources"] as const,
   list: () => ["datasources", "list"] as const,
+  config: (uid: string) => ["datasources", uid, "config"] as const,
   metrics: (uid: string, search: string) =>
     ["datasources", uid, "metrics", search] as const,
   labels: (uid: string, params: NameListParams) =>
