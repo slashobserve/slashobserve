@@ -166,6 +166,7 @@ It applies your change to that version's copy of the panel; if the panel no long
 
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
 The toast then reads "Saved version 5, merged with changes made since version 3".
+Moving one panel to a different place than a newer version moved it to counts as the same thing, while a move of a different field of the panel, such as its width, merges.
 When the newer versions changed the same things, nothing is saved: the editor lists them under "Version 4 changed the same things", each as the panel title, "Variable <name>" or "Dashboard settings" with what clashed, and **Reload version 4** replaces your draft with that version's panel.
 
 A refused save lists "This panel was rejected:" with each query and its problem, and "Other problems in this dashboard:" for panels you did not touch.
