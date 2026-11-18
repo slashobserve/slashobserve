@@ -2,6 +2,7 @@ package homedash
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -112,13 +113,13 @@ func TestSetRefusesWhatTheCallerCannotSee(t *testing.T) {
 	r := newRig(t)
 	payroll := r.dashboard(t, "Payroll")
 	foldertest.Move(t, r.db, payroll, foldertest.Restricted(t, r.db, "Payroll", "payroll-team"))
-	if err := r.service.Set(t.Context(), ada, payroll); err != ErrNotFound {
+	if err := r.service.Set(t.Context(), ada, payroll); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("restricted = %v, want ErrNotFound", err)
 	}
 
 	gone := r.dashboard(t, "Gone")
 	r.db.Exec(t, `DELETE FROM dashboards WHERE id = $1`, gone.String())
-	if err := r.service.Set(t.Context(), ada, gone); err != ErrNotFound {
+	if err := r.service.Set(t.Context(), ada, gone); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("deleted = %v, want ErrNotFound", err)
 	}
 	if home := r.get(t, ada); home.Status != StatusNone {
