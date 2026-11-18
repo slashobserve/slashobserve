@@ -22,36 +22,70 @@ const rfc3339 = new RegExp(`^${rfc3339Source}$`)
 const timeExpression = new RegExp(
   `^(now([+-][1-9][0-9]*[smhdwMy])?(\\/(fy|fQ|[smhdwMy]))?|${rfc3339Source})$`
 )
-const epochMillis = /^[0-9]{10,15}$/
+const epochDigits = /^[0-9]{10,15}$/
+const epochSecondsLength = 10
+const earliestEpochMs = Date.UTC(2000, 0, 1)
 const relativeExpression =
   /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/(fy|fQ|[smhdwMy]))?$/
 const localDateTime =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
 
-export function isTimeValue(value: string): boolean {
-  return timeExpression.test(value) || epochMillis.test(value)
+function epochMs(value: string): number | null {
+  if (!epochDigits.test(value)) return null
+  const ms =
+    value.length === epochSecondsLength ? Number(value) * 1000 : Number(value)
+  return ms >= earliestEpochMs ? ms : null
 }
 
-export function parseUserTime(input: string): string | null {
-  const text = input.trim()
-  if (isTimeValue(text)) return text
+export function isTimeValue(value: string): boolean {
+  return timeExpression.test(value) || epochMs(value) !== null
+}
+
+type UserTime = { value: string } | { problem: "invalid" | "early" }
+
+function localTimeMs(text: string, zone: string | undefined): number | null {
   const match = localDateTime.exec(text)
   if (!match) return null
   const [year, month, day, hour, minute, second] = match
     .slice(1)
     .map((part) => (part === undefined ? 0 : Number(part)))
-  const date = new Date(year, month - 1, day, hour, minute, second)
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute ||
-    date.getSeconds() !== second
-  ) {
-    return null
+  const ms =
+    zone === undefined
+      ? new Date(year, month - 1, day, hour, minute, second).getTime()
+      : fromLocal(zone, year, month - 1, day, hour, minute, second)
+  const wanted = `${match[1]}-${match[2]}-${match[3]} ${pad(hour)}:${pad(minute)}:${pad(second)}`
+  return Number.isNaN(ms) || zonedDateTime(ms, zone) !== wanted ? null : ms
+}
+
+function readUserTime(input: string, zone: string | undefined): UserTime {
+  const text = input.trim()
+  if (epochDigits.test(text)) {
+    const ms = epochMs(text)
+    return ms === null ? { problem: "early" } : { value: String(ms) }
   }
-  return String(date.getTime())
+  if (isTimeValue(text)) return { value: text }
+  const ms = localTimeMs(text, zone)
+  if (ms === null) return { problem: "invalid" }
+  return ms >= earliestEpochMs ? { value: String(ms) } : { problem: "early" }
+}
+
+export function parseUserTime(
+  input: string,
+  zone: string | undefined
+): string | null {
+  const read = readUserTime(input, zone)
+  return "value" in read ? read.value : null
+}
+
+export function userTimeProblem(
+  input: string,
+  zone: string | undefined
+): string | null {
+  const read = readUserTime(input, zone)
+  if ("value" in read) return null
+  return read.problem === "early"
+    ? "Times before the year 2000 are not accepted."
+    : "Enter a time like now-6h, now/d or 2026-10-17 09:00."
 }
 
 function pad(value: number): string {
@@ -84,7 +118,8 @@ export function zonedTimeValue(
   value: string,
   zone: string | undefined
 ): string {
-  return epochMillis.test(value) ? zonedDateTime(Number(value), zone) : value
+  const ms = epochMs(value)
+  return ms === null ? value : zonedDateTime(ms, zone)
 }
 
 export function formatDateTime(value: string | number | Date): string {
@@ -440,7 +475,8 @@ export function resolveTime(
 ): number {
   const match = relativeExpression.exec(value)
   if (!match) {
-    return epochMillis.test(value) ? Number(value) : Date.parse(value)
+    if (epochDigits.test(value)) return epochMs(value) ?? NaN
+    return Date.parse(value)
   }
   const zone = options.zone ?? "UTC"
   let time = now - (options.nowDelayMs ?? 0)

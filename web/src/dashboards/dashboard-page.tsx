@@ -702,6 +702,7 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
+        timezone={spec.timezone}
       />
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker

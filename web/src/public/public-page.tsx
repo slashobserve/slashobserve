@@ -35,7 +35,7 @@ import { useVariables, type VariableState } from "@/dashboards/use-variables"
 import { variableLabel } from "@/dashboards/variable-controls/variable-box"
 import { VariablesBar } from "@/dashboards/variables-bar"
 import { DatasourceListProvider } from "@/datasources/queries"
-import { refreshToMs } from "@/lib/time"
+import { displayZone, refreshToMs } from "@/lib/time"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
@@ -158,6 +158,7 @@ export function PublicPage({
                   onSearchChange((state) => ({ ...state, ...next }))
                 }
                 quickRanges={pickerQuickRanges(spec)}
+                zone={displayZone(undefined, spec.timezone)}
               />
             )}
             <Button
