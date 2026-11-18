@@ -90,6 +90,7 @@ An editor's block goes on the page as `live`.
 A commenter's block is `requested`: it shows with a dashed border and the caption "`<name>` suggests this block", or "Observe Agent suggests this block" when an agent run wrote it.
 **Keep** makes it live and **Discard** removes it.
 Both show to an editor, and only **Discard** shows to the person who asked for the block.
+Resolving does not close the page: a resolved observation still takes blocks from editors and suggestions from commenters, and the row says "This observation is resolved" so nobody is surprised; an editor who does not want more reopens it or discards the suggestion.
 
 A panel block's caption names its datasource and says "live", and a snapshot's caption says "Frozen" with the time range of its data.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.

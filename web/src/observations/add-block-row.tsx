@@ -234,6 +234,13 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {observation.state !== "resolved" ? null : (
+        <p className="text-xs text-muted-foreground">
+          {canEdit
+            ? "This observation is resolved. Blocks you add still go on the page."
+            : "This observation is resolved. A block you suggest waits for an editor to keep it."}
+        </p>
+      )}
       {problem === null ? null : (
         <p role="alert" className="text-sm text-destructive">
           {problem}

@@ -6,12 +6,12 @@ import { renderWithProviders } from "@/test/render"
 import { AddBlockRow } from "./add-block-row"
 import type { Observation } from "./queries"
 
-function renderRow() {
+function renderRow(state = "open", canEdit = true) {
   return renderWithProviders(
     <AddBlockRow
-      observation={{ id: "o1" } as Observation}
+      observation={{ id: "o1", state } as Observation}
       blocks={[]}
-      canEdit
+      canEdit={canEdit}
       onAdded={() => {}}
     />,
     { route: { path: "/", url: "/" } }
@@ -47,5 +47,29 @@ describe("AddBlockRow text draft", () => {
     const { user } = renderRow()
     const box = await openText(user)
     expect(box.getAttribute("placeholder")).toContain("Enter")
+  })
+})
+
+describe("AddBlockRow on a resolved observation", () => {
+  it("tells a commenter that a suggestion waits for an editor", async () => {
+    renderRow("resolved", false)
+    expect(
+      await screen.findByText(
+        "This observation is resolved. A block you suggest waits for an editor to keep it."
+      )
+    ).toBeTruthy()
+  })
+
+  it("tells an editor the page still takes blocks", async () => {
+    renderRow("resolved", true)
+    expect(
+      await screen.findByText(/Blocks you add still go on the page/)
+    ).toBeTruthy()
+  })
+
+  it("says nothing on an open observation", async () => {
+    renderRow("open", false)
+    await screen.findByRole("button", { name: "Text" })
+    expect(screen.queryByText(/This observation is resolved/)).toBeNull()
   })
 })
