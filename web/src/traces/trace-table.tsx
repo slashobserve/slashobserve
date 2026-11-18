@@ -125,7 +125,7 @@ function DurationBar({
       </span>
       <div
         aria-hidden="true"
-        className="relative h-1.5 min-w-20 flex-1 rounded-full bg-muted"
+        className="relative h-1.5 min-w-10 flex-1 rounded-full bg-muted"
       >
         <div
           className={cn(

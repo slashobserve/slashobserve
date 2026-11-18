@@ -408,8 +408,8 @@ As for logs, the order is set when the app loads and stays fixed until you reloa
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
 `/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
-The time range, **Live**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
-**Live** runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live** to end it.
+The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live tail**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
+**Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
 A range that starts in the future runs no search and says so.
 Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `limit_exceeded` with the same text.

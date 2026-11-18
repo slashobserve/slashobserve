@@ -341,7 +341,7 @@ function TraceSearchActions({
           onClick={() => onLiveChange(!live)}
         >
           <RadioIcon aria-hidden="true" />
-          {live ? "Stop live" : "Live"}
+          {live ? "Stop live tail" : "Live tail"}
         </Button>
         {phone ? (
           <DropdownMenu>
