@@ -282,3 +282,23 @@ func TestTempoSearchPageHoldsTheNewestTraces(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 }
+
+func TestTempoProbeMessages(t *testing.T) {
+	ds := integrationDS(t)
+	ctx := context.Background()
+	now := time.Now()
+	for name, rng := range map[string]datasource.TimeRange{
+		"future": {From: now.Add(time.Hour), To: now.Add(2 * time.Hour)},
+		"long":   {From: now.Add(-30 * 24 * time.Hour), To: now},
+		"ends-in-future": {From: now.Add(-time.Hour), To: now.Add(time.Hour)},
+	} {
+		_, err := ds.QueryInstant(ctx, datasource.Query{Text: `{ resource.service.name = "x" }`}, rng)
+		t.Logf("%s -> %v", name, err)
+	}
+	_, err := ds.QueryInstant(ctx, datasource.Query{Text: "{ name = "}, aroundSend())
+	t.Logf("parse -> %v", err)
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = \"a\" "}, aroundSend())
+	t.Logf("parse2 -> %v", err)
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = \"a\" } | count() >"}, aroundSend())
+	t.Logf("parse3 -> %v", err)
+}
