@@ -77,7 +77,7 @@ import { TopRowActions } from "@/shell/top-row-actions"
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
-import { tracesTimeRange, type TraceSearch } from "./search"
+import { askAfterSubmit, tracesTimeRange, type TraceSearch } from "./search"
 import {
   attributeFilter,
   keepSelectionSearch,
@@ -464,7 +464,7 @@ function TraceSearchWorkspace({
     event.currentTarget.querySelector("form")?.requestSubmit()
   }
 
-  const answered = ask.answer !== null || ask.fromQuestion !== null
+  const answered = search.ask !== undefined
 
   const chips = traceFilterChips(search)
   const explanation = ask.answer?.explanation ?? ""
@@ -572,7 +572,7 @@ function TraceSearchWorkspace({
                 value={search}
                 onSubmit={(next) => {
                   ask.clearProblem()
-                  update(next)
+                  update({ ...next, ask: askAfterSubmit(search, next) })
                 }}
                 serviceRef={serviceRef}
               />
@@ -591,9 +591,9 @@ function TraceSearchWorkspace({
               <span className="text-xs text-muted-foreground">
                 or press Ctrl+Enter or Cmd+Enter
               </span>
-              {ask.fromQuestion !== null ? (
+              {search.ask !== undefined ? (
                 <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  From: {ask.fromQuestion}
+                  From: {search.ask}
                 </span>
               ) : null}
               {answered || ask.problem !== null ? (

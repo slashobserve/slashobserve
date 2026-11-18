@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  askAfterSubmit,
   normaliseTraceId,
   tracesTimeRange,
   traceViewRange,
@@ -116,5 +117,29 @@ describe("normaliseTraceId", () => {
     ["a3ce929d0e0e47", null],
   ])("reads %s as %s", (param, id) => {
     expect(normaliseTraceId(param)).toBe(id)
+  })
+})
+
+describe("askAfterSubmit", () => {
+  const search = {
+    service: "payments",
+    min: "500ms",
+    ask: "payments requests slower than 500ms",
+  }
+
+  it("keeps the question while the form still holds the answer", () => {
+    expect(askAfterSubmit(search, { service: "payments", min: "500ms" })).toBe(
+      search.ask
+    )
+  })
+
+  it("drops the question once a field was changed or cleared", () => {
+    expect(askAfterSubmit(search, { min: "500ms" })).toBeUndefined()
+    expect(
+      askAfterSubmit(search, { service: "payments", min: "1s" })
+    ).toBeUndefined()
+    expect(
+      askAfterSubmit(search, { service: "payments", min: "500ms", errors: "1" })
+    ).toBeUndefined()
   })
 })

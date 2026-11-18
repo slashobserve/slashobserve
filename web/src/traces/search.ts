@@ -89,6 +89,17 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
   }
 }
 
+const formKeys = ["service", "span", "min", "max", "errors", "q"] as const
+
+export function askAfterSubmit(
+  search: TraceSearch,
+  next: TraceFormSearch
+): string | undefined {
+  return formKeys.every((key) => next[key] === search[key])
+    ? search.ask
+    : undefined
+}
+
 export type TraceEntrySearch = TraceSearch & { ds?: string }
 
 export function validateTraceEntrySearch(
