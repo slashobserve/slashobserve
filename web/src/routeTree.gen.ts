@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
 import { Route as PTokenRouteImport } from './routes/p/$token'
 import { Route as RcaTokenRouteImport } from './routes/rca/$token'
+import { Route as AuthedShellSplatRouteImport } from './routes/_authed/_shell/$'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellChatsRouteImport } from './routes/_authed/_shell/chats'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
@@ -75,6 +76,11 @@ const RcaTokenRoute = RcaTokenRouteImport.update({
   id: '/rca/$token',
   path: '/rca/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedShellSplatRoute = AuthedShellSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
   id: '/_chat',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
@@ -372,6 +380,7 @@ export interface FileRoutesById {
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/_authed/_shell/$': typeof AuthedShellSplatRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/chats': typeof AuthedShellChatsRoute
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/$'
     | '/chats'
     | '/datasources'
     | '/health'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/$'
     | '/chats'
     | '/datasources'
     | '/health'
@@ -503,6 +514,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell'
     | '/p/$token'
     | '/rca/$token'
+    | '/_authed/_shell/$'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/chats'
     | '/_authed/_shell/datasources'
@@ -586,6 +598,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/rca/$token'
       preLoaderRoute: typeof RcaTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/_shell/$': {
+      id: '/_authed/_shell/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof AuthedShellSplatRouteImport
+      parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/_chat': {
       id: '/_authed/_shell/_chat'
@@ -873,6 +892,7 @@ const AuthedShellChatRouteWithChildren = AuthedShellChatRoute._addFileChildren(
 )
 
 interface AuthedShellRouteChildren {
+  AuthedShellSplatRoute: typeof AuthedShellSplatRoute
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellChatsRoute: typeof AuthedShellChatsRoute
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
@@ -901,6 +921,7 @@ interface AuthedShellRouteChildren {
 }
 
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
+  AuthedShellSplatRoute: AuthedShellSplatRoute,
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellChatsRoute: AuthedShellChatsRoute,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,

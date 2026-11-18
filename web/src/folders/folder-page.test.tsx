@@ -199,6 +199,13 @@ afterEach(() => {
 })
 
 describe("FolderPage", () => {
+  it("titles the tab with the folder's name", async () => {
+    mockServer(folder(), [checkout])
+    renderFolderPage()
+    await screen.findByRole("link", { name: "Checkout service health" })
+    expect(document.title).toBe("Shop - SlashObserve")
+  })
+
   it("lists only this folder's dashboards, with no Folder filter or folder row", async () => {
     const listed = mockServer(folder(), [checkout])
     renderFolderPage()

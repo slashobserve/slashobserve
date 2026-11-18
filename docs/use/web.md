@@ -33,6 +33,9 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 
 The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
 
+An address that nothing answers opens **Page not found** inside the app, with the sidebar and the top bar, the address it could not find and links to Home and the dashboards; a signed-out visitor signs in first and then sees it.
+A folder's page names the folder in the breadcrumb and in the tab title, such as "Dashboards / Checkout" and "Checkout - SlashObserve".
+
 ## Public links
 
 A dashboard's Share pane can create a public link, whose `/p/<token>` address opens the dashboard read-only for anyone who has it, without signing in.
