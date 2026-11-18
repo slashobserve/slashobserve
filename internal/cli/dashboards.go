@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -177,6 +181,9 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	}
 	data, err := c.get(cmd.Context(), path, nil)
 	if err != nil {
+		if cmd.Flags().Changed("version") {
+			return explainMissingVersion(cmd.Context(), c, id, a.show.version, err)
+		}
 		return err
 	}
 	out := a.output()
@@ -203,6 +210,26 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.line("")
 	out.table([]string{"PANEL", "TYPE", "DATASOURCE", "TITLE"}, rows)
 	return nil
+}
+
+func explainMissingVersion(ctx context.Context, c *client, id string, version int, cause error) error {
+	var api *apiError
+	if !errors.As(cause, &api) || api.status != http.StatusNotFound {
+		return cause
+	}
+	data, err := c.get(ctx, "dashboards/"+id, nil)
+	if err != nil {
+		return cause
+	}
+	latest, err := decode[dashboardWithVersion](data)
+	if err != nil {
+		return cause
+	}
+	return versionNotFound(id, version, latest.Version.Version)
+}
+
+func versionNotFound(id string, version, latest int) *apiError {
+	return &apiError{status: http.StatusNotFound, code: "version_not_found", message: fmt.Sprintf("dashboard %s has no version %d; its latest version is %d, and observe dashboards versions %s lists them", text(id), version, latest, text(id))}
 }
 
 func (a *app) versionsCommand() *cobra.Command {

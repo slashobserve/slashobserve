@@ -2,12 +2,14 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -78,7 +80,11 @@ func Main(args []string, std IO, version string) int {
 	if err == nil {
 		return 0
 	}
-	if message := strings.TrimSpace(err.Error()); message != "" {
+	message := strings.TrimSpace(err.Error())
+	switch {
+	case message != "" && a.json:
+		_, _ = fmt.Fprintln(std.Err, errorJSON(err, message))
+	case message != "":
 		_, _ = fmt.Fprintln(std.Err, message)
 	}
 	var usage usageError
@@ -86,6 +92,38 @@ func Main(args []string, std IO, version string) int {
 		return 2
 	}
 	return 1
+}
+
+func errorJSON(err error, message string) string {
+	data, marshalErr := json.Marshal(struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}{Error: message, Code: errorCode(err)})
+	if marshalErr != nil {
+		return message
+	}
+	return string(data)
+}
+
+func errorCode(err error) string {
+	var usage usageError
+	var api *apiError
+	var transport transportFailure
+	switch {
+	case errors.As(err, &usage):
+		return "usage"
+	case errors.Is(err, errUnauthorized):
+		return "unauthenticated"
+	case errors.Is(err, errInterrupted):
+		return "interrupted"
+	case errors.As(err, &api) && api.code != "":
+		return api.code
+	case errors.As(err, &api):
+		return "http_" + strconv.Itoa(api.status)
+	case errors.As(err, &transport):
+		return "unreachable"
+	}
+	return "failed"
 }
 
 func Commands() *cobra.Command {

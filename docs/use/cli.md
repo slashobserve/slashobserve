@@ -99,6 +99,11 @@ The CLI exits with these codes:
 | `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, an `observe grafana import` had a dashboard fail, or `observe health repair` queued no repair. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
+An error is one line on standard error, with the server's code in parentheses and any failing paths of an invalid Spec or panel below it.
+With `--json` it is one JSON object, `{"error": "<message>", "code": "<code>"}`, so a script can branch on the code.
+The code is the server's own (`not_found`, `forbidden_role`, `version_conflict` and the like), or `usage` for a wrong command line, `unauthenticated` for a missing or refused key, `unreachable` when the server cannot be reached, `interrupted`, `http_<status>` when the server sent no code, and `failed` for anything else.
+An address that answers with a web page instead of JSON is reported as probably not a SlashObserve server, and a version that does not exist is reported with the latest version of the dashboard.
+
 ## Cancel and continue a request
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
