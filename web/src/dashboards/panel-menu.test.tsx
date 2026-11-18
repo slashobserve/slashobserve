@@ -45,6 +45,7 @@ function renderMenu() {
         viewing={false}
         canComment
         canEdit={false}
+        canInvestigate={false}
         composerRef={composer}
       />
       <textarea ref={composer} aria-label="Comment or request" />

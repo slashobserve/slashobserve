@@ -263,6 +263,11 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrForbidden):
+		var need *NeedError
+		if errors.As(err, &need) {
+			c.AbortWithStatusJSON(http.StatusForbidden, need.Body)
+			return
+		}
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())

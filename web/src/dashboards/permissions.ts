@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { components } from "@/api/schema.gen"
+import { roleAtLeast, type Role } from "@/lib/roles"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 
@@ -15,6 +16,10 @@ const noPermissions: DashboardPermissions = {
   manage: false,
   create: false,
 }
+export function mayInvestigate(p: DashboardPermissions, role: Role): boolean {
+  return p.edit && roleAtLeast(role, "editor")
+}
+
 export type ComposerMode = "full" | "comment-only" | "read-only"
 
 export function composerMode(p: DashboardPermissions): ComposerMode {

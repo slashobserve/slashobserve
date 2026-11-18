@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   composerMode,
+  mayInvestigate,
   readerNote,
   type DashboardPermissions,
 } from "./permissions"
@@ -46,5 +47,16 @@ describe("readerNote", () => {
     expect(readerNote("read-only", "Payments")).toBe(
       "You can view dashboards in Payments. Ask an Admin if you need to comment."
     )
+  })
+})
+
+describe("mayInvestigate", () => {
+  it("needs Edit on the dashboard and the Editor role", () => {
+    const edit = permissions({ comment: true, edit: true })
+    expect(mayInvestigate(edit, "editor")).toBe(true)
+    expect(mayInvestigate(edit, "admin")).toBe(true)
+    expect(mayInvestigate(edit, "viewer")).toBe(false)
+    expect(mayInvestigate(edit, "commenter")).toBe(false)
+    expect(mayInvestigate(permissions({ comment: true }), "editor")).toBe(false)
   })
 })

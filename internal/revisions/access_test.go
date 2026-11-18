@@ -1,10 +1,17 @@
 package revisions
 
 import (
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 func TestRunAllowed(t *testing.T) {
@@ -47,5 +54,45 @@ func TestRunAllowed(t *testing.T) {
 				t.Fatalf("runAllowed(%s, dashboard=%v, canCreate=%v, %+v) = %v, want %v", tc.source, tc.hasDashboard, tc.canCreate, tc.abilities, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestRefusalNamesWhatWouldLetTheRequestThrough(t *testing.T) {
+	cases := []struct {
+		name         string
+		source       Source
+		hasDashboard bool
+		role         auth.Role
+		want         forbidden.Body
+	}{
+		{"investigate by a Viewer", SourceInvestigate, false, auth.RoleViewer, forbidden.NeedsRole("editor")},
+		{"investigate by a Commenter on a dashboard", SourceInvestigate, true, auth.RoleCommenter, forbidden.NeedsRole("editor")},
+		{"suggest without Edit", SourceSuggest, true, auth.RoleCommenter, forbidden.NeedsAccess("edit", "Payments")},
+		{"prompt with View only", SourcePrompt, true, auth.RoleViewer, forbidden.NeedsAccess("comment", "Payments")},
+		{"observe without a folder to create in", SourceObserve, false, auth.RoleViewer, forbidden.NeedsAccess("edit", "")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := refusal(tc.source, tc.hasDashboard, tc.role, "Payments")
+			var need *NeedError
+			if !errors.Is(err, ErrForbidden) || !errors.As(err, &need) || need.Body != tc.want {
+				t.Fatalf("refusal = %#v, want a forbidden error with %+v", err, tc.want)
+			}
+		})
+	}
+	if err := refusal(SourceInvestigate, true, auth.RoleEditor, "Payments"); err != ErrForbidden {
+		t.Fatalf("an Editor refused an investigation gets the plain error, got %#v", err)
+	}
+}
+
+func TestFailAnswersAForbiddenRunWithItsNeed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	(&Service{logger: slog.New(slog.DiscardHandler)}).fail(c, "enqueue", refusal(SourceInvestigate, false, auth.RoleViewer, ""))
+	want := `{"error":"your role does not allow this","code":"forbidden_role","needed_role":"editor"}`
+	if rec.Code != http.StatusForbidden || rec.Body.String() != want {
+		t.Fatalf("got %d %s, want 403 %s", rec.Code, rec.Body.String(), want)
 	}
 }

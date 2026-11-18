@@ -13,6 +13,26 @@ import (
 
 var ErrForbidden = errors.New(forbidden.RoleMessage)
 
+type NeedError struct{ Body forbidden.Body }
+
+func (e *NeedError) Error() string { return forbidden.RoleMessage }
+
+func (e *NeedError) Is(target error) bool { return target == ErrForbidden }
+
+func refusal(source Source, hasDashboard bool, role auth.Role, folderTitle string) error {
+	switch {
+	case source == SourceInvestigate && !role.AtLeast(auth.RoleEditor):
+		return &NeedError{Body: forbidden.NeedsRole(string(auth.RoleEditor))}
+	case source == SourceInvestigate:
+		return ErrForbidden
+	case hasDashboard && source == SourceSuggest:
+		return &NeedError{Body: forbidden.NeedsAccess("edit", folderTitle)}
+	case hasDashboard:
+		return &NeedError{Body: forbidden.NeedsAccess("comment", folderTitle)}
+	}
+	return &NeedError{Body: forbidden.NeedsAccess("edit", "")}
+}
+
 const requesterForbiddenMessage = "the person or key that asked no longer has access to change this dashboard"
 
 func runAllowed(source Source, hasDashboard, canCreate bool, role auth.Role, a folders.Abilities) bool {
@@ -41,7 +61,7 @@ func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtyp
 		case err != nil:
 			return err
 		case !runAllowed(source, false, levels.CanCreate(), by.Role, folders.Abilities{}):
-			return ErrForbidden
+			return refusal(source, false, by.Role, "")
 		}
 		return nil
 	}
@@ -54,7 +74,10 @@ func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtyp
 	case err != nil:
 		return err
 	case !runAllowed(source, true, false, by.Role, access.Abilities):
-		return ErrForbidden
+		if !access.Abilities.View {
+			return ErrForbidden
+		}
+		return refusal(source, true, by.Role, access.Folder.Title)
 	}
 	return nil
 }

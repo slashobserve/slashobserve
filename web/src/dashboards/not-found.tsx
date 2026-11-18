@@ -9,7 +9,7 @@ import { useSignOut } from "@/shell/use-sign-out"
 
 import { DashboardTopRow } from "./dashboard-top-row"
 
-export function DashboardNotice({
+function DashboardNotice({
   title,
   heading,
   text,
