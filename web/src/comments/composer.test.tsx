@@ -47,11 +47,13 @@ describe("Composer", () => {
     await waitFor(() => expect(field).toHaveValue(""))
   })
 
-  it("inserts a newline on Enter alone", async () => {
+  it("sends on Enter alone and adds a line on Shift+Enter", async () => {
     const { user, submit, field } = setup()
-    await user.type(field, "one{Enter}two")
+    await user.type(field, "one{Shift>}{Enter}{/Shift}two")
     expect(field).toHaveValue("one\ntwo")
     expect(submit).not.toHaveBeenCalled()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(submit).toHaveBeenCalledWith("one\ntwo"))
   })
 
   it("sends from the Send button and keeps it disabled while the text is empty", async () => {

@@ -171,6 +171,29 @@ describe("ActivityComposer", () => {
     })
   })
 
+  it("sends on Enter, adds a line on Shift+Enter, and says a plain comment is for the team", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    const { form } = await renderComposer()
+    expect(
+      await within(form).findByText(/This goes to the team as a comment/)
+    ).toBeTruthy()
+    const field = within(form).getByRole("textbox", {
+      name: "Comment or request",
+    })
+    await user.click(field)
+    await user.keyboard("{Shift>}{Enter}{/Shift}")
+    expect(posts).toHaveLength(0)
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+  })
+
+  it("leaves out the team hint once the draft asks an agent", async () => {
+    await renderComposer({ draft: "@observe make it a bar chart" })
+    await screen.findByRole("form", { name: "Add to the activity" })
+    expect(screen.queryByText(/This goes to the team as a comment/)).toBeNull()
+  })
+
   it("puts the cursor back in the field after a send when focus stayed in the form", async () => {
     const user = userEvent.setup()
     const { form } = await renderComposer()

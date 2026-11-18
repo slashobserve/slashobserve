@@ -414,7 +414,7 @@ export function ActivityFeed({
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
-              : "Write a comment, or tell the agent what to change"
+              : "Write a comment, or type @ to ask the agent"
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}

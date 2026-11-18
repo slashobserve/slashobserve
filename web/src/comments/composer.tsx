@@ -11,7 +11,8 @@ import { ArrowUpIcon } from "lucide-react"
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { isModEnter } from "@/lib/shortcuts"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
@@ -111,6 +112,7 @@ export function Composer({
   const [mentioning, setMentioning] = useState(false)
   const [replaceFrom, setReplaceFrom] = useState<number | null>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const coarse = useCoarsePointer()
   const picks = useMentionPicks()
   const text = body.trim()
   const wire = picks.wire(text)
@@ -137,7 +139,10 @@ export function Composer({
       event.preventDefault()
       event.stopPropagation()
       onCancel()
-    } else if (isModEnter(event) && !event.nativeEvent.isComposing) {
+    } else if (
+      (isModEnter(event) && !event.nativeEvent.isComposing) ||
+      (event.target === textarea.current && sendsOnEnter(event, coarse))
+    ) {
       event.preventDefault()
       void submit()
     }

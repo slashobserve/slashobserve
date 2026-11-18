@@ -55,7 +55,8 @@ import { useMentionableAgents } from "@/comments/use-mentionable-agents"
 import { useMentionPicks } from "@/comments/use-mention-picks"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
-import { isModEnter } from "@/lib/shortcuts"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -161,6 +162,7 @@ export function ActivityComposer({
   const counterId = useId()
   const textareaId = useId()
   const errorId = useId()
+  const hintId = useId()
   const targetId = useId()
   const openThread = useOpenThread(`dashboard:${dashboardId}`)
   const createRequest = useCreateObserveRequest()
@@ -180,6 +182,7 @@ export function ActivityComposer({
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
   const [mentioning, setMentioning] = useState(false)
   const history = usePromptHistory()
+  const coarse = useCoarsePointer()
   const agent = useAgentInfo()
   const model = agentLabel(agent.data)
   const agents = useMentionableAgents()
@@ -340,7 +343,10 @@ export function ActivityComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (isModEnter(event) && !event.nativeEvent.isComposing) {
+    if (
+      (isModEnter(event) && !event.nativeEvent.isComposing) ||
+      sendsOnEnter(event, coarse)
+    ) {
       event.preventDefault()
       sendNow()
       return
@@ -399,8 +405,17 @@ export function ActivityComposer({
       ]
     : []
 
+  const commentHint =
+    !investigating &&
+    agent.data?.available === true &&
+    trimmed !== "" &&
+    agentMentionsIn(trimmed) === 0
   const describedBy =
-    [showCounter ? counterId : null, failure ? errorId : null]
+    [
+      showCounter ? counterId : null,
+      failure ? errorId : null,
+      commentHint ? hintId : null,
+    ]
       .filter(Boolean)
       .join(" ") || undefined
   const targetItems = panelItems("The whole dashboard", panels)
@@ -441,6 +456,12 @@ export function ActivityComposer({
           }}
           onKeyDown={onKeyDown}
         />
+        {commentHint ? (
+          <p id={hintId} className="px-3 pb-1 text-xs text-muted-foreground">
+            This goes to the team as a comment. Type @ and choose Observe Agent
+            to ask the agent to change something.
+          </p>
+        ) : null}
         <div className="flex items-center gap-2 px-2 pb-2">
           <label htmlFor={targetId} className="text-xs text-muted-foreground">
             On

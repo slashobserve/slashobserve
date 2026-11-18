@@ -42,7 +42,11 @@ Filters that match nothing say "No activity matches these filters."
 ## Comment on a panel or the dashboard
 
 At the bottom of the card, the form "Add to the activity" has an **On** menu with "The whole dashboard" and every panel title, and a box labelled "Comment or request".
-Write the comment and choose **Send** (the up arrow), or press Cmd+Enter (Ctrl+Enter elsewhere).
+Write the comment and press Enter, or choose **Send** (the up arrow); Shift+Enter adds a line, and on a touch device Enter adds a line and **Send** sends.
+Cmd+Enter (Ctrl+Enter elsewhere) also sends.
+The reply boxes in a thread, in an observation's discussion and in the inbox take the same keys.
+A comment that mentions no agent goes to the team and starts nothing, and while you type one the box says so and says how to ask the agent.
+Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
 To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
