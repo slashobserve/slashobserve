@@ -289,7 +289,8 @@ The dashboard reloads the new version, and panels the version added fade in once
 Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
 A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
-Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
+Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
+An answer is searched only when its observation sits in a folder you can see.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
 
@@ -301,7 +302,7 @@ On the Chats page, each of your chats has the same actions as in History: a **Sa
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
-In History, the search box finds chats whose title or prompt contains the text, ignoring case.
+In History, the search box finds chats whose title, prompt or answer contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
 Each chat has a menu with these actions:
 

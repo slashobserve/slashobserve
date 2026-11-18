@@ -367,17 +367,20 @@ func (q *Queries) CountActiveSuggestRequestsBy(ctx context.Context, requestedByI
 const countAgentRequestsAll = `-- name: CountAgentRequestsAll :one
 SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id)) AS people
 FROM agent_requests r
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.source <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($1::text IS NULL OR r.source = $1::text)
-  AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
-  AND ($3::uuid IS NULL OR r.chat_id = $3::uuid OR r.id = $3::uuid)
-  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
-  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text)
-  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
+  AND ($2::text IS NULL OR r.source = $2::text)
+  AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
+  AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
+  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
+  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR f.markdown ILIKE $6::text)
+  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
 `
 
 type CountAgentRequestsAllParams struct {
+	Folders     []pgtype.UUID
 	Source      pgtype.Text
 	DashboardID pgtype.UUID
 	ChatID      pgtype.UUID
@@ -393,6 +396,7 @@ type CountAgentRequestsAllRow struct {
 
 func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentRequestsAllParams) (CountAgentRequestsAllRow, error) {
 	row := q.db.QueryRow(ctx, countAgentRequestsAll,
+		arg.Folders,
 		arg.Source,
 		arg.DashboardID,
 		arg.ChatID,
@@ -408,17 +412,20 @@ func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentReque
 const countAgentRequestsBy = `-- name: CountAgentRequestsBy :one
 SELECT count(*) AS total
 FROM agent_requests r
-WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.source <> 'suggest'
+LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
+LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
+WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($3::text IS NULL OR r.source = $3::text)
-  AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
-  AND ($5::uuid IS NULL OR r.chat_id = $5::uuid OR r.id = $5::uuid)
-  AND ($6::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $6::boolean)
-  AND ($7::text IS NULL OR r.title ILIKE $7::text OR r.prompt ILIKE $7::text)
-  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
+  AND ($4::text IS NULL OR r.source = $4::text)
+  AND ($5::uuid IS NULL OR r.dashboard_id = $5::uuid)
+  AND ($6::uuid IS NULL OR r.chat_id = $6::uuid OR r.id = $6::uuid)
+  AND ($7::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $7::boolean)
+  AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text OR f.markdown ILIKE $8::text)
+  AND ($9::text[] IS NULL OR r.state = ANY($9::text[]))
 `
 
 type CountAgentRequestsByParams struct {
+	Folders         []pgtype.UUID
 	RequestedByKind string
 	RequestedByID   pgtype.UUID
 	Source          pgtype.Text
@@ -431,6 +438,7 @@ type CountAgentRequestsByParams struct {
 
 func (q *Queries) CountAgentRequestsBy(ctx context.Context, arg CountAgentRequestsByParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countAgentRequestsBy,
+		arg.Folders,
 		arg.RequestedByKind,
 		arg.RequestedByID,
 		arg.Source,
@@ -1551,7 +1559,7 @@ WHERE r.source <> 'suggest'
   AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
   AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
   AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
-  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text)
+  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR f.markdown ILIKE $6::text)
   AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
   AND ($8::timestamptz IS NULL
     OR (r.created_at, r.id) < ($8::timestamptz, $9::uuid))
@@ -1688,7 +1696,7 @@ WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'sugge
   AND ($5::uuid IS NULL OR r.dashboard_id = $5::uuid)
   AND ($6::uuid IS NULL OR r.chat_id = $6::uuid OR r.id = $6::uuid)
   AND ($7::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $7::boolean)
-  AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text)
+  AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text OR f.markdown ILIKE $8::text)
   AND ($9::text[] IS NULL OR r.state = ANY($9::text[]))
   AND ($10::timestamptz IS NULL
     OR ((r.pinned_at IS NOT NULL) = $11::boolean

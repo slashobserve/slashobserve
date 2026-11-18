@@ -610,9 +610,17 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	if err != nil {
 		return RequestCount{}, fmt.Errorf("requester id: %w", err)
 	}
+	levels, err := s.access.Levels(ctx, by)
+	switch {
+	case errors.Is(err, folders.ErrForbidden):
+		return RequestCount{}, ErrForbidden
+	case err != nil:
+		return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
+	}
 	match := filter.match()
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
+			Folders:     levels.Visible(),
 			Source:      match.source,
 			DashboardID: filter.DashboardID,
 			ChatID:      filter.ChatID,
@@ -628,6 +636,7 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	total, err := s.db.Queries().CountAgentRequestsBy(ctx, dbsqlc.CountAgentRequestsByParams{
 		RequestedByKind: string(by.Kind),
 		RequestedByID:   requesterID,
+		Folders:         levels.Visible(),
 		Source:          match.source,
 		DashboardID:     filter.DashboardID,
 		ChatID:          filter.ChatID,
