@@ -77,13 +77,13 @@ describe("HealthCell", () => {
     expect((await screen.findByTestId("cell")).textContent).toBe("")
   })
 
-  test("shows a Healthy badge for a checked dashboard with no problem", async () => {
+  test("shows a Queries OK badge for a checked dashboard with no problem", async () => {
     provider.item = item({ problems: [] })
     renderCell()
     const trigger = await screen.findByRole("button", {
-      name: "Health of Checkout: Healthy",
+      name: "Health of Checkout: Queries OK",
     })
-    expect(trigger.textContent).toBe("Healthy")
+    expect(trigger.textContent).toBe("Queries OK")
     expect(trigger.querySelector("[data-status=ok]")).not.toBeNull()
   })
 
@@ -91,7 +91,7 @@ describe("HealthCell", () => {
     provider.item = item({ problems: [] })
     const { user } = renderCell()
     await user.click(
-      await screen.findByRole("button", { name: "Health of Checkout: Healthy" })
+      await screen.findByRole("button", { name: "Health of Checkout: Queries OK" })
     )
     const popover = await screen.findByRole("dialog")
     expect(popover.textContent).toContain("No problems found")
@@ -117,7 +117,7 @@ describe("HealthCell", () => {
       },
     ],
   ] as [string, Partial<HealthItem>][])(
-    "does not read Healthy when %s",
+    "does not read Queries OK when %s",
     async (_name, fields) => {
       provider.item = item({ problems: [], ...fields })
       renderCell()
@@ -142,7 +142,7 @@ describe("HealthCell", () => {
     const trigger = await screen.findByRole("button", {
       name: "Health of Checkout: Not opened in 90 days",
     })
-    expect(trigger.textContent).not.toContain("Healthy")
+    expect(trigger.textContent).not.toContain("Queries OK")
   })
 
   test("shows a skeleton while the page's health loads", async () => {
