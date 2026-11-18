@@ -63,6 +63,7 @@ import {
 } from "@/panels/traces/traces-panel"
 import type { DataPanel } from "@/spec"
 
+import { AddToObservationAction } from "./add-to-observation-action"
 import { wholeTrace, type Zoom } from "./minimap"
 import { TraceMinimap } from "./minimap.tsx"
 import {
@@ -73,6 +74,7 @@ import {
 } from "./search"
 import { traceQLAttribute } from "./search-query"
 import { TraceLogsSection } from "./trace-logs-tab"
+import { traceByIdQuery, tracesPanelFor } from "./trace-panel"
 import {
   criticalPathDisabledText,
   traceNotes,
@@ -210,7 +212,11 @@ function TraceForId({ id }: { id: string }) {
 }
 
 type PageActions = { time: ReactNode; share: ReactNode }
-type TraceActions = { logs: ReactNode; download: ReactNode }
+type TraceActions = {
+  logs: ReactNode
+  observation: ReactNode
+  download: ReactNode
+}
 
 function TraceHeader({
   id,
@@ -256,6 +262,7 @@ function TraceHeader({
       <TopRowActions>
         {actions.time}
         {traceActions?.logs}
+        {traceActions?.observation}
         {actions.share}
         {traceActions?.download}
       </TopRowActions>
@@ -767,6 +774,20 @@ function TraceExplorer({
               <LogsIcon aria-hidden="true" data-icon="inline-start" />
               Logs for this trace
             </Button>
+          ),
+          observation: (
+            <AddToObservationAction
+              size="default"
+              range={range}
+              panel={tracesPanelFor({
+                id: "trace",
+                title: `Trace ${id.slice(0, 8)}`,
+                datasource: datasource.uid,
+                type: datasource.type,
+                query: traceByIdQuery(datasource.type, id),
+                y: 0,
+              })}
+            />
           ),
           download: (
             <Button

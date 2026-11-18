@@ -284,6 +284,7 @@ type TraceP95 = {
   p95Label?: string
   footerNote?: string
   fitWindow?: boolean
+  headerActions?: ReactNode
 }
 
 type TraceSelection = {
@@ -303,6 +304,7 @@ function SortedTraceTable({
   p95Label = rowsP95Label,
   footerNote,
   fitWindow = false,
+  headerActions,
   selection,
   onSelectionChange,
   selectionActions,
@@ -400,6 +402,7 @@ function SortedTraceTable({
         <p className="ml-auto text-xs text-muted-foreground">
           {sortHint(sort)} Sorting applies to this page.
         </p>
+        {headerActions}
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
       <TableCard

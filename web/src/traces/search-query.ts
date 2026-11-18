@@ -37,7 +37,7 @@ export type TraceForm = {
   errors: boolean
 }
 
-function traceFormOf(search: TraceSearch): TraceForm {
+export function traceForm(search: TraceSearch): TraceForm {
   return {
     service: search.service ?? "",
     span: search.span ?? "",
@@ -128,7 +128,7 @@ export function attributeFilter(
   }
   const condition = compareCondition(attribute, value)
   if (condition === null) return null
-  const q = withSpansetConditions(search.q ?? traceQLFor(traceFormOf(search)), [
+  const q = withSpansetConditions(search.q ?? traceQLFor(traceForm(search)), [
     condition,
   ])
   return q === null ? null : { q }
@@ -219,8 +219,20 @@ WHERE $__timeFilter(otel_traces.Timestamp)${conditions}
 GROUP BY TraceId`
 }
 
+const clickhouseSpanSelect =
+  "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces"
+
+export function clickhouseLatestTraceSpans(form: TraceForm): string {
+  const where = ["$__timeFilter(Timestamp)", ...clickhouseConditions(form, "")]
+  return `${clickhouseSpanSelect} WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE ${where.join(" AND ")} ORDER BY Timestamp DESC LIMIT 1) ORDER BY startTime LIMIT 1000`
+}
+
+export function clickhouseTraceSpans(traceId: string): string {
+  return `${clickhouseSpanSelect} WHERE TraceId = '${traceId}' AND $__timeFilter(Timestamp) ORDER BY startTime LIMIT 1000`
+}
+
 export function traceStatsFilter(type: string, search: TraceSearch): string {
-  const form = traceFormOf(search)
+  const form = traceForm(search)
   if (type === "tempo") return search.q ?? traceQLFor(form)
   return clickhouseConditions(form, "").join(" AND ")
 }
@@ -229,7 +241,7 @@ export function traceSearchParams(
   type: string,
   search: TraceSearch
 ): ExploreParams {
-  const form = traceFormOf(search)
+  const form = traceForm(search)
   return {
     query:
       type === "tempo"

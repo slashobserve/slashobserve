@@ -74,6 +74,7 @@ import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { AddToObservationAction } from "./add-to-observation-action"
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
@@ -87,6 +88,7 @@ import {
 } from "./search-query"
 import { isRelativeRange, liveBlockedText, liveRefreshMs } from "./live-refresh"
 import { traceFilterChips } from "./trace-filters"
+import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
@@ -899,6 +901,19 @@ function SelectableTraceTable({
       p95Ms={p95}
       p95Label={label}
       fitWindow={fitWindow}
+      headerActions={
+        <AddToObservationAction
+          range={range}
+          panel={tracesPanelFor({
+            id: "traces",
+            title: tracePanelTitle(search),
+            datasource: datasource.uid,
+            type: datasource.type,
+            query: tracePanelQuery(datasource.type, search),
+            y: 0,
+          })}
+        />
+      }
       footerNote={
         p95 === undefined || p95 === null
           ? undefined
