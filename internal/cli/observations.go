@@ -80,11 +80,12 @@ func readUserFile(path string) ([]byte, error) {
 
 func (a *app) observationsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "o",
-		Short: "Work with observations",
-		Long:  "o creates, reads, extends and resolves observations: pages of Markdown, panel and snapshot blocks about one question.\nA block that someone who can only comment adds is requested until a person who can edit keeps or discards it.",
-		Args:  groupArgs,
-		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Use:     "o",
+		Aliases: []string{"observations"},
+		Short:   "Work with observations",
+		Long:    "o creates, reads, extends and resolves observations: pages of Markdown, panel and snapshot blocks about one question.\nA block that someone who can only comment adds is requested until a person who can edit keeps or discards it.",
+		Args:    groupArgs,
+		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationRCAsCommand())
 	return cmd

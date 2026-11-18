@@ -77,7 +77,8 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.

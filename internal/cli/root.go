@@ -126,13 +126,18 @@ func (a *app) command() *cobra.Command {
 	return root
 }
 
-func quotedCommandsNote(root *cobra.Command) string {
+func commandNames(root *cobra.Command) []string {
 	names := []string{"help"}
 	for _, c := range root.Commands() {
 		names = append(names, c.Name())
+		names = append(names, c.Aliases...)
 	}
 	slices.Sort(names)
-	return "\nA prompt whose first word is a command name (" + strings.Join(slices.Compact(names), ", ") + ") must be quoted as one argument."
+	return slices.Compact(names)
+}
+
+func quotedCommandsNote(root *cobra.Command) string {
+	return "\nA prompt whose first word is a command name (" + strings.Join(commandNames(root), ", ") + ") must be quoted as one argument.\nA lone word, or words whose first word nearly spells a command name, is refused as a probable typo; quote the words as one argument to send them as a prompt."
 }
 
 func (a *app) versionCommand() *cobra.Command {
