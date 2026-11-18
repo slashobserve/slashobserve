@@ -28,6 +28,12 @@ func TestParseQuery(t *testing.T) {
 		{"a word ending in punctuation has no prefix run", "checkout!", "checkout!", ""},
 		{"digits count as word characters", "pod 42", "pod 42", "42"},
 		{"letters of other scripts count", "café", "café", "café"},
+		{"a hyphenated word searches its parts", "demo-shop overview", "demo shop overview", "overview"},
+		{"a hyphenated word being typed keeps its last part as the prefix", "demo-sh", "demo sh", "sh"},
+		{"several hyphens split every part", "p95-latency-checkout-0 database", "p95 latency checkout 0 database", "database"},
+		{"a hyphenated word inside a phrase is split too", `"demo-shop overview"`, `"demo shop overview"`, ""},
+		{"an excluded hyphenated word stays one exclusion", "checkout -spam-eggs", "checkout -spam-eggs", ""},
+		{"a hyphen between spaces is kept", "checkout - errors", "checkout - errors", "errors"},
 		{"an exclusion first leaves the real word a prefix", "-spam checkout", "-spam checkout", "checkout"},
 	}
 	for _, tt := range cases {

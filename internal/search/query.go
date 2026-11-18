@@ -23,7 +23,7 @@ type Query struct {
 }
 
 func ParseQuery(raw string) (Query, error) {
-	words := strings.TrimSpace(raw)
+	words := splitHyphenatedWords(strings.TrimSpace(raw))
 	if n := utf8.RuneCountInString(words); n == 0 || n > MaxQueryRunes {
 		return Query{}, &InvalidQueryError{Message: "q must be 1 to 200 characters"}
 	}
@@ -36,6 +36,22 @@ func ParseQuery(raw string) (Query, error) {
 		return Query{}, &InvalidQueryError{Message: "q needs a word to search for"}
 	}
 	return Query{Words: words, Prefix: trailingPrefix(raw, words)}, nil
+}
+
+func splitHyphenatedWords(words string) string {
+	runes := []rune(words)
+	excluded := false
+	for i, r := range runes {
+		switch {
+		case unicode.IsSpace(r):
+			excluded = false
+		case i == 0 || unicode.IsSpace(runes[i-1]):
+			excluded = r == '-'
+		case r == '-' && !excluded && i+1 < len(runes) && isWordRune(runes[i-1]) && isWordRune(runes[i+1]):
+			runes[i] = ' '
+		}
+	}
+	return string(runes)
 }
 
 func hasSearchableWord(words string) bool {

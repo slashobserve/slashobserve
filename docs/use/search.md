@@ -38,6 +38,8 @@ A result never shows a title or a snippet of something you cannot open, and a mo
 
 Every word has to match, either exactly or by its English stem, so `errors` finds `error`.
 Case and punctuation do not matter.
+A hyphen between two words searches both parts, so `demo-shop overview` finds a title written `Demo Shop Overview` or `demo-shop overview`.
+A hyphen at the start of a word still excludes it, and `-demo-shop` excludes the whole compound.
 
 | You write | It finds |
 | --- | --- |
