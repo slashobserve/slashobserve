@@ -2063,6 +2063,72 @@ export interface paths {
         patch: operations["updateObservationBlock"];
         trace?: never;
     };
+    "/observations/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin an observation to a dashboard as an annotation.
+         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+         */
+        post: operations["pinObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from the live panel blocks of an observation.
+         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. An observation without a live panel block answers 409 `observation_has_no_panels`.
+         */
+        post: operations["makeDashboardFromObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from one panel block.
+         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+         */
+        post: operations["makeDashboardFromBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/blocks/{id}/keep": {
         parameters: {
             query?: never;
@@ -6266,6 +6332,13 @@ export interface components {
              * @description The agent request that made the observation, when one did.
              */
             run_id: string | null;
+            /**
+             * Format: uuid
+             * @description The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+             */
+            dashboard_id: string | null;
+            /** @description Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id. */
+            pinned: boolean;
             /** @description How many messages the observation's discussion thread holds, replies included; 0 while it has no thread. */
             message_count: number;
             /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */
@@ -6401,6 +6474,23 @@ export interface components {
             width?: components["schemas"]["ObservationBlockWidth"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
+        };
+        PinObservationRequest: {
+            /**
+             * Format: uuid
+             * @description The dashboard to pin to; the one the observation's run was about when absent.
+             */
+            dashboard_id?: string;
+        };
+        MakeDashboardRequest: {
+            /** @description Make another dashboard even when the caller already made one from this observation or block. */
+            new?: boolean;
+        };
+        ObservationPin: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** Format: uuid */
+            annotation_id: string;
         };
         KeepObservationBlockRequest: {
             version: number;
@@ -12174,6 +12264,149 @@ export interface operations {
             409: components["responses"]["BlockWriteConflict"];
             413: components["responses"]["TooLarge"];
             422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    pinObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation was already pinned to that dashboard; this is its annotation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            /** @description The annotation made for the observation. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this observation, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation has no live panel block (`observation_has_no_panels`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this block, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
         };
     };

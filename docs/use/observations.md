@@ -120,6 +120,17 @@ The summary stays stored, so the next **Resolve** starts from it, and the page a
 Resolving, reopening and moving need edit access, and moving needs it on the target folder too.
 The state line also shows who started the observation and when, and links to its folder.
 
+### Pin it and make a dashboard
+
+**More actions** has **Pin to dashboard** when the observation came from a run about a dashboard.
+It adds an annotation at the end of the observation's range with the title and a link back, and you need edit access to that dashboard.
+Once it is pinned the item reads **Pinned to dashboard**, and pinning again over the API or MCP returns the same annotation.
+
+**Make a dashboard**, in **More actions** and in the actions of a live panel block, saves the live panel blocks, or that one block, as a new dashboard in My Dashboards and opens it.
+The dashboard keeps the variables each block carries and uses the observation's range, or the first panel's when it has none, and every query is run again first.
+Making it again from the same observation or block opens the one you made first, and over the API `new: true` makes another.
+Suggested blocks, text blocks and snapshots are left out.
+
 ### Discuss beside the blocks
 
 The discussion is the observation's one comment thread, in a pane on the right of the page at full height on a wide window and below the blocks on a narrow one.
@@ -175,8 +186,8 @@ A panel's `repeat` setting is dropped.
 
 ## Work on one from MCP and the CLI
 
-[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block` and `publish_rca`.
-The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard` and `publish`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
+[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`, `pin_observation` and `make_dashboard`.
+The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `publish`, `pin` and `dashboard`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
 
 `GET /api/v1/observations` filters with `folder_id`, `state`, `q` (a title that contains the text, ignoring case, at most 200 characters) and `created_by=me`, and sorts with `sort` (`updated`, the default, `created` or `title`) and `order` (`asc` or `desc`; `title` starts ascending, the others descending).

@@ -485,6 +485,179 @@ blocks-id:
         $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-pin:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: pinObservation
+    x-surfaces:
+      mcp: [pin_observation]
+      cli: [observe o pin]
+    summary: Pin an observation to a dashboard as an annotation.
+    description: >-
+      Anyone who can read the observation may call it, and the caller needs Edit on the dashboard.
+      The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none.
+      Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`.
+      Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/PinObservationRequest"
+    responses:
+      "201":
+        description: The annotation made for the observation.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationPin"
+      "200":
+        description: The observation was already pinned to that dashboard; this is its annotation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationPin"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-dashboard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: makeDashboardFromObservation
+    x-surfaces:
+      mcp: [make_dashboard]
+      cli: [observe o dashboard]
+    summary: Make a dashboard from the live panel blocks of an observation.
+    description: >-
+      Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved.
+      The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel.
+      Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`.
+      An observation without a live panel block answers 409 `observation_has_no_panels`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MakeDashboardRequest"
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "200":
+        description: The dashboard the caller already made from this observation, with its latest version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation has no live panel block (`observation_has_no_panels`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+blocks-id-dashboard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: makeDashboardFromBlock
+    x-surfaces:
+      mcp: [make_dashboard]
+      cli: [observe o dashboard]
+    summary: Make a dashboard from one panel block.
+    description: >-
+      Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404.
+      The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MakeDashboardRequest"
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "200":
+        description: The dashboard the caller already made from this block, with its latest version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 blocks-id-keep:
   parameters:
     - name: id

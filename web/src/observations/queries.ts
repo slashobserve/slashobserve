@@ -10,6 +10,8 @@ import {
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import {
+  annotationKeys,
+  dashboardKeys,
   observationKeys,
   threadKeys,
   type ObservationListFilters,
@@ -274,6 +276,50 @@ export function useReopenObservation(id: string) {
       .POST("/observations/{id}/reopen", { params: { path: { id } } })
       .then(unwrap)
   )
+}
+
+export function usePinObservation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observations/{id}/pin", {
+          params: { path: { id } },
+          body: {},
+        })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: observationKeys.one(id) })
+      void queryClient.invalidateQueries({ queryKey: annotationKeys.all })
+    },
+  })
+}
+
+export function useMakeDashboard(target: {
+  observationId: string
+  blockId?: string
+}) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      target.blockId === undefined
+        ? api
+            .POST("/observations/{id}/dashboard", {
+              params: { path: { id: target.observationId } },
+              body: {},
+            })
+            .then(unwrap)
+        : api
+            .POST("/blocks/{id}/dashboard", {
+              params: { path: { id: target.blockId } },
+              body: {},
+            })
+            .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
+    },
+  })
 }
 
 export function useDeleteObservation() {

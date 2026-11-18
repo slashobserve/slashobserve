@@ -66,10 +66,12 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
+| `make_dashboard` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
 | `move_observation` | Viewer |
 | `pin_dashboard` | Viewer |
+| `pin_observation` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
@@ -238,6 +240,10 @@ A block's `version` is checked by `update_block` and `keep_block`: a stale one a
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
 `update_observation` changes the title or range, `move_observation` moves it to another folder and `reopen_observation` reopens a resolved one.
+
+`pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
+`make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.
+An observation with no dashboard to pin to answers `observation_has_no_dashboard`, and one with no live panel block answers `observation_has_no_panels`.
 No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.

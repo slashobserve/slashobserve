@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -9,6 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { dashboardLink } from "@/lib/links"
+import { sentence } from "@/observe/queries"
 
 import { addBlockRowId, useFreezeBlock } from "./add-block-row"
 import { PanelBlock } from "./blocks/panel-block"
@@ -23,6 +26,7 @@ import {
 } from "./block-rows"
 import { blockWriteProblem } from "./errors"
 import {
+  useMakeDashboard,
   useRemoveBlock,
   useUpdateBlock,
   type Block,
@@ -97,8 +101,14 @@ function BlockMenu({
   })
   const canUpdate = block.allowed_actions.includes("update")
   const canRemove = block.allowed_actions.includes("remove")
-  const canFreeze = canAdd && block.kind === "panel" && block.state === "live"
-  if (!canUpdate && !canRemove && !canFreeze) return null
+  const isLivePanel = block.kind === "panel" && block.state === "live"
+  const canFreeze = canAdd && isLivePanel
+  const make = useMakeDashboard({
+    observationId: observation.id,
+    blockId: block.id,
+  })
+  const navigate = useNavigate()
+  if (!canUpdate && !canRemove && !isLivePanel) return null
 
   const half = block.width === "half"
   const up = canUpdate ? moveTarget(blocks, block.id, "up") : null
@@ -173,6 +183,22 @@ function BlockMenu({
           {canFreeze ? (
             <DropdownMenuItem onClick={() => freeze.freeze(block)}>
               Freeze as snapshot
+            </DropdownMenuItem>
+          ) : null}
+          {isLivePanel ? (
+            <DropdownMenuItem
+              disabled={make.isPending}
+              onClick={() =>
+                make.mutate(undefined, {
+                  onSuccess: (saved) =>
+                    void navigate(
+                      dashboardLink(saved.dashboard.id, saved.dashboard.title)
+                    ),
+                  onError: (error) => toast.error(sentence(error.message)),
+                })
+              }
+            >
+              Make a dashboard
             </DropdownMenuItem>
           ) : null}
           {canRemove ? (

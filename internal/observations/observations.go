@@ -20,6 +20,8 @@ type Observation struct {
 	From, To       *time.Time
 	ThreadID       string
 	RunID          string
+	DashboardID    string
+	Pinned         bool
 	MessageCount   int
 	Actor          actor.Actor
 	CreatedAt      time.Time

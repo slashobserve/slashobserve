@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
@@ -46,6 +47,8 @@ type ObservationJSON struct {
 	To             *string      `json:"to"`
 	ThreadID       *string      `json:"thread_id"`
 	RunID          *string      `json:"run_id"`
+	DashboardID    *string      `json:"dashboard_id"`
+	Pinned         bool         `json:"pinned"`
 	MessageCount   int          `json:"message_count"`
 	URL            string       `json:"url"`
 	CreatedBy      actor.JSON   `json:"created_by"`
@@ -141,6 +144,8 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		To:             timeString(o.To),
 		ThreadID:       httpapi.OptionalString(o.ThreadID),
 		RunID:          httpapi.OptionalString(o.RunID),
+		DashboardID:    httpapi.OptionalString(o.DashboardID),
+		Pinned:         o.Pinned,
 		MessageCount:   o.MessageCount,
 		URL:            url,
 		CreatedBy:      o.Actor.JSON(),
@@ -211,6 +216,9 @@ func (h *Handler) Register(api auth.Routes) {
 	api.DELETE("/observations/:id", auth.RoleViewer, h.remove)
 	api.POST("/observations/:id/resolve", auth.RoleViewer, h.resolve)
 	api.POST("/observations/:id/reopen", auth.RoleViewer, h.reopen)
+	api.POST("/observations/:id/pin", auth.RoleViewer, h.pin)
+	api.POST("/observations/:id/dashboard", auth.RoleViewer, h.makeObservationDashboard)
+	api.POST("/blocks/:id/dashboard", auth.RoleViewer, h.makeBlockDashboard)
 	api.POST("/observations/:id/blocks", auth.RoleViewer, h.addBlock)
 	api.PATCH("/blocks/:id", auth.RoleViewer, h.updateBlock)
 	api.DELETE("/blocks/:id", auth.RoleViewer, h.removeBlock)
@@ -528,6 +536,79 @@ func (h *Handler) reopen(c *gin.Context) {
 	c.JSON(http.StatusOK, h.envelope(o))
 }
 
+type PinJSON struct {
+	DashboardID  string `json:"dashboard_id"`
+	AnnotationID string `json:"annotation_id"`
+}
+
+type pinRequest struct {
+	DashboardID *string `json:"dashboard_id"`
+}
+
+type makeDashboardRequest struct {
+	New bool `json:"new"`
+}
+
+func (h *Handler) pin(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req pinRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	dashboardID, ok := optionalUUID(c, "dashboard_id", req.DashboardID)
+	if !ok {
+		return
+	}
+	pin, created, err := h.service.Pin(c.Request.Context(), httpapi.Caller(c), id, dashboardID)
+	if err != nil {
+		h.fail(c, "pin observation", err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+		c.Header("Location", "/api/v1/annotations/"+pin.AnnotationID)
+	}
+	c.JSON(status, PinJSON{DashboardID: pin.DashboardID, AnnotationID: pin.AnnotationID})
+}
+
+func (h *Handler) makeObservationDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	h.makeDashboard(c, id, pgtype.UUID{})
+}
+
+func (h *Handler) makeBlockDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	h.makeDashboard(c, pgtype.UUID{}, id)
+}
+
+func (h *Handler) makeDashboard(c *gin.Context, observationID, blockID pgtype.UUID) {
+	var req makeDashboardRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	d, v, created, err := h.service.MakeDashboard(c.Request.Context(), httpapi.Caller(c), observationID, blockID, req.New)
+	if err != nil {
+		h.fail(c, "make dashboard from observation", err)
+		return
+	}
+	if !created {
+		c.JSON(http.StatusOK, dashboards.NewDashboardVersionJSON(d, v))
+		return
+	}
+	c.Header("Location", "/api/v1/dashboards/"+d.ID)
+	c.JSON(http.StatusCreated, dashboards.NewDashboardVersionJSON(d, v))
+}
+
 func (h *Handler) addBlock(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -683,7 +764,14 @@ func abortKnown(c *gin.Context, err error) bool {
 	var invalid *InvalidInputError
 	var conflict *ConflictError
 	var refusal *lifecycle.Refusal
+	var badSpec *dashboards.InvalidSpecError
 	switch {
+	case errors.Is(err, ErrNoDashboard):
+		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error())
+	case errors.Is(err, ErrNoPanels):
+		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error())
+	case errors.As(err, &badSpec):
+		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
 	case errors.Is(err, ErrFolderNotFound):

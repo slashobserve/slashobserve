@@ -21,14 +21,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { markOf } from "@/lib/author"
-import { observationPath } from "@/lib/links"
+import { dashboardLink, observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
+import { sentence } from "@/observe/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
 import { DeleteObservationsDialog } from "./delete-dialog"
 import { blockWriteProblem } from "./errors"
 import { discussionToggleLabel } from "./discussion-changes"
 import {
+  useMakeDashboard,
+  usePinObservation,
   useUpdateObservation,
   type Observation,
   type ObservationEnvelope,
@@ -171,8 +174,15 @@ export function ObservationHeader({
   const { observation, folder } = envelope
   const canMove = observation.allowed_actions.includes("move")
   const canDelete = observation.allowed_actions.includes("delete")
+  const canPin = observation.dashboard_id !== null
+  const canMake = (observation.blocks ?? []).some(
+    (block) => block.kind === "panel" && block.state === "live"
+  )
   const [deleting, setDeleting] = useState(false)
   const navigate = useNavigate()
+  const pin = usePinObservation(observation.id)
+  const make = useMakeDashboard({ observationId: observation.id })
+  const pinned = observation.pinned || pin.isSuccess
 
   return (
     <>
@@ -194,7 +204,7 @@ export function ObservationHeader({
           pressed={shown}
           onToggle={onToggle}
         />
-        {canMove || canDelete ? (
+        {canMove || canDelete || canPin || canMake ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -209,6 +219,38 @@ export function ObservationHeader({
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-max">
+              {canPin ? (
+                <DropdownMenuItem
+                  disabled={pinned || pin.isPending}
+                  onClick={() =>
+                    pin.mutate(undefined, {
+                      onSuccess: () => toast.success("Pinned to the dashboard"),
+                      onError: (error) => toast.error(sentence(error.message)),
+                    })
+                  }
+                >
+                  {pinned ? "Pinned to dashboard" : "Pin to dashboard"}
+                </DropdownMenuItem>
+              ) : null}
+              {canMake ? (
+                <DropdownMenuItem
+                  disabled={make.isPending}
+                  onClick={() =>
+                    make.mutate(undefined, {
+                      onSuccess: (saved) =>
+                        void navigate(
+                          dashboardLink(
+                            saved.dashboard.id,
+                            saved.dashboard.title
+                          )
+                        ),
+                      onError: (error) => toast.error(sentence(error.message)),
+                    })
+                  }
+                >
+                  Make a dashboard
+                </DropdownMenuItem>
+              ) : null}
               {canMove ? (
                 <DropdownMenuItem onClick={onMove}>
                   Move to folder

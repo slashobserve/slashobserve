@@ -45,10 +45,17 @@ type Service struct {
 	freezer   Freezer
 	publicURL *url.URL
 	logger    *slog.Logger
+
+	dashboards  Dashboards
+	annotations Annotations
 }
 
-func New(database *db.DB, access *folders.Access, freezer Freezer, publicURL *url.URL, logger *slog.Logger) *Service {
-	return &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger}
+func New(database *db.DB, access *folders.Access, freezer Freezer, publicURL *url.URL, logger *slog.Logger, options ...Option) *Service {
+	s := &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger}
+	for _, option := range options {
+		option(s)
+	}
+	return s
 }
 
 func (s *Service) URL(id string) string {
@@ -187,6 +194,17 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 	}
 	viewer := actor.Of(by, origin.Origin{}, "")
 	o := observationOf(row, folder, abilities, viewer, thread, counts[id])
+	about, err := s.runDashboard(ctx, id)
+	if err != nil {
+		return Observation{}, err
+	}
+	if about.Valid {
+		o.DashboardID = about.String()
+		_, o.Pinned, err = s.pin(ctx, id, about)
+		if err != nil {
+			return Observation{}, err
+		}
+	}
 	o.Blocks = make([]Block, 0, len(blocks))
 	for _, b := range blocks {
 		if !visibleTo(b, abilities, viewer) {

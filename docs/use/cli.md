@@ -219,6 +219,12 @@ A panel whose queries use variables needs `--var name=value` for each, repeated 
 
 `bin/observe o reopen <observation-id>` reopens a resolved observation and prints `Reopened <title>`.
 
+`bin/observe o pin <observation-id>` pins an observation to a dashboard as an annotation, to `--dashboard <id>` or by default the dashboard its run was about, and prints `Pinned to dashboard <id> as annotation <id>`.
+Pinning it again to the same dashboard prints the same annotation, and an observation with no dashboard to pin to exits 1 with `observation_has_no_dashboard`.
+
+`bin/observe o dashboard <observation-id>` makes a dashboard in My Dashboards from its live panel blocks, or from one block with `--block <block-id>`, and prints `Dashboard <id>: <title>`.
+Running it again prints the dashboard you made first; `--new` makes another.
+
 `bin/observe o edit <observation-id>` changes the title with `--title <title>`, the range its panels show with `--from <time> --to <time>`, RFC 3339 times that go together, or removes the range with `--clear-range`, and prints `Updated <title>`.
 Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range` exits 2.
 

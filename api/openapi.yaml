@@ -194,6 +194,12 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
   /blocks/{id}:
     $ref: "./paths/observations.yaml#/blocks-id"
+  /observations/{id}/pin:
+    $ref: "./paths/observations.yaml#/observations-id-pin"
+  /observations/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/observations-id-dashboard"
+  /blocks/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/blocks-id-dashboard"
   /blocks/{id}/keep:
     $ref: "./paths/observations.yaml#/blocks-id-keep"
   /blocks/{id}/discard:
@@ -5804,7 +5810,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
       properties:
         id:
           type: string
@@ -5842,6 +5848,14 @@ components:
           format: uuid
           nullable: true
           description: The agent request that made the observation, when one did.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+        pinned:
+          type: boolean
+          description: Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id.
         message_count:
           type: integer
           minimum: 0
@@ -6077,6 +6091,32 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+    PinObservationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+          description: The dashboard to pin to; the one the observation's run was about when absent.
+    MakeDashboardRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        new:
+          type: boolean
+          description: Make another dashboard even when the caller already made one from this observation or block.
+    ObservationPin:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, annotation_id]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        annotation_id:
+          type: string
+          format: uuid
     KeepObservationBlockRequest:
       type: object
       additionalProperties: false
