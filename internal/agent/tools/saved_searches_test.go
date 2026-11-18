@@ -195,3 +195,24 @@ func TestSaveSearchRefusesAQueryThatFailsTheLintCheckAndKeepsWarnings(t *testing
 		t.Fatalf("a query with only a warning: %#v", res.Content)
 	}
 }
+
+func TestSaveSearchTwiceReturnsTheSearchAlreadySaved(t *testing.T) {
+	r := newSearchRig(t)
+	input := `{"kind":"logs","title":"Checkout errors","datasource_uid":"logs","query":"{app=\"checkout\"}","filters":{"columns":["level"]}}`
+	first, ok := r.call(t, nil, keyCaller, nameSaveSearch, input).Content.(savedsearches.SavedSearchJSON)
+	if !ok {
+		t.Fatal("the first save did not save")
+	}
+	again, ok := r.call(t, nil, keyCaller, nameSaveSearch, input).Content.(savedSearchReplayOut)
+	if !ok || again.ID != first.ID || !again.Replayed {
+		t.Fatalf("second save = %#v, want the first search replayed", again)
+	}
+	changed, ok := r.call(t, nil, keyCaller, nameSaveSearch, strings.Replace(input, `"level"`, `"level","msg"`, 1)).Content.(savedsearches.SavedSearchJSON)
+	if !ok || changed.ID == first.ID {
+		t.Fatalf("a different search was treated as the same: %#v", changed)
+	}
+	list, _ := r.call(t, nil, viewerCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut)
+	if len(list.SavedSearches) != 2 {
+		t.Fatalf("saved searches = %d, want 2", len(list.SavedSearches))
+	}
+}

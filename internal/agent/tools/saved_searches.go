@@ -1,10 +1,14 @@
 package tools
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -19,7 +23,7 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query must pass lint_query, or it is not saved; draft_query writes one. Returns its url."
+	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query must pass lint_query, or it is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
 	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
@@ -110,6 +114,9 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 		return res, err
 	}
 	principal, _ := auth.FromContext(ctx)
+	if res, found, err := r.alreadySavedSearch(ctx, principal, in, uid, folderID); err != nil || found {
+		return res, err
+	}
 	saved, err := r.deps.SavedSearches.Create(ctx, principal, savedsearches.CreateInput{
 		Kind:          savedsearches.Kind(in.Kind),
 		Title:         in.Title,
@@ -124,6 +131,56 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 		return savedSearchFailure(err)
 	}
 	return success("Saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
+}
+
+type savedSearchReplayOut struct {
+	savedsearches.SavedSearchJSON
+	Replayed bool `json:"replayed"`
+}
+
+func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Principal, in saveSearchInput, uid string, folderID pgtype.UUID) (Result, bool, error) {
+	wanted, err := searchFilters(in.Filters)
+	if err != nil {
+		return Result{}, false, nil
+	}
+	from, to := savedsearches.RangeOrDefault(in.From, in.To)
+	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind), FolderID: folderID}, identicalSearchLimit, "")
+	if err != nil {
+		return Result{}, false, nil
+	}
+	for _, item := range items {
+		same := item.Actor.Kind == principal.Kind && item.Actor.ID == principal.ID &&
+			item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == uid &&
+			ptrEqual(item.Query, in.Query) && item.From == from && item.To == to
+		if !same {
+			continue
+		}
+		if have, err := searchFilters(mustJSON(item.Filters)); err != nil || have != wanted {
+			continue
+		}
+		return success("Found the search already saved as "+item.ID, savedSearchReplayOut{SavedSearchJSON: savedsearches.JSONOf(item), Replayed: true}), true, nil
+	}
+	return Result{}, false, nil
+}
+
+func searchFilters(raw json.RawMessage) (string, error) {
+	var f savedsearches.Filters
+	if len(bytes.TrimSpace(raw)) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		if err := json.Unmarshal(raw, &f); err != nil {
+			return "", err
+		}
+	}
+	out, err := json.Marshal(f)
+	return string(out), err
+}
+
+func mustJSON(v any) json.RawMessage {
+	out, _ := json.Marshal(v)
+	return out
+}
+
+func ptrEqual(a, b *string) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
 }
 
 func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *string) (Result, bool, error) {

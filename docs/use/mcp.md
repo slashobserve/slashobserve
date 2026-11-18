@@ -232,6 +232,8 @@ A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearc
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
 A `folder_id` the key cannot save in returns `forbidden_role`, and an unknown one `not_found`; a datasource that does not exist or does not fit the kind returns `invalid_request`.
 Check the query with `lint_query` or `draft_query` first, because saving runs no query.
+Saving the same search again as the same caller (same kind, title, datasource, query, filters and range) returns the one already saved with `replayed: true`, so a retry makes no duplicate.
+No MCP tool renames or deletes a saved search, so people do that in the web app or with the CLI.
 
 `list_saved_searches` lists the saved searches in the folders the key can see, most recently changed first, optionally of one `kind` or in one `folder_id`, with each one's datasource, query, filters, range, folder and `url`.
 No tool renames, moves or deletes a saved search: people do that on the web or with `observe saved-searches`.
