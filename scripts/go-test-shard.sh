@@ -15,14 +15,14 @@ packages() {
 }
 
 shard="${1:-}"
-if [[ "$shard" == rest ]]; then
+if [[ "$shard" == rest-1 || "$shard" == rest-2 ]]; then
   taken=()
   for name in $named; do
     read -r -a patterns <<<"$(packages "$name")"
     taken+=("${patterns[@]}")
   done
-  go list ./... | grep -v -x -F -f <(go list "${taken[@]}") | tr '\n' ' '
+  go list ./... | grep -v -x -F -f <(go list "${taken[@]}") | awk -v half="${shard#rest-}" 'NR % 2 == half % 2' | tr '\n' ' '
 elif ! packages "$shard"; then
-  echo "usage: $0 ${named// /|}|rest" >&2
+  echo "usage: $0 ${named// /|}|rest-1|rest-2" >&2
   exit 2
 fi

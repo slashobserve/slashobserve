@@ -89,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [grafana, evals, db, datasource, agent, rest]
+        shard: [grafana, evals, db, datasource, agent, rest-1, rest-2]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -107,7 +107,7 @@ jobs:
         run: make test-go GO_TEST_PKGS="$(scripts/go-test-shard.sh "$SHARD")"
 
       - name: Shop tests
-        if: matrix.shard == 'rest'
+        if: matrix.shard == 'rest-1'
         run: make test-shop
 
   web-lint:
