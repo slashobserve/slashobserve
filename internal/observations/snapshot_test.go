@@ -267,3 +267,27 @@ func TestThePanelDashboardCarriesTheVariablesBakedIntoTheBlock(t *testing.T) {
 		t.Errorf("a panel without its variable: %v", err)
 	}
 }
+
+func TestASnapshotCannotFreezeAnotherCommentersSuggestedPanel(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	suggested, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	if err != nil || suggested.State != observations.BlockRequested {
+		t.Fatalf("suggest: %+v %v", suggested, err)
+	}
+	snapshotOf := observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, suggested.ID)}
+	_, err = r.service.AddBlock(t.Context(), otherCommen, mustUUID(t, o.ID), snapshotOf)
+	var refused *observations.InvalidInputError
+	if !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock {
+		t.Fatalf("another commenter freezes the suggestion: %v", err)
+	}
+	if r.freezer.panelID != "" {
+		t.Error("the suggested panel was run for a reader who cannot see it")
+	}
+	if _, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), snapshotOf); err != nil {
+		t.Errorf("the author freezes their own suggestion: %v", err)
+	}
+	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), snapshotOf); err != nil {
+		t.Errorf("an editor freezes the suggestion: %v", err)
+	}
+}

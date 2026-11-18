@@ -61,7 +61,7 @@ func normalBody(kind Kind, raw json.RawMessage) (json.RawMessage, error) {
 	return nil, invalid(CodeBodyNotEditable, "only the body of a text or panel block can be changed")
 }
 
-func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput) (preparedBlock, error) {
+func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput, readable blockFilter) (preparedBlock, error) {
 	width := in.Width
 	if width == "" {
 		width = WidthFull
@@ -81,7 +81,7 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID 
 		if len(in.Body) > 0 {
 			return preparedBlock{}, invalid(CodeInvalidBlock, "a snapshot block takes no body; name the panel block with from_block_id")
 		}
-		frozen, err := s.freeze(ctx, by, observationID, in.FromBlockID)
+		frozen, err := s.freeze(ctx, by, observationID, in.FromBlockID, readable)
 		if err != nil {
 			return preparedBlock{}, err
 		}
@@ -94,7 +94,11 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID 
 	return prepared, nil
 }
 
-func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, sourceID pgtype.UUID) (frozenSnapshot, error) {
+type blockFilter func(dbsqlc.ObservationBlock) bool
+
+func anyBlock(dbsqlc.ObservationBlock) bool { return true }
+
+func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, sourceID pgtype.UUID, readable blockFilter) (frozenSnapshot, error) {
 	notPanel := invalid(CodeInvalidBlock, "from_block_id must name a panel block of this observation")
 	if !sourceID.Valid || !observationID.Valid {
 		return frozenSnapshot{}, notPanel
@@ -105,7 +109,7 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, 
 		return frozenSnapshot{}, notPanel
 	case err != nil:
 		return frozenSnapshot{}, err
-	case source.ObservationID != observationID || Kind(source.Kind) != KindPanel:
+	case source.ObservationID != observationID || Kind(source.Kind) != KindPanel || !readable(source):
 		return frozenSnapshot{}, notPanel
 	}
 	parent, err := s.store.observation(ctx, observationID)
@@ -199,7 +203,8 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 	if _, ok := addedState(abilities); !ok {
 		return Block{}, folders.ErrForbidden
 	}
-	prepared, err := s.prepare(ctx, by, observationID, in)
+	viewer := actor.Of(by, origin.Origin{}, "")
+	prepared, err := s.prepare(ctx, by, observationID, in, func(b dbsqlc.ObservationBlock) bool { return visibleTo(b, abilities, viewer) })
 	if err != nil {
 		return Block{}, err
 	}

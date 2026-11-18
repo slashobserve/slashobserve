@@ -261,7 +261,7 @@ func (s *Service) freezePanels(ctx context.Context, by auth.Principal, observati
 			break
 		}
 		group.Go(func() error {
-			snap, err := s.freeze(ctx, by, observationID, b.ID)
+			snap, err := s.freeze(ctx, by, observationID, b.ID, anyBlock)
 			if err != nil {
 				return s.panelFailure(ctx, observationID, b, err)
 			}
