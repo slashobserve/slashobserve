@@ -564,27 +564,18 @@ func (q *Queries) RenewWebhookLease(ctx context.Context, arg RenewWebhookLeasePa
 const setWebhookSecret = `-- name: SetWebhookSecret :one
 UPDATE webhooks
 SET secret_ciphertext = $1,
-  owner_kind = $2,
-  owner_id = $3,
   updated_at = now()
-WHERE id = $4
+WHERE id = $2
 RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
 type SetWebhookSecretParams struct {
 	SecretCiphertext []byte
-	OwnerKind        string
-	OwnerID          pgtype.UUID
 	ID               pgtype.UUID
 }
 
 func (q *Queries) SetWebhookSecret(ctx context.Context, arg SetWebhookSecretParams) (Webhook, error) {
-	row := q.db.QueryRow(ctx, setWebhookSecret,
-		arg.SecretCiphertext,
-		arg.OwnerKind,
-		arg.OwnerID,
-		arg.ID,
-	)
+	row := q.db.QueryRow(ctx, setWebhookSecret, arg.SecretCiphertext, arg.ID)
 	var i Webhook
 	err := row.Scan(
 		&i.ID,

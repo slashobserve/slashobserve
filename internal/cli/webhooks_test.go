@@ -168,6 +168,7 @@ func TestWebhooksUpdateSendsOnlyTheChangedFields(t *testing.T) {
 		{[]string{"--name", "Renamed"}, `{"name":"Renamed"}`},
 		{[]string{"--url", "https://b.example.com/x"}, `{"url":"https://b.example.com/x"}`},
 		{[]string{"--format", "slack"}, `{"format":"slack"}`},
+		{[]string{"--take-ownership"}, `{"owner":"me"}`},
 		{[]string{"--event", "run.failed", "--event", "run.succeeded"}, `{"event_types":["run.failed","run.succeeded"]}`},
 	}
 	for _, tc := range cases {
@@ -185,7 +186,7 @@ func TestWebhooksUpdateSendsOnlyTheChangedFields(t *testing.T) {
 func TestWebhooksUpdateWithNothingToChangeIsAUsageError(t *testing.T) {
 	f := newWebhooksFake(t)
 	_, stderr, code := f.run("update", testWebhook)
-	if code != 2 || !strings.Contains(stderr, "at least one of --name, --url, --format or --event") || len(f.requests) != 0 {
+	if code != 2 || !strings.Contains(stderr, "at least one of --name, --url, --format, --event or --take-ownership") || len(f.requests) != 0 {
 		t.Fatalf("exit %d, stderr %q, requests %d", code, stderr, len(f.requests))
 	}
 }

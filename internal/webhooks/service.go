@@ -61,6 +61,7 @@ type Patch struct {
 	Format     *string
 	EventTypes *[]string
 	Enabled    *bool
+	Owner      *string
 }
 
 type Created struct {
@@ -313,11 +314,18 @@ type cleanedPatch struct {
 	name, address, format string
 	types                 []string
 	enabled               *bool
+	takeOwnership         bool
 }
 
 func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 	c := cleanedPatch{enabled: p.Enabled}
 	var err error
+	if p.Owner != nil {
+		if *p.Owner != ownerMe {
+			return cleanedPatch{}, &InvalidError{Message: `owner can only be "me"`}
+		}
+		c.takeOwnership = true
+	}
 	if p.Name != nil {
 		if c.name, err = cleanName(*p.Name); err != nil {
 			return cleanedPatch{}, err
@@ -345,13 +353,21 @@ func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 	return c, nil
 }
 
+func (c cleanedPatch) rehomes(current dbsqlc.Webhook) bool {
+	reenablesOrphan := c.enabled != nil && *c.enabled && current.DisabledReason.String == ReasonOwner
+	return c.takeOwnership || reenablesOrphan
+}
+
 func (c cleanedPatch) apply(current dbsqlc.Webhook, ownerKind string, ownerID pgtype.UUID, now time.Time) dbsqlc.UpdateWebhookParams {
 	at := pgtype.Timestamptz{Time: now, Valid: true}
 	params := dbsqlc.UpdateWebhookParams{
 		Name: cmp.Or(c.name, current.Name), Url: cmp.Or(c.address, current.Url), Format: cmp.Or(c.format, current.Format), EventTypes: current.EventTypes,
-		OwnerKind: ownerKind, OwnerID: ownerID,
+		OwnerKind: current.OwnerKind, OwnerID: current.OwnerID,
 		ConsecutiveFailures: current.ConsecutiveFailures, NextAttemptAt: current.NextAttemptAt,
 		DisabledAt: current.DisabledAt, DisabledReason: current.DisabledReason,
+	}
+	if c.rehomes(current) {
+		params.OwnerKind, params.OwnerID = ownerKind, ownerID
 	}
 	if c.types != nil {
 		params.EventTypes = c.types
@@ -419,10 +435,6 @@ func (s *Service) RotateSecret(ctx context.Context, by auth.Principal, id pgtype
 	if !s.key.Set() {
 		return Created{}, ErrNoSecretKey
 	}
-	ownerKind, ownerID, err := owner(by)
-	if err != nil {
-		return Created{}, err
-	}
 	secret, err := newSecret()
 	if err != nil {
 		return Created{}, err
@@ -438,7 +450,7 @@ func (s *Service) RotateSecret(ctx context.Context, by auth.Principal, id pgtype
 		} else if err != nil {
 			return err
 		}
-		if _, err := q.SetWebhookSecret(ctx, dbsqlc.SetWebhookSecretParams{ID: id, SecretCiphertext: ciphertext, OwnerKind: ownerKind, OwnerID: ownerID}); err != nil {
+		if _, err := q.SetWebhookSecret(ctx, dbsqlc.SetWebhookSecretParams{ID: id, SecretCiphertext: ciphertext}); err != nil {
 			return err
 		}
 		rotated, err = view(ctx, q, id)

@@ -13,7 +13,7 @@ No MCP tool or agent tool reads or changes a webhook, because a webhook sends wo
 
 ## What is sent and to whom
 
-A webhook has a name, an address, the event types it wants and an owner, the Admin who created it or the one an Admin moved it to.
+A webhook has a name, an address, the event types it wants and an owner, the Admin who created it or the one who took it over on purpose.
 It sends an event only when its owner could read that event in the activity log at the moment of sending, by the rules in [Who sees an event](activity.md#who-sees-an-event).
 So an event in a folder the owner cannot view is passed over, and an event in a person's personal folder reaches only a webhook that person owns.
 When the owner is deleted or stops being an Admin, the webhook is disabled with the reason `owner`.
@@ -64,7 +64,8 @@ Attempts lists the recent attempts of that webhook.
 The menu next to them edits the webhook, enables or disables it, rotates its secret and deletes it, and rotating and deleting ask for confirmation first.
 On a retrying webhook the menu also offers **Skip stuck event**, which asks for confirmation and then passes over the oldest event the webhook is waiting to send; see [Skip a stuck event](#skip-a-stuck-event).
 Edit opens the same panel with the webhook's values.
-Saving an edit or rotating the secret makes you the webhook's owner.
+Editing or rotating the secret keeps the owner.
+**Make me the owner** in the menu asks for confirmation and then makes you the owner.
 
 ## Manage webhooks over HTTP
 
@@ -94,7 +95,9 @@ Rotating takes effect at once: the next request is signed with the new secret an
 `PATCH` with `enabled: false` disables the webhook with the reason `manual`.
 `PATCH` with `enabled: true` turns it on again, clears the failure count and makes it send at once.
 Changing the address keeps the webhook's place in the log, clears the failure count and sends at once, so it carries on from the event it had reached.
-Whoever changes a webhook, with a `PATCH` or by rotating its secret, becomes its owner, so from then on it sends what that Admin can read.
+A `PATCH` or a rotation keeps the owner.
+`PATCH` with `owner: "me"` makes the caller the owner, so from then on the webhook sends what that Admin can read, and an event in the new owner's personal folder reaches it.
+A webhook disabled with the reason `owner` moves to whoever enables it with `enabled: true`, because nobody else could read what it sends.
 
 `event_types` takes the type names from [What is recorded](activity.md#what-is-recorded), at least one and each at most once.
 

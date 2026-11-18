@@ -2755,7 +2755,7 @@ export interface paths {
         head?: never;
         /**
          * Change a webhook's name, address, format, event types or state.
-         * @description Only Admins can call this endpoint. The caller becomes the webhook's owner, so it delivers only what the caller can read from now on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
          */
         patch: operations["updateWebhook"];
         trace?: never;
@@ -2773,7 +2773,7 @@ export interface paths {
         put?: never;
         /**
          * Replace a webhook's signing secret.
-         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The caller becomes the webhook's owner. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
+         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The owner stays as it is. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
          */
         post: operations["rotateWebhookSecret"];
         delete?: never;
@@ -5883,6 +5883,11 @@ export interface components {
             format?: components["schemas"]["WebhookFormat"];
             event_types?: components["schemas"]["ActivityType"][];
             enabled?: boolean;
+            /**
+             * @description `me` makes the caller the webhook's owner; any other value is refused.
+             * @enum {string}
+             */
+            owner?: "me";
         };
         WebhookDelivery: {
             /** @description The attempt's id, ordered by time. */

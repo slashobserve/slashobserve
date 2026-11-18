@@ -299,7 +299,7 @@ func TestHTTPTheTwentyFirstWebhookIsRefused(t *testing.T) {
 	}
 }
 
-func TestHTTPPatchByAnotherAdminMovesTheOwnerAndEnableResetsFailures(t *testing.T) {
+func TestHTTPPatchByAnotherAdminKeepsTheOwnerAndEnableResetsFailures(t *testing.T) {
 	h := newHTTPRig(t, newRig(t))
 	created := decode[withSecret](t, h.call(t, http.MethodPost, "/api/v1/webhooks", createBody))
 	if created.Webhook.Owner.ID != adminOne.ID {
@@ -312,11 +312,10 @@ func TestHTTPPatchByAnotherAdminMovesTheOwnerAndEnableResetsFailures(t *testing.
 	rec := h.call(t, http.MethodPatch, base, `{"name":"Renamed"}`)
 	expect(t, rec, http.StatusOK, "")
 	got := decode[webhookBody](t, rec)
-	if got.Owner.ID != adminTwo.ID || got.Enabled || got.ConsecutiveFailures != 50 || got.DisabledReason == nil || *got.DisabledReason != "failing" {
+	if got.Owner.ID != adminOne.ID || got.Enabled || got.ConsecutiveFailures != 50 || got.DisabledReason == nil || *got.DisabledReason != "failing" {
 		t.Fatalf("after a rename by another admin %s", rec.Body)
 	}
 
-	h.caller = adminOne
 	rec = h.call(t, http.MethodPatch, base, `{"enabled":true}`)
 	expect(t, rec, http.StatusOK, "")
 	got = decode[webhookBody](t, rec)
@@ -326,6 +325,40 @@ func TestHTTPPatchByAnotherAdminMovesTheOwnerAndEnableResetsFailures(t *testing.
 	rec = h.call(t, http.MethodPatch, base, `{"enabled":false}`)
 	if got = decode[webhookBody](t, rec); got.Enabled || got.DisabledReason == nil || *got.DisabledReason != "manual" {
 		t.Fatalf("after disabling %s", rec.Body)
+	}
+}
+
+func TestHTTPAnAdminTakesOwnershipOnlyByAskingForIt(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	created := decode[withSecret](t, h.call(t, http.MethodPost, "/api/v1/webhooks", createBody))
+	base := "/api/v1/webhooks/" + created.Webhook.ID
+	h.caller = adminTwo
+
+	expect(t, h.call(t, http.MethodPatch, base, `{"owner":"someone-else"}`), http.StatusBadRequest, "invalid_request")
+	if got := h.row(t, created.Webhook.ID); got.OwnerID.String() != adminOne.ID {
+		t.Fatalf("owner %s after a refused request", got.OwnerID.String())
+	}
+
+	rec := h.call(t, http.MethodPatch, base, `{"owner":"me"}`)
+	expect(t, rec, http.StatusOK, "")
+	if got := decode[webhookBody](t, rec); got.Owner.ID != adminTwo.ID {
+		t.Fatalf("owner after taking ownership %s", rec.Body)
+	}
+}
+
+func TestHTTPEnablingAWebhookDisabledForItsOwnerRehomesItToTheCaller(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	created := decode[withSecret](t, h.call(t, http.MethodPost, "/api/v1/webhooks", createBody))
+	base := "/api/v1/webhooks/" + created.Webhook.ID
+	h.db.Exec(t, `UPDATE webhooks SET disabled_at = now(), disabled_reason = 'owner' WHERE id = $1::uuid`, created.Webhook.ID)
+	h.caller = adminTwo
+
+	rec := h.call(t, http.MethodPatch, base, `{"enabled":true}`)
+
+	expect(t, rec, http.StatusOK, "")
+	got := decode[webhookBody](t, rec)
+	if !got.Enabled || got.Owner.ID != adminTwo.ID {
+		t.Fatalf("after enabling an orphaned webhook %s", rec.Body)
 	}
 }
 
@@ -358,7 +391,7 @@ func TestHTTPRotatingReplacesTheSecret(t *testing.T) {
 
 	expect(t, rec, http.StatusOK, "")
 	rotated := decode[withSecret](t, rec)
-	if rotated.Secret == created.Secret || !strings.HasPrefix(rotated.Secret, "whsec_") || rotated.Webhook.Owner.ID != adminTwo.ID {
+	if rotated.Secret == created.Secret || !strings.HasPrefix(rotated.Secret, "whsec_") || rotated.Webhook.Owner.ID != adminOne.ID {
 		t.Fatalf("rotated %s", rec.Body)
 	}
 	h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/test", "")

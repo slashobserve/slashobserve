@@ -45,8 +45,6 @@ RETURNING *;
 -- name: SetWebhookSecret :one
 UPDATE webhooks
 SET secret_ciphertext = @secret_ciphertext,
-  owner_kind = @owner_kind,
-  owner_id = @owner_id,
   updated_at = now()
 WHERE id = @id
 RETURNING *;

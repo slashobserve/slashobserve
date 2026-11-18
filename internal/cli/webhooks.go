@@ -21,6 +21,8 @@ type webhooksOptions struct {
 	format string
 	events []string
 	limit  int
+
+	takeOwnership bool
 }
 
 type webhookView struct {
@@ -110,13 +112,14 @@ func (a *app) webhooksAddCommand() *cobra.Command {
 
 func (a *app) webhooksUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <webhook id> [--name <name>] [--url <https address>] [--event <type> ...]",
-		Short: "Change a webhook's name, address or event types",
-		Long:  "update changes only the fields you pass; --event replaces the whole list of event types.\nYou become the webhook's owner, so it sends what you can read.",
+		Use:   "update <webhook id> [--name <name>] [--url <https address>] [--event <type> ...] [--take-ownership]",
+		Short: "Change a webhook's name, address, event types or owner",
+		Long:  "update changes only the fields you pass; --event replaces the whole list of event types.\nThe owner stays as it is unless you pass --take-ownership, which makes you the owner so the webhook sends what you can read, including your personal folder.",
 		Args:  exactArgs(1, "a webhook id"),
 		RunE:  a.runWebhooksUpdate,
 	}
 	a.webhookFields(cmd)
+	cmd.Flags().BoolVar(&a.webhooks.takeOwnership, "take-ownership", false, "make you the webhook's owner")
 	return cmd
 }
 
@@ -165,7 +168,7 @@ func (a *app) webhooksRotateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rotate-secret <webhook id>",
 		Short: "Make a new signing secret and print it once",
-		Long:  "rotate-secret makes a new signing secret at once; the old one stops working with the next request.\nThe new secret is printed once and cannot be shown again.\nYou become the webhook's owner.",
+		Long:  "rotate-secret makes a new signing secret at once; the old one stops working with the next request.\nThe new secret is printed once and cannot be shown again.\nThe owner stays as it is.",
 		Args:  exactArgs(1, "a webhook id"),
 		RunE:  a.runWebhooksRotate,
 	}
@@ -261,8 +264,11 @@ func (a *app) runWebhooksUpdate(cmd *cobra.Command, args []string) error {
 	if flags.Changed("event") {
 		body["event_types"] = a.webhooks.events
 	}
+	if flags.Changed("take-ownership") && a.webhooks.takeOwnership {
+		body["owner"] = "me"
+	}
 	if len(body) == 0 {
-		return usagef("pass at least one of --name, --url, --format or --event")
+		return usagef("pass at least one of --name, --url, --format, --event or --take-ownership")
 	}
 	return a.patchWebhook(cmd, id, body, "Updated")
 }

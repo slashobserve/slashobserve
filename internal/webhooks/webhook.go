@@ -30,6 +30,8 @@ const (
 	FormatTeams   = "teams"
 )
 
+const ownerMe = "me"
+
 const (
 	ReasonManual           = "manual"
 	ReasonGone             = "gone"

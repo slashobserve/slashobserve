@@ -617,7 +617,8 @@ bin/observe webhooks test <webhook id>
 - `deliveries <id>` prints the newest attempts first as a table of time, event, outcome, status, duration and error code, up to `--limit` of them (1 to 100, 20 by default).
 
 `--json` prints the response body of each request unchanged.
-`update`, `enable`, `disable` and `rotate-secret` make the caller the webhook's owner, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+`update`, `enable`, `disable` and `rotate-secret` keep the webhook's owner.
+`update --take-ownership` makes the caller the owner, and `enable` does the same for a webhook disabled with the reason `owner`, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
 
 ## Agent skill
 

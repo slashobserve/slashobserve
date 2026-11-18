@@ -5117,6 +5117,10 @@ components:
             $ref: "#/components/schemas/ActivityType"
         enabled:
           type: boolean
+        owner:
+          type: string
+          enum: [me]
+          description: "`me` makes the caller the webhook's owner; any other value is refused."
     WebhookDelivery:
       type: object
       additionalProperties: false

@@ -34,11 +34,12 @@ const stuck: Webhook = {
   updated_at: "2026-11-11T09:00:00Z",
 }
 
-function renderCard(webhook: Webhook) {
+function renderCard(webhook: Webhook, meId = "u") {
   return renderWithProviders(
     <WebhooksCard
       webhooks={[webhook]}
       editingId={null}
+      meId={meId}
       onEdit={vi.fn()}
       onSecret={vi.fn()}
     />
@@ -109,6 +110,46 @@ describe("WebhooksCard", () => {
     expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
     expect(
       screen.queryByRole("menuitem", { name: "Skip stuck event" })
+    ).toBeNull()
+  })
+
+  it("offers Make me the owner only on another person's webhook, and patches the owner after a confirmation", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ ...stuck, owner: { ...stuck.owner, id: "me" } }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    )
+    const { user } = renderCard(stuck, "me")
+    await user.click(
+      screen.getByRole("button", { name: "More for Dashboard changes" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Make me the owner" })
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText(/including events in your personal folder/)
+    ).toBeVisible()
+    await user.click(
+      await screen.findByRole("button", { name: "Make me the owner" })
+    )
+    const request = fetchMock.mock.calls[0]?.[0] as Request
+    expect(request.method).toBe("PATCH")
+    expect(await request.json()).toEqual({ owner: "me" })
+  })
+
+  it("hides Make me the owner on a webhook the caller already owns", async () => {
+    const { user } = renderCard(stuck, "u")
+    await user.click(
+      screen.getByRole("button", { name: "More for Dashboard changes" })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: "Make me the owner" })
     ).toBeNull()
   })
 })

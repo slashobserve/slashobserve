@@ -14,7 +14,7 @@ export const webhooksHint =
 
 const addDescription = "Send workspace events to an https address."
 
-const editDescription = "Saving makes you the webhook's owner."
+const editDescription = "Change what this webhook sends and where."
 
 const addNote =
   "Only events from now on are sent, and only ones you can read. The signing secret is shown once after you add the webhook and cannot be read again."

@@ -158,11 +158,12 @@ func (h *Handler) update(c *gin.Context) {
 		Format     *string   `json:"format"`
 		EventTypes *[]string `json:"event_types"`
 		Enabled    *bool     `json:"enabled"`
+		Owner      *string   `json:"owner"`
 	}
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
-	updated, err := h.svc.Update(c.Request.Context(), httpapi.Caller(c), id, Patch{Name: body.Name, URL: body.URL, Format: body.Format, EventTypes: body.EventTypes, Enabled: body.Enabled})
+	updated, err := h.svc.Update(c.Request.Context(), httpapi.Caller(c), id, Patch{Name: body.Name, URL: body.URL, Format: body.Format, EventTypes: body.EventTypes, Enabled: body.Enabled, Owner: body.Owner})
 	if err != nil {
 		h.fail(c, "update webhook", err)
 		return

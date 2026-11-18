@@ -46,11 +46,41 @@ import { formatLabels, webhookProblemText } from "./webhook-problems"
 type Props = {
   webhooks: Webhook[]
   editingId: string | null
+  meId: string
   onEdit: (webhookId: string) => void
   onSecret: (webhookName: string, secret: string) => void
 }
 
-type Confirming = { kind: "rotate" | "delete" | "skip"; webhook: Webhook }
+type Confirming = {
+  kind: "rotate" | "delete" | "skip" | "own"
+  webhook: Webhook
+}
+
+const confirmTitles: Record<Confirming["kind"], string> = {
+  rotate: "Rotate the secret of",
+  skip: "Skip the stuck event of",
+  own: "Make yourself the owner of",
+  delete: "Delete",
+}
+
+const confirmActions: Record<Confirming["kind"], string> = {
+  rotate: "Rotate secret",
+  skip: "Skip event",
+  own: "Make me the owner",
+  delete: "Delete webhook",
+}
+
+const confirmBodies: Record<Confirming["kind"], (webhook: Webhook) => string> =
+  {
+    rotate: () =>
+      "The old secret stops working with the next request, so update the receiver. The owner stays the same.",
+    skip: () =>
+      "The oldest event this webhook is waiting to send is never sent to the receiver. The events behind it go out next, in order. Attempts lists the skipped event.",
+    own: (webhook) =>
+      `${webhook.owner.label} owns this webhook now. After this it sends only what you can read, including events in your personal folder, and no longer what ${webhook.owner.label} could read.`,
+    delete: () =>
+      "The webhook and its recorded attempts are removed. Events already sent stay sent.",
+  }
 
 function NextAttempt({ iso }: { iso: string }) {
   const now = useNow()
@@ -62,22 +92,33 @@ function NextAttempt({ iso }: { iso: string }) {
   )
 }
 
-export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
+export function WebhooksCard({
+  webhooks,
+  editingId,
+  meId,
+  onEdit,
+  onSecret,
+}: Props) {
   const test = useTestWebhook()
   const update = useUpdateWebhook()
+  const takeOwnership = useUpdateWebhook()
   const rotate = useRotateSecret()
   const remove = useDeleteWebhook()
   const skip = useSkipWebhookEvent()
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
-  const busy = rotate.isPending || remove.isPending || skip.isPending
-  const failed =
-    confirming?.kind === "rotate"
-      ? rotate
-      : confirming?.kind === "skip"
-        ? skip
-        : remove
+  const busy =
+    rotate.isPending ||
+    remove.isPending ||
+    skip.isPending ||
+    takeOwnership.isPending
+  const failed = {
+    rotate,
+    skip,
+    own: takeOwnership,
+    delete: remove,
+  }[confirming?.kind ?? "delete"]
 
   function runTest(webhook: Webhook) {
     test.mutate(webhook.id, {
@@ -103,6 +144,7 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
     rotate.reset()
     remove.reset()
     skip.reset()
+    takeOwnership.reset()
   }
 
   function toggleAttempts(webhook: Webhook, open: boolean) {
@@ -120,6 +162,18 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
           onSecret(rotated.webhook.name, rotated.secret)
         },
       })
+      return
+    }
+    if (kind === "own") {
+      takeOwnership.mutate(
+        { id: webhook.id, body: { owner: "me" } },
+        {
+          onSuccess: () => {
+            setConfirming(null)
+            toast.success(`You now own ${webhook.name}`)
+          },
+        }
+      )
       return
     }
     if (kind === "skip") {
@@ -272,6 +326,15 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                               Skip stuck event
                             </DropdownMenuItem>
                           ) : null}
+                          {webhook.owner.id === meId ? null : (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setConfirming({ kind: "own", webhook })
+                              }
+                            >
+                              Make me the owner
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() =>
                               setConfirming({ kind: "rotate", webhook })
@@ -308,19 +371,13 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="wrap-anywhere">
-              {confirming?.kind === "rotate"
-                ? "Rotate the secret of"
-                : confirming?.kind === "skip"
-                  ? "Skip the stuck event of"
-                  : "Delete"}{" "}
+              {confirmTitles[confirming?.kind ?? "delete"]}{" "}
               {confirming?.webhook.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirming?.kind === "rotate"
-                ? "The old secret stops working with the next request, so update the receiver. You become the webhook's owner."
-                : confirming?.kind === "skip"
-                  ? "The oldest event this webhook is waiting to send is never sent to the receiver. The events behind it go out next, in order. Attempts lists the skipped event."
-                  : "The webhook and its recorded attempts are removed. Events already sent stay sent."}
+              {confirming === null
+                ? null
+                : confirmBodies[confirming.kind](confirming.webhook)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {failed.isError ? (
@@ -347,11 +404,7 @@ export function WebhooksCard({ webhooks, editingId, onEdit, onSecret }: Props) {
                   className="motion-safe:animate-spin"
                 />
               ) : null}
-              {confirming?.kind === "rotate"
-                ? "Rotate secret"
-                : confirming?.kind === "skip"
-                  ? "Skip event"
-                  : "Delete webhook"}
+              {confirmActions[confirming?.kind ?? "delete"]}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
