@@ -1548,3 +1548,29 @@ func TestTheBuiltInAgentIsOfferedListFoldersAndAFolderIDOnCreateDashboard(t *tes
 		}
 	}
 }
+
+func TestABuildSaveThatFailsTheSchemaStillNamesItsFailingPanels(t *testing.T) {
+	broken := strings.Replace(suggestStat("p1", "One", "count(up)", 0), `"type":"stat"`, `"type":"stat","bogus":1`, 1)
+
+	rig := newPanelsRig(t)
+	out := rejected(t, mustRun(t, rig.createRun(t), nameCreateDashboard, buildCreateJSON(broken, "")))
+	if !reflect.DeepEqual(out.FailingPanels, []string{"p1"}) {
+		t.Errorf("create_dashboard failing panels = %v, want [p1]", out.FailingPanels)
+	}
+
+	other := rig.seedStats(t)
+	revise := rig.reviseRun(rig.ctx, t, other)
+	if _, err := rig.registry.Call(revise.ctx, nameGetDashboard, []byte(`{}`)); err != nil {
+		t.Fatal(err)
+	}
+	out = rejected(t, mustRun(t, revise, nameUpdateDashboard, `{"summary":"Rewrite","spec":`+boardSpecOf(strings.Replace(suggestStat("p1", "One", "count(up)", 0), `"type":"stat"`, `"type":"stat","bogus":1`, 1))+`}`))
+	if !reflect.DeepEqual(out.FailingPanels, []string{"p1"}) {
+		t.Errorf("update_dashboard failing panels = %v, want [p1]", out.FailingPanels)
+	}
+}
+
+func mustRun(t *testing.T, c panelsCaller, tool, input string) Result {
+	t.Helper()
+	res, _ := c.run(t, tool, input)
+	return res
+}

@@ -177,8 +177,10 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	}
 	build, err := r.deps.Dashboards.SaveBuild(ctx, in.principal, save)
 	var invalidSpec *dashboards.InvalidSpecError
-	if errors.As(err, &invalidSpec) && in.panelIDs != nil {
-		return buildRejected(invalidSpec.Issues, in.panelIDs), nil
+	if errors.As(err, &invalidSpec) {
+		if ids := panelIDsFor(in); len(ids) > 0 {
+			return buildRejected(invalidSpec.Issues, ids), nil
+		}
 	}
 	if res, ok := createFolderFailure(err); ok {
 		return res, nil
@@ -1121,4 +1123,11 @@ func rowUpsert(id, title string, pos spec.GridPos, panel json.RawMessage) json.R
 	}
 	raw, _ := json.Marshal(row)
 	return raw
+}
+
+func panelIDsFor(in buildSave) map[string]string {
+	if in.panelIDs != nil {
+		return in.panelIDs
+	}
+	return rawPanelIDs(in.raw)
 }
