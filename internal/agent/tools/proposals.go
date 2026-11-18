@@ -35,7 +35,7 @@ const (
 	proposeModeMessage = "This connection is in propose mode, so it cannot merge; ask a person who can edit to merge it."
 
 	descListProposals   = "List the proposals on a dashboard, newest first: open ones by default, or state merged, discarded or all. A proposal is a change someone who cannot edit, or whose connection is in propose mode, saved for an Editor to merge. Pass next_cursor as cursor for the next page."
-	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on (`changes` by panel, variable and setting, and `diff` field by field with the old and new values), the conflicts a merge would hit on the latest version, and the allowed_actions you have now. A spec over 128 KiB returns too_large."
+	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on (`changes` by panel, variable and setting, and `diff` field by field with the old and new values), the conflicts a merge would hit on the latest version, and the allowed_actions you have now. `diff` is left out, with the step saying so, when it would take the result over 128 KiB; a spec over 128 KiB returns too_large."
 	descMergeProposal   = "Merge an open proposal into its dashboard as a new version; only someone who can edit may, and not a connection in propose mode. Send the revision you read with get_proposal, and a choice per conflict, ours for the dashboard's current unit or theirs for the proposal's. The merge runs the queries of the panels it changes before it saves."
 	descDiscardProposal = "Close an open proposal without saving its change. Its author may, and so may an Editor whose connection is not in propose mode. Pass reason (up to 500 characters) to tell the author why; it is shown on the proposal."
 
@@ -155,10 +155,15 @@ func (r *Registry) getProposal(ctx context.Context, input json.RawMessage) (Resu
 		return r.proposalFailure(err)
 	}
 	out := proposals.NewProposalJSON(proposal)
+	step := "Read proposal revision " + strconv.Itoa(out.Revision)
+	if jsonSize(out) > MaxModelSpecBytes {
+		out.Diff = []spec.Change{}
+		step += "; diff left out because the result would be over the size limit, read changes instead"
+	}
 	if size := jsonSize(out); size > MaxModelSpecBytes {
 		return toolError(codeTooLarge, fmt.Sprintf("the proposal is %d bytes, over the %d byte tool result limit", size, MaxModelSpecBytes)), nil
 	}
-	return success("Read proposal revision "+strconv.Itoa(out.Revision), out), nil
+	return success(step, out), nil
 }
 
 func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Result, error) {

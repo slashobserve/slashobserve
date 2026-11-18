@@ -180,6 +180,32 @@ func TestGetProposal(t *testing.T) {
 	})
 }
 
+func TestGetProposalDropsTheDiffBeforeItDropsTheProposal(t *testing.T) {
+	big := newPanelsRig(t)
+	chunk := strings.Repeat("a", 19000)
+	var panels []string
+	for i := range 5 {
+		panels = append(panels, suggestText(fmt.Sprintf("t%d", i), chunk, i*4))
+	}
+	dash := big.seed(t, panels...)
+	res, _ := big.as(asUser(commenterCaller)).run(t, nameUpdatePanels, panelPatch(dash, 1, `[`+suggestText("added", chunk, 40)+`]`))
+	proposal, ok := res.Content.(proposedOut)
+	if !ok {
+		t.Fatalf("propose: %#v", res.Content)
+	}
+	res, _ = big.as(asUser(editorCaller)).run(t, nameGetProposal, idInput(proposal.ProposalID))
+	out, ok := res.Content.(proposals.ProposalJSON)
+	if res.IsError || !ok {
+		t.Fatalf("get_proposal: %#v", res.Content)
+	}
+	if len(out.Diff) != 0 || len(out.Changes) == 0 || out.Spec == nil {
+		t.Fatalf("diff = %d, changes = %d, spec = %v, want the diff left out and the rest kept", len(out.Diff), len(out.Changes), out.Spec != nil)
+	}
+	if !strings.Contains(res.Step, "diff left out") {
+		t.Fatalf("step = %q, want it to say the diff was left out", res.Step)
+	}
+}
+
 func TestProposalsOverMCPNameTheClient(t *testing.T) {
 	rig := newProposalsRig(t)
 	mcp := origin.With(asUser(commenterCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
