@@ -2,8 +2,14 @@ import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useExportStore } from "./export-store"
 import { ExportSheet } from "./export-sheet"
+import { useExportStore } from "./export-store"
+import { saveDashboardImage } from "./image"
+
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+
+vi.mock("sonner", () => ({ toast }))
+vi.mock("./image", () => ({ saveDashboardImage: vi.fn() }))
 
 function Sheet({ state }: { state: string }) {
   return (
@@ -12,6 +18,7 @@ function Sheet({ state }: { state: string }) {
       context="Ops, version 7"
       range="Time range: Last 6 hours"
       variables="env: prod"
+      imageName="checkout-v7.png"
     >
       <article data-panel-id="p1" data-state={state} />
     </ExportSheet>
@@ -21,6 +28,9 @@ function Sheet({ state }: { state: string }) {
 let print: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
+  vi.mocked(saveDashboardImage).mockReset()
+  toast.success.mockReset()
+  toast.error.mockReset()
   print = vi.fn()
   vi.stubGlobal("print", print)
   useExportStore.getState().start("print")
@@ -69,5 +79,33 @@ describe("ExportSheet", () => {
       screen.getByRole("button", { name: "Back to dashboard" })
     )
     expect(useExportStore.getState().mode).toBeNull()
+  })
+
+  it("draws the image instead of printing in image mode, then goes back", async () => {
+    useExportStore.getState().start("image")
+    render(<Sheet state="ready" />)
+    await waitFor(() => expect(saveDashboardImage).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    })
+    expect(vi.mocked(saveDashboardImage).mock.calls[0][1]).toBe(
+      "checkout-v7.png"
+    )
+    await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
+    expect(print).not.toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalledWith("Saved checkout-v7.png")
+    expect(
+      screen.queryByRole("button", { name: "Print or save as PDF" })
+    ).toBeNull()
+  })
+
+  it("says what to try when the image cannot be drawn", async () => {
+    useExportStore.getState().start("image")
+    vi.mocked(saveDashboardImage).mockRejectedValue(new Error("too tall"))
+    render(<Sheet state="ready" />)
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    })
+    expect(toast.error.mock.calls[0][0]).toMatch(/Print or save as PDF/)
+    await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
   })
 })

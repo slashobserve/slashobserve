@@ -26,8 +26,13 @@ export function headerLines({ folder, version, range, variables }: Header) {
   }
 }
 
-export function printedAt(at: Date, locale?: string, timeZone?: string) {
-  return `Printed ${at.toLocaleString(locale, {
+export function stampedAt(
+  verb: "Printed" | "Saved",
+  at: Date,
+  locale?: string,
+  timeZone?: string
+) {
+  return `${verb} ${at.toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone,

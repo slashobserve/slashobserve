@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { VariableState } from "../use-variables"
-import { headerLines, printedAt, variableLines } from "./header-text"
+import { headerLines, stampedAt, variableLines } from "./header-text"
 
 function state(
   name: string,
@@ -55,10 +55,14 @@ describe("headerLines", () => {
   })
 })
 
-describe("printedAt", () => {
-  it("writes the moment of printing", () => {
-    expect(printedAt(new Date("2026-11-19T14:05:00Z"), "en-GB", "UTC")).toBe(
-      "Printed 19 Nov 2026, 14:05"
+describe("stampedAt", () => {
+  it("writes the moment of printing or saving", () => {
+    const at = new Date("2026-11-19T14:05:00Z")
+    expect(stampedAt("Printed", at, "en-GB", "UTC")).toMatch(
+      /^Printed 19 Nov 2026(,| at) 14:05$/
+    )
+    expect(stampedAt("Saved", at, "en-GB", "UTC")).toMatch(
+      /^Saved 19 Nov 2026(,| at) 14:05$/
     )
   })
 })

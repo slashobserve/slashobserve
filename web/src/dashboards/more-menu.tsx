@@ -70,7 +70,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, open on sign-in, export, print, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, open on sign-in, export, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }

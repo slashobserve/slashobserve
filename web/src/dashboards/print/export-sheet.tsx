@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { ArrowLeftIcon, PrinterIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 
 import { holdSheet, useExportStore } from "./export-store"
-import { printedAt } from "./header-text"
+import { stampedAt } from "./header-text"
+import { saveDashboardImage } from "./image"
 import { sheetWidth } from "./print-grid"
 import { waitForPanels } from "./settle"
 import "./print.css"
@@ -12,11 +14,19 @@ import "./print.css"
 const settleTimeoutMs = 30_000
 const settleMs = 400
 
+function statusText(mode: string | null, ready: boolean): string {
+  if (mode === "image") {
+    return ready ? "Drawing the image." : "Loading every panel before drawing."
+  }
+  return ready ? "Ready to print." : "Loading every panel before printing."
+}
+
 type Props = {
   title: string
   context: string
   range: string
   variables: string | null
+  imageName: string
   children: ReactNode
 }
 
@@ -25,32 +35,49 @@ export function ExportSheet({
   context,
   range,
   variables,
+  imageName,
   children,
 }: Props) {
   const finish = useExportStore((state) => state.finish)
+  const mode = useExportStore((state) => state.mode)
   const sheet = useRef<HTMLDivElement>(null)
-  const [printed] = useState(() => printedAt(new Date()))
+  const [printed] = useState(() =>
+    stampedAt(mode === "image" ? "Saved" : "Printed", new Date())
+  )
   const [ready, setReady] = useState(false)
 
   useEffect(() => holdSheet(), [])
 
   useEffect(() => {
     const root = sheet.current
-    if (!root) return
+    if (!root || mode === null) return
     let active = true
-    window.addEventListener("afterprint", finish)
+    const printing = mode === "print"
+    if (printing) window.addEventListener("afterprint", finish)
     void waitForPanels(root, { timeoutMs: settleTimeoutMs, settleMs }).then(
-      () => {
+      async () => {
         if (!active) return
         setReady(true)
-        window.print()
+        if (printing) {
+          window.print()
+          return
+        }
+        try {
+          await saveDashboardImage(root, imageName)
+          toast.success(`Saved ${imageName}`)
+        } catch {
+          toast.error(
+            "The dashboard could not be drawn as an image. Try Print or save as PDF."
+          )
+        }
+        if (active) finish()
       }
     )
     return () => {
       active = false
       window.removeEventListener("afterprint", finish)
     }
-  }, [finish])
+  }, [finish, mode, imageName])
 
   return (
     <div className="export-sheet min-h-svh bg-chrome px-4 pb-8">
@@ -59,17 +86,19 @@ export function ExportSheet({
           <ArrowLeftIcon aria-hidden="true" />
           Back to dashboard
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!ready}
-          onClick={() => window.print()}
-        >
-          <PrinterIcon aria-hidden="true" />
-          Print or save as PDF
-        </Button>
+        {mode === "print" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!ready}
+            onClick={() => window.print()}
+          >
+            <PrinterIcon aria-hidden="true" />
+            Print or save as PDF
+          </Button>
+        ) : null}
         <p role="status" className="text-xs text-muted-foreground">
-          {ready ? "Ready to print." : "Loading every panel before printing."}
+          {statusText(mode, ready)}
         </p>
       </div>
       <div

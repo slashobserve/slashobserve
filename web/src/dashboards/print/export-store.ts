@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-type ExportMode = "print"
+type ExportMode = "print" | "image"
 
 type ExportState = {
   mode: ExportMode | null

@@ -8,6 +8,7 @@ import type { Dashboard } from "@/spec"
 import type { PanelItem } from "../dashboard-grid"
 import { pickerQuickRanges } from "../time-picker-settings"
 import type { VariableState } from "../use-variables"
+import { exportFileName } from "../export-spec"
 import { ExportSheet } from "./export-sheet"
 import { headerLines, variableLines } from "./header-text"
 import { PrintGrid } from "./print-grid"
@@ -54,6 +55,7 @@ export function ExportView({
       context={lines.context}
       range={lines.range}
       variables={lines.variables}
+      imageName={exportFileName(spec.title, version, "png")}
     >
       <ActionProvider value={actions}>
         <PrintGrid
