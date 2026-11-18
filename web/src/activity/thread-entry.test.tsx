@@ -45,6 +45,7 @@ function comment(overrides: Partial<Comment>): Comment {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,

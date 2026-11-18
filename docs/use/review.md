@@ -75,6 +75,7 @@ The server refuses anything else with 403 `not_author`, and `observe comments de
 A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 The **Mention** box, or typing `@` after a space, lists the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the thread is about; typing a name or an email narrows the people.
+A picked person shows in the box as `@Name`, and the comment is stored and shown with the mention.
 Someone who cannot see the dashboard, observation or proposal is not offered, and a mention of one is not recorded.
 Choosing one inserts it at the cursor.
 The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.

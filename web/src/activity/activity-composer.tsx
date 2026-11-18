@@ -43,7 +43,7 @@ import { agentSendBlock, oneAgentText, SendButton } from "@/comments/composer"
 import {
   agentMentionsIn,
   mentionedAgents,
-  mentionOptions,
+  type MentionPerson,
 } from "@/comments/mentions"
 import { RunStarted } from "@/comments/run-started"
 import {
@@ -52,6 +52,7 @@ import {
   type SentMessage,
 } from "@/comments/thread-queries"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { useMentionPicks } from "@/comments/use-mention-picks"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
 import { isModEnter } from "@/lib/shortcuts"
@@ -102,6 +103,7 @@ type Props = {
   range: { from: string; to: string }
 }
 
+const noPeople: readonly MentionPerson[] = []
 const counterThreshold = 3500
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
@@ -181,6 +183,7 @@ export function ActivityComposer({
   const agent = useAgentInfo()
   const model = agentLabel(agent.data)
   const agents = useMentionableAgents()
+  const picks = useMentionPicks()
   const [started, setStarted] = useState<{
     result: SentMessage
     agentName: string
@@ -202,7 +205,7 @@ export function ActivityComposer({
 
   const panelId =
     target.kind === "panel" && !targetMissing ? target.panelId : null
-  const trimmed = draft.trim()
+  const trimmed = picks.wire(draft.trim())
   const length = [...trimmed].length
   const over = length > maxPromptLength
   const showCounter = length >= counterThreshold
@@ -256,7 +259,7 @@ export function ActivityComposer({
     if (step === null) return false
     setCursor(step.cursor)
     setAgentKind("revise")
-    onDraftChange(applyText(step.text))
+    onDraftChange(applyText(picks.adopt(step.text)))
     requestAnimationFrame(() => {
       const element = field.current
       if (element === null) return
@@ -472,7 +475,10 @@ export function ActivityComposer({
           </Select>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <MentionButton
-              options={mentionOptions([], agents)}
+              agents={agents}
+              people={noPeople}
+              target={`dashboard:${dashboardId}`}
+              onPick={picks.pick}
               field={field}
               value={draft}
               onChange={onDraftChange}

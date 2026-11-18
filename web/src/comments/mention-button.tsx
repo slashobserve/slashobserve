@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type RefObject } from "react"
+import { useEffect, useState, type KeyboardEvent, type RefObject } from "react"
 import { AtSignIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,24 @@ import {
 } from "@/components/ui/combobox"
 import { cn } from "@/lib/utils"
 
-import { insertMention, type MentionOption } from "./mentions"
+import {
+  insertMention,
+  matchingOptions,
+  mentionOptions,
+  peopleOptions,
+  type MentionAgent,
+  type MentionOption,
+  type MentionPerson,
+} from "./mentions"
+import { useMentionablePeople } from "./use-mentionable-people"
+
+const searchDelayMs = 200
 
 type MentionButtonProps = {
-  options: readonly MentionOption[]
+  agents: readonly MentionAgent[]
+  people: readonly MentionPerson[]
+  target: string | null
+  onPick: (option: MentionOption) => string
   field: RefObject<HTMLTextAreaElement | null>
   value: string
   onChange: (next: string) => void
@@ -27,8 +41,25 @@ type MentionButtonProps = {
   className?: string
 }
 
+function offered(
+  agents: readonly MentionAgent[],
+  people: readonly MentionPerson[],
+  found: readonly MentionPerson[],
+  query: string
+): MentionOption[] {
+  const local = matchingOptions(mentionOptions(people, agents), query)
+  const seen = new Set(local.map((option) => option.value))
+  return [
+    ...local,
+    ...peopleOptions(found).filter((option) => !seen.has(option.value)),
+  ]
+}
+
 export function MentionButton({
-  options,
+  agents,
+  people,
+  target,
+  onPick,
   field,
   value,
   onChange,
@@ -39,6 +70,13 @@ export function MentionButton({
   className,
 }: MentionButtonProps) {
   const [query, setQuery] = useState("")
+  const [term, setTerm] = useState("")
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(query.trim()), searchDelayMs)
+    return () => clearTimeout(timer)
+  }, [query])
+  const found = useMentionablePeople(target, term, open)
+  const options = offered(agents, people, found, query)
 
   function insert(option: MentionOption) {
     const element = field.current
@@ -47,7 +85,7 @@ export function MentionButton({
       replaceFrom === null
         ? (element?.selectionEnd ?? value.length)
         : replaceFrom + 1
-    const next = insertMention(value, start, end, option.token)
+    const next = insertMention(value, start, end, onPick(option))
     onChange(next.value)
     requestAnimationFrame(() => {
       const target = field.current
@@ -64,6 +102,7 @@ export function MentionButton({
   return (
     <Combobox<MentionOption>
       items={options}
+      filter={null}
       value={null}
       open={open}
       inputValue={query}

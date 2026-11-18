@@ -145,7 +145,9 @@ export function ThreadEntry({
       <MessageText
         message={root}
         people={people}
+        target={`dashboard:${dashboardId}`}
         queryKey={commentsKey}
+        root
         folded={folded}
       />
       {folded || replies.length === 0 ? null : (
@@ -163,6 +165,7 @@ export function ThreadEntry({
               <MessageText
                 message={reply}
                 people={people}
+                target={`dashboard:${dashboardId}`}
                 queryKey={commentsKey}
               />
             </EntryFrame>

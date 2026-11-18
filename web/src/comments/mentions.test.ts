@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  addPick,
   agentMentionsIn,
   agentToken,
   insertMention,
@@ -12,6 +13,8 @@ import {
   mentionTriggerAt,
   observeAgent,
   threadParticipants,
+  toDisplay,
+  toWire,
 } from "./mentions"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
@@ -264,5 +267,48 @@ describe("mentionOptions", () => {
     })
     expect(options[3]).toMatchObject({ token: adaToken, hint: null })
     expect(options[4].label).toBe("Unnamed")
+  })
+})
+
+describe("mention picks", () => {
+  const graceId = "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d"
+  const graceToken = `@[Grace](user:${graceId})`
+
+  it("shows a mention as @Name and turns it back into the token", () => {
+    const added = addPick([], "Ada", adaToken)
+    expect(added.display).toBe("@Ada")
+    expect(toWire("ping @Ada now", added.picks)).toBe(`ping ${adaToken} now`)
+  })
+
+  it("keeps a pick once and numbers a second person with the same name", () => {
+    const first = addPick([], "Ada", adaToken)
+    expect(addPick(first.picks, "Ada", adaToken).display).toBe("@Ada")
+    const second = addPick(first.picks, "Ada", graceToken)
+    expect(second.display).toBe("@Ada 2")
+    expect(toWire("@Ada and @Ada 2", second.picks)).toBe(
+      `${adaToken} and ${graceToken}`
+    )
+  })
+
+  it("leaves a typed name alone when it was not picked or is part of a word", () => {
+    const { picks } = addPick([], "Ada", adaToken)
+    expect(toWire("@Grace and mail@Ada and @Adam", picks)).toBe(
+      "@Grace and mail@Ada and @Adam"
+    )
+  })
+
+  it("rebuilds the display text and the picks from a stored body", () => {
+    const shown = toDisplay(`hi ${adaToken}, ask @observe and ${graceToken}`)
+    expect(shown.text).toBe("hi @Ada, ask @observe and @Grace")
+    expect(toWire(shown.text, shown.picks)).toBe(
+      `hi ${adaToken}, ask @observe and ${graceToken}`
+    )
+  })
+
+  it("escapes names that hold pattern characters", () => {
+    const { picks } = addPick([], "A.(b)+", `@[A.(b)+](user:${adaId})`)
+    expect(toWire("hi @A.(b)+ there", picks)).toBe(
+      `hi @[A.(b)+](user:${adaId}) there`
+    )
   })
 })

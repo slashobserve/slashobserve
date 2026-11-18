@@ -56,6 +56,7 @@ function message(id: string, threadId: string, createdAt: string): Message {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     block_id: null,
     reply_to: null,
   }

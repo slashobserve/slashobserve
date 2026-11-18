@@ -125,6 +125,20 @@ export function useSetCommentStatus(
   })
 }
 
+export function useDeleteMessage(queryKey: QueryKey) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (messageId: string) =>
+      api
+        .DELETE("/messages/{message_id}", {
+          params: { path: { message_id: messageId } },
+        })
+        .then(unwrap),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  })
+}
+
 export function useEditMessage(queryKey: QueryKey) {
   const queryClient = useQueryClient()
   return useMutation({

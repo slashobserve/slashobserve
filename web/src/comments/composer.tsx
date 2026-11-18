@@ -18,11 +18,11 @@ import { maxPromptLength } from "@/revisions/queries"
 import { MentionButton } from "./mention-button"
 import {
   mentionedAgents,
-  mentionOptions,
   mentionTriggerAt,
   type MentionAgent,
   type MentionPerson,
 } from "./mentions"
+import { useMentionPicks } from "./use-mention-picks"
 
 type ComposerProps = {
   label: string
@@ -31,6 +31,7 @@ type ComposerProps = {
   hint?: ReactNode
   leading?: ReactNode
   people: readonly MentionPerson[]
+  target?: string | null
   agents?: readonly MentionAgent[]
   agentsBlocked?: string | null
   onSubmit: (body: string) => Promise<unknown>
@@ -95,6 +96,7 @@ export function Composer({
   hint,
   leading,
   people,
+  target = null,
   agents = [],
   agentsBlocked,
   onSubmit,
@@ -109,9 +111,11 @@ export function Composer({
   const [mentioning, setMentioning] = useState(false)
   const [replaceFrom, setReplaceFrom] = useState<number | null>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const picks = useMentionPicks()
   const text = body.trim()
+  const wire = picks.wire(text)
   const unavailable = typeof disabledReason === "string"
-  const sendBlock = agentSendBlock(body, agentsBlocked)
+  const sendBlock = agentSendBlock(wire, agentsBlocked)
   const sendBlockId = useId()
 
   async function submit() {
@@ -119,7 +123,7 @@ export function Composer({
     setBusy(true)
     setError(null)
     try {
-      await onSubmit(text)
+      await onSubmit(wire)
       setBody("")
     } catch (failure) {
       setError(describeSendError(failure))
@@ -191,7 +195,10 @@ export function Composer({
           {unavailable ? disabledReason : hint}
         </div>
         <MentionButton
-          options={mentionOptions(people, agents)}
+          agents={agents}
+          people={people}
+          target={target}
+          onPick={picks.pick}
           field={textarea}
           value={body}
           onChange={setBody}
@@ -204,7 +211,7 @@ export function Composer({
           disabled={busy || unavailable}
         />
         <SendButton
-          body={body}
+          body={wire}
           disabled={text === "" || unavailable || sendBlock !== null}
           busy={busy}
         />

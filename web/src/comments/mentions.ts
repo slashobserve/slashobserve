@@ -8,7 +8,7 @@ export type MentionSegment =
   | { kind: "text"; text: string }
   | { kind: "mention"; ref: MentionRef; name: string; raw: string }
 
-export type MentionPerson = { id: string; name: string }
+export type MentionPerson = { id: string; name: string; email?: string }
 
 export type MentionAgent = {
   kind: "observe" | "grant" | "service_account"
@@ -23,6 +23,8 @@ export type MentionOption = {
   agent: boolean
   hint: string | null
 }
+
+export type MentionPick = { display: string; token: string }
 
 export const observeAgent: MentionAgent = {
   kind: "observe",
@@ -126,16 +128,28 @@ export function mentionOptions(
     const option = agentOption(agent)
     offered.set(option.value, option)
   }
-  return [
-    ...offered.values(),
-    ...people.map((person) => ({
-      value: `user:${person.id}`,
-      label: person.name === "" ? "Unnamed" : person.name,
-      token: mentionToken(person),
-      agent: false,
-      hint: null,
-    })),
-  ]
+  return [...offered.values(), ...peopleOptions(people)]
+}
+
+export function peopleOptions(
+  people: readonly MentionPerson[]
+): MentionOption[] {
+  return people.map((person) => ({
+    value: `user:${person.id}`,
+    label: person.name === "" ? "Unnamed" : person.name,
+    token: mentionToken(person),
+    agent: false,
+    hint: person.email ?? null,
+  }))
+}
+
+export function matchingOptions(
+  options: readonly MentionOption[],
+  term: string
+): MentionOption[] {
+  const needle = term.trim().toLowerCase()
+  if (needle === "") return [...options]
+  return options.filter((option) => option.label.toLowerCase().includes(needle))
 }
 
 export function mentionTriggerAt(value: string, caret: number): number | null {
@@ -181,4 +195,57 @@ export function mentionName(
       mention.kind === segment.ref.kind && mention.id === segment.ref.id
   )
   return found === undefined ? null : found.name
+}
+
+const nameRune = "[\\p{L}\\p{Nd}_-]"
+
+function escapePattern(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+export function toWire(text: string, picks: readonly MentionPick[]): string {
+  const used = picks
+    .filter((pick) => text.includes(pick.display))
+    .sort((a, b) => b.display.length - a.display.length)
+  if (used.length === 0) return text
+  const tokens = new Map(used.map((pick) => [pick.display, pick.token]))
+  const pattern = new RegExp(
+    `(?<!${nameRune})(${used.map((pick) => escapePattern(pick.display)).join("|")})(?!${nameRune})`,
+    "gu"
+  )
+  return text.replace(pattern, (shown) => tokens.get(shown) ?? shown)
+}
+
+export function toDisplay(wire: string): {
+  text: string
+  picks: MentionPick[]
+} {
+  const picks: MentionPick[] = []
+  let text = ""
+  for (const segment of mentionSegments(wire)) {
+    if (segment.kind === "text" || segment.ref.kind === "agent") {
+      text += segment.kind === "text" ? segment.text : segment.raw
+      continue
+    }
+    const added = addPick(picks, segment.name, segment.raw)
+    picks.splice(0, picks.length, ...added.picks)
+    text += added.display
+  }
+  return { text, picks }
+}
+
+export function addPick(
+  picks: readonly MentionPick[],
+  name: string,
+  token: string
+): { picks: MentionPick[]; display: string } {
+  const existing = picks.find((pick) => pick.token === token)
+  if (existing !== undefined)
+    return { picks: [...picks], display: existing.display }
+  const base = `@${tokenName(name, "user")}`
+  let display = base
+  for (let n = 2; picks.some((pick) => pick.display === display); n += 1) {
+    display = `${base} ${n}`
+  }
+  return { picks: [...picks, { display, token }], display }
 }

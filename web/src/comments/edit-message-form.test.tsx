@@ -36,6 +36,7 @@ function renderForm(onClose = vi.fn()) {
     <EditMessageForm
       message={message}
       people={[]}
+      target={null}
       queryKey={queryKey}
       onClose={onClose}
     />

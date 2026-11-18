@@ -9,8 +9,11 @@ import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
-import { mentionOptions, type MentionPerson } from "./mentions"
+import { toDisplay, type MentionAgent, type MentionPerson } from "./mentions"
 import { useEditMessage } from "./queries"
+import { useMentionPicks } from "./use-mention-picks"
+
+const noAgents: readonly MentionAgent[] = []
 
 function describeEditError(error: unknown): string {
   if (error instanceof ApiError && error.status < 500) {
@@ -22,20 +25,25 @@ function describeEditError(error: unknown): string {
 export function EditMessageForm({
   message,
   people,
+  target,
   queryKey,
   onClose,
 }: {
   message: { id: string; body: string }
   people: readonly MentionPerson[]
+  target: string | null
   queryKey: QueryKey
   onClose: () => void
 }) {
-  const [body, setBody] = useState(message.body)
+  const [shown] = useState(() => toDisplay(message.body))
+  const [body, setBody] = useState(shown.text)
+  const picks = useMentionPicks(shown.picks)
   const [error, setError] = useState<string | null>(null)
   const [mentioning, setMentioning] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const edit = useEditMessage(queryKey)
   const text = body.trim()
+  const wire = picks.wire(text)
   const busy = edit.isPending
 
   useEffect(() => {
@@ -51,13 +59,13 @@ export function EditMessageForm({
 
   function save() {
     if (busy || text === "") return
-    if (text === message.body) {
+    if (wire === message.body) {
       onClose()
       return
     }
     setError(null)
     edit.mutate(
-      { messageId: message.id, body: text },
+      { messageId: message.id, body: wire },
       {
         onSuccess: onClose,
         onError: (failure) => setError(describeEditError(failure)),
@@ -103,7 +111,10 @@ export function EditMessageForm({
       )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <MentionButton
-          options={mentionOptions(people, [])}
+          agents={noAgents}
+          people={people}
+          target={target}
+          onPick={picks.pick}
           field={textarea}
           value={body}
           onChange={setBody}
