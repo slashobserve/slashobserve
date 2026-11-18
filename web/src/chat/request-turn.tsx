@@ -63,6 +63,7 @@ export type TurnSummary = {
   build_saved_at: string | null
   continues_id: string | null
   continued_by: string | null
+  retried_by: string | null
   continue_note: string | null
   from?: string | null
   to?: string | null

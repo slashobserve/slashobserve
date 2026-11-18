@@ -18,13 +18,17 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
-const continuesKeyIndex = "agent_requests_continues_key"
+const (
+	continuesKeyIndex = "agent_requests_continues_key"
+	retriesKeyIndex   = "agent_requests_retries_key"
+)
 
 var ErrNotRequester = errors.New("only the person or key that asked can do this")
 
 type buildState struct {
 	build       *buildProgressJSON
 	continuedBy *string
+	retriedBy   *string
 }
 
 func newBuildState(row dbsqlc.ListAgentRequestBuildStateRow) buildState {
@@ -41,6 +45,10 @@ func newBuildState(row dbsqlc.ListAgentRequestBuildStateRow) buildState {
 	if row.ContinuedBy.Valid {
 		id := row.ContinuedBy.String()
 		state.continuedBy = &id
+	}
+	if row.RetriedBy.Valid {
+		id := row.RetriedBy.String()
+		state.retriedBy = &id
 	}
 	return state
 }
@@ -79,6 +87,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 		mayEdit:     mayEdit,
 		buildSaved:  buildSaved,
 		continued:   build.continuedBy != nil,
+		retried:     build.retriedBy != nil,
 	}
 	if build.build != nil {
 		f.buildPanels = build.build.Panels
@@ -329,26 +338,48 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 	}
 	build := states[row.ID]
 	if !slices.Contains(allowedActions(factsOf(row, build, by, true, true)), ActionRetry) {
-		facts, err := s.factsFor(ctx, row, build, by)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, err
-		}
-		return dbsqlc.AgentRequest{}, &lifecycle.Refusal{
-			Machine: RunMachine.Name,
-			State:   row.State,
-			Action:  string(ActionRetry),
-			Allowed: actionStrings(allowedActions(facts)),
-		}
+		return dbsqlc.AgentRequest{}, s.retryRefusal(ctx, row, build, by)
 	}
 	if err := checkAssignee(ctx, s.db.Queries(), assignee, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	retries := pgtype.UUID{}
+	if state := State(row.State); state == StateFailed || state == StateCanceled {
+		retries = row.ID
+	}
+	next, err := s.resubmit(ctx, row, by, assignee, retries)
+	if isRetriesConflict(err) {
+		build.retriedBy = new(string)
+		return dbsqlc.AgentRequest{}, s.retryRefusal(ctx, row, build, by)
+	}
+	return next, err
+}
+
+func isRetriesConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == retriesKeyIndex
+}
+
+func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) error {
+	facts, err := s.factsFor(ctx, row, build, by)
+	if err != nil {
+		return err
+	}
+	return &lifecycle.Refusal{
+		Machine: RunMachine.Name,
+		State:   row.State,
+		Action:  string(ActionRetry),
+		Allowed: actionStrings(allowedActions(facts)),
+	}
+}
+
+func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
 	threadMessage, threadContext := threadOf(row)
 	switch Source(row.Source) {
 	case SourceObserve:
-		chat := observeChat{}
+		chat := observeChat{retries: retries}
 		if sameActor(requesterOf(row), by) {
-			chat = observeChat{id: row.ChatID, context: row.ThreadContext.String}
+			chat = observeChat{id: row.ChatID, context: row.ThreadContext.String, retries: retries}
 		}
 		return s.submitObserve(ctx, by, row.Prompt, chat)
 	case SourceInvestigate:
@@ -362,6 +393,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 
 			ObservationID:    row.ObservationID,
 			ReuseObservation: true,
+			RetriesID:        retries,
 
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
@@ -375,6 +407,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+			RetriesID:       retries,
 		}, nil)
 	}
 }

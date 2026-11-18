@@ -138,6 +138,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		ContinuesID:       optionalUUID(row.ContinuesID),
 		ContinueNote:      httpapi.OptionalString(row.ContinueNote.String),
 		ContinuedBy:       state.continuedBy,
+		RetriedBy:         state.retriedBy,
 
 		PinnedAt:   formatOptionalTime(optionalTime(row.PinnedAt)),
 		ArchivedAt: formatOptionalTime(optionalTime(row.ArchivedAt)),

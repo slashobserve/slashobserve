@@ -222,7 +222,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `ReadObserve` in `internal/revisions/service.go` is the one place that lets an Admin read an agent request it could not otherwise see; such a read is `read_only` with no actions, the list's `scope=all` (Admin only) uses the same rule for its actions, and write and build-save routes keep `GetObserve`, so they stay with the requester.
   An Admin also reads another person's build (`GET /observe/{id}/build` and its data routes) through `ReadObserve` and `dashboards.Service.ViewBuild`, which keeps the requester-or-Admin and dashboard-visible checks, so a build on a dashboard in someone's personal folder stays hidden from an Admin.
 - A run's `state` changes only through `revisions.RunMachine` moves, and each queue query is fenced by `RunMachine.From(action)`; `docs/reference/states.md` is generated from the machine by `make generate`.
-  Retry (`POST /api/v1/observe/{id}/retry`) is open to anyone who can see the run and may start that kind, and the new run is the caller's.
+  Retry (`POST /api/v1/observe/{id}/retry`) is open to anyone who can see the run and may start that kind, and the new run is the caller's; retrying a failed or canceled run sets `retries_id` on the new one (unique), so it is retried once and `runFacts.retried` drops `retry` from its `allowed_actions`.
 - `runAllowed` is the one rule for who may start a run: on a dashboard an observe, prompt or comment run needs Comment, so a Commenter's run commits as a proposal, and a suggest run needs Edit.
   `keep_build` needs Edit because it saves a version, so `runFacts.mayEdit` drops it from `allowedActions` for a requester who cannot edit; the `MaxActive` per-dashboard cap applies to Commenters as to anyone.
   `POST /dashboards/{id}/revisions` and a comment with `request_revision` check Comment, and `POST /dashboards/{id}/suggestions` still checks Edit.
@@ -232,7 +232,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - The continue note is optional, validated by `CleanContinueNote` (the `CleanPrompt` rule), stored only in `continue_note` on the continuation, and written into every seed of the continued run (continue, restart and conflict) after the seed sentence.
   The continue sentence (`brief.Continue`) is used only on attempt 1 of a continuation, through `brief.ResumeReason`; a later attempt seeds as a restart.
 - `queue_position` is computed on read (1 plus the queued requests earlier in `(created_at, id)`, null unless queued), never stored.
-- `ListAgentRequestBuildState` is the only reader of build progress and `continued_by` for responses, one batch per page; the revisions list and the request list carry them for every row, and `buildState.progressFor` is the one place that nulls the build `title` for anyone but the requester.
+- `ListAgentRequestBuildState` is the only reader of build progress, `continued_by` and `retried_by` for responses, one batch per page; the revisions list and the request list carry them for every row, and `buildState.progressFor` is the one place that nulls the build `title` for anyone but the requester.
 - `SLASHOBSERVE_AGENT_RUN_TIMEOUT` defaults to no limit, and a set value is at least `1m`; the evals stack sets `120m` so its failures stay coded.
   `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` accepts `0` for no limit too, and the run limit is config's decision, so `claims` has no default of its own.
   A run has no model-call cap, and without a run limit it ends at a commit, a failure, shutdown or lease loss.

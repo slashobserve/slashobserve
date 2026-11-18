@@ -111,8 +111,8 @@ A stopped request with a build prints `Save it in the browser, or continue it: o
 
 `bin/observe retry <request-id>` starts a finished request again as a new request with the same prompt, waits the way a prompt does and prints the result.
 It accepts `--no-wait` and `--timeout` like a prompt.
-Anyone who can see the request and may start that kind of request can retry it, and the new request is theirs and counts against their limits; a request that has not finished fails with `request <request-id> is <state> and cannot be retried`.
-`observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`.
+Anyone who can see the request and may start that kind of request can retry it, and the new request is theirs and counts against their limits; a failed or canceled request can be retried once, and a request that has not finished or was already retried fails with `request <request-id> is <state> and cannot be retried`.
+`observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`, or `Retried by <request-id>` once it was retried.
 
 Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.

@@ -29,6 +29,7 @@ type chatTurn struct {
 type observeChat struct {
 	id      pgtype.UUID
 	context string
+	retries pgtype.UUID
 }
 
 func clipRunes(s string, n int) string {

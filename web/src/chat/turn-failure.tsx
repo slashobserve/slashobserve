@@ -69,6 +69,7 @@ type FailedRequest = Pick<
   | "error"
   | "failure_code"
   | "continued_by"
+  | "retried_by"
   | "allowed_actions"
 >
 
@@ -107,18 +108,26 @@ export function useOpenNewRun(
   }
 }
 
-function ContinuedNote({ request }: { request: FailedRequest }) {
-  if (request.continued_by === null) return null
-  return request.source === "observe" ? (
+function NextRunNote({
+  source,
+  runId,
+  children,
+}: {
+  source: FailedRequest["source"]
+  runId: string | null
+  children: string
+}) {
+  if (runId === null) return null
+  return source === "observe" ? (
     <Link
       to="/c/$requestId"
-      params={{ requestId: request.continued_by }}
+      params={{ requestId: runId }}
       className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      Continued in a new run
+      {children}
     </Link>
   ) : (
-    <span className="text-muted-foreground">Continued in a new run</span>
+    <span className="text-muted-foreground">{children}</span>
   )
 }
 
@@ -144,10 +153,14 @@ export function TurnFailure({
 }) {
   const retryRequest = useRetryRequest(request.id)
   const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
-  const explained = failureText(request.failure_code)
+  const buildLeft =
+    request.allowed_actions.includes("continue") ||
+    request.allowed_actions.includes("keep_build")
+  const explained = failureText(request.failure_code, buildLeft)
   const [retrying, setRetrying] = useState(false)
   const canRetry = request.allowed_actions.includes("retry")
-  const continued = request.continued_by !== null
+  const followedUp =
+    request.continued_by !== null || request.retried_by !== null
   const stopped = request.failure_code === "canceled"
 
   async function retry() {
@@ -191,9 +204,14 @@ export function TurnFailure({
           )}
           {explained !== null ? <p>{explained.next}</p> : null}
         </div>
-        {continued || canRetry || request.dashboard_id !== null ? (
+        {followedUp || canRetry || request.dashboard_id !== null ? (
           <div className="flex flex-wrap items-center gap-2">
-            <ContinuedNote request={request} />
+            <NextRunNote source={request.source} runId={request.continued_by}>
+              Continued in a new run
+            </NextRunNote>
+            <NextRunNote source={request.source} runId={request.retried_by}>
+              Tried again in a new run
+            </NextRunNote>
             {canRetry ? (
               <RetryButton busy={retrying} onClick={() => void retry()}>
                 Try again

@@ -29,6 +29,7 @@ function summary(
     pinned_at: null,
     continues_id: null,
     continued_by: null,
+    retried_by: null,
     continue_note: null,
     observation_id: null,
     observation_title: null,

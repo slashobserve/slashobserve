@@ -104,10 +104,11 @@ type runFacts struct {
 	buildPanels int
 	buildSaved  bool
 	continued   bool
+	retried     bool
 }
 
 func (f runFacts) retryable() bool {
-	return !f.continued && (f.source == SourceObserve || f.source == SourceInvestigate || (f.source == SourcePrompt && f.onDashboard))
+	return !f.continued && !f.retried && (f.source == SourceObserve || f.source == SourceInvestigate || (f.source == SourcePrompt && f.onDashboard))
 }
 
 func (f runFacts) refuses(a Action) bool {

@@ -98,6 +98,7 @@ An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
 **Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
 The new run is yours, whoever started the one you retry.
+A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry is refused with 409 `invalid_transition` instead of starting a duplicate.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown, and for an investigation the answer the agent saved into its observation.
@@ -187,7 +188,9 @@ The result card shows the title, "N panels from `<datasources>`" and the footer 
 Choose **Open dashboard** to go to it.
 The dashboard lands in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
 
-A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next:
+A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next.
+The advice to save or continue a build shows only while a build is left to save or continue; otherwise the table's last column reads "Try again." or "Try again with a narrower prompt.".
+A run you stopped shows "You stopped this run" instead.
 
 | Code                                     | What it means                                              | What to do                                                             |
 | ---------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |

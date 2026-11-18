@@ -3181,6 +3181,7 @@ components:
         - build_saved_at
         - continues_id
         - continued_by
+        - retried_by
         - continue_note
         - requested_by
         - origin
@@ -3272,6 +3273,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         continue_note:
           type: string
           nullable: true
@@ -3674,6 +3680,7 @@ components:
         - continues_id
         - continue_note
         - continued_by
+        - retried_by
         - requested_by
         - assigned_to
         - origin
@@ -3829,6 +3836,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         requested_by:
           $ref: "#/components/schemas/Author"
         assigned_to:
@@ -3929,6 +3941,7 @@ components:
         - build_saved_at
         - continues_id
         - continued_by
+        - retried_by
         - continue_note
         - observation_id
         - observation_title
@@ -4029,6 +4042,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         continue_note:
           type: string
           nullable: true

@@ -68,6 +68,7 @@ type EnqueueParams struct {
 
 	ContinuesID  pgtype.UUID
 	ContinueNote string
+	RetriesID    pgtype.UUID
 
 	Assignee        Assignee
 	Trigger         string
@@ -140,6 +141,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		OriginClient:     originClient,
 		ContinuesID:      p.ContinuesID,
 		ContinueNote:     pgtype.Text{String: p.ContinueNote, Valid: p.ContinueNote != ""},
+		RetriesID:        p.RetriesID,
 		AssignedKind:     p.Assignee.kindText(),
 		AssignedID:       p.Assignee.ID,
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
@@ -297,6 +299,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		OriginClient:     originClient,
 		ContinuesID:      continuesID,
 		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
+		RetriesID:        chat.retries,
 		ChatID:           chat.id,
 		ThreadContext:    pgtype.Text{String: chat.context, Valid: chat.context != ""},
 	})
@@ -321,6 +324,7 @@ type InvestigateParams struct {
 
 	ObservationID    pgtype.UUID
 	ReuseObservation bool
+	RetriesID        pgtype.UUID
 
 	Assignee        Assignee
 	Trigger         string
@@ -386,6 +390,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 		Origin:           originKind,
 		OriginClient:     originClient,
+		RetriesID:        p.RetriesID,
 		AssignedKind:     p.Assignee.kindText(),
 		AssignedID:       p.Assignee.ID,
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},

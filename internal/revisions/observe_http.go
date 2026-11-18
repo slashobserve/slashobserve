@@ -129,6 +129,7 @@ type agentRequestJSON struct {
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
+	RetriedBy         *string     `json:"retried_by"`
 
 	PinnedAt      *string         `json:"pinned_at"`
 	ArchivedAt    *string         `json:"archived_at"`
@@ -174,6 +175,7 @@ type requestSummaryJSON struct {
 	BuildSavedAt *string            `json:"build_saved_at"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
+	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
 
 	ObservationID    *string  `json:"observation_id"`
@@ -575,6 +577,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
 		ObservationID:    optionalUUID(row.ObservationID),

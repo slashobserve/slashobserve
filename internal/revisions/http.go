@@ -70,6 +70,7 @@ type revisionJSON struct {
 	BuildSavedAt *string            `json:"build_saved_at"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
+	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
 }
 
@@ -321,6 +322,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		BuildSavedAt: formatOptionalTime(r.BuildSavedAt),
 		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
 		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
 	}
 	return out

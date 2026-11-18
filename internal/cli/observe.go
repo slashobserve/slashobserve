@@ -38,6 +38,7 @@ type agentRequest struct {
 	Build         *buildSummary   `json:"build"`
 	BuildSavedAt  *string         `json:"build_saved_at"`
 	ContinuedBy   *string         `json:"continued_by"`
+	RetriedBy     *string         `json:"retried_by"`
 	Finding       *findingSummary `json:"finding"`
 
 	AllowedActions []string `json:"allowed_actions"`
@@ -220,6 +221,8 @@ func printRequest(out *output, req agentRequest) {
 		out.line("Queued, position %d", *req.QueuePosition)
 	case req.Status == "failed" && req.ContinuedBy != nil:
 		out.line("Continued by %s", text(*req.ContinuedBy))
+	case req.RetriedBy != nil:
+		out.line("Retried by %s", text(*req.RetriedBy))
 	case slices.Contains(req.AllowedActions, "continue"):
 		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
 	case slices.Contains(req.AllowedActions, "retry") && req.State != "succeeded":

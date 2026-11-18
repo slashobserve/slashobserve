@@ -79,6 +79,7 @@ type AgentRequest struct {
 	ThreadMessageID   pgtype.UUID
 	ThreadContext     pgtype.Text
 	ChatID            pgtype.UUID
+	RetriesID         pgtype.UUID
 }
 
 type AgentRequestBuild struct {

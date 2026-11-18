@@ -1704,7 +1704,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retry is not idempotent: each call queues a new request. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once: the new request is its `retried_by`, and a second call, including one racing the first, is refused instead of queuing a duplicate. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -4933,6 +4933,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
             requested_by: components["schemas"]["Author"];
@@ -5194,6 +5199,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             requested_by: components["schemas"]["Author"];
             /** @description The outside agent this run waits for or runs on; null when the server's own agent runs it. */
             assigned_to: {
@@ -5312,6 +5322,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
             /**

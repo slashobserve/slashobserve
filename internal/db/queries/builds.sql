@@ -42,10 +42,10 @@ WHERE b.agent_request_id = @agent_request_id;
 
 -- name: ListAgentRequestBuildState :many
 SELECT q.id::uuid AS id, b.saves, b.panels, b.planned_panels, coalesce(b.spec ->> 'title', '')::text AS title, b.updated_at,
-  c.id AS continued_by
+  (SELECT c.id FROM agent_requests c WHERE c.continues_id = q.id) AS continued_by,
+  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by
 FROM unnest(@ids::uuid[]) AS q(id)
-LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id
-LEFT JOIN agent_requests c ON c.continues_id = q.id;
+LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id;
 
 -- name: DeleteAgentRequestBuild :execrows
 DELETE FROM agent_request_builds b

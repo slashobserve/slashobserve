@@ -38,6 +38,7 @@ const failed: TurnSummary = {
   build_saved_at: null,
   continues_id: null,
   continued_by: null,
+  retried_by: null,
   continue_note: null,
 }
 
