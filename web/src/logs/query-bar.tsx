@@ -382,6 +382,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
     if (!isDiscoverUrl(text)) return
     event.preventDefault()
     event.stopPropagation()
+    if (mode === "ask") setMode("code", false)
     let imported: ReturnType<typeof importDiscoverUrl>
     try {
       imported = importDiscoverUrl(text)
@@ -469,16 +470,18 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
           {builderInBar ? <BuilderBar /> : null}
         </div>
         {shown === "ask" ? (
-          <AskField
-            ref={askFieldRef}
-            signal="logs"
-            value={ask.question}
-            onChange={ask.setQuestion}
-            onAsk={ask.ask}
-            pending={ask.asking}
-            onCancel={ask.cancel}
-            placeholder={askPlaceholder}
-          />
+          <div onPasteCapture={onEditorPaste}>
+            <AskField
+              ref={askFieldRef}
+              signal="logs"
+              value={ask.question}
+              onChange={ask.setQuestion}
+              onAsk={ask.ask}
+              pending={ask.asking}
+              onCancel={ask.cancel}
+              placeholder={askPlaceholder}
+            />
+          </div>
         ) : null}
         {shown === "ask" && ask.answer !== null ? (
           <div className="flex flex-col gap-1">

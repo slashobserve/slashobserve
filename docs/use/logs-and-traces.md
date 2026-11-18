@@ -316,7 +316,7 @@ The block stays live on the page, so it runs the query when the page is open.
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 The note under the box says what was filled and how many filters from the address were not applied: range, exists and custom filters are left out.
 A Lucene query gets the `lucene:` prefix, the source you are on stays selected, and nothing is sent to the server: the browser reads the address itself.
 On a Loki datasource or a ClickHouse datasource the address is pasted as plain text.

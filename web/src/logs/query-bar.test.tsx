@@ -447,6 +447,18 @@ describe("QueryBar", () => {
       expect(update).not.toHaveBeenCalled()
     })
 
+    it("imports a link pasted into the Ask field and switches to the query", async () => {
+      const { run, setMode, update } = setup({ mode: "ask" })
+      const field = await screen.findByLabelText("Question")
+      fireEvent.paste(field, { clipboardData: { getData: () => link } })
+      expect(setMode).toHaveBeenCalledWith("code", false)
+      expect(run).toHaveBeenCalledWith("level:error")
+      expect(update.mock.calls[0][0]).toMatchObject({
+        q: "level:error",
+        from: "now-15m",
+      })
+    })
+
     it("pastes the link as plain text on Loki", async () => {
       const { setDraft, update } = setup({ type: "loki", draft: "" })
       await paste(link, "LogQL query")
