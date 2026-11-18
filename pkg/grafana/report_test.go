@@ -109,3 +109,11 @@ func TestAnnotationQueriesAreReportedAsNotImported(t *testing.T) {
 	}
 	t.Fatalf("notes = %+v, want an annotations note", res.Report.Notes)
 }
+
+func TestALibraryPanelWithoutADefinitionSaysItIsNotSupported(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"lib","type":"timeseries","gridPos":{"x":0,"y":0,"w":12,"h":8},"libraryPanel":{"uid":"abc","name":"My lib"}}]}`
+	line := panelLine(t, convertDoc(t, doc), "p1")
+	if line.Status != statusPlaceholder || len(line.Reasons) != 1 || !strings.Contains(line.Reasons[0], "Library panels are not supported") || !strings.Contains(line.Reasons[0], "My lib") {
+		t.Fatalf("line = %+v, want a placeholder that says library panels are not supported and names the panel", line)
+	}
+}

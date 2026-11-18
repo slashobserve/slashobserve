@@ -464,6 +464,7 @@ These Grafana panel types import as follows.
 | Grafana panel | Imports as | Notes |
 | --- | --- | --- |
 | Annotation list, live panel and Alertmanager panel | A placeholder that gives the reason | Annotations, live streaming and alert rules are not part of SlashObserve. |
+| Library panel | A normal panel when the export carries its definition (a dashboard exported for sharing externally), else a placeholder that says library panels are not supported | SlashObserve has no library panels; an imported one is copied into the dashboard. |
 | `welcome` | A text panel with a one-line note | |
 | `gettingstarted` | A text checklist that links these docs | |
 | `datagrid` | A table that shows the frame its `selectedSeries` names | It shows the first frame when `selectedSeries` is empty. |

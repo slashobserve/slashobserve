@@ -310,7 +310,7 @@ func libraryPanelReason(n *panelNode) string {
 	if name == "" {
 		name = asString(lib["uid"])
 	}
-	return fmt.Sprintf("Library panel %s was not included in the JSON.", name)
+	return fmt.Sprintf("Library panels are not supported, and the definition of library panel %s was not included in the JSON. Export the dashboard for sharing externally to bring it in as a normal panel.", name)
 }
 
 func placeholderPanel(n *panelNode, reason string) *builtPanel {
