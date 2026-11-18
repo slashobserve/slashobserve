@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/events"
 )
 
 const (
@@ -133,8 +134,24 @@ func appendEvent(ctx context.Context, q *dbsqlc.Queries, typ string, who actor.A
 		Owner:    activity.OnDashboard(dashboardID),
 		Actor:    who,
 		Data:     data,
-	}, nil)
+	}, &events.Event{
+		Type:        events.TypeProposalUpdated,
+		DashboardID: dashboardID.String(),
+		ProposalID:  id.String(),
+		Status:      string(stateAfter(typ)),
+		Author:      events.NewAuthor(string(who.Kind), who.ID, who.Name),
+	})
 	return err
+}
+
+func stateAfter(activityType string) State {
+	switch activityType {
+	case activity.TypeProposalMerged:
+		return StateMerged
+	case activity.TypeProposalDiscarded:
+		return StateDiscarded
+	}
+	return StateOpen
 }
 
 func closeProposal(ctx context.Context, q *dbsqlc.Queries, h head, state State, by actor.Columns) error {

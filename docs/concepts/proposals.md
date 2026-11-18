@@ -64,6 +64,7 @@ Deleting the dashboard deletes its proposals.
 ## Review one in the web app
 
 A dashboard with open proposals shows "1 proposal" or "N proposals" in its top row, and the button lists each with its title, its author, when it was opened and "Behind" when the dashboard has moved on.
+The count follows the dashboard's live events: when someone opens, updates, merges or discards a proposal, every open copy of the dashboard updates it without a reload (the `proposal.updated` event of the dashboard event stream).
 A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id>`.
 The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, the list of changes by panel, "Variable <name>" and "Dashboard settings", and below it the field-by-field difference from the version the proposal builds on, with each query or option before and after, as the [version history](../concepts/versions.md) shows two versions.
 A link opens the dashboard at the version the proposal builds on, or at the merged version once it is merged, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
