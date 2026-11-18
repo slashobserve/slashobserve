@@ -42,6 +42,7 @@ type contract struct {
 	logger  *slog.Logger
 	options *openapi3filter.Options
 	doc     *openapi3.T
+	query   queryParams
 }
 
 func newContract(ctx context.Context, logger *slog.Logger) (*contract, error) {
@@ -54,10 +55,15 @@ func newContract(ctx context.Context, logger *slog.Logger) (*contract, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build api router: %w", err)
 	}
+	query, err := documentedQueryParams()
+	if err != nil {
+		return nil, err
+	}
 	return &contract{
 		router: router,
 		logger: logger,
 		doc:    doc,
+		query:  query,
 		options: &openapi3filter.Options{
 			AuthenticationFunc:    openapi3filter.NoopAuthenticationFunc,
 			IncludeResponseStatus: true,
@@ -93,6 +99,9 @@ func (ct *contract) middleware(c *gin.Context) {
 	restoreBody(c.Request, body)
 	if requestErr == nil && route.Operation.RequestBody == nil && len(body) > 0 {
 		requestErr = &openapi3filter.RequestError{Reason: "request body is not allowed for this operation"}
+	}
+	if requestErr == nil && len(ct.query.unknown(route.Method, apiPrefix+route.Path, c.Request.URL.Query())) > 0 {
+		requestErr = &openapi3filter.RequestError{Err: errUndocumentedQuery}
 	}
 
 	if streamsEvents(route.Operation) {
@@ -238,7 +247,11 @@ func describe(err error) string {
 		if p := requestErr.Parameter; p != nil {
 			parts = append(parts, "parameter "+p.In+" "+p.Name)
 		}
-		parts = append(parts, causeOrFallback("request does not match the document", requestErr.Err))
+		if errors.Is(requestErr.Err, errUndocumentedQuery) {
+			parts = append(parts, errUndocumentedQuery.Error())
+		} else {
+			parts = append(parts, causeOrFallback("request does not match the document", requestErr.Err))
+		}
 	default:
 		parts = append(parts, "validation failed")
 	}
