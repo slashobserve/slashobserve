@@ -141,7 +141,8 @@ On a touch screen the strip shows counts but does not select, because a drag the
 When the volume request does not finish, the strip says so with the server's reason, the lines below still load, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
-- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both.
+- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both, and the failure names the column to add.
+A datasource's error text reaches the page without the expanded query, the index names behind a data stream and the exception class names, so a typo reads as the problem and its position.
 - On Elasticsearch and OpenSearch one aggregation request counts the matching documents per time bucket and per value of the level field, the field the datasource's level role names; with no level field every document counts as other, and a query body with its own `aggs` is refused.
 
 Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
