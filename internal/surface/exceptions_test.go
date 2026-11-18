@@ -11,7 +11,6 @@ const (
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
 	noMCPDeletes        = "no MCP tool deletes anything: every MCP write is advertised as non-destructive, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
-	builtInAgentQueue   = "starts or steers a run of the built-in agent; an outside agent does the work itself with its own model and the same tools"
 	browserSignIn       = "the browser's sign-in and session flow; keys and MCP clients authenticate with a bearer token"
 	personOnly          = "a person's own action in the web app: keys are refused (auth.RequireUser or 403 user_session_required), and the CLI signs in with a key"
 	openRecording       = "dashboard opens are recorded for people only; a key that posts one records nothing"
@@ -19,6 +18,7 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
+	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -69,11 +69,11 @@ var exceptions = map[string]exception{
 	"setFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
 
 	"listGrafanaConnections":  {MCP: notBuilt, CLI: notBuilt},
-	"createGrafanaConnection": {MCP: notBuilt},
+	"createGrafanaConnection": {MCP: grafanaConnecting},
 	"getGrafanaConnection":    {MCP: notBuilt, CLI: notBuilt},
-	"updateGrafanaConnection": {MCP: notBuilt, CLI: notBuilt},
-	"deleteGrafanaConnection": {MCP: notBuilt, CLI: notBuilt},
-	"testGrafanaConnection":   {MCP: notBuilt},
+	"updateGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
+	"deleteGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
+	"testGrafanaConnection":   {MCP: grafanaConnecting},
 	"listGrafanaFolders":      {MCP: notBuilt},
 	"listGrafanaDatasources":  {MCP: notBuilt, CLI: notBuilt},
 	"startGrafanaImport":      {MCP: notBuilt},
@@ -94,8 +94,7 @@ var exceptions = map[string]exception{
 	"listInbox":     {CLI: personOnly},
 	"markInboxRead": {MCP: personOnly, CLI: personOnly},
 
-	"requestHealthRepairs": {MCP: builtInAgentQueue},
-	"runDashboardHealth":   {MCP: notBuilt},
+	"requestHealthRepairs": {MCP: notBuilt},
 
 	"previewImport":      {MCP: notBuilt},
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
@@ -113,14 +112,10 @@ var exceptions = map[string]exception{
 
 	"getAgent":                {MCP: notBuilt},
 	"listObserveRequests":     {MCP: builtInRuns, CLI: notBuilt},
-	"createObserveRequest":    {MCP: builtInAgentQueue},
-	"updateObserveRequest":    {MCP: builtInAgentQueue, CLI: notBuilt},
-	"archiveObserveRequest":   {MCP: builtInAgentQueue, CLI: notBuilt},
-	"getObserveRequestBuild":  {MCP: builtInRuns},
-	"saveObserveRequestBuild": {MCP: builtInAgentQueue, CLI: notBuilt},
-	"cancelObserveRequest":    {MCP: builtInAgentQueue},
-	"retryObserveRequest":     {MCP: builtInAgentQueue},
-	"continueObserveRequest":  {MCP: builtInAgentQueue},
+	"updateObserveRequest":    {MCP: notBuilt, CLI: notBuilt},
+	"archiveObserveRequest":   {MCP: notBuilt, CLI: notBuilt},
+	"saveObserveRequestBuild": {MCP: notBuilt, CLI: notBuilt},
+	"continueObserveRequest":  {MCP: notBuilt},
 	"getBuildPanelData":       {MCP: personOnly, CLI: personOnly},
 	"getBuildVariableValues":  {MCP: personOnly, CLI: personOnly},
 
@@ -130,7 +125,7 @@ var exceptions = map[string]exception{
 
 	"previewDraftPanel": {MCP: personOnly, CLI: personOnly},
 
-	"listSavedPrompts":  {MCP: builtInAgentQueue},
+	"listSavedPrompts":  {MCP: notBuilt},
 	"createSavedPrompt": {MCP: personOnly, CLI: personOnly},
 	"updateSavedPrompt": {MCP: personOnly, CLI: personOnly},
 	"deleteSavedPrompt": {MCP: personOnly, CLI: personOnly},
@@ -152,9 +147,9 @@ var exceptions = map[string]exception{
 	"lintDatasourceQuery": {CLI: notBuilt},
 
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
-	"requestRepairs": {MCP: builtInAgentQueue, CLI: notBuilt},
+	"requestRepairs": {MCP: notBuilt, CLI: notBuilt},
 
-	"createDashboardRevision": {MCP: builtInAgentQueue},
+	"createDashboardRevision": {MCP: notBuilt},
 	"listDashboardRevisions":  {MCP: builtInRuns, CLI: notBuilt},
 	"getDashboardRevision":    {MCP: builtInRuns, CLI: notBuilt},
 
@@ -172,8 +167,8 @@ var exceptions = map[string]exception{
 	"unstarDashboard": {CLI: personOnly},
 	"listStars":       {CLI: personOnly},
 
-	"createPanelSuggestion": {MCP: builtInAgentQueue, CLI: notBuilt},
-	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
+	"createPanelSuggestion": {MCP: notBuilt, CLI: notBuilt},
+	"getPanelSuggestion":    {MCP: notBuilt, CLI: notBuilt},
 
 	"tailLogs": {MCP: liveWebPage},
 

@@ -94,11 +94,11 @@ type versionConflictJSON struct {
 	LatestVersion int    `json:"latest_version"`
 }
 
-type buildReply struct {
-	status  int
-	code    string
-	message string
-	latest  int
+type Reply struct {
+	Status  int
+	Code    string
+	Message string
+	Latest  int
 }
 
 func newBuildJSON(v BuildView) buildJSON {
@@ -117,42 +117,42 @@ func newBuildJSON(v BuildView) buildJSON {
 	return out
 }
 
-func buildReplyFor(err error) (buildReply, bool) {
+func ReplyFor(err error) (Reply, bool) {
 	var conflict *BuildConflictError
 	switch {
 	case errors.As(err, &conflict):
-		return buildReply{status: http.StatusConflict, code: "version_conflict", message: "dashboard has a newer version", latest: conflict.Latest}, true
+		return Reply{Status: http.StatusConflict, Code: "version_conflict", Message: "dashboard has a newer version", Latest: conflict.Latest}, true
 	case errors.Is(err, ErrBuildNotFound), errors.Is(err, ErrRequestNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, folders.ErrNotFound):
-		return buildReply{status: http.StatusNotFound, code: "not_found", message: err.Error()}, true
+		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
 	case errors.Is(err, ErrBuildRunning):
-		return buildReply{status: http.StatusConflict, code: "build_running", message: ErrBuildRunning.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "build_running", Message: ErrBuildRunning.Error()}, true
 	case errors.Is(err, ErrBuildEmpty):
-		return buildReply{status: http.StatusConflict, code: "build_empty", message: ErrBuildEmpty.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "build_empty", Message: ErrBuildEmpty.Error()}, true
 	case errors.Is(err, ErrBuildNotSavable):
-		return buildReply{status: http.StatusConflict, code: "build_not_savable", message: ErrBuildNotSavable.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "build_not_savable", Message: ErrBuildNotSavable.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
-		return buildReply{status: http.StatusConflict, code: "not_continuable", message: ErrNotContinuable.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "not_continuable", Message: ErrNotContinuable.Error()}, true
 	case errors.Is(err, ErrAssigneeUnavailable):
-		return buildReply{status: http.StatusConflict, code: "assignee_unavailable", message: ErrAssigneeUnavailable.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "assignee_unavailable", Message: ErrAssigneeUnavailable.Error()}, true
 	case errors.Is(err, ErrRequestFinished):
-		return buildReply{status: http.StatusConflict, code: "request_finished", message: ErrRequestFinished.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: "request_finished", Message: ErrRequestFinished.Error()}, true
 	case errors.Is(err, ErrNotRequester):
-		return buildReply{status: http.StatusForbidden, code: "forbidden", message: ErrNotRequester.Error()}, true
+		return Reply{Status: http.StatusForbidden, Code: "forbidden", Message: ErrNotRequester.Error()}, true
 	case errors.Is(err, folders.ErrNoAccess):
-		return buildReply{status: http.StatusForbidden, code: forbidden.Code, message: forbidden.AccessMessage}, true
+		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.AccessMessage}, true
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, ErrForbidden):
-		return buildReply{status: http.StatusForbidden, code: forbidden.Code, message: forbidden.RoleMessage}, true
+		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.RoleMessage}, true
 	}
-	return buildReply{}, false
+	return Reply{}, false
 }
 
 func (h *ObserveHandler) failBuild(c *gin.Context, action string, err error, idAttrs ...any) {
-	if reply, ok := buildReplyFor(err); ok {
-		if reply.latest > 0 {
-			c.AbortWithStatusJSON(reply.status, versionConflictJSON{Error: reply.message, Code: reply.code, LatestVersion: reply.latest})
+	if reply, ok := ReplyFor(err); ok {
+		if reply.Latest > 0 {
+			c.AbortWithStatusJSON(reply.Status, versionConflictJSON{Error: reply.Message, Code: reply.Code, LatestVersion: reply.Latest})
 			return
 		}
-		httpapi.AbortError(c, reply.status, reply.code, reply.message)
+		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)
 		return
 	}
 	h.service.fail(c, action, err, idAttrs...)

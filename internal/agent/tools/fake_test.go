@@ -102,6 +102,9 @@ func errorCode(t *testing.T, res Result) string {
 	if missing, ok := res.Content.(versionNotFoundOut); ok {
 		return missing.Code
 	}
+	if transition, ok := res.Content.(invalidTransitionOut); ok {
+		return transition.Code
+	}
 	body, ok := res.Content.(errorBody)
 	if !ok {
 		t.Fatalf("tool error content is %T, want errorBody", res.Content)

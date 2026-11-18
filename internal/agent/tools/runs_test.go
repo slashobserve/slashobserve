@@ -11,7 +11,9 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const runID = "11111111-2222-3333-4444-555555555555"
@@ -23,6 +25,28 @@ type fakeRuns struct {
 	gotBy   auth.Principal
 	gotMax  int
 	invoked bool
+	started *revisions.StartRequest
+	retried bool
+}
+
+func (f *fakeRuns) Start(_ context.Context, by auth.Principal, req revisions.StartRequest) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.started = true, by, &req
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Build(_ context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error) {
+	f.invoked, f.gotID, f.gotBy = true, id, by
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Cancel(_ context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error) {
+	f.invoked, f.gotID, f.gotBy = true, id, by
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Retry(_ context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error) {
+	f.invoked, f.gotID, f.gotBy, f.retried = true, id, by, true
+	return f.raw, f.err
 }
 
 func (f *fakeRuns) Run(_ context.Context, id pgtype.UUID, by auth.Principal, maxSteps int) (json.RawMessage, error) {
@@ -30,7 +54,7 @@ func (f *fakeRuns) Run(_ context.Context, id pgtype.UUID, by auth.Principal, max
 	return f.raw, f.err
 }
 
-func callGetRun(t *testing.T, runs RunReader, role auth.Role, input string) (Result, error) {
+func callGetRun(t *testing.T, runs RunDesk, role auth.Role, input string) (Result, error) {
 	t.Helper()
 	r := New(Deps{Runs: runs})
 	by := auth.Principal{Kind: auth.KindUser, Name: "n", Role: role}
@@ -126,5 +150,96 @@ func TestGetRunWithoutAReaderIsAToolFailure(t *testing.T) {
 	}
 	if code := errorCode(t, res); code != FailureToolFailed {
 		t.Fatalf("code %q", code)
+	}
+}
+
+func callRunTool(t *testing.T, runs RunDesk, tool, input string) Result {
+	t.Helper()
+	r := New(Deps{Runs: runs})
+	by := auth.Principal{Kind: auth.KindUser, Name: "n", Role: auth.RoleViewer}
+	res, err := r.Call(auth.WithPrincipal(t.Context(), by), tool, []byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+func TestStartRunPassesThePromptAndTheCallerAndReturnsTheRun(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"a latency dashboard","dashboard_id":"`+runID+`","base_version":2}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	got := runs.started
+	if got == nil || *got.Prompt != "a latency dashboard" || *got.DashboardID != runID || *got.BaseVersion != 2 || got.Kind != nil {
+		t.Fatalf("start request = %+v", got)
+	}
+	if runs.gotBy.Role != auth.RoleViewer {
+		t.Fatalf("started as %+v", runs.gotBy)
+	}
+}
+
+func TestStartRunHasNoWayToAskForAnInvestigation(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why is it slow","kind":"investigate"}`)
+	if code := errorCode(t, res); code != codeInvalidRequest || runs.invoked {
+		t.Fatalf("code %q, invoked %v", code, runs.invoked)
+	}
+}
+
+func TestRunToolsMapTheServicesRefusals(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want string
+	}{
+		"bad prompt":         {&revisions.StartError{Message: "prompt is required"}, codeInvalidRequest},
+		"no model":           {revisions.ErrUnavailable, "agent_unavailable"},
+		"too many revisions": {revisions.ErrTooManyRevisions, "too_many_revisions"},
+		"too many requests":  {revisions.ErrTooManyRequests, "too_many_requests"},
+		"busy":               {revisions.ErrAgentBusy, "agent_busy"},
+		"not found":          {revisions.ErrRequestNotFound, codeNotFound},
+		"not the requester":  {revisions.ErrNotRequester, "forbidden"},
+		"no role":            {revisions.ErrForbidden, codeForbiddenRole},
+		"assignee gone":      {revisions.ErrAssigneeUnavailable, "assignee_unavailable"},
+		"wrong state":        {&lifecycle.Refusal{Machine: "run", State: "succeeded", Action: "retry", Allowed: []string{}}, codeInvalidTransition},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for tool, input := range map[string]string{
+				nameStartRun:    `{"prompt":"x"}`,
+				nameCancelRun:   `{"id":"` + runID + `"}`,
+				nameGetRunBuild: `{"id":"` + runID + `"}`,
+			} {
+				res := callRunTool(t, &fakeRuns{err: tc.err}, tool, input)
+				if code := errorCode(t, res); code != tc.want {
+					t.Fatalf("%s: code %q, want %q", tool, code, tc.want)
+				}
+			}
+		})
+	}
+}
+
+func TestRetryRunRefusesAnInvestigationAndRetriesOtherRuns(t *testing.T) {
+	investigation := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","source":"investigate"}`)}
+	res := callRunTool(t, investigation, nameRetryRun, `{"id":"`+runID+`"}`)
+	if code := errorCode(t, res); code != threads.RefusalPersonStarts || investigation.retried {
+		t.Fatalf("code %q, retried %v", code, investigation.retried)
+	}
+	build := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","source":"observe"}`)}
+	if res := callRunTool(t, build, nameRetryRun, `{"id":"`+runID+`"}`); res.IsError || !build.retried {
+		t.Fatalf("retry of a build run: %+v retried %v", res.Content, build.retried)
+	}
+}
+
+func TestRunToolsWithoutADeskAreToolFailures(t *testing.T) {
+	for tool, input := range map[string]string{nameStartRun: `{"prompt":"x"}`, nameCancelRun: `{"id":"` + runID + `"}`, nameGetRunBuild: `{"id":"` + runID + `"}`, nameRetryRun: `{"id":"` + runID + `"}`} {
+		r := New(Deps{})
+		res, err := r.Call(auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer}), tool, []byte(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if code := errorCode(t, res); code != FailureToolFailed {
+			t.Fatalf("%s: code %q", tool, code)
+		}
 	}
 }

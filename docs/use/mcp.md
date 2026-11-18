@@ -22,6 +22,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | Tool | Lowest role |
 | ---- | ----------- |
 | `add_block` | Viewer |
+| `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
@@ -43,6 +44,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `get_rca` | Viewer |
 | `get_run` | Viewer |
 | `get_run_brief` | Viewer |
+| `get_run_build` | Viewer |
 | `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
 | `get_trace` | Viewer |
@@ -85,9 +87,12 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `resolve_comment` | Viewer |
 | `resolve_observation` | Viewer |
 | `restore_dashboard_version` | Viewer |
+| `retry_run` | Viewer |
+| `run_dashboard_health` | Admin |
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
+| `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `update_block` | Viewer |
@@ -287,6 +292,15 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+
+`get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
+`start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`; it queues a run and answers with it at once, and you follow it with `get_run`.
+Every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
+`cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled or finished answers with its current state.
+`retry_run` starts a failed or canceled run again with the same prompt as a new run; a run in another state answers `invalid_transition` with `allowed_actions`.
+Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+`run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

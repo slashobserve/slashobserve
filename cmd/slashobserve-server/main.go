@@ -369,30 +369,32 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
+	var startHealthRun func()
 	toolRegistry := tools.New(tools.Deps{
-		Datasources:   registry,
-		Runner:        runner,
-		Dashboards:    dashboardsService,
-		Threads:       threadsService,
-		Mentions:      mentionRuns,
-		Proposals:     proposalsService,
-		Imports:       importsService,
-		Folders:       folderAccess,
-		Findings:      findingsService,
-		Observations:  observationsService,
-		SavedSearches: savedSearchesService,
-		Health:        healthService,
-		Annotations:   annotationsService,
-		Activity:      activityStore,
-		Runs:          revisions.NewRunReader(queue, observeOpts),
-		Claims:        claimsService,
-		RunSessions:   runSessions,
-		LiveText:      liveText,
-		Search:        searchService,
-		Stars:         stars.New(database, folderAccess),
-		Provider:      llmProvider,
-		PublicURL:     cfg.PublicURL,
-		Logger:        logger,
+		StartHealthRun: func() { startHealthRun() },
+		Datasources:    registry,
+		Runner:         runner,
+		Dashboards:     dashboardsService,
+		Threads:        threadsService,
+		Mentions:       mentionRuns,
+		Proposals:      proposalsService,
+		Imports:        importsService,
+		Folders:        folderAccess,
+		Findings:       findingsService,
+		Observations:   observationsService,
+		SavedSearches:  savedSearchesService,
+		Health:         healthService,
+		Annotations:    annotationsService,
+		Activity:       activityStore,
+		Runs:           revisions.NewRunDesk(queue, observeOpts),
+		Claims:         claimsService,
+		RunSessions:    runSessions,
+		LiveText:       liveText,
+		Search:         searchService,
+		Stars:          stars.New(database, folderAccess),
+		Provider:       llmProvider,
+		PublicURL:      cfg.PublicURL,
+		Logger:         logger,
 	})
 
 	if llmProvider != nil {
@@ -422,6 +424,7 @@ func run() error {
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
 	healthHandler := health.NewHandler(healthCtx, healthService, health.NewRepairs(healthService, revisionsService), jobs)
+	startHealthRun = healthHandler.StartRun
 	defer func() {
 		stopHealthRuns()
 		healthHandler.Wait()

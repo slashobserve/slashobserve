@@ -122,22 +122,22 @@ func TestBuildErrorsMapToStatusesAndCodes(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reply, ok := buildReplyFor(tc.err)
-			if !ok || reply.status != tc.wantStatus || reply.code != tc.wantCode || reply.latest != tc.wantLatest {
+			reply, ok := ReplyFor(tc.err)
+			if !ok || reply.Status != tc.wantStatus || reply.Code != tc.wantCode || reply.Latest != tc.wantLatest {
 				t.Fatalf("reply = %+v (handled %t), want status %d code %q latest %d", reply, ok, tc.wantStatus, tc.wantCode, tc.wantLatest)
 			}
 		})
 	}
-	if _, ok := buildReplyFor(errors.New("database down")); ok {
+	if _, ok := ReplyFor(errors.New("database down")); ok {
 		t.Fatal("an unknown error must fall through to the service's 500 handling")
 	}
 }
 
 func TestNoAccessAndRoleAreToldApart(t *testing.T) {
-	access, _ := buildReplyFor(folders.ErrNoAccess)
-	role, _ := buildReplyFor(folders.ErrForbidden)
-	if access.message != forbidden.AccessMessage || role.message != forbidden.RoleMessage {
-		t.Fatalf("messages = %q and %q", access.message, role.message)
+	access, _ := ReplyFor(folders.ErrNoAccess)
+	role, _ := ReplyFor(folders.ErrForbidden)
+	if access.Message != forbidden.AccessMessage || role.Message != forbidden.RoleMessage {
+		t.Fatalf("messages = %q and %q", access.Message, role.Message)
 	}
 }
 
