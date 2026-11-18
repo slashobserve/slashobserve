@@ -168,10 +168,16 @@ func (a *app) requestsArchiveCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := c.do(cmd.Context(), http.MethodDelete, "observe/"+id, nil, nil); err != nil {
+			data, err := c.do(cmd.Context(), http.MethodDelete, "observe/"+id, nil, nil)
+			if err != nil {
 				return err
 			}
-			a.output().confirm("Archived request %s", id)
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			out.confirm("Archived request %s", id)
 			return nil
 		},
 	}

@@ -105,3 +105,15 @@ func TestRequestsRenameNeedsATitleOrClear(t *testing.T) {
 		}
 	}
 }
+
+func TestArchiveAndRemoveBlockPrintOnlyAnEmptyBodyWithJSON(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json", "requests", "archive", stoppedID},
+		{"--json", "o", "remove-block", testBlock, "--version", "2"},
+	} {
+		_, stdout, stderr, code := runAgainst(t, http.StatusNoContent, "", args...)
+		if code != 0 || strings.TrimSpace(stdout) != "" || stderr != "" {
+			t.Fatalf("%v: exit %d, stdout %q, stderr %q", args, code, stdout, stderr)
+		}
+	}
+}

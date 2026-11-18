@@ -122,10 +122,16 @@ func (a *app) observationRemoveBlockCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := c.do(cmd.Context(), http.MethodDelete, "blocks/"+id, url.Values{"version": {strconv.Itoa(version)}}, nil); err != nil {
+			data, err := c.do(cmd.Context(), http.MethodDelete, "blocks/"+id, url.Values{"version": {strconv.Itoa(version)}}, nil)
+			if err != nil {
 				return err
 			}
-			a.output().confirm("Removed block %s", id)
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			out.confirm("Removed block %s", id)
 			return nil
 		},
 	}
