@@ -229,6 +229,7 @@ It takes `kind` (`logs` or `traces`), `title` and `datasource` (the old name `da
 The query is linted as `lint_query` does it, and one that fails the lint is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
 A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
+
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
 A `folder_id` the key cannot save in returns `forbidden_role`, and an unknown one `not_found`; a datasource that does not exist or does not fit the kind returns `invalid_request`.
 Check the query with `lint_query` or `draft_query` first, because saving runs no query.
