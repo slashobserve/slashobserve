@@ -1,7 +1,7 @@
 import { resolveTime } from "@/lib/time"
 import type { DataPanel } from "@/spec"
 
-const variableReference = /\$\{?[A-Za-z_]\w*/
+const variableReference = /\$\{?(?!__)[A-Za-z_]\w*/
 
 function holdsVariable(value: unknown): boolean {
   if (typeof value === "string") return variableReference.test(value)

@@ -26,6 +26,11 @@ describe("panelUsesVariables", () => {
     expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(true)
   })
 
+  it("is true for a variable beside a built-in", () => {
+    const query = 'rate(up{job="$job"}[$__rate_interval])'
+    expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(true)
+  })
+
   it("is true when a later query of the panel references a variable", () => {
     const queries = [{ query: "up" }, { query: "up{job=$job}" }]
     expect(panelUsesVariables(panel({ queries }))).toBe(true)
@@ -39,6 +44,9 @@ describe("panelUsesVariables", () => {
     ["a plain query", "sum(rate(http_requests_total[5m]))"],
     ["a dollar sign before a digit", "up{price=~'$5'}"],
     ["a lone dollar sign", "up{x='$'}"],
+    ["a built-in interval", "rate(up[$__rate_interval])"],
+    ["a braced built-in", "rate(up[${__interval}])"],
+    ["a built-in user name", "up{owner='${__user.name}'}"],
   ])("is false for %s", (_, query) => {
     expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(false)
   })
