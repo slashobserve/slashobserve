@@ -2168,7 +2168,7 @@ export interface paths {
         put?: never;
         /**
          * Publish an observation as the next revision of its RCA.
-         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
+         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A page with no live panel block that equals its latest revision (title, summary, state, range and blocks) answers 409 `rca_unchanged`, so a retry never makes a copy; a page with a live panel always publishes, because its data may have moved. A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
          */
         post: operations["publishRca"];
         delete?: never;
@@ -12408,7 +12408,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). */
             409: {
                 headers: {
                     [name: string]: unknown;

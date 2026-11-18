@@ -164,7 +164,10 @@ func (h *RCAHandler) withdraw(c *gin.Context) {
 
 func (h *RCAHandler) fail(c *gin.Context, action string, err error) {
 	var failed *PanelFailedError
+	var unchanged *RCAUnchangedError
 	switch {
+	case errors.As(err, &unchanged):
+		httpapi.AbortError(c, http.StatusConflict, CodeRCAUnchanged, unchanged.Error())
 	case errors.Is(err, ErrRevisionNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrRevisionNotFound.Error())
 	case errors.Is(err, ErrRCALimit):

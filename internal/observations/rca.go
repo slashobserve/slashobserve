@@ -31,6 +31,7 @@ const (
 	CodePanelFailed        = "panel_failed"
 	CodeRCALimit           = "rca_limit"
 	CodeRCAShared          = "rca_shared"
+	CodeRCAUnchanged       = "rca_unchanged"
 	CodeObservationChanged = "observation_changed"
 	codeQueryFailed        = "query_failed"
 	panelFailedMessage     = "a panel could not be frozen"
@@ -46,6 +47,14 @@ var (
 	ErrObservationChanged = errors.New("the observation changed while it was being published; publish again")
 	ErrPublishPersonal    = errors.New("an observation in My Dashboards is private; move it to a shared folder before publishing it")
 )
+
+type RCAUnchangedError struct {
+	Revision int
+}
+
+func (e *RCAUnchangedError) Error() string {
+	return fmt.Sprintf("revision %d already holds this page; change the observation before publishing again", e.Revision)
+}
 
 type PanelFailedError struct {
 	BlockID  string

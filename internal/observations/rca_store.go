@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -89,6 +91,9 @@ func (s *Service) insertRCA(ctx context.Context, q *dbsqlc.Queries, parent dbsql
 	if err != nil {
 		return dbsqlc.ObservationRca{}, fmt.Errorf("encode RCA content: %w", err)
 	}
+	if err := s.refuseUnchanged(ctx, q, parent, live, next.Revision, content); err != nil {
+		return dbsqlc.ObservationRca{}, err
+	}
 	row, err := q.InsertRCA(ctx, dbsqlc.InsertRCAParams{
 		ObservationID:    parent.ID,
 		Revision:         next.Revision,
@@ -133,4 +138,31 @@ func rcaOf(row dbsqlc.ObservationRca) (RCA, error) {
 		Actor:         actorOf(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.Origin, row.OriginClient, row.RunID),
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 	}, nil
+}
+
+func (s *Service) refuseUnchanged(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, live []dbsqlc.ObservationBlock, next int32, content []byte) error {
+	if next < 2 || slices.ContainsFunc(live, func(b dbsqlc.ObservationBlock) bool { return Kind(b.Kind) == KindPanel }) {
+		return nil
+	}
+	latest, err := q.RCAByRevision(ctx, dbsqlc.RCAByRevisionParams{ObservationID: parent.ID, Revision: next - 1})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("read the latest RCA revision: %w", err)
+	}
+	if latest.Title == parent.Title && latest.Summary == parent.Summary && latest.ObservationState == parent.State &&
+		sameTime(latest.TimeFrom, parent.TimeFrom) && sameTime(latest.TimeTo, parent.TimeTo) && sameJSON(latest.Content, content) {
+		return &RCAUnchangedError{Revision: int(latest.Revision)}
+	}
+	return nil
+}
+
+func sameTime(a, b pgtype.Timestamptz) bool {
+	return a.Valid == b.Valid && a.Time.Equal(b.Time)
+}
+
+func sameJSON(a, b []byte) bool {
+	var x, y any
+	return json.Unmarshal(a, &x) == nil && json.Unmarshal(b, &y) == nil && reflect.DeepEqual(x, y)
 }

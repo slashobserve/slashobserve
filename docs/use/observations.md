@@ -213,6 +213,8 @@ A revision leaves out requested blocks, run blocks, and the query text of every 
 If a panel cannot be frozen, nothing is published and the answer is `panel_failed` with the block it names, so fix or remove that panel and publish again.
 If the page changed while it was being frozen, the answer is `observation_changed`, and publishing again takes the new page.
 An observation keeps at most 50 revisions, and one more is refused with `rca_limit`.
+A page with no live panel block whose title, summary, state, range and blocks equal its latest revision is refused with `rca_unchanged`, so pressing Publish twice, or an agent retrying, never makes a copy.
+A page with a live panel block always publishes, because each publish takes new data.
 Publishing needs edit access to the observation's folder, and an observation in My Dashboards must be moved to a shared folder first, as a dashboard must before it is shared.
 Such an observation does not list `publish` in its `allowed_actions`, and the web page offers **Publish as RCA** with a **Move to folder** button instead of a publish button.
 
@@ -225,7 +227,7 @@ Neither shares the result with anyone outside the folder.
 **Publish revision N** freezes the page as the next revision and says "Published revision N" when it is done.
 **Revisions** lists each revision with who published it and when.
 A person who cannot edit sees **RCA revisions** instead, and only when a revision exists, with the note "You can view revisions. Editors publish them."
-The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a panel with too much data, and an observation in My Dashboards.
+The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a page that has not changed since the latest revision, a panel with too much data, and an observation in My Dashboards.
 When a panel could not be frozen, the message names the panel and why, and **Show block** closes the panel and scrolls to that block so you can fix or remove it.
 
 Choosing a revision shows **Open revision N**, its public links and, for a person who can edit, **Withdraw**.

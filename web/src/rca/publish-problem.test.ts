@@ -103,3 +103,19 @@ describe("publishProblem", () => {
     })
   })
 })
+
+describe("publishProblem unchanged page", () => {
+  it("passes the server's reason through as a sentence", () => {
+    expect(
+      publishProblem(
+        new ApiError(
+          409,
+          "rca_unchanged",
+          "revision 2 already holds this page; change the observation before publishing again"
+        )
+      ).text
+    ).toBe(
+      "Revision 2 already holds this page; change the observation before publishing again."
+    )
+  })
+})

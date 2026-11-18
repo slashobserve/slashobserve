@@ -523,11 +523,37 @@ func TestRCAHTTPRefusalsUseTheDocumentedCodes(t *testing.T) {
 	}
 }
 
+func TestRCAHTTPAnUnchangedPageIsNotPublishedAgainButAPageWithAPanelIs(t *testing.T) {
+	d := newRCADocumented(t)
+	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"Started after the deploy"}}`).Observation.ID
+	path := "/api/v1/observations/" + id + "/rcas"
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+
+	rec := d.call(t, editor, http.MethodPost, path, http.StatusConflict)
+	if got := errorCode(t, rec); got != "rca_unchanged" || !strings.Contains(rec.Body.String(), "revision 1 already holds this page") {
+		t.Errorf("the second publish: %s", rec.Body)
+	}
+	if n := d.count(t, `SELECT count(*) FROM observation_rcas WHERE observation_id = $1`, id); n != 1 {
+		t.Errorf("%d revisions after the refusal, want 1", n)
+	}
+
+	d.send(t, editor, http.MethodPatch, "/api/v1/observations/"+id, `{"title":"Checkout 5xx after the deploy"}`, http.StatusOK)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	if got := errorCode(t, d.call(t, editor, http.MethodPost, path, http.StatusConflict)); got != "rca_unchanged" {
+		t.Errorf("after the rename was published: code %q", got)
+	}
+
+	d.send(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/blocks", `{"kind":"panel","body":`+string(titledPanel("Rate"))+`}`, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+}
+
 func TestRCAHTTPWithdrawingARevisionDeletesItUnlessALivePublicLinkReachesIt(t *testing.T) {
 	d := newRCADocumented(t)
 	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"Started after the deploy"}}`).Observation.ID
 	path := "/api/v1/observations/" + id + "/rcas"
 	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	d.send(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/blocks", `{"kind":"text","body":{"markdown":"A second note"}}`, http.StatusCreated)
 	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
 
 	for _, by := range []auth.Principal{viewer, commenter} {
