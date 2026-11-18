@@ -113,11 +113,11 @@ demo:
 	$(DEMO_BANNER)
 
 demo-build:
-	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
+	VERSION=$(VERSION) COMMIT=$(COMMIT) SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
 	$(DEMO_BANNER)
 
 demo-search:
-	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) --profile search up -d --build --wait --wait-timeout 600
+	VERSION=$(VERSION) COMMIT=$(COMMIT) SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) --profile search up -d --build --wait --wait-timeout 600
 	$(DEMO_BANNER)
 	@echo "Elasticsearch is running at http://localhost:$${SLASHOBSERVE_ELASTICSEARCH_HOST_PORT:-9200}"
 	@echo "OpenSearch is running at http://localhost:$${SLASHOBSERVE_OPENSEARCH_HOST_PORT:-9201}"
