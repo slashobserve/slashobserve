@@ -113,6 +113,9 @@ A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 
+A discussion entry reads "asked the agent" only when the message started a run.
+A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
+
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
 The agent revises the latest version and saves the next one, as described in [Chat and follow-ups](chat.md).
