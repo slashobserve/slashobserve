@@ -45,7 +45,7 @@ var exceptions = map[string]exception{
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 
-	"logVolume": {MCP: notBuilt, CLI: notBuilt},
+	"logVolume": {MCP: notBuilt},
 
 	"listFindings":           {MCP: notBuilt, CLI: notBuilt},
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},
@@ -103,10 +103,6 @@ var exceptions = map[string]exception{
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
 	"getDashboardImport": {MCP: notBuilt, CLI: notBuilt},
 
-	"listDatasourceMetrics":     {CLI: notBuilt},
-	"listDatasourceLabels":      {CLI: notBuilt},
-	"listDatasourceLabelValues": {CLI: notBuilt},
-
 	"getNewsFeed": {MCP: personOnly, CLI: personOnly},
 
 	"getConnectionRequest":     {MCP: consentScreen, CLI: consentScreen},
@@ -149,9 +145,8 @@ var exceptions = map[string]exception{
 	"getPublicPanelData":      {MCP: publicView, CLI: publicView},
 	"getPublicVariableValues": {MCP: publicView, CLI: publicView},
 
-	"getPanelData":        {MCP: webRendering, CLI: webRendering},
-	"getVariableValues":   {MCP: webRendering, CLI: webRendering},
-	"lintDatasourceQuery": {CLI: notBuilt},
+	"getPanelData":      {MCP: webRendering, CLI: webRendering},
+	"getVariableValues": {MCP: webRendering, CLI: webRendering},
 
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
 	"requestRepairs": {MCP: builtInAgentQueue, CLI: notBuilt},
@@ -178,10 +173,6 @@ var exceptions = map[string]exception{
 	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
 
 	"tailLogs": {MCP: liveWebPage},
-
-	"traceLogs": {CLI: notBuilt},
-
-	"traceStats": {CLI: notBuilt},
 
 	"listUsers":             {MCP: personOnly, CLI: personOnly},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},

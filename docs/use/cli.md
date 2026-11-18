@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
@@ -101,6 +101,19 @@ A request that failed before it had a dashboard shows only here, and `observe st
 `requests pin <id>`, `requests unpin <id>`, `requests rename <id> <title>` (`--clear` takes the title back to the start of the prompt) and `requests archive <id>` change one of your own requests.
 Each can be repeated without effect, so a retry after a dropped connection is safe.
 An archived request stays readable with `observe status`.
+
+### Discovering what a datasource holds
+
+A script or an agent with only a shell finds what to query with `bin/observe datasources`.
+`list` prints each datasource's uid, type, name and health; the uid is what `--datasource` takes.
+`metrics <uid>` lists metric names with their type and help (the OpenTelemetry metric names and their table on ClickHouse), `labels <uid>` lists label names, and `label-values <uid> <label>` lists one label's values.
+`--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
+On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
+
+`lint <uid> <query>` checks a query without running it and prints each diagnostic with the byte range it covers; it exits 1 only when a diagnostic is an error.
+`log-volume <uid> <query>` counts every line a logs query matches per bucket, by level, and `trace-stats <uid> [<filter>]` counts spans, errors and the p50, p95 and p99 durations per bucket.
+`trace-logs <uid> <trace-id>` prints the log lines that carry a trace id, or one span with `--span`.
+Each takes `--from` and `--to`, and the two counting commands take `--buckets` (1 to 200); `--json` prints the server's answer unchanged.
 
 ### Exit codes
 
