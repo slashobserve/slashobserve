@@ -773,7 +773,7 @@ describe("findings and investigations", () => {
     ])
   })
 
-  it("keeps findings for everything and changes, not for open comments or a panel", () => {
+  it("keeps findings for everything, changes and a panel filter, not for open comments", () => {
     const entries = buildTimeline({
       ...none,
       comments: [comment({ id: "c1", created_at: at(1) })],
@@ -787,6 +787,8 @@ describe("findings and investigations", () => {
       "finding:f1",
     ])
     expect(keys(filterTimeline(entries, "open", null))).toEqual(["thread:c1"])
-    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([])
+    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([
+      "finding:f1",
+    ])
   })
 })

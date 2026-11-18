@@ -302,7 +302,7 @@ function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
 }
 
 function matchesPanel(entry: TimelineEntry, panelId: string | null): boolean {
-  if (panelId === null) return true
+  if (panelId === null || entry.kind === "finding") return true
   if (entry.kind === "import") {
     return entry.unverified.some((panel) => panel.panelId === panelId)
   }
