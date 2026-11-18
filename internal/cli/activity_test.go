@@ -247,6 +247,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"proposal.merged", `{"title":"Rename the errors panel","revision":2,"version":6}`, `merged the proposal "Rename the errors panel" as version 6`},
 		{"proposal.merged", `{"title":"Rename the errors panel","revision":2,"version":null}`, `merged the proposal "Rename the errors panel", already in the dashboard`},
 		{"proposal.discarded", `{"title":"Evil\u001b[31m","revision":1}`, `discarded the proposal "Evil [31m"`},
+		{"proposal.discarded", `{"title":"Rename","revision":1,"reason":"Duplicate\u001b[31m"}`, `discarded the proposal "Rename": Duplicate [31m`},
 		{"dashboard.created", `{"title":"Evil\u001b[31m"}`, `created "Evil [31m"`},
 	}
 	for _, tc := range cases {

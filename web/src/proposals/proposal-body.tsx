@@ -116,6 +116,11 @@ export function ProposalBody({
         <p className="text-[13px] text-muted-foreground">
           {stateLine(proposal)}
         </p>
+        {proposal.close_reason === null ? null : (
+          <p className="text-[13px] wrap-anywhere">
+            Reason: {proposal.close_reason}
+          </p>
+        )}
       </div>
       {proposal.summary === "" ? null : (
         <p className="text-sm wrap-anywhere">{proposal.summary}</p>

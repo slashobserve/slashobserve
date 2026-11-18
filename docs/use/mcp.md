@@ -141,7 +141,7 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.
 It answers `proposal_changed` with the newest `revision` when the author added one, `version_conflict` with `conflicts` when a conflict has no choice, and `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
 
-`discard_proposal` takes the `proposal_id`, and its author or someone who may merge it can discard it.
+`discard_proposal` takes the `proposal_id` and an optional `reason` of up to 500 characters that the proposal shows, and its author or someone who may merge it can discard it.
 A caller without the access gets `forbidden_role`, and an unknown proposal or one on a dashboard the caller cannot see gets `not_found`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.

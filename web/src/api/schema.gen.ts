@@ -799,7 +799,7 @@ export interface paths {
         put?: never;
         /**
          * Close a proposal without saving it.
-         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an empty object.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason` and the `proposal.discarded` activity event carries.
          */
         post: operations["discardProposal"];
         delete?: never;
@@ -4291,6 +4291,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4333,6 +4335,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -8519,7 +8523,10 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** @description Why the proposal is discarded. */
+                    reason?: string;
+                };
             };
         };
         responses: {

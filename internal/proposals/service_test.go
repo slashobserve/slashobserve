@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -341,7 +342,7 @@ func TestMergingAClosedProposalIsAnInvalidTransition(t *testing.T) {
 	if !errors.Is(err, lifecycle.ErrInvalidTransition) || !errors.As(err, &refusal) || refusal.State != string(StateMerged) {
 		t.Fatalf("err = %v, want an invalid transition from merged", err)
 	}
-	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref)); !errors.Is(err, lifecycle.ErrInvalidTransition) {
+	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), ""); !errors.Is(err, lifecycle.ErrInvalidTransition) {
 		t.Fatalf("discard err = %v, want an invalid transition", err)
 	}
 }
@@ -474,10 +475,10 @@ func TestTheAuthorDiscardsButAnotherCommenterCannot(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	if _, err := r.service.Discard(t.Context(), otherCommenter, proposalID(t, ref)); !errors.Is(err, ErrForbidden) {
+	if _, err := r.service.Discard(t.Context(), otherCommenter, proposalID(t, ref), ""); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("other commenter err = %v, want forbidden", err)
 	}
-	discarded, err := r.service.Discard(t.Context(), commenter, proposalID(t, ref))
+	discarded, err := r.service.Discard(t.Context(), commenter, proposalID(t, ref), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,9 +499,57 @@ func TestAnEditorDiscardsSomeoneElsesProposal(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref))
+	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "")
 	if err != nil || discarded.State != StateDiscarded {
 		t.Fatalf("discarded = %+v, err = %v", discarded.Item, err)
+	}
+}
+
+func TestADiscardKeepsItsTrimmedReason(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady)
+	ref := r.propose(t, commenter, id, 1, changed)
+
+	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "  Duplicate of the new panel \n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if discarded.CloseReason == nil || *discarded.CloseReason != "Duplicate of the new panel" {
+		t.Fatalf("close reason = %v", discarded.CloseReason)
+	}
+	read, err := r.service.Get(t.Context(), commenter, proposalID(t, ref))
+	if err != nil || read.CloseReason == nil || *read.CloseReason != "Duplicate of the new panel" {
+		t.Fatalf("read = %+v, err = %v, want the reason stored", read.Item, err)
+	}
+}
+
+func TestADiscardWithoutAReasonHasNone(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady)
+	ref := r.propose(t, commenter, id, 1, changed)
+
+	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "   ")
+	if err != nil || discarded.CloseReason != nil {
+		t.Fatalf("discarded = %+v, err = %v, want no reason", discarded.Item, err)
+	}
+}
+
+func TestADiscardReasonOverTheLimitIsRefusedAndTheProposalStaysOpen(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady)
+	ref := r.propose(t, commenter, id, 1, changed)
+
+	_, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes+1))
+	var invalid *dashboards.InvalidInputError
+	if !errors.As(err, &invalid) {
+		t.Fatalf("err = %v, want invalid input", err)
+	}
+	open, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
+	if err != nil || open.State != StateOpen {
+		t.Fatalf("proposal = %+v, err = %v, want it still open", open.Item, err)
+	}
+	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes)); err != nil {
+		t.Fatalf("a reason at the limit: %v", err)
 	}
 }
 
@@ -508,7 +557,7 @@ func TestListFiltersByState(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 	closed := r.propose(t, commenter, id, 1, changed)
-	if _, err := r.service.Discard(t.Context(), commenter, proposalID(t, closed)); err != nil {
+	if _, err := r.service.Discard(t.Context(), commenter, proposalID(t, closed), ""); err != nil {
 		t.Fatal(err)
 	}
 	open := r.propose(t, otherCommenter, id, 1, changed)
@@ -628,7 +677,7 @@ func TestAMergeAndADiscardAtOnceLeaveOneOutcome(t *testing.T) {
 	}()
 	go func() {
 		defer wg.Done()
-		_, errs[1] = r.service.Discard(t.Context(), commenter, proposalID(t, ref))
+		_, errs[1] = r.service.Discard(t.Context(), commenter, proposalID(t, ref), "")
 	}()
 	wg.Wait()
 	p, err := r.service.Get(t.Context(), editor, proposalID(t, ref))

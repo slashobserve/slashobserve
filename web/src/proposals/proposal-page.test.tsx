@@ -55,6 +55,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     updated_at: "2026-11-11T10:00:00Z",
     closed_at: null,
     closed_by: null,
+    close_reason: null,
     merged_version: null,
     behind: true,
     latest_version: 4,
@@ -379,6 +380,49 @@ describe("ProposalPage", () => {
     await waitFor(() =>
       expect(toasts.success).toHaveBeenCalledWith("Discarded")
     )
+  })
+
+  it("sends the reason typed in the discard dialog", async () => {
+    const posts = mockServer({
+      proposals: [proposal({ conflicts: [] })],
+      discard: json({ ...proposal(), state: "discarded" }),
+    })
+    const { user } = renderPage()
+    await user.click(await screen.findByRole("button", { name: "Discard" }))
+    const dialog = screen.getByRole("alertdialog")
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Reason (optional)" }),
+      "  Superseded by the new layout "
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Discard" }))
+    await waitFor(() =>
+      expect(posts).toEqual([
+        {
+          path: `/api/v1/proposals/${proposalId}/discard`,
+          body: { reason: "Superseded by the new layout" },
+        },
+      ])
+    )
+  })
+
+  it("shows why a proposal was discarded", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          state: "discarded",
+          closed_by: { ...ada, name: "Grace" },
+          close_reason: "Superseded by the new layout",
+          allowed_actions: [],
+          conflicts: [],
+          behind: false,
+        }),
+      ],
+    })
+    renderPage()
+    expect(await screen.findByText("Discarded by Grace")).toBeTruthy()
+    expect(
+      screen.getByText("Reason: Superseded by the new layout")
+    ).toBeTruthy()
   })
 
   it("reloads the proposal and drops picks for conflicts that are gone after a newer revision", async () => {

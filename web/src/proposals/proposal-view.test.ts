@@ -42,6 +42,7 @@ function summary(over: Partial<ProposalSummary> = {}): ProposalSummary {
     updated_at: "2026-11-11T10:00:00Z",
     closed_at: null,
     closed_by: null,
+    close_reason: null,
     merged_version: null,
     behind: false,
     latest_version: 3,

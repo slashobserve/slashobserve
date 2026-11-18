@@ -84,11 +84,11 @@ export function useDiscardProposal(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: () =>
+    mutationFn: (reason: string) =>
       api
         .POST("/proposals/{id}/discard", {
           params: { path: { id } },
-          body: {},
+          body: reason === "" ? {} : { reason },
         })
         .then(unwrap),
     onSuccess: () =>

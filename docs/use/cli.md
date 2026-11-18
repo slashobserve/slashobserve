@@ -320,7 +320,7 @@ For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `o
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
 Merging needs Edit on the dashboard and a connection that is not in propose mode, and it runs the queries of the panels it changes like any save.
 
-`bin/observe proposals discard <proposal-id>` closes the proposal without saving it and prints `Discarded`.
+`bin/observe proposals discard <proposal-id> [--reason <text>]` closes the proposal without saving it and prints `Discarded`; `--reason` (up to 500 characters) is shown on the proposal, printed by `proposals show` and recorded in the activity log.
 Its author may discard it, and so may anyone who may merge it.
 
 `-q` hides the confirmation of `merge` and `discard`, and `--json` prints the API response unchanged.

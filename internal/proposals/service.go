@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -393,7 +395,7 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		return Proposal{}, err
 	}
 	merged := func(ctx context.Context, q *dbsqlc.Queries, version *int) error {
-		if err := closeProposal(ctx, q, h, StateMerged, cols); err != nil {
+		if err := closeProposal(ctx, q, h, StateMerged, cols, ""); err != nil {
 			return err
 		}
 		return appendEvent(ctx, q, activity.TypeProposalMerged, who, h.row.ID, h.row.DashboardID, mergedEventData{Title: h.row.Title, Revision: int(h.row.Revision), Version: version})
@@ -436,7 +438,11 @@ func (s *Service) lost(ctx context.Context, id pgtype.UUID, can func(lifecycle.W
 	return &ChangedError{Revision: int(h.row.Revision)}
 }
 
-func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID) (Proposal, error) {
+func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID, reason string) (Proposal, error) {
+	reason = strings.TrimSpace(reason)
+	if utf8.RuneCountInString(reason) > maxReasonRunes {
+		return Proposal{}, &dashboards.InvalidInputError{Message: fmt.Sprintf("reason must be at most %d characters", maxReasonRunes)}
+	}
 	h, access, err := s.load(ctx, by, id)
 	if err != nil {
 		return Proposal{}, err
@@ -454,10 +460,10 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 		return Proposal{}, err
 	}
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := closeProposal(ctx, q, h, StateDiscarded, cols); err != nil {
+		if err := closeProposal(ctx, q, h, StateDiscarded, cols, reason); err != nil {
 			return err
 		}
-		return appendEvent(ctx, q, activity.TypeProposalDiscarded, who, h.row.ID, h.row.DashboardID, eventData{Title: h.row.Title, Revision: int(h.row.Revision)})
+		return appendEvent(ctx, q, activity.TypeProposalDiscarded, who, h.row.ID, h.row.DashboardID, eventData{Title: h.row.Title, Revision: int(h.row.Revision), Reason: reason})
 	})
 	if errors.Is(err, errLostClose) {
 		return Proposal{}, s.lost(ctx, id, f.can, ActionDiscard)

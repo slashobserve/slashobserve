@@ -33,6 +33,7 @@ type SummaryJSON struct {
 	UpdatedAt      string      `json:"updated_at"`
 	ClosedAt       *string     `json:"closed_at"`
 	ClosedBy       *authorJSON `json:"closed_by"`
+	CloseReason    *string     `json:"close_reason"`
 	MergedVersion  *int        `json:"merged_version"`
 	Behind         bool        `json:"behind"`
 	LatestVersion  int         `json:"latest_version"`
@@ -100,6 +101,7 @@ func NewSummaryJSON(i Item) SummaryJSON {
 		CreatedAt:      httpapi.FormatTime(i.CreatedAt),
 		UpdatedAt:      httpapi.FormatTime(i.UpdatedAt),
 		ClosedAt:       timeText(i.ClosedAt),
+		CloseReason:    i.CloseReason,
 		MergedVersion:  i.MergedVersion,
 		Behind:         i.Behind,
 		LatestVersion:  i.LatestVersion,

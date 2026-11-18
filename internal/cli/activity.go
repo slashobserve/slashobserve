@@ -47,6 +47,7 @@ type activityData struct {
 	Version       int      `json:"version"`
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
+	Reason        string   `json:"reason"`
 	Kind          string   `json:"kind"`
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
@@ -302,6 +303,9 @@ func describeProposal(e activityEvent) (string, bool) {
 		}
 		return "merged " + quotedProposal(d.Title) + ", already in the dashboard", true
 	case "proposal.discarded":
+		if d.Reason != "" {
+			return "discarded " + quotedProposal(d.Title) + ": " + text(d.Reason), true
+		}
 		return "discarded " + quotedProposal(d.Title), true
 	}
 	return "", false

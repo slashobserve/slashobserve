@@ -52,7 +52,9 @@ type mergeRequest struct {
 	Choices  []choiceRequest `json:"choices"`
 }
 
-type discardRequest struct{}
+type discardRequest struct {
+	Reason string `json:"reason"`
+}
 
 func (h *Handler) list(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
@@ -134,7 +136,7 @@ func (h *Handler) discard(c *gin.Context) {
 	if !decodeOptionalBody(c, &req) {
 		return
 	}
-	p, err := h.svc.Discard(c.Request.Context(), httpapi.Caller(c), id)
+	p, err := h.svc.Discard(c.Request.Context(), httpapi.Caller(c), id, req.Reason)
 	if err != nil {
 		h.fail(c, "discard proposal", err)
 		return

@@ -31,6 +31,7 @@ RETURNING revision;
 UPDATE proposals
 SET state = @state, closed_at = clock_timestamp(),
   closed_by_kind = @closed_by_kind, closed_by_id = @closed_by_id, closed_by_name = @closed_by_name,
+  close_reason = sqlc.narg('close_reason'),
   updated_at = clock_timestamp()
 WHERE id = @id AND state = 'open' AND revision = @revision;
 

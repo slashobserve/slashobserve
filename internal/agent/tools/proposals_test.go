@@ -306,6 +306,19 @@ func TestDiscardProposal(t *testing.T) {
 			t.Fatalf("out = %+v", out)
 		}
 	})
+	t.Run("the reason is kept and bounded", func(t *testing.T) {
+		rig := newProposalsRig(t)
+		id := rig.propose(asUser(commenterCaller), t, "Proposed")
+		long := fmt.Sprintf(`{"proposal_id":%q,"reason":%q}`, id, strings.Repeat("x", 501))
+		if got := errorCodeOf(t, rig.call(asUser(editorCaller), t, nameDiscardProposal, long)); got != "invalid_request" {
+			t.Fatalf("code = %q, want invalid_request", got)
+		}
+		input := fmt.Sprintf(`{"proposal_id":%q,"reason":"Superseded"}`, id)
+		out := summaryOf(t, rig.call(asUser(editorCaller), t, nameDiscardProposal, input))
+		if out.CloseReason == nil || *out.CloseReason != "Superseded" {
+			t.Fatalf("out = %+v", out)
+		}
+	})
 	t.Run("failures", func(t *testing.T) {
 		rig := newProposalsRig(t)
 		id := rig.propose(asUser(commenterCaller), t, "Proposed")

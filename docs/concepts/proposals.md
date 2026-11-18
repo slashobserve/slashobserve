@@ -51,6 +51,7 @@ When the result equals the latest version, nothing is saved, and the proposal cl
 
 `POST /api/v1/proposals/{id}/discard` closes the proposal without saving it.
 Its author, and anyone who may merge it, can discard it.
+The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason` and the `proposal.discarded` activity event carries it as `reason`.
 A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
 
 ## States
@@ -74,7 +75,8 @@ When a change conflicts, its row says in words which panel, variable or setting 
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
 Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
 **Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
-**Discard** asks "Discard this proposal?" and shows to the author and to anyone who may merge.
+**Discard** asks "Discard this proposal?" with an optional **Reason (optional)** field, and shows to the author and to anyone who may merge.
+A discarded proposal's page shows the reason under its state line.
 If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.
 
 ## Routes
