@@ -61,6 +61,7 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
+import { focusComment } from "./panel-actions"
 import {
   cursorOverride,
   cursorSyncLabel,
@@ -566,6 +567,7 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
+    comment: () => focusComment(composerRef),
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
