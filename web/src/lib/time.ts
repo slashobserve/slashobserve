@@ -108,6 +108,19 @@ export function displayZone(
   return zone === "utc" ? "UTC" : knownZone(zone)
 }
 
+export function isZoneChoice(zone: string): boolean {
+  return zone === "browser" || zone === "utc" || knownZone(zone) !== undefined
+}
+
+export function zoneChoices(): string[] {
+  return ["browser", "utc", ...Intl.supportedValuesOf("timeZone")]
+}
+
+export function zoneChoiceLabel(zone: string): string {
+  if (zone === "browser") return "Browser time"
+  return zone === "utc" ? "UTC" : zone
+}
+
 type TimeUnit = "s" | "m" | "h" | "d" | "w" | "M" | "y"
 
 const unitNames: Record<TimeUnit, string> = {
