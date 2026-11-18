@@ -339,7 +339,7 @@ A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in 
 
 ### Waterfall
 
-The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 

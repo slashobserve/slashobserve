@@ -901,10 +901,12 @@ export function TraceView(props: TraceViewProps) {
   )
   const windowMs = (zoom.end - zoom.start) * model.duration
   const { ref: tickRef, width: tickWidth } = useElementSize<HTMLDivElement>()
-  const ticks =
-    tickWidth > 0
-      ? niceTicks(windowMs, tickLimit(tickWidth))
-      : niceTicks(windowMs)
+  const windowStartMs = zoom.start * model.duration
+  const ticks = niceTicks(
+    windowMs,
+    tickWidth > 0 ? tickLimit(tickWidth) : undefined,
+    windowStartMs
+  )
   const openIndex = rows.findIndex(
     (row) => row.kind === "span" && row.span.id === openId
   )
@@ -1128,7 +1130,7 @@ export function TraceView(props: TraceViewProps) {
                           : undefined
                       }
                     >
-                      {model.formatDuration(zoom.start * model.duration + tick)}
+                      {model.formatDuration(windowStartMs + tick)}
                     </span>
                   )
                 })}
