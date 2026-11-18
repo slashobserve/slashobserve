@@ -338,7 +338,7 @@ A trace opens at `/t/<trace id>?ds=<datasource uid>`.
 The title in the top bar reads **Traces / <source> / <root service> <root span>**, such as **Traces / Tempo / frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
 The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
-A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
+A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, so the trace has to be in that Tempo too, and a ClickHouse line opens in the same ClickHouse datasource.
 
 ### Waterfall
 
