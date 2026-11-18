@@ -224,8 +224,21 @@ Neither shares the result with anyone outside the folder.
 A person who cannot edit sees **RCA revisions** instead, and only when a revision exists, with the note "You can view revisions. Editors publish them."
 The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a panel with too much data, and an observation in My Dashboards.
 When a panel could not be frozen, the message names the panel and why, and **Show block** closes the panel and scrolls to that block so you can fix or remove it.
-Choosing a revision shows its public links.
-The app does not render a revision itself; a revision is read at the address of one of its links.
+
+Choosing a revision shows **Open revision N**, its public links and, for a person who can edit, **Withdraw**.
+**Open revision N** shows the stored revision inside the app at `/o/<observation-id>/rca/<revision>`, for anyone who can see the observation, whether or not it has a public link.
+The page is the same frozen text and panels a public link shows, with the name of who published it, and a link back to the observation.
+
+### Withdraw a revision
+
+A slip in a published revision cannot be edited, because a revision never changes, but it can be withdrawn.
+**Withdraw** asks for confirmation and then deletes the revision and its frozen panels for everyone.
+It needs Edit on the observation's folder and the same states as publishing, and the activity log keeps `observation.rca_withdrawn` with the title and the revision number.
+A revision that still has a live public link answers `rca_shared` (409), because a public link is a person's decision: a person with Manage on the folder revokes its links first and then withdraws it.
+Links that have already expired go with the revision.
+Withdrawing the newest revision frees its number, so the next publish takes it again.
+A person withdraws with `observe o withdraw <observation-id> <revision> --yes` or `DELETE /api/v1/observations/{id}/rcas/{revision}`.
+No MCP tool deletes anything, so an agent cannot withdraw a revision.
 
 ## Share a revision
 

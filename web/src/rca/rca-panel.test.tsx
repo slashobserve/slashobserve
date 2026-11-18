@@ -61,7 +61,7 @@ function renderPanel(
         onShowBlock={onShowBlock}
       />
     </PanelHostContext.Provider>,
-    { queryClient }
+    { queryClient, route: { path: "/", url: "/" } }
   )
 }
 
@@ -174,5 +174,46 @@ describe("RcaPanel", () => {
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Show block" }))
     expect(show).toHaveBeenCalledWith("b1")
+  })
+
+  it("opens a revision and lets an editor withdraw it once it is selected", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ public_links: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    )
+    const { user } = renderPanel(["publish"], [2, 1])
+    expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
+    await user.click(await screen.findByRole("button", { name: /Revision 1/ }))
+    expect(
+      await screen.findByRole("link", { name: "Open revision 1" })
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy()
+  })
+
+  it("lets someone who may not publish open a revision but not withdraw it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ public_links: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    )
+    const { user } = renderPanel(["update"], [1])
+    await user.click(await screen.findByRole("button", { name: /Revision 1/ }))
+    expect(
+      await screen.findByRole("link", { name: "Open revision 1" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
   })
 })

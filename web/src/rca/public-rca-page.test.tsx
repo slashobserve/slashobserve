@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { PublicRcaPage, publicRows } from "./public-rca-page"
+import { PublicRcaPage } from "./public-rca-page"
+import { publicRows } from "./rca-document"
 import type { RcaBlock } from "./queries"
 
 const token = `pub_${"a".repeat(43)}`

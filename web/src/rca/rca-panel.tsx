@@ -15,6 +15,7 @@ import { SidePanel } from "@/shell/side-panel"
 
 import { publishProblem, type PublishProblem } from "./publish-problem"
 import { RcaLinks } from "./rca-links"
+import { RevisionActions } from "./revision-actions"
 import { rcasQuery, usePublishRca, type RcaSummary } from "./queries"
 
 type Props = {
@@ -154,6 +155,15 @@ export function RcaPanel({
           <Skeleton className="h-16 w-full animate-none motion-safe:animate-pulse" />
         )}
       </section>
+      {selected === null ? null : (
+        <RevisionActions
+          key={`actions-${selected}`}
+          observationId={observation.id}
+          revision={selected}
+          canWithdraw={canPublish}
+          onWithdrawn={() => setSelected(null)}
+        />
+      )}
       {selected === null ? null : (
         <section
           aria-label={`Public links of revision ${selected}`}

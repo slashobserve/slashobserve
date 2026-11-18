@@ -30,6 +30,21 @@ export function rcasQuery(observationId: string) {
   })
 }
 
+export function rcaQuery(observationId: string, revision: number) {
+  return queryOptions({
+    queryKey: observationKeys.rca(observationId, revision),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/observations/{id}/rcas/{revision}", {
+          params: { path: { id: observationId, revision } },
+          signal,
+        })
+        .then(unwrap),
+    select: (data) => data.rca,
+    staleTime: Infinity,
+  })
+}
+
 export function rcaLinksQuery(observationId: string, revision: number) {
   return queryOptions({
     queryKey: observationKeys.rcaLinks(observationId, revision),
@@ -54,6 +69,29 @@ export function usePublishRca(observationId: string) {
           params: { path: { id: observationId } },
         })
         .then(unwrap),
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: observationKeys.rcas(observationId),
+        exact: true,
+      }),
+  })
+}
+
+export function useWithdrawRca(observationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (revision: number) =>
+      api
+        .DELETE("/observations/{id}/rcas/{revision}", {
+          params: { path: { id: observationId, revision } },
+        })
+        .then(unwrap),
+    onSuccess: (_, revision) => {
+      queryClient.removeQueries({
+        queryKey: observationKeys.rca(observationId, revision),
+      })
+    },
     onSettled: () =>
       queryClient.invalidateQueries({
         queryKey: observationKeys.rcas(observationId),
