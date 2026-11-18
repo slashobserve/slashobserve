@@ -176,7 +176,7 @@ func TestTraceListShowsTheWholeTraceForEachMatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		ids := column(t, frames[0], "TraceId").Values
-		if len(ids) < 3 || ids[0] != traceSlowAsync || ids[1] != traceNoRoot || ids[2] != traceQuick {
+		if len(ids) < 3 || ids[0] != traceSlowAsync || ids[1] != traceQuick || ids[2] != traceNoRoot {
 			t.Fatalf("trace ids = %v, want slowest first", ids)
 		}
 		frames, _, err = ds.QueryPage(ctx, datasource.PageRequest{Query: query(traceListUnfiltered), Range: lastHour(), Page: 1, PageSize: 50, Sort: &datasource.PageSort{Column: "Spans"}})
