@@ -17,8 +17,8 @@ checkout health by pod, last 6h
 ```
 
 Under the box, a chip lists each healthy datasource the agent may use, followed by the name of the model.
-In the demo the datasources are `prom` (Prometheus) and `ch` (ClickHouse).
-The buttons under "Example prompts" send a ready-made prompt at once, such as "Service health by pod, last 6h" or "Error logs by service from ClickHouse".
+In the demo the datasources are `prom` (Prometheus), `ch` (ClickHouse), `loki` (Loki) and `tempo` (Tempo), and `es` (Elasticsearch) and `os` (OpenSearch) when you started the stack with `make demo-search`.
+The buttons under "Example prompts" send a ready-made prompt at once, such as "Service health by pod, last 6h" or "Error logs by service, last hour", and which ones you see follows your datasources.
 
 Starting a dashboard from the chat needs Edit on a folder.
 Without it the chat home shows "Starting a dashboard needs Edit on a folder. Ask an Admin if you need it."
