@@ -33,7 +33,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts lint lint-go lint-web lint-agent lint-deploy ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts lint lint-go lint-web lint-agent lint-deploy ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -196,6 +196,9 @@ loadtest:
 
 e2e:
 	scripts/e2e.sh
+
+e2e-up:
+	scripts/e2e.sh up
 
 e2e-browser: web-deps
 	scripts/e2e.sh browser

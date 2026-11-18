@@ -62,8 +62,10 @@ Usage: scripts/e2e.sh [run|up|browser|down|logs]
 
   run      reset the isolated ${PROJECT} compose stack, boot it, and run the
            API smoke suite (default); the stack is left running
-  up       reuse the running, healthy ${PROJECT} stack, or reset and boot one;
-           reuse does not rebuild, so rerun 'run' after code changes
+  up       reuse the running, healthy ${PROJECT} stack, or reset and boot one,
+           as soon as Prometheus has scraped every target and ClickHouse holds
+           logs and traces; reuse does not rebuild, so rerun 'run' after code
+           changes
   browser  'up', then run the Playwright suite in web/e2e against it
   down     tear the stack down, including volumes
   logs     print the stack's container logs
@@ -338,11 +340,14 @@ prometheus_history_held() {
   prom_is "count_over_time(up{job=\"node\"}[${PROMETHEUS_HISTORY_MINUTES}m]) >= bool $((PROMETHEUS_HISTORY_MINUTES * 60 / NODE_SCRAPE_SECONDS))" 1
 }
 
+await_history() {
+  poll 240 "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history" prometheus_history_held
+  pass "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history"
+}
+
 wait_for_data() {
   poll 180 "Prometheus scraped all targets" targets_scraped
   pass "Prometheus scraped all targets"
-  poll 240 "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history" prometheus_history_held
-  pass "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history"
   poll 180 "ClickHouse has log and trace rows" logs_and_traces_present
   pass "ClickHouse has log and trace rows"
 }
@@ -689,7 +694,6 @@ suite() {
 
   check_datasources "$TMP/sa-jar"
   dashboards_suite
-  imports_suite
   events_suite
   comments_suite
   revisions_suite
@@ -701,8 +705,6 @@ suite() {
   dashboard_list_suite
   evals_smoke_suite
   people_suite
-  check_api_contract
-  check_no_keys_in_server_log
 }
 
 check_api_contract() {
@@ -1202,6 +1204,7 @@ PY
 
 imports_suite() {
   api_token
+  await_history
   local out demo="$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" unverified="$FIXTURES/grafana-unverified.json"
   local demo_id unverified_id plain_id cursor leak i pids=() statuses=()
   local nil_id=00000000-0000-0000-0000-000000000000 limit=$((8 * 1024 * 1024))
@@ -3495,6 +3498,9 @@ case "${1:-run}" in
     boot
     suite
     stack_suite
+    imports_suite
+    check_api_contract
+    check_no_keys_in_server_log
     ;;
   up) ensure_stack ;;
   browser) browser ;;

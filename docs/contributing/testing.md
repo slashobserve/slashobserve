@@ -38,6 +38,8 @@ The suite runs the replay model provider, so it never calls a live model.
 ## Browser suite
 
 `make e2e-browser` reuses the running e2e stack, or boots one, and runs the Playwright specs in `web/e2e` against it.
+`make e2e-up` does only the boot, so a job can start the stack while it installs the browsers.
+The browser suite needs no API suite first and no more history than the boot waits for.
 Reuse does not rebuild the images, so run `make e2e` again after a code change.
 `make e2e-all` runs the API suite and then the browser suite.
 
