@@ -145,6 +145,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
+		ChatID:        chatOf(row.ID, row.ChatID),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}

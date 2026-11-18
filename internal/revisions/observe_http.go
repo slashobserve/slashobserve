@@ -71,6 +71,7 @@ type observeRequest struct {
 	To          *string `json:"to"`
 
 	ObservationID *string `json:"observation_id"`
+	FollowsID     *string `json:"follows_id"`
 }
 
 type patchObserveRequest struct {
@@ -134,6 +135,7 @@ type agentRequestJSON struct {
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
 	ObservationID *string         `json:"observation_id"`
+	ChatID        string          `json:"chat_id"`
 	Finding       json.RawMessage `json:"finding"`
 }
 
@@ -176,6 +178,7 @@ type requestSummaryJSON struct {
 
 	ObservationID    *string  `json:"observation_id"`
 	ObservationTitle *string  `json:"observation_title"`
+	ChatID           string   `json:"chat_id"`
 	AllowedActions   []string `json:"allowed_actions"`
 }
 
@@ -256,7 +259,20 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version needs dashboard_id")
 		return
 	}
+	if req.DashboardID != nil && req.FollowsID != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "follows_id and dashboard_id exclude each other")
+		return
+	}
 	var dashboardID pgtype.UUID
+	var followsID pgtype.UUID
+	if req.FollowsID != nil {
+		id, err := db.ParseUUID(*req.FollowsID)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "follows_id must be a UUID")
+			return
+		}
+		followsID = id
+	}
 	if req.DashboardID != nil {
 		id, err := db.ParseUUID(*req.DashboardID)
 		if err != nil {
@@ -273,7 +289,7 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", ErrUnavailable.Error())
 		return
 	}
-	row, queued := h.enqueue(c, dashboardID, req.BaseVersion, prompt)
+	row, queued := h.enqueue(c, dashboardID, followsID, req.BaseVersion, prompt)
 	if !queued {
 		return
 	}
@@ -361,12 +377,15 @@ func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time,
 	return &start, &end, nil
 }
 
-func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
+func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID, followsID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
 	var row dbsqlc.AgentRequest
 	var err error
-	if dashboardID.Valid {
+	switch {
+	case dashboardID.Valid:
 		row, err = h.service.SubmitFollowUp(c.Request.Context(), dashboardID, baseVersion, "", prompt, httpapi.Caller(c))
-	} else {
+	case followsID.Valid:
+		row, err = h.service.SubmitObserveFollowUp(c.Request.Context(), httpapi.Caller(c), prompt, followsID)
+	default:
 		row, err = h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
 	}
 	if err != nil {
@@ -501,7 +520,22 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 		}
 		filter.DashboardID = id
 	}
+	if raw, present := c.GetQuery("chat_id"); present {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "chat_id must be a UUID")
+			return filter, false
+		}
+		filter.ChatID = id
+	}
 	return filter, true
+}
+
+func chatOf(id, chat pgtype.UUID) string {
+	if chat.Valid {
+		return chat.String()
+	}
+	return id.String()
 }
 
 func requestTitle(title pgtype.Text, prompt string) string {
@@ -541,6 +575,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 
 		ObservationID:    optionalUUID(row.ObservationID),
 		ObservationTitle: optionalText(row.ObservationTitle),
+		ChatID:           chatOf(row.ID, row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {

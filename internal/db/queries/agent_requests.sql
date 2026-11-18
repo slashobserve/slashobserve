@@ -216,9 +216,10 @@ WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id
 SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note)
+INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, chat_id, thread_context)
 VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text)
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text,
+  sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text)
 RETURNING *;
 
 -- name: GetAgentRequestByID :one
@@ -252,7 +253,7 @@ WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
-  r.title, r.pinned_at, r.observation_id,
+  r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -265,6 +266,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
@@ -279,7 +281,7 @@ LIMIT @row_limit;
 SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
-  r.title, r.pinned_at, r.observation_id,
+  r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -292,6 +294,7 @@ WHERE r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
@@ -307,6 +310,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
@@ -318,6 +322,7 @@ WHERE r.source <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
@@ -456,3 +461,17 @@ RETURNING r.*;
 -- name: SetRequestObservation :one
 UPDATE agent_requests SET observation_id = @observation_id WHERE id = @id
 RETURNING *;
+
+-- name: ListChatTurns :many
+SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary
+FROM agent_requests r
+LEFT JOIN findings f ON f.agent_request_id = r.id
+LEFT JOIN dashboard_versions v ON v.agent_request_id = r.id
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id
+  AND r.source <> 'suggest' AND r.archived_at IS NULL AND r.state = 'succeeded'
+  AND (
+    (sqlc.narg('chat_id')::uuid IS NOT NULL AND (r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid))
+    OR (sqlc.narg('dashboard_id')::uuid IS NOT NULL AND r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
+  )
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT @row_limit;

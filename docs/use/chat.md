@@ -217,12 +217,17 @@ The run itself goes on server-side either way.
 ## Follow-ups
 
 Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
-Until then it is disabled with "Wait for the dashboard, then ask for changes."
+Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
+While the latest turn still runs the box is disabled with "Wait for the answer, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
 
-A follow-up is not a continuation of the chat.
-The agent starts a fresh run that sees the datasources, your new message and the current Spec of the dashboard, not the earlier messages.
-Say what to change in the message itself, for example "only show 5xx" or "add a panel with memory by pod".
+A follow-up is a continuation of the chat.
+The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation: each earlier question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
+It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
+For a chat about a dashboard these are the earlier requests you sent on that dashboard; for a chat with no dashboard they are the earlier turns of that chat.
+Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
+
+Over the API, `POST /observe` takes `follows_id`, an earlier request of yours without a dashboard, to continue its chat, and every request carries a `chat_id`, the id of the chat's first request, which `GET /observe?chat_id=` lists.
 
 The agent revises the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.
@@ -252,6 +257,7 @@ The dashboard reloads the new version, and panels the version added fade in once
 ## Your chats
 
 Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
+A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
 Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.

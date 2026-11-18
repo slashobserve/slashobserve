@@ -1,0 +1,194 @@
+package revisions_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/revisions"
+)
+
+func answerWith(t *testing.T, d *dbtest.Database, id pgtype.UUID, markdown string) {
+	t.Helper()
+	d.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = clock_timestamp() WHERE id = $1`, id)
+	d.Exec(t, `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  VALUES (general_folder_id(), 'answer', 'user', $3::uuid, 'Ada') RETURNING id)
+INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+SELECT o.id, o.id, $1, 'answer', $2, now() - interval '1 hour', now(), 'user', $3::uuid, 'Ada' FROM o`, id, markdown, userID)
+}
+
+func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	first, err := svc.SubmitObserve(ctx, user, "which logs exist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ChatID.Valid {
+		t.Fatalf("a first request has no chat_id of its own, got %v", first.ChatID)
+	}
+	answerWith(t, d, first.ID, "Loki and Elasticsearch")
+
+	second, err := svc.SubmitObserveFollowUp(ctx, user, "show the errors", first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ChatID != first.ID {
+		t.Fatalf("chat_id = %v, want the first request %v", second.ChatID, first.ID)
+	}
+	if got := second.ThreadContext.String; !strings.Contains(got, "You: which logs exist") || !strings.Contains(got, "Observe Agent: Loki and Elasticsearch") {
+		t.Fatalf("thread context = %q, want the first question and answer", got)
+	}
+	answerWith(t, d, second.ID, "Errors are flat")
+
+	third, err := svc.SubmitObserveFollowUp(ctx, user, "and latency", second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third.ChatID != first.ID {
+		t.Fatalf("chat_id = %v, want the root %v", third.ChatID, first.ID)
+	}
+	if got := third.ThreadContext.String; strings.Index(got, "Loki") > strings.Index(got, "Errors are flat") || !strings.Contains(got, "Errors are flat") {
+		t.Fatalf("thread context = %q, want both answers oldest first", got)
+	}
+}
+
+func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	first, err := svc.SubmitObserve(context.Background(), user, "mine")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SubmitObserveFollowUp(context.Background(), account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
+		t.Fatalf("err = %v, want not found", err)
+	}
+}
+
+func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "revise", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SubmitObserveFollowUp(context.Background(), user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
+		t.Fatalf("err = %v, want ErrFollowsDashboard", err)
+	}
+}
+
+func TestDashboardFollowUpCarriesTheEarlierTurnsOnThatDashboard(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	first, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "add a latency panel", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerWith(t, d, first.ID, "Latency is already covered")
+	second, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "and errors", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := second.ThreadContext.String; !strings.Contains(got, "You: add a latency panel") || !strings.Contains(got, "Latency is already covered") {
+		t.Fatalf("thread context = %q, want the earlier turn on the dashboard", got)
+	}
+}
+
+func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	first, err := svc.SubmitObserve(ctx, user, "one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerWith(t, d, first.ID, "answer one")
+	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.SubmitObserve(ctx, user, "elsewhere")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := observeRouterFor(svc, user)
+	page := listObserve(t, r, "?chat_id="+first.ID.String())
+	if got, want := page.ids(), newest(first.ID.String(), second.ID.String()); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("ids = %v, want %v (not %s)", got, want, other.ID)
+	}
+	if rec := call(r, http.MethodGet, "/api/v1/observe?chat_id=nope", ""); rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
+		t.Fatalf("bad chat_id: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateObserveWithFollowsIDReportsTheChat(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	first, err := svc.SubmitObserve(context.Background(), user, "one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := observeRouterFor(svc, user)
+
+	rec := call(r, http.MethodPost, "/api/v1/observe", fmt.Sprintf(`{"prompt":"two","follows_id":%q}`, first.ID))
+	var wrapped struct {
+		Request struct {
+			ID     string `json:"id"`
+			ChatID string `json:"chat_id"`
+		} `json:"request"`
+	}
+	body := &wrapped.Request
+	if rec.Code != http.StatusAccepted || json.Unmarshal(rec.Body.Bytes(), &wrapped) != nil || body.ChatID != first.ID.String() || body.ID == first.ID.String() {
+		t.Fatalf("follow-up: %d %s", rec.Code, rec.Body)
+	}
+
+	rec = call(r, http.MethodGet, "/api/v1/observe/"+first.ID.String(), "")
+	if err := json.Unmarshal(rec.Body.Bytes(), &wrapped); err != nil || body.ChatID != first.ID.String() {
+		t.Fatalf("a root request reports its own id as chat_id: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateObserveRejectsAMalformedOrConflictingFollowsID(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	r := observeRouterFor(svc, user)
+	for name, body := range map[string]string{
+		"not a uuid":       `{"prompt":"x","follows_id":"nope"}`,
+		"with a dashboard": fmt.Sprintf(`{"prompt":"x","follows_id":"00000000-0000-4000-8000-000000000001","dashboard_id":%q}`, dash),
+	} {
+		if rec := call(r, http.MethodPost, "/api/v1/observe", body); rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
+			t.Fatalf("%s: %d %s", name, rec.Code, rec.Body)
+		}
+	}
+	if rec := call(r, http.MethodPost, "/api/v1/observe", `{"prompt":"x","follows_id":"00000000-0000-4000-8000-000000000001"}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown follows_id: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestRetryKeepsTheChat(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	first, err := svc.SubmitObserve(ctx, user, "one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerWith(t, d, first.ID, "answer one")
+	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'agent_error', error = 'x', finished_at = clock_timestamp() WHERE id = $1`, second.ID)
+
+	retried, err := svc.Retry(ctx, second.ID, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.ChatID != first.ID || !strings.Contains(retried.ThreadContext.String, "answer one") {
+		t.Fatalf("retry = chat %v, context %q; want the chat and its context kept", retried.ChatID, retried.ThreadContext.String)
+	}
+}

@@ -52,6 +52,7 @@ type Notice = { text: string; invalid: boolean }
 
 type Props = {
   dashboardId?: string
+  followsId?: string
   dashboardTitle?: string
   runningRequestId?: string
   placeholder: string
@@ -105,6 +106,7 @@ function PickerPopup({
 
 export function ChatComposer({
   dashboardId,
+  followsId,
   dashboardTitle,
   runningRequestId,
   placeholder,
@@ -264,7 +266,7 @@ export function ChatComposer({
       })
       return
     }
-    const plan = planSend({ command, text: trimmed, dashboardId })
+    const plan = planSend({ command, text: trimmed, dashboardId, followsId })
     if ("error" in plan) {
       reject({ text: plan.error, invalid: true })
       return

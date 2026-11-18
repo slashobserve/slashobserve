@@ -3686,6 +3686,7 @@ components:
         - from
         - to
         - observation_id
+        - chat_id
         - finding
       properties:
         id:
@@ -3888,6 +3889,10 @@ components:
           format: date-time
           nullable: true
           description: The end of the window an investigation was asked to look at; null when none was given.
+        chat_id:
+          type: string
+          format: uuid
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat.
         observation_id:
           type: string
           format: uuid
@@ -3927,6 +3932,7 @@ components:
         - continue_note
         - observation_id
         - observation_title
+        - chat_id
         - origin
         - origin_client
         - created_at
@@ -4036,6 +4042,10 @@ components:
           type: string
           nullable: true
           description: The observation's current title; null when the request has no observation or the observation is in a folder you cannot see.
+        chat_id:
+          type: string
+          format: uuid
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
         origin:
           type: string
           enum: [web, cli, mcp, api]

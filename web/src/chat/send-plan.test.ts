@@ -80,4 +80,30 @@ describe("planSend", () => {
       opens: "chat",
     })
   })
+
+  it("continues the chat in place when a follow-up has no dashboard", () => {
+    expect(
+      planSend({ command: null, text: "and latency", followsId: "turn-1" })
+    ).toEqual({
+      input: { prompt: "and latency", followsId: "turn-1" },
+      opens: "same",
+    })
+  })
+
+  it("starts a new chat for an import even inside a chat", () => {
+    expect(
+      planSend({ command: "import", text: "move it", followsId: "turn-1" })
+    ).toEqual({ input: { prompt: "move it" }, opens: "chat" })
+  })
+
+  it("prefers the dashboard over the chat it came from", () => {
+    expect(
+      planSend({
+        command: null,
+        text: "change",
+        dashboardId: "d1",
+        followsId: "turn-1",
+      })
+    ).toEqual({ input: { prompt: "change", dashboardId: "d1" }, opens: "same" })
+  })
 })

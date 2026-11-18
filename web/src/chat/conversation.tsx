@@ -14,6 +14,7 @@ import { orderTurns } from "@/observe/conversation"
 import {
   sentence,
   useAgentInfo,
+  useMyRequests,
   useObserveRequest,
   type ObserveRequest,
 } from "@/observe/queries"
@@ -241,8 +242,8 @@ function ConversationView({
   }
   const pinToEnd = useChatScroll(list, initialTarget)
 
-  const root = turns.find((turn) => turn.id === requestId)
-  const heading = dashboardTitle ?? root?.summary.prompt ?? ""
+  const first = turns.at(0)
+  const heading = dashboardTitle ?? first?.summary.prompt ?? ""
   const active = turns.some((turn) => isActiveStatus(turn.summary.status))
   const clipped =
     [...heading].length > titlePromptLength
@@ -262,12 +263,15 @@ function ConversationView({
     onSent(request)
   }
 
-  const openSent = useOpenSent(dashboardId === null ? undefined : appended)
+  const openSent = useOpenSent(appended)
 
   const agentOff = agent.data?.available === false
   const hasDashboard = dashboardId !== null
-  const waitingForDashboard =
-    !hasDashboard && root !== undefined && isActiveStatus(root.summary.status)
+  const latestTurn = turns.at(-1)
+  const waitingForAnswer =
+    !hasDashboard &&
+    latestTurn !== undefined &&
+    isActiveStatus(latestTurn.summary.status)
   const loadFrom = Math.max(0, turns.length - stepsLoadedTurns)
 
   return (
@@ -329,22 +333,25 @@ function ConversationView({
         >
           <ChatComposer
             rows={2}
-            disabled={waitingForDashboard}
+            disabled={waitingForAnswer}
             dashboardId={dashboardId ?? undefined}
+            followsId={hasDashboard ? undefined : latestTurn?.id}
             dashboardTitle={dashboardTitle}
             runningRequestId={runningRequestId}
             placeholder={
               hasDashboard
                 ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
-                : "Describe a dashboard, like: checkout health by pod, last 6h"
+                : "Ask a follow-up, or describe a dashboard to build"
             }
             onSent={openSent}
           />
-          {!agentOff && (hasDashboard || waitingForDashboard) ? (
+          {!agentOff ? (
             <p className="mt-1.5 text-center text-xs text-muted-foreground">
               {hasDashboard
                 ? "Each change is saved as a new version of the dashboard."
-                : "Wait for the dashboard, then ask for changes."}
+                : waitingForAnswer
+                  ? "Wait for the answer, then ask a follow-up."
+                  : "The agent sees the earlier messages of this chat."}
             </p>
           ) : null}
         </div>
@@ -370,6 +377,15 @@ export function Conversation({
     ...revisionsQuery(dashboardId ?? ""),
     enabled: readsDashboard,
   })
+  const readsChat = dashboardId === null && root.data !== undefined
+  const { requests: chatRequests, query: chatQuery } = useMyRequests(
+    {
+      chatId: root.data?.chat_id,
+      ...(readOnly ? { scope: "all" as const } : {}),
+    },
+    50,
+    readsChat
+  )
   const latest = useQuery({
     ...latestDashboardQuery(queryClient, dashboardId ?? ""),
     enabled: readsDashboard,
@@ -382,14 +398,17 @@ export function Conversation({
     for (const revision of revisions.data ?? []) {
       summaries.set(revision.id, revision)
     }
+    for (const turn of dashboardId === null ? chatRequests : []) {
+      summaries.set(turn.id, turn)
+    }
     summaries.set(requestId, root.data)
     const known = [...summaries.values()]
-    const ids = orderTurns(requestId, dashboardId === null ? undefined : known)
+    const ids = orderTurns(requestId, known)
     return ids.flatMap((id) => {
       const summary = summaries.get(id)
       return summary === undefined ? [] : [{ id, summary }]
     })
-  }, [root.data, revisions.data, sent, requestId, dashboardId])
+  }, [root.data, revisions.data, chatRequests, sent, requestId, dashboardId])
 
   if (
     root.error instanceof ApiError &&
@@ -421,7 +440,10 @@ export function Conversation({
       turns={turns}
       readOnly={readOnly}
       ready={
-        !readsDashboard || revisions.data !== undefined || revisions.isError
+        (!readsDashboard ||
+          revisions.data !== undefined ||
+          revisions.isError) &&
+        (!readsChat || chatQuery.data !== undefined || chatQuery.isError)
       }
       historyFailed={revisions.isError && revisions.data === undefined}
       retryHistory={() => void revisions.refetch()}

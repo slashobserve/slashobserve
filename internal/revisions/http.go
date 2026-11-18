@@ -276,7 +276,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnavailable):
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
-	case errors.Is(err, ErrInvalidCursor):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, append(idAttrs, principalAttrs(c)...)...)...)

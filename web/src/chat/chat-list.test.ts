@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { groupChats } from "./chat-list"
+import { collapseChats, groupChats } from "./chat-list"
 
 function summary(
   overrides: Partial<RequestSummary> & { id: string }
@@ -32,6 +32,7 @@ function summary(
     continue_note: null,
     observation_id: null,
     observation_title: null,
+    chat_id: overrides.id,
     origin: "web",
     origin_client: null,
     created_at: "2026-11-06T10:00:00Z",
@@ -101,5 +102,62 @@ describe("groupChats", () => {
     expect(
       shape([summary({ id: "p1", pinned_at: "2026-11-06T09:00:00Z" })])
     ).toEqual([{ label: "Pinned", dashboardId: null, ids: ["p1"] }])
+  })
+})
+
+describe("collapseChats", () => {
+  test("shows one row per dashboard conversation, newest turn, titled by its first request", () => {
+    const rows = collapseChats([
+      summary({
+        id: "q",
+        source: "prompt",
+        dashboard_id: "a",
+        title: "why is it red",
+      }),
+      summary({
+        id: "e",
+        source: "prompt",
+        dashboard_id: "a",
+        title: "make it blue",
+      }),
+      summary({
+        id: "b",
+        source: "observe",
+        dashboard_id: "a",
+        title: "Checkout health",
+      }),
+    ])
+    expect(rows.map((row) => [row.id, row.title])).toEqual([
+      ["q", "Checkout health"],
+    ])
+  })
+
+  test("joins the turns of a chat with no dashboard by chat id", () => {
+    const rows = collapseChats([
+      summary({ id: "t2", chat_id: "t1", title: "and latency" }),
+      summary({ id: "other" }),
+      summary({ id: "t1", chat_id: "t1", title: "which logs exist" }),
+    ])
+    expect(rows.map((row) => [row.id, row.title])).toEqual([
+      ["t2", "which logs exist"],
+      ["other", "Show checkout latency"],
+    ])
+  })
+
+  test("keeps investigations and comment revisions as their own rows", () => {
+    const rows = collapseChats([
+      summary({ id: "i1", source: "investigate", dashboard_id: "a" }),
+      summary({ id: "i2", source: "investigate", dashboard_id: "a" }),
+      summary({ id: "c1", source: "comment", dashboard_id: "a" }),
+    ])
+    expect(rows.map((row) => row.id)).toEqual(["i1", "i2", "c1"])
+  })
+
+  test("keeps pinned order by keeping the first row of each conversation", () => {
+    const rows = collapseChats([
+      summary({ id: "p", source: "prompt", dashboard_id: "a", pinned_at: "x" }),
+      summary({ id: "o", source: "observe", dashboard_id: "a" }),
+    ])
+    expect(rows.map((row) => row.id)).toEqual(["p"])
   })
 })

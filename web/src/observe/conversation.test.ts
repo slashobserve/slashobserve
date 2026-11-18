@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   costText,
   joinNames,
+  latestTurn,
   orderTurns,
   shortRequestId,
   stepSummary,
@@ -145,5 +146,36 @@ describe("joinNames", () => {
     expect(joinNames(["a", "b"])).toBe("a and b")
     expect(joinNames(["a", "b", "c"])).toBe("a, b and c")
     expect(joinNames(["a", "b", "c", "d"])).toBe("a, b, c and d")
+  })
+})
+
+describe("latestTurn", () => {
+  const turn = (
+    id: string,
+    created_at: string,
+    result_version: number | null
+  ) => ({
+    id,
+    created_at,
+    status: "succeeded" as const,
+    failure_code: null,
+    result_version,
+  })
+
+  it("is the root when nothing else is known", () => {
+    const root = turn("a", "2026-01-01T00:00:00Z", 1)
+    expect(latestTurn(root, undefined)).toBe(root)
+  })
+
+  it("is the newest turn of the conversation, not the one the pane opened", () => {
+    const root = turn("a", "2026-01-01T00:00:00Z", 1)
+    const edit = turn("b", "2026-01-02T00:00:00Z", 2)
+    expect(latestTurn(root, [root, edit]).result_version).toBe(2)
+  })
+
+  it("breaks a tie on the id", () => {
+    const a = turn("a", "2026-01-01T00:00:00Z", 1)
+    const b = turn("b", "2026-01-01T00:00:00Z", 2)
+    expect(latestTurn(a, [b]).id).toBe("b")
   })
 })

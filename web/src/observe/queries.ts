@@ -122,6 +122,7 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
+              chat_id: filters.chatId,
               scope: filters.scope,
               state: filters.states,
               limit,
@@ -146,8 +147,15 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
   })
 }
 
-export function useMyRequests(filters: ChatListFilters, limit = 20) {
-  const query = useInfiniteQuery(myRequestsQuery(filters, limit))
+export function useMyRequests(
+  filters: ChatListFilters,
+  limit = 20,
+  enabled = true
+) {
+  const query = useInfiniteQuery({
+    ...myRequestsQuery(filters, limit),
+    enabled,
+  })
   const requests = useMemo(() => {
     const seen = new Set<string>()
     const unique: RequestSummary[] = []
@@ -204,6 +212,7 @@ export function usePollFailures(id: string): number {
 export type ObserveInput = {
   prompt: string
   dashboardId?: string
+  followsId?: string
   kind?: "build" | "investigate"
   panelId?: string
   from?: string
@@ -229,6 +238,7 @@ export function useCreateObserveRequest() {
     mutationFn: ({
       prompt,
       dashboardId,
+      followsId,
       kind,
       panelId,
       from,
@@ -240,6 +250,7 @@ export function useCreateObserveRequest() {
           body: {
             prompt,
             dashboard_id: dashboardId,
+            ...(followsId === undefined ? {} : { follows_id: followsId }),
             ...(kind === undefined ? {} : { kind }),
             ...(panelId === undefined ? {} : { panel_id: panelId }),
             ...(from === undefined ? {} : { from }),

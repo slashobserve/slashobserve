@@ -36,6 +36,7 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
     continue_note: null,
     observation_id: null,
     observation_title: null,
+    chat_id: "chat-1",
     origin: "web",
     origin_client: null,
     created_at: "2026-11-13T10:00:00Z",

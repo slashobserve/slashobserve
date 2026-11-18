@@ -10,6 +10,7 @@ type SendContext = {
   command: SlashCommand | null
   text: string
   dashboardId?: string
+  followsId?: string
   panelId?: string
   from?: string
   to?: string
@@ -35,7 +36,7 @@ function investigation({
 }
 
 export function planSend(context: SendContext): SendPlan | { error: string } {
-  const { command, text, dashboardId } = context
+  const { command, text, dashboardId, followsId } = context
   switch (command) {
     case "investigate":
       return investigation(context)
@@ -47,8 +48,11 @@ export function planSend(context: SendContext): SendPlan | { error: string } {
       }
       return { input: { prompt: text, dashboardId }, opens: "same" }
     case null:
-      return dashboardId === undefined
+      if (dashboardId !== undefined) {
+        return { input: { prompt: text, dashboardId }, opens: "same" }
+      }
+      return followsId === undefined
         ? { input: { prompt: text }, opens: "chat" }
-        : { input: { prompt: text, dashboardId }, opens: "same" }
+        : { input: { prompt: text, followsId }, opens: "same" }
   }
 }
