@@ -219,18 +219,28 @@ describe("traceQLAttribute", () => {
   })
 
   it.each([
-    ["503", "503"],
-    ["-1.5", "-1.5"],
-    ["true", "true"],
-    ["false", "false"],
-    ["1e3", '"1e3"'],
-    ["12abc", '"12abc"'],
-    ["", '""'],
-  ])("writes %j as the typed value %s", (value, written) => {
+    ["true", "span.http.response.status_code = true"],
+    ["false", "span.http.response.status_code = false"],
+    ["1e3", 'span.http.response.status_code = "1e3"'],
+    ["12abc", 'span.http.response.status_code = "12abc"'],
+    ["", 'span.http.response.status_code = ""'],
+  ])("writes %j as one typed comparison", (value, written) => {
     expect(
       traceQLAttribute("span", "http.response.status_code", value, false)
-    ).toBe(`{ span.http.response.status_code = ${written} }`)
+    ).toBe(`{ ${written} }`)
   })
+
+  it.each(["503", "-1.5"])(
+    "matches %s as a number and as text, because the attribute may hold either",
+    (value) => {
+      expect(traceQLAttribute("span", "order.id", value, false)).toBe(
+        `{ (span.order.id = ${value} || span.order.id = "${value}") }`
+      )
+      expect(traceQLAttribute("span", "order.id", value, true)).toBe(
+        `{ (span.order.id != ${value} && span.order.id != "${value}") }`
+      )
+    }
+  )
 
   it("excludes a resource attribute", () => {
     expect(traceQLAttribute("resource", "service.name", "payments", true)).toBe(
@@ -364,7 +374,7 @@ describe("attributeFilter", () => {
     [
       "span.http.response.status_code",
       "503",
-      "span.http.response.status_code = 503",
+      '(span.http.response.status_code = 503 || span.http.response.status_code = "503")',
     ],
     ["name", "POST /checkout", 'name = "POST /checkout"'],
     ["kind", "Server", "kind = server"],

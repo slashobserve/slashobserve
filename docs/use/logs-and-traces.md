@@ -357,6 +357,7 @@ When the query returns more than one trace, the panel shows one at a time with *
 
 A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
+A value that reads as a number matches both the number and the same text, such as `(span.order.id = 503 || span.order.id = "503")`, because the page cannot tell whether Tempo stored the attribute as a number or as a string.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
 A span's links are listed after its events: each shows the linked trace id, which opens that trace on the same datasource at the linked span, the linked span id and the link's attributes.
 

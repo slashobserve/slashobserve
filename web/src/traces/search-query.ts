@@ -55,10 +55,12 @@ function quoted(text: string): string {
 const bareAttributeName = /^[\w.]+$/
 const numberPattern = /^-?\d+(?:\.\d+)?$/
 
-function traceQLValue(value: string): string {
-  if (value === "true" || value === "false") return value
-  if (numberPattern.test(value) && Number.isFinite(Number(value))) return value
-  return quoted(value)
+function traceQLValues(value: string): string[] {
+  if (value === "true" || value === "false") return [value]
+  if (numberPattern.test(value) && Number.isFinite(Number(value))) {
+    return [value, quoted(value)]
+  }
+  return [quoted(value)]
 }
 
 function traceQLCondition(
@@ -68,7 +70,11 @@ function traceQLCondition(
   negate: boolean
 ): string {
   const name = bareAttributeName.test(key) ? key : quoted(key)
-  return `${scope}.${name} ${negate ? "!=" : "="} ${traceQLValue(value)}`
+  const comparisons = traceQLValues(value).map(
+    (typed) => `${scope}.${name} ${negate ? "!=" : "="} ${typed}`
+  )
+  if (comparisons.length === 1) return comparisons[0]
+  return `(${comparisons.join(negate ? " && " : " || ")})`
 }
 
 export function traceQLAttribute(
