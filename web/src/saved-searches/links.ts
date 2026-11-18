@@ -1,9 +1,11 @@
-import { logsLink, tracesLink } from "@/lib/links"
+import { logsLink, metricsLink, tracesLink } from "@/lib/links"
 
 import type { SavedSearch } from "./queries"
 
 export type SavedSearchLocation =
-  ReturnType<typeof logsLink> | ReturnType<typeof tracesLink>
+  | ReturnType<typeof logsLink>
+  | ReturnType<typeof tracesLink>
+  | ReturnType<typeof metricsLink>
 
 export function savedSearchLocation(
   saved: Pick<
@@ -18,6 +20,14 @@ export function savedSearchLocation(
     return logsLink(uid, {
       q: query,
       cols: columns.length === 0 ? undefined : columns.join(","),
+      from,
+      to,
+    })
+  }
+  if (saved.kind === "metrics") {
+    return metricsLink(uid, {
+      q: query,
+      mode: filters.mode === "table" ? "table" : undefined,
       from,
       to,
     })

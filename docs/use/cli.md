@@ -241,13 +241,13 @@ Changing or removing a live block is done in the web app or through the HTTP API
 
 ## Saved searches
 
-`bin/observe saved-searches list` prints the logs and trace searches you can view, most recently changed first, with their id, kind, title, folder, datasource and last change.
-`--kind logs|traces` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
+`bin/observe saved-searches list` prints the logs, trace and metrics searches you can view, most recently changed first, with their id, kind, title, folder, datasource and last change.
+`--kind logs|traces|metrics` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
 
-`bin/observe saved-searches save --kind logs|traces --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
+`bin/observe saved-searches save --kind logs|traces|metrics --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
-A flag of the other kind is refused with exit code 2 before any request is sent.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
+A flag of another kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
 `bin/observe saved-searches move <id> --folder <folder-id>` files the search in another folder and shares it with that folder's readers; My Dashboards takes no moves, so save the search there instead.

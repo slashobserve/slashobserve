@@ -30,6 +30,8 @@ var (
 
 	logsDatasources   = []spec.DatasourceType{spec.Loki, spec.ClickHouse, spec.Elasticsearch, spec.OpenSearch}
 	tracesDatasources = []spec.DatasourceType{spec.Tempo, spec.ClickHouse}
+
+	metricsDatasources = []spec.DatasourceType{spec.Prometheus}
 )
 
 func invalid(format string, args ...any) *InvalidInputError {
@@ -60,8 +62,8 @@ type validated struct {
 
 func validate(in CreateInput, now time.Time) (validated, error) {
 	out := validated{CreateInput: in}
-	if in.Kind != KindLogs && in.Kind != KindTraces {
-		return out, invalid("kind must be logs or traces")
+	if !in.Kind.Valid() {
+		return out, invalid("kind must be logs, traces or metrics")
 	}
 	title, err := cleanTitle(in.Title)
 	if err != nil {
@@ -99,8 +101,8 @@ func validate(in CreateInput, now time.Time) (validated, error) {
 
 func checkQuery(kind Kind, query *string) error {
 	if query == nil {
-		if kind == KindLogs {
-			return invalid("query is required for a logs search")
+		if kind != KindTraces {
+			return invalid("query is required for a %s search", kind)
 		}
 		return nil
 	}
@@ -124,14 +126,27 @@ func parseFilters(kind Kind, raw []byte) (Filters, error) {
 	if err := dec.Decode(&filters); err != nil {
 		return Filters{}, invalid("filters must be an object with only the keys of a %s search: %v", kind, err)
 	}
-	if kind == KindLogs {
+	switch kind {
+	case KindLogs:
 		return filters, checkLogsFilters(filters)
+	case KindMetrics:
+		return filters, checkMetricsFilters(filters)
 	}
 	return filters, checkTraceFilters(filters)
 }
 
+func checkMetricsFilters(f Filters) error {
+	if len(f.Columns) > 0 || f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors {
+		return invalid("a metrics search takes only the filter key mode")
+	}
+	if f.Mode != "" && f.Mode != "graph" && f.Mode != ModeTable {
+		return invalid("mode must be graph or table")
+	}
+	return nil
+}
+
 func checkLogsFilters(f Filters) error {
-	if f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors {
+	if f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors || f.Mode != "" {
 		return invalid("a logs search takes only the filter key columns")
 	}
 	if len(f.Columns) > maxColumns {
@@ -146,7 +161,7 @@ func checkLogsFilters(f Filters) error {
 }
 
 func checkTraceFilters(f Filters) error {
-	if len(f.Columns) > 0 {
+	if len(f.Columns) > 0 || f.Mode != "" {
 		return invalid("a traces search takes only the filter keys service, span, min, max and errors")
 	}
 	for _, v := range []struct{ name, value string }{{"service", f.Service}, {"span", f.Span}} {
@@ -164,8 +179,11 @@ func checkTraceFilters(f Filters) error {
 
 func fitDatasource(kind Kind, dsType spec.DatasourceType, query *string) error {
 	fits := tracesDatasources
-	if kind == KindLogs {
+	switch kind {
+	case KindLogs:
 		fits = logsDatasources
+	case KindMetrics:
+		fits = metricsDatasources
 	}
 	supported := false
 	for _, t := range fits {

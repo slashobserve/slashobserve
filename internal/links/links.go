@@ -74,6 +74,10 @@ func Traces(base *url.URL, datasourceUID string, query url.Values) string {
 	return withQuery(join(base, "traces", datasourceUID), query)
 }
 
+func Metrics(base *url.URL, datasourceUID string, query url.Values) string {
+	return withQuery(join(base, "metrics", datasourceUID), query)
+}
+
 func Public(base *url.URL, token string) string {
 	return join(base, "p", token)
 }

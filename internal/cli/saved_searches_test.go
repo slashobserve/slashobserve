@@ -71,9 +71,9 @@ func TestSavedSearchesCommands(t *testing.T) {
 		},
 		{
 			name:     "list refuses an unknown kind",
-			args:     []string{"saved-searches", "list", "--kind", "metrics"},
+			args:     []string{"saved-searches", "list", "--kind", "sql"},
 			wantCode: 2,
-			wantErr:  `--kind must be logs or traces, not "metrics"`,
+			wantErr:  `--kind must be logs, traces or metrics, not "sql"`,
 		},
 		{
 			name:     "list refuses a folder that is not an id",
@@ -118,6 +118,27 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantOut:    []string{`"datasource_uid":"loki"`},
 		},
 		{
+			name:       "save a metrics search sends its mode",
+			args:       []string{"saved-searches", "save", "--kind", "metrics", "--title", "Rate", "--datasource", "prom", "--query", "up", "--mode", "table"},
+			response:   saved,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/saved-searches",
+			wantBody:   `{"datasource_uid":"prom","filters":{"mode":"table"},"from":"now-1h","kind":"metrics","query":"up","title":"Rate","to":"now"}`,
+			wantExact:  new(savedURL + "\n"),
+		},
+		{
+			name:     "save refuses a mode on a logs search",
+			args:     []string{"saved-searches", "save", "--kind", "logs", "--title", "T", "--datasource", "loki", "--query", "x", "--mode", "table"},
+			wantCode: 2,
+			wantErr:  "--mode applies to metrics searches, not logs",
+		},
+		{
+			name:     "save refuses trace flags on a metrics search",
+			args:     []string{"saved-searches", "save", "--kind", "metrics", "--title", "T", "--datasource", "prom", "--query", "up", "--errors"},
+			wantCode: 2,
+			wantErr:  "--errors applies to traces searches, not metrics",
+		},
+		{
 			name:     "save refuses trace flags on a logs search",
 			args:     []string{"saved-searches", "save", "--kind", "logs", "--title", "T", "--datasource", "loki", "--query", "x", "--errors"},
 			wantCode: 2,
@@ -133,13 +154,13 @@ func TestSavedSearchesCommands(t *testing.T) {
 			name:     "save needs a kind",
 			args:     []string{"saved-searches", "save", "--title", "T", "--datasource", "loki"},
 			wantCode: 2,
-			wantErr:  "--kind logs|traces is required",
+			wantErr:  "--kind logs|traces|metrics is required",
 		},
 		{
 			name:     "save refuses an unknown kind",
-			args:     []string{"saved-searches", "save", "--kind", "metrics", "--title", "T", "--datasource", "loki"},
+			args:     []string{"saved-searches", "save", "--kind", "sql", "--title", "T", "--datasource", "loki"},
 			wantCode: 2,
-			wantErr:  `--kind must be logs or traces, not "metrics"`,
+			wantErr:  `--kind must be logs, traces or metrics, not "sql"`,
 		},
 		{
 			name:     "save needs a title",

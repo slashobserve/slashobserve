@@ -117,6 +117,12 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 		t.Fatalf("trace search %s", traces.Body)
 	}
 
+	metrics := d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", `{"kind":"metrics","title":"Requests","datasource_uid":"prometheus","query":"up","filters":{"mode":"table"}}`, http.StatusCreated)
+	if !strings.Contains(metrics.Body.String(), `"url":"/metrics/prometheus?`) || !strings.Contains(metrics.Body.String(), `mode=table`) {
+		t.Fatalf("metrics search %s", metrics.Body)
+	}
+	d.send(t, editor, http.MethodGet, "/api/v1/saved-searches?kind=metrics", "", http.StatusOK)
+
 	page := d.send(t, editor, http.MethodGet, "/api/v1/saved-searches?limit=1", "", http.StatusOK)
 	var list struct {
 		SavedSearches []savedsearches.SavedSearchJSON `json:"saved_searches"`
@@ -143,7 +149,7 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 		code                     string
 	}{
 		{"a list limit over 100", http.MethodGet, "/api/v1/saved-searches?limit=101", "", editor, http.StatusBadRequest, "invalid_request"},
-		{"a list kind that is not one", http.MethodGet, "/api/v1/saved-searches?kind=metrics", "", editor, http.StatusBadRequest, "invalid_request"},
+		{"a list kind that is not one", http.MethodGet, "/api/v1/saved-searches?kind=sql", "", editor, http.StatusBadRequest, "invalid_request"},
 		{"a list folder that is not a UUID", http.MethodGet, "/api/v1/saved-searches?folder_id=nope", "", editor, http.StatusBadRequest, "invalid_request"},
 		{"a list cursor that is not one", http.MethodGet, "/api/v1/saved-searches?cursor=nope", "", editor, http.StatusBadRequest, "invalid_request"},
 		{"a list folder the caller cannot view", http.MethodGet, "/api/v1/saved-searches?folder_id=" + restricted.String(), "", editor, http.StatusNotFound, "not_found"},

@@ -85,9 +85,15 @@ func TestSavedSearchesRoundTripThroughSaveAndList(t *testing.T) {
 		t.Fatalf("traces search: %#v", traces.Content)
 	}
 
+	metrics := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"metrics","title":"Request rate","datasource_uid":"fake","query":"sum(rate(http_requests_total[5m]))","filters":{"mode":"table"}}`)
+	savedMetrics, ok := metrics.Content.(savedsearches.SavedSearchJSON)
+	if metrics.IsError || !ok || !strings.HasPrefix(savedMetrics.URL, "/metrics/fake?") || !strings.Contains(savedMetrics.URL, "mode=table") {
+		t.Fatalf("metrics search: %#v", metrics.Content)
+	}
+
 	res := r.call(t, nil, viewerCaller, nameListSavedSearches, `{}`)
 	list, ok := res.Content.(savedSearchListOut)
-	if res.IsError || !ok || len(list.SavedSearches) != 2 || list.NextCursor != nil {
+	if res.IsError || !ok || len(list.SavedSearches) != 3 || list.NextCursor != nil {
 		t.Fatalf("list: %#v", res.Content)
 	}
 	byID := map[string]savedSearchItemOut{}
@@ -104,8 +110,12 @@ func TestSavedSearchesRoundTripThroughSaveAndList(t *testing.T) {
 	if !ok || len(onlyTraces.SavedSearches) != 1 || onlyTraces.SavedSearches[0].ID != savedTraces.ID {
 		t.Errorf("list by kind: %#v", onlyTraces)
 	}
+	onlyMetrics, ok := r.call(t, nil, viewerCaller, nameListSavedSearches, `{"kind":"metrics"}`).Content.(savedSearchListOut)
+	if !ok || len(onlyMetrics.SavedSearches) != 1 || onlyMetrics.SavedSearches[0].ID != savedMetrics.ID || onlyMetrics.SavedSearches[0].Filters.Mode != "table" {
+		t.Errorf("list metrics: %#v", onlyMetrics)
+	}
 	inFolder, ok := r.call(t, nil, viewerCaller, nameListSavedSearches, `{"folder_id":"`+savedLogs.Folder.ID+`"}`).Content.(savedSearchListOut)
-	if !ok || len(inFolder.SavedSearches) != 2 {
+	if !ok || len(inFolder.SavedSearches) != 3 {
 		t.Errorf("list by folder: %#v", inFolder)
 	}
 }
@@ -143,6 +153,8 @@ func TestSaveSearchRefusesWhatCannotBeSaved(t *testing.T) {
 	}{
 		{"an unknown datasource", keyCaller, `{"kind":"logs","title":"Errors","datasource_uid":"nope","query":"{a=\"b\"}"}`, codeInvalidRequest},
 		{"a datasource of the wrong kind", keyCaller, `{"kind":"logs","title":"Errors","datasource_uid":"traces","query":"{a=\"b\"}"}`, codeInvalidRequest},
+		{"a metrics search without a query", keyCaller, `{"kind":"metrics","title":"Rate","datasource_uid":"fake"}`, codeInvalidRequest},
+		{"a metrics search on a logs datasource", keyCaller, `{"kind":"metrics","title":"Rate","datasource_uid":"logs","query":"up"}`, codeInvalidRequest},
 		{"a logs search without a query", keyCaller, `{"kind":"logs","title":"Errors","datasource_uid":"logs"}`, codeInvalidRequest},
 		{"a filter key of the other kind", keyCaller, save(`,"filters":{"service":"checkout"}`), codeInvalidRequest},
 		{"a range that does not resolve", keyCaller, save(`,"from":"yesterday-ish"`), codeInvalidRequest},
@@ -158,9 +170,9 @@ func TestSaveSearchRefusesWhatCannotBeSaved(t *testing.T) {
 		}
 	}
 	for name, input := range map[string]string{
-		"a kind that is not logs or traces": `{"kind":"metrics"}`,
-		"a folder id that is not a uuid":    `{"folder_id":"nope"}`,
-		"a cursor that is not valid":        `{"cursor":"nope"}`,
+		"a kind that is not one":         `{"kind":"sql"}`,
+		"a folder id that is not a uuid": `{"folder_id":"nope"}`,
+		"a cursor that is not valid":     `{"cursor":"nope"}`,
 	} {
 		if res := r.call(t, nil, keyCaller, nameListSavedSearches, input); errorCode(t, res) != codeInvalidRequest {
 			t.Errorf("list with %s: %#v", name, res.Content)

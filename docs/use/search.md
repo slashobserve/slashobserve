@@ -4,7 +4,7 @@ description: Find dashboards, observations, annotations, comments and saved sear
 ---
 
 Search finds past work by its words.
-One query covers dashboards, annotations, observations, comments and saved logs and trace searches, and ranks the matches together.
+One query covers dashboards, annotations, observations, comments and saved logs, trace and metrics searches, and ranks the matches together.
 You call it with `GET /api/v1/search`, which needs the Viewer role or higher and works with a session or a service-account key.
 
 ## What each kind matches

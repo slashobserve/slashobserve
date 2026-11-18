@@ -147,9 +147,7 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
           </TableCard>
         )}
       </section>
-      {kind === "metrics" ? null : (
-        <SavedSearchTable kind={kind} sources={sources} />
-      )}
+      <SavedSearchTable kind={kind} sources={sources} />
     </>
   )
 }

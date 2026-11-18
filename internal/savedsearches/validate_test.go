@@ -23,11 +23,24 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 		edit(&in)
 		return in
 	}
+	metrics := func(edit func(*CreateInput)) CreateInput {
+		in := CreateInput{Kind: KindMetrics, Title: "Requests", DatasourceUID: "prom", Query: ptr(`sum(rate(http_requests_total[5m]))`)}
+		edit(&in)
+		return in
+	}
 	cases := []struct {
 		name string
 		in   CreateInput
 		want string
 	}{
+		{"a metrics search", metrics(func(*CreateInput) {}), ""},
+		{"a metrics search in table mode", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), ""},
+		{"a metrics search in graph mode", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"graph"}`) }), ""},
+		{"a metrics search without a query", metrics(func(in *CreateInput) { in.Query = nil }), "query is required for a metrics search"},
+		{"a metrics search with a mode that is not one", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"pie"}`) }), "mode must be graph or table"},
+		{"a trace filter on a metrics search", metrics(func(in *CreateInput) { in.Filters = []byte(`{"service":"x"}`) }), "only the filter key mode"},
+		{"a mode on a logs search", logs(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), "only the filter key columns"},
+		{"a mode on a traces search", traces(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), "only the filter keys"},
 		{"a logs search", logs(func(*CreateInput) {}), ""},
 		{"a logs search with columns", logs(func(in *CreateInput) { in.Filters = []byte(`{"columns":["level","msg"]}`) }), ""},
 		{"a logs search with null filters", logs(func(in *CreateInput) { in.Filters = []byte(`null`) }), ""},
@@ -38,7 +51,7 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 			in.From, in.To = "now-6h", "now-5m"
 		}), ""},
 		{"absolute times", logs(func(in *CreateInput) { in.From, in.To = "2026-11-01T08:00:00Z", "2026-11-01T09:00:00Z" }), ""},
-		{"an unknown kind", logs(func(in *CreateInput) { in.Kind = "metrics" }), "kind must be"},
+		{"an unknown kind", logs(func(in *CreateInput) { in.Kind = "sql" }), "kind must be logs, traces or metrics"},
 		{"an empty title", logs(func(in *CreateInput) { in.Title = "  " }), "title is required"},
 		{"a long title", logs(func(in *CreateInput) { in.Title = strings.Repeat("é", 121) }), "title must be at most 120"},
 		{"a title with a control character", logs(func(in *CreateInput) { in.Title = "a\nb" }), "control characters"},
@@ -111,6 +124,9 @@ func TestFitDatasourceMatchesTheTypeToTheKind(t *testing.T) {
 		{"clickhouse traces with a query", KindTraces, spec.ClickHouse, query, CodeInvalid},
 		{"loki traces", KindTraces, spec.Loki, nil, CodeUnsupportedDatasource},
 		{"elasticsearch traces", KindTraces, spec.Elasticsearch, nil, CodeUnsupportedDatasource},
+		{"prometheus metrics", KindMetrics, spec.Prometheus, query, ""},
+		{"loki metrics", KindMetrics, spec.Loki, query, CodeUnsupportedDatasource},
+		{"clickhouse metrics", KindMetrics, spec.ClickHouse, query, CodeUnsupportedDatasource},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -137,5 +153,16 @@ func TestAddressCarriesWhatReopensTheSearch(t *testing.T) {
 	traces := SavedSearch{Kind: KindTraces, DatasourceUID: "tempo", From: "now-1h", To: "now", Filters: Filters{Service: "checkout", Min: "250ms", Errors: true}}
 	if got, want := traces.address().Encode(), "errors=1&from=now-1h&min=250ms&service=checkout&to=now"; got != want {
 		t.Errorf("traces address %q, want %q", got, want)
+	}
+	graph := SavedSearch{Kind: KindMetrics, DatasourceUID: "prom", Query: ptr("up"), From: "now-6h", To: "now"}
+	if got, want := graph.address().Encode(), "from=now-6h&q=up&to=now"; got != want {
+		t.Errorf("metrics graph address %q, want %q", got, want)
+	}
+	table := SavedSearch{Kind: KindMetrics, DatasourceUID: "prom", Query: ptr("up"), From: "now-1h", To: "now", Filters: Filters{Mode: "table"}}
+	if got, want := table.address().Encode(), "from=now-1h&mode=table&q=up&to=now"; got != want {
+		t.Errorf("metrics table address %q, want %q", got, want)
+	}
+	if got, want := URL(nil, table), "/metrics/prom?from=now-1h&mode=table&q=up&to=now"; got != want {
+		t.Errorf("metrics url %q, want %q", got, want)
 	}
 }

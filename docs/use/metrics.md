@@ -50,6 +50,16 @@ The server caps every query at 15 seconds, 200 series and 100,000 points.
 A query that exceeds a limit fails with a message that names it, and the page says how to narrow the query: add label matchers, aggregate with `sum by (label)`, or shorten the range.
 The step follows the range and the width of the chart, so a longer range draws coarser points.
 
+## Save a search
+
+**Save search** in the top bar keeps the query that ran, with the time range as written and the graph or table choice, in a folder, by default your My Dashboards.
+It stays disabled until a query has run.
+Everyone who can view the folder can open it.
+**Saved searches** in the top bar lists the saved metrics searches, and `/metrics` lists them under the sources with their folder and who saved them.
+Opening one runs it on its datasource over the saved range, and the [search](search.md) that covers saved searches finds it too.
+Only a Prometheus datasource holds a metrics search.
+On a phone the same actions sit in the **More actions** menu.
+
 ## Roles
 
 Everyone who can open the app can run a metrics query, as with logs and traces.
@@ -57,5 +67,5 @@ The query runs as given, so a Prometheus datasource shows what its credentials c
 
 ## With the CLI
 
-`observe metrics query` runs the same query from a terminal, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
+`observe metrics query` runs the same query from a terminal, `observe saved-searches save --kind metrics` saves it, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
 The MCP tools `query_range`, `query_instant`, `list_metrics`, `list_labels` and `list_label_values` do the same for an agent; see [MCP](mcp.md).

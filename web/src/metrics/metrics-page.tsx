@@ -16,6 +16,8 @@ import { exploreKeys } from "@/api/keys"
 import { useDocumentTitle } from "@/lib/document-title"
 import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
 import { roleAtLeast } from "@/lib/roles"
+import { metricsDraft } from "@/saved-searches/draft"
+import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { MetricsPageActions } from "./page-actions"
@@ -153,6 +155,10 @@ function MetricsWorkspaceView({
     setSeenQuery(q)
     if (q !== undefined) setDraft(q)
   }
+  const saveTrigger = useRef<HTMLButtonElement>(null)
+  const moreTrigger = useRef<HTMLButtonElement>(null)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const savable = metricsDraft({ uid, search, range })
   const queryFocus = useRef<() => void>(() => {})
   const registerQueryFocus = useCallback((focus: () => void) => {
     queryFocus.current = focus
@@ -190,7 +196,14 @@ function MetricsWorkspaceView({
 
   return (
     <MetricsWorkspaceContext value={workspace}>
-      <MetricsPageActions range={range} onRangeChange={update} />
+      <MetricsPageActions
+        range={range}
+        onRangeChange={update}
+        canSave={"draft" in savable}
+        saveTrigger={saveTrigger}
+        moreTrigger={moreTrigger}
+        onSave={() => setSaveOpen(true)}
+      />
       <div className="flex h-full min-h-0 flex-col gap-3">
         <h1 className="sr-only">Metrics in {datasource.name}</h1>
         <SourceTitle kind="metrics" source={datasource} />
@@ -219,6 +232,18 @@ function MetricsWorkspaceView({
           />
         </div>
       </div>
+      {"draft" in savable ? (
+        <SaveSearchDialog
+          draft={savable.draft}
+          open={saveOpen}
+          onOpenChange={setSaveOpen}
+          finalFocus={() =>
+            [saveTrigger.current, moreTrigger.current].find(
+              (trigger) => trigger !== null && trigger.offsetParent !== null
+            ) ?? true
+          }
+        />
+      ) : null}
     </MetricsWorkspaceContext>
   )
 }

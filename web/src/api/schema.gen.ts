@@ -2254,14 +2254,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the saved logs and trace searches the caller can view, most recently changed first.
-         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+         * List the saved logs, trace and metrics searches the caller can view, most recently changed first.
+         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only one kind of search, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs, traces or metrics page that reopens it.
          */
         get: operations["listSavedSearches"];
         put?: never;
         /**
-         * Save a logs or trace search in a folder.
-         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * Save a logs, trace or metrics search in a folder.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -5406,7 +5406,7 @@ export interface components {
             folder: components["schemas"]["DashboardFolder"] | null;
             permissions: components["schemas"]["Permissions"];
         };
-        /** @description The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others. */
+        /** @description The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others. */
         SavedSearchFilters: {
             /** @description The visible columns of a logs search, in order. */
             columns?: string[];
@@ -5418,12 +5418,17 @@ export interface components {
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
+            /**
+             * @description A metrics search as a time series (`graph`, the default) or as the table of an instant query.
+             * @enum {string}
+             */
+            mode?: "graph" | "table";
         };
         SavedSearch: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             title: string;
             datasource_uid: string;
             /** @description The query as it runs, with the filter pills folded in; null for a trace search made of filters only. */
@@ -5443,7 +5448,7 @@ export interface components {
              * @description When the search was saved, renamed or moved last.
              */
             updated_at: string;
-            /** @description The address of the logs or traces page that reopens the search, relative when the server has no public URL configured. */
+            /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
         };
         SavedSearchList: {
@@ -5452,12 +5457,12 @@ export interface components {
         };
         CreateSavedSearchRequest: {
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             /** @description 1 to 120 characters after trimming, without control characters. */
             title: string;
-            /** @description The uid of a datasource that exists and fits the kind. */
+            /** @description The uid of a datasource that exists and fits the kind, which is Prometheus for metrics. */
             datasource_uid: string;
-            /** @description 1 to 8000 characters; required for a logs search. */
+            /** @description 1 to 8000 characters; required for a logs or metrics search. */
             query?: string | null;
             filters?: components["schemas"]["SavedSearchFilters"];
             /**
@@ -12517,7 +12522,7 @@ export interface operations {
     listSavedSearches: {
         parameters: {
             query?: {
-                kind?: "logs" | "traces";
+                kind?: "logs" | "traces" | "metrics";
                 folder_id?: string;
                 limit?: number;
                 /** @description The `next_cursor` of the previous page. */

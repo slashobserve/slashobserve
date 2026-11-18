@@ -205,9 +205,9 @@ A key needs the Comment ability on the target to write; a target the key cannot 
 
 When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
 
-`save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
-It takes `kind` (`logs` or `traces`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
-A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`.
+`save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
+It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
+A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
 A `folder_id` the key cannot save in returns `forbidden_role`, and an unknown one `not_found`; a datasource that does not exist or does not fit the kind returns `invalid_request`.
