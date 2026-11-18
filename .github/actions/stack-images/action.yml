@@ -21,17 +21,30 @@ runs:
       with:
         cache-name: build
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Restore the demo shop image
+      id: shop
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/shop-image.tar
+        key: shop-image-${{ runner.os }}-${{ hashFiles('demo/**') }}
+
+    - name: Load the demo shop image
+      if: steps.shop.outputs.cache-hit == 'true'
+      shell: bash
+      run: docker load -i "$RUNNER_TEMP/shop-image.tar"
 
     - name: Build the demo shop image
-      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-      with:
-        context: demo
-        load: true
-        tags: ${{ inputs.shop-tag }}
-        cache-from: type=gha,scope=demo-shop
-        cache-to: type=gha,mode=max,scope=demo-shop
+      if: steps.shop.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        docker build -t slashobserve-demo-shop:cached demo
+        docker save -o "$RUNNER_TEMP/shop-image.tar" slashobserve-demo-shop:cached
+
+    - name: Tag the demo shop image
+      shell: bash
+      env:
+        SHOP_TAG: ${{ inputs.shop-tag }}
+      run: docker tag slashobserve-demo-shop:cached "$SHOP_TAG"
 
     - name: Start the services that need no server image
       if: inputs.warm != ''
@@ -67,11 +80,10 @@ runs:
 
     # The named contexts replace the Dockerfile's server and agent stages, so only its last stage is built.
     - name: Build the server image
-      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-      with:
-        context: .
-        load: true
-        tags: ${{ inputs.server-tag }}
-        build-contexts: |
-          server=${{ runner.temp }}/prebuilt/server
-          agent=${{ runner.temp }}/prebuilt/agent
+      shell: bash
+      env:
+        SERVER_TAG: ${{ inputs.server-tag }}
+      run: |
+        docker buildx build -t "$SERVER_TAG" \
+          --build-context "server=$RUNNER_TEMP/prebuilt/server" \
+          --build-context "agent=$RUNNER_TEMP/prebuilt/agent" .
