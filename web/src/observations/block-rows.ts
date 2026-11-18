@@ -41,6 +41,25 @@ export function blockTitle(block: Block): string {
   }
 }
 
+export function citeLabel(
+  blocks: readonly Block[],
+  blockId: string,
+  index: number
+): string {
+  const cited = blocks.find((block) => block.id === blockId)
+  if (cited?.kind === "text") {
+    const markdown = cited.body.markdown
+    const heading =
+      typeof markdown === "string" ? /^#{1,6}\s+(.+)$/m.exec(markdown) : null
+    return heading?.[1]?.trim() || "Conclusion"
+  }
+  if (cited?.kind === "panel") {
+    const title = blockTitle(cited)
+    if (title !== "Panel") return title
+  }
+  return index === 0 ? "Conclusion" : `Panel ${index}`
+}
+
 export function holdsAgentOutput(block: Block): boolean {
   return (
     block.kind === "run" ||

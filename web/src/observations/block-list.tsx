@@ -196,7 +196,13 @@ function BlockMenu({
   )
 }
 
-function BlockBody({ block }: { block: Block }): ReactNode {
+function BlockBody({
+  block,
+  blocks,
+}: {
+  block: Block
+  blocks: readonly Block[]
+}): ReactNode {
   const height = block.width === "half" ? halfHeight : fullHeight
   switch (block.kind) {
     case "text":
@@ -206,7 +212,13 @@ function BlockBody({ block }: { block: Block }): ReactNode {
     case "snapshot":
       return <SnapshotBlock block={block} height={height} />
     case "run":
-      return <RunBlock block={block} onCite={(id) => focusBlock(id, true)} />
+      return (
+        <RunBlock
+          block={block}
+          blocks={blocks}
+          onCite={(id) => focusBlock(id, true)}
+        />
+      )
   }
 }
 
@@ -224,7 +236,7 @@ function BlockSection({
   onAdded: (blockId: string) => void
 }) {
   const nextId = nextBlockId(blocks, block.id)
-  const body = <BlockBody block={block} />
+  const body = <BlockBody block={block} blocks={blocks} />
   return (
     <section
       id={sectionId(block.id)}

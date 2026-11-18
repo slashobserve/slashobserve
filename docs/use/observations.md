@@ -301,7 +301,7 @@ An investigation that names an observation with 100 blocks already gets no run b
 
 Without `observation_id`, the server makes a new observation:
 
-- Its title is the first line of the prompt, cut to 200 characters, or "Investigation" when that line is empty.
+- Its title is the first non-empty line of the prompt without `@observe`, cut at a word to about 60 characters with "...", or "Investigation" when no line is left.
 - Its range is the window of the investigation, and it has none when the investigation was given no `from` and `to`.
 - It goes in the folder of the dashboard the investigation is about when you can edit that folder.
   Otherwise it goes in your My Dashboards when you may create there, and otherwise in General when you may create there.
@@ -311,6 +311,7 @@ When the agent saves its finding, the finding and its conclusion are written in 
 The conclusion becomes a text block that starts with `## <title>` and goes on with the finding's Markdown, cut to the 8,000 characters the server accepts in a text block, followed by one panel block for each panel of its evidence.
 The panel blocks show the finding's own window.
 The run block then cites these blocks, and a run adds them once, so saving the finding again adds nothing.
+The page names each cited block by the finding's heading or the panel's title.
 An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
 A finding saved by a run that has an observation takes its own id, and one saved with no run observation takes the id of the observation it creates; its `observation_id` names the observation either way.
 
