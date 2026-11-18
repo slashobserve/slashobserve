@@ -242,6 +242,7 @@ type Finding struct {
 	OriginClient   pgtype.Text
 	FolderID       pgtype.UUID
 	ObservationID  pgtype.UUID
+	AskDashboardID pgtype.UUID
 }
 
 type Folder struct {

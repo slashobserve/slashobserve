@@ -4103,6 +4103,17 @@ components:
           format: uuid
         name:
           type: string
+    FindingAskOn:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: The dashboard's title, for a button such as "Ask this on Checkout".
     Finding:
       type: object
       additionalProperties: false
@@ -4112,6 +4123,7 @@ components:
         - agent_request_id
         - dashboard_id
         - folder_id
+        - ask_on
         - title
         - markdown
         - evidence
@@ -4145,6 +4157,14 @@ components:
           format: uuid
           nullable: true
           description: The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
+        ask_on:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/FindingAskOn"
+          description: >-
+            The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do.
+            Start an ordinary revision with the same prompt and this `dashboard_id` to make the change.
+            Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null.
         title:
           type: string
           minLength: 1
