@@ -188,7 +188,7 @@ The item is greyed, with "(uses dashboard variables)" after it, when a query or 
 
 ## Sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
 On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
@@ -227,6 +227,8 @@ The activity card and the Inspect pane show below the panels, and opening Inspec
 ## Connected agents
 
 Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
+A section's address is `/settings#<section>`, such as `/settings#grafana`; `#grafana-connection` opens the same section.
+An address whose section does not exist, or one that only Admins can open, shows Server with a note that says so.
 On a phone the section list is a **Settings section** menu at the top of the page.
 
 Open Settings and choose **Connected agents** in its section list to see **Your connected agents**: the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.

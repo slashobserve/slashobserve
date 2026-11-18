@@ -75,6 +75,21 @@ function precedes(first: Element, second: Element): boolean {
 }
 
 describe("SidebarContent", () => {
+  it("lists API keys in the Workspace group for an Admin", async () => {
+    renderWithProviders(<SidebarContent />, { route })
+    const group = await screen.findByRole("group", { name: "Workspace" })
+    expect(
+      within(group)
+        .getAllByRole("link")
+        .map((link) => [link.textContent, link.getAttribute("href")])
+    ).toEqual([
+      ["Datasources", "/datasources"],
+      ["API keys", "/keys"],
+      ["People", "/people"],
+      ["Settings", "/settings"],
+    ])
+  })
+
   it("lists pins right after the Dashboards item, before Logs", async () => {
     renderWithProviders(<SidebarContent />, { route })
 
