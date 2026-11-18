@@ -23,6 +23,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  deletedText,
+  useDeletedBy,
+  useDeletedDashboards,
+} from "@/dashboards/live/deleted-store"
 import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
@@ -103,6 +109,12 @@ export function EditPane({
     unsaved.current = next
     setDirty(next)
   }, [])
+  const holdDraft = useDeletedDashboards((state) => state.holdDraft)
+  useEffect(() => {
+    holdDraft(dashboardId, dirty)
+  }, [dashboardId, dirty, holdDraft])
+  useEffect(() => () => holdDraft(dashboardId, false), [dashboardId, holdDraft])
+  const deletedBy = useDeletedBy(dashboardId)
   const [confirm, setConfirm] = useState<Leave | null>(null)
   const focusAfter = useRef<"default" | "trigger" | "editor" | "none">(
     "default"
@@ -311,6 +323,15 @@ export function EditPane({
         onClose={() => leave("close")}
         closeLabel="Close panel"
       />
+      {deletedBy === undefined ? null : (
+        <Alert variant="destructive" className="mx-4 mt-3 w-auto">
+          <AlertDescription>
+            {deletedText(deletedBy)} Your draft stays here until you close the
+            editor, but it cannot be saved. Copy what you need from the JSON
+            view.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       <AlertDialog
         open={discardOpen}

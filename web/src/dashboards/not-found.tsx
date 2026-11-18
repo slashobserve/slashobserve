@@ -1,4 +1,4 @@
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { Link, useParams, useRouteContext } from "@tanstack/react-router"
 import { KeyRoundIcon } from "lucide-react"
 
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { ThemeSwitch } from "@/shell/theme-switch"
 import { useSignOut } from "@/shell/use-sign-out"
 
 import { DashboardTopRow } from "./dashboard-top-row"
+import { deletedText, useDeletedBy } from "./live/deleted-store"
 
 export function DashboardNotice({
   title,
@@ -72,6 +73,18 @@ export function DashboardNotice({
 }
 
 export function DashboardNotFound() {
+  const { dashboardId = "" } = useParams({ strict: false })
+  const deletedBy = useDeletedBy(dashboardId)
+  if (deletedBy !== undefined) {
+    return (
+      <DashboardNotice
+        title="Deleted"
+        heading="Dashboard deleted"
+        text={deletedText(deletedBy)}
+        backTo="/"
+      />
+    )
+  }
   return (
     <DashboardNotice
       title="Not found"

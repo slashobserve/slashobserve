@@ -188,6 +188,9 @@ On success the toast reads "Saved version 4" and you return to the timeline.
 If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
 It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
+If someone deletes the dashboard while you have unsaved changes, the editor stays open with your draft and says "<name> deleted this dashboard. Your draft stays here until you close the editor, but it cannot be saved. Copy what you need from the JSON view."
+When you close the editor, or when you had no unsaved changes, the page reads "Dashboard deleted" instead of "Dashboard not found".
+
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
 The toast then reads "Saved version 5, merged with changes made since version 3".
 When the newer versions changed the same things, nothing is saved: the editor lists them under "Version 4 changed the same things", each as the panel title, "Variable <name>" or "Dashboard settings" with what clashed, and **Reload version 4** replaces your draft with that version's panel.

@@ -13,6 +13,7 @@ import {
   searchFromState,
   validateDashboardSearch,
 } from "../search"
+import { useDeletedDashboards } from "./deleted-store"
 import { parseEvent, type DashboardEvent } from "./events"
 import {
   backoffDelay,
@@ -211,7 +212,7 @@ export function useDashboardEvents(
               : "This dashboard was deleted",
             { id: `deleted-${dashboardId}` }
           )
-          void checkDashboard()
+          void checkDashboard(event.authorName)
           return
         case "comment.created":
         case "comment.updated":
@@ -223,7 +224,7 @@ export function useDashboardEvents(
       }
     }
 
-    async function checkDashboard() {
+    async function checkDashboard(by = "") {
       try {
         await queryClient.fetchQuery({
           ...latestDashboardQuery(queryClient, dashboardId),
@@ -233,11 +234,7 @@ export function useDashboardEvents(
       } catch (error) {
         if (disposed) return
         if (!(error instanceof ApiError) || error.status !== 404) return
-        queryClient.removeQueries({
-          queryKey: dashboardKeys.latest(dashboardId),
-          exact: true,
-        })
-        void latest.current.router.invalidate()
+        useDeletedDashboards.getState().markDeleted(dashboardId, by)
       }
     }
 
@@ -326,6 +323,21 @@ export function useDashboardEvents(
       for (const id of toastIds) toast.dismiss(id)
     }
   }, [dashboardId, queryClient])
+
+  const deleted = useDeletedDashboards(
+    (state) => state.deletedBy[dashboardId] !== undefined
+  )
+  const draftHeld = useDeletedDashboards(
+    (state) => state.heldDrafts[dashboardId] === true
+  )
+  useEffect(() => {
+    if (!deleted || draftHeld) return
+    queryClient.removeQueries({
+      queryKey: dashboardKeys.latest(dashboardId),
+      exact: true,
+    })
+    void latest.current.router.invalidate()
+  }, [deleted, draftHeld, dashboardId, queryClient])
 
   return {
     status:
