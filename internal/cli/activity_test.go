@@ -212,6 +212,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"finding.moved", `{"title":"Slow pod","from_folder_id":null,"to_folder_id":"f"}`, `moved the finding "Slow pod"`},
 		{"saved_search.created", `{"title":"Errors","kind":"logs"}`, `saved the logs search "Errors"`},
 		{"saved_search.created", `{"title":"Slow","kind":"traces"}`, `saved the trace search "Slow"`},
+		{"saved_search.created", `{"title":"Request rate","kind":"metrics"}`, `saved the metrics search "Request rate"`},
 		{"saved_search.updated", `{"title":"Errors v2","kind":"logs"}`, `renamed the saved search to "Errors v2"`},
 		{"saved_search.moved", `{"title":"Errors","kind":"logs","from_folder_id":"a","to_folder_id":"b"}`, `moved the saved search "Errors"`},
 		{"saved_search.deleted", `{"title":"Errors","kind":"logs"}`, `deleted the saved search "Errors"`},

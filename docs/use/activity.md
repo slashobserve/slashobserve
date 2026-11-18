@@ -41,7 +41,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 ## What data holds
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
-A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
+A saved search event adds its `kind`, `logs`, `traces` or `metrics`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`, with the block's `state` (`live` or `requested`) on `observation.block_added`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
