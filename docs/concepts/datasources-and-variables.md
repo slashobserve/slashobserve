@@ -92,8 +92,8 @@ In a PromQL `=~` or `!~` matcher it is `regex`, so `pod=~"$pod"` works for one v
 Elsewhere in PromQL, and inside a quoted string in SQL, it is `raw`.
 In SQL outside quotes it is `sqlstring`, so `ServiceName IN ($service)` works for several values.
 
-All becomes the full list of values, formatted the same way, except in the `regex` format, where it becomes `.*`.
-Set `allValue` to send your own text for All instead, such as `.*`, and the server uses it without a format.
+All becomes the full list of values, formatted the same way, except in the `regex` format, where it becomes `.*`, or `.+` on a Loki query because Loki refuses a stream selector whose every matcher can match an empty value.
+Set `allValue` to send your own text for All instead, such as `.*`, and the server uses it without a format; on Loki, use `.+` there too, because `.*` is refused when it is the only matcher in the selector.
 The full list is used only when it has at most 1000 values and 64 KiB of text and every value can be substituted safely.
 Otherwise a query that uses it fails, and the fix is to use the `regex` format, set `allValue` or narrow the variable query.
 

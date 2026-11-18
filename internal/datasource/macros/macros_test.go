@@ -960,6 +960,10 @@ func TestLexerContextCorpus(t *testing.T) {
 		{name: "promql negative regex raw with metacharacters", d: macros.PromQL, query: `up{a!~'${v:raw}'}`, env: envWith(val("v", "(?s).*")), err: true},
 		{name: "promql equality raw keeps metacharacters", d: macros.PromQL, query: `up{a="${v:raw}"}`, env: envWith(val("v", "a.*")), want: `up{a="a.*"}`},
 		{name: "promql all in regex is dot star", d: macros.PromQL, query: `up{a=~"$v"}`, env: envWith(all("v", "x", "y")), want: `up{a=~".*"}`},
+		{name: "logql all in stream selector is not empty compatible", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v", "x", "y")), want: `{app=~".+"}`},
+		{name: "logql all with no options", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v")), want: `{app=~".+"}`},
+		{name: "logql all with explicit regex format", d: macros.LogQL, query: `{app=~"${v:regex}"}`, env: envWith(all("v", "x")), want: `{app=~".+"}`},
+		{name: "logql selected values keep the alternation", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(val("v", "x", "y")), want: `{app=~"(x|y)"}`},
 	}
 	runExpandCases(t, cases)
 }
