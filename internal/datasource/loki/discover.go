@@ -326,6 +326,10 @@ func (d *Datasource) getStrings(ctx context.Context, path string, params url.Val
 	if err != nil {
 		return nil, err
 	}
+	// Loki leaves "data" out of a labels answer when the range holds no streams.
+	if len(raw) == 0 {
+		return []string{}, nil
+	}
 	var values []string
 	if err := json.Unmarshal(raw, &values); err != nil {
 		return nil, unreadable()
