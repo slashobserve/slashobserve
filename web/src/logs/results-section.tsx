@@ -45,6 +45,7 @@ import {
 } from "./frames"
 import { columnList, columnsText } from "./line-fields"
 import { LogsResults, type ResultsView } from "./logs-results"
+import { hasTimeField, PlainTable } from "./plain-table"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
 import {
@@ -543,6 +544,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </p>
       )
     }
+    if (!hasTimeField(frames)) return <PlainTable frame={frames[0]} />
     return height > 0 ? (
       <LogsResults frames={frames} height={height} {...resultsProps()} />
     ) : null

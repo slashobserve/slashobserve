@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"errors"
 	"math"
 	"reflect"
 	"strings"
@@ -111,13 +110,22 @@ func TestPageInfoFromCounts(t *testing.T) {
 	}
 }
 
-func TestPageRefusesAQueryWithoutTimestamp(t *testing.T) {
-	conn := &pageConn{fakeConn: &fakeConn{columns: stringColumns("Body"), rows: [][]any{{"line"}}}}
-	_, _, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest("SELECT Body FROM otel_logs", 1, 100))
-	if !errors.Is(err, datasource.ErrInvalidQuery) || err.Error() != "invalid query: the query must select Timestamp" {
-		t.Fatalf("err = %v", err)
+func TestPageReadsAQueryWithoutTimestampAsAPlainTable(t *testing.T) {
+	conn := &pageConn{fakeConn: &fakeConn{columns: stringColumns("Body"), rows: [][]any{{"line"}}}, total: 41}
+	frames, info, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest("SELECT Body FROM otel_logs", 2, 20))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(conn.statements) != 1 {
-		t.Fatalf("statements = %q, want only the probe", conn.statements)
+	if len(frames) != 1 || len(frames[0].Fields) != 1 || frames[0].Fields[0].Name != "Body" {
+		t.Fatalf("frames = %+v", frames)
+	}
+	if info.Total != 41 || info.Page != 2 || !info.HasNext {
+		t.Fatalf("info = %+v", info)
+	}
+	if len(conn.statements) != 3 {
+		t.Fatalf("statements = %q, want the probe, the page and the count", conn.statements)
+	}
+	if strings.Contains(conn.statements[1], "ORDER BY") || strings.Contains(conn.statements[1], "Timestamp") || strings.Contains(conn.statements[2], "Timestamp") {
+		t.Fatalf("a plain page filters or orders by Timestamp: %q", conn.statements[1:])
 	}
 }

@@ -20,7 +20,7 @@ var _ datasource.LineSource = (*Datasource)(nil)
 
 func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]datasource.Frame, error) {
 	var frames []datasource.Frame
-	err := d.readLines(ctx, req.Query, req.Range, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error {
+	err := d.readLines(ctx, req.Query, req.Range, true, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, _ bool) error {
 		lim.MaxRows = min(max(req.Limit, 1), lim.MaxRows)
 		rs, err := d.fetchWith(ctx, linesQuery(inner, req.Direction), lim, linesParameters(req.Range, lim.MaxRows, 0), extra)
 		if err != nil {
@@ -32,9 +32,9 @@ func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]
 	return frames, err
 }
 
-type linesReader func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error
+type linesReader func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error
 
-func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r datasource.TimeRange, read linesReader) error {
+func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r datasource.TimeRange, needTimestamp bool, read linesReader) error {
 	if err := r.Validate(); err != nil {
 		return err
 	}
@@ -62,10 +62,14 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	if err != nil {
 		return err
 	}
-	if err := d.requireTimestamp(ctx, inner, lim, extra); err != nil {
+	timed, err := d.selectsTimestamp(ctx, inner, lim, extra)
+	if err != nil {
 		return mapError(ctx, err, timeout)
 	}
-	if err := read(ctx, inner, lim, extra); err != nil {
+	if !timed && needTimestamp {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
+	}
+	if err := read(ctx, inner, lim, extra, timed); err != nil {
 		return mapError(ctx, err, timeout)
 	}
 	return nil
@@ -80,17 +84,29 @@ func wholeMilliseconds(r datasource.TimeRange) datasource.TimeRange {
 	return datasource.TimeRange{From: from, To: to}
 }
 
-func (d *Datasource) requireTimestamp(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error {
+func (d *Datasource) selectsTimestamp(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) (bool, error) {
 	rs, err := d.fetchWith(ctx, "SELECT * FROM (\n"+inner+"\n) LIMIT 0", lim, nil, extra)
 	if err != nil {
-		return err
+		return false, err
 	}
 	for _, c := range rs.columns {
 		if c.name == timestampColumn {
-			return nil
+			return true, nil
 		}
 	}
-	return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
+	return false, nil
+}
+
+func plainQuery(inner string) string {
+	return "SELECT * FROM (\n" + inner + "\n)\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
+}
+
+func plainCountQuery(inner string) string {
+	return "SELECT count() FROM (\n" + inner + "\n)"
+}
+
+func plainParameters(limit, offset int) ch.Parameters {
+	return ch.Parameters{"limit": strconv.Itoa(limit), "offset": strconv.Itoa(offset)}
 }
 
 func linesQuery(inner string, direction datasource.LineDirection) string {
