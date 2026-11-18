@@ -54,7 +54,7 @@ func historyWaitArgs(profile string) []string {
 
 func scriptHistoryWaiter(script, profile string, stderr io.Writer) func(context.Context) error {
 	return func(ctx context.Context) error {
-		cmd := exec.CommandContext(ctx, script, historyWaitArgs(profile)...)
+		cmd := exec.CommandContext(ctx, script, historyWaitArgs(profile)...) //nolint:gosec // the script is the operator's --stack-script and the arguments come from a fixed list
 		cmd.Stdout, cmd.Stderr = stderr, stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("%s wait-history: %w", script, err)
