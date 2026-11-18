@@ -129,13 +129,6 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
 		return CreatedRCA{}, ErrInvalidExpiry
 	}
-	count, err := q.CountObservationPublicLinks(ctx, observationID)
-	if err != nil {
-		return CreatedRCA{}, err
-	}
-	if count >= maxLinksPerObservation {
-		return CreatedRCA{}, ErrTooManyRCALinks
-	}
 	creatorID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return CreatedRCA{}, folders.ErrForbidden
@@ -144,14 +137,28 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if err != nil {
 		return CreatedRCA{}, err
 	}
-	row, err := q.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
-		RcaID:         rcaID,
-		TokenHash:     hash,
-		DisplayPrefix: displayPrefix(token),
-		ExpiresAt:     timestamp(in.ExpiresAt),
-		CreatedByKind: string(by.Kind),
-		CreatedByID:   creatorID,
-		CreatedByName: creatorName(by),
+	var row dbsqlc.CreateRCAPublicLinkRow
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockObservationForLinks(ctx, observationID); err != nil {
+			return err
+		}
+		count, err := q.CountObservationPublicLinks(ctx, observationID)
+		if err != nil {
+			return err
+		}
+		if count >= maxLinksPerObservation {
+			return ErrTooManyRCALinks
+		}
+		row, err = q.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
+			RcaID:         rcaID,
+			TokenHash:     hash,
+			DisplayPrefix: displayPrefix(token),
+			ExpiresAt:     timestamp(in.ExpiresAt),
+			CreatedByKind: string(by.Kind),
+			CreatedByID:   creatorID,
+			CreatedByName: creatorName(by),
+		})
+		return err
 	})
 	if db.IsForeignKeyViolation(err) {
 		return CreatedRCA{}, observations.ErrRevisionNotFound
