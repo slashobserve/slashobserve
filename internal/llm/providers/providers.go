@@ -20,7 +20,7 @@ func New(cfg config.LLM, logger *slog.Logger) (llm.Provider, error) {
 		return nil, nil
 	case config.LLMProviderAnthropic:
 		return anthropic.New(anthropic.Config{
-			APIKey:         cfg.APIKey,
+			APIKey:         cfg.APIKey.Reveal(),
 			Model:          cfg.Model,
 			Effort:         cmp.Or(cfg.Effort, anthropicDefaultEffort),
 			BaseURL:        cfg.BaseURL,
@@ -32,7 +32,7 @@ func New(cfg config.LLM, logger *slog.Logger) (llm.Provider, error) {
 		}), nil
 	case config.LLMProviderOpenAI:
 		return openaicompat.New(openaicompat.Config{
-			APIKey:         cfg.APIKey,
+			APIKey:         cfg.APIKey.Reveal(),
 			Model:          cfg.Model,
 			Effort:         cfg.Effort,
 			BaseURL:        cfg.BaseURL,

@@ -216,7 +216,7 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		IssuerURL:           cfg.OIDCIssuerURL,
 		InternalURL:         cfg.OIDCInternalURL,
 		ClientID:            cfg.OIDCClientID,
-		ClientSecret:        cfg.OIDCClientSecret,
+		ClientSecret:        cfg.OIDCClientSecret.Reveal(),
 		SessionTTL:          cfg.SessionTTL,
 		AllowedEmailDomains: cfg.AllowedEmailDomains,
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
@@ -446,17 +446,17 @@ func run() error {
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
 		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
-		Principals: authService, InstanceID: serverID, SecretKey: cfg.SecretKey, Logger: logger,
+		Principals: authService, InstanceID: serverID, SecretKey: []byte(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
-		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
+		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	stopWebhooks := startBackground(ctx, "webhook worker", webhooks.NewWorker(webhooks.WorkerDeps{
-		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
+		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()),
 		Followers: broker, InstanceID: serverID, Logger: logger,
 	}).Run, logger)
 	defer stopWebhooks()
