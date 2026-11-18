@@ -282,7 +282,7 @@ A timeline written without `fill` is opaque and one written without `lineWidth` 
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
 
-- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.
+- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the field's name when it has a single row, else the row's time, else its row number.
 - `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
   When `fields` is absent the panel shows the number fields.
   Time fields are never shown as values.
