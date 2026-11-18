@@ -245,3 +245,25 @@ func TestACommenterRequestsAPanelButCannotFreezeOne(t *testing.T) {
 		t.Errorf("a viewer: %v", err)
 	}
 }
+
+const variablePanel = `{"type":"timeseries","title":"Rate","datasource":"prom","queries":[{"ref":"A","query":"sum(rate(errors{service=~\"$service\"}[$__rate_interval]))"}]}`
+
+func TestThePanelDashboardCarriesTheVariablesBakedIntoTheBlock(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	body := json.RawMessage(`{"panel":` + variablePanel + `,"variable_values":{"service":["checkout"]}}`)
+	block, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _, _, err := r.service.PanelDashboard(t.Context(), viewer, mustUUID(t, block.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Variables) != 1 || d.Variables[0].Name != "service" || d.Variables[0].Default == nil || d.Variables[0].Default.Values[0] != "checkout" {
+		t.Errorf("variables %+v", d.Variables)
+	}
+	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(`{"panel":` + variablePanel + `}`)}); err == nil || !strings.Contains(err.Error(), `"service"`) {
+		t.Errorf("a panel without its variable: %v", err)
+	}
+}

@@ -466,3 +466,32 @@ func TestObservationToolsNeedOnlyTheViewerRole(t *testing.T) {
 		}
 	}
 }
+
+func TestAPanelBlockTakesVariableValuesAndNamesAMissingOne(t *testing.T) {
+	r := newObservationRig(t)
+	id := r.start(t, editorCaller)
+	panel := evidencePanel("Errors by service", `sum(rate(errors{service=~"$service"}[5m]))`)
+
+	missing := r.call(t, editorCaller, nameAddBlock, panelBlockInput(id, panel))
+	if got := errorCodeOf(t, missing); got != observations.CodeVariableMissing || !strings.Contains(fmt.Sprint(missing.Content), `"service"`) {
+		t.Fatalf("a panel without its value: code %q, %#v", got, missing.Content)
+	}
+
+	added := r.written(t, editorCaller, nameAddBlock, fmt.Sprintf(`{"observation_id":%q,"kind":"panel","panel":%s,"variables":{"service":["checkout","cart"]}}`, id, panel))
+	if added.BlockID == "" {
+		t.Fatalf("added = %#v", added)
+	}
+	page := r.view(t, viewerCaller, id)
+	if got := page.Blocks[0].Variables["service"]; strings.Join(got, ",") != "checkout,cart" {
+		t.Errorf("shown variables %#v", page.Blocks[0].Variables)
+	}
+
+	for name, input := range map[string]string{
+		"values on a text block": fmt.Sprintf(`{"observation_id":%q,"kind":"text","markdown":"x","variables":{"a":["b"]}}`, id),
+		"an empty value list":    fmt.Sprintf(`{"observation_id":%q,"kind":"panel","panel":%s,"variables":{"service":[]}}`, id, panel),
+	} {
+		if res := r.call(t, editorCaller, nameAddBlock, input); !res.IsError {
+			t.Errorf("%s was accepted: %#v", name, res)
+		}
+	}
+}

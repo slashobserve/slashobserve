@@ -6296,7 +6296,7 @@ export interface components {
             width: components["schemas"]["ObservationBlockWidth"];
             /** @description Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read. */
             version: number;
-            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
+            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos` and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
             body: {
                 [key: string]: unknown;
             };
@@ -6379,7 +6379,7 @@ export interface components {
              * @enum {string}
              */
             kind: "text" | "panel" | "snapshot";
-            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. */
+            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`. */
             body?: {
                 [key: string]: unknown;
             };
@@ -6529,7 +6529,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
+        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
         ObservationInvalid: {
             headers: {
                 [name: string]: unknown;

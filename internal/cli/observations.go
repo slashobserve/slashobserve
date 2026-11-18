@@ -224,6 +224,7 @@ type addBlockOptions struct {
 	panelFile  string
 	snapshotOf string
 	from, to   string
+	vars       []string
 	half       bool
 	position   int
 }
@@ -244,6 +245,9 @@ func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error
 	}
 	if (o.from != "" || o.to != "") && o.panelFile == "" {
 		return nil, "", usagef("--from and --to go with --panel-file")
+	}
+	if len(o.vars) > 0 && o.panelFile == "" {
+		return nil, "", usagef("--var goes with --panel-file")
 	}
 	body := map[string]any{}
 	var kind string
@@ -290,15 +294,34 @@ func (o addBlockOptions) panel() (map[string]any, error) {
 	if o.from != "" {
 		body["from"], body["to"] = o.from, o.to
 	}
+	if len(o.vars) > 0 {
+		values, err := variableValues(o.vars)
+		if err != nil {
+			return nil, err
+		}
+		body["variable_values"] = values
+	}
 	return body, nil
+}
+
+func variableValues(pairs []string) (map[string][]string, error) {
+	values := map[string][]string{}
+	for _, pair := range pairs {
+		name, value, ok := strings.Cut(pair, "=")
+		if !ok || name == "" || value == "" {
+			return nil, usagef("--var takes name=value, such as --var service=checkout; repeat it for more values")
+		}
+		values[name] = append(values[name], value)
+	}
+	return values, nil
 }
 
 func (a *app) observationAddCommand() *cobra.Command {
 	var opts addBlockOptions
 	cmd := &cobra.Command{
-		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--from <time> --to <time>] | --snapshot-of <block-id>) [--half] [--position <n>]",
+		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--var <name=value>]... [--from <time> --to <time>] | --snapshot-of <block-id>) [--half] [--position <n>]",
 		Short: "Add a block to an observation",
-		Long:  "add adds one block: Markdown text, a panel from a JSON file, whose query must return data, or a snapshot that freezes the data of a panel block.\nThe block is live when you can edit the observation and requested when you can only comment.\n--from and --to, RFC 3339 times given together, give a panel its own range.",
+		Long:  "add adds one block: Markdown text, a panel from a JSON file, whose query must return data, or a snapshot that freezes the data of a panel block.\nThe block is live when you can edit the observation and requested when you can only comment.\n--from and --to, RFC 3339 times given together, give a panel its own range.\nA panel that uses variables needs one --var name=value for each, repeated for several values, or it is refused as variable_missing.",
 		Args:  exactArgs(1, "one observation id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -325,6 +348,7 @@ func (a *app) observationAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.snapshotOf, "snapshot-of", "", "the id of the panel block to freeze into a snapshot block")
 	cmd.Flags().StringVar(&opts.from, "from", "", "start of the panel's own range, an RFC 3339 time")
 	cmd.Flags().StringVar(&opts.to, "to", "", "end of the panel's own range, an RFC 3339 time")
+	cmd.Flags().StringArrayVar(&opts.vars, "var", nil, "a value for a variable the panel uses, name=value; repeat for more")
 	cmd.Flags().BoolVar(&opts.half, "half", false, "make the block half width")
 	cmd.Flags().IntVar(&opts.position, "position", 0, "place the block at this position, by default the end")
 	return cmd

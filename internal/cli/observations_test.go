@@ -192,6 +192,21 @@ func TestObservationCommands(t *testing.T) {
 			wantOut:    []string{"Added panel block " + testBlock + " (live)"},
 		},
 		{
+			name:       "add a panel sends the values of its variables",
+			args:       []string{"o", "add", testObservation, "--panel-file", panelFile, "--var", "service=checkout", "--var", "service=cart", "--var", "env=prod"},
+			response:   strings.Replace(added, `"text"`, `"panel"`, 1),
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/observations/" + testObservation + "/blocks",
+			wantBody:   `{"body":{"panel":{"type":"timeseries","title":"Errors"},"variable_values":{"env":["prod"],"service":["checkout","cart"]}},"kind":"panel"}`,
+			wantOut:    []string{"Added panel block " + testBlock + " (live)"},
+		},
+		{
+			name:     "a variable needs a name and a value",
+			args:     []string{"o", "add", testObservation, "--panel-file", panelFile, "--var", "service"},
+			wantErr:  "--var takes name=value",
+			wantCode: 2,
+		},
+		{
 			name:       "add a snapshot names the panel block",
 			args:       []string{"o", "add", testObservation, "--snapshot-of", testPanelBlock},
 			response:   strings.Replace(added, `"text"`, `"snapshot"`, 1),

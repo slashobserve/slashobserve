@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -156,6 +157,10 @@ func findingWindow(in findingInput, defaultFrom, defaultTo, now time.Time) (time
 }
 
 func (r *Registry) evidenceDashboard(ctx context.Context, principal auth.Principal, save findings.SaveInput, evidence []json.RawMessage, now time.Time) (*spec.Dashboard, Result, bool, error) {
+	return r.evidenceDashboardWith(ctx, principal, save, evidence, nil, false, now)
+}
+
+func (r *Registry) evidenceDashboardWith(ctx context.Context, principal auth.Principal, save findings.SaveInput, evidence []json.RawMessage, variables []spec.Variable, takesVariables bool, now time.Time) (*spec.Dashboard, Result, bool, error) {
 	ids := make([]string, len(evidence))
 	for i, raw := range evidence {
 		if res, ok := evidencePanelAllowed(i, raw); !ok {
@@ -163,10 +168,13 @@ func (r *Registry) evidenceDashboard(ctx context.Context, principal auth.Princip
 		}
 		ids[i] = fmt.Sprintf("evidence-%d", i+1)
 	}
-	d, err := findings.EvidenceSpec(save.Title, save.From, save.To, evidence)
+	d, err := findings.EvidenceSpecWith(save.Title, save.From, save.To, evidence, variables)
 	var invalidSpec *spec.ValidationError
 	switch {
 	case errors.As(err, &invalidSpec):
+		if name, ok := observations.MissingVariable(invalidSpec.Issues); ok && takesVariables {
+			return nil, toolError(observations.CodeVariableMissing, fmt.Sprintf("the panel uses the variable %q and no value was given for it; send its values in variables", name)), false, nil
+		}
 		return nil, suggestionRejected(invalidSpec.Issues), false, nil
 	case err != nil:
 		return nil, Result{}, false, err

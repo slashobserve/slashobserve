@@ -12,6 +12,7 @@ const (
 	CodeInvalidRange     = "invalid_range"
 	CodeInvalidBlock     = "invalid_block"
 	CodeInvalidPanel     = "invalid_panel"
+	CodeVariableMissing  = "variable_missing"
 	CodeKindNotAddable   = "kind_not_addable"
 	CodeBodyNotEditable  = "body_not_editable"
 	CodeTooManyBlocks    = "too_many_blocks"
