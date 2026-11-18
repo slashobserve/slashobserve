@@ -234,6 +234,12 @@ A retried investigation writes into the same observation when the person retryin
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
+**Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
+**Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
+It is off while a run goes on.
+The reply streams in as the agent works only as far as the server keeps it: the answer itself is written in one piece when the agent saves it, so there is no word-by-word text to copy while it runs.
+The model comes from the server's configuration and cannot be picked in the chat box.
+
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
 The run itself goes on server-side either way.

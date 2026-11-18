@@ -97,3 +97,12 @@ describe("FindingCard", () => {
     expect(range.textContent).toMatch(/^Evidence from .+\.$/)
   })
 })
+
+describe("FindingCard copy", () => {
+  it("copies the answer text", async () => {
+    const { user } = renderCard()
+    const writeText = vi.spyOn(navigator.clipboard, "writeText")
+    await user.click(await screen.findByRole("button", { name: "Copy answer" }))
+    expect(writeText).toHaveBeenCalledWith(text)
+  })
+})

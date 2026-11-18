@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { CopyButton } from "@/components/copy-button"
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { dashboardLink, observationLink } from "@/lib/links"
@@ -147,6 +148,14 @@ export function FindingCard({
       <div className="flex flex-wrap items-center gap-2">
         <PinAction finding={finding} />
         {panels.length > 0 ? <MakeDashboardAction finding={finding} /> : null}
+        <CopyButton
+          text={finding.markdown}
+          label="Copy answer"
+          variant="ghost"
+          size="sm"
+        >
+          Copy answer
+        </CopyButton>
         {showOpenLink ? (
           <Link
             {...observationLink(finding.observation_id)}

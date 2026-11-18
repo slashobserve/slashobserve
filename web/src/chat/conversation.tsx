@@ -19,6 +19,7 @@ import {
 } from "@/observe/queries"
 import { revisionsQuery } from "@/revisions/queries"
 
+import { AskAgainButton } from "./ask-again"
 import { ChatComposer, useOpenSent } from "./chat-composer"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
@@ -302,6 +303,20 @@ function ConversationView({
                 onRetried={appended}
                 buildOnScreen={pane && turn.id === requestId}
                 opensRunsIn={pane ? "build" : "chat"}
+                answerActions={
+                  !readOnly &&
+                  index === turns.length - 1 &&
+                  turn.summary.source === "observe" &&
+                  turn.summary.requested_by.id === principal.id ? (
+                    <AskAgainButton
+                      prompt={turn.summary.prompt}
+                      dashboardId={dashboardId ?? undefined}
+                      followsId={hasDashboard ? undefined : turn.id}
+                      disabled={active}
+                      onSent={openSent}
+                    />
+                  ) : undefined
+                }
               />
             </div>
           ))

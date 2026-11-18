@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
@@ -78,6 +78,7 @@ type Props = {
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
+  answerActions?: ReactNode
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -152,6 +153,7 @@ export function RequestTurn({
   onRetried,
   buildOnScreen = false,
   opensRunsIn = "chat",
+  answerActions,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -324,7 +326,10 @@ export function RequestTurn({
           ) : null}
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
-              <FindingCard finding={detail.finding} showOpenLink />
+              <>
+                <FindingCard finding={detail.finding} showOpenLink />
+                {answerActions}
+              </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
