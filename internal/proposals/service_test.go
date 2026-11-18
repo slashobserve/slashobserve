@@ -299,6 +299,9 @@ func TestAnEditorMergesAProposalIntoTheNextVersion(t *testing.T) {
 	if latest.MergedProposalID != ref.ID {
 		t.Fatalf("merged_proposal_id = %q, want %q", latest.MergedProposalID, ref.ID)
 	}
+	if latest.Author.ID != editorID {
+		t.Fatalf("the merged version's author = %+v, want the person who merged", latest.Author)
+	}
 	for _, want := range []panel{changed, {id: "b", query: "node_load1"}} {
 		found, ok := latest.Spec.FindPanel(want.id)
 		if !ok || found.Panel.Queries[0].Query != want.query {
