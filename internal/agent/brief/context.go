@@ -40,11 +40,14 @@ func systemFor(statuses []datasource.Status) string {
 	return prompts.Build(types)
 }
 
+const newDashboardLimits = " It is saved in the requester's My Dashboards and you cannot choose a folder: if the request names a folder or who should see it, still build it and say in the last save's summary that it is in My Dashboards and can be moved. This run cannot change an existing dashboard or create alerts: for either, answer with save_finding that says so, and that the change is asked for on that dashboard's own page, or that a dashboard with a threshold line can be asked for instead."
+
 func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID, prompt string, current *Revision, sd seed) (string, error) {
 	var b strings.Builder
 	writeDatasources(&b, statuses)
 	if mode == tools.ModeCreate && sd.build == nil {
 		b.WriteString("\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question.")
+		b.WriteString(newDashboardLimits)
 		writeSeedNote(&b, sd)
 		return b.String(), nil
 	}
