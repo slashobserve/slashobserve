@@ -30,8 +30,8 @@ const (
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
-		`"datasource":{"type":"string","description":"The datasource to search, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
-		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs; optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
+		`"datasource":{"type":"string","description":"The datasource, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
+		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs; optional TraceQL for Tempo; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
@@ -39,10 +39,10 @@ const (
 		`"min":{"type":"string","description":"Traces: the shortest duration, such as 250ms."},` +
 		`"max":{"type":"string","description":"Traces: the longest duration, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."}},` +
-		`"additionalProperties":false,"description":"A logs search takes only columns, a traces search the other keys."},` +
-		`"from":{"type":"string","description":"Start of the saved range, such as now-1h or an RFC 3339 time. Default now-1h."},` +
-		`"to":{"type":"string","description":"End of the saved range, such as now or an RFC 3339 time. Default now."},` +
-		`"folder_id":{"type":"string","format":"uuid","description":"The folder to save it in, from list_folders. Default your My Dashboards, else General."}},` +
+		`"additionalProperties":false,"description":"Logs take only columns, traces the other keys."},` +
+		`"from":{"type":"string","description":"Range start, such as now-1h or an RFC 3339 time. Default now-1h."},` +
+		`"to":{"type":"string","description":"Range end, such as now or an RFC 3339 time. Default now."},` +
+		`"folder_id":{"type":"string","format":"uuid","description":"A folder from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
