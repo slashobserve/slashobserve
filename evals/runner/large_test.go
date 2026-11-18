@@ -594,7 +594,7 @@ func TestSynthHistoryOutlastsTheWidestRetimeStepByTwoScrapes(t *testing.T) {
 	if err := generateSynth(dir); err != nil {
 		t.Fatal(err)
 	}
-	body, err := os.ReadFile(filepath.Join(dir, synthHistoryFile))
+	body, err := os.ReadFile(filepath.Join(dir, synthHistoryFile)) //nolint:gosec // a path inside the temporary directory made above
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,7 +614,7 @@ func TestSynthScrapeIntervalIsTheOneTheStackUses(t *testing.T) {
 		filepath.Join("..", "..", "deploy", "compose", "evals", "scrape.d", "synth.yml"): `scrape_interval: (\S+)`,
 		filepath.Join("..", "..", "scripts", "evals-stack.sh"):                           `(?m)^SYNTH_SCRAPE_SECONDS=(\d+)$`,
 	} {
-		body, err := os.ReadFile(path)
+		body, err := os.ReadFile(path) //nolint:gosec // a fixed path inside the repository
 		if err != nil {
 			t.Fatal(err)
 		}
