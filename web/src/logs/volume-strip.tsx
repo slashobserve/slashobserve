@@ -144,7 +144,12 @@ export function VolumeStrip({
     )
   }
   if (volume.data === undefined) {
-    return <Skeleton aria-hidden="true" className="h-[132px] rounded-card" />
+    return (
+      <Skeleton
+        aria-hidden="true"
+        className="h-[134px] shrink-0 rounded-card"
+      />
+    )
   }
   return (
     <VolumeBars
