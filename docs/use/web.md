@@ -36,6 +36,12 @@ The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and 
 An address that nothing answers opens **Page not found** inside the app, with the sidebar and the top bar, the address it could not find and links to Home and the dashboards; a signed-out visitor signs in first and then sees it.
 A folder's page names the folder in the breadcrumb and in the tab title, such as "Dashboards / Checkout" and "Checkout - SlashObserve".
 
+## When your session ends
+
+When an Admin uses Sign out everywhere, or the server drops your session, the next page or save sends you to the sign-in page, which says "Your session was ended, so you were signed out."
+After you sign in you return to the page you were on.
+Signing out yourself shows no such note.
+
 ## Public links
 
 A dashboard's Share pane can create a public link, whose `/p/<token>` address opens the dashboard read-only for anyone who has it, without signing in.
