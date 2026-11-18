@@ -291,8 +291,14 @@ type savedOut struct {
 	advice
 }
 
+const (
+	invalidSpecMessage = "the spec was rejected; fix each path in issues and send the call again"
+	conflictMessage    = "the dashboard changed since parent_version; read it again and send your change against latest_version, or settle the listed conflicts"
+)
+
 type invalidSpecOut struct {
 	Code      string       `json:"code"`
+	Message   string       `json:"message"`
 	Issues    []spec.Issue `json:"issues"`
 	Truncated bool         `json:"truncated,omitempty"`
 }
@@ -315,6 +321,7 @@ type proposalRequiredOut struct {
 
 type conflictOut struct {
 	Code          string          `json:"code"`
+	Message       string          `json:"message"`
 	LatestVersion int             `json:"latest_version"`
 	Conflicts     []spec.Conflict `json:"conflicts,omitempty"`
 	Truncated     bool            `json:"truncated,omitempty"`
@@ -603,7 +610,7 @@ func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, tar
 func importOnlyFailure(issues []spec.Issue) Result {
 	step := "Save rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
 	kept, truncated := fit(slices.Clone(issues), listBudget)
-	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
+	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated})
 }
 
 func requestIDOf(run Run, scoped bool) (pgtype.UUID, error) {
@@ -757,10 +764,10 @@ func saveFailure(err error) (Result, error) {
 		return failure("Save rejected: "+codeProposalRequired, proposalRequiredOut{Code: codeProposalRequired, Message: message, Removed: removed, Truncated: truncated}), nil
 	case errors.As(err, &invalidSpec):
 		issues, truncated := fit(slices.Clone(invalidSpec.Issues), listBudget)
-		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
+		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: issues, Truncated: truncated}), nil
 	case errors.As(err, &conflict):
 		kept, truncated := fit(slices.Clone(conflict.Conflicts), listBudget)
-		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
+		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, Message: conflictMessage, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
 		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound, Message: "dashboard not found, or you cannot see it"}), nil
 	case errors.Is(err, folders.ErrForbidden):

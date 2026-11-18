@@ -261,6 +261,9 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 			slog.String("principal_id", principal.ID),
 			slog.Bool("is_error", answer.IsError),
 			slog.Duration("duration", time.Since(start))}, runAttrs(ctx)...)...)
+		if answer.IsError {
+			answer.Content = uniformRefusal(answer.Content)
+		}
 		out := mcplib.NewToolResultStructured(json.RawMessage(answer.Content), answer.Text())
 		out.IsError = answer.IsError
 		if inRun {

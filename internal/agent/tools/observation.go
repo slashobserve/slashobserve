@@ -35,6 +35,7 @@ const (
 
 	codeInvalidTransition = "invalid_transition"
 	codeBlockRefused      = "block_refused"
+	blockRefusedMessage   = "the block was refused and the observation was not changed; the reason is in refused, so fix it and send the call again"
 
 	defaultListObservations = 20
 	maxListObservations     = 50
@@ -180,6 +181,7 @@ type observationWrittenOut struct {
 
 type blockRefusedOut struct {
 	Code          string `json:"code"`
+	Message       string `json:"message"`
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	BlockIndex    int    `json:"block_index"`
@@ -436,7 +438,7 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 		}
 		if !ok {
 			step := fmt.Sprintf("Created observation %s, but block %d was refused", o.ID, i)
-			return failure(step, blockRefusedOut{Code: codeBlockRefused, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
+			return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
 		}
 	}
 	return success("Created observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: url}), nil

@@ -379,7 +379,7 @@ func repairHint(code spec.IssueCode) string {
 func rejectionOf(issues []spec.Issue, panelIDs map[string]string) patchRejectedOut {
 	kept, truncated := fit(slices.Clone(issues), listBudget)
 	return patchRejectedOut{
-		invalidSpecOut: invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated},
+		invalidSpecOut: invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated},
 		FailingPanels:  failingPanels(issues, panelIDs),
 	}
 }

@@ -97,6 +97,7 @@ A call with a run that is not yours is refused, and a connection in propose mode
 ## Limits
 
 Lists show only what you may see, and not_found can mean you may not see it.
+Every refused tool call answers with `code`, a stable word to branch on, and `message`, what to change; some add fields such as issues, latest_version or allowed_actions.
 Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, who can see a folder, webhooks or connected agents: tell the person to do it in the web app.
 create_folder and rename_folder make and rename folders.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.

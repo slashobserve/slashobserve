@@ -56,8 +56,8 @@ type importedOut struct {
 }
 
 type importErrorOut struct {
-	Error string `json:"error"`
-	Code  string `json:"code"`
+	Message string `json:"message"`
+	Code    string `json:"code"`
 }
 
 type unresolvedRowOut struct {
@@ -106,7 +106,7 @@ func unresolvedRows(list []grafana.SourceDatasource) []unresolvedRowOut {
 }
 
 func importFailure(code, message string) Result {
-	return failure(errorStep(nameImportGrafana, code), importErrorOut{Error: message, Code: code})
+	return failure(errorStep(nameImportGrafana, code), importErrorOut{Message: message, Code: code})
 }
 
 func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -217,7 +217,7 @@ func (r *Registry) importFailed(err error) (Result, error) {
 	case errors.As(err, &unresolved):
 		rows, truncated := fit(unresolvedRows(unresolved.Datasources), listBudget)
 		return failure(errorStep(nameImportGrafana, codeDatasourcesUnresolved), unresolvedOut{
-			importErrorOut: importErrorOut{Error: "map each Grafana datasource to one of ours in mapping", Code: codeDatasourcesUnresolved},
+			importErrorOut: importErrorOut{Message: "map each Grafana datasource to one of ours in mapping", Code: codeDatasourcesUnresolved},
 			Datasources:    rows,
 			Truncated:      truncated,
 		}), nil

@@ -99,6 +99,7 @@ The lowest role is the one the web app needs for the same work, and folder acces
 A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
 A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save directly; a save from a Commenter becomes a [proposal](../concepts/proposals.md).
 
+Every refused tool call returns one shape: `code`, a stable word to branch on, and `message`, what to change, plus fields specific to the refusal such as `issues`, `latest_version` or `allowed_actions`.
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.

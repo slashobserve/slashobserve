@@ -743,6 +743,9 @@ func TestToolErrorIsReturnedAsToolResultAndArgumentsAreNotLogged(t *testing.T) {
 	if res.StructuredContent["code"] != "invalid_request" {
 		t.Errorf("structured content %v", res.StructuredContent)
 	}
+	if message, _ := res.StructuredContent["message"].(string); message == "" {
+		t.Errorf("a refusal without a message: %v", res.StructuredContent)
+	}
 	logs := f.logs.String()
 	if strings.Contains(logs, "leak_marker_7f3a") || strings.Contains(logs, "value-9c1d") {
 		t.Errorf("arguments reached the log: %s", logs)
