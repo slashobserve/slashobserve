@@ -67,7 +67,7 @@ The page updates when someone else changes its blocks, its state or the discussi
 
 **New observation** on the list opens a panel with a **Title** of 1 to 200 characters and a **Folder**, and Home's **New observation** tab, which the command palette's **New observation** opens, asks for the same two fields plus an optional first note, which becomes the first text block, and links in it to a logs search, a trace or a dashboard panel of this app become panel blocks; see [Home](home.md#new-observation).
 The folder choices are the folders you can edit.
-With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General.
+With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General, and the folder box names that default before you pick one.
 **Create** opens the new page.
 
 ### Add blocks
@@ -207,6 +207,7 @@ If a panel cannot be frozen, nothing is published and the answer is `panel_faile
 If the page changed while it was being frozen, the answer is `observation_changed`, and publishing again takes the new page.
 An observation keeps at most 50 revisions, and one more is refused with `rca_limit`.
 Publishing needs edit access to the observation's folder, and an observation in My Dashboards must be moved to a shared folder first, as a dashboard must before it is shared.
+Such an observation does not list `publish` in its `allowed_actions`, and the web page offers **Publish as RCA** with a **Move to folder** button instead of a publish button.
 
 An agent can publish with `publish_rca` and a person with `observe o publish <observation-id>`, which prints `Published revision N of <title>`.
 Neither shares the result with anyone outside the folder.

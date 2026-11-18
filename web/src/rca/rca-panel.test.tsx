@@ -37,7 +37,11 @@ function observation(actions: string[]): Observation {
   return { id: observationId, allowed_actions: actions } as Observation
 }
 
-function renderPanel(actions: string[], revisions: number[]) {
+function renderPanel(
+  actions: string[],
+  revisions: number[],
+  privateFolder?: () => void
+) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observationKeys.rcas(observationId), {
     rcas: revisions.map(summary),
@@ -50,6 +54,7 @@ function renderPanel(actions: string[], revisions: number[]) {
         observation={observation(actions)}
         trigger={createRef()}
         onClose={() => {}}
+        privateFolder={privateFolder}
       />
     </PanelHostContext.Provider>,
     { queryClient }
@@ -85,6 +90,17 @@ describe("RcaPanel", () => {
       await screen.findByText("You can view revisions. Editors publish them.")
     ).toBeTruthy()
     expect(screen.queryByRole("button", { name: /^Publish/ })).toBeNull()
+  })
+
+  it("sends a private observation to a shared folder before publishing", async () => {
+    const move = vi.fn()
+    const { user } = renderPanel(["update", "move"], [], move)
+    expect(
+      await screen.findByText(/private to you in My Dashboards/)
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Publish/ })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Move to folder" }))
+    expect(move).toHaveBeenCalledOnce()
   })
 
   it("says why a publish was refused", async () => {

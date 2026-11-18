@@ -21,9 +21,15 @@ type Props = {
   observation: Observation
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  privateFolder?: () => void
 }
 
-export function RcaPanel({ observation, onClose, trigger }: Props) {
+export function RcaPanel({
+  observation,
+  onClose,
+  trigger,
+  privateFolder,
+}: Props) {
   const headingId = useId()
   const revisions = useQuery(rcasQuery(observation.id))
   const publish = usePublishRca(observation.id)
@@ -79,6 +85,16 @@ export function RcaPanel({ observation, onClose, trigger }: Props) {
             )}
           </div>
         )
+      ) : privateFolder !== undefined ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-[13px] text-muted-foreground">
+            This observation is private to you in My Dashboards. Move it to a
+            shared folder to publish it.
+          </p>
+          <Button variant="outline" onClick={privateFolder}>
+            Move to folder
+          </Button>
+        </div>
       ) : (
         <p className="text-[13px] text-muted-foreground">
           You can view revisions. Editors publish them.

@@ -72,6 +72,9 @@ function LoadedObservation({
   const blocks = observation.blocks ?? []
   const canAdd = permissions.edit || permissions.comment
   const canPublish = observation.allowed_actions.includes("publish")
+  const isPrivate = envelope.folder.personal
+  const mustMoveToPublish =
+    isPrivate && observation.allowed_actions.includes("move")
   const revisions = useQuery(rcasQuery(observation.id))
   const hasRevisions = (revisions.data?.length ?? 0) > 0
   const rcaButton = useRef<HTMLButtonElement>(null)
@@ -137,14 +140,16 @@ function LoadedObservation({
           onMove={() => setMoving(true)}
           moreButtonRef={moreButton}
           extraActions={
-            canPublish || hasRevisions ? (
+            canPublish || mustMoveToPublish || hasRevisions ? (
               <Button
                 ref={rcaButton}
                 variant="outline"
                 size="sm"
                 onClick={() => rca.onOpenChange(true)}
               >
-                {canPublish ? "Publish as RCA" : "RCA revisions"}
+                {canPublish || mustMoveToPublish
+                  ? "Publish as RCA"
+                  : "RCA revisions"}
               </Button>
             ) : null
           }
@@ -184,6 +189,14 @@ function LoadedObservation({
           observation={observation}
           trigger={rcaButton}
           onClose={() => rca.onOpenChange(false)}
+          privateFolder={
+            mustMoveToPublish
+              ? () => {
+                  rca.onOpenChange(false)
+                  setMoving(true)
+                }
+              : undefined
+          }
         />
       ) : null}
       {moving ? (

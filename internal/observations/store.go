@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -162,8 +163,15 @@ func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities fold
 		ResolvedAt:     timePtr(row.ResolvedAt),
 		Folder:         folder,
 		Abilities:      abilities,
-		AllowedActions: allowedActions(State(row.State), abilities, author.Kind == viewer.Kind && author.ID == viewer.ID),
+		AllowedActions: offered(folder, allowedActions(State(row.State), abilities, author.Kind == viewer.Kind && author.ID == viewer.ID)),
 	}
+}
+
+func offered(folder folders.Folder, actions []Action) []Action {
+	if !folder.Personal {
+		return actions
+	}
+	return slices.DeleteFunc(actions, func(a Action) bool { return a == ActionPublish })
 }
 
 func blockOf(row dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor) Block {

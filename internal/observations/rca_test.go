@@ -226,6 +226,19 @@ func TestPublishingNeedsEditOnAVisibleSharedFolder(t *testing.T) {
 	}
 }
 
+func TestAnObservationInMyDashboardsIsNotOfferedPublish(t *testing.T) {
+	r, _ := newPublishRig(t)
+	for name, folder := range map[string]observations.Observation{
+		"shared":   r.create(t, editor, r.shared),
+		"personal": r.create(t, editor, r.personalFolder(t, editor)),
+	} {
+		offered := slices.Contains(folder.AllowedActions, observations.ActionPublish)
+		if offered == (name == "personal") {
+			t.Errorf("%s folder: publish offered = %v in %v", name, offered, folder.AllowedActions)
+		}
+	}
+}
+
 func TestAPanelThatFailsToFreezeRefusesThePublishAndWritesNothing(t *testing.T) {
 	r, f := newPublishRig(t)
 	o := r.create(t, editor, r.shared)
