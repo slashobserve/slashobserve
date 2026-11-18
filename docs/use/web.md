@@ -196,6 +196,7 @@ The item is greyed, with "(uses dashboard variables)" after it, when a query or 
 
 The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
+The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
