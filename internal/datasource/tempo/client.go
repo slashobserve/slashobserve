@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -104,6 +105,9 @@ func statusError(status int, raw []byte) error {
 		return datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
 	}
 	text := upstreamText(raw)
+	if limit, ok := searchRangeLimit(text); ok {
+		return datasource.Errorf(datasource.ErrLimitExceeded, "Tempo searches at most %s at a time; pick a shorter time range", limit)
+	}
 	lower := strings.ToLower(text)
 	kind, fallback := datasource.ErrUnavailable, fmt.Sprintf("upstream returned HTTP %d", status)
 	switch {
@@ -118,6 +122,24 @@ func statusError(status int, raw []byte) error {
 		text = fallback
 	}
 	return datasource.Errorf(kind, "%s", text)
+}
+
+var searchRangeExceeds = regexp.MustCompile(`range specified by start and end exceeds (\d+h\d+m\d+s)`)
+
+func searchRangeLimit(text string) (string, bool) {
+	match := searchRangeExceeds.FindStringSubmatch(text)
+	if match == nil {
+		return "", false
+	}
+	limit, err := time.ParseDuration(match[1])
+	if err != nil || limit <= 0 {
+		return "", false
+	}
+	hours := int(limit.Hours())
+	if hours%24 == 0 {
+		return fmt.Sprintf("%d days", hours/24), true
+	}
+	return fmt.Sprintf("%d hours", hours), true
 }
 
 func upstreamText(raw []byte) string {

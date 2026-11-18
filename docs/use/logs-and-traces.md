@@ -409,6 +409,7 @@ The time range, **Live**, **Saved searches**, **Save search** and **Copy link** 
 **Live** runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
 A range that starts in the future runs no search and says so.
+Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `limit_exceeded` with the same text.
 On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 

@@ -98,7 +98,7 @@ import {
 import { isRelativeRange, liveBlockedText, liveRefreshMs } from "./live-refresh"
 import { traceFilterChips } from "./trace-filters"
 import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
-import { traceQLProblem } from "./trace-query-problem"
+import { shorterRange, traceQLProblem } from "./trace-query-problem"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
@@ -780,12 +780,30 @@ function TraceResults({
   if (results.fetchStatus === "paused" && !data) {
     return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
   }
-  const failure = results.isError ? (
-    <ExploreFailure
-      text={traceQLProblem(exploreErrorText(results.error), base.query)}
-      onRetry={() => void results.refetch()}
-    />
-  ) : null
+  const failureText = results.isError
+    ? traceQLProblem(exploreErrorText(results.error), base.query)
+    : null
+  const shorter = failureText === null ? null : shorterRange(failureText)
+  const failure =
+    failureText === null ? null : (
+      <div className="flex flex-col gap-2">
+        <ExploreFailure
+          text={failureText}
+          onRetry={() => void results.refetch()}
+        />
+        {shorter !== null ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="self-start"
+            onClick={() => update({ from: shorter.from, to: "now" })}
+          >
+            {shorter.label}
+          </Button>
+        ) : null}
+      </div>
+    )
   if (!data) return failure ?? <ResultSkeleton />
   const rows = traceRows(data.frames)
   const meta = data.meta

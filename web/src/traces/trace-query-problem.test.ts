@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { traceQLProblem } from "./trace-query-problem"
+import { shorterRange, traceQLProblem } from "./trace-query-problem"
 
 describe("traceQLProblem", () => {
   it("strips the doubled prefix, names the end of the query and marks the position", () => {
@@ -42,5 +42,22 @@ describe("traceQLProblem", () => {
     expect(traceQLProblem("tempo is unavailable", "{}")).toBe(
       "tempo is unavailable"
     )
+  })
+})
+
+describe("shorterRange", () => {
+  it("offers the longest range Tempo searches", () => {
+    expect(
+      shorterRange(
+        "query limit exceeded: Tempo searches at most 7 days at a time; pick a shorter time range"
+      )
+    ).toEqual({ from: "now-7d", label: "Last 7 days" })
+    expect(
+      shorterRange("Tempo searches at most 36 hours at a time; pick one")
+    ).toEqual({ from: "now-36h", label: "Last 36 hours" })
+  })
+
+  it("leaves other failures alone", () => {
+    expect(shorterRange("query timed out")).toBeNull()
   })
 })
