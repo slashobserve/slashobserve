@@ -252,7 +252,7 @@ The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones
 
 The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
 Lines that just arrived are marked for a moment, and a status line above the list tells when the tail started and how many lines it received.
-Scrolling up pauses the list so it stops moving under the pointer, and a button counts what arrived meanwhile.
+Scrolling up with the wheel, a touch, the keyboard or the scrollbar pauses the list so it stops moving under the pointer, and the list growing as lines arrive never pauses it, and a button counts what arrived meanwhile.
 **Jump to newest**, **Resume** or scrolling back to the bottom resumes it, and a "New since" divider then marks where the lines that arrived during the pause begin, with each of them read out as "new" by a screen reader.
 **Clear** empties the lines shown until you start the tail again.
 

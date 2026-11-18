@@ -46,6 +46,7 @@ import {
 import { columnList, columnsText } from "./line-fields"
 import { LogsResults, type ResultsView } from "./logs-results"
 import { hasTimeField, PlainTable } from "./plain-table"
+import { useUserScroll } from "./user-scroll"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
 import {
@@ -253,6 +254,8 @@ function TailBody({
   }, [toBottom])
   useEffect(follow)
 
+  const userScroll = useUserScroll()
+
   function pause() {
     following.current = false
     setFrozen(latest.current)
@@ -275,8 +278,9 @@ function TailBody({
       return
     }
     const away = element.scrollHeight - element.scrollTop - element.clientHeight
-    if (away > bottomSlackPx && following.current) pause()
-    else if (away <= bottomSlackPx && !following.current) resume()
+    if (away > bottomSlackPx && following.current) {
+      if (userScroll.recent()) pause()
+    } else if (away <= bottomSlackPx && !following.current) resume()
   }
 
   const paused = state.tail.paused
@@ -318,6 +322,7 @@ function TailBody({
         ref={regionRef}
         className="relative min-h-0 flex-1"
         onScrollCapture={onScroll}
+        {...userScroll.handlers}
       >
         {lines === 0 ? (
           <p className="p-3 text-[13px] text-muted-foreground">
