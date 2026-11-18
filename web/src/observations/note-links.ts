@@ -11,7 +11,7 @@ import { findPanel, isDataPanel, type Dashboard, type DataPanel } from "@/spec"
 import { normaliseTraceId, validateTraceViewSearch } from "@/traces/search"
 
 import { newPanelBody } from "./block-rows"
-import { blockPanelFrom, blockRange } from "./panel-input"
+import { blockPanelFrom, blockRange, panelUsesVariables } from "./panel-input"
 
 export type NoteLink =
   | { kind: "logs"; uid: string; query: string; search: LogsSearch }
@@ -25,6 +25,23 @@ export type NoteLink =
     }
 
 export type PanelBlockBody = ReturnType<typeof newPanelBody>
+
+export type LinkOutcome = { body: PanelBlockBody } | { reason: string }
+
+export function linkLabel(link: NoteLink): string {
+  switch (link.kind) {
+    case "logs":
+      return "Logs search"
+    case "trace":
+      return `Trace ${link.traceId.slice(0, 8)}`
+    case "panel":
+      return "Dashboard panel"
+  }
+}
+
+function clickhouseTraceById(traceId: string): string {
+  return `SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces WHERE TraceId = '${traceId}' ORDER BY startTime LIMIT 1000`
+}
 
 export const maxNoteLinks = 10
 
@@ -122,6 +139,7 @@ export function logsLinkBody(
 
 export function traceLinkBody(
   link: Extract<NoteLink, { kind: "trace" }>,
+  datasourceType: string | undefined,
   now: number
 ): PanelBlockBody {
   const panel: DataPanel = {
@@ -130,7 +148,10 @@ export function traceLinkBody(
     title: "Trace",
     datasource: link.uid,
     gridPos: { x: 0, y: 0, w: 24, h: 20 },
-    queries: [{ query: link.traceId }],
+    queries:
+      datasourceType === "clickhouse"
+        ? [{ query: clickhouseTraceById(link.traceId), format: "table" }]
+        : [{ query: link.traceId }],
   }
   return bodyOf(panel, link.from, link.to, now)
 }
@@ -139,8 +160,19 @@ export function dashboardPanelBody(
   link: Extract<NoteLink, { kind: "panel" }>,
   spec: Dashboard,
   now: number
-): PanelBlockBody | null {
+): LinkOutcome {
   const entry = findPanel(spec, link.panelId)
-  if (entry === undefined || !isDataPanel(entry.panel)) return null
-  return bodyOf(entry.panel, link.from, link.to, now)
+  if (entry === undefined) {
+    return { reason: "The panel is no longer on that dashboard." }
+  }
+  if (!isDataPanel(entry.panel)) {
+    return { reason: "That panel holds no data to copy." }
+  }
+  if (panelUsesVariables(entry.panel)) {
+    return {
+      reason:
+        "That panel uses dashboard variables, and a block runs without them.",
+    }
+  }
+  return { body: bodyOf(entry.panel, link.from, link.to, now) }
 }

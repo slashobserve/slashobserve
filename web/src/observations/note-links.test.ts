@@ -125,11 +125,24 @@ describe("link blocks", () => {
   it("builds a traces panel that reads the trace id", () => {
     const [link] = noteLinks(`${origin}/t/${traceId}?ds=tempo`, origin)
     if (link?.kind !== "trace") throw new Error("expected a trace link")
-    expect(traceLinkBody(link, now).panel).toMatchObject({
+    expect(traceLinkBody(link, "tempo", now).panel).toMatchObject({
       type: "traces",
       datasource: "tempo",
       queries: [{ query: traceId }],
     })
+  })
+
+  it("builds a trace by id query for a ClickHouse trace link", () => {
+    const [link] = noteLinks(`${origin}/t/${traceId}?ds=ch`, origin)
+    if (link?.kind !== "trace") throw new Error("expected a trace link")
+    const panel = traceLinkBody(link, "clickhouse", now).panel
+    expect(panel).toMatchObject({ type: "traces", datasource: "ch" })
+    const [query] = panel.queries as { query: string; format: string }[]
+    expect(query.format).toBe("table")
+    expect(query.query).toMatch(/^SELECT /)
+    expect(query.query).toContain(
+      `FROM otel_traces WHERE TraceId = '${traceId}'`
+    )
   })
 
   const spec = {
@@ -156,13 +169,17 @@ describe("link blocks", () => {
   it("copies a data panel of the dashboard without its place", () => {
     const [link] = noteLinks(`${origin}/d/${dashboardId}?panel=latency`, origin)
     if (link?.kind !== "panel") throw new Error("expected a panel link")
-    const body = dashboardPanelBody(link, spec, now)
-    expect(body?.panel).toMatchObject({ type: "timeseries", title: "Latency" })
-    expect(body?.panel).not.toHaveProperty("id")
-    expect(body?.panel).not.toHaveProperty("gridPos")
+    const outcome = dashboardPanelBody(link, spec, now)
+    if (!("body" in outcome)) throw new Error("expected a block")
+    expect(outcome.body.panel).toMatchObject({
+      type: "timeseries",
+      title: "Latency",
+    })
+    expect(outcome.body.panel).not.toHaveProperty("id")
+    expect(outcome.body.panel).not.toHaveProperty("gridPos")
   })
 
-  it("makes no block for a missing panel or one that holds no data", () => {
+  it("says why a missing panel, a text panel or a panel with variables makes no block", () => {
     const missing = noteLinks(
       `${origin}/d/${dashboardId}?panel=gone`,
       origin
@@ -171,7 +188,29 @@ describe("link blocks", () => {
     if (missing?.kind !== "panel" || text?.kind !== "panel") {
       throw new Error("expected panel links")
     }
-    expect(dashboardPanelBody(missing, spec, now)).toBeNull()
-    expect(dashboardPanelBody(text, spec, now)).toBeNull()
+    expect(dashboardPanelBody(missing, spec, now)).toEqual({
+      reason: "The panel is no longer on that dashboard.",
+    })
+    expect(dashboardPanelBody(text, spec, now)).toEqual({
+      reason: "That panel holds no data to copy.",
+    })
+    const withVariable = {
+      ...spec,
+      panels: [
+        {
+          id: "cpu",
+          type: "timeseries",
+          datasource: "prom",
+          gridPos: { x: 0, y: 0, w: 12, h: 8 },
+          queries: [{ query: 'up{instance="$instance"}' }],
+        },
+      ],
+    } as unknown as Dashboard
+    const link = noteLinks(`${origin}/d/${dashboardId}?panel=cpu`, origin)[0]
+    if (link?.kind !== "panel") throw new Error("expected a panel link")
+    expect(dashboardPanelBody(link, withVariable, now)).toEqual({
+      reason:
+        "That panel uses dashboard variables, and a block runs without them.",
+    })
   })
 })
