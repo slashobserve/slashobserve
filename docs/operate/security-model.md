@@ -23,7 +23,7 @@ description: What SlashObserve protects and what an operator should know.
   A key matches no folder entry, so only an Admin key reaches a restricted folder.
   A My Dashboards folder is hidden from everyone but its owner, Admins included.
 - **Share links need sign-in.**
-  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
+  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "Dashboard not found" after they sign in, the same page as for an id that does not exist.
 - **Public links open one dashboard without sign-in.**
   Someone who manages a dashboard's folder can create a [public link](../use/public-links.md), the one way to show data to people with no session.
   Its token is 32 random bytes, shown once and stored only as a SHA-256 hash with a 12 character prefix, and request logs replace it with `:token`.

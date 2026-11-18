@@ -232,12 +232,10 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 		return false
 	case errors.Is(err, ErrInvalidMode):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-	case errors.Is(err, folders.ErrNotFound), errors.Is(err, dashboards.ErrNotFound):
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
-	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.Is(err, ErrPersonalFolder):

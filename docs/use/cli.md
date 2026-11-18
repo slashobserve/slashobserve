@@ -654,9 +654,7 @@ Add `--json` to any command to get the API response as it is.
 
 ## Permission errors
 
-A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
-When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+A refusal with the code `forbidden_role` and the message "your role does not allow this" gets a hint that an Admin can change the key's role on the API keys page.
 
-When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
-The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
-Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
+A dashboard the key cannot see answers `not_found`, like a dashboard that does not exist.
+A key matches no access list entry, because entries name people and groups, so it sees a restricted folder only as an Admin service account or as the service account that created the folder, as described in [Folders](../teams/folders.md).

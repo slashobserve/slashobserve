@@ -88,7 +88,8 @@ The request needs Comment on the dashboard's folder, and the server checks it wh
 A new dashboard from the chat goes to the requester's My Dashboards, or to General for a key.
 A request whose person lost access or was deleted in between fails with a message saying so.
 
-Over the API, a dashboard in a folder the caller cannot see answers `403 forbidden_role` and a folder answers `404 not_found`; MCP tools answer `not_found` for both.
+Over the API and MCP, a dashboard or a folder the caller cannot see answers `404 not_found`, the same answer as an id that does not exist, so a guessed id never confirms that a hidden dashboard exists.
+A dashboard the caller can see but not change answers `403 forbidden_role`.
 
 An entry used to give a Viewer or Commenter nothing beyond their role.
 Now an existing entry at Edit or Admin lifts them, so review the lists of restricted folders after you upgrade.

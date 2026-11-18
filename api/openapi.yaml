@@ -6357,7 +6357,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     NotFound:
-      description: The resource does not exist.
+      description: The resource does not exist, or the caller cannot see it; the two are never told apart.
       content:
         application/json:
           schema:

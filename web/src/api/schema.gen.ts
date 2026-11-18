@@ -841,7 +841,7 @@ export interface paths {
         };
         /**
          * Get how a dashboard was imported from Grafana.
-         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. Answers 403 `forbidden_role` when the caller cannot see the dashboard's folder.
+         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. A dashboard in a folder the caller cannot see answers 404 `not_found` too.
          */
         get: operations["getDashboardImport"];
         put?: never;
@@ -6572,7 +6572,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The resource does not exist. */
+        /** @description The resource does not exist, or the caller cannot see it; the two are never told apart. */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -13957,7 +13957,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -13990,7 +13990,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;

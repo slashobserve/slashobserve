@@ -144,8 +144,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - `pickCreationFolder` is the one default folder for every create, agent commits and Save what was built included: requested, else the caller's personal folder, else General, else 403.
   A key's default is therefore General; nothing remembers where a caller created before.
 - Folders sort by `(NOT personal, general, lower(title), id)` in `FolderFacts`, `ListFolderDetails`, `ListDashboardsByFolder` and `folderCursor`; change them together.
-- A dashboard in a folder the caller cannot see answers 403 `forbidden_role` with `forbidden.AccessMessage`, and a visible one with too low a level answers 403 with `forbidden.RoleMessage`.
-  An invisible folder answers 404 `not_found`, and tools answer `not_found` for both.
+- A dashboard or folder the caller cannot see answers 404 `not_found` on every route, the same answer as an unknown id, so no route confirms that a hidden dashboard exists; a visible one with too low a level answers 403 `forbidden_role` with `forbidden.RoleMessage`.
+  `ErrNoAccess` maps to that 404 in every handler, and `forbidden.AccessMessage` remains only for a principal whose id is not a user or key id (`ErrForbidden` on a feed).
 - Every HTTP route keyed by a dashboard id declares `RequireDashboard`.
   List queries filter by `Levels.Visible()` and fail closed, services check writes themselves, and every count (lists, tag counts, `dashboard_count`) covers only folders the caller can see.
 - An agent run is checked when it is enqueued and again when a worker claims it, after reloading the requester.
