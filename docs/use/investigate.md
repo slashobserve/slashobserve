@@ -69,7 +69,8 @@ The comment API takes only the observation as a target: a `finding:<id>` target 
 **Pin to dashboard** adds the finding to its dashboard as an annotation at the end of the finding's window, tagged `finding`, whose text is the finding's first line and a link to it.
 Charts on the dashboard then show it as a marker; see [Annotations](annotations.md).
 The card then reads "Pinned to the dashboard" with an **Open dashboard** link, and pinning again changes nothing.
-Pinning needs Edit on the dashboard.
+Pinning needs Edit on the dashboard, so the button is not shown to a Commenter or Viewer, who see "Pinned to the dashboard" once someone else has pinned it.
+Over the API, `POST /api/v1/findings/{id}/pin` without Edit answers `403` `forbidden_role` with `needed_access` `edit`.
 
 ## Share a finding
 

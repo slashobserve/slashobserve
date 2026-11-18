@@ -12,6 +12,17 @@ vi.mock("./evidence-panel", () => ({
   ),
 }))
 
+const permissions = vi.hoisted(() => ({ edit: false }))
+
+vi.mock("@/dashboards/permissions", () => ({
+  useLatestPermissions: () => ({
+    comment: true,
+    edit: permissions.edit,
+    manage: false,
+    create: false,
+  }),
+}))
+
 const text = "The error rate **doubled** at 10:02."
 
 function finding(): Finding {
@@ -95,5 +106,39 @@ describe("FindingCard", () => {
     renderCard("page")
     const { range } = await frameOf()
     expect(range.textContent).toMatch(/^Evidence from .+\.$/)
+  })
+
+  it("offers Pin to dashboard only with Edit on the dashboard", async () => {
+    const onDashboard = { ...finding(), dashboard_id: "d1" }
+    permissions.edit = false
+    const view = renderWithProviders(
+      <FindingCard finding={onDashboard} showOpenLink={false} />,
+      { route: { path: "/", url: "/" } }
+    )
+    await frameOf()
+    expect(
+      screen.queryByRole("button", { name: "Pin to dashboard" })
+    ).not.toBeInTheDocument()
+    view.unmount()
+    permissions.edit = true
+    renderWithProviders(
+      <FindingCard finding={onDashboard} showOpenLink={false} />,
+      { route: { path: "/", url: "/" } }
+    )
+    expect(
+      await screen.findByRole("button", { name: "Pin to dashboard" })
+    ).toBeVisible()
+  })
+
+  it("still shows a pinned finding to someone who cannot pin", async () => {
+    permissions.edit = false
+    renderWithProviders(
+      <FindingCard
+        finding={{ ...finding(), dashboard_id: "d1", annotation_id: "a1" }}
+        showOpenLink={false}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    expect(await screen.findByText("Pinned to the dashboard")).toBeVisible()
   })
 })
