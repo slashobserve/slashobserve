@@ -133,7 +133,7 @@ export function ResolveManyDialog({
           <DialogDescription>
             {targets.length === 1
               ? "The summary shows under the title and in the list."
-              : "They share one summary, which shows under each title and in the list."}
+              : `This summary applies to all ${targets.length} and shows under each title and in the list.`}
           </DialogDescription>
         </DialogHeader>
         <ResolveManyForm
