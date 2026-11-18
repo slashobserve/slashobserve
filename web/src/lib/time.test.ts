@@ -135,16 +135,15 @@ describe("userTimeProblem", () => {
 })
 
 describe("epoch values in the address", () => {
-  it("reads 10 digits as seconds when resolving and formatting", () => {
-    expect(resolveTime("1760695200", Date.now(), false)).toBe(1760695200000)
-    expect(zonedTimeValue("1760695200", "UTC")).toBe(
-      zonedTimeValue("1760695200000", "UTC")
-    )
+  it("reads every digit string as milliseconds, as the server does", () => {
+    expect(isTimeValue("1760695200")).toBe(true)
+    expect(resolveTime("1760695200", Date.now(), false)).toBe(1760695200)
+    expect(zonedTimeValue("1760695200", "UTC")).toBe("1970-01-21 09:04:55")
   })
 
-  it("does not accept an epoch before the year 2000 as a time value", () => {
-    expect(isTimeValue("946684799000")).toBe(false)
-    expect(resolveTime("946684799000", Date.now(), false)).toBeNaN()
+  it("keeps a digit string before the year 2000 a time value", () => {
+    expect(isTimeValue("946684799000")).toBe(true)
+    expect(resolveTime("946684799000", Date.now(), false)).toBe(946684799000)
   })
 })
 

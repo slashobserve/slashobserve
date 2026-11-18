@@ -22,7 +22,7 @@ const rfc3339 = new RegExp(`^${rfc3339Source}$`)
 const timeExpression = new RegExp(
   `^(now([+-][1-9][0-9]*[smhdwMy])?(\\/(fy|fQ|[smhdwMy]))?|${rfc3339Source})$`
 )
-const epochDigits = /^[0-9]{10,15}$/
+const epochMillis = /^[0-9]{10,15}$/
 const epochSecondsLength = 10
 const earliestEpochMs = Date.UTC(2000, 0, 1)
 const relativeExpression =
@@ -30,15 +30,8 @@ const relativeExpression =
 const localDateTime =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
 
-function epochMs(value: string): number | null {
-  if (!epochDigits.test(value)) return null
-  const ms =
-    value.length === epochSecondsLength ? Number(value) * 1000 : Number(value)
-  return ms >= earliestEpochMs ? ms : null
-}
-
 export function isTimeValue(value: string): boolean {
-  return timeExpression.test(value) || epochMs(value) !== null
+  return timeExpression.test(value) || epochMillis.test(value)
 }
 
 type UserTime = { value: string } | { problem: "invalid" | "early" }
@@ -59,9 +52,10 @@ function localTimeMs(text: string, zone: string | undefined): number | null {
 
 function readUserTime(input: string, zone: string | undefined): UserTime {
   const text = input.trim()
-  if (epochDigits.test(text)) {
-    const ms = epochMs(text)
-    return ms === null ? { problem: "early" } : { value: String(ms) }
+  if (epochMillis.test(text)) {
+    const ms =
+      text.length === epochSecondsLength ? Number(text) * 1000 : Number(text)
+    return ms >= earliestEpochMs ? { value: String(ms) } : { problem: "early" }
   }
   if (isTimeValue(text)) return { value: text }
   const ms = localTimeMs(text, zone)
@@ -118,8 +112,7 @@ export function zonedTimeValue(
   value: string,
   zone: string | undefined
 ): string {
-  const ms = epochMs(value)
-  return ms === null ? value : zonedDateTime(ms, zone)
+  return epochMillis.test(value) ? zonedDateTime(Number(value), zone) : value
 }
 
 export function formatDateTime(value: string | number | Date): string {
@@ -475,8 +468,7 @@ export function resolveTime(
 ): number {
   const match = relativeExpression.exec(value)
   if (!match) {
-    if (epochDigits.test(value)) return epochMs(value) ?? NaN
-    return Date.parse(value)
+    return epochMillis.test(value) ? Number(value) : Date.parse(value)
   }
   const zone = options.zone ?? "UTC"
   let time = now - (options.nowDelayMs ?? 0)
