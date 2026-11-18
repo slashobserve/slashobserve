@@ -411,8 +411,8 @@ The collapsed sidebar and the phone title open the sources as they do for logs, 
 The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live tail**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
 **Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
-A range that starts in the future runs no search and says so.
-Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `limit_exceeded` with the same text.
+A range that starts in the future runs no search and says so; a call that reaches the datasource anyway, from the API, the CLI or MCP, is refused with `time_range_in_future` and the same sentence.
+Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `time_range_too_long` with the same text, so a caller can read the limit from the message and retry with a shorter range.
 On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
@@ -423,7 +423,7 @@ The link under the TraceQL field opens the TraceQL reference.
 On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
 The ClickHouse search has no SQL mode; to run your own SQL over `otel_traces`, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
-A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it.
+A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it; the API, the CLI and MCP return the same sentence, without the parser's own `$end` and doubled prefix.
 
 ### Results
 
@@ -519,6 +519,7 @@ On the logs page and the trace search, **Save search** in the top bar asks for a
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
+
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
 A folder with no saved search of that kind is not listed, and a folder's header counts its searches unless the list is cut at 100.
 Each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.

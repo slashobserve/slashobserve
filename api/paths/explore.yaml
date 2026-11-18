@@ -113,7 +113,7 @@ datasources-uid-query:
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
         description: >-
-          The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`.
+          The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`.
         content:
           application/json:
             schema:

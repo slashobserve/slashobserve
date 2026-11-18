@@ -183,6 +183,9 @@ func newestFirst(text string) string {
 }
 
 func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
+	if err := rangeStartsInFuture(r); err != nil {
+		return nil, searchMetrics{}, err
+	}
 	params := url.Values{
 		"q":     {newestFirst(text)},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
@@ -191,7 +194,7 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 	}
 	var resp searchResponse
 	if err := d.getJSON(ctx, "/api/search", params, &resp); err != nil {
-		return nil, searchMetrics{}, err
+		return nil, searchMetrics{}, traceQLProblem(err, text)
 	}
 	rows := make([]spanRow, 0, len(resp.Traces))
 	for _, t := range resp.Traces {

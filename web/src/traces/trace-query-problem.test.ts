@@ -14,6 +14,15 @@ describe("traceQLProblem", () => {
     )
   })
 
+  it("keeps a message the server already cleaned and drops only its kind prefix", () => {
+    const cleaned =
+      'Invalid TraceQL at line 1, column 9 after "{ name =": unexpected end of the query.'
+    expect(traceQLProblem(`invalid query: ${cleaned}`, "{ name = ")).toBe(
+      cleaned
+    )
+    expect(traceQLProblem(cleaned, "{ name = ")).toBe(cleaned)
+  })
+
   it("keeps an unexpected token as written", () => {
     expect(
       traceQLProblem(

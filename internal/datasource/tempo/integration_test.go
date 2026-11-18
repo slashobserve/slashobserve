@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -283,22 +284,22 @@ func TestTempoSearchPageHoldsTheNewestTraces(t *testing.T) {
 	}
 }
 
-func TestTempoProbeMessages(t *testing.T) {
+func TestTempoSaysWhatIsWrongWithARangeOrAQuery(t *testing.T) {
 	ds := integrationDS(t)
 	ctx := context.Background()
 	now := time.Now()
-	for name, rng := range map[string]datasource.TimeRange{
-		"future": {From: now.Add(time.Hour), To: now.Add(2 * time.Hour)},
-		"long":   {From: now.Add(-30 * 24 * time.Hour), To: now},
-		"ends-in-future": {From: now.Add(-time.Hour), To: now.Add(time.Hour)},
-	} {
-		_, err := ds.QueryInstant(ctx, datasource.Query{Text: `{ resource.service.name = "x" }`}, rng)
-		t.Logf("%s -> %v", name, err)
+	ok := `{ resource.service.name = "x" }`
+	_, err := ds.QueryInstant(ctx, datasource.Query{Text: ok}, datasource.TimeRange{From: now.Add(time.Hour), To: now.Add(2 * time.Hour)})
+	if !errors.Is(err, datasource.ErrRangeInFuture) {
+		t.Errorf("future range: err = %v, want the future range kind", err)
 	}
-	_, err := ds.QueryInstant(ctx, datasource.Query{Text: "{ name = "}, aroundSend())
-	t.Logf("parse -> %v", err)
-	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = \"a\" "}, aroundSend())
-	t.Logf("parse2 -> %v", err)
-	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = \"a\" } | count() >"}, aroundSend())
-	t.Logf("parse3 -> %v", err)
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: ok}, datasource.TimeRange{From: now.Add(-30 * 24 * time.Hour), To: now})
+	if !errors.Is(err, datasource.ErrRangeTooLong) || !strings.Contains(err.Error(), "Tempo searches at most 7 days at a time") {
+		t.Errorf("long range: err = %v, want the range limit kind naming 7 days", err)
+	}
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = "}, aroundSend())
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "Invalid TraceQL at line 1, column") || strings.Contains(err.Error(), "$end") {
+		t.Errorf("parse error: err = %v, want a cleaned position message", err)
+	}
+	t.Logf("parse error reads: %v", err)
 }

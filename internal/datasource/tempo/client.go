@@ -106,7 +106,7 @@ func statusError(status int, raw []byte) error {
 	}
 	text := upstreamText(raw)
 	if limit, ok := searchRangeLimit(text); ok {
-		return datasource.Errorf(datasource.ErrLimitExceeded, "Tempo searches at most %s at a time; pick a shorter time range", limit)
+		return datasource.Errorf(datasource.ErrRangeTooLong, "Tempo searches at most %s at a time; pick a shorter time range", limit)
 	}
 	lower := strings.ToLower(text)
 	kind, fallback := datasource.ErrUnavailable, fmt.Sprintf("upstream returned HTTP %d", status)

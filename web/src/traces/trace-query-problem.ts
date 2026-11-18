@@ -1,6 +1,7 @@
 const parseError =
   /^(?:invalid query: )?(?:invalid TraceQL query: )?parse error at line (\d+), col (\d+): (?:syntax error: )?(.*)$/s
 
+const cleanedByServer = /^(?:invalid query: )?(Invalid TraceQL at .*)$/s
 const doubledPrefix = /^invalid query: (invalid TraceQL query: )/
 const excerptLength = 30
 
@@ -20,6 +21,8 @@ function before(query: string, line: number, column: number): string {
 }
 
 export function traceQLProblem(message: string, query: string): string {
+  const cleaned = cleanedByServer.exec(message)
+  if (cleaned !== null) return cleaned[1]
   const match = parseError.exec(message)
   if (match === null) return message.replace(doubledPrefix, "$1")
   const line = Number(match[1])

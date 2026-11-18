@@ -264,9 +264,9 @@ func TestUpstreamErrorsKeepTheirKind(t *testing.T) {
 		kind    error
 		message string
 	}{
-		{"parse error", 400, "invalid TraceQL query: parse error at line 1, col 26: syntax error: unexpected $end", datasource.ErrInvalidQuery, "invalid TraceQL query"},
-		{"range too long", 400, "range specified by start and end exceeds 168h0m0s. received start=1 end=2", datasource.ErrLimitExceeded, "Tempo searches at most 7 days at a time; pick a shorter time range"},
-		{"range too long in hours", 400, "range specified by start and end exceeds 36h0m0s. received start=1 end=2", datasource.ErrLimitExceeded, "Tempo searches at most 36 hours at a time"},
+		{"parse error", 400, "invalid TraceQL query: parse error at line 1, col 26: syntax error: unexpected $end", datasource.ErrInvalidQuery, "unexpected"},
+		{"range too long", 400, "range specified by start and end exceeds 168h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 7 days at a time; pick a shorter time range"},
+		{"range too long in hours", 400, "range specified by start and end exceeds 36h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 36 hours at a time"},
 		{"unauthorized", 401, "", datasource.ErrAuthFailed, "authentication failed (HTTP 401)"},
 		{"rate limited", 429, "", datasource.ErrUnavailable, "rate limited by upstream"},
 		{"gateway timeout", 504, "", datasource.ErrTimeout, "query timed out"},
