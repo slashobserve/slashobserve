@@ -36,7 +36,6 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
   The fixture is refused with `resumes`, with more than one save call in a turn, and with `expect` on the turn after a save.
 - Replay reports `output_tokens` for each turn as the tool call input bytes divided by 3.2, rounded up.
   A turn whose estimate exceeds `SLASHOBSERVE_LLM_MAX_TOKENS` ends as `max_tokens` and its tool calls do not run, so keep an e2e fixture's tool call input well under that limit (16,000 tokens is about 51 KB).
-- The scenarios tagged `replay-smoke` (`red-metrics-by-endpoint`, `log-volume-by-service`) run in `evals_smoke_suite`, so those two prompts need fixtures.
 
 ## Demo data
 
