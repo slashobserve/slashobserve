@@ -77,7 +77,9 @@ A person who can edit sees **Add a block**, and a person who can only comment se
 The row offers four ways:
 
 - **Text** opens a box for Markdown.
-  **Add** or **Suggest** saves it, `⌘Enter` or `Ctrl+Enter` does the same, and `Esc` or **Cancel** closes the box.
+  **Add** or **Suggest** saves it, and `⌘Enter` or `Ctrl+Enter` does the same.
+  `Esc` closes the box and keeps what you typed for when you open it again, and **Cancel** closes it and throws the text away.
+  A word with no break in it, such as a hash or a long address, wraps inside the block instead of widening the page.
 - **Panel** opens a side panel where you search for a dashboard, then choose one of its data panels.
   The block is a copy of the panel with its own query, and it stays live on the page over the observation's range, or over the last hour when the observation has none.
 - **Logs** opens the logs page with this observation preselected, so a search can be added from there (see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs)).
