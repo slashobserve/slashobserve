@@ -391,6 +391,7 @@ export function DurationScatter({
                   key={point.traceId}
                   href={traceUrl(row.traceId, datasourceUid, range)}
                   aria-label={openTraceLabel(row)}
+                  tabIndex={-1}
                   onClick={(event) => {
                     if (!plainLeftClick(event)) return
                     event.preventDefault()

@@ -424,7 +424,7 @@ A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name
 ### Results
 
 A count line above the results says how many traces are on the page.
-A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row.
+A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row; the dots are not keyboard stops, so Tab goes straight to the table, where each trace has one link.
 That p95 is of every trace the search matches in the range, not only the listed ones: the page asks the server for the duration distribution of the matching spans and reads the p95 as the upper edge of the bucket that holds it, so a service filter changes it.
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 
