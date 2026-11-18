@@ -83,6 +83,11 @@ export function chatOutcome(request: RequestSummary): string {
       })
     case "failed":
     case "canceled":
+      if (request.result_kind === "partial_version") {
+        return request.dashboard_title === null
+          ? requestStatusView(request).text
+          : `Saved part of ${request.dashboard_title}`
+      }
       return buildStatusText({
         status: request.status,
         build: request.build,

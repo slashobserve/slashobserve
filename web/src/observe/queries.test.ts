@@ -243,6 +243,21 @@ describe("requestStatusView", () => {
     ).toEqual({ tone: "warning", text: "You stopped this run" })
   })
 
+  it("shows a stopped run whose build was saved as saved, in part", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "failed",
+        failure_code: "canceled",
+        result_kind: "partial_version",
+        result_version: 1,
+      })
+    ).toEqual({
+      tone: "warning",
+      text: "Saved part of the dashboard, version 1",
+    })
+  })
+
   it("shows a failed request with the error as a sentence", () => {
     expect(
       requestStatusView({ ...base, status: "failed", error: "model timed out" })

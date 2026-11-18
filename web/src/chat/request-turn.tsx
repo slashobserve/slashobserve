@@ -342,6 +342,7 @@ export function RequestTurn({
               version={request.result_version}
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
+              partial={savedBuild ? { prompt: request.prompt } : undefined}
             />
           ) : null}
           {request.status === "failed" && !savedBuild ? (

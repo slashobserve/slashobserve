@@ -131,6 +131,17 @@ describe("chatOutcome", () => {
       "Saved Checkout",
     ],
     [
+      "a stopped run whose build was saved",
+      {
+        state: "canceled",
+        status: "failed",
+        failure_code: "canceled",
+        result_kind: "partial_version",
+        dashboard_title: "Checkout",
+      },
+      "Saved part of Checkout",
+    ],
+    [
       "an investigation the caller can see",
       {
         kind: "investigate",

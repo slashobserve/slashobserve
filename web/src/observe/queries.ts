@@ -118,6 +118,15 @@ export function requestStatusView(
     case "succeeded":
       return succeededView(r)
     case "failed":
+      if (r.result_kind === "partial_version") {
+        return {
+          tone: "warning",
+          text:
+            r.result_version === null
+              ? "Saved part of the dashboard"
+              : `Saved part of the dashboard, version ${r.result_version}`,
+        }
+      }
       if (r.failure_code === "canceled") {
         return { tone: "warning", text: "You stopped this run" }
       }
