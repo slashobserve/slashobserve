@@ -149,6 +149,10 @@ export type ResultsView = {
   columnSort: ColumnSort | null
 }
 
+export function openingView(phone: boolean): ResultsView {
+  return { order: "newest", wrap: phone, prettify: false, columnSort: null }
+}
+
 type ResultsModel = LogsViewModel & { frames: WireFrame[] }
 
 const columnSortValue = "column"

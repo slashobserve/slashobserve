@@ -89,7 +89,7 @@ export function VolumeStrip({
           <div
             role="group"
             aria-label="Levels"
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
           >
             <Button
               type="button"
@@ -330,7 +330,7 @@ function VolumeBars({
         <div
           role="group"
           aria-label="Levels"
-          className="flex items-center gap-1"
+          className="flex flex-wrap items-center gap-1"
         >
           <Button
             type="button"

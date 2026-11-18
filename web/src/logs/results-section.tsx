@@ -44,7 +44,12 @@ import {
   type TailBuffer,
 } from "./frames"
 import { columnList, columnsText } from "./line-fields"
-import { LogsResults, type ResultsView } from "./logs-results"
+import {
+  LogsResults,
+  openingView,
+  usePhone,
+  type ResultsView,
+} from "./logs-results"
 import { hasTimeField, PlainTable } from "./plain-table"
 import { useUserScroll } from "./user-scroll"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
@@ -392,12 +397,8 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     paging,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
-  const [view, setView] = useState<ResultsView>({
-    order: "newest",
-    wrap: false,
-    prettify: false,
-    columnSort: null,
-  })
+  const phone = usePhone()
+  const [view, setView] = useState<ResultsView>(() => openingView(phone))
   const onViewChange = useCallback(
     (change: Partial<ResultsView>) =>
       setView((current) => ({ ...current, ...change })),

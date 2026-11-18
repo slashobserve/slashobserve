@@ -202,7 +202,7 @@ Live tail swaps the list for the tail, as [Live tail](#live-tail) describes.
 
 The row above the lines holds **Sort**, **Wrap**, **JSON** and **Columns**.
 **Sort** picks newest first or oldest first, and clicking the **Time** heading flips it.
-**Wrap** wraps long lines, and **JSON** reformats a line whose body is JSON over several rows.
+**Wrap** wraps long lines and starts on when the page opens on a phone, and **JSON** reformats a line whose body is JSON over several rows.
 **Sort**, **Wrap** and **JSON** are your own view of the lines, so **Copy link** does not carry them, and neither a running **Live tail**: the person who opens the link sees the same query, filters, columns, time range, page and open line with their own view settings.
 **Columns** lists the fields found in the loaded lines, and each field you tick becomes a column before the line, written to the address as `cols`.
 On Elasticsearch and OpenSearch the `service` field is a column until you choose others.
