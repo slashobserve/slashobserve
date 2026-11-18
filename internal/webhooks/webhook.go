@@ -93,21 +93,38 @@ func cleanName(raw string) (string, error) {
 }
 
 func cleanURL(raw string) (address, host string, err error) {
-	invalid := &InvalidError{Message: "url must be an https address on port 443 with a domain name, no user info and no fragment"}
 	text := strings.TrimSpace(raw)
-	if text == "" || len(text) > maxURLBytes {
-		return "", "", invalid
+	switch {
+	case text == "":
+		return "", "", urlProblem("url is required")
+	case len(text) > maxURLBytes:
+		return "", "", urlProblem("url can be at most %d characters", maxURLBytes)
 	}
 	u, err := url.Parse(text)
-	if err != nil || u.Scheme != "https" || u.User != nil || u.Fragment != "" || u.Opaque != "" || (u.Port() != "" && u.Port() != "443") {
-		return "", "", invalid
+	switch {
+	case err != nil:
+		return "", "", urlProblem("url is not a valid address; write it like https://hooks.example.com/slashobserve")
+	case u.Scheme != "https":
+		return "", "", urlProblem("url must start with https://, got %q", u.Scheme)
+	case u.Opaque != "" || u.Host == "":
+		return "", "", urlProblem("url must be a full address with a domain after https://")
+	case u.User != nil:
+		return "", "", urlProblem("url must not contain a user name or password")
+	case u.Fragment != "" || strings.Contains(text, "#"):
+		return "", "", urlProblem("url must not contain a # fragment")
+	case u.Port() != "" && u.Port() != "443":
+		return "", "", urlProblem("url must use port 443, got %s", u.Port())
 	}
 	host, err = domains.NormalizeHost(u.Hostname())
 	if err != nil {
-		return "", "", invalid
+		return "", "", urlProblem("url host: %s", err.Error())
 	}
 	u.Host = host
 	return u.String(), host, nil
+}
+
+func urlProblem(format string, args ...any) error {
+	return &InvalidError{Message: fmt.Sprintf(format, args...)}
 }
 
 func cleanEventTypes(types []string) ([]string, error) {

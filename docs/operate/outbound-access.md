@@ -10,6 +10,7 @@ Datasource queries, the identity provider and the model provider are not part of
 
 An entry is `example.com`, which matches that host only, or `*.example.com`, which matches its subdomains but not `example.com` itself.
 Write the domain without a scheme, port or path; an IP address is refused, and a name with non-ASCII letters is stored in its ASCII form.
+A refused entry answers `422 invalid_domain` with the rule it broke, such as `an IP address is not allowed; use a domain name` or `enter the domain without a port`; `localhost` and other names without a dot are refused because the server only calls public domains.
 At most 100 domains can be allowed.
 
 Every fetch follows the same rules, whatever the domain:

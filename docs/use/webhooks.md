@@ -30,6 +30,8 @@ The server seals each signing secret with `SLASHOBSERVE_SECRET_KEY`, so creating
 Changing that key makes every stored secret unreadable: each webhook is disabled with the reason `secret_unreadable`, and you rotate its secret and enable it again.
 
 The address must be `https` on port 443 with a domain name, with no user name, password or fragment, and at most 2048 bytes.
+An address that breaks one of these rules answers `400 invalid_request` with a message that names the rule, such as `url must use port 443, got 8443` or `url host: an IP address is not allowed; use a domain name`.
+A receiver on `localhost`, a private IP address or another port is refused on purpose, because the server only calls public addresses; to test against a service on your own machine, publish it behind an https domain with a tunnel or a reverse proxy.
 The request goes through the same [outbound access](../operate/outbound-access.md) rules as every other call the server makes: a public address only, and the domain must be on the allowlist.
 A webhook never adds its domain to the allowlist.
 If the domain is not allowed, creating the webhook answers `403 outbound_domain_not_allowed`, and an Admin has to allow the domain first.

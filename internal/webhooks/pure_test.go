@@ -252,3 +252,24 @@ func TestCleanNameAndURLAndEventTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanURLNamesTheBrokenRule(t *testing.T) {
+	cases := map[string]string{
+		"":                                     "url is required",
+		"http://hooks.example.test/in":         "must start with https://",
+		"hooks.example.test/in":                "must start with https://",
+		"https://u:p@hooks.example.test/in":    "user name or password",
+		"https://hooks.example.test:8443/in":   "port 443, got 8443",
+		"https://hooks.example.test/in#frag":   "# fragment",
+		"https://10.0.0.1/in":                  "IP address",
+		"https://localhost/in":                 "at least two parts",
+		"https://" + strings.Repeat("a", 2050): "at most 2048 characters",
+	}
+	for raw, want := range cases {
+		_, _, err := cleanURL(raw)
+		var invalid *InvalidError
+		if !errors.As(err, &invalid) || !strings.Contains(invalid.Message, want) {
+			t.Errorf("url %q: %v, want a message containing %q", raw, err, want)
+		}
+	}
+}
