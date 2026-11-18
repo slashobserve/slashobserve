@@ -316,6 +316,46 @@ func TestABlockEditedWhileFreezingRefusesThePublish(t *testing.T) {
 	}
 }
 
+func TestARangeEditedWhileFreezingRefusesThePublish(t *testing.T) {
+	r, f := newPublishRig(t)
+	o := r.create(t, editor, r.shared)
+	r.addTitledPanel(t, editor, o, "Rate")
+	var once sync.Once
+	f.onFreeze = func() {
+		once.Do(func() {
+			from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+			to := from.Add(time.Hour)
+			if _, err := r.service.Update(context.WithoutCancel(t.Context()), editor, mustUUID(t, o.ID), observations.UpdateInput{From: &from, To: &to}); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
+		t.Fatalf("publish: %v", err)
+	}
+	if rcas := r.count(t, `SELECT count(*) FROM observation_rcas`); rcas != 0 {
+		t.Errorf("%d revisions written", rcas)
+	}
+}
+
+func TestATitleEditedWhileFreezingRefusesThePublish(t *testing.T) {
+	r, f := newPublishRig(t)
+	o := r.create(t, editor, r.shared)
+	r.addTitledPanel(t, editor, o, "Rate")
+	var once sync.Once
+	f.onFreeze = func() {
+		once.Do(func() {
+			title := "Renamed"
+			if _, err := r.service.Update(context.WithoutCancel(t.Context()), editor, mustUUID(t, o.ID), observations.UpdateInput{Title: &title}); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
+		t.Fatalf("publish: %v", err)
+	}
+}
+
 func (r rig) fillRevisions(t *testing.T, o observations.Observation, n int) {
 	t.Helper()
 	r.db.Exec(t, `INSERT INTO observation_rcas (observation_id, revision, title, observation_state, content, created_by_kind, created_by_id, created_by_name)

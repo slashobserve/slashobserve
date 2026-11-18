@@ -145,6 +145,11 @@ func publishable(rows []dbsqlc.ObservationBlock) []dbsqlc.ObservationBlock {
 	return out
 }
 
+func sameFrozenInputs(a, b dbsqlc.Observation) bool {
+	return a.Title == b.Title && a.TimeFrom.Valid == b.TimeFrom.Valid && a.TimeFrom.Time.Equal(b.TimeFrom.Time) &&
+		a.TimeTo.Valid == b.TimeTo.Valid && a.TimeTo.Time.Equal(b.TimeTo.Time)
+}
+
 func sameBlocks(a, b []dbsqlc.ObservationBlock) bool {
 	if len(a) != len(b) {
 		return false
@@ -220,6 +225,9 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 	err = s.write(ctx, by, observationID, pgtype.UUID{}, func(q *dbsqlc.Queries, locked dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(Machine, State(locked.State), ActionPublish, can(abilities, false)); err != nil {
 			return err
+		}
+		if !sameFrozenInputs(row, locked) {
+			return ErrObservationChanged
 		}
 		var err error
 		published, err = s.insertRCA(ctx, q, locked, live, frozen, who)
