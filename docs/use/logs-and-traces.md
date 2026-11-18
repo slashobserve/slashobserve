@@ -412,6 +412,7 @@ The time range, **Live tail**, **Saved searches**, **Save search** and **Copy li
 **Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
 A range that starts in the future runs no search and says so; a call that reaches the datasource anyway, from the API, the CLI or MCP, is refused with `time_range_in_future` and the same sentence.
+
 Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `time_range_too_long` with the same text, so a caller can read the limit from the message and retry with a shorter range.
 The limit is named in days when it is a whole number of days, in hours when it is a whole number of hours and otherwise in minutes, and the button uses the same unit.
 On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
