@@ -54,9 +54,9 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_datasources` | Viewer |
 | `list_folders` | Viewer |
 | `list_inbox` | Viewer |
-| `list_mentionable_people` | Viewer |
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
+| `list_mentionable_people` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
 | `list_pinned_dashboards` | Viewer |
