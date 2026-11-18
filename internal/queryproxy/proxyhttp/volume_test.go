@@ -434,3 +434,20 @@ func TestVolumeMapsCapabilityErrorsAndHoldsOneUpstreamSlot(t *testing.T) {
 		t.Fatalf("%d volume calls while every slot is held", n-before)
 	}
 }
+
+func TestVolumeAlignmentCoversTheWholeRangeAtEveryWidth(t *testing.T) {
+	now := time.Date(2026, 11, 18, 19, 19, 31, 456_000_000, time.UTC)
+	for _, span := range []time.Duration{time.Hour, 3 * time.Hour, 6 * time.Hour, 24 * time.Hour, 48 * time.Hour, 7 * 24 * time.Hour, 14 * 24 * time.Hour, 30 * 24 * time.Hour, 90 * 24 * time.Hour} {
+		rng := datasource.TimeRange{From: now.Add(-span), To: now}
+		al := volumeAlignment(rng, 60)
+		if al.rng.From.After(rng.From) || al.rng.To.Before(rng.To) {
+			t.Fatalf("%v: window %v to %v does not cover %v to %v", span, al.rng.From, al.rng.To, rng.From, rng.To)
+		}
+		if got := int(al.rng.To.Sub(al.rng.From) / al.step); got != al.maxDataPoints {
+			t.Fatalf("%v: %d steps in the window but %d buckets", span, got, al.maxDataPoints)
+		}
+		if got := queryproxy.StepFor(al.rng, al.maxDataPoints); got != al.step {
+			t.Fatalf("%v: the runner would step by %v, not %v", span, got, al.step)
+		}
+	}
+}

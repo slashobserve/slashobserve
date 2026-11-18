@@ -148,12 +148,16 @@ func (h *Handler) volumeWindow(c *gin.Context, uid string, req volumeRequest, d 
 		h.exploreFail(c, uid, err)
 		return alignment{}, false
 	}
-	al := align(rng, queryproxy.KindRange, req.buckets())
+	return volumeAlignment(rng, req.buckets()), true
+}
+
+func volumeAlignment(rng datasource.TimeRange, buckets int) alignment {
+	al := align(rng, queryproxy.KindRange, buckets)
 	if rng.To.After(al.rng.To) {
 		al.rng.To = al.rng.To.Add(al.step)
 		al.maxDataPoints++
 	}
-	return al, true
+	return al
 }
 
 func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource.LogVolumeSource, req volumeRequest) {
