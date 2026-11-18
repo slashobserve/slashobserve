@@ -341,8 +341,7 @@ jobs:
           make e2e-up > e2e-up.log 2>&1 &
           boot=$!
           (cd web && bun run e2e:install)
-          wait "$boot" || { cat e2e-up.log; exit 1; }
-          cat e2e-up.log
+          wait "$boot" || { cat e2e-up.log || true; exit 1; }
 
       - name: Browser suite shard
         env:
