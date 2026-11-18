@@ -375,13 +375,14 @@ jobs:
           warm: scripts/evals-stack.sh warm replay
 
       - name: Start the replay stack
-        run: scripts/evals-stack.sh up replay
+        run: scripts/evals-stack.sh up --no-history replay
 
       - name: Replay suite
         run: >
           go run ./evals/runner
           --server http://localhost:28080
           --suite replay
+          --await-history
           --bootstrap-dex
           --min-pass 1
           --out "$RUNNER_TEMP/evals.json"

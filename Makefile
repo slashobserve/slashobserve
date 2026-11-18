@@ -229,8 +229,8 @@ evals-stack-down:
 	scripts/evals-stack.sh down
 
 evals-replay:
-	scripts/evals-stack.sh up replay
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
+	scripts/evals-stack.sh up --no-history replay
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --await-history --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
 
 evals-live:
 	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
