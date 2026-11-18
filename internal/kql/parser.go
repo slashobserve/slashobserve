@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	maxNodes = 200
-	maxDepth = 20
+	maxNodes     = 200
+	maxListNodes = 5000
+	maxDepth     = 20
 
 	tooComplex = "query too complex"
 )
@@ -18,6 +19,9 @@ type parser struct {
 	pos   int
 	nodes int
 	depth int
+
+	listNodes int
+	inList    int
 }
 
 func Parse(text string) (*Node, []Diagnostic) {
@@ -149,7 +153,9 @@ func (p *parser) fieldQuery() (*Node, *Diagnostic) {
 	val := p.peek()
 	switch val.kind {
 	case tokLParen:
+		p.inList++
 		child, end, diag := p.parens(func() (*Node, *Diagnostic) { return p.valueOr(field) })
+		p.inList--
 		if diag != nil {
 			return nil, diag
 		}
@@ -250,6 +256,13 @@ func (p *parser) nested(at token, inner func() (*Node, *Diagnostic)) (*Node, *Di
 }
 
 func (p *parser) node(n *Node) (*Node, *Diagnostic) {
+	if p.inList > 0 {
+		p.listNodes++
+		if p.listNodes > maxListNodes {
+			return nil, errorAt(tooComplex, n.Start, n.End)
+		}
+		return n, nil
+	}
 	p.nodes++
 	if p.nodes > maxNodes {
 		return nil, errorAt(tooComplex, n.Start, n.End)

@@ -92,6 +92,8 @@ The editor highlights JSON as soon as the text starts with `{`.
 | Escaped whitespace in a bare word | `message:a\ b`          | "quote a value that contains spaces"         | One escaping rule, quotes, keeps the explorer's filter buttons and the query builder simple.     |
 | A `kql:` prefix inside a query   | `kql:a`                  | "kql: is a form prefix, not a query"         | The prefix is read before the parser runs.                                                       |
 
+Inside a quoted value, `\n`, `\t` and `\r` stand for a newline, a tab and a carriage return, `\"` for a quote and `\\` for a backslash.
+A query may hold 200 terms, and the values of one `field:(a or b or ...)` list count separately, up to 5,000, so a large multi-value selection still parses.
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 
