@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -280,10 +281,13 @@ func TestCreateRejectsInvalidInput(t *testing.T) {
 }
 
 type fakePanels struct {
-	known map[string]bool
+	known     map[string]bool
+	latestErr error
 }
 
-func (f fakePanels) LatestVersion(context.Context, pgtype.UUID) (int, error) { return 3, nil }
+func (f fakePanels) LatestVersion(context.Context, pgtype.UUID) (int, error) {
+	return 3, f.latestErr
+}
 
 func (f fakePanels) HasPanel(_ context.Context, _ pgtype.UUID, version int, panelID string) (bool, error) {
 	return version == 3 && f.known[panelID], nil
@@ -303,6 +307,15 @@ func TestCreateChecksThePanelAgainstTheLatestVersion(t *testing.T) {
 	}
 	if got := r.list(t, editor, ListQuery{DashboardID: r.open}); len(got.Annotations) != 1 {
 		t.Errorf("annotations %v, want only the one on a known panel", texts(got))
+	}
+}
+
+func TestCreateAnswersNotFoundWhenTheDashboardIsGoneBeforeThePanelCheck(t *testing.T) {
+	r := newRig(t)
+	r.service = New(r.db.DB, folders.NewAccess(r.db.DB), WithPanels(fakePanels{latestErr: dashboards.ErrNotFound}))
+	_, err := r.service.Create(t.Context(), editor, CreateInput{DashboardID: r.open, PanelID: "latency", Text: "x"})
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("error %v, want ErrNotFound", err)
 	}
 }
 

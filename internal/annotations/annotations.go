@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -325,6 +326,9 @@ func (s *Service) checkPanel(ctx context.Context, in CreateInput) error {
 		return nil
 	}
 	latest, err := s.panels.LatestVersion(ctx, in.DashboardID)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
