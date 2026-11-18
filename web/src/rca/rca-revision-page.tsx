@@ -11,7 +11,7 @@ import { snapshotQuery } from "@/observations/blocks/block-data"
 import { observationIsMissing } from "@/observations/errors"
 import { sentence } from "@/observe/queries"
 
-import { rcaQuery } from "./queries"
+import { rcaQuery, rcasQuery } from "./queries"
 import { RcaDocument, type UseSnapshot } from "./rca-document"
 
 const useStoredSnapshot: UseSnapshot = (snapshotId) =>
@@ -53,25 +53,43 @@ export function RcaRevisionPage({
   observationId: string
   revision: number
 }) {
+  const valid = Number.isInteger(revision) && revision > 0
   const query = useQuery({
     ...rcaQuery(observationId, revision),
-    enabled: Number.isInteger(revision) && revision > 0,
+    enabled: valid,
   })
   const rca = query.data
+  const newest = useQuery({ ...rcasQuery(observationId), enabled: valid })
+    .data?.[0]?.revision
   useDocumentTitle(
     rca === undefined
       ? "RCA revision - SlashObserve"
       : `${rca.title}, revision ${rca.revision} - SlashObserve`
   )
-  if (!Number.isInteger(revision) || revision < 1)
-    return <RevisionNotFound observationId={observationId} />
+  if (!valid) return <RevisionNotFound observationId={observationId} />
   if (rca !== undefined) {
     return (
       <div className="flex w-full max-w-[720px] flex-col gap-6">
         <BackToObservation observationId={observationId} />
         <RcaDocument
-          rca={{ ...rca, publishedBy: rca.created_by.label }}
+          rca={{
+            ...rca,
+            publishedBy: rca.created_by.label,
+            supersededBy:
+              newest !== undefined && newest > rca.revision ? newest : null,
+          }}
           useSnapshot={useStoredSnapshot}
+          newerLink={
+            newest === undefined ? null : (
+              <Link
+                to="/o/$observationId/rca/$revision"
+                params={{ observationId, revision: String(newest) }}
+                className="underline underline-offset-2"
+              >
+                Open revision {newest}
+              </Link>
+            )
+          }
         />
       </div>
     )

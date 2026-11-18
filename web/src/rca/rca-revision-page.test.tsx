@@ -82,6 +82,14 @@ function serve(rcaStatus: number) {
           ? reply(200, { rca })
           : reply(rcaStatus, { error: "not found", code: "not_found" })
       }
+      if (path === `/api/v1/observations/${observationId}/rcas`) {
+        return reply(200, {
+          rcas: [
+            { ...rca, revision: 2 },
+            { ...rca, revision: 1 },
+          ],
+        })
+      }
       if (path === `/api/v1/snapshots/${snapshotId}`) {
         return reply(200, snapshot)
       }
@@ -120,6 +128,19 @@ describe("RcaRevisionPage", () => {
     ).toBe(`/o/${observationId}?rca=1`)
     for (const path of paths)
       expect(path.startsWith("/api/v1/public/")).toBe(false)
+  })
+
+  it("points an old revision at the newest one inside the app", async () => {
+    serve(200)
+    renderPage(1)
+    expect(
+      await screen.findByText(
+        /Revision 2 is newer, so this one may be out of date/
+      )
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "Open revision 2" }).getAttribute("href")
+    ).toBe(`/o/${observationId}/rca/2`)
   })
 
   it("says the revision is gone after it was withdrawn", async () => {

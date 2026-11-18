@@ -216,4 +216,12 @@ describe("RcaPanel", () => {
     ).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
   })
+
+  it("heads the panel of someone who may not publish as RCA revisions", async () => {
+    renderPanel(["update"], [1])
+    expect(
+      await screen.findByRole("heading", { name: "RCA revisions" })
+    ).toBeTruthy()
+    expect(screen.queryByText("Publish as RCA")).toBeNull()
+  })
 })

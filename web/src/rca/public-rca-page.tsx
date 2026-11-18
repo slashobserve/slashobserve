@@ -13,8 +13,12 @@ import {
 } from "./queries"
 
 function viewOf(rca: PublicRca): RcaView {
-  const { published_by: publishedBy, ...rest } = rca
-  return { ...rest, publishedBy }
+  const {
+    published_by: publishedBy,
+    superseded_by: supersededBy,
+    ...rest
+  } = rca
+  return { ...rest, publishedBy, supersededBy }
 }
 
 export function PublicRcaPage({ token }: { token: string }) {

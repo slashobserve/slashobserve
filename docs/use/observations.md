@@ -280,6 +280,9 @@ Creating, listing and revoking links need Manage on the folder, and the panel sh
 - Half width blocks side by side when the page is wide enough.
 
 It shows no query, discussion, comment, activity, live panel or other revision, and it runs no query against a datasource.
+When a newer revision has been published since, the page says "Revision N is newer, so this one may be out of date", with N only and no link, because the reader cannot open another revision; `GET /api/v1/public/{token}/rca` carries the number as `superseded_by`, null on the newest.
+The same notice shows in the app, with **Open revision N** beside it.
+A person who finds a link to a superseded revision can revoke it, or withdraw the revision once its links are revoked.
 A panel of a type that cannot show on a public link, or that the page cannot draw yet, shows "This panel type is not shown yet."
 An expired, revoked or unknown token shows "This link has expired or was turned off."
 

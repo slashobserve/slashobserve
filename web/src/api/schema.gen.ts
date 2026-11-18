@@ -6524,6 +6524,8 @@ export interface components {
             published_by: string;
             /** Format: date-time */
             created_at: string;
+            /** @description The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation. */
+            superseded_by: number | null;
         };
     };
     responses: {

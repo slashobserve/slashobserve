@@ -6271,7 +6271,7 @@ components:
     PublicRCA:
       type: object
       additionalProperties: false
-      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at]
+      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at, superseded_by]
       description: A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids.
       properties:
         revision:
@@ -6302,6 +6302,11 @@ components:
         created_at:
           type: string
           format: date-time
+        superseded_by:
+          type: integer
+          minimum: 2
+          nullable: true
+          description: The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation.
   headers:
     Deprecation:
       description: >-

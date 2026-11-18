@@ -24,6 +24,7 @@ const view = {
   to,
   published_by: "Priya",
   created_at: to,
+  superseded_by: null as number | null,
   blocks: [
     {
       kind: "text",
@@ -60,7 +61,7 @@ function json(body: unknown): Response {
   })
 }
 
-function mockServer() {
+function mockServer(newest: number | null = null) {
   const paths: string[] = []
   vi.stubGlobal(
     "fetch",
@@ -68,7 +69,7 @@ function mockServer() {
       const path = new URL(request.url).pathname
       paths.push(path)
       if (path === `/api/v1/public/${token}/rca`) {
-        return Promise.resolve(json(view))
+        return Promise.resolve(json({ ...view, superseded_by: newest }))
       }
       if (path === `/api/v1/public/${token}/rca/snapshots/${snapshotId}`) {
         return Promise.resolve(json(frames))
@@ -114,6 +115,33 @@ describe("PublicRcaPage", () => {
     for (const path of paths) {
       expect(path.startsWith("/api/v1/public/")).toBe(true)
     }
+  })
+})
+
+describe("PublicRcaPage superseded revisions", () => {
+  it("tells a reader of an old link that a newer revision exists", async () => {
+    mockServer(3)
+    renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    expect(
+      await screen.findByText(
+        /Revision 3 is newer, so this one may be out of date/
+      )
+    ).toBeTruthy()
+  })
+
+  it("says nothing on the newest revision", async () => {
+    mockServer()
+    renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await screen.findByRole("heading", { name: "Checkout outage", level: 1 })
+    expect(screen.queryByText(/is newer/)).toBeNull()
   })
 })
 

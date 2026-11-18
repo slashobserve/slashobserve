@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { type UseQueryResult } from "@tanstack/react-query"
 import { useContainerWidth } from "react-grid-layout"
 
@@ -61,6 +61,7 @@ export type RcaView = {
   blocks: RcaBlock[]
   publishedBy: string
   created_at: string
+  supersededBy: number | null
 }
 
 export type UseSnapshot = (
@@ -167,9 +168,11 @@ function RcaItem({
 export function RcaDocument({
   rca,
   useSnapshot,
+  newerLink,
 }: {
   rca: RcaView
   useSnapshot: UseSnapshot
+  newerLink?: ReactNode
 }) {
   const caption = rangeCaption(rca)
   const rows = publicRows(rca.blocks)
@@ -185,6 +188,12 @@ export function RcaDocument({
             {formatDateTime(rca.created_at)}{" "}
             {zoneLabel(Date.parse(rca.created_at))}
           </p>
+          {rca.supersededBy === null ? null : (
+            <p role="note" className="text-[13px] font-medium">
+              Revision {rca.supersededBy} is newer, so this one may be out of
+              date. {newerLink}
+            </p>
+          )}
           <p className="text-[13px] font-medium">
             {rca.observation_state === "resolved"
               ? "Resolved"

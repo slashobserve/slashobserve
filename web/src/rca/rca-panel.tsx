@@ -59,8 +59,12 @@ export function RcaPanel({
 
   return (
     <SidePanel
-      title="Publish as RCA"
-      description="Freezes every live panel and saves a numbered revision. Earlier revisions do not change."
+      title={canPublish ? "Publish as RCA" : "RCA revisions"}
+      description={
+        canPublish
+          ? "Freezes every live panel and saves a numbered revision. Earlier revisions do not change."
+          : "Frozen copies of this observation. A revision never changes once it is published."
+      }
       trigger={trigger}
       closeDisabled={publish.isPending}
       onClose={onClose}
