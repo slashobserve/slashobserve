@@ -143,8 +143,15 @@ func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Princi
 	if err != nil {
 		return Result{}, false, nil
 	}
+	if r.deps.Folders == nil {
+		return Result{}, false, nil
+	}
+	folder, err := r.deps.Folders.CreationFolder(ctx, principal, folderID)
+	if err != nil {
+		return Result{}, false, nil
+	}
 	from, to := savedsearches.RangeOrDefault(in.From, in.To)
-	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind), FolderID: folderID}, identicalSearchLimit, "")
+	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind), FolderID: folder.ID}, identicalSearchLimit, "")
 	if err != nil {
 		return Result{}, false, nil
 	}

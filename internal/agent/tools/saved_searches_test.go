@@ -6,8 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
@@ -60,6 +63,15 @@ func (r *searchRig) call(t *testing.T, run *Run, by auth.Principal, tool, input 
 		t.Fatalf("%s: %v", tool, err)
 	}
 	return res
+}
+
+func (r *searchRig) newFolder(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return folder.ID
 }
 
 func TestSavedSearchToolsOnlyRunOutsideAgentRuns(t *testing.T) {
@@ -214,5 +226,28 @@ func TestSaveSearchTwiceReturnsTheSearchAlreadySaved(t *testing.T) {
 	list, _ := r.call(t, nil, viewerCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut)
 	if len(list.SavedSearches) != 2 {
 		t.Fatalf("saved searches = %d, want 2", len(list.SavedSearches))
+	}
+}
+
+func TestSaveSearchReplaysOnlyWithinTheFolderItWouldBeSavedIn(t *testing.T) {
+	r := newSearchRig(t)
+	ops := r.newFolder(t, "Ops")
+	body := `"kind":"logs","title":"Checkout errors","datasource_uid":"logs","query":"{app=\"checkout\"}"`
+	inOps := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`,"folder_id":"`+ops.String()+`"}`)
+	savedInOps, ok := inOps.Content.(savedsearches.SavedSearchJSON)
+	if !ok || savedInOps.Folder.Title != "Ops" {
+		t.Fatalf("save into Ops: %#v", inOps.Content)
+	}
+	byDefault, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`}`).Content.(savedsearches.SavedSearchJSON)
+	if !ok || byDefault.ID == savedInOps.ID || byDefault.Folder.ID == savedInOps.Folder.ID {
+		t.Fatalf("a save without folder_id returned the Ops search: %#v", byDefault)
+	}
+	again, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`}`).Content.(savedSearchReplayOut)
+	if !ok || again.ID != byDefault.ID || !again.Replayed {
+		t.Fatalf("a repeat without folder_id = %#v, want the default folder's search replayed", again)
+	}
+	inOpsAgain, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`,"folder_id":"`+ops.String()+`"}`).Content.(savedSearchReplayOut)
+	if !ok || inOpsAgain.ID != savedInOps.ID {
+		t.Fatalf("a repeat into Ops = %#v, want the Ops search replayed", inOpsAgain)
 	}
 }
