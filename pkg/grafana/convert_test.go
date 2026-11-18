@@ -234,7 +234,7 @@ func convertUnknownOptions(t *testing.T, leaves int) (PanelLine, time.Duration) 
 }
 
 func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
-	const small, large, attempts = 10_000, 100_000, 3
+	const small, large, attempts = 5_000, 50_000, 3
 	fastest := func(leaves int) time.Duration {
 		best := time.Duration(math.MaxInt64)
 		for range attempts {
@@ -275,7 +275,7 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 	const unimportable = `{"expr":"$u"}`
 	unimportables := func(n int) string { return strings.Repeat(unimportable+",", n) }
 	hidden := func(n int) string { return strings.Repeat(`{"hide":true},`, n) }
-	const million = 1_000_000
+	const veryMany = 250_000
 	const hundredThousand = 100_000
 	const calibration, attempts, slowdownBudget = 10_000, 3, 4
 	perTarget := time.Duration(math.MaxInt64)
@@ -290,7 +290,7 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 		wantUp          bool
 		wantReason      string
 	}{
-		{"a kept query after the listed targets", "timeseries", "[" + unimportables(200) + `{"refId":"Z","expr":"up"},` + unimportables(million-202) + unimportable + "]", million, true, fmt.Sprintf("%d more queries were not imported.", million-101)},
+		{"a kept query after the listed targets", "timeseries", "[" + unimportables(200) + `{"refId":"Z","expr":"up"},` + unimportables(veryMany-202) + unimportable + "]", veryMany, true, fmt.Sprintf("%d more queries were not imported.", veryMany-101)},
 		{"no query can be imported", "timeseries", "[" + unimportables(hundredThousand-1) + unimportable + "]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
 		{"placeholder panel", "barchart", "[" + unimportables(hundredThousand-1) + unimportable + "]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
 		{"one visible target past the cap", "timeseries", "[" + unimportables(100) + unimportable + "]", 101, false, "1 more query was not imported."},

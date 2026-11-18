@@ -372,6 +372,7 @@ func uncataloguedProblems(uncovered map[optionScope]map[string]bool) []string {
 }
 
 func TestCorpusOptionsAreCatalogued(t *testing.T) {
+	t.Parallel()
 	ix := buildCatalogIndex(t, loadConformanceAreas(t, conformanceRoot(t)))
 	uncovered := map[optionScope]map[string]bool{}
 	for _, src := range corpusSources(t) {
