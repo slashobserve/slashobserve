@@ -41,6 +41,9 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if err := req.Range.Validate(); err != nil {
 		return datasource.TraceStats{}, err
 	}
+	if !macros.WrapsExactly("(" + strings.TrimSpace(req.Query) + ")") {
+		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "the trace filter must have balanced parentheses and no comment that reaches the end of it")
+	}
 	lim := d.limits.Tighten(req.Limits)
 	texts := [2]string{TraceStatsQuery(req.Query, req.Step), DurationHistogramQuery(req.Query)}
 	for i, text := range texts {

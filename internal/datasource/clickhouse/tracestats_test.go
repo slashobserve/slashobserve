@@ -70,6 +70,18 @@ func TestGuardRefusesASecondStatementInTheFilter(t *testing.T) {
 	}
 }
 
+func TestTraceStatsRefusesAFilterThatStepsOutOfItsParentheses(t *testing.T) {
+	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	req := datasource.TraceStatsRequest{Range: datasource.TimeRange{From: from, To: from.Add(time.Hour)}, Step: time.Minute}
+	for _, expr := range []string{"1=0) OR (1=1", "ServiceName = 'a')) OR ((1=1", "(ServiceName = 'a' --"} {
+		req.Query = expr
+		_, err := (&Datasource{}).TraceStats(t.Context(), req)
+		if !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Errorf("%q: err = %v, want an invalid query", expr, err)
+		}
+	}
+}
+
 func TestFoldTraceStatsFillsBucketsAndConvertsNanoseconds(t *testing.T) {
 	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
 	rng := datasource.TimeRange{From: from, To: from.Add(150 * time.Second)}
