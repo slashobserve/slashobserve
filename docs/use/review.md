@@ -104,6 +104,8 @@ Under the form the card says "Observe Agent is working on it" with a link to the
 The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
+A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 

@@ -745,7 +745,7 @@ func TestAThreadResolvedByARunNamesTheAgentActingForTheRequester(t *testing.T) {
 	}
 
 	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusResolved, "", 10, "")
-	if err != nil || len(listed) != 1 {
+	if err != nil || len(listed) != 2 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
 	got := listed[0]

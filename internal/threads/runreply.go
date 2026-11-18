@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -22,10 +23,11 @@ const (
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
 	maxReplyHeadingRunes = 200
+	maxReplyLeadRunes    = 600
 )
 
-func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error {
-	thread, err := q.GetThreadOfMessage(ctx, run.ThreadMessageID)
+func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, askedIn pgtype.UUID) error {
+	thread, err := q.GetThreadOfMessage(ctx, askedIn)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -123,7 +125,7 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if err != nil {
 			return "", fmt.Errorf("read proposal of run: %w", err)
 		}
-		return "Opened a proposal: " + sentenceEnd(clip(title, maxReplyHeadingRunes)), nil
+		return "Opened a proposal: " + sentenceEnd(activity.Excerpt(title, maxReplyHeadingRunes)), nil
 	case run.ResultKind == string(revisions.ResultObservation):
 		found, err := q.GetFindingByAgentRequest(ctx, run.ID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -136,9 +138,19 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if target == KindObservation {
 			lead = "Wrote the answer into this observation: "
 		}
-		return lead + sentenceEnd(clip(found.Finding.Title, maxReplyHeadingRunes)), nil
+		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
 	}
 	return replyFinished, nil
+}
+
+func findingLead(markdown, title string) string {
+	for _, paragraph := range strings.Split(markdown, "\n\n") {
+		lead := activity.Excerpt(strings.TrimLeft(paragraph, "# \t\n"), maxReplyLeadRunes)
+		if lead != "" && lead != strings.TrimSpace(title) {
+			return "\n\n" + lead
+		}
+	}
+	return ""
 }
 
 func failedBody(run dbsqlc.AgentRequest) string {
@@ -156,6 +168,9 @@ func failedBody(run dbsqlc.AgentRequest) string {
 }
 
 func sentenceEnd(text string) string {
+	if strings.HasSuffix(text, "...") {
+		return text
+	}
 	return strings.TrimRight(text, ".") + "."
 }
 

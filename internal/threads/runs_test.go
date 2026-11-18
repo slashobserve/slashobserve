@@ -20,6 +20,7 @@ func (r *rig) runFor(t *testing.T, dash pgtype.UUID, comment Comment, resultVers
 		t.Fatal(err)
 	}
 	row.ResultVersion = pgtype.Int4{Int32: resultVersion, Valid: true}
+	row.State = string(revisions.StateSucceeded)
 	return row
 }
 
@@ -55,8 +56,11 @@ func TestRunResolvesItsThreadAsTheRequester(t *testing.T) {
 		t.Fatalf("thread = %+v", row)
 	}
 	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusResolved, "", 10, "")
-	if err != nil || len(listed) != 1 || listed[0].ResolvedBy == nil || listed[0].ResolvedBy.Name != "Ada" {
+	if err != nil || len(listed) != 2 || listed[0].ResolvedBy == nil || listed[0].ResolvedBy.Name != "Ada" {
 		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	if reply := listed[1]; reply.ParentID != comment.ID || reply.Body != "Saved version 2 of this dashboard." || reply.Actor.RunID != run.ID.String() {
+		t.Fatalf("the run's answer in the thread = %+v", reply)
 	}
 
 	var runID, actorName string
@@ -93,8 +97,8 @@ func TestRunLeavesAResolvedThreadAlone(t *testing.T) {
 	if after.ResolvedByVersion.Int32 != 1 || after.ResolvedRunID.Valid || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
 		t.Fatalf("thread = %+v, was %+v", after, before)
 	}
-	if got := activityTypes(r.activity(t)); len(got) != 2 || got[1] != "thread.resolved" {
-		t.Fatalf("activity = %v, want the opening and the user's resolve only", got)
+	if got := activityTypes(r.activity(t)); len(got) != 3 || got[1] != "thread.resolved" || got[2] != "thread.replied" {
+		t.Fatalf("activity = %v, want the opening, the user's resolve and the run's answer", got)
 	}
 }
 

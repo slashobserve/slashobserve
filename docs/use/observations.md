@@ -133,8 +133,8 @@ A block that belongs to another observation answers 422 `invalid_block`, and a q
 Editing a message changes neither.
 
 A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, starts an investigation for that agent that writes into this observation, and it needs the Editor role.
-The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>."
-The line is not the model's text, and it never resolves the discussion.
+The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>." and the first paragraph of the finding
+The line is not the model's text, and the paragraph is shown as plain text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Add to an observation from a panel or from Logs
