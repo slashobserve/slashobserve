@@ -16,7 +16,7 @@ import {
   PublicPageSkeleton,
   type SetPublicSearch,
 } from "@/public/public-page"
-import { publicDashboardQuery } from "@/public/queries"
+import { publicDashboardQuery, useLinkGone } from "@/public/queries"
 
 function publicSearch(state: DashboardSearch): DashboardSearch {
   return {
@@ -75,6 +75,7 @@ function PublicRoute() {
   const search = useMemo(() => validateDashboardSearch(raw), [raw])
   const navigate = Route.useNavigate()
   const dashboard = useSuspenseQuery(publicDashboardQuery(token)).data
+  const gone = useLinkGone(token)
   const setSearch = useCallback<SetPublicSearch>(
     (update, options) =>
       void navigate({
@@ -84,6 +85,7 @@ function PublicRoute() {
       }),
     [navigate]
   )
+  if (gone) return <PublicLinkUnavailable />
   return (
     <PublicPage
       token={token}

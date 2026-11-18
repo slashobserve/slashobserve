@@ -53,6 +53,7 @@ The dashboard list, news and geomap panels need the signed-in app, so they show 
 Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
 Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
 An address that is unknown, revoked or expired reads "This link has expired or was turned off."
+A page that is already open shows the same message as soon as a panel refresh finds the link revoked or expired, without a reload.
 
 ## Show it on a wall
 
