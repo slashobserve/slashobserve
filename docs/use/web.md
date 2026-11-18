@@ -82,7 +82,7 @@ The **More** button at the right of a dashboard's header opens:
 
 - **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
 - **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
-- **Duplicate...** copies the dashboard under a title and into a folder you choose.
+- **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
 - **TV mode**, also `d` then `k`, starts [TV mode](public-links.md#show-it-on-a-wall); **TV mode for this folder** cycles through the folder's dashboards and is left out in a personal folder.
 - **Chart hover**, also Cmd/Ctrl+O, chooses how hovering one time chart shows on the others: **This chart only**, **Shared crosshair** or **Shared tooltip**.
   A choice that differs from the dashboard's saved `cursorSync` goes into the address as `cursor` and is not saved to the dashboard.
