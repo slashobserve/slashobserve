@@ -182,7 +182,7 @@ WHERE d.id = @id
 SELECT title FROM dashboards WHERE id = @id FOR UPDATE;
 
 -- name: MoveDashboard :one
-UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
+UPDATE dashboards SET folder_id = @folder_id WHERE id = @id AND folder_id = @from_folder_id RETURNING *;
 
 -- name: NotifyEvent :exec
 SELECT pg_notify(@channel::text, @payload::text);
