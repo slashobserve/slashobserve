@@ -146,6 +146,7 @@ func TestCreateRefusals(t *testing.T) {
 		{"an unknown mode", admin, r.shared, CreateInput{Mode: "pinned"}, ErrInvalidMode},
 		{"a label that is too long", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: strings.Repeat("x", maxLabelRunes+1)}, ErrInvalidLabel},
 		{"a label with a control character", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: "a\nb"}, ErrInvalidLabel},
+		{"a label with a bidirectional override", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: "board\u202eevoke"}, ErrInvalidLabel},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

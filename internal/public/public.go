@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -26,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -407,14 +407,12 @@ func timeOf(t pgtype.Timestamptz) *time.Time {
 }
 
 func cleanLabel(raw string) (string, bool) {
-	label := strings.TrimSpace(raw)
-	if utf8.RuneCountInString(label) > maxLabelRunes {
-		return "", false
+	if strings.TrimSpace(raw) == "" {
+		return "", true
 	}
-	for _, r := range label {
-		if unicode.IsControl(r) {
-			return "", false
-		}
+	label, ok := revisions.CleanTitle(raw)
+	if !ok || utf8.RuneCountInString(label) > maxLabelRunes {
+		return "", false
 	}
 	return label, true
 }
