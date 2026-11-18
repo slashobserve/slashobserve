@@ -166,10 +166,30 @@ func TestCreateRefusals(t *testing.T) {
 type fakeOptions struct {
 	values map[string][]string
 	err    error
+	calls  *int
 }
 
-func (f fakeOptions) VariableOptions(_ context.Context, _ *spec.Dashboard, name string, _ map[string][]string) ([]string, error) {
+func (f fakeOptions) VariableOptions(_ context.Context, _ pgtype.UUID, _ int, _ *spec.Dashboard, name string, _ map[string][]string) ([]string, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
 	return f.values[name], f.err
+}
+
+func TestCreateAtTheCapRunsNoVariableQuery(t *testing.T) {
+	r := newRig(t)
+	for range maxLinksPerDashboard {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	var calls int
+	r.service.options = fakeOptions{values: map[string][]string{"env": {"prod"}}, calls: &calls}
+	in := CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, in); !errors.Is(err, ErrTooManyLinks) {
+		t.Fatalf("err = %v, want ErrTooManyLinks", err)
+	}
+	if calls != 0 {
+		t.Fatalf("the cap answer ran %d variable queries", calls)
+	}
 }
 
 func TestCreateChecksFreeSelectionsAgainstTheVariableOptions(t *testing.T) {

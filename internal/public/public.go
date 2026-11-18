@@ -53,7 +53,7 @@ var (
 )
 
 type VariableOptions interface {
-	VariableOptions(ctx context.Context, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error)
+	VariableOptions(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error)
 }
 
 func WithVariableOptions(o VariableOptions) Option {
@@ -173,12 +173,12 @@ func (s *Service) checkInput(d *spec.Dashboard, in CreateInput) error {
 	return nil
 }
 
-func (s *Service) checkSelections(ctx context.Context, d *spec.Dashboard, in CreateInput) error {
+func (s *Service) checkSelections(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, in CreateInput) error {
 	if in.Mode != ModeFree || s.options == nil || len(in.Selections) == 0 {
 		return nil
 	}
 	options := func(name string, earlier map[string][]string) ([]string, error) {
-		values, err := s.options.VariableOptions(ctx, d, name, earlier)
+		values, err := s.options.VariableOptions(ctx, dashboardID, version, d, name, earlier)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %q: %w", ErrOptionsUnavailable, name, err)
 		}
@@ -206,14 +206,11 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err := s.manage(ctx, by, dashboardID); err != nil {
 		return Created{}, err
 	}
-	_, d, err := s.latest(ctx, dashboardID)
+	version, d, err := s.latest(ctx, dashboardID)
 	if err != nil {
 		return Created{}, err
 	}
 	if err := s.checkInput(d, in); err != nil {
-		return Created{}, err
-	}
-	if err := s.checkSelections(ctx, d, in); err != nil {
 		return Created{}, err
 	}
 	count, err := s.db.Queries().CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
@@ -222,6 +219,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	}
 	if count >= maxLinksPerDashboard {
 		return Created{}, ErrTooManyLinks
+	}
+	if err := s.checkSelections(ctx, dashboardID, version, d, in); err != nil {
+		return Created{}, err
 	}
 	creatorID, err := db.ParseUUID(by.ID)
 	if err != nil {
