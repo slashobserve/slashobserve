@@ -50,7 +50,7 @@ func TestSavedSearchesCommands(t *testing.T) {
 				testSavedSearch + " logs Checkout errors Payments loki 2026-01-02T03:04Z",
 				"traces Slow checkout My Dashboards tempo",
 			},
-			wantErr: "more results: --cursor more",
+			wantErr: "More: --cursor more",
 		},
 		{
 			name:       "list by kind and folder",

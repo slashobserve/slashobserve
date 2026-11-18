@@ -270,7 +270,7 @@ func TestCommentsCommands(t *testing.T) {
 				testReply + " - " + testPanel + " (removed) resolved Eve evil",
 			},
 			wantNotOut: []string{"\u202e"},
-			wantErr:    "more results: --cursor next",
+			wantErr:    "More: --cursor next",
 		},
 		{
 			name:       "list on a target sends status and panel",
@@ -296,7 +296,7 @@ func TestCommentsCommands(t *testing.T) {
 			wantMethod: http.MethodGet,
 			wantPath:   "/api/v1/threads",
 			wantQuery:  "limit=50&status=open&target=observation%3A" + testFinding,
-			wantErr:    "more results: --cursor next",
+			wantErr:    "More: --cursor next",
 		},
 		{
 			name:     "list takes a dashboard id or --on",

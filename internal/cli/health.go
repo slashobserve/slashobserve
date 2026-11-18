@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	defaultHealthLimit = 50
 	maxHealthLimit     = 100
 	maxRepairIDs       = 50
 )
@@ -17,9 +16,9 @@ const (
 var errNothingQueued = errors.New("no repair was queued")
 
 type healthOptions struct {
+	pageOptions
 	folder string
 	kind   string
-	limit  int
 }
 
 type healthFolder struct {
@@ -88,13 +87,16 @@ func (a *app) healthCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&a.health.folder, "folder", "", "only dashboards in this folder id")
 	cmd.Flags().StringVar(&a.health.kind, "kind", "", "only this kind of problem: no_data, query_failed, variable_failed, duplicate_title or unopened")
-	cmd.Flags().IntVar(&a.health.limit, "limit", defaultHealthLimit, "dashboards to list, up to 100")
+	addPageFlags(cmd, &a.health.pageOptions, maxHealthLimit)
 	cmd.AddCommand(a.healthRepairCommand(), a.healthRunCommand())
 	return cmd
 }
 
 func (o healthOptions) query() (url.Values, error) {
-	query := url.Values{"limit": {strconv.Itoa(o.limit)}}
+	if err := o.check(); err != nil {
+		return nil, err
+	}
+	query := o.pageOptions.query()
 	if o.folder != "" {
 		id, err := parseID(o.folder)
 		if err != nil {
@@ -117,7 +119,7 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "health", query)
+	data, err := c.getPages(cmd.Context(), "health", query, a.health.all)
 	if err != nil {
 		return err
 	}
@@ -136,9 +138,7 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 		out.table([]string{"ID", "DASHBOARD", "FOLDER", "STATE", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
 	}
 	out.line("%s", jobLine(list.Job))
-	if list.NextCursor != nil {
-		out.notice("more dashboards have problems; raise --limit (up to %d) or narrow with --folder or --kind", maxHealthLimit)
-	}
+	pageFooter(out, len(list.Dashboards), nil, list.NextCursor)
 	return nil
 }
 

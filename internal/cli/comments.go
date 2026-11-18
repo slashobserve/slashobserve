@@ -173,7 +173,7 @@ func (a *app) commentsListCommand() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  a.runCommentsList,
 	}
-	addPageFlags(cmd, &a.commentList.pageOptions)
+	addPageFlags(cmd, &a.commentList.pageOptions, maxThreadPage)
 	cmd.Flags().StringVar(&a.commentList.status, "status", "open", "open, resolved or all")
 	cmd.Flags().StringVar(&a.commentList.panel, "panel", "", "only comments on this panel id")
 	cmd.Flags().StringVar(&a.commentList.on, "on", "", "the target to list, as <kind>:<id>, instead of a dashboard id")
@@ -181,6 +181,9 @@ func (a *app) commentsListCommand() *cobra.Command {
 }
 
 func (a *app) commentListRequest(args []string) (string, url.Values, error) {
+	if err := a.commentList.check(); err != nil {
+		return "", nil, err
+	}
 	if (len(args) == 1) == (a.commentList.on != "") {
 		return "", nil, usagef("comments list takes a dashboard id or --on <kind>:<id>, one of them")
 	}
@@ -218,7 +221,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), path, query)
+	data, err := c.getPages(cmd.Context(), path, query, a.commentList.all)
 	if err != nil {
 		return err
 	}
@@ -236,7 +239,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 		cells = append(cells, row.cells())
 	}
 	out.table([]string{"ID", "THREAD", "PANEL", "STATUS", "AUTHOR", "CREATED", "COMMENT"}, cells)
-	nextPageHint(out, next)
+	pageFooter(out, len(cells), nil, next)
 	return nil
 }
 

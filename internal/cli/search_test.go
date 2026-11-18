@@ -62,7 +62,7 @@ func TestSearchCommand(t *testing.T) {
 				"Slow checkout requests",
 				"annotation Deploy no folder no page",
 			},
-			wantErr: "more results: --cursor more",
+			wantErr: "More: --cursor more",
 		},
 		{
 			name:      "an empty answer says so",

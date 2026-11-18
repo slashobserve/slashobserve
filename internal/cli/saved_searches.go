@@ -94,7 +94,7 @@ func (a *app) savedSearchesListCommand() *cobra.Command {
 		Args:  noArgs,
 		RunE:  a.runSavedSearchesList,
 	}
-	addPageFlags(cmd, &a.savedSearchList.pageOptions)
+	addPageFlags(cmd, &a.savedSearchList.pageOptions, maxSavedSearchPage)
 	cmd.Flags().StringVar(&a.savedSearchList.kind, "kind", "", "only logs or only traces searches")
 	cmd.Flags().StringVar(&a.savedSearchList.folder, "folder", "", "only searches saved in this folder id")
 	return cmd
@@ -120,6 +120,9 @@ func (o savedSearchListOptions) query() (url.Values, error) {
 }
 
 func (a *app) runSavedSearchesList(cmd *cobra.Command, _ []string) error {
+	if err := a.savedSearchList.check(); err != nil {
+		return err
+	}
 	query, err := a.savedSearchList.query()
 	if err != nil {
 		return err
@@ -128,7 +131,7 @@ func (a *app) runSavedSearchesList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "saved-searches", query)
+	data, err := c.getPages(cmd.Context(), "saved-searches", query, a.savedSearchList.all)
 	if err != nil {
 		return err
 	}
@@ -146,7 +149,7 @@ func (a *app) runSavedSearchesList(cmd *cobra.Command, _ []string) error {
 		rows = append(rows, []string{text(s.ID), text(s.Kind), text(s.Title), text(s.Folder.Title), text(s.DatasourceUID), when(s.UpdatedAt)})
 	}
 	out.table([]string{"ID", "KIND", "TITLE", "FOLDER", "DATASOURCE", "UPDATED"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.SavedSearches), nil, page.NextCursor)
 	return nil
 }
 

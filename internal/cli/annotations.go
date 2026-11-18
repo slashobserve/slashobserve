@@ -44,6 +44,9 @@ func (a *app) annotationsListCommand() *cobra.Command {
 		Long:  "list prints the annotations of a window, newest first.\nWith --dashboard it lists that dashboard's annotations and the global ones; without it, only the global ones.\n--from and --to are RFC 3339 times.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := page.check(); err != nil {
+				return err
+			}
 			query := page.query()
 			if dashboard != "" {
 				id, err := parseID(dashboard)
@@ -65,7 +68,7 @@ func (a *app) annotationsListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := c.get(cmd.Context(), "annotations", query)
+			data, err := c.getPages(cmd.Context(), "annotations", query, page.all)
 			if err != nil {
 				return err
 			}
@@ -83,11 +86,11 @@ func (a *app) annotationsListCommand() *cobra.Command {
 				rows = append(rows, []string{text(n.ID), when(n.TimeFrom), orDash(n.DashboardID), tagsText(n.Tags), truncate(text(n.Text), annotationTextColumn)})
 			}
 			out.table([]string{"ID", "TIME", "DASHBOARD", "TAGS", "TEXT"}, rows)
-			nextPageHint(out, listed.NextCursor)
+			pageFooter(out, len(listed.Annotations), nil, listed.NextCursor)
 			return nil
 		},
 	}
-	addPageFlags(cmd, &page)
+	addPageFlags(cmd, &page, maxAnnotationPage)
 	cmd.Flags().StringVar(&dashboard, "dashboard", "", "the dashboard id; without it only global annotations")
 	cmd.Flags().StringVar(&from, "from", "", "start of the window, an RFC 3339 time")
 	cmd.Flags().StringVar(&to, "to", "", "end of the window, an RFC 3339 time")

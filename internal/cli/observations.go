@@ -371,6 +371,9 @@ func (a *app) observationListCommand() *cobra.Command {
 		Short: "List observations, most recently changed first",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := page.check(); err != nil {
+				return err
+			}
 			query := page.query()
 			if folder != "" {
 				id, err := parseID(folder)
@@ -385,21 +388,21 @@ func (a *app) observationListCommand() *cobra.Command {
 				}
 				query.Set("state", state)
 			}
-			return a.observationList(cmd, query)
+			return a.observationList(cmd, query, page.all)
 		},
 	}
-	addPageFlags(cmd, &page)
+	addPageFlags(cmd, &page, maxObservationPage)
 	cmd.Flags().StringVar(&folder, "folder", "", "only observations in this folder id")
 	cmd.Flags().StringVar(&state, "state", "", "only open or resolved observations")
 	return cmd
 }
 
-func (a *app) observationList(cmd *cobra.Command, query url.Values) error {
+func (a *app) observationList(cmd *cobra.Command, query url.Values, all bool) error {
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "observations", query)
+	data, err := c.getPages(cmd.Context(), "observations", query, all)
 	if err != nil {
 		return err
 	}
@@ -417,7 +420,7 @@ func (a *app) observationList(cmd *cobra.Command, query url.Values) error {
 		rows = append(rows, []string{text(o.ID), text(o.Title), text(o.State), when(o.UpdatedAt)})
 	}
 	out.table([]string{"ID", "TITLE", "STATE", "UPDATED"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Observations), nil, page.NextCursor)
 	return nil
 }
 

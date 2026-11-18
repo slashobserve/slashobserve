@@ -124,11 +124,20 @@ Only the person who made a request can cancel or continue it; anyone else gets `
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
 Continuing a revision fails when its dashboard has a newer version than the build started from.
 
+## Lists and paging
+
+Every command that lists rows takes `--limit` (50 rows by default, and a maximum that its help gives), `--cursor` and `--all`.
+When more rows exist, the table is followed on standard error by `Showing 5 of 23. More: --cursor <cursor>, or --all for every page.`; the total is printed where the server counts it, as `dashboards list` does, and otherwise the line says that more exist.
+`--cursor` continues from the `next_cursor` a page ended with, which `--json` shows too, and a cursor the server does not recognise is refused with `invalid_request` and a hint to pass it exactly as printed.
+`--all` follows the cursor to the last page and prints one list; with `--json` it is one object whose list holds every row, with `next_cursor` null and any `total_count` kept.
+`--all` cannot be combined with `--cursor`, and `--limit` outside its range exits 2 before anything is sent.
+The MCP list tools take their own, smaller page sizes and the same `next_cursor`.
+
 ## Dashboards
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page. |
+| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
