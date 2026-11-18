@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import { Link } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { dashboardLink } from "@/lib/links"
 
 import { DatasourceError, useDeleteDatasource } from "./admin-queries"
 import { saveProblemText, usersSummary } from "./problems"
@@ -86,8 +88,20 @@ export function RemoveDatasourceButton({
                 </p>
                 <ul className="list-disc pl-4">
                   {usersSummary(inUse.usedBy, inUse.hidden).map((line) => (
-                    <li key={line} className="wrap-anywhere">
-                      {line}
+                    <li key={line.key} className="wrap-anywhere">
+                      {line.dashboard === undefined ? (
+                        line.text
+                      ) : (
+                        <Link
+                          {...dashboardLink(
+                            line.dashboard.id,
+                            line.dashboard.title
+                          )}
+                          className="underline underline-offset-2"
+                        >
+                          {line.text}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

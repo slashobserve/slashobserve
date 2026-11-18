@@ -24,20 +24,33 @@ export function saveProblemText(error: unknown): string {
   return loadProblemText(error)
 }
 
+export type UserLine = {
+  key: string
+  text: string
+  dashboard?: { id: string; title: string }
+}
+
 export function usersSummary(
-  users: { kind: string; title: string }[],
+  users: { kind: string; id: string; title: string }[],
   hidden: number
-): string[] {
-  const lines = users.map(
-    (user) =>
-      `${user.kind === "dashboard" ? "Dashboard" : "Saved search"}: ${user.title}`
+): UserLine[] {
+  const lines: UserLine[] = users.map((user) =>
+    user.kind === "dashboard"
+      ? {
+          key: user.id,
+          text: `Dashboard: ${user.title}`,
+          dashboard: { id: user.id, title: user.title },
+        }
+      : { key: user.id, text: `Saved search: ${user.title}` }
   )
   if (hidden > 0) {
-    lines.push(
-      hidden === 1
-        ? "1 more in a folder you cannot see"
-        : `${hidden} more in folders you cannot see`
-    )
+    lines.push({
+      key: "hidden",
+      text:
+        hidden === 1
+          ? "1 more in a folder you cannot see"
+          : `${hidden} more in folders you cannot see`,
+    })
   }
   return lines
 }

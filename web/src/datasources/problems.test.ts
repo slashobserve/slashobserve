@@ -47,16 +47,18 @@ describe("usersSummary", () => {
     expect(
       usersSummary(
         [
-          { kind: "dashboard", title: "Checkout" },
-          { kind: "saved_search", title: "Errors" },
+          { kind: "dashboard", id: "d1", title: "Checkout" },
+          { kind: "saved_search", id: "s1", title: "Errors" },
         ],
         1
-      )
+      ).map((line) => [line.text, line.dashboard?.id])
     ).toEqual([
-      "Dashboard: Checkout",
-      "Saved search: Errors",
-      "1 more in a folder you cannot see",
+      ["Dashboard: Checkout", "d1"],
+      ["Saved search: Errors", undefined],
+      ["1 more in a folder you cannot see", undefined],
     ])
-    expect(usersSummary([], 3)).toEqual(["3 more in folders you cannot see"])
+    expect(usersSummary([], 3).map((line) => line.text)).toEqual([
+      "3 more in folders you cannot see",
+    ])
   })
 })
