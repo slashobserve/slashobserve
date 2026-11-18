@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"testing"
@@ -27,6 +28,12 @@ func newSearchRig(t *testing.T) *searchRig {
 		datasource.Instance{UID: fakeUID, Name: "Metrics", Datasource: &fakeDS{}},
 		datasource.Instance{UID: "logs", Name: "Logs", Datasource: &fakeDS{typ: "loki"}},
 		datasource.Instance{UID: "traces", Name: "Traces", Datasource: &fakeDS{typ: "tempo"}},
+		datasource.Instance{UID: "linted", Name: "Linted", Datasource: &fakeDS{typ: "loki", lintFn: func(_ context.Context, query string) ([]datasource.Diagnostic, error) {
+			if query == "{" {
+				return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "unexpected end of input"}}, nil
+			}
+			return []datasource.Diagnostic{{Severity: datasource.SeverityWarning, Message: "slow regex"}}, nil
+		}}},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -168,5 +175,23 @@ func TestSaveSearchRefusesWhatCannotBeSaved(t *testing.T) {
 	}
 	if res := r.call(t, nil, keyCaller, nameListSavedSearches, `{"folder_id":"`+restricted+`"}`); errorCode(t, res) != codeNotFound {
 		t.Errorf("listing a folder the key cannot see: %#v", res.Content)
+	}
+}
+
+func TestSaveSearchRefusesAQueryThatFailsTheLintCheckAndKeepsWarnings(t *testing.T) {
+	r := newSearchRig(t)
+	input := func(query string) string {
+		return `{"kind":"logs","title":"Errors","datasource":"linted","query":"` + query + `"}`
+	}
+	res := r.call(t, nil, keyCaller, nameSaveSearch, input("{"))
+	eb, ok := res.Content.(errorBody)
+	if !res.IsError || !ok || eb.Code != codeInvalidRequest || !strings.Contains(eb.Message, "unexpected end of input") {
+		t.Fatalf("a failing query: %#v", res.Content)
+	}
+	if list := r.call(t, nil, keyCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut); len(list.SavedSearches) != 0 {
+		t.Fatalf("a refused search was saved: %+v", list)
+	}
+	if res := r.call(t, nil, keyCaller, nameSaveSearch, input("{a=\\\"b\\\"}")); res.IsError {
+		t.Fatalf("a query with only a warning: %#v", res.Content)
 	}
 }

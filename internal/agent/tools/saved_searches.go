@@ -1,11 +1,13 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 )
@@ -17,14 +19,14 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. Check the query with lint_query or draft_query first. Returns its url."
+	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query is checked with the same lint as lint_query and a query that fails it is not saved; draft_query writes one. Returns its url."
 	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
-		`"datasource_uid":{"type":"string","description":"The datasource to search, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
+		`"datasource":{"type":"string","description":"The datasource to search, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs; optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
@@ -37,7 +39,7 @@ const (
 		`"from":{"type":"string","description":"Start of the saved range, such as now-1h or an RFC 3339 time. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the saved range, such as now or an RFC 3339 time. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"The folder to save it in, from list_folders. Default your My Dashboards, else General."}},` +
-		`"required":["kind","title","datasource_uid"],"additionalProperties":false}`
+		`"required":["kind","title","datasource"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
 		`"kind":{"type":"string","enum":["logs","traces"],"description":"Only searches of this kind."},` +
@@ -60,6 +62,7 @@ func (r *Registry) savedSearchEntries() []entry {
 type saveSearchInput struct {
 	Kind          string          `json:"kind"`
 	Title         string          `json:"title"`
+	Datasource    string          `json:"datasource"`
 	DatasourceUID string          `json:"datasource_uid"`
 	Query         *string         `json:"query"`
 	Filters       json.RawMessage `json:"filters"`
@@ -102,11 +105,15 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
+	uid := cmp.Or(in.Datasource, in.DatasourceUID)
+	if res, ok, err := r.searchQueryPasses(ctx, uid, in.Query); err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
 	saved, err := r.deps.SavedSearches.Create(ctx, principal, savedsearches.CreateInput{
 		Kind:          savedsearches.Kind(in.Kind),
 		Title:         in.Title,
-		DatasourceUID: in.DatasourceUID,
+		DatasourceUID: uid,
 		Query:         in.Query,
 		Filters:       in.Filters,
 		From:          in.From,
@@ -117,6 +124,26 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 		return savedSearchFailure(err)
 	}
 	return success("Saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
+}
+
+func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *string) (Result, bool, error) {
+	if query == nil || *query == "" || r.deps.Datasources == nil {
+		return Result{}, true, nil
+	}
+	inst, found := r.deps.Datasources.Get(uid)
+	if !found {
+		return Result{}, true, nil
+	}
+	diagnostics, res, ok, err := r.lint(ctx, inst, *query)
+	if err != nil || !ok {
+		return res, false, err
+	}
+	for _, d := range diagnostics {
+		if d.Severity == datasource.SeverityError {
+			return invalid("the query does not pass the lint check, so nothing was saved: %s", clip(d.Message, maxCellBytes)), false, nil
+		}
+	}
+	return Result{}, true, nil
 }
 
 type listSavedSearchesInput struct {

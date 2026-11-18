@@ -911,10 +911,10 @@ func TestAMissingVersionIsNotMistakenForAMissingDashboard(t *testing.T) {
 	change := `"summary":"Change","upsert":[` + suggestStat("p1", "Renamed", "count(up)", 0) + `]`
 
 	for name, call := range map[string]struct{ tool, input string }{
-		nameUpdatePanels:            {nameUpdatePanels, `{"dashboard_id":"` + id + `","parent_version":99,` + change + `}`},
-		nameGetPanels:               {nameGetPanels, `{"dashboard_id":"` + id + `","version":99,"ids":["p1"]}`},
-		nameGetDashboard:            {nameGetDashboard, `{"dashboard_id":"` + id + `","version":99}`},
-		nameDiffDashboardVersions:   {nameDiffDashboardVersions, `{"dashboard_id":"` + id + `","from":1,"to":99}`},
+		nameUpdatePanels:          {nameUpdatePanels, `{"dashboard_id":"` + id + `","parent_version":99,` + change + `}`},
+		nameGetPanels:             {nameGetPanels, `{"dashboard_id":"` + id + `","version":99,"ids":["p1"]}`},
+		nameGetDashboard:          {nameGetDashboard, `{"dashboard_id":"` + id + `","version":99}`},
+		nameDiffDashboardVersions: {nameDiffDashboardVersions, `{"dashboard_id":"` + id + `","from":1,"to":99}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			res, _ := rig.as(rig.ctx).run(t, call.tool, call.input)
