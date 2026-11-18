@@ -145,8 +145,16 @@ describe("formatting", () => {
     }
   })
 
+  it("words a window that ends before now by how long ago it was", () => {
+    expect(describeRange("now-3d", "now-2d")).toBe("3 days ago to 2 days ago")
+    expect(describeRange("now-20m", "now-5m")).toBe(
+      "20 minutes ago to 5 minutes ago"
+    )
+    expect(describeRange("now-1h", "now-1m")).toBe("1 hour ago to 1 minute ago")
+    expect(describeRange("now-3d", "now-0m")).toBe("now-3d to now-0m")
+  })
+
   it("falls back to the raw text for everything else", () => {
-    expect(describeRange("now-20m", "now-5m")).toBe("now-20m to now-5m")
     expect(describeRange("now-20m/m", "now")).toBe("now-20m/m to now")
     expect(describeRange("now-1d/d", "now")).toBe("now-1d/d to now")
     expect(describeRange("now/w", "now")).toBe("now/w to now")
