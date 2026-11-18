@@ -158,9 +158,9 @@ export function ActivityCard({
 
   const noModel = agent.data?.available === false
   const description = !noModel
-    ? "Comments, agent requests and saved versions."
+    ? "Comments, agent requests, proposals, annotations and saved versions."
     : madeBy === null
-      ? "Comments and saved versions."
+      ? "Comments, proposals, annotations and saved versions."
       : `Comments and versions. ${clientNameFrom(madeBy)} made this dashboard.`
 
   return (

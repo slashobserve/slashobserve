@@ -85,6 +85,29 @@ function distinctTags(list: readonly Annotation[]): string[] {
   return [...new Set(list.flatMap((a) => a.tags))].sort()
 }
 
+const activityLimit = 50
+
+export function annotationActivityQuery(dashboardId: string) {
+  return queryOptions({
+    queryKey: annotationKeys.activity(dashboardId),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/annotations", {
+          params: {
+            query: { dashboard_id: dashboardId, limit: activityLimit },
+          },
+          signal,
+        })
+        .then(unwrap)
+        .then((body) =>
+          body.annotations.filter(
+            (annotation) => annotation.dashboard_id === dashboardId
+          )
+        ),
+    staleTime: 15_000,
+  })
+}
+
 export function annotationTagsQuery(dashboardId: string) {
   return queryOptions({
     queryKey: annotationKeys.tags(dashboardId),

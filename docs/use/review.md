@@ -14,10 +14,10 @@ Anyone with the dashboard open sees a toast saying that it was deleted.
 
 ## The activity timeline
 
-The card is headed "Activity" with the description "Comments, agent requests and saved versions."
-Without a model on the server it reads "Comments and saved versions."
+The card is headed "Activity" with the description "Comments, agent requests, proposals, annotations and saved versions."
+Without a model on the server it reads "Comments, proposals, annotations and saved versions."
 Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
-They come in four kinds:
+They come in six kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
@@ -28,11 +28,15 @@ They come in four kinds:
   **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
+  A version saved by merging a proposal adds "Proposed by `<name>`, merged by `<name>`".
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.
   The button shows while the filters keep versions in the list, so it is hidden under **Open comments** and when a panel is chosen.
 - **Imports** show "`<label>` imported this dashboard from Grafana", where the label is the importer's, such as "Ishan" or "Ishan (via Claude Code)", with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
   See [Import Grafana dashboards](import-grafana.md).
+- **Proposals** show "`<name>` proposed a change" for each open proposal, with its title and a **Review** link to the proposal page; a merged one shows on its version instead.
+- **Annotations** show "`<name>` added an annotation", with its text and tags, and "on `<panel>`" when it belongs to a panel.
+  The card lists the 50 newest annotations of the dashboard.
 
 Two menus filter the list.
 **Show** switches between Everything, Open comments and Changes only, and **Panel** narrows it to one panel.
