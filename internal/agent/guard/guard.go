@@ -175,6 +175,7 @@ func (s *State) Admit(position int, c Call) Admission {
 func (s *State) admitRead(position int, c Call, adm Admission) Admission {
 	if s.Turn.ReadGuard != "" {
 		s.Counts.SaveNowRefusals++
+		s.Window.Refused++
 		return s.refuse(c, adm, s.Turn.ReadGuard)
 	}
 	adm.Key = Key(c.Name, c.Input)
@@ -224,7 +225,7 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 		s.Counts.Repairs++
 	}
 	if c.Name == toolSaveFinding {
-		adm.ReadsRefused = s.Counts.SaveNowRefusals
+		adm.ReadsRefused = s.Window.Refused
 	}
 	return adm
 }

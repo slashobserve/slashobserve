@@ -646,3 +646,20 @@ func TestThePanelIDPatternIsTheSchemasOwn(t *testing.T) {
 		t.Errorf("the schema has no id pattern %s", panelID)
 	}
 }
+
+func TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.Window.Calls = maxCallsBeforeProposal - 1
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
+	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))
+	s.EndTurn()
+	s.BeginSession(false, 0)
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`)); adm.ReadsRefused != 0 {
+		t.Fatalf("a finding after a fresh window reports %d refused reads", adm.ReadsRefused)
+	}
+	if s.Counts.SaveNowRefusals != 2 {
+		t.Fatalf("the run's own refusal count changed to %d", s.Counts.SaveNowRefusals)
+	}
+}
