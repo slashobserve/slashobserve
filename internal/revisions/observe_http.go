@@ -230,7 +230,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	}
 	prompt, ok := CleanPrompt(*req.Prompt)
 	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", PromptProblem("prompt", *req.Prompt))
 		return
 	}
 	switch {

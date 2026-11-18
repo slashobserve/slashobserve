@@ -863,6 +863,45 @@ func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForR
 	return i, err
 }
 
+const runsOfMessages = `-- name: RunsOfMessages :many
+SELECT DISTINCT ON (thread_message_id) thread_message_id, id, status, assigned_kind
+FROM agent_requests
+WHERE thread_message_id = ANY($1::uuid[])
+ORDER BY thread_message_id, created_at DESC, id DESC
+`
+
+type RunsOfMessagesRow struct {
+	ThreadMessageID pgtype.UUID
+	ID              pgtype.UUID
+	Status          string
+	AssignedKind    string
+}
+
+func (q *Queries) RunsOfMessages(ctx context.Context, messageIds []pgtype.UUID) ([]RunsOfMessagesRow, error) {
+	rows, err := q.db.Query(ctx, runsOfMessages, messageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunsOfMessagesRow
+	for rows.Next() {
+		var i RunsOfMessagesRow
+		if err := rows.Scan(
+			&i.ThreadMessageID,
+			&i.ID,
+			&i.Status,
+			&i.AssignedKind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setThreadStatus = `-- name: SetThreadStatus :one
 UPDATE threads
 SET status = $1::text,

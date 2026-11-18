@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -308,11 +309,29 @@ type Revision struct {
 }
 
 func CleanPrompt(s string) (string, bool) {
-	s = strings.TrimSpace(s)
-	if n := utf8.RuneCountInString(s); n < 1 || n > MaxPromptRunes || !utf8.ValidString(s) || strings.ContainsFunc(s, forbiddenRune) {
+	if PromptProblem("text", s) != "" {
 		return "", false
 	}
-	return s, true
+	return strings.TrimSpace(s), true
+}
+
+func PromptProblem(field, s string) string {
+	s = strings.TrimSpace(s)
+	n := utf8.RuneCountInString(s)
+	switch {
+	case !utf8.ValidString(s):
+		return field + " is not valid UTF-8; send plain text"
+	case n < 1:
+		return field + " is empty; write 1 to " + strconv.Itoa(MaxPromptRunes) + " characters"
+	case n > MaxPromptRunes:
+		return fmt.Sprintf("%s is %d characters; the limit is %d, so shorten it", field, n, MaxPromptRunes)
+	}
+	for _, r := range s {
+		if forbiddenRune(r) {
+			return fmt.Sprintf("%s contains the control or bidirectional override character U+%04X; remove it", field, r)
+		}
+	}
+	return ""
 }
 
 func Kind(source Source) string {

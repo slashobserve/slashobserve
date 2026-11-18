@@ -67,9 +67,14 @@ func TestMentionablePeopleOfARestrictedTargetAreItsGroupAndAdmins(t *testing.T) 
 		t.Fatalf("people = %s, err %v", names(people), err)
 	}
 
-	_, message := r.open(t, admin, OpenInput{Target: tg, Body: "look @[x](user:" + insider.String() + ") @[y](user:" + r.createUserID(t, "Late", "late@example.com") + ")"})
+	_, message := r.open(t, admin, OpenInput{Target: tg, Body: "look @[x](user:" + insider.String() + ")"})
 	if len(message.Mentions) != 1 || message.Mentions[0].UserID != insider {
 		t.Fatalf("recorded mentions = %+v, want only the insider", message.Mentions)
+	}
+	_, _, err = r.service.Open(t.Context(), admin, OpenInput{Target: tg, Body: "look @[y](user:" + r.createUserID(t, "Late", "late@example.com") + ")"}, nil)
+	var invalid *InvalidInputError
+	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention {
+		t.Fatalf("a person who cannot see the target: err = %v, want invalid_mention", err)
 	}
 }
 

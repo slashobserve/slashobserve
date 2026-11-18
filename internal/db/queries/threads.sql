@@ -180,3 +180,9 @@ DELETE FROM threads WHERE id = @id;
 SELECT DISTINCT thread_id FROM thread_messages
 WHERE thread_id = ANY(@thread_ids::uuid[])
   AND NOT (author_kind = @author_kind::text AND author_id = @author_id::uuid);
+
+-- name: RunsOfMessages :many
+SELECT DISTINCT ON (thread_message_id) thread_message_id, id, status, assigned_kind
+FROM agent_requests
+WHERE thread_message_id = ANY(@message_ids::uuid[])
+ORDER BY thread_message_id, created_at DESC, id DESC;

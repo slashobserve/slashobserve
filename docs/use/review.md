@@ -72,12 +72,12 @@ Editing never reopens a resolved thread and never changes who wrote the comment.
 
 The **Mention** box, or typing `@` after a space, lists the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the thread is about; typing a name or an email narrows the people.
 A picked person shows in the box as `@Name`, and the comment is stored and shown with the mention.
-Someone who cannot see the dashboard, observation or proposal is not offered, and a mention of one is not recorded.
+Someone who cannot see the dashboard, observation or proposal is not offered, and mentioning one is refused with 422 `invalid_mention`, as is a person who does not exist.
 Choosing one inserts it at the cursor.
 The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.
 
 A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](grant:<id>)`; both show as "@Name" once the comment is saved, using the name the server has.
-A comment can mention at most 20 people and agents.
+A comment can contain at most 20 mentions, and a repeated mention counts each time.
 A mention of a person is recorded, appears in the [activity log](activity.md) and reaches that person's [Inbox](inbox.md).
 A mention of an agent starts a run only when you send the comment from a composer that asks the agent, as described next.
 

@@ -469,6 +469,10 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	runs, err := runsOf(ctx, s.db.Queries(), ids)
+	if err != nil {
+		return Page{}, err
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
@@ -478,6 +482,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
 		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && others[r.Thread.ID])
 		message.ReplyTo = quotes[r.ThreadMessage.ID]
+		message.Run = runs[r.ThreadMessage.ID]
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
@@ -519,7 +524,25 @@ func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.
 	if err != nil {
 		return Message{}, err
 	}
-	return s.presentMessage(ctx, row, mentions, by, sc)
+	message, err := s.presentMessage(ctx, row, mentions, by, sc)
+	if err != nil {
+		return Message{}, err
+	}
+	runs, err := runsOf(ctx, s.db.Queries(), []pgtype.UUID{row.ID})
+	message.Run = runs[row.ID]
+	return message, err
+}
+
+func runsOf(ctx context.Context, q *dbsqlc.Queries, messageIDs []pgtype.UUID) (map[pgtype.UUID]*StartedRun, error) {
+	rows, err := q.RunsOfMessages(ctx, messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list the runs of messages: %w", err)
+	}
+	runs := make(map[pgtype.UUID]*StartedRun, len(rows))
+	for _, r := range rows {
+		runs[r.ThreadMessageID] = &StartedRun{ID: r.ID.String(), Status: r.Status, AssignedKind: r.AssignedKind}
+	}
+	return runs, nil
 }
 
 func (s *Service) writableThread(ctx context.Context, by auth.Principal, id pgtype.UUID) (dbsqlc.Thread, scope, error) {
@@ -774,7 +797,7 @@ func checkPanelID(panelID string) error {
 func checkBody(body string) (string, []Mention, error) {
 	cleaned, ok := revisions.CleanPrompt(body)
 	if !ok {
-		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: fmt.Sprintf("body must be 1 to %d characters without control or bidirectional override characters", maxBodyRunes)}
+		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: revisions.PromptProblem("body", body)}
 	}
 	mentions, err := ParseMentions(cleaned)
 	if err != nil {
@@ -814,7 +837,7 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 		default:
 			name, ok := names[m.UserID]
 			if !ok {
-				continue
+				return nil, errInvalidPerson
 			}
 			m.Name = name
 			params.UserID, params.Name = m.UserID, name

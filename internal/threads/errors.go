@@ -17,6 +17,8 @@ var (
 
 var errInvalidMention = &InvalidInputError{Code: CodeInvalidMention, Message: "you can mention only your own connected agents and service accounts that take runs"}
 
+var errInvalidPerson = &InvalidInputError{Code: CodeInvalidMention, Message: "a mentioned person does not exist or cannot see this; remove the mention or pick someone from the mentionable people"}
+
 var (
 	errInvalidBlock   = &InvalidInputError{Code: CodeInvalidBlock, Message: "block_id must be a block of this observation"}
 	errInvalidReplyTo = &InvalidInputError{Code: CodeInvalidReplyTo, Message: "reply_to_id must be a message in this thread"}

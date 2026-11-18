@@ -106,7 +106,7 @@ func (s *Service) createRevision(c *gin.Context) {
 	}
 	prompt, ok := CleanPrompt(*req.Prompt)
 	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", PromptProblem("prompt", *req.Prompt))
 		return
 	}
 	if *req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32 {

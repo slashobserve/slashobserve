@@ -406,6 +406,9 @@ func newMessageJSON(m Message) messageJSON {
 		CanDelete: m.CanDelete,
 		BlockID:   httpapi.OptionalString(m.BlockID),
 	}
+	if m.Run != nil {
+		out.Run = &startedRunJSON{ID: m.Run.ID, Status: m.Run.Status, AssignedKind: m.Run.AssignedKind}
+	}
 	if m.ReplyTo != nil {
 		out.ReplyTo = &replyToJSON{ID: m.ReplyTo.ID, Actor: m.ReplyTo.Author.JSON(), Excerpt: m.ReplyTo.Excerpt}
 	}

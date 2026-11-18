@@ -49,6 +49,7 @@ type Message struct {
 	CanDelete   bool
 	BlockID     string
 	ReplyTo     *ReplyTo
+	Run         *StartedRun
 }
 
 type ReplyTo struct {
