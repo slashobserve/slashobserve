@@ -63,6 +63,7 @@ import {
 } from "@/panels/traces/traces-panel"
 import type { DataPanel } from "@/spec"
 
+import { AddToDashboardAction } from "./add-to-dashboard-action"
 import { AddToObservationAction } from "./add-to-observation-action"
 import { wholeTrace, type Zoom } from "./minimap"
 import { TraceMinimap } from "./minimap.tsx"
@@ -215,7 +216,7 @@ function TraceForId({ id }: { id: string }) {
 type PageActions = { time: ReactNode; share: ReactNode }
 type TraceActions = {
   logs: ReactNode
-  observation: ReactNode
+  keep: ReactNode
   download: ReactNode
 }
 
@@ -263,7 +264,7 @@ function TraceHeader({
       <TopRowActions>
         {actions.time}
         {traceActions?.logs}
-        {traceActions?.observation}
+        {traceActions?.keep}
         {actions.share}
         {traceActions?.download}
       </TopRowActions>
@@ -708,6 +709,14 @@ function TraceExplorer({
     }
     onOpenIdChange(next)
   }
+  const keptPanel = tracesPanelFor({
+    id: "trace",
+    title: `Trace ${id.slice(0, 8)}`,
+    datasource: datasource.uid,
+    type: datasource.type,
+    query: traceByIdQuery(datasource.type, id),
+    y: 0,
+  })
   const openLogs = () => {
     onOpenIdChange(null)
     setLogsOpen(true)
@@ -776,19 +785,15 @@ function TraceExplorer({
               Logs for this trace
             </Button>
           ),
-          observation: (
-            <AddToObservationAction
-              size="default"
-              range={range}
-              panel={tracesPanelFor({
-                id: "trace",
-                title: `Trace ${id.slice(0, 8)}`,
-                datasource: datasource.uid,
-                type: datasource.type,
-                query: traceByIdQuery(datasource.type, id),
-                y: 0,
-              })}
-            />
+          keep: (
+            <>
+              <AddToDashboardAction size="default" panel={keptPanel} />
+              <AddToObservationAction
+                size="default"
+                range={range}
+                panel={keptPanel}
+              />
+            </>
           ),
           download: (
             <Button

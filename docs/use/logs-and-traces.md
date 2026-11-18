@@ -391,7 +391,7 @@ When Tempo did not search every block, a banner says that some spans may be miss
 **Download JSON** and **Copy link** are icon buttons in the top bar, beside the time range and **Logs for this trace**.
 **Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
 **Copy link** copies the address of the trace with its datasource, time range and open span.
-**Add to observation**, in the top bar beside **Logs for this trace**, copies the trace into an [observation](observations.md) as a traces panel, with the datasource, the trace id and the time range the page shows.
+**Add to dashboard** and **Add to observation**, in the top bar beside **Logs for this trace**, keep the trace: the first adds a full-width traces panel for it under the last row of a dashboard you can edit, with the datasource and the trace id, and the second copies the trace into an [observation](observations.md) as a traces panel, with the datasource, the trace id and the time range the page shows.
 The source name in the title opens the trace search on the same source at `/traces/<datasource uid>`, and a trace opened without a known source shows **Search traces** in the top bar instead.
 
 ## Trace search
@@ -430,7 +430,7 @@ While that answer is loading, or when it fails, the line and the ticks fall back
 The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
 Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line, **Spans**, **Errors** and **Started**, which opens the trace.
 **Columns** hides a column.
-**Add to observation**, beside **Columns**, copies the search you ran into an [observation](observations.md) as a traces panel over the time range the page shows: the TraceQL on Tempo, or on ClickHouse a query for the spans of the latest matching trace.
+**Add to dashboard**, beside **Columns**, adds a full-width traces panel with the same query under the last row of a dashboard you can edit, as it does for logs; **Add to observation** copies the search you ran into an [observation](observations.md) as a traces panel over the time range the page shows: the TraceQL on Tempo, or on ClickHouse a query for the spans of the latest matching trace.
 **Errors** reads OK, or Failed with the number of error spans.
 **Spans** and **Errors** show only when every row carries the count.
 

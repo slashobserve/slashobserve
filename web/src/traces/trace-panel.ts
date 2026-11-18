@@ -49,3 +49,15 @@ export function tracePanelTitle(search: TraceSearch): string {
   const named = [search.service, search.span].filter(Boolean).join(" ")
   return named === "" ? "Traces" : `Traces: ${named}`
 }
+
+export function placedPanel(
+  panel: DataPanel,
+  slot: { id: string; title: string; y: number }
+): DataPanel {
+  return {
+    ...panel,
+    id: slot.id,
+    title: slot.title,
+    gridPos: { ...panel.gridPos, y: slot.y },
+  }
+}

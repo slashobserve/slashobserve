@@ -75,6 +75,7 @@ import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { AddToDashboardAction } from "./add-to-dashboard-action"
 import { AddToObservationAction } from "./add-to-observation-action"
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
@@ -934,6 +935,14 @@ function SelectableTraceTable({
   fitWindow: boolean
 }) {
   const range = tracesTimeRange(search)
+  const panel = tracesPanelFor({
+    id: "traces",
+    title: tracePanelTitle(search),
+    datasource: datasource.uid,
+    type: datasource.type,
+    query: tracePanelQuery(datasource.type, search),
+    y: 0,
+  })
   const [selection, setSelection] = useState<Selection | null>(null)
 
   function keep(next: Partial<TraceSearch>) {
@@ -950,17 +959,10 @@ function SelectableTraceTable({
       p95Label={label}
       fitWindow={fitWindow}
       headerActions={
-        <AddToObservationAction
-          range={range}
-          panel={tracesPanelFor({
-            id: "traces",
-            title: tracePanelTitle(search),
-            datasource: datasource.uid,
-            type: datasource.type,
-            query: tracePanelQuery(datasource.type, search),
-            y: 0,
-          })}
-        />
+        <>
+          <AddToDashboardAction panel={panel} />
+          <AddToObservationAction range={range} panel={panel} />
+        </>
       }
       footerNote={
         p95 === undefined || p95 === null

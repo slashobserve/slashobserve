@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  placedPanel,
   traceByIdQuery,
   tracePanelQuery,
   tracePanelTitle,
@@ -88,5 +89,26 @@ describe("tracePanelTitle", () => {
       "Traces: checkout POST /pay"
     )
     expect(tracePanelTitle({})).toBe("Traces")
+  })
+})
+
+describe("placedPanel", () => {
+  it("takes the id, title and row the dashboard gives and keeps the query", () => {
+    const panel = tracesPanelFor({
+      id: "traces",
+      title: "Slow",
+      datasource: "tempo",
+      type: "tempo",
+      query: "{ }",
+      y: 0,
+    })
+    const placed = placedPanel(panel, { id: "traces-2", title: "Mine", y: 14 })
+    expect(placed).toEqual({
+      ...panel,
+      id: "traces-2",
+      title: "Mine",
+      gridPos: { ...panel.gridPos, y: 14 },
+    })
+    expect(panel.id).toBe("traces")
   })
 })
