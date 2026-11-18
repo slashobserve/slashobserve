@@ -46,10 +46,16 @@ A block someone requested also shows in the inbox of the person who created the 
 
 ### Open an observation
 
-**Observations** in the sidebar opens the list at `/observations`, with each observation's title, state, who opened it and when it last changed, most recently changed first within its folder.
-The list is grouped under its folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
-A folder with no observation in the current tab is not listed, and a folder's header counts its observations only once every page is loaded.
-The **Open**, **Resolved** and **All** tabs above the list choose which observations show, Open by default, and **Load more** fetches the next page, which joins the folders already shown.
+**Observations** in the sidebar opens the list at `/observations`, one row for each observation with its title, folder, state, who opened it and when it last changed, most recently changed first.
+The **Open**, **Resolved** and **All** tabs above the list choose which observations show, Open by default.
+The search box keeps the observations whose title contains the text, **Opened by me** keeps the ones you started, and the sort menu orders by last change, creation time or title, in either direction.
+Below the list, **Per page** chooses 20, 50 or 100 rows, and the page numbers with **Previous** and **Next** move through the result; the header says which rows show, as "21-40 of 59".
+
+The tab, search, filter, sort, page and page size are in the address, so a link reopens the same view.
+The checkbox on a row selects it, and the one in the header selects every row on the page.
+With rows selected, **Resolve** closes them all with one summary and **Delete** removes them; each counts only the rows you may resolve or delete.
+
+The **...** menu on a row offers **Resolve**, **Reopen** and **Delete** for that row when you may do them.
 Under **Observations** in the sidebar, up to five open observations are listed, indented, each with a green dot and in bold while it has unread inbox items, and **All observations** follows when more are open.
 On the icon rail, a dot on **Observations** shows that some are open.
 
@@ -175,6 +181,7 @@ Searching the workspace finds observations too (see [Search](search.md)).
 Deleting removes the observation for everyone, with its blocks, snapshots, discussion and RCA revisions, and the public links of those revisions stop working.
 It cannot be undone.
 The person who started the observation and can edit it may delete it, and so may anyone who manages its folder.
+In the web app it is **More actions**, then **Delete observation**, on the page, or **Delete** on the list, and it asks you to confirm first.
 Over HTTP it is `DELETE /api/v1/observations/{id}`, which answers 204, and in the CLI `observe o delete <observation-id> --yes`.
 The [activity](activity.md) log keeps an `observation.deleted` event with the title.
 

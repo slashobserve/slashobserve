@@ -13,6 +13,7 @@ import {
   observationKeys,
   threadKeys,
   type ObservationListFilters,
+  type ObservationPageParams,
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { touchesObservation } from "@/live/activity-match"
@@ -111,6 +112,32 @@ export function observationsInfiniteQuery(
         .then(unwrap),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
+  })
+}
+
+export function observationsPageQuery(params: ObservationPageParams) {
+  return queryOptions({
+    queryKey: observationKeys.page(params),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/observations", {
+          params: {
+            query: {
+              limit: params.size,
+              offset: (params.page - 1) * params.size,
+              sort: params.sort,
+              order: params.order,
+              ...(params.state === undefined ? {} : { state: params.state }),
+              ...(params.q === undefined || params.q === ""
+                ? {}
+                : { q: params.q }),
+              ...(params.mine === true ? { created_by: "me" as const } : {}),
+            },
+          },
+          signal,
+        })
+        .then(unwrap),
+    placeholderData: (previous) => previous,
   })
 }
 
@@ -228,6 +255,53 @@ export function useReopenObservation(id: string) {
       .POST("/observations/{id}/reopen", { params: { path: { id } } })
       .then(unwrap)
   )
+}
+
+export function useDeleteObservation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .DELETE("/observations/{id}", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: (_, id) => {
+      queryClient.removeQueries({
+        queryKey: observationKeys.one(id),
+        exact: true,
+      })
+    },
+    onSettled: () => refreshLists(queryClient),
+  })
+}
+
+export function useResolveObservations() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: ({ id, summary }: { id: string; summary: string }) =>
+      api
+        .POST("/observations/{id}/resolve", {
+          params: { path: { id } },
+          body: { summary },
+        })
+        .then(unwrap),
+    onSuccess: (envelope, { id }) => writeEnvelope(queryClient, id, envelope),
+    onSettled: () => refreshLists(queryClient),
+  })
+}
+
+export function useReopenObservationRow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .POST("/observations/{id}/reopen", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: (envelope, id) => writeEnvelope(queryClient, id, envelope),
+    onSettled: () => refreshLists(queryClient),
+  })
 }
 
 function useBlockMutation<Input, Result>(

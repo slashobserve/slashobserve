@@ -6,7 +6,8 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { LinkIcon, MoreHorizontalIcon } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import { LinkIcon, MoreHorizontalIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
@@ -24,6 +25,7 @@ import { observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { DeleteObservationsDialog } from "./delete-dialog"
 import { blockWriteProblem } from "./errors"
 import { discussionToggleLabel } from "./discussion-changes"
 import {
@@ -168,6 +170,9 @@ export function ObservationHeader({
 }: Props) {
   const { observation, folder } = envelope
   const canMove = observation.allowed_actions.includes("move")
+  const canDelete = observation.allowed_actions.includes("delete")
+  const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <>
@@ -189,7 +194,7 @@ export function ObservationHeader({
           pressed={shown}
           onToggle={onToggle}
         />
-        {canMove ? (
+        {canMove || canDelete ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -203,14 +208,31 @@ export function ObservationHeader({
             >
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onMove}>
-                Move to folder
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="min-w-max">
+              {canMove ? (
+                <DropdownMenuItem onClick={onMove}>
+                  Move to folder
+                </DropdownMenuItem>
+              ) : null}
+              {canDelete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleting(true)}
+                >
+                  <Trash2Icon aria-hidden="true" />
+                  Delete observation
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
       </TopRowActions>
+      <DeleteObservationsDialog
+        targets={[{ id: observation.id, title: observation.title }]}
+        open={deleting}
+        onOpenChange={setDeleting}
+        onDeleted={() => void navigate({ to: "/observations" })}
+      />
       <div className="flex flex-col gap-3">
         <EditableTitle observation={observation} />
         <StateControl observation={observation} folder={folder} />

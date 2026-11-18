@@ -381,9 +381,21 @@ export type ObservationListFilters = {
   folderId?: string
 }
 
+export type ObservationPageParams = {
+  state?: "open" | "resolved"
+  q?: string
+  mine?: boolean
+  sort: "updated" | "created" | "title"
+  order: "asc" | "desc"
+  page: number
+  size: number
+}
+
 export const observationKeys = {
   all: ["observations"] as const,
   lists: () => ["observations", "list"] as const,
+  page: (params: ObservationPageParams) =>
+    ["observations", "list", "page", params] as const,
   list: (filters: ObservationListFilters, limit: number) =>
     ["observations", "list", filters, limit] as const,
   one: (id: string) => ["observations", id] as const,
