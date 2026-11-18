@@ -28,6 +28,7 @@ function example(text: string, dashboardId?: string): Example {
 export function examplePrompts(input: {
   types: readonly string[]
   dashboards: readonly ExampleDashboard[]
+  canBuild: boolean
 }): Example[] {
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
@@ -56,7 +57,7 @@ export function examplePrompts(input: {
     questions.push(example("Which routes are slowest right now?"))
   }
   return [
-    ...builds.slice(0, maxBuildExamples),
+    ...(input.canBuild ? builds.slice(0, maxBuildExamples) : []),
     ...questions.slice(0, maxQuestionExamples),
   ]
 }

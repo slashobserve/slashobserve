@@ -5,8 +5,14 @@ import { examplePrompts, type ExampleDashboard } from "./examples"
 const errorsQuestion = "Which services had the most errors in the last hour?"
 const slowestQuestion = "Which routes are slowest right now?"
 
-function labels(types: string[], dashboards: ExampleDashboard[] = []) {
-  return examplePrompts({ types, dashboards }).map((example) => example.label)
+function labels(
+  types: string[],
+  dashboards: ExampleDashboard[] = [],
+  canBuild = true
+) {
+  return examplePrompts({ types, dashboards, canBuild }).map(
+    (example) => example.label
+  )
 }
 
 describe("examplePrompts", () => {
@@ -64,6 +70,7 @@ describe("examplePrompts", () => {
 
   test("starts with a revision of the first dashboard when there is one", () => {
     const [first] = examplePrompts({
+      canBuild: true,
       types: ["prometheus"],
       dashboards: [
         { id: "d1", title: "Checkout", canEdit: true },
@@ -116,6 +123,13 @@ describe("examplePrompts", () => {
       "Add a latency row to Checkout",
       "Service health by pod, last 6h",
       "Error logs by service, last hour",
+      errorsQuestion,
+      slowestQuestion,
+    ])
+  })
+
+  test("a person who cannot edit is offered only questions", () => {
+    expect(labels(["prometheus", "loki", "tempo"], [], false)).toEqual([
       errorsQuestion,
       slowestQuestion,
     ])

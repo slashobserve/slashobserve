@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
@@ -8,6 +9,8 @@ import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
+import { roleAtLeast } from "@/lib/roles"
+
 import { examplePrompts, noDashboards } from "./examples"
 import { RecentChats } from "./recent-chats"
 
@@ -17,10 +20,12 @@ export function ChatHome() {
   const dashboards = useQuery(dashboardTitlesQuery())
   const { send, pending } = useSendExample()
   const openSent = useOpenSent()
+  const { principal } = useRouteContext({ from: "/_authed" })
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
+    canBuild: roleAtLeast(principal.role, "editor"),
   })
   const agentReady = !agent.isPending && agent.data?.available !== false
   const agentOff = agent.data?.available === false
