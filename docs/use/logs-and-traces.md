@@ -475,6 +475,7 @@ For traces it fills the trace search fields: service, span name, minimum and max
 On Tempo it writes TraceQL instead when the question needs more than those fields.
 
 The server first reads the datasource's labels, attributes or columns and some of their values, so the query names real ones.
+On Loki it also offers the values of `detected_level`, the structured metadata level that Loki adds, when no level label is listed, so a question about errors filters after the selector with `| detected_level="error"`.
 Then it asks the model once.
 It checks the answer with the query lint and one sample run over the last 15 minutes of the time range, and never runs the full query.
 When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
