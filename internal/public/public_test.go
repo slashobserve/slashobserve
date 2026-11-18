@@ -312,3 +312,22 @@ func TestExpiredLinksDoNotCountTowardTheCap(t *testing.T) {
 		t.Fatalf("after one link expired: %v", err)
 	}
 }
+
+func TestAnUnexpiredLinkStaysListedBehindManyExpiredOnes(t *testing.T) {
+	r := newRig(t)
+	permanent := r.create(t, CreateInput{Mode: ModeFrozen})
+	clock := time.Now()
+	r.service.now = func() time.Time { return clock }
+	for range 105 {
+		expires := clock.Add(time.Hour)
+		r.create(t, CreateInput{Mode: ModeFrozen, ExpiresAt: &expires})
+		clock = clock.Add(2 * time.Hour)
+	}
+	list, err := r.service.List(t.Context(), admin, r.shared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 || list[0].ID != permanent.Link.ID || list[0].Expired {
+		t.Fatalf("the live link is not first in the list of %d", len(list))
+	}
+}

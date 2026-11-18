@@ -270,7 +270,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtyp
 		return nil, err
 	}
 	usesUser := queryproxy.DashboardUsesUser(d)
-	rows, err := s.db.Queries().ListPublicLinks(ctx, dashboardID)
+	rows, err := s.db.Queries().ListPublicLinks(ctx, dbsqlc.ListPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 	if err != nil {
 		return nil, err
 	}

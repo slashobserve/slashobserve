@@ -7,7 +7,7 @@ RETURNING id, dashboard_id, display_prefix, label, variables, selections, expire
 SELECT id, dashboard_id, display_prefix, label, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
 FROM public_links
 WHERE dashboard_id = @dashboard_id
-ORDER BY created_at DESC, id DESC
+ORDER BY (expires_at IS NOT NULL AND expires_at <= @now::timestamptz), created_at DESC, id DESC
 LIMIT 100;
 
 -- name: CountPublicLinks :one

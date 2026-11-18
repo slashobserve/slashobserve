@@ -199,9 +199,14 @@ const listPublicLinks = `-- name: ListPublicLinks :many
 SELECT id, dashboard_id, display_prefix, label, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
 FROM public_links
 WHERE dashboard_id = $1
-ORDER BY created_at DESC, id DESC
+ORDER BY (expires_at IS NOT NULL AND expires_at <= $2::timestamptz), created_at DESC, id DESC
 LIMIT 100
 `
+
+type ListPublicLinksParams struct {
+	DashboardID pgtype.UUID
+	Now         pgtype.Timestamptz
+}
 
 type ListPublicLinksRow struct {
 	ID            pgtype.UUID
@@ -218,8 +223,8 @@ type ListPublicLinksRow struct {
 	LastViewedAt  pgtype.Timestamptz
 }
 
-func (q *Queries) ListPublicLinks(ctx context.Context, dashboardID pgtype.UUID) ([]ListPublicLinksRow, error) {
-	rows, err := q.db.Query(ctx, listPublicLinks, dashboardID)
+func (q *Queries) ListPublicLinks(ctx context.Context, arg ListPublicLinksParams) ([]ListPublicLinksRow, error) {
+	rows, err := q.db.Query(ctx, listPublicLinks, arg.DashboardID, arg.Now)
 	if err != nil {
 		return nil, err
 	}
