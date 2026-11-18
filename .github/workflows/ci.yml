@@ -286,6 +286,7 @@ jobs:
         with:
           server-tag: slashobserve-e2e:ci
           shop-tag: slashobserve-demo-shop:ci
+          warm: make e2e-warm
 
       - name: API smoke suite
         run: make e2e
@@ -325,6 +326,7 @@ jobs:
         with:
           server-tag: slashobserve-e2e:ci
           shop-tag: slashobserve-demo-shop:ci
+          warm: make e2e-warm
 
       - name: Read the Playwright version
         id: playwright
@@ -382,6 +384,7 @@ jobs:
         with:
           server-tag: slashobserve-evals:ci
           shop-tag: slashobserve-evals-shop:ci
+          warm: scripts/evals-stack.sh warm replay
 
       - name: Start the replay stack
         run: scripts/evals-stack.sh up replay
