@@ -978,7 +978,7 @@ export interface paths {
         };
         /**
          * List the people who can be mentioned on a target.
-         * @description Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them. Seeing follows the target's folder, so a person without access to it is never listed, and mentioning one answers 422 `invalid_mention`. A person you mention appears in their Inbox as a `mention`. The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.
+         * @description Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them, with `more` true when others match too. Seeing follows the target's folder, so a person without access to it is never listed, and mentioning one answers 422 `invalid_mention`. A person you mention appears in their Inbox as a `mention`. The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.
          */
         get: operations["listMentionablePeople"];
         put?: never;
@@ -4615,6 +4615,8 @@ export interface components {
             can_comment: boolean;
         };
         MentionablePeople: {
+            /** @description True when more people match than `limit` returned; narrow `q` to reach them. */
+            more: boolean;
             people: {
                 /** Format: uuid */
                 id: string;

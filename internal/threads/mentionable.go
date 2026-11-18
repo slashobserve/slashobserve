@@ -33,13 +33,13 @@ func likePattern(term string) string {
 	return "%" + likeEscaper.Replace(strings.TrimSpace(term)) + "%"
 }
 
-func (s *Service) MentionablePeople(ctx context.Context, by auth.Principal, t Target, term string, limit int) ([]Person, error) {
+func (s *Service) MentionablePeople(ctx context.Context, by auth.Principal, t Target, term string, limit int) ([]Person, bool, error) {
 	sc, err := s.scopeOf(ctx, by, t)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !sc.abilities.Comment {
-		return nil, folders.ErrForbidden
+		return nil, false, folders.ErrForbidden
 	}
 	self, err := db.ParseUUID(by.ID)
 	if err != nil {
@@ -47,22 +47,26 @@ func (s *Service) MentionablePeople(ctx context.Context, by auth.Principal, t Ta
 	}
 	rows, err := s.db.Queries().MentionCandidates(ctx, dbsqlc.MentionCandidatesParams{Self: self, Pattern: likePattern(term), RowLimit: mentionableScanRows})
 	if err != nil {
-		return nil, fmt.Errorf("list mention candidates: %w", err)
+		return nil, false, fmt.Errorf("list mention candidates: %w", err)
 	}
 	people := []Person{}
+	want := min(limit, maxMentionablePeople)
 	for _, row := range rows {
-		if len(people) == min(limit, maxMentionablePeople) {
+		if len(people) > want {
 			break
 		}
 		visible, err := s.canView(ctx, userPrincipal(row.ID, row.Name, row.Email, row.Role, row.Groups), sc.target)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if visible {
 			people = append(people, Person{ID: row.ID.String(), Name: cmp.Or(row.Name, row.Email), Email: row.Email})
 		}
 	}
-	return people, nil
+	if len(people) > want {
+		return people[:want], true, nil
+	}
+	return people, false, nil
 }
 
 func (s *Service) canView(ctx context.Context, p auth.Principal, t Target) (bool, error) {

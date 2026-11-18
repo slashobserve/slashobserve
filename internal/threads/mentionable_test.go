@@ -32,20 +32,20 @@ func TestMentionablePeopleAreThoseWhoCanSeeTheTarget(t *testing.T) {
 	r.createUser(t, "", "nameless@example.com")
 	tg := target(KindDashboard, dash)
 
-	all, err := r.service.MentionablePeople(t.Context(), testUser, tg, "", 20)
+	all, _, err := r.service.MentionablePeople(t.Context(), testUser, tg, "", 20)
 	if err != nil || names(all) != "Amy Ames,nameless@example.com,Zed Zimmer" {
 		t.Fatalf("everyone = %s, err %v", names(all), err)
 	}
-	if byName, err := r.service.MentionablePeople(t.Context(), testUser, tg, "ZIM", 20); err != nil || names(byName) != "Zed Zimmer" {
+	if byName, _, err := r.service.MentionablePeople(t.Context(), testUser, tg, "ZIM", 20); err != nil || names(byName) != "Zed Zimmer" {
 		t.Fatalf("by name = %s, err %v", names(byName), err)
 	}
-	if byEmail, err := r.service.MentionablePeople(t.Context(), testUser, tg, "amy@", 20); err != nil || names(byEmail) != "Amy Ames" {
+	if byEmail, _, err := r.service.MentionablePeople(t.Context(), testUser, tg, "amy@", 20); err != nil || names(byEmail) != "Amy Ames" {
 		t.Fatalf("by email = %s, err %v", names(byEmail), err)
 	}
-	if wildcard, err := r.service.MentionablePeople(t.Context(), testUser, tg, "%", 20); err != nil || len(wildcard) != 0 {
+	if wildcard, _, err := r.service.MentionablePeople(t.Context(), testUser, tg, "%", 20); err != nil || len(wildcard) != 0 {
 		t.Fatalf("a literal percent sign must match nothing: %s, err %v", names(wildcard), err)
 	}
-	if capped, err := r.service.MentionablePeople(t.Context(), testUser, tg, "", 2); err != nil || len(capped) != 2 {
+	if capped, _, err := r.service.MentionablePeople(t.Context(), testUser, tg, "", 2); err != nil || len(capped) != 2 {
 		t.Fatalf("limit 2 = %s, err %v", names(capped), err)
 	}
 }
@@ -62,7 +62,7 @@ func TestMentionablePeopleOfARestrictedTargetAreItsGroupAndAdmins(t *testing.T) 
 	r.db.Exec(t, `UPDATE users SET role = 'admin' WHERE id = $1`, boss)
 	tg := target(KindDashboard, dash)
 
-	people, err := r.service.MentionablePeople(t.Context(), admin, tg, "", 20)
+	people, _, err := r.service.MentionablePeople(t.Context(), admin, tg, "", 20)
 	if err != nil || names(people) != "Boss,Insider" {
 		t.Fatalf("people = %s, err %v", names(people), err)
 	}
@@ -82,12 +82,12 @@ func TestMentionablePeopleNeedTheCommentAbilityAndAVisibleTarget(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t, "rps")
 	tg := target(KindDashboard, dash)
-	if _, err := r.service.MentionablePeople(t.Context(), viewer, tg, "", 20); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.MentionablePeople(t.Context(), viewer, tg, "", 20); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a viewer: err = %v, want folders.ErrForbidden", err)
 	}
 	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
 	foldertest.Move(t, r.db, dash, restricted)
-	if _, err := r.service.MentionablePeople(t.Context(), commenter, tg, "", 20); !errors.Is(err, ErrTargetNotFound) {
+	if _, _, err := r.service.MentionablePeople(t.Context(), commenter, tg, "", 20); !errors.Is(err, ErrTargetNotFound) {
 		t.Fatalf("a hidden target: err = %v, want ErrTargetNotFound", err)
 	}
 }

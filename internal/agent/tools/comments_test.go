@@ -23,12 +23,13 @@ const commentRejection = "comment tools are for MCP clients; the server answers 
 
 func commentCalls() map[string]string {
 	return map[string]string{
-		nameListComments:   `{"dashboard_id":"` + dashA + `"}`,
-		nameCreateComment:  `{"target":"dashboard:` + dashA + `","body":"done"}`,
-		nameEditComment:    `{"comment_id":"` + dashB + `","body":"done"}`,
-		nameReopenComment:  `{"comment_id":"` + dashB + `"}`,
-		nameReplyToComment: `{"comment_id":"` + dashB + `","body":"done"}`,
-		nameResolveComment: `{"comment_id":"` + dashB + `","version":1}`,
+		nameListComments:    `{"dashboard_id":"` + dashA + `"}`,
+		nameListMentionable: `{"target":"dashboard:` + dashA + `"}`,
+		nameCreateComment:   `{"target":"dashboard:` + dashA + `","body":"done"}`,
+		nameEditComment:     `{"comment_id":"` + dashB + `","body":"done"}`,
+		nameReopenComment:   `{"comment_id":"` + dashB + `"}`,
+		nameReplyToComment:  `{"comment_id":"` + dashB + `","body":"done"}`,
+		nameResolveComment:  `{"comment_id":"` + dashB + `","version":1}`,
 	}
 }
 
@@ -66,7 +67,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "add_block,claim_run,create_annotation,create_comment,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_observation,get_proposal,get_rca,get_run,get_run_brief,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_folders,list_inbox,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,merge_proposal,move_dashboard,move_observation,pin_dashboard,publish_rca,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,save_search,search_workspace,unpin_dashboard,update_block,update_observation" {
+	if strings.Join(got, ",") != "add_block,claim_run,create_annotation,create_comment,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_observation,get_proposal,get_rca,get_run,get_run_brief,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_folders,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,merge_proposal,move_dashboard,move_observation,pin_dashboard,publish_rca,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,save_search,search_workspace,unpin_dashboard,update_block,update_observation" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -681,5 +682,28 @@ func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testi
 		if m.ID == reply.ID && (m.ReplyTo == nil || m.ReplyTo.ID != opened.ID || m.ReplyTo.Excerpt != "is it the cache?") {
 			t.Errorf("the reply quotes %+v", m.ReplyTo)
 		}
+	}
+}
+
+func TestListMentionablePeopleNeedsTheCommentAbilityAndPagesWithMore(t *testing.T) {
+	r := newAccessRig(t)
+	note, err := r.notes.Create(t.Context(), adminCaller, annotations.CreateInput{Text: "deploy v2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := "annotation:" + note.ID
+	for _, p := range []auth.Principal{adminCaller, editorCaller, commenterCaller} {
+		r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
+	}
+	if res := r.call(t, viewerCaller, nameListMentionable, `{"target":"`+target+`"}`); !res.IsError || errorCode(t, res) != "forbidden_role" {
+		t.Fatalf("a viewer = %s", textOf(t, res))
+	}
+	res := r.call(t, commenterCaller, nameListMentionable, `{"target":"`+target+`","limit":1}`)
+	out, ok := res.Content.(mentionableOut)
+	if !ok || len(out.People) != 1 || !out.More || out.People[0].ID == "" || out.People[0].ID == commenterCaller.ID {
+		t.Fatalf("limit 1 = %s", textOf(t, res))
+	}
+	if res := r.call(t, commenterCaller, nameListMentionable, `{"target":"nope"}`); !res.IsError {
+		t.Fatalf("a bad target = %s", textOf(t, res))
 	}
 }

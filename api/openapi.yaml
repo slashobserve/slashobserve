@@ -2609,8 +2609,11 @@ components:
     MentionablePeople:
       type: object
       additionalProperties: false
-      required: [people]
+      required: [people, more]
       properties:
+        more:
+          type: boolean
+          description: True when more people match than `limit` returned; narrow `q` to reach them.
         people:
           type: array
           items:

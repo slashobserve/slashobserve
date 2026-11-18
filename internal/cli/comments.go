@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -150,6 +151,7 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
 		a.commentsDeleteCommand(),
+		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
 	)
@@ -549,6 +551,63 @@ func (a *app) commentsDeleteCommand() *cobra.Command {
 			})
 		},
 	}
+}
+
+type mentionablePeople struct {
+	People []struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	} `json:"people"`
+	More bool `json:"more"`
+}
+
+func (a *app) commentsPeopleCommand() *cobra.Command {
+	var on, search string
+	var limit int
+	cmd := &cobra.Command{
+		Use:   "people --on <kind>:<id> [--search <text>]",
+		Short: "List the people you can mention on a target",
+		Long:  "people lists the people, other than you, who can see the target, ordered by name, with the mention to paste into a comment.\nA person who cannot see the target is never listed, and mentioning one is refused with invalid_mention.\n--search keeps the people whose name or email contains the text.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			target, err := parseOn(on)
+			if err != nil {
+				return err
+			}
+			query := url.Values{"target": {target}, "q": {search}, "limit": {strconv.Itoa(limit)}}
+			c, err := a.newClient()
+			if err != nil {
+				return err
+			}
+			data, err := c.get(cmd.Context(), "threads/mentionable", query)
+			if err != nil {
+				return err
+			}
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			page, err := decode[mentionablePeople](data)
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(page.People))
+			for _, p := range page.People {
+				rows = append(rows, []string{text(p.Name), text(p.Email), "@[" + text(p.Name) + "](user:" + p.ID + ")"})
+			}
+			out.table([]string{"NAME", "EMAIL", "MENTION"}, rows)
+			if page.More {
+				out.notice("more people match: narrow the list with --search or raise --limit")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&on, "on", "", "the target, as <kind>:<id>")
+	cmd.Flags().StringVar(&search, "search", "", "only people whose name or email contains this text")
+	cmd.Flags().IntVar(&limit, "limit", 20, "people to list, at most 20")
+	return cmd
 }
 
 type resolution struct {

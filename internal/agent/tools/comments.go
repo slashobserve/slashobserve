@@ -36,6 +36,7 @@ func (r *Registry) commentEntries() []entry {
 	return []entry{
 		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.createComment},
 		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.editComment},
+		{Tool{Name: nameListMentionable, Description: descListMentionable, InputSchema: json.RawMessage(schemaListMentionable), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listMentionable},
 		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listComments},
 		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.reopenComment},
 		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.replyToComment},
@@ -541,4 +542,50 @@ func (r *Registry) changeStatus(ctx context.Context, principal auth.Principal, r
 		step = "Comment was already " + status
 	}
 	return success(step, commentChangedOut{Comment: targetedCommentItem(commentRef{thread, first}), Changed: changed}), nil
+}
+
+type mentionablePersonOut struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type mentionableOut struct {
+	People []mentionablePersonOut `json:"people"`
+	More   bool                   `json:"more"`
+}
+
+func (r *Registry) listMentionable(ctx context.Context, input json.RawMessage) (Result, error) {
+	principal, res, ok, err := r.commentCaller(ctx)
+	if err != nil || !ok {
+		return res, err
+	}
+	var in struct {
+		Target string `json:"target"`
+		Query  string `json:"query"`
+		Limit  *int   `json:"limit"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	target, err := threads.ParseTarget(in.Target)
+	if err != nil {
+		return commentFailure(err)
+	}
+	limit, res, ok := boundedInt(in.Limit, 20, 1, 20, "limit")
+	if !ok {
+		return res, nil
+	}
+	if res, ok := checkLength("query", in.Query, maxNameBytes); !ok {
+		return res, nil
+	}
+	people, more, err := r.deps.Threads.MentionablePeople(ctx, principal, target, in.Query, limit)
+	if err != nil {
+		return commentFailure(err)
+	}
+	out := mentionableOut{People: make([]mentionablePersonOut, len(people)), More: more}
+	for i, p := range people {
+		out.People[i] = mentionablePersonOut(p)
+	}
+	return success("Listed "+plural(len(out.People), "person", "people"), out), nil
 }

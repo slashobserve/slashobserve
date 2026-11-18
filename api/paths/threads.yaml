@@ -332,9 +332,12 @@ threads-threadid-reopen:
 threads-mentionable:
   get:
     operationId: listMentionablePeople
+    x-surfaces:
+      mcp: [list_mentionable_people]
+      cli: [observe comments people]
     summary: List the people who can be mentioned on a target.
     description: >-
-      Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them.
+      Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them, with `more` true when others match too.
       Seeing follows the target's folder, so a person without access to it is never listed, and mentioning one answers 422 `invalid_mention`.
       A person you mention appears in their Inbox as a `mention`.
       The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.

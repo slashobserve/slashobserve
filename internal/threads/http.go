@@ -193,7 +193,7 @@ func (th *Threads) mentionable(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be at most 100 characters")
 		return
 	}
-	people, err := th.service.MentionablePeople(c.Request.Context(), httpapi.Caller(c), target, term, limit)
+	people, more, err := th.service.MentionablePeople(c.Request.Context(), httpapi.Caller(c), target, term, limit)
 	if err != nil {
 		th.fail(c, "list mentionable people", err)
 		return
@@ -202,7 +202,7 @@ func (th *Threads) mentionable(c *gin.Context) {
 	for i, p := range people {
 		body[i] = mentionablePersonJSON(p)
 	}
-	c.JSON(http.StatusOK, gin.H{"people": body})
+	c.JSON(http.StatusOK, gin.H{"people": body, "more": more})
 }
 
 func (th *Threads) open(c *gin.Context) {
