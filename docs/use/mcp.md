@@ -158,7 +158,9 @@ Each datasource type answers these discovery tools:
 - Loki: `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`; `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`; and `list_metrics` with a stream selector as `scope`.
 - Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
 - Elasticsearch and OpenSearch: `list_labels` for the fields you can group or filter by, `list_label_values` for a field's top values over the range, `get_schema` for the concrete indices of the index pattern, or with `table` set to an index name every mapped field with its kind, and `sample_rows` for up to 20 of the newest documents of the index pattern with no `table`.
-  `list_metrics` answers an empty list there, with or without `scope`.
+  `list_metrics` with a `scope` answers an empty inventory there.
+
+`list_metrics` without a `scope` on Loki, Tempo, Elasticsearch or OpenSearch, and `get_schema` on Prometheus or Loki, answer `invalid_request` and name the datasource types they read, instead of an empty list or the datasource's own wording.
 
 On Loki each family of a scoped `list_metrics` is a stream label key, and its `series` counts the streams that carry it.
 That inventory, and the empty one of Elasticsearch and OpenSearch, never replaces the one `uncovered` reads.

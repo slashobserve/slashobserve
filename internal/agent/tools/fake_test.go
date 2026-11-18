@@ -99,6 +99,9 @@ func errorCode(t *testing.T, res Result) string {
 	if !res.IsError {
 		t.Fatalf("expected a tool error, got %#v", res.Content)
 	}
+	if missing, ok := res.Content.(versionNotFoundOut); ok {
+		return missing.Code
+	}
 	body, ok := res.Content.(errorBody)
 	if !ok {
 		t.Fatalf("tool error content is %T, want errorBody", res.Content)

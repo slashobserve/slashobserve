@@ -217,7 +217,7 @@ func TestGetPanels(t *testing.T) {
 	})
 	t.Run("an unknown version is not found", func(t *testing.T) {
 		res, _ := rig.as(rig.ctx).run(t, nameGetPanels, `{"dashboard_id":"`+id+`","version":9,"ids":["p1"]}`)
-		if got := errorCodeOf(t, res); got != codeNotFound {
+		if got := errorCodeOf(t, res); got != codeVersionNotFound {
 			t.Errorf("code = %q", got)
 		}
 	})

@@ -90,6 +90,14 @@ func typeOf(inst datasource.Instance) spec.DatasourceType {
 	return spec.DatasourceType(inst.Datasource.Type())
 }
 
+func holdsMetrics(t spec.DatasourceType) bool {
+	return t == spec.Prometheus || t == spec.ClickHouse
+}
+
+func hasTables(t spec.DatasourceType) bool {
+	return t == spec.ClickHouse || t == spec.Tempo || isSearch(t)
+}
+
 func isSearch(t spec.DatasourceType) bool {
 	return t == spec.Elasticsearch || t == spec.OpenSearch
 }
@@ -267,6 +275,9 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	}
 	if in.Scope != "" {
 		return r.listInventory(ctx, in, offset)
+	}
+	if inst, found := r.deps.Datasources.Get(in.Datasource); found && !holdsMetrics(typeOf(inst)) {
+		return invalid("list_metrics works on Prometheus and ClickHouse datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
@@ -528,6 +539,9 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	inst, res, ok := r.instance(in.Datasource)
 	if !ok {
 		return res, nil
+	}
+	if !hasTables(typeOf(inst)) {
+		return invalid("get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	if typeOf(inst) == spec.Tempo {
 		return r.spanSchema(ctx, in, offset)
