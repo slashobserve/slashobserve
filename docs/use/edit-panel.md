@@ -14,6 +14,7 @@ Nothing changes for anyone until you save.
 Open the menu of a panel ("Panel menu: `<title>`") and choose **Edit**.
 The **Activity** card turns into the editor, headed "Edit `<panel title>`" with the line "A draft. Nothing changes until you save."
 The address gains `panel=<id>` and `edit=query`, so you can bookmark it, and **Close panel** or **Back to activity** returns to the timeline.
+When the dashboard and the editor do not fit side by side, the editor opens as a sheet over the bottom of the screen, and on a phone the preview is shorter so the query has room.
 
 **Edit** is missing from the menu, or the editor is read-only, when:
 

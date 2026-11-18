@@ -45,7 +45,9 @@ export type PreviewSectionProps = {
 }
 
 const debounceMs = 600
-const chartHeight = 200
+function chartHeightFor(width: number) {
+  return width < 480 ? 140 : 200
+}
 const noSelections: Selections = {}
 
 function ignoreSelection() {}
@@ -150,6 +152,7 @@ function DataPreview({
   )
   const vars = selections ?? noSelections
   const maxDataPoints = maxDataPointsFor(debounced, width)
+  const chartHeight = chartHeightFor(width)
   const ready = selections !== null && width > 0
 
   const preview = useQuery({
@@ -311,7 +314,7 @@ export function PreviewSection({
         <StaticPanelBody
           panel={draft}
           width={width}
-          height={chartHeight}
+          height={chartHeightFor(width)}
           vars={selections ?? noSelections}
           from={timeRange.from ?? spec.time.from}
           to={timeRange.to ?? spec.time.to}

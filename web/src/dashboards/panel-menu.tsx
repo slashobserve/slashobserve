@@ -323,7 +323,10 @@ export function PanelMenu({
               {item.icon}
               {item.label}
               {item.shortcut ? (
-                <DropdownMenuShortcut aria-hidden="true">
+                <DropdownMenuShortcut
+                  aria-hidden="true"
+                  className="max-sm:hidden pointer-coarse:hidden"
+                >
                   {item.shortcut}
                 </DropdownMenuShortcut>
               ) : null}

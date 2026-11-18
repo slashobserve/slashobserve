@@ -219,6 +219,7 @@ Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
+The panel editor opens as a sheet at the bottom of the screen, and the panel menu does not show keyboard shortcut letters.
 
 ## Connected agents
 
