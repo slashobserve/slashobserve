@@ -283,7 +283,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
-	if messageRow.RunID.Valid || messageRow.AuthorKind != string(by.Kind) || messageRow.AuthorID.String() != by.ID {
+	if !writtenBy(messageRow, by) {
 		return Thread{}, Message{}, false, ErrNotAuthor
 	}
 	if !sc.abilities.Comment {
@@ -329,6 +329,10 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	}
 	thread, err := s.present(ctx, row, sc.abilities.Comment)
 	return thread, message, changed, err
+}
+
+func writtenBy(message dbsqlc.ThreadMessage, by auth.Principal) bool {
+	return !message.RunID.Valid && message.AuthorKind == string(by.Kind) && message.AuthorID.String() == by.ID
 }
 
 func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UUID, status string, resolvedByVersion *int) (Thread, bool, error) {
@@ -780,27 +784,9 @@ func checkBody(body string) (string, []Mention, error) {
 }
 
 func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, on Target, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
-	var userIDs []pgtype.UUID
-	for _, m := range parsed {
-		if m.Kind() == mentionUser {
-			userIDs = append(userIDs, m.UserID)
-		}
-	}
-	names := map[pgtype.UUID]string{}
-	if len(userIDs) > 0 {
-		users, err := q.UserMentionNames(ctx, userIDs)
-		if err != nil {
-			return nil, fmt.Errorf("read mentioned users: %w", err)
-		}
-		for _, u := range users {
-			visible, err := s.canView(ctx, userPrincipal(u.ID, u.Name, u.Email, u.Role, u.Groups), on)
-			if err != nil {
-				return nil, err
-			}
-			if visible {
-				names[u.ID] = capName(cmp.Or(u.Name, u.Email))
-			}
-		}
+	names, err := s.viewableUserNames(ctx, q, on, parsed)
+	if err != nil {
+		return nil, err
 	}
 	recorded := make([]Mention, 0, len(parsed))
 	for _, m := range parsed {
@@ -840,6 +826,32 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 	}
 	sortMentions(recorded)
 	return recorded, nil
+}
+
+func (s *Service) viewableUserNames(ctx context.Context, q *dbsqlc.Queries, on Target, parsed []Mention) (map[pgtype.UUID]string, error) {
+	var userIDs []pgtype.UUID
+	for _, m := range parsed {
+		if m.Kind() == mentionUser {
+			userIDs = append(userIDs, m.UserID)
+		}
+	}
+	names := map[pgtype.UUID]string{}
+	if len(userIDs) > 0 {
+		users, err := q.UserMentionNames(ctx, userIDs)
+		if err != nil {
+			return nil, fmt.Errorf("read mentioned users: %w", err)
+		}
+		for _, u := range users {
+			visible, err := s.canView(ctx, userPrincipal(u.ID, u.Name, u.Email, u.Role, u.Groups), on)
+			if err != nil {
+				return nil, err
+			}
+			if visible {
+				names[u.ID] = capName(cmp.Or(u.Name, u.Email))
+			}
+		}
+	}
+	return names, nil
 }
 
 func mentionableGrant(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, m Mention) (string, error) {

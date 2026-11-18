@@ -75,6 +75,7 @@ A picked person shows in the box as `@Name`, and the comment is stored and shown
 Someone who cannot see the dashboard, observation or proposal is not offered, and a mention of one is not recorded.
 Choosing one inserts it at the cursor.
 The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.
+
 A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](grant:<id>)`; both show as "@Name" once the comment is saved, using the name the server has.
 A comment can mention at most 20 people and agents.
 A mention of a person is recorded, appears in the [activity log](activity.md) and reaches that person's [Inbox](inbox.md).
