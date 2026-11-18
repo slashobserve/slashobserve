@@ -440,7 +440,7 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
   With a filter set, a smaller "N matching" under the span count says how many of those spans matched.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
-When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, so more traces match than the ones shown, or Tempo stopped at its time limit, so some matching traces may be missing.
+When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -172,9 +173,18 @@ func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
 	}
 }
 
+var queryHints = regexp.MustCompile(`(?i)\bwith\s*\(`)
+
+func newestFirst(text string) string {
+	if queryHints.MatchString(text) {
+		return text
+	}
+	return text + " with (most_recent=true)"
+}
+
 func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	params := url.Values{
-		"q":     {text},
+		"q":     {newestFirst(text)},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
 		"limit": {strconv.Itoa(limit)},

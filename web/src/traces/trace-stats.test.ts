@@ -78,9 +78,9 @@ describe("partialNote", () => {
 })
 
 describe("partialReason", () => {
-  it("blames the page limit when the page is full", () => {
+  it("says the page holds the newest matches when it is full", () => {
     expect(partialReason(50, 50)).toBe(
-      "Tempo stopped at its limit of 50 traces for this page, so more traces match than the ones shown."
+      "Showing the newest 50 traces that match; older matches are on the next pages."
     )
   })
 

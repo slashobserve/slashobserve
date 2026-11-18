@@ -151,7 +151,7 @@ func TestSearchReturnsOneRowPerTrace(t *testing.T) {
 		t.Fatal(err)
 	}
 	params := fake.last(t).params
-	if params.Get("q") != q.Text || params.Get("limit") != "20" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
+	if params.Get("q") != q.Text+newestHint || params.Get("limit") != "20" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
 		t.Fatalf("params = %v", params)
 	}
 	if len(frames) != 1 {
@@ -376,13 +376,13 @@ func TestVariablesExpandIntoTraceQL(t *testing.T) {
 	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{ resource.service.name = "$svc" }`, Variables: vars}, lastHour); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.last(t).params.Get("q"); got != `{ resource.service.name = "a\"b" }` {
+	if got := fake.last(t).params.Get("q"); got != `{ resource.service.name = "a\"b" }`+newestHint {
 		t.Fatalf("q = %s", got)
 	}
 	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{ duration > $__interval && span.window = "$__range" }`}, lastHour); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.last(t).params.Get("q"); got != `{ duration > 3s && span.window = "3600s" }` {
+	if got := fake.last(t).params.Get("q"); got != `{ duration > 3s && span.window = "3600s" }`+newestHint {
 		t.Fatalf("q with macros = %s", got)
 	}
 	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `"${trace}"`, Variables: vars}, lastHour)
@@ -504,5 +504,25 @@ func TestSearchReportsJobsAndInspectedBytes(t *testing.T) {
 	want = datasource.FrameMeta{JobsDone: 6, JobsTotal: 6, InspectedBytes: 324888}
 	if got := *frames[0].Meta; got != want {
 		t.Fatalf("meta = %+v, want every job done and not partial", got)
+	}
+}
+
+const newestHint = " with (most_recent=true)"
+
+func TestSearchAsksTempoForTheNewestTracesUnlessTheQueryHasHints(t *testing.T) {
+	cases := map[string]string{
+		`{ status = error }`:                          `{ status = error }` + newestHint,
+		`{ status = error } | count() > 2`:            `{ status = error } | count() > 2` + newestHint,
+		`{ status = error } with (most_recent=false)`: `{ status = error } with (most_recent=false)`,
+		`{ status = error } WITH ( sample=true )`:     `{ status = error } WITH ( sample=true )`,
+	}
+	for text, want := range cases {
+		ds, fake := serve(t, map[string]reply{"/api/search": {0, `{"traces":[]}`}})
+		if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, lastHour); err != nil {
+			t.Fatal(err)
+		}
+		if got := fake.last(t).params.Get("q"); got != want {
+			t.Errorf("%s sent %s, want %s", text, got, want)
+		}
 	}
 }
