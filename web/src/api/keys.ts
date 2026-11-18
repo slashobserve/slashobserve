@@ -346,6 +346,10 @@ export const pinKeys = {
   list: () => ["pins", "list"] as const,
 }
 
+export const homeDashboardKeys = {
+  current: () => ["home-dashboard"] as const,
+}
+
 export const homeKeys = {
   firstDashboards: () => ["dashboards", "list", "home-first"] as const,
   search: (search: HomeSearch) =>

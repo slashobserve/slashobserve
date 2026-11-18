@@ -710,6 +710,7 @@ function DashboardView({
     <ProposalsButton key="proposals" dashboardId={dashboardId} />,
     <MoreMenu
       key="more"
+      dashboardId={dashboardId}
       mayEdit={permissions.edit}
       detailsBlockedBy={detailsBlockReason({
         pinned,

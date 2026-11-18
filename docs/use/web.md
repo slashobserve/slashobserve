@@ -91,8 +91,19 @@ A view is one person opening the dashboard on one UTC day, so three people who e
 Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
 `GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
+The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
 The daily records are kept for 90 days.
 `list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `view_window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+
+## Home dashboard
+
+Choose **Open on sign-in** in a dashboard's **More** menu and that dashboard opens in place of Home when you sign in or open SlashObserve in a new tab.
+Home opens as usual for a link that names a page, such as a shared dashboard link or `/?tab=observe`, and when you click **Home** in the sidebar.
+Choosing another dashboard replaces the first, and the same menu item, now **Stop opening on sign-in**, clears the choice; so does **Clear** under **Settings**, **Home dashboard**.
+If the dashboard was deleted or you can no longer view it, Home opens and says so with a **Clear it** button, and the choice comes back to work if you can view the dashboard again.
+The choice belongs to you and follows you to every browser.
+`GET`, `PUT` and `DELETE /api/v1/me/home-dashboard` read, set and clear it; `status` is `none`, `ok`, `gone` or `unreadable`, and setting a dashboard you cannot view answers `404 not_found`.
+Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` do the same; only people have one, so a service-account key gets `403 user_session_required` and the CLI has no command.
 
 ## TV mode
 
