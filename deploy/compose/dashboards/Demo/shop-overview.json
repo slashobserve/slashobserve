@@ -102,6 +102,127 @@
             { "match": { "field": "duration_ms" }, "unit": "ms" },
             { "match": { "field": "trace_id" }, "links": [{ "title": "Open trace", "url": "/t/${__data.fields.trace_id}?ds=ch" }] }
           ] }
+      ] },
+    { "id": "r_spread", "type": "row", "title": "How are requests and load spread out?",
+      "gridPos": { "x": 0, "y": 66, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_pool_gauge", "type": "gauge", "title": "Busiest database pool",
+          "description": "Share of connections held by a query on the most loaded pod.",
+          "gridPos": { "x": 0, "y": 67, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": [{ "color": "ok" }, { "value": 0.8, "color": "warning" }, { "value": 0.9, "color": "critical" }],
+          "queries": [{ "query": "max(shop_db_pool_in_use / shop_db_pool_max)", "instant": true }] },
+        { "id": "p_route_p95_bars", "type": "bargauge", "title": "p95 latency by route",
+          "gridPos": { "x": 8, "y": 67, "w": 8, "h": 8 }, "datasource": "prom", "unit": "s",
+          "thresholds": [{ "color": "ok" }, { "value": 0.5, "color": "warning" }, { "value": 1, "color": "critical" }],
+          "queries": [{ "query": "histogram_quantile(0.95, sum by (route, le) (rate(http_request_duration_seconds_bucket{job=\"shop\"}[$__rate_interval])))", "legend": "{{route}}" }],
+          "display": { "orientation": "horizontal" } },
+        { "id": "p_status_share", "type": "piechart", "title": "Requests by status",
+          "gridPos": { "x": 16, "y": 67, "w": 8, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "sum by (status) (increase(http_requests_total{job=\"shop\",service=\"frontend\"}[$__range]))", "instant": true, "legend": "{{status}}" }],
+          "display": { "pieType": "donut", "legend": "right", "sliceLabels": ["percent"] } },
+        { "id": "p_route_requests", "type": "barchart", "title": "Requests by route",
+          "gridPos": { "x": 0, "y": 75, "w": 12, "h": 8 }, "datasource": "prom", "unit": "short",
+          "queries": [{ "query": "sum by (route) (increase(http_requests_total{job=\"shop\",service=\"frontend\"}[$__range]))", "instant": true, "format": "table", "legend": "{{route}}" }],
+          "display": { "orientation": "horizontal", "xField": "route", "showValues": "always" } },
+        { "id": "p_checkout_durations", "type": "histogram", "title": "Checkout request time spread",
+          "gridPos": { "x": 12, "y": 75, "w": 12, "h": 8 }, "datasource": "ch", "unit": "ms",
+          "queries": [{ "query": "SELECT Duration / 1e6 AS duration_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND SpanName = 'POST /checkout' LIMIT 5000", "format": "table" }] },
+        { "id": "p_latency_heatmap", "type": "heatmap", "title": "Frontend latency over time",
+          "gridPos": { "x": 0, "y": 83, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [{ "query": "sum by (le) (increase(http_request_duration_seconds_bucket{job=\"shop\",service=\"frontend\"}[$__rate_interval]))", "format": "heatmap", "legend": "{{le}}" }] },
+        { "id": "p_wait_scatter", "type": "xychart", "title": "Queue wait by order",
+          "gridPos": { "x": 12, "y": 83, "w": 12, "h": 8 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT toFloat64(toUInt64OrZero(LogAttributes['order_id'])) AS order_id, toFloat64OrZero(LogAttributes['queue_wait_ms']) AS queue_wait_ms FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND Body = 'order processed' ORDER BY Timestamp DESC LIMIT 500", "format": "table" }],
+          "display": { "xField": "order_id", "show": "points", "pointSize": 5 } },
+        { "id": "p_wait_trend", "type": "trend", "title": "Orders by queue wait",
+          "gridPos": { "x": 0, "y": 91, "w": 12, "h": 8 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT toFloat64(intDiv(toUInt64OrZero(LogAttributes['queue_wait_ms']), 100) * 100) AS queue_wait_ms, count() AS orders FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND Body = 'order processed' GROUP BY queue_wait_ms ORDER BY queue_wait_ms", "format": "table" }],
+          "display": { "xField": "queue_wait_ms", "legend": "bottom" } },
+        { "id": "p_queue_candles", "type": "candlestick", "title": "Orders waiting every 5 minutes",
+          "gridPos": { "x": 12, "y": 91, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [
+            { "ref": "open", "query": "sum(shop_orders_queue_depth offset 5m)" },
+            { "ref": "high", "query": "max_over_time(sum(shop_orders_queue_depth)[5m:15s])" },
+            { "ref": "low", "query": "min_over_time(sum(shop_orders_queue_depth)[5m:15s])" },
+            { "ref": "close", "query": "sum(shop_orders_queue_depth)" }
+          ],
+          "display": { "mode": "candles", "candleStyle": "candles", "colorStrategy": "close-close" } }
+      ] },
+    { "id": "r_states", "type": "row", "title": "What state is everything in?",
+      "gridPos": { "x": 0, "y": 99, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_queue_states", "type": "state-timeline", "title": "Order queue state by pod",
+          "gridPos": { "x": 0, "y": 100, "w": 24, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "clamp_max(floor(shop_orders_queue_depth{service=\"checkout\"} / 5), 2)", "legend": "{{pod}}" }],
+          "mappings": [
+            { "value": "0", "text": "Keeping up", "color": "ok" },
+            { "value": "1", "text": "Waiting", "color": "warning" },
+            { "value": "2", "text": "Backed up", "color": "critical" }
+          ] },
+        { "id": "p_targets_up", "type": "status-history", "title": "Scrape targets up",
+          "gridPos": { "x": 0, "y": 108, "w": 24, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "up", "legend": "{{instance}}" }],
+          "mappings": [
+            { "value": "1", "text": "Up", "color": "ok" },
+            { "value": "0", "text": "Down", "color": "critical" }
+          ],
+          "display": { "showValues": "auto" } }
+      ] },
+    { "id": "r_path", "type": "row", "title": "Where does a checkout spend its time?",
+      "gridPos": { "x": 0, "y": 116, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_service_map", "type": "nodeGraph", "title": "Service map",
+          "gridPos": { "x": 0, "y": 117, "w": 24, "h": 10 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT concat(p.ServiceName, ' -> ', c.ServiceName) AS id, p.ServiceName AS source, c.ServiceName AS target, count() AS mainstat FROM otel_traces AS c INNER JOIN otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId WHERE $__timeFilter(c.Timestamp) AND $__timeFilter(p.Timestamp) AND p.ServiceName != c.ServiceName GROUP BY source, target LIMIT 200", "format": "table" }],
+          "display": { "layout": "layered" } },
+        { "id": "p_latest_trace", "type": "traces", "title": "Latest checkout trace",
+          "gridPos": { "x": 0, "y": 127, "w": 24, "h": 12 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = 'frontend' AND SpanName = 'POST /api/checkout' ORDER BY Timestamp DESC LIMIT 1) ORDER BY startTime LIMIT 1000", "format": "table" }] },
+        { "id": "p_checkout_flame", "type": "flamegraph", "title": "Where checkout requests spend time",
+          "description": "The 100 latest checkout requests merged by call path; the queued order work that runs after the answer is left out.",
+          "gridPos": { "x": 0, "y": 139, "w": 12, "h": 10 }, "datasource": "ch", "unit": "ms",
+          "queries": [{ "query": "WITH RECURSIVE roots AS (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = 'frontend' AND SpanName = 'POST /api/checkout' ORDER BY Timestamp DESC LIMIT 100), t AS (SELECT TraceId, SpanId, ParentSpanId, concat(ServiceName, ': ', SpanName) AS label, Duration / 1e6 AS ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND TraceId IN (SELECT TraceId FROM roots) AND SpanName != 'process_order'), tree AS (SELECT TraceId, SpanId, 0 AS level, label AS path, '' AS parent_path, label, ms FROM t WHERE ParentSpanId = '' UNION ALL SELECT t.TraceId, t.SpanId, tree.level + 1, concat(tree.path, char(1), t.label), tree.path, t.label, t.ms FROM t INNER JOIN tree ON t.TraceId = tree.TraceId AND t.ParentSpanId = tree.SpanId), agg AS (SELECT path, any(parent_path) AS parent_path, any(level) AS level, any(label) AS label, sum(ms) AS value FROM tree GROUP BY path) SELECT a.level AS level, a.value AS value, greatest(a.value - ifNull(c.child_value, 0), 0) AS self, a.label AS label FROM agg AS a LEFT JOIN (SELECT parent_path, sum(value) AS child_value FROM agg GROUP BY parent_path) AS c ON a.path = c.parent_path ORDER BY a.path", "format": "table" }] },
+        { "id": "p_checkout_flow", "type": "canvas", "title": "Checkout flow",
+          "description": "Spans each service handled in the time range, drawn as the path a checkout takes.",
+          "gridPos": { "x": 12, "y": 139, "w": 12, "h": 10 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT countIf(ServiceName = 'frontend') AS frontend, countIf(ServiceName = 'checkout') AS checkout, countIf(ServiceName = 'payments') AS payments FROM otel_traces WHERE $__timeFilter(Timestamp)", "format": "table" }],
+          "display": {
+            "reduce": "lastNotNull",
+            "elements": [
+              { "id": "frontend_name", "kind": "rectangle", "left": 3, "top": 15, "width": 26, "height": 25, "text": "Frontend", "fill": "info" },
+              { "id": "frontend_spans", "kind": "metric", "left": 3, "top": 55, "width": 26, "height": 30, "field": "frontend", "fontSize": 20 },
+              { "id": "checkout_name", "kind": "rectangle", "left": 37, "top": 15, "width": 26, "height": 25, "text": "Checkout", "fill": "info" },
+              { "id": "checkout_spans", "kind": "metric", "left": 37, "top": 55, "width": 26, "height": 30, "field": "checkout", "fontSize": 20 },
+              { "id": "payments_name", "kind": "rectangle", "left": 71, "top": 15, "width": 26, "height": 25, "text": "Payments", "fill": "info" },
+              { "id": "payments_spans", "kind": "metric", "left": 71, "top": 55, "width": 26, "height": 30, "field": "payments", "fontSize": 20 }
+            ],
+            "connections": [
+              { "from": "frontend_name", "to": "checkout_name", "arrow": "forward", "width": 3 },
+              { "from": "checkout_name", "to": "payments_name", "arrow": "forward", "width": 3 }
+            ]
+          } }
+      ] },
+    { "id": "r_around", "type": "row", "title": "What else is around the shop?",
+      "gridPos": { "x": 0, "y": 149, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_service_regions", "type": "geomap", "title": "Where the services run",
+          "description": "Spans per service in the time range. The demo shop runs on one host, so the places are only examples.",
+          "gridPos": { "x": 0, "y": 150, "w": 8, "h": 8 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT ServiceName AS service, multiIf(ServiceName = 'frontend', 51.5, ServiceName = 'checkout', 50.1, 48.9) AS lat, multiIf(ServiceName = 'frontend', -0.1, ServiceName = 'checkout', 8.7, 2.3) AS lon, count() AS spans FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY service", "format": "table" }],
+          "display": { "view": "europe", "location": "coords", "latField": "lat", "lonField": "lon", "sizeField": "spans", "markerSize": 6, "markerSizeMax": 24 } },
+        { "id": "p_firing_alerts", "type": "alertlist", "title": "Firing alerts",
+          "gridPos": { "x": 8, "y": 150, "w": 8, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "ALERTS{alertstate=\"firing\"}", "instant": true, "format": "table" }],
+          "display": { "limit": 10, "sort": "importance", "viewMode": "list" } },
+        { "id": "p_demo_dashboards", "type": "dashlist", "title": "Demo dashboards",
+          "gridPos": { "x": 16, "y": 150, "w": 8, "h": 8 },
+          "display": { "tags": ["demo"], "limit": 10 } },
+        { "id": "p_release_news", "type": "news", "title": "SlashObserve releases",
+          "gridPos": { "x": 0, "y": 158, "w": 12, "h": 8 },
+          "display": { "feedUrl": "https://github.com/slashobserve/slashobserve/releases.atom" } },
+        { "id": "p_panel_notes", "type": "text", "title": "About these panels",
+          "gridPos": { "x": 12, "y": 158, "w": 12, "h": 8 },
+          "content": "From **How are requests and load spread out?** down, this dashboard shows one panel of every type SlashObserve draws, on the demo shop's own data.\n\nThe news panel needs github.com on the outbound allowlist in Settings, and it says so until an Admin allows it.\n\nPick **Edit** on a panel to see its query and change its type." }
       ] }
   ]
 }
