@@ -19,10 +19,7 @@ func inboxRepairedObjects(t *testing.T, d *dbtest.Database) string {
 
 func TestInboxRepairedRollsBackAndReapplies(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, inboxRepairedVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, inboxRepairedVersion)
 	if got := inboxRepairedObjects(t, d); got != "-,inbox_reason(activity,uuid,uuid[],text),succeeded" {
 		t.Fatalf("after up the objects are %q", got)
 	}

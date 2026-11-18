@@ -36,10 +36,7 @@ VALUES ($1::uuid, 1, '{}'::jsonb, 's', 'user', $2::uuid, 'Ada', $3::uuid)`, acto
 
 func TestActorColumnsBackfill(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, postV010Version); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, postV010Version)
 	seedActorFixtures(t, d)
 	if err := d.MigrateUpTo(ctx, actorColumnsVersion); err != nil {
 		t.Fatal(err)
@@ -71,10 +68,7 @@ func TestActorColumnsBackfill(t *testing.T) {
 
 func TestActorColumnsDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, actorColumnsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, actorColumnsVersion)
 	if err := d.MigrateDownTo(ctx, postV010Version); err != nil {
 		t.Fatalf("down: %v", err)
 	}
