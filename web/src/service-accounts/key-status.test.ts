@@ -251,6 +251,10 @@ describe("canRevokeKey", () => {
     ["expired", false],
     ["revoked", false],
   ] as const)("a %s key: %s", (state, want) => {
-    expect(canRevokeKey({ state })).toBe(want)
+    expect(canRevokeKey({ state }, { provisioned: false })).toBe(want)
+  })
+
+  test("a key of an account from the service-accounts file cannot be revoked", () => {
+    expect(canRevokeKey({ state: "active" }, { provisioned: true })).toBe(false)
   })
 })
