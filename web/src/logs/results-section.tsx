@@ -518,6 +518,14 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </div>
       )
     }
+    if (lines === 0 && (data?.meta.rows ?? 0) > 0) {
+      return (
+        <p role="alert" className="p-3 text-[13px] text-status-critical">
+          The server returned {count(data?.meta.rows ?? 0)} rows, but none could
+          be shown here. Run the query again.
+        </p>
+      )
+    }
     if (lines === 0) {
       return (
         <p className="p-3 text-[13px] text-muted-foreground">

@@ -92,3 +92,33 @@ describe("the Patterns tab", () => {
     expect(value.update).toHaveBeenCalledWith({ view: undefined })
   })
 })
+
+describe("the results body", () => {
+  it("says so when the server returned rows and none can be shown", () => {
+    const value = workspace({ q: "level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 50 } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByRole("alert").textContent).toContain(
+      "The server returned 50 rows, but none could be shown here."
+    )
+  })
+
+  it("keeps the empty message when the server returned no rows", () => {
+    const value = workspace({ q: "level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 0 } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByText(/^No lines in/)).toBeTruthy()
+  })
+})
