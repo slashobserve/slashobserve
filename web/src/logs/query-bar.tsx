@@ -53,7 +53,7 @@ import { parseKql } from "./kql"
 import { LogLabelBrowser } from "./label-browser"
 import { decodePills, encodePills, mergePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
-import { problemOf, type QueryProblem } from "./query-problem"
+import { problemOf, unreadableKql, type QueryProblem } from "./query-problem"
 import { QueryProblemCard } from "./query-problem.tsx"
 import { isSearchFamily, queryModeLabel, type LogsSearch } from "./search"
 import { useLogsWorkspace } from "./workspace"
@@ -312,11 +312,9 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const toolbarShown = shown === "ask" ? answered : true
 
   const problem = useMemo<QueryProblem | null>(() => {
-    if (!search || blocked !== draft) return null
-    const { form: current, body, offset } = splitForm(draft)
-    if (current !== "kql") return null
-    return problemOf(draft, parseKql(body), offset)
-  }, [search, blocked, draft])
+    if (!search || (blocked !== draft && urlSearch.q !== draft)) return null
+    return unreadableKql(draft, type)
+  }, [search, blocked, draft, urlSearch.q, type])
 
   useInputModeShortcut(() =>
     switchMode(nextMode(shown, agentAvailable, builderAvailable))

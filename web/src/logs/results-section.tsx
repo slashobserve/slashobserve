@@ -60,6 +60,7 @@ import {
   type TailState,
 } from "./tail-state"
 import { TailVolume } from "./tail-volume"
+import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 import { tailRows } from "./use-live-tail"
@@ -483,6 +484,14 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
             ? 'Pick a label to start, or write a stream selector such as {service_name="checkout"}.'
             : null}
         </EmptyState>
+      )
+    }
+    if (unreadableKql(q, datasource.type) !== null) {
+      return (
+        <p className="p-3 text-[13px] text-muted-foreground">
+          Nothing ran, because the query above cannot be read. Fix it and run it
+          again.
+        </p>
       )
     }
     if (tail.shown && tail.buffer !== undefined) {

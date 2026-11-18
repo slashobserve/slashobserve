@@ -35,6 +35,7 @@ import { rowCount } from "./frames"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
 import { LogsPageActions } from "./page-actions"
 import { applyPills, decodePills } from "./pills"
+import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
 import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
@@ -167,7 +168,7 @@ function LogsWorkspaceView({
   const filters = search.f
   const effectiveQuery = useMemo(
     () =>
-      q === undefined
+      q === undefined || unreadableKql(q, type) !== null
         ? undefined
         : (applyPills(q, type, decodePills(filters)) ?? q),
     [q, type, filters]

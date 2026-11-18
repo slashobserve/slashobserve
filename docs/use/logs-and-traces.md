@@ -81,7 +81,7 @@ The query box shows the same check as you type: a caret under the offending char
 A missing closing parenthesis is closed before the next top-level `and`, or at the end.
 A query that reads as Lucene, such as one with `+`, `-` or `~` operators, offers **Switch to Lucene**, which adds the `lucene:` prefix and runs the text as written.
 **Fix it with Ask** asks the model to repair the text, **Open in the builder** shows it as chips when it can, and **KQL reference** opens this section.
-Nothing runs while the query cannot be read.
+Nothing runs while the query cannot be read, also when a link opens the page with such a query: the box shows the same card, and the volume strip and the results say nothing ran instead of showing a datasource failure.
 The **Language** control under the box switches between KQL, Lucene and Query DSL: it adds or removes the `lucene:` prefix, and picking Query DSL on an empty box inserts a `match_all` body.
 The editor highlights JSON as soon as the text starts with `{`.
 

@@ -122,3 +122,22 @@ describe("the results body", () => {
     expect(screen.getByText(/^No lines in/)).toBeTruthy()
   })
 })
+
+describe("an unreadable query", () => {
+  it("says nothing ran and shows no failure card", () => {
+    const value = workspace({ q: "message:(foo and bar" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: true,
+      error: new Error("boom"),
+      isPlaceholderData: false,
+      data: undefined,
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(
+      screen.getByText(/^Nothing ran, because the query above/)
+    ).toBeTruthy()
+    expect(screen.queryByText("Failed")).toBeNull()
+  })
+})
