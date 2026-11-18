@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { appendPanel } from "@/dashboards/append-panel"
+
 import { metricsPanelFor } from "./panel"
 
 const base = {
@@ -36,5 +38,27 @@ describe("metricsPanelFor", () => {
       type: "table",
       queries: [{ query: "up", instant: true, format: "table" }],
     })
+  })
+})
+
+describe("appending a metrics panel", () => {
+  it("places it under the last panel with a free id", () => {
+    const spec = {
+      specVersion: "0",
+      title: "Shop",
+      time: { from: "now-6h", to: "now" },
+      panels: [
+        metricsPanelFor({ ...base, id: "metrics", mode: "graph", y: 0 }),
+      ],
+    } as Parameters<typeof appendPanel>[0]
+    const next = appendPanel(spec, "metrics", (slot) =>
+      metricsPanelFor({ ...base, ...slot, mode: "table" })
+    )
+    expect(next.panels.map((panel) => panel.id)).toEqual([
+      "metrics",
+      "metrics-2",
+    ])
+    expect(next.panels[1].gridPos.y).toBe(10)
+    expect(next.panels[1].type).toBe("table")
   })
 })

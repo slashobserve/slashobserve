@@ -154,6 +154,7 @@ The block takes the time range in the dashboard's address as absolute times, and
 A panel's `repeat` setting is dropped.
 
 **Add to observation** on the [logs page](logs-and-traces.md#add-to-an-observation) works the same way for the search you ran, as a logs panel named Logs over the range you are viewing.
+**Add to observation** on the [metrics page](metrics.md#add-to-a-dashboard-or-an-observation) does the same with a time series panel named Metrics, or a table panel in the table mode.
 
 ## Work on one from MCP and the CLI
 

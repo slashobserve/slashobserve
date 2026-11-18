@@ -23,6 +23,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { MetricsPageActions } from "./page-actions"
 import { QueryBar } from "./query-bar"
 import { ResultsSection } from "./results-section"
+import { MetricsResultActions } from "./result-actions"
 import {
   metricsTimeRange,
   modeOf,
@@ -228,7 +229,15 @@ function MetricsWorkspaceView({
                 to: String(Math.round(toMs)),
               })
             }
-            actions={null}
+            actions={
+              <MetricsResultActions
+                uid={uid}
+                query={q}
+                mode={mode}
+                range={range}
+                observation={search.observation}
+              />
+            }
           />
         </div>
       </div>

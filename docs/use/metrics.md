@@ -60,6 +60,15 @@ Opening one runs it on its datasource over the saved range, and the [search](sea
 Only a Prometheus datasource holds a metrics search.
 On a phone the same actions sit in the **More actions** menu.
 
+## Add to a dashboard or an observation
+
+**Add to dashboard**, in the header of the results, keeps the query as a panel on a dashboard you can edit.
+The graph becomes a time series panel with a legend table, and the table becomes a table panel with an instant query.
+You need Edit on the target dashboard.
+The panel is full width and goes at the bottom of the dashboard, inside the last row when that row is collapsed, and the save makes a new version.
+**Add to observation** beside it copies the same panel into an [observation](observations.md#add-to-an-observation-from-a-panel-or-from-logs) over the range the page shows.
+Both stay disabled until a query has run, and say "Run a query first."
+
 ## Roles
 
 Everyone who can open the app can run a metrics query, as with logs and traces.
