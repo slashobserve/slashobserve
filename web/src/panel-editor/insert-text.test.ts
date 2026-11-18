@@ -20,6 +20,12 @@ describe("metricInsert", () => {
     )
   })
 
+  it("quotes a Prometheus metric name that is not a plain identifier", () => {
+    expect(metricInsert("prometheus", "http.server.duration")).toBe(
+      '{"http.server.duration"}'
+    )
+  })
+
   it("escapes quotes and backslashes in a ClickHouse metric name", () => {
     expect(metricInsert("clickhouse", "a'b\\c")).toBe(
       "MetricName = 'a\\'b\\\\c'"
@@ -36,6 +42,21 @@ describe("matcherInsert", () => {
     expect(matcherInsert("prometheus", "path", 'a"b\\c')).toBe(
       'path="a\\"b\\\\c"'
     )
+  })
+
+  it("writes a newline in a value as an escape for both stores", () => {
+    expect(matcherInsert("prometheus", "msg", "a\nb")).toBe('msg="a\\nb"')
+    expect(matcherInsert("clickhouse", "Body", "a\nb")).toBe("Body = 'a\\nb'")
+  })
+
+  it("quotes a Prometheus label name that is not a plain identifier", () => {
+    expect(matcherInsert("prometheus", "service.name", "checkout")).toBe(
+      '"service.name"="checkout"'
+    )
+  })
+
+  it("keeps a plain label name with a colon or underscore unquoted", () => {
+    expect(matcherInsert("prometheus", "_a:b1", "x")).toBe('_a:b1="x"')
   })
 
   it("leaves a single quote alone for Prometheus", () => {
