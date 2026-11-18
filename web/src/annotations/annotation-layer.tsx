@@ -29,7 +29,6 @@ const flagHeight = 8
 const viewportMargin = 8
 const cardWidth = 280
 const labelTextLength = 80
-const maxCardEntries = 5
 const textLinkClass = "font-medium hover:text-muted-foreground"
 
 type LayerProps = {
@@ -192,8 +191,6 @@ function Card({
   zone: string | undefined
   onAct: () => void
 }) {
-  const shown = annotations.slice(0, maxCardEntries)
-  const more = annotations.length - shown.length
   return (
     <div
       role="group"
@@ -211,7 +208,7 @@ function Card({
         maxHeight: Math.max(0, anchor.top - viewportMargin),
       }}
     >
-      {shown.map((annotation) => (
+      {annotations.map((annotation) => (
         <Entry
           key={annotation.id}
           annotation={annotation}
@@ -219,9 +216,6 @@ function Card({
           onAct={onAct}
         />
       ))}
-      {more > 0 ? (
-        <div className="text-muted-foreground">{more} more</div>
-      ) : null}
     </div>
   )
 }

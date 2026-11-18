@@ -177,7 +177,7 @@ describe("AnnotationLayer", () => {
     expect(flag).toHaveFocus()
   })
 
-  it("lists at most five annotations of a cluster and counts the rest", async () => {
+  it("lists every annotation of a cluster so the card can scroll", async () => {
     const user = userEvent.setup()
     layer(
       Array.from({ length: 7 }, (_, i) =>
@@ -190,9 +190,9 @@ describe("AnnotationLayer", () => {
     )
     await user.hover(screen.getByRole("button"))
     const card = screen.getByRole("group")
-    expect(card).toHaveTextContent("note 6")
-    expect(card).not.toHaveTextContent("note 1")
-    expect(card).toHaveTextContent("2 more")
+    for (let i = 0; i < 7; i++) expect(card).toHaveTextContent(`note ${i}`)
+    expect(card).not.toHaveTextContent("more")
+    expect(card).toHaveClass("overflow-auto")
   })
 
   it("stops a press on the flag from reaching the chart", () => {
@@ -288,6 +288,39 @@ describe("AnnotationLayer", () => {
       await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
       expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
       expect(screen.queryByRole("button", { name: "Delete" })).toBeNull()
+    })
+
+    it("keeps Edit and Delete on every annotation of a crowded flag", async () => {
+      const user = userEvent.setup()
+      renderWithProviders(
+        <AnnotationActionsProvider
+          dashboardId="d1"
+          zone="UTC"
+          panelTitle={(id) => id}
+          canEdit
+          principal={{ id: "u1", role: "viewer" }}
+        >
+          <AnnotationLayer
+            annotations={Array.from({ length: 7 }, (_, i) =>
+              annotation({
+                id: `a${i}`,
+                created_by: "u1",
+                time_from: new Date(t0 + 10 * minute + i * 1000).toISOString(),
+              })
+            )}
+            fromMs={t0}
+            toMs={t0 + 100 * minute}
+            left={0}
+            top={0}
+            width={1000}
+            height={200}
+            zone="UTC"
+          />
+        </AnnotationActionsProvider>
+      )
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(7)
+      expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(7)
     })
 
     it("opens the edit dialog and closes the card", async () => {

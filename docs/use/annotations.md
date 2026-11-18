@@ -30,7 +30,7 @@ A small flag at the bottom of each line opens a card when you hover, focus or ta
 The card shows the text, the tags, who added it and when, and says `Every dashboard` for a global one.
 Times carry the zone they are shown in, such as `2026-11-18 14:22:00 UTC`.
 The card opens above the flag and is never cut off by the panel's edge; it closes when you scroll or resize.
-Markers closer than a few pixels share one flag, and its card lists them newest first.
+Markers closer than a few pixels share one flag, and its card lists all of them newest first and scrolls when they do not fit.
 
 An annotation with a `panel_id` appears only on that panel, and one without appears on every panel of its dashboard.
 Global annotations appear on every dashboard.
