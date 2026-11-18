@@ -27,6 +27,7 @@ type tracesOptions struct {
 	compare    []string
 	baseline   []string
 	limit      int
+	sort       string
 }
 
 type span struct {
@@ -49,10 +50,11 @@ func (a *app) tracesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "traces [<trace id>] --datasource <uid>",
 		Short: "Print the spans of a trace from a Tempo or ClickHouse datasource",
-		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints the newest 100 matching traces.",
+		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints 100 matching traces, the newest unless --sort says otherwise.",
 		Example: "  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo\n" +
 			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d\n" +
 			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo\n" +
+			"  observe traces --ask \"checkout requests with errors\" --datasource clickhouse --sort -duration\n" +
 			"  observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736 --baseline 5c1d7a2e9f8b4a3d8e6f0b1c2d3e4f50 --datasource tempo",
 		Args: cobra.ArbitraryArgs,
 		RunE: a.runTraces,
@@ -63,6 +65,7 @@ func (a *app) tracesCommand() *cobra.Command {
 	flags.StringVar(&a.traces.to, "to", "now", "end of the range")
 	flags.StringVar(&a.traces.ask, "ask", "", "a question the server turns into a trace search, instead of the trace id")
 	flags.BoolVar(&a.traces.dryRun, "dry-run", false, "with --ask, print the search without running it")
+	flags.StringVar(&a.traces.sort, "sort", "", "with --ask, order the traces by start, service, span, duration, spans or errors, a minus in front for descending, such as -duration; ClickHouse sorts everything that matches, Tempo only the 100 it returns")
 	flags.StringSliceVar(&a.traces.compare, "compare", nil, "the trace ids to explain, comma separated or repeated")
 	flags.StringSliceVar(&a.traces.baseline, "baseline", nil, "with --compare, the trace ids to compare them with, comma separated or repeated")
 	flags.IntVar(&a.traces.limit, "limit", defaultCompareLimit, "with --compare, the most differences to print, 1 to 100")
@@ -73,6 +76,13 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	opts := a.traces
 	if cmd.Flags().Changed("compare") {
 		return a.compareTraces(cmd, args)
+	}
+	if cmd.Flags().Changed("sort") && opts.ask == "" {
+		return usagef("--sort needs --ask")
+	}
+	sort, err := parseTraceSort(opts.sort)
+	if err != nil {
+		return err
 	}
 	for _, name := range []string{"baseline", "limit"} {
 		if cmd.Flags().Changed(name) {
@@ -104,7 +114,7 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 		return usagef("traces reads Tempo or ClickHouse datasources; %s is %s", text(opts.datasource), text(kind))
 	}
 	if opts.ask != "" {
-		return a.searchTraces(ctx, c, kind)
+		return a.searchTraces(ctx, c, kind, sort)
 	}
 	return a.showTrace(ctx, c, kind, strings.ToLower(args[0]))
 }
@@ -135,7 +145,7 @@ func (a *app) showTrace(ctx context.Context, c *client, kind, id string) error {
 	return nil
 }
 
-func (a *app) searchTraces(ctx context.Context, c *client, kind string) error {
+func (a *app) searchTraces(ctx context.Context, c *client, kind string, sort *traceSort) error {
 	opts := a.traces
 	out := a.output()
 	answer, err := draftQuery(ctx, c, opts.datasource, signalTraces, opts.ask, opts.from, opts.to)
@@ -146,7 +156,17 @@ func (a *app) searchTraces(ctx context.Context, c *client, kind string) error {
 	if opts.dryRun {
 		return nil
 	}
-	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: traceSearchQuery(kind, answer), Kind: "instant", From: opts.from, To: opts.to, Limit: traceSearchLimit})
+	request := exploreRequest{Query: traceSearchQuery(kind, answer), Kind: "instant", From: opts.from, To: opts.to, Limit: traceSearchLimit}
+	var clientSort *traceSort
+	if kind == "clickhouse" && answer.TraceFilters != nil {
+		request.Limit, request.PageSize, request.Page = 0, traceSearchLimit, 1
+		if sort != nil {
+			request.Sort = sort.param()
+		}
+	} else {
+		clientSort = sort
+	}
+	data, body, err := explore(ctx, c, opts.datasource, request)
 	if err != nil {
 		return err
 	}
@@ -154,7 +174,7 @@ func (a *app) searchTraces(ctx context.Context, c *client, kind string) error {
 		out.body(data)
 		return nil
 	}
-	rows := traceSearchRows(body.Frames)
+	rows := traceSearchRows(body.Frames, clientSort)
 	if len(rows) == 0 {
 		out.notice("No traces between %s and %s", text(opts.from), text(opts.to))
 		return nil

@@ -489,15 +489,17 @@ A trace with no spans in the range exits 1, and `--json` prints the response bod
 
 ### Ask for traces in plain language
 
-`--ask` takes a question instead of the trace id and prints the newest 100 matching traces:
+`--ask` takes a question instead of the trace id and prints 100 matching traces, the newest unless `--sort` says otherwise:
 
 ```sh
 bin/observe traces --ask "checkout requests slower than 2s with errors" --datasource tempo
 bin/observe traces --ask "slow checkout requests" --datasource clickhouse --dry-run
+bin/observe traces --ask "checkout requests with errors" --datasource clickhouse --sort -duration
 ```
 
 It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
-Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
+Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
+`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
