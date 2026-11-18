@@ -58,6 +58,7 @@ function searchText(span: Span): string {
     span.service,
     span.operation,
     span.id,
+    span.statusMessage,
     ...span.attributes.flatMap((attribute) => [attribute.key, attribute.text]),
   ]
     .join("\n")

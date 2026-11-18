@@ -345,7 +345,7 @@ The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
 
-- **Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
+- **Find in trace** matches a span's name, service, id, status message or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
 - **Critical path** outlines the chain that decides when the trace ends and dims the rest; the line under the waterfall says how many spans are on it.
   The chain starts at the span that finishes last and includes a span that outlives its parent or starts after the parent ended, such as work the parent started and did not wait for.
 - **Errors only** dims every span that neither failed nor contains a failed span.
@@ -355,7 +355,7 @@ When the query returns more than one trace, the panel shows one at a time with *
 
 ### Span details
 
-A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
+A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status with the message the span set, such as "card declined", its duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
 A value that reads as a number matches both the number and the same text, such as `(span.order.id = 503 || span.order.id = "503")`, because the page cannot tell whether Tempo stored the attribute as a number or as a string.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.

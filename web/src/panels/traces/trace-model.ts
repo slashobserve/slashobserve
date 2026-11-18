@@ -40,6 +40,7 @@ export type Span = {
   depth: number
   slot: number
   error: boolean
+  statusMessage: string
   hasChildren: boolean
   attributes: SpanAttribute[]
   kind: string | null
@@ -79,6 +80,7 @@ type Columns = {
   start: PreparedField
   duration?: PreparedField
   status?: PreparedField
+  statusMessage?: PreparedField
   kind?: PreparedField
   events?: PreparedField
   links?: PreparedField
@@ -93,6 +95,7 @@ type SpanRow = {
   start: number
   duration: number
   error: boolean
+  statusMessage: string
   attributes: SpanAttribute[]
   kind: string | null
   events: SpanEvent[]
@@ -107,6 +110,7 @@ const serviceNames = new Set(["servicename"])
 const startNames = new Set(["starttime", "timestamp"])
 const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
+const statusMessageNames = new Set(["statusmessage"])
 const kindNames = new Set(["spankind"])
 const eventNames = new Set(["spanevents"])
 const linkNames = new Set(["spanlinks"])
@@ -140,6 +144,7 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     start,
     duration: named(frame, durationNames),
     status: named(frame, statusNames),
+    statusMessage: named(frame, statusMessageNames),
     kind: named(frame, kindNames),
     events: named(frame, eventNames),
     links: named(frame, linkNames),
@@ -271,6 +276,7 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
           status !== null &&
           status !== undefined &&
           errorStatuses.has(String(status).toLowerCase()),
+        statusMessage: textOf(columns.statusMessage?.values[index] ?? ""),
         attributes: columns.attributes
           .flatMap(({ field, source }) => pairsOf(field.values[index], source))
           .sort(compareKeys),
@@ -378,6 +384,7 @@ export function traceModel(
     depth,
     slot: slots.get(row.service) ?? 0,
     error: row.error,
+    statusMessage: row.statusMessage,
     hasChildren: children.has(row.id),
     attributes: row.attributes,
     kind: row.kind,

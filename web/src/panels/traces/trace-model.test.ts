@@ -113,6 +113,28 @@ describe("traceModel columns", () => {
       expect(result.formatDuration(100)).toBe("100 ms")
   })
 
+  it("reads the status message the span set with its status", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a", "b", "c"]),
+        field("ParentSpanId", "string", ["", "a", "a"]),
+        field("Timestamp", "time", [5000, 5010, 5020]),
+        field("StatusCode", "string", ["Error", "Unset", "Error"]),
+        field("StatusMessage", "string", ["card declined", "", null]),
+      ])
+    )
+    expect(spans.map((span) => span.statusMessage)).toEqual([
+      "card declined",
+      "",
+      "",
+    ])
+  })
+
+  it("has no status message when the frame has no such column", () => {
+    const spans = spansOf(model(flatFields(2)))
+    expect(spans.map((span) => span.statusMessage)).toEqual(["", ""])
+  })
+
   it("keeps a lower-case duration column in milliseconds", () => {
     const fields = grafana()
     const spans = spansOf(model(fields))

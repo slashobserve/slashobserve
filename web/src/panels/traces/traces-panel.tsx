@@ -805,6 +805,9 @@ export function SpanDetails({
           starts at +{model.formatDuration(span.start - model.start)}
         </span>
       </p>
+      {span.statusMessage !== "" ? (
+        <p className="wrap-break-word">{span.statusMessage}</p>
+      ) : null}
       {span.attributes.length === 0 ? (
         <p className="text-muted-foreground">No attributes.</p>
       ) : null}

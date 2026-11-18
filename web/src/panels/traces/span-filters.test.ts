@@ -28,6 +28,7 @@ function span(
     depth: 0,
     slot: 0,
     error: false,
+    statusMessage: "",
     hasChildren: false,
     attributes: [],
     kind: null,
@@ -220,6 +221,15 @@ describe("filterSpans", () => {
     expect(find("401")).toEqual(["auth"])
     expect(find("que")).toEqual(["query"])
     expect(find("nothing like this")).toEqual([])
+  })
+
+  it("finds a span by the message it set with its status", () => {
+    const spans = [
+      span("a", null, 0, 10, { statusMessage: "Card declined", error: true }),
+      span("b", "a", 1, 2),
+    ]
+    const matched = filterSpans(spans, { ...none, search: "declined" }).matched
+    expect([...(matched ?? new Set())]).toEqual(["a"])
   })
 
   it("matches or excludes listed services and operations exactly", () => {
