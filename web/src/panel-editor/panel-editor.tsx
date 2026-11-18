@@ -294,7 +294,7 @@ export default function PanelEditor({
         spec: placed,
         summary:
           note.trim() ||
-          defaultSaveSummary(changes, normalised.title || normalised.id),
+          defaultSaveSummary(changes, entry.panel.title || entry.panel.id),
         parent_version: parent,
         propose,
       },

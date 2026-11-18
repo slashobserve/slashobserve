@@ -152,7 +152,7 @@ Some edits are refused whatever the JSON says:
 ## Save as a new version
 
 The footer states what you changed: "No changes", "2 changes: query, title", or "Fix the JSON to save.".
-**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`.
+**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`, where `<title>` is the panel's saved title before your change.
 **Discard** drops the draft.
 
 The save button reads "Save as version 4" when you are on the latest version, 3.

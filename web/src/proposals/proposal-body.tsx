@@ -4,14 +4,20 @@ import { Link } from "@tanstack/react-router"
 
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
-import { latestDashboardQuery } from "@/dashboards/queries"
-import { panelTitles } from "@/history/diff-groups"
+import {
+  dashboardVersionQuery,
+  latestDashboardQuery,
+} from "@/dashboards/queries"
+import { groupChanges, panelTitles } from "@/history/diff-groups"
+import { DiffGroupList } from "@/history/version-diff"
+import { Skeleton } from "@/components/ui/skeleton"
 import { markOf } from "@/lib/author"
 import { dashboardLink } from "@/lib/links"
 
 import { ConflictChoices, type Side } from "./conflict-choices"
 import {
   changeRows,
+  dashboardLinkOf,
   stateLine,
   type ChangeRow,
   type Picks,
@@ -78,7 +84,20 @@ export function ProposalBody({
     () => changeRows(proposal, panelTitles(latestSpec)),
     [proposal, latestSpec]
   )
+  const base = useQuery(
+    dashboardVersionQuery(proposal.dashboard_id, proposal.base_version)
+  )
+  const baseSpec = base.data?.version.spec
+  const titles = useMemo(
+    () => ({ from: panelTitles(baseSpec), to: panelTitles(proposal.spec) }),
+    [baseSpec, proposal.spec]
+  )
+  const groups = useMemo(
+    () => groupChanges(proposal.diff, titles),
+    [proposal.diff, titles]
+  )
   const { actor } = proposal
+  const link = dashboardLinkOf(proposal)
   return (
     <div className="flex flex-col gap-4">
       <Heading className="text-xl font-semibold wrap-anywhere">
@@ -121,12 +140,24 @@ export function ProposalBody({
           </ul>
         )}
       </section>
+      {groups.length === 0 ? null : (
+        <section className="flex flex-col gap-2">
+          <SectionHeading className="text-[13px] font-medium">
+            What changes from version {proposal.base_version}
+          </SectionHeading>
+          {base.isPending ? (
+            <Skeleton aria-busy="true" className="h-24 w-full" />
+          ) : (
+            <DiffGroupList groups={groups} titles={titles} />
+          )}
+        </section>
+      )}
       <Link
         {...dashboardLink(proposal.dashboard_id)}
-        search={{ version: proposal.base_version }}
+        search={link.version === null ? {} : { version: link.version }}
         className="w-fit text-[13px] underline underline-offset-4"
       >
-        Open the dashboard at version {proposal.base_version}
+        {link.label}
       </Link>
     </div>
   )

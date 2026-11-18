@@ -110,7 +110,7 @@ export function stateLine(proposal: ProposalSummary): string {
         : based
     case "merged":
       if (proposal.merged_version === null) {
-        return "Merged; the dashboard already had this change"
+        return "Merged without a new version; the dashboard already had everything that was kept"
       }
       return proposal.closed_by === null
         ? `Merged as version ${proposal.merged_version}`
@@ -119,5 +119,24 @@ export function stateLine(proposal: ProposalSummary): string {
       return proposal.closed_by === null
         ? "Discarded"
         : `Discarded by ${proposal.closed_by.name}`
+  }
+}
+
+export function dashboardLinkOf(proposal: ProposalSummary): {
+  version: number | null
+  label: string
+} {
+  if (proposal.state === "merged") {
+    if (proposal.merged_version === null) {
+      return { version: null, label: "Open the dashboard" }
+    }
+    return {
+      version: proposal.merged_version,
+      label: `Open the dashboard at version ${proposal.merged_version}`,
+    }
+  }
+  return {
+    version: proposal.base_version,
+    label: `Open the dashboard at version ${proposal.base_version}`,
   }
 }

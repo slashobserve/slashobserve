@@ -4346,6 +4346,8 @@ export interface components {
             };
             /** @description What the head revision adds, changes, removes or moves compared with `base_version`. */
             changes: components["schemas"]["ProposalChange"][];
+            /** @description The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions. */
+            diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
         };

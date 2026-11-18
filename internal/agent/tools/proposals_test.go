@@ -214,7 +214,7 @@ func TestMergeProposal(t *testing.T) {
 		rig.editMain(t, "Same")
 		res := rig.call(asUser(editorCaller), t, nameMergeProposal, mergeInput(id, 1, ""))
 		out := summaryOf(t, res)
-		if out.State != "merged" || out.MergedVersion != nil || res.Step != "Merged proposal; the dashboard already had its change" {
+		if out.State != "merged" || out.MergedVersion != nil || res.Step != "Merged proposal; it saved no new version because the dashboard already had everything kept" {
 			t.Fatalf("out = %+v step = %q", out, res.Step)
 		}
 	})

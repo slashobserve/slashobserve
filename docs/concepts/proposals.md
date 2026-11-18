@@ -35,6 +35,7 @@ Behind is no problem by itself: a merge puts the proposal's changes on top of th
 
 A merge is refused while the proposal and the newer versions changed the same panel, variable or setting.
 `GET /api/v1/proposals/{id}` lists these under `conflicts` while the proposal is open and behind, and `changes` lists what the proposal adds, changes, removes or moves compared with the version it builds on.
+`diff` lists the same comparison field by field, in the shape of `GET /api/v1/dashboards/{id}/diff`, with the old and new value of each field.
 
 ## Merge
 
@@ -43,7 +44,7 @@ The body names the `revision` the caller read, and `409` with the code `proposal
 For each conflict the body also carries a choice: `ours` keeps the dashboard's newer version of the unit and `theirs` takes the proposal's.
 
 The merge runs the same checks as any save, and the new version records the proposal it came from as `merged_proposal_id`.
-When the result equals the latest version, nothing is saved, and the proposal closes as merged with no `merged_version`.
+When the result equals the latest version, nothing is saved, and the proposal closes as merged with no `merged_version`; this happens, for example, when every conflict is resolved with `ours`, which drops the proposed unit.
 
 ## Discard
 
@@ -64,8 +65,8 @@ Deleting the dashboard deletes its proposals.
 
 A dashboard with open proposals shows "1 proposal" or "N proposals" in its top row, and the button lists each with its title, its author, when it was opened and "Behind" when the dashboard has moved on.
 A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id>`.
-The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, and the list of changes by panel, "Variable <name>" and "Dashboard settings".
-A link opens the dashboard at the version the proposal builds on, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
+The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, the list of changes by panel, "Variable <name>" and "Dashboard settings", and below it the field-by-field difference from the version the proposal builds on, with each query or option before and after, as the [version history](../concepts/versions.md) shows two versions.
+A link opens the dashboard at the version the proposal builds on, or at the merged version once it is merged, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
 
 When a change conflicts, its row asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.

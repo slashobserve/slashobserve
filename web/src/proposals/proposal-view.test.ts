@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import type { MergeConflict, Proposal, ProposalSummary } from "./queries"
-import { changeRows, choicesFrom, stateLine, unitKey } from "./proposal-view"
+import {
+  changeRows,
+  choicesFrom,
+  dashboardLinkOf,
+  stateLine,
+  unitKey,
+} from "./proposal-view"
 
 const ada = {
   kind: "user" as const,
@@ -64,6 +70,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
       ],
     },
     changes: [],
+    diff: [],
     conflicts: [],
     ...over,
   }
@@ -205,7 +212,7 @@ describe("stateLine", () => {
     ],
     [
       summary({ state: "merged", merged_version: null, closed_by: ada }),
-      "Merged; the dashboard already had this change",
+      "Merged without a new version; the dashboard already had everything that was kept",
     ],
     [
       summary({ state: "discarded", closed_by: { ...ada, name: "Grace" } }),
@@ -213,5 +220,28 @@ describe("stateLine", () => {
     ],
   ])("reads %#", (item, expected) => {
     expect(stateLine(item)).toBe(expected)
+  })
+})
+
+describe("dashboardLinkOf", () => {
+  it.each([
+    [summary(), 3, "Open the dashboard at version 3"],
+    [
+      summary({ state: "discarded", closed_by: ada }),
+      3,
+      "Open the dashboard at version 3",
+    ],
+    [
+      summary({ state: "merged", merged_version: 8, closed_by: ada }),
+      8,
+      "Open the dashboard at version 8",
+    ],
+    [
+      summary({ state: "merged", merged_version: null, closed_by: ada }),
+      null,
+      "Open the dashboard",
+    ],
+  ])("points %#", (item, version, label) => {
+    expect(dashboardLinkOf(item)).toEqual({ version, label })
   })
 })

@@ -48,6 +48,7 @@ type Proposal struct {
 	Item
 	Spec      *spec.Dashboard
 	Changes   []spec.UnitChange
+	Diff      []spec.Change
 	Conflicts []spec.Conflict
 }
 
@@ -288,6 +289,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (P
 		Item:      s.itemFor(ctx, by, h, access.Abilities, latest.Number),
 		Spec:      &headSpec,
 		Changes:   spec.Changes(base, &headSpec),
+		Diff:      spec.Diff(base, &headSpec),
 		Conflicts: []spec.Conflict{},
 	}
 	if p.State == StateOpen && p.Behind {

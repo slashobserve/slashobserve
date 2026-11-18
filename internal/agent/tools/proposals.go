@@ -35,7 +35,7 @@ const (
 	proposeModeMessage = "This connection is in propose mode, so it cannot merge; ask a person who can edit to merge it."
 
 	descListProposals   = "List the proposals on a dashboard, newest first: open ones by default, or state merged, discarded or all. A proposal is a change someone who cannot edit, or whose connection is in propose mode, saved for an Editor to merge. Pass next_cursor as cursor for the next page."
-	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on, the conflicts a merge would hit on the latest version, and the allowed_actions you have now. A spec over 128 KiB returns too_large."
+	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on (`changes` by panel, variable and setting, and `diff` field by field with the old and new values), the conflicts a merge would hit on the latest version, and the allowed_actions you have now. A spec over 128 KiB returns too_large."
 	descMergeProposal   = "Merge an open proposal into its dashboard as a new version; only someone who can edit may, and not a connection in propose mode. Send the revision you read with get_proposal, and a choice per conflict, ours for the dashboard's current unit or theirs for the proposal's. The merge runs the queries of the panels it changes before it saves."
 	descDiscardProposal = "Close an open proposal without saving its change. Its author may, and so may an Editor whose connection is not in propose mode."
 
@@ -196,7 +196,7 @@ func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return r.proposalFailure(err)
 	}
-	step := "Merged proposal; the dashboard already had its change"
+	step := "Merged proposal; it saved no new version because the dashboard already had everything kept"
 	if merged.MergedVersion != nil {
 		step = "Merged proposal as version " + strconv.Itoa(*merged.MergedVersion)
 	}

@@ -64,6 +64,9 @@ func TestACommenterOpensAProposalAndItWritesNoVersion(t *testing.T) {
 	if len(p.Conflicts) != 0 {
 		t.Fatalf("conflicts = %v, want none", p.Conflicts)
 	}
+	if len(p.Diff) != 1 || p.Diff[0].Op != "replace" || p.Diff[0].Path != "/panels/a/queries/A/query" || string(p.Diff[0].From) != `"up"` || string(p.Diff[0].To) != `"rate(up[1m])"` {
+		t.Fatalf("diff = %+v, want the one query changed from up to rate(up[1m])", p.Diff)
+	}
 }
 
 func TestAViewerCannotPropose(t *testing.T) {

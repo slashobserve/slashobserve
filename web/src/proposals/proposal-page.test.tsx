@@ -64,6 +64,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
       panels: [{ id: "p-errors", title: "Errors" }],
     },
     changes: [{ kind: "panel", id: "p-errors", change: "changed" }],
+    diff: [],
     conflicts: [clash],
     ...over,
   }
@@ -109,6 +110,18 @@ function mockServer(options: {
         return json({
           dashboard: { id: dashboardId, title: "Checkout" },
           version: { version: 4, spec: { specVersion: "0", panels: [] } },
+        })
+      }
+      if (pathname === `/api/v1/dashboards/${dashboardId}/versions/3`) {
+        return json({
+          dashboard: { id: dashboardId, title: "Checkout" },
+          version: {
+            version: 3,
+            spec: {
+              specVersion: "0",
+              panels: [{ id: "p-errors", title: "Error rate" }],
+            },
+          },
         })
       }
       if (pathname === "/api/v1/threads") {
@@ -160,6 +173,51 @@ describe("ProposalPage", () => {
     expect(screen.getByRole("radiogroup", { name: "Errors" })).toBeTruthy()
     expect(
       screen.getByRole("link", { name: "Open the dashboard at version 3" })
+    ).toBeTruthy()
+  })
+
+  it("shows what the proposal changes, field by field", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          conflicts: [],
+          diff: [
+            {
+              op: "replace",
+              path: "/panels/p-errors/title",
+              from: "Error rate",
+              to: "Errors",
+            },
+          ],
+        }),
+      ],
+    })
+    renderPage()
+    expect(
+      await screen.findByRole("heading", {
+        name: "What changes from version 3",
+      })
+    ).toBeTruthy()
+    expect(await screen.findByText('Panel "Errors"')).toBeTruthy()
+    expect(screen.getByText("Error rate")).toBeTruthy()
+  })
+
+  it("links a merged proposal to the version it made", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          state: "merged",
+          merged_version: 5,
+          conflicts: [],
+          allowed_actions: [],
+        }),
+      ],
+    })
+    renderPage()
+    expect(
+      await screen.findByRole("link", {
+        name: "Open the dashboard at version 5",
+      })
     ).toBeTruthy()
   })
 
