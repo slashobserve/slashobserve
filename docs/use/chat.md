@@ -8,6 +8,8 @@ The server runs the agent against your configured datasources, checks every quer
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
 A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
+The observation, and a dashboard saved from it, take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+A chat is titled the same way, from your message.
 A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
@@ -269,7 +271,7 @@ In History, the search box finds chats whose title or prompt contains the text, 
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
 Each chat has a menu with these actions:
 
-- **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the start of the prompt.
+- **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
 - **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists. The dashboard it made stays, and the chat page still opens from its link.
 

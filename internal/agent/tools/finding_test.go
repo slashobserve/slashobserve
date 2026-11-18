@@ -234,6 +234,48 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	}
 }
 
+func TestSaveFindingUsesTheShortTitleTheAgentGave(t *testing.T) {
+	r := newFindingRig(t)
+	run := Run{Mode: ModeCreate, Prompt: "@observe why are server errors elevated, and which pod is responsible for them right now?"}
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, `{"title":"Checkout 5xx errors by pod","markdown":"checkout-0 throws 5xx"}`)
+	saved, ok := res.Content.(findingSavedOut)
+	if res.IsError || !ok {
+		t.Fatalf("save: %#v", res.Content)
+	}
+	id, err := db.ParseUUID(saved.FindingID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := r.findings.Get(t.Context(), editorCaller, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Title != "Checkout 5xx errors by pod" {
+		t.Errorf("title = %q", f.Title)
+	}
+}
+
+func TestSaveFindingShortensThePromptWhenTheAgentGaveNoTitle(t *testing.T) {
+	r := newFindingRig(t)
+	run := Run{Mode: ModeCreate, Prompt: "@observe why are server errors elevated, and which pod is responsible for them right now?"}
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, `{"markdown":"checkout-0 throws 5xx"}`)
+	saved, ok := res.Content.(findingSavedOut)
+	if res.IsError || !ok {
+		t.Fatalf("save: %#v", res.Content)
+	}
+	id, err := db.ParseUUID(saved.FindingID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := r.findings.Get(t.Context(), editorCaller, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Title != "why are server errors elevated, and which pod is responsible..." {
+		t.Errorf("title = %q", f.Title)
+	}
+}
+
 func (r *findingRig) investigation(t *testing.T, by auth.Principal, from, to time.Time) (Run, dbsqlc.AgentRequest) {
 	t.Helper()
 	byID, err := db.ParseUUID(by.ID)

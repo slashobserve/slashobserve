@@ -3607,7 +3607,7 @@ export interface components {
             id: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
-            /** @description The requester's title, else the first line of the prompt cut to 120 characters, else the source word. */
+            /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word. */
             title: string;
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
@@ -5112,7 +5112,7 @@ export interface components {
              * @enum {string}
              */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
@@ -5295,7 +5295,7 @@ export interface components {
             build_saved_at: string | null;
             /** @enum {string} */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
             /**
              * Format: date-time

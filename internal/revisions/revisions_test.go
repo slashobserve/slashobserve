@@ -1363,11 +1363,15 @@ func TestKindIsInvestigateOnlyForInvestigations(t *testing.T) {
 	}
 }
 
-func TestDefaultTitleIsTheFirstLineCutAtEightyRunes(t *testing.T) {
+func TestDefaultTitleIsAShortCleanFirstLine(t *testing.T) {
 	cases := []struct{ prompt, want string }{
 		{"checkout health\nby pod", "checkout health"},
 		{"  spaced  ", "spaced"},
-		{strings.Repeat("ü", 100), strings.Repeat("ü", 80)},
+		{"@observe checkout health", "checkout health"},
+		{"x", "x"},
+		{"@observe", "@observe"},
+		{strings.Repeat("ü", 100), strings.Repeat("ü", 60) + "..."},
+		{"which pod is responsible for the elevated server errors in checkout today", "which pod is responsible for the elevated server errors in..."},
 	}
 	for _, c := range cases {
 		if got := revisions.DefaultTitle(c.prompt); got != c.want {

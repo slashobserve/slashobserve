@@ -30,11 +30,12 @@ const (
 
 	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant."
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
+	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"A short title for the answer, three to eight words that name its subject, such as Checkout 5xx errors by pod. Not the question and not a sentence."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
 	propFindingFrom     = `"from":{"type":"string","description":"Start of the window the evidence shows, such as now-1h or an RFC 3339 time."}`
 	propFindingTo       = `"to":{"type":"string","description":"End of the window the evidence shows, such as now or an RFC 3339 time."}`
 
-	schemaSaveFinding = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `},"required":["markdown"],"additionalProperties":false}`
+	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `},"required":["markdown"],"additionalProperties":false}`
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
@@ -48,6 +49,7 @@ func (r *Registry) findingEntries() []entry {
 }
 
 type findingInput struct {
+	Title    string            `json:"title"`
 	Markdown string            `json:"markdown"`
 	Evidence []json.RawMessage `json:"evidence"`
 	From     string            `json:"from"`
@@ -85,7 +87,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		to = time.Now()
 		from = to.Add(-defaultWindow)
 	}
-	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.Title(run.Prompt))
+	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Prompt))
 	if err != nil || !ok {
 		return res, err
 	}

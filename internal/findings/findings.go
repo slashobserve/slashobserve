@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -24,7 +25,6 @@ const (
 	MaxEvidence       = 4
 	MaxWords          = 400
 	MaxMarkdownRunes  = 4000
-	MaxTitleRunes     = 80
 	maxFirstLineRunes = 200
 	evidenceWidth     = 12
 	evidenceHeight    = 8
@@ -71,11 +71,17 @@ type Finding struct {
 }
 
 func Title(text string) string {
-	line := firstNonBlankLine(text)
-	if line == "" {
-		return defaultTitle
+	if title := revisions.ShortTitle(text); title != "" {
+		return title
 	}
-	return cutRunes(line, MaxTitleRunes)
+	return defaultTitle
+}
+
+func TitleFrom(given, prompt string) string {
+	if title := Title(given); title != defaultTitle {
+		return title
+	}
+	return Title(prompt)
 }
 
 func FirstLine(markdown string) string {
