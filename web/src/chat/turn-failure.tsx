@@ -148,6 +148,7 @@ export function TurnFailure({
   const [retrying, setRetrying] = useState(false)
   const canRetry = request.allowed_actions.includes("retry")
   const continued = request.continued_by !== null
+  const stopped = request.failure_code === "canceled"
 
   async function retry() {
     setRetrying(true)
@@ -162,24 +163,32 @@ export function TurnFailure({
 
   return (
     <div
-      role="alert"
+      role={stopped ? "status" : "alert"}
       className="flex items-start gap-2.5 rounded-card border px-3.5 py-3 text-[13px]"
     >
-      <span className="flex h-[1.45em] items-center">
-        <StatusIcon tone="critical" />
-      </span>
+      {stopped ? null : (
+        <span className="flex h-[1.45em] items-center">
+          <StatusIcon tone="critical" />
+        </span>
+      )}
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <div className="flex flex-col gap-0.5">
-          <p className="font-semibold">{failureHeading(request.source)}</p>
-          <p className="wrap-anywhere text-muted-foreground">
-            {explained?.meaning ??
-              sentence(request.error ?? "The request failed")}
-          </p>
-          {explained !== null && request.error !== null ? (
-            <p className="wrap-anywhere text-muted-foreground">
-              {sentence(request.error)}
-            </p>
-          ) : null}
+          {stopped ? (
+            <p className="font-semibold">You stopped this run</p>
+          ) : (
+            <>
+              <p className="font-semibold">{failureHeading(request.source)}</p>
+              <p className="wrap-anywhere text-muted-foreground">
+                {explained?.meaning ??
+                  sentence(request.error ?? "The request failed")}
+              </p>
+              {explained !== null && request.error !== null ? (
+                <p className="wrap-anywhere text-muted-foreground">
+                  {sentence(request.error)}
+                </p>
+              ) : null}
+            </>
+          )}
           {explained !== null ? <p>{explained.next}</p> : null}
         </div>
         {continued || canRetry || request.dashboard_id !== null ? (

@@ -146,7 +146,8 @@ Only the person who asked sees it; an Editor or Admin cannot cancel someone else
 A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
 If its worker is gone, the request ends canceled at once instead.
-The request ends as failed with "the run was canceled" and keeps what was built, so you can save or continue it.
+The request ends as failed with the code `canceled` and keeps what was built, so you can save or continue it.
+The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and History shows "You stopped this run" instead of a red error.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
 Other people's follow-ups on the same dashboard wait behind a run until it ends, so a run that goes nowhere holds them back until its owner cancels it or one of its limits stops it.
@@ -167,6 +168,7 @@ Only the person who asked can continue a build, and it needs the same access as 
 A build can be continued once, and not after you saved it; **Save what was built** and **Continue** exclude each other, so whichever you choose first wins and the other says it can no longer be done.
 A follow-up whose dashboard got a newer version since the build started cannot be continued: the page says "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
 A continued run counts toward the same limits as a new request.
+When the agent lowers the number of panels it planned after you continue, the finished turn says so, for example "Planned 6 panels, built 3."
 
 ## Read a turn
 
@@ -264,7 +266,9 @@ The Chats page lists all your chats, newest first, grouped Today, This week and 
 Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
-A chat that saved its finding names the observation it was saved to, as long as you can open that observation's folder.
+A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
+An investigation names the observation it was saved to, as long as you can open that observation's folder.
+An answer is written into an observation, because a finding always lives in one; it goes in your My Dashboards, where only you see it, under the short title described above.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.

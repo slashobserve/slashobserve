@@ -130,14 +130,41 @@ describe("chatOutcome", () => {
       "Saved Checkout",
     ],
     [
-      "an observation the caller can see",
-      { result_kind: "observation", observation_title: "Checkout errors" },
+      "an investigation the caller can see",
+      {
+        kind: "investigate",
+        result_kind: "observation",
+        observation_title: "Checkout errors",
+      },
       "Answered in Checkout errors",
     ],
     [
-      "an observation the caller cannot see",
-      { result_kind: "observation", observation_title: null },
+      "an investigation the caller cannot see",
+      {
+        kind: "investigate",
+        result_kind: "observation",
+        observation_title: null,
+      },
       "Saved an observation",
+    ],
+    [
+      "a request for a dashboard that was only answered",
+      {
+        source: "observe",
+        result_kind: "observation",
+        observation_title: "Checkout errors",
+      },
+      "Answered, no dashboard",
+    ],
+    [
+      "a question on a dashboard",
+      {
+        source: "prompt",
+        dashboard_id: "d1",
+        result_kind: "observation",
+        observation_title: "Checkout errors",
+      },
+      "Answered, dashboard unchanged",
     ],
     ["a suggestion", { result_kind: "suggestion" }, "Suggested a panel"],
     ["a proposal", { result_kind: "proposal" }, "Opened a proposal"],

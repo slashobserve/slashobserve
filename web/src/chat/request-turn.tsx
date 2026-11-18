@@ -4,7 +4,11 @@ import { useEffect, useState } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
-import { buildStatusText, type BuildProgress } from "@/observe/build"
+import {
+  buildStatusText,
+  planChangeText,
+  type BuildProgress,
+} from "@/observe/build"
 import { costText, shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
@@ -173,6 +177,7 @@ export function RequestTurn({
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
   const steps = live?.steps ?? []
+  const planChange = planChangeText(steps)
   const savedBuild = request.result_kind === "partial_version"
   const inPane = opensRunsIn === "build"
   const navigate = useNavigate()
@@ -305,6 +310,9 @@ export function RequestTurn({
               </div>
             </details>
           )}
+          {!active && planChange !== null ? (
+            <p className="text-[13px] text-muted-foreground">{planChange}</p>
+          ) : null}
           {savedBuild ? (
             <p className="text-[13px]">
               {request.requested_by.id === principal.id

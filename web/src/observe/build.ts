@@ -103,6 +103,25 @@ export function buildQuery(requestId: string, saves: number) {
   })
 }
 
+const loweredPlan = /\(planned (\d+) -> (\d+)\)$/
+
+export function planChangeText(
+  steps: readonly { message: string }[]
+): string | null {
+  const changes = steps.flatMap((step) => {
+    const match = loweredPlan.exec(step.message)
+    return match === null
+      ? []
+      : [{ from: Number(match[1]), to: Number(match[2]) }]
+  })
+  const first = changes.at(0)
+  const last = changes.at(-1)
+  if (first === undefined || last === undefined || last.to >= first.from) {
+    return null
+  }
+  return `Planned ${plural(first.from, "panel")}, built ${last.to}.`
+}
+
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`
 }

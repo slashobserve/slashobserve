@@ -84,10 +84,31 @@ export function isTerminal(request: ObserveRequest | undefined): boolean {
   return request?.status === "succeeded" || request?.status === "failed"
 }
 
+function succeededView(
+  r: Pick<RequestSummary, "result_version" | "result_kind">
+): { tone: StatusTone; text: string } {
+  if (r.result_version !== null) {
+    return { tone: "ok", text: `Saved version ${r.result_version}` }
+  }
+  switch (r.result_kind) {
+    case "observation":
+      return { tone: "ok", text: "Answered" }
+    case "none":
+      return { tone: "warning", text: "Nothing saved" }
+    default:
+      return { tone: "ok", text: "Saved" }
+  }
+}
+
 export function requestStatusView(
   r: Pick<
     RequestSummary,
-    "status" | "dashboard_title" | "error" | "result_version"
+    | "status"
+    | "dashboard_title"
+    | "error"
+    | "result_version"
+    | "result_kind"
+    | "failure_code"
   >
 ): { tone: StatusTone; text: string } {
   switch (r.status) {
@@ -95,14 +116,11 @@ export function requestStatusView(
     case "running":
       return { tone: "running", text: "Working" }
     case "succeeded":
-      return {
-        tone: "ok",
-        text:
-          r.result_version === null
-            ? "Saved"
-            : `Saved version ${r.result_version}`,
-      }
+      return succeededView(r)
     case "failed":
+      if (r.failure_code === "canceled") {
+        return { tone: "warning", text: "You stopped this run" }
+      }
       return {
         tone: "critical",
         text: sentence(r.error ?? "The request failed"),

@@ -176,7 +176,13 @@ describe("pollFailures", () => {
 })
 
 describe("requestStatusView", () => {
-  const base = { dashboard_title: null, error: null, result_version: null }
+  const base = {
+    dashboard_title: null,
+    error: null,
+    result_version: null,
+    result_kind: "version" as const,
+    failure_code: null,
+  }
 
   it("shows queued and running requests as working", () => {
     expect(requestStatusView({ ...base, status: "queued" })).toEqual({
@@ -208,6 +214,33 @@ describe("requestStatusView", () => {
         dashboard_title: "Checkout health",
       })
     ).toEqual({ tone: "ok", text: "Saved" })
+  })
+
+  it("shows an answer without a version as answered, not saved", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "succeeded",
+        result_kind: "observation",
+      })
+    ).toEqual({ tone: "ok", text: "Answered" })
+  })
+
+  it("flags a succeeded request that saved nothing", () => {
+    expect(
+      requestStatusView({ ...base, status: "succeeded", result_kind: "none" })
+    ).toEqual({ tone: "warning", text: "Nothing saved" })
+  })
+
+  it("shows a canceled request as stopped on purpose", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "failed",
+        error: "The run was canceled.",
+        failure_code: "canceled",
+      })
+    ).toEqual({ tone: "warning", text: "You stopped this run" })
   })
 
   it("shows a failed request with the error as a sentence", () => {
