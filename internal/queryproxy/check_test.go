@@ -391,6 +391,20 @@ func TestCheckSpecResolvesRangeFromNow(t *testing.T) {
 	}
 }
 
+func TestCheckSpecBoundsADashboardRangeLongerThanTheMaximum(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up")})
+	d.Time = spec.TimeRange{From: "now-5y", To: "now"}
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
+		t.Fatalf("issues = %+v, err = %v", issues, err)
+	}
+	want := datasource.TimeRange{From: testNow.Add(-MaxRange), To: testNow}
+	if got := fake.recorded()[0].rng; got != want {
+		t.Fatalf("range = %v, want %v", got, want)
+	}
+}
+
 func TestCheckSpecPanelCallShape(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})

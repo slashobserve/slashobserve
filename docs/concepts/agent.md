@@ -236,6 +236,7 @@ A run that fails on its first model call has `usage` with `model_calls` 0 and `f
 
 Before it stores a version, the server runs the queries itself, whatever the model checked earlier.
 Besides validating the document, it runs queries over the dashboard's default time range and with each variable at its default, hidden queries included.
+A default range longer than 400 days is checked over its last 400 days, the longest range the query routes accept, so the save is not refused for it and no check query reads more.
 Which queries run depends on the tool:
 
 - `create_dashboard` and `update_dashboard` run every query of every panel and every query variable.
