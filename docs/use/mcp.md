@@ -528,6 +528,7 @@ Some results also carry a note after the content, which an agent reads like any 
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against, and the server may replace `reason` (with `conflict` after a rebase, with the resume reason when the run has a build).
 An agent that never calls it works from the claim answer and the `observe` prompt.
 It answers `run_ended` for a run that has ended.
+A request on the run's token after the run ended is answered with HTTP 409 and `run_ended`, not a server error.
 
 `report_run` also takes, all optional:
 

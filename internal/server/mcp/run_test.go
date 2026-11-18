@@ -497,6 +497,16 @@ func TestRunSessionRefusesARunWhoseScopeCannotBeBuilt(t *testing.T) {
 	}
 }
 
+func TestRunSessionOfAnEndedRunIsAnsweredAsConflictAndNotLoggedAsAnError(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.runs.scopeErr = tools.ErrRunEnded
+	rec := f.post(runToken, rpc(1, "tools/list", map[string]any{}))
+	assertErrorBody(t, rec, http.StatusConflict, "run_ended")
+	if strings.Contains(f.logs.String(), "run_scope_failed") {
+		t.Errorf("an ended run was logged as a failure: %s", f.logs.String())
+	}
+}
+
 func TestRunToolWithoutARunScopeIsRefused(t *testing.T) {
 	f := newRunFixture(t, tools.ModeRevise)
 	called := false
