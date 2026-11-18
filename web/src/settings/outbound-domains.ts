@@ -82,12 +82,13 @@ export function matchText(domain: string): string {
     : `Only ${domain}`
 }
 
-const userKindText: Record<OutboundDomain["used_by"][number]["kind"], string> = {
-  webhook: "Webhook",
-  grafana_connection: "Grafana connection",
-}
+const userKindText: Record<OutboundDomain["used_by"][number]["kind"], string> =
+  {
+    webhook: "Webhook",
+    grafana_connection: "Grafana connection",
+  }
 
-export function userText(user: OutboundDomain["used_by"][number]): string {
+function userText(user: OutboundDomain["used_by"][number]): string {
   return `${userKindText[user.kind]} ${user.name}`
 }
 

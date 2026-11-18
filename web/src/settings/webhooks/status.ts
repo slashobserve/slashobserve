@@ -10,7 +10,7 @@ export type WebhookStatus = {
   waiting: string | null
 }
 
-export function waitingText(waiting: Webhook["waiting_events"]): string | null {
+function waitingText(waiting: Webhook["waiting_events"]): string | null {
   if (waiting === null || waiting.count === 0) return null
   if (waiting.more) return `${waiting.count} or more events waiting`
   return `${waiting.count} ${waiting.count === 1 ? "event" : "events"} waiting`
