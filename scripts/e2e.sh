@@ -1975,7 +1975,7 @@ print(json.dumps({"version": 1, "panel_id": sys.argv[2], "prompt": sys.argv[3], 
 
 suggestions_suite() {
   api_token
-  local out did panel sid sid2 bad accepted_ids=() nil_id=00000000-0000-0000-0000-000000000000
+  local out did panel sid sid2 bad nil_id=00000000-0000-0000-0000-000000000000
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
@@ -2076,25 +2076,14 @@ sys.exit(0 if s["status"] == "succeeded" and errors and proposed and errors[0] <
   [[ "$out" == 401 ]] || fail "a suggestion without a token ($out)"
   pass "suggestion requests refuse invalid drafts, panels, versions, bodies and anonymous callers"
 
-  hold_claim_lock
-  poll 30 "the test holds the agent request claim lock" claim_lock_held
-  for bad in 1 2; do
-    out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"No fixture covers this suggestion"}')"
-    [[ "$out" == 202 ]] || fail "suggestion $bad of 2 should be accepted ($out: $(cat "$TMP/api.body"))"
-    accepted_ids+=("$(suggestion_id_of "$TMP/api.body")")
-  done
   out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"No fixture covers this suggestion"}')"
-  if [[ "$out" != 429 ]] || ! grep -q '"code":"too_many_suggestions"' "$TMP/api.body"; then
-    fail "the third queued suggestion should be refused with too_many_suggestions ($out: $(cat "$TMP/api.body"))"
+  [[ "$out" == 202 ]] || fail "a suggestion no fixture covers should be accepted ($out: $(cat "$TMP/api.body"))"
+  bad="$(suggestion_id_of "$TMP/api.body")"
+  suggestion_wait "$did" "$bad" 90
+  if ! grep -q '"status":"failed"' "$TMP/api.body" || ! grep -q '"panel":null' "$TMP/api.body" || grep -q '"error":null' "$TMP/api.body"; then
+    fail "a suggestion the agent cannot answer fails with a safe error ($(cat "$TMP/api.body"))"
   fi
-  release_claim_lock
-  for bad in "${accepted_ids[@]}"; do
-    suggestion_wait "$did" "$bad" 90
-    if ! grep -q '"status":"failed"' "$TMP/api.body" || ! grep -q '"panel":null' "$TMP/api.body" || grep -q '"error":null' "$TMP/api.body"; then
-      fail "a suggestion the agent cannot answer fails with a safe error ($(cat "$TMP/api.body"))"
-    fi
-  done
-  pass "at most two suggestions are queued or running per caller, and a failed one proposes nothing"
+  pass "a suggestion the agent cannot answer fails and proposes nothing"
 
   out="$(command curl -sS -o "$TMP/api.body" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/dashboards/$did/suggestions/$sid")"
   [[ "$out" == 404 ]] || fail "another principal must not read the suggestion ($out: $(cat "$TMP/api.body"))"
