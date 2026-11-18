@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -20,8 +21,14 @@ import { usePins } from "./queries"
 const shown = 10
 
 export function useVisiblePins() {
+  const [expanded, setExpanded] = useState(false)
   const pins = usePins().data ?? []
-  return { pins: pins.slice(0, shown), more: pins.length > shown }
+  return {
+    pins: expanded ? pins : pins.slice(0, shown),
+    total: pins.length,
+    expanded,
+    onToggle: () => setExpanded((open) => !open),
+  }
 }
 
 function usePinHealth(pins: readonly Pin[]) {
@@ -46,12 +53,16 @@ export function pinRows(pins: readonly Pin[]): SubNavRow[] {
 
 export function PinnedDashboards({
   pins,
-  more,
+  total,
+  expanded,
+  onToggle,
   currentId,
   onNavigate,
 }: {
   pins: readonly Pin[]
-  more: boolean
+  total: number
+  expanded: boolean
+  onToggle: () => void
   currentId: string | null
   onNavigate?: () => void
 }) {
@@ -77,16 +88,16 @@ export function PinnedDashboards({
           </li>
         )
       })}
-      {more ? (
+      {total > shown ? (
         <li>
-          <Link
-            to="/dashboards"
-            onClick={onNavigate}
-            aria-label="More pinned dashboards"
-            className={subNavMoreClass}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={onToggle}
+            className={cn(subNavMoreClass, "w-full")}
           >
-            More
-          </Link>
+            {expanded ? "Show fewer pins" : `Show all ${total} pins`}
+          </button>
         </li>
       ) : null}
     </SubNavList>

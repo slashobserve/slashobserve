@@ -513,7 +513,7 @@ export function DashboardList({
       {showTable ? (
         <>
           <TableCard
-            minWidth={960}
+            minWidth={700}
             labelledBy={labelledBy}
             ref={regionRef}
             stackOnNarrow

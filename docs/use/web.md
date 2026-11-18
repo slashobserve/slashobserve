@@ -87,7 +87,7 @@ Arrow keys move through the results and Enter opens one.
 
 Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
 A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted while **Dashboards** itself turns semibold instead of highlighted.
-The sidebar lists ten pins and then a **More** link to the dashboards list, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
+The sidebar lists ten pins and then **Show all N pins**, which lists every pin in place until you choose **Show fewer pins**, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
 Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
 Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
