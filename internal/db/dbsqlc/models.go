@@ -223,6 +223,12 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DraftQuerySpend struct {
+	PrincipalKey string
+	WindowStart  pgtype.Timestamptz
+	Calls        int32
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID

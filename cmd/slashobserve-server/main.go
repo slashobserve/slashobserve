@@ -33,6 +33,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/draftbudget"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
@@ -391,6 +392,7 @@ func run() error {
 		Search:        searchService,
 		Stars:         stars.New(database, folderAccess),
 		Provider:      llmProvider,
+		DraftBudget:   draftbudget.New(database),
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,
 	})
