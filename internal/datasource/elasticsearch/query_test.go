@@ -132,6 +132,10 @@ func TestBuildBodyRefusesInvalidBodiesBeforeAnyRequest(t *testing.T) {
 	for _, tc := range []struct{ name, text, message string }{
 		{"unknown key", `{"query": {}, "post_filter": {}}`, `unsupported key "post_filter" in the query body`},
 		{"unknown key after nesting", `{"query": {"bool": {"x": [1, 2]}}, "from": 3}`, `unsupported key "from" in the query body`},
+		{"script in an aggregation", `{"aggs": {"a": {"avg": {"field": "x", "script": "doc['x'].value * 2"}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script query nested in a filter", `{"query": {"bool": {"filter": [{"script": {"script": {"source": "true"}}}]}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script field", `{"script_fields": {"f": {"script": {"source": "1"}}}}`, "unsupported key"},
+		{"runtime mapping with a script", `{"runtime_mappings": {"r": {"type": "keyword", "script": {"source": "emit('x')"}}}}`, `scripts are not allowed in a query body: remove "script"`},
 		{"syntax error", `{"query": }`, "query body is not valid JSON"},
 		{"truncated", `{"query": {"match_all": {}}`, "query body is not valid JSON"},
 		{"trailing data", `{} {}`, "unexpected data after the query body"},

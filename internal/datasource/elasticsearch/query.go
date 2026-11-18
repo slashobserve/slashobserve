@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +23,8 @@ const (
 	nanosFormat    = "strict_date_optional_time_nanos"
 	trackedHits    = 10000
 )
+
+var scriptKeys = []string{"script", "script_fields", "script_score", "scripted_metric", "init_script", "map_script", "combine_script", "reduce_script", "minimum_should_match_script", "_script"}
 
 var dslKeys = []string{"query", "aggs", "aggregations", "size", "sort", "fields", "_source", "runtime_mappings"}
 
@@ -236,7 +239,33 @@ func parseDSL(body string) (map[string]any, []dslProblem) {
 			problems = append(problems, dslProblem{message: fmt.Sprintf("unsupported key %q in the query body", truncateText(key.name)), start: key.start, end: key.end})
 		}
 	}
+	if name, found := findScriptKey(obj); found {
+		quoted := strconv.Quote(name)
+		start := max(strings.Index(body, quoted), 0)
+		problems = append(problems, dslProblem{message: fmt.Sprintf("scripts are not allowed in a query body: remove %q", name), start: start, end: min(start+len(quoted), len(body))})
+	}
 	return obj, problems
+}
+
+func findScriptKey(node any) (string, bool) {
+	switch v := node.(type) {
+	case map[string]any:
+		for _, name := range slices.Sorted(maps.Keys(v)) {
+			if slices.Contains(scriptKeys, name) {
+				return name, true
+			}
+			if found, ok := findScriptKey(v[name]); ok {
+				return found, true
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if found, ok := findScriptKey(item); ok {
+				return found, true
+			}
+		}
+	}
+	return "", false
 }
 
 func syntaxProblem(err error, body string) dslProblem {
