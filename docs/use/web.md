@@ -14,8 +14,8 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/o/<observation id>` | One observation, its blocks and its discussion; `rca=1` in the query string opens the Publish as RCA panel. |
 | `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
-| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
-| `/f/<folder id>` | A folder's settings. |
+| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its version history, headed "Versions of <title>", and `thread=<thread id>` opens the activity pane on that comment thread. |
+| `/f/<folder id>` | A folder: its dashboards, observations and saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |

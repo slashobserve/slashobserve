@@ -27,7 +27,7 @@ They come in four kinds:
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".
-  **See changes** opens the comparison with the previous version.
+  **See changes** opens the comparison with the previous version, on the dashboard's version history page at `/d/<dashboard id>/versions`, headed "Versions of <title>".
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.
   The button shows while the filters keep versions in the list, so it is hidden under **Open comments** and when a panel is chosen.
