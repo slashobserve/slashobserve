@@ -215,6 +215,13 @@ func TestDiscardReasonIsReturnedAndBounded(t *testing.T) {
 	}
 }
 
+func TestListRefusesARunIdThatIsNotAUUID(t *testing.T) {
+	d := newDocumented(t)
+	id := d.createDashboard(t, steady)
+	d.send(t, editor, http.MethodGet, "/api/v1/dashboards/"+id.String()+"/proposals?run_id=nope", "", http.StatusBadRequest)
+	d.send(t, editor, http.MethodGet, "/api/v1/dashboards/"+id.String()+"/proposals?run_id="+id.String(), "", http.StatusOK)
+}
+
 func TestProposalRoutesAnswerEveryDocumentedError(t *testing.T) {
 	d := newDocumented(t)
 	id := d.createDashboard(t, steady, second)

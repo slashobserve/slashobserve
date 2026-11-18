@@ -799,7 +799,7 @@ export interface paths {
         put?: never;
         /**
          * Close a proposal without saving it.
-         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason` and the `proposal.discarded` activity event carries.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason`; the activity event does not carry it.
          */
         post: operations["discardProposal"];
         delete?: never;
@@ -8423,6 +8423,8 @@ export interface operations {
         parameters: {
             query?: {
                 state?: "open" | "merged" | "discarded" | "all";
+                /** @description Only the proposal that the agent request with this id opened, which is how a run finds its proposal however many others the dashboard has; a value that is not a UUID is 400. */
+                run_id?: string;
                 limit?: number;
                 cursor?: string;
             };

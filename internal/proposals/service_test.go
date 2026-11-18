@@ -785,6 +785,29 @@ func TestARunWhoseRequesterLostEditCommitsItsBuildAsAProposalOwnedByTheRun(t *te
 	}
 }
 
+func TestListCanBeNarrowedToTheProposalOfOneRun(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady, second)
+	run := r.runWithABuild(t, id, changed, second)
+	commit, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	if err != nil || commit.Proposal == nil {
+		t.Fatalf("commit = %+v, err %v", commit, err)
+	}
+	r.propose(t, otherCommenter, id, 1, changed)
+	if _, err := r.service.Merge(t.Context(), editor, proposalID(t, *commit.Proposal), 1, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: run})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != commit.Proposal.ID || page.Items[0].State != StateMerged {
+		t.Fatalf("page = %+v, err = %v, want only the run's merged proposal", page.Items, err)
+	}
+	none, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: proposalID(t, *commit.Proposal)})
+	if err != nil || len(none.Items) != 0 {
+		t.Fatalf("none = %+v, err = %v, want no proposal for another run", none.Items, err)
+	}
+}
+
 func TestALostAttemptsCommitWritesNoProposal(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady, second)

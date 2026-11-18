@@ -49,6 +49,7 @@ JOIN proposal_revisions r ON r.proposal_id = p.id AND r.revision = p.revision
 LEFT JOIN dashboard_versions v ON v.merged_proposal_id = p.id
 WHERE p.dashboard_id = @dashboard_id
   AND (sqlc.narg('state')::text IS NULL OR p.state = sqlc.narg('state')::text)
+  AND (sqlc.narg('run_id')::uuid IS NULL OR p.run_id = sqlc.narg('run_id')::uuid)
   AND (sqlc.narg('before_at')::timestamptz IS NULL
     OR (p.created_at, p.id) < (sqlc.narg('before_at')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY p.created_at DESC, p.id DESC

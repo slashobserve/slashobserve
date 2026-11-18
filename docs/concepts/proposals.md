@@ -83,6 +83,7 @@ If the author added a revision while you were reading, a merge says "This propos
 ## Routes
 
 - `GET /api/v1/dashboards/{id}/proposals` lists the proposals of a dashboard, the open ones unless `state` is `merged`, `discarded` or `all`.
+  `run_id` narrows it to the proposal that one agent request opened, however many the dashboard has; a run's status on the dashboard uses it, and shows plain "Proposal" until it knows the state.
 - `GET /api/v1/proposals/{id}` returns one proposal with its document, changes and conflicts.
 - `POST /api/v1/proposals/{id}/merge` merges it.
 - `POST /api/v1/proposals/{id}/discard` discards it.

@@ -23,6 +23,12 @@ dashboards-id-proposals:
           type: string
           enum: [open, merged, discarded, all]
           default: open
+      - name: run_id
+        in: query
+        description: Only the proposal that the agent request with this id opened, which is how a run finds its proposal however many others the dashboard has; a value that is not a UUID is 400.
+        schema:
+          type: string
+          format: uuid
       - name: limit
         in: query
         schema:

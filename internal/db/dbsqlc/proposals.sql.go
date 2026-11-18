@@ -194,15 +194,17 @@ JOIN proposal_revisions r ON r.proposal_id = p.id AND r.revision = p.revision
 LEFT JOIN dashboard_versions v ON v.merged_proposal_id = p.id
 WHERE p.dashboard_id = $1
   AND ($2::text IS NULL OR p.state = $2::text)
-  AND ($3::timestamptz IS NULL
-    OR (p.created_at, p.id) < ($3::timestamptz, $4::uuid))
+  AND ($3::uuid IS NULL OR p.run_id = $3::uuid)
+  AND ($4::timestamptz IS NULL
+    OR (p.created_at, p.id) < ($4::timestamptz, $5::uuid))
 ORDER BY p.created_at DESC, p.id DESC
-LIMIT $5
+LIMIT $6
 `
 
 type ListDashboardProposalsParams struct {
 	DashboardID pgtype.UUID
 	State       pgtype.Text
+	RunID       pgtype.UUID
 	BeforeAt    pgtype.Timestamptz
 	BeforeID    pgtype.UUID
 	RowLimit    int32
@@ -219,6 +221,7 @@ func (q *Queries) ListDashboardProposals(ctx context.Context, arg ListDashboardP
 	rows, err := q.db.Query(ctx, listDashboardProposals,
 		arg.DashboardID,
 		arg.State,
+		arg.RunID,
 		arg.BeforeAt,
 		arg.BeforeID,
 		arg.RowLimit,

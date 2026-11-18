@@ -57,6 +57,7 @@ type Proposal struct {
 type ListQuery struct {
 	DashboardID pgtype.UUID
 	State       string
+	RunID       pgtype.UUID
 	Limit       int
 	Cursor      string
 }
@@ -312,7 +313,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, q ListQuery) (Pag
 	if err != nil {
 		return Page{}, err
 	}
-	params := dbsqlc.ListDashboardProposalsParams{DashboardID: q.DashboardID}
+	params := dbsqlc.ListDashboardProposalsParams{DashboardID: q.DashboardID, RunID: q.RunID}
 	switch q.State {
 	case "", string(StateOpen):
 		params.State = pgtype.Text{String: string(StateOpen), Valid: true}

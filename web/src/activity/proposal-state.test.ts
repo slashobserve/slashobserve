@@ -4,7 +4,7 @@ import { proposalStateText } from "./proposal-state"
 
 describe("proposalStateText", () => {
   it.each([
-    [undefined, "Proposal opened, waiting for an Editor"],
+    [undefined, "Proposal"],
     [
       { state: "open", merged_version: null },
       "Proposal opened, waiting for an Editor",

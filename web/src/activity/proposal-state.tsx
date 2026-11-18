@@ -2,10 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { proposalLink } from "@/lib/links"
-import {
-  dashboardProposalsQuery,
-  type ProposalSummary,
-} from "@/proposals/queries"
+import { runProposalQuery, type ProposalSummary } from "@/proposals/queries"
 
 import { MetaState } from "./entry-frame"
 
@@ -17,8 +14,10 @@ export function proposalStateText(proposal: ProposalSummary | undefined) {
         : `Proposal merged as version ${proposal.merged_version}`
     case "discarded":
       return "Proposal discarded"
-    default:
+    case "open":
       return "Proposal opened, waiting for an Editor"
+    default:
+      return "Proposal"
   }
 }
 
@@ -29,10 +28,8 @@ export function RunProposalState({
   dashboardId: string
   requestId: string
 }) {
-  const proposals = useQuery(dashboardProposalsQuery(dashboardId, "all"))
-  const proposal = proposals.data?.proposals.find(
-    (item) => item.run_id === requestId
-  )
+  const proposal = useQuery(runProposalQuery(dashboardId, requestId)).data
+    ?.proposals[0]
   const text = proposalStateText(proposal)
   if (proposal === undefined) return <MetaState>{text}</MetaState>
   return (
