@@ -33,6 +33,7 @@ import { isEditablePanel } from "@/panel-editor/draft"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
 import { EditorBoundary } from "./editor-boundary"
+import { useEditorEntryInDocument } from "./editor-entry"
 import { EditorViewSwitch } from "./editor-view-switch"
 import { leavesDraft } from "./leaves-draft"
 
@@ -95,6 +96,7 @@ export function EditPane({
   guardRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  useEditorEntryInDocument()
   const unsaved = useRef(false)
   const [dirty, setDirty] = useState(false)
   const onDirtyChange = useCallback((next: boolean) => {
