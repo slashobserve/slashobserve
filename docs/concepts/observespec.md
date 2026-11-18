@@ -196,6 +196,7 @@ The legend of a `timeseries` or `trend` panel:
 - hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
+A panel with one series shows its legend only when `legendValues` is not empty, since the legend then carries the values.
 
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series:
 

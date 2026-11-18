@@ -28,7 +28,11 @@ import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
 import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
-import { effectiveLegendMode, legendOrder } from "../legend/legend-model"
+import {
+  effectiveLegendMode,
+  legendOrder,
+  legendWorthShowing,
+} from "../legend/legend-model"
 import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
 import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
@@ -721,7 +725,9 @@ export function TimeseriesChart({
     [order, series]
   )
   const legendShown =
-    series.length > 1 && options.legend !== "hidden" && order.length > 0
+    legendWorthShowing(series.length, reducers) &&
+    options.legend !== "hidden" &&
+    order.length > 0
   const placement = options.legend === "right" ? "right" : "bottom"
   const hidden = useMemo(
     () => visibleSeries(storedHidden, keys, legendShown),
