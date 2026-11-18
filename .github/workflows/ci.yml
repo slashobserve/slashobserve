@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -44,11 +45,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           PR: ${{ github.event.pull_request.number }}
+          DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           case "$EVENT" in
             pull_request)
+              mode=""
+              if [ "$DRAFT" = "true" ]; then mode=draft; fi
               gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
-                --jq '.[] | .filename, (.previous_filename // empty)' | scripts/ci-changes.sh
+                --jq '.[] | .filename, (.previous_filename // empty)' | scripts/ci-changes.sh $mode
               ;;
             schedule) scripts/ci-changes.sh audit-only ;;
             *) scripts/ci-changes.sh all ;;

@@ -6,6 +6,7 @@ description: The unit, component, API and browser suites, coverage and the docs 
 SlashObserve has four test suites and one docs check.
 CI runs on every pull request only the jobs its changed files need, and every job on `main`.
 `scripts/ci-changes.sh` makes that decision from the list of changed files: a web-only change skips the Go jobs, a Go-only change skips the web jobs, a change to unit tests or docs skips the two end-to-end suites, and the replay evals run when the agent, its prompts, the Spec or the stack change.
+A draft pull request runs neither end-to-end suite nor the replay evals; marking it ready for review runs them.
 The `check` job passes when every lint, test and build job that ran has passed.
 The dependency audit runs daily and on a pull request that changes a lockfile or `go.mod`.
 
