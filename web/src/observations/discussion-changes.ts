@@ -20,6 +20,12 @@ type ChangeContext = {
 export const changeEventTypes = [
   "observation.created",
   "observation.updated",
+  "observation.moved",
+  "observation.resolved",
+  "observation.reopened",
+  "observation.published",
+  "observation.rca_withdrawn",
+  "observation.block_updated",
   "observation.block_removed",
 ] as const
 
@@ -74,11 +80,36 @@ function originalTitle(
   return observation.title
 }
 
-function startedDetail(title: string, folderTitle: string, state: string) {
-  return `${title} · In ${folderTitle} · ${state === "open" ? "Open" : "Resolved"}`
+function startedDetail(title: string, folderTitle: string) {
+  return `${title} · In ${folderTitle}`
 }
 
-function eventChanges(events: readonly ActivityEvent[]): DiscussionChange[] {
+function eventRevision(event: ActivityEvent): string {
+  const { revision } = event.data as { revision?: unknown }
+  return typeof revision === "number" ? ` revision ${revision}` : ""
+}
+
+function eventBlockId(event: ActivityEvent): string | null {
+  const { block_id } = event.data as { block_id?: unknown }
+  return typeof block_id === "string" ? block_id : null
+}
+
+const plainVerbs: Record<string, (event: ActivityEvent) => string> = {
+  "observation.moved": () => "moved this observation to another folder",
+  "observation.resolved": () => "resolved this observation",
+  "observation.reopened": () => "reopened this observation",
+  "observation.published": (event) =>
+    `published${eventRevision(event) || " a revision"} as an RCA`,
+  "observation.rca_withdrawn": (event) =>
+    `withdrew${eventRevision(event) || " a revision"} of the RCA`,
+  "observation.block_removed": () => "removed a block",
+}
+
+function eventChanges(
+  events: readonly ActivityEvent[],
+  blocks: readonly Block[],
+  snapshotTitles?: ReadonlyMap<string, string>
+): DiscussionChange[] {
   const changes: DiscussionChange[] = []
   let title: string | null = null
   for (const event of events.toSorted((a, b) => a.seq - b.seq)) {
@@ -89,8 +120,21 @@ function eventChanges(events: readonly ActivityEvent[]): DiscussionChange[] {
       subject: null,
       detail: null,
     }
-    if (event.type === "observation.block_removed") {
-      changes.push({ ...base, verb: "removed a block" })
+    const plain = plainVerbs[event.type]
+    if (plain !== undefined) {
+      changes.push({ ...base, verb: plain(event) })
+      continue
+    }
+    if (event.type === "observation.block_updated") {
+      const block = blocks.find((entry) => entry.id === eventBlockId(event))
+      changes.push({
+        ...base,
+        verb: "changed a block",
+        subject:
+          block === undefined
+            ? null
+            : { id: block.id, title: blockSubject(block, snapshotTitles) },
+      })
       continue
     }
     const next = eventTitle(event)
@@ -128,11 +172,7 @@ export function observationChanges(
     actor: observation.created_by,
     verb: "started this observation",
     subject: null,
-    detail: startedDetail(
-      originalTitle(observation, events),
-      folderTitle,
-      observation.state
-    ),
+    detail: startedDetail(originalTitle(observation, events), folderTitle),
   }
   const added = (observation.blocks ?? []).map((block): DiscussionChange => ({
     key: block.id,
@@ -142,7 +182,11 @@ export function observationChanges(
     subject: { id: block.id, title: blockSubject(block, snapshotTitles) },
     detail: panelLine(block, datasources),
   }))
-  return [started, ...added, ...eventChanges(events)]
+  return [
+    started,
+    ...added,
+    ...eventChanges(events, observation.blocks ?? [], snapshotTitles),
+  ]
 }
 
 export function discussionToggleLabel(count: number): string {

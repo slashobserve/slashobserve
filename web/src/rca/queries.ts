@@ -70,10 +70,15 @@ export function usePublishRca(observationId: string) {
         })
         .then(unwrap),
     onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcas(observationId),
-        exact: true,
-      }),
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: observationKeys.rcas(observationId),
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: observationKeys.allChanges(observationId),
+        }),
+      ]),
   })
 }
 
@@ -93,10 +98,15 @@ export function useWithdrawRca(observationId: string) {
       })
     },
     onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcas(observationId),
-        exact: true,
-      }),
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: observationKeys.rcas(observationId),
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: observationKeys.allChanges(observationId),
+        }),
+      ]),
   })
 }
 

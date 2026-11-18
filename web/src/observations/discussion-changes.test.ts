@@ -87,7 +87,7 @@ describe("observationChanges", () => {
         actor: ada,
         verb: "started this observation",
         subject: null,
-        detail: "Checkout errors · In My Dashboards · Open",
+        detail: "Checkout errors · In My Dashboards",
       },
     ])
   })
@@ -229,7 +229,7 @@ describe("observationChanges from activity", () => {
         ],
       }
     )
-    expect(changes[0].detail).toBe("Checkout errors · In My Dashboards · Open")
+    expect(changes[0].detail).toBe("Checkout errors · In My Dashboards")
     expect(changes[1].verb).toBe(
       "renamed this observation from Checkout errors to Checkout 5xx"
     )
@@ -243,7 +243,7 @@ describe("observationChanges from activity", () => {
         events: [event(1, "observation.created", { title: "First title" })],
       }
     )
-    expect(changes[0].detail).toBe("First title · In My Dashboards · Open")
+    expect(changes[0].detail).toBe("First title · In My Dashboards")
   })
 
   it("draws no rename for the first update when the start is not known", () => {
@@ -283,5 +283,49 @@ describe("discussionToggleLabel", () => {
     [7, "Discussion, 7 messages"],
   ])("labels %i messages", (count, label) => {
     expect(discussionToggleLabel(count)).toBe(label)
+  })
+})
+
+describe("observationChanges state and block events", () => {
+  it("does not state the live state on the start line of a resolved observation", () => {
+    const resolved = { ...observation([]), state: "resolved" } as Observation
+    expect(observationChanges(resolved, noContext)[0].detail).toBe(
+      "Checkout errors · In My Dashboards"
+    )
+  })
+
+  it("lists resolving, reopening, publishing, withdrawing and moving in order", () => {
+    const changes = observationChanges(observation([]), {
+      ...noContext,
+      events: [
+        event(5, "observation.rca_withdrawn", { title: "T", revision: 1 }),
+        event(4, "observation.published", { title: "T", revision: 2 }),
+        event(3, "observation.reopened", { title: "T" }),
+        event(2, "observation.resolved", { title: "T" }),
+        event(1, "observation.moved", { title: "T" }),
+      ],
+    })
+    expect(changes.slice(1).map((change) => change.verb)).toEqual([
+      "moved this observation to another folder",
+      "resolved this observation",
+      "reopened this observation",
+      "published revision 2 as an RCA",
+      "withdrew revision 1 of the RCA",
+    ])
+  })
+
+  it("names the block that was edited and leaves the subject off once it is gone", () => {
+    const changes = observationChanges(observation([block("b1")]), {
+      ...noContext,
+      events: [
+        event(1, "observation.block_updated", { block_id: "b1" }),
+        event(2, "observation.block_updated", { block_id: "gone" }),
+      ],
+    })
+    const edits = changes.filter((change) => change.verb === "changed a block")
+    expect(edits.map((change) => change.subject)).toEqual([
+      { id: "b1", title: "Text" },
+      null,
+    ])
   })
 })

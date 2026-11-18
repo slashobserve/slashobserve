@@ -123,7 +123,8 @@ The discussion is the observation's one comment thread, in a pane on the right o
 Drag the pane's left edge to make it wider or narrower; it shares its width with a dashboard's activity pane.
 The **Discussion** button in the top row, which shows the number of messages, hides and shows the pane, and **Close panel** in the pane hides it.
 The pane lists the messages together with the changes to the page, newest at the bottom, grouped under a heading for each day, with each entry showing its author's mark and the time of day.
-The changes are who started the observation (with the title it was created with, its folder and whether it is open or resolved), who added or suggested each block (a panel block also names its datasource and says it is live, and a snapshot names the panel it froze), who removed a block, and who renamed the observation, from which title to which.
+The changes are who started the observation (with the title it was created with and its folder), who added or suggested each block (a panel block also names its datasource and says it is live, and a snapshot names the panel it froze), who changed or removed a block, who renamed the observation, from which title to which, and who moved, resolved, reopened, published or withdrew a revision of it.
+The pane reads up to 500 of the newest such events.
 A removed block is drawn without a name, because the block is gone.
 A block's name scrolls the page to that block.
 

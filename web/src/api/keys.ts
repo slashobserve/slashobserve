@@ -405,6 +405,7 @@ export const observationKeys = {
     ["observations", "snapshots", snapshotId] as const,
   changes: (id: string, updatedAt: string) =>
     ["observations", id, "changes", updatedAt] as const,
+  allChanges: (id: string) => ["observations", id, "changes"] as const,
   rcas: (id: string) => ["observations", id, "rcas"] as const,
   rca: (id: string, revision: number) =>
     ["observations", id, "rcas", revision] as const,

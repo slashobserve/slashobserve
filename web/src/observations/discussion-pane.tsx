@@ -34,6 +34,7 @@ const showOptions: { value: DiscussionShow; label: string }[] = [
 ]
 
 const changeEventLimit = 100
+const changeEventPages = 5
 
 type Props = {
   observation: Observation
@@ -118,20 +119,29 @@ function useSnapshotTitles(blocks: readonly Block[]) {
 function useChangeEvents(observation: Observation) {
   return useQuery({
     queryKey: observationKeys.changes(observation.id, observation.updated_at),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/activity", {
-          params: {
-            query: {
-              observation_id: observation.id,
-              type: [...changeEventTypes],
-              limit: changeEventLimit,
+    queryFn: async ({ signal }) => {
+      const events = []
+      let cursor: string | undefined
+      for (let page = 0; page < changeEventPages; page++) {
+        const body = await api
+          .GET("/activity", {
+            params: {
+              query: {
+                observation_id: observation.id,
+                type: [...changeEventTypes],
+                limit: changeEventLimit,
+                cursor,
+              },
             },
-          },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => body.activity),
+            signal,
+          })
+          .then(unwrap)
+        events.push(...body.activity)
+        if (body.next_cursor === null) break
+        cursor = body.next_cursor
+      }
+      return events
+    },
     placeholderData: (previous) => previous,
     staleTime: Infinity,
   })
