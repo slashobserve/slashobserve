@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import type { LayoutItem } from "../rows/expand-layout"
 import { gridRowHeight, pixelHeight } from "../stack-heights"
-import { printItems } from "./print-layout"
+import type { Dashboard } from "@/spec"
+
+import { printEntries, printItems } from "./print-layout"
 
 function panel(key: string, y: number, x: number, h: number): LayoutItem {
   return {
@@ -55,5 +57,37 @@ describe("printItems", () => {
       gridRowHeight,
       gridRowHeight,
     ])
+  })
+})
+
+describe("printEntries", () => {
+  const spec = {
+    title: "t",
+    time: { from: "now-1h", to: "now" },
+    panels: [
+      {
+        id: "r1",
+        type: "row",
+        title: "Row",
+        collapsed: true,
+        gridPos: { x: 0, y: 0, w: 24, h: 1 },
+        panels: [
+          {
+            id: "inside",
+            title: "inside",
+            type: "stat",
+            gridPos: { x: 0, y: 1, w: 12, h: 4 },
+            queries: [{ query: "up" }],
+          },
+        ],
+      },
+    ],
+  } as unknown as Dashboard
+
+  it("includes the panels of a row that is collapsed on the page", () => {
+    const keys = printEntries(spec, {}, () => undefined).map(
+      (item) => item.entry.key
+    )
+    expect(keys).toContain("inside")
   })
 })

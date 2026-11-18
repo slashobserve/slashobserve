@@ -1,6 +1,8 @@
+import type { Selections } from "@/api/keys"
 import { rendererManifests } from "@/panels"
+import { isRowPanel, type Dashboard } from "@/spec"
 
-import type { LayoutItem } from "../rows/expand-layout"
+import { expandLayout, type LayoutItem } from "../rows/expand-layout"
 import {
   gridRowHeight,
   pixelHeight,
@@ -24,4 +26,23 @@ export function printItems(entries: LayoutItem[]): PrintItem[] {
         a.entry.gridPos.y - b.entry.gridPos.y ||
         a.entry.gridPos.x - b.entry.gridPos.x
     )
+}
+
+export function printEntries(
+  spec: Dashboard,
+  selections: Selections,
+  values: (name: string) => string[] | undefined
+): PrintItem[] {
+  const expanded = Object.fromEntries(
+    spec.panels.filter(isRowPanel).map((row) => [row.id, false])
+  )
+  return printItems(
+    expandLayout({
+      spec,
+      collapsed: expanded,
+      selections,
+      values,
+      editing: false,
+    })
+  )
 }

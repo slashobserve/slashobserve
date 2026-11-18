@@ -4,17 +4,12 @@ import type { Selections } from "@/api/keys"
 import type { Dashboard } from "@/spec"
 
 import type { PanelItem } from "../dashboard-grid"
-import { expandLayout } from "../rows/expand-layout"
 import { RowHeader } from "../rows/row-header"
-import { useRowStore } from "../rows/row-store"
-import { printItems } from "./print-layout"
+import { printEntries } from "./print-layout"
 
 export const sheetWidth = 680
 
-const noRows: Record<string, boolean> = {}
-
 type Props = {
-  dashboardId: string
   spec: Dashboard
   selections: Selections
   values: Record<string, string[] | undefined>
@@ -24,26 +19,10 @@ type Props = {
   ) => ReactNode
 }
 
-export function PrintGrid({
-  dashboardId,
-  spec,
-  selections,
-  values,
-  renderPanel,
-}: Props) {
-  const collapsed = useRowStore((state) => state.collapsed[dashboardId])
+export function PrintGrid({ spec, selections, values, renderPanel }: Props) {
   const items = useMemo(
-    () =>
-      printItems(
-        expandLayout({
-          spec,
-          collapsed: collapsed ?? noRows,
-          selections,
-          values: (name) => values[name],
-          editing: false,
-        })
-      ),
-    [spec, collapsed, selections, values]
+    () => printEntries(spec, selections, (name) => values[name]),
+    [spec, selections, values]
   )
   return (
     <div className="flex flex-col gap-2.5">

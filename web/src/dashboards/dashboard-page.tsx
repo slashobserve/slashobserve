@@ -825,7 +825,6 @@ function DashboardView({
   if (exporting) {
     return (
       <ExportView
-        dashboardId={dashboardId}
         spec={spec}
         folder={access.folder.title}
         version={version}

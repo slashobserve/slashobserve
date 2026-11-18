@@ -14,7 +14,6 @@ import { headerLines, variableLines } from "./header-text"
 import { PrintGrid } from "./print-grid"
 
 type Props = {
-  dashboardId: string
   spec: Dashboard
   folder: string | null
   version: number
@@ -31,7 +30,6 @@ type Props = {
 }
 
 export function ExportView({
-  dashboardId,
   spec,
   folder,
   version,
@@ -59,7 +57,6 @@ export function ExportView({
     >
       <ActionProvider value={actions}>
         <PrintGrid
-          dashboardId={dashboardId}
           spec={spec}
           selections={selections}
           values={values}

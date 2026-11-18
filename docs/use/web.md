@@ -110,7 +110,7 @@ Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` 
 **Print or save as PDF** in a dashboard's **More** menu lays the dashboard out for paper and opens the browser's print dialog, where **Save as PDF** is a destination.
 The page shows only the dashboard: no sidebar, toolbar or side panes, a header with the title, folder, version, time range, variables and the time of printing, and then the panels in one column in reading order.
 Every panel loads before the dialog opens, including the ones far down the page, and a panel is moved whole to the next page instead of being cut when it does not fit.
-Rows you collapsed stay collapsed, the variables and time range you chose are the ones printed, and the page uses the colors of your current theme.
+Rows you collapsed are expanded on the sheet so that no panel is left out, and the variables and time range you chose are the ones printed.
 **Back to dashboard** at the top of the page, or closing the print dialog, returns to the dashboard.
 
 **Download as image** in the same menu opens the same sheet, draws it as one PNG named after the dashboard and its version, such as `checkout-service-health-v7.png`, and returns to the dashboard.
