@@ -112,7 +112,7 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 		CreatedAt:   row.CreatedAt.Time.UTC(),
 		UpdatedAt:   row.UpdatedAt.Time.UTC(),
 		Mentions:    mentions,
-		CanEdit:     canComment && row.AuthorKind == string(reader.Kind) && row.AuthorID.String() == reader.ID,
+		CanEdit:     canComment && !row.RunID.Valid && row.AuthorKind == string(reader.Kind) && row.AuthorID.String() == reader.ID,
 	}
 	if row.ObservationBlockID.Valid {
 		m.BlockID = row.ObservationBlockID.String()

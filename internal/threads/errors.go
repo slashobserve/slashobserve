@@ -9,7 +9,7 @@ import (
 var (
 	ErrNotFound       = errors.New("comment not found")
 	ErrTargetNotFound = errors.New("target not found")
-	ErrNotAuthor      = errors.New("only the author can edit a comment")
+	ErrNotAuthor      = errors.New("only a person can edit their own comment; an agent's reply cannot be edited")
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )

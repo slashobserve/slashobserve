@@ -63,6 +63,7 @@ Your own comments and replies have an **Edit** button while you can still commen
 It opens the text in place; **Save** or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, and **Cancel** or Escape drops it.
 An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
+An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
 The **Mention** box, or typing `@` after a space, lists the people who already wrote in the thread, the built-in agent (Observe Agent, `@observe`) and your own connected agents.

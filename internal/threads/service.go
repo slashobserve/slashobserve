@@ -281,7 +281,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
-	if messageRow.AuthorKind != string(by.Kind) || messageRow.AuthorID.String() != by.ID {
+	if messageRow.RunID.Valid || messageRow.AuthorKind != string(by.Kind) || messageRow.AuthorID.String() != by.ID {
 		return Thread{}, Message{}, false, ErrNotAuthor
 	}
 	if !sc.abilities.Comment {

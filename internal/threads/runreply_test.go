@@ -1,11 +1,13 @@
 package threads
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -116,6 +118,33 @@ func TestAMentionRunAnswersInItsThreadAsTheRequesterAndLeavesItOpen(t *testing.T
 	}
 	if got := r.count(t, `SELECT count(*) FROM activity WHERE type = 'thread.resolved'`); got != 0 {
 		t.Fatalf("%d thread.resolved rows, want none", got)
+	}
+}
+
+func TestAnAgentReplyCanNotBeEditedByTheRequester(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {
+		t.Fatal(err)
+	}
+	reply := r.runReplies(t, thread)[0]
+
+	for _, by := range []auth.Principal{testUser, admin} {
+		if _, _, _, err := r.service.Edit(t.Context(), by, mustParse(t, reply.ID), "EDITED BY REQUESTER"); !errors.Is(err, ErrNotAuthor) {
+			t.Fatalf("%s editing an agent reply: err = %v, want ErrNotAuthor", by.Name, err)
+		}
+	}
+	for _, m := range r.list(t, testUser, target(KindDashboard, dash)).Messages {
+		if m.ID == reply.ID && m.CanEdit {
+			t.Fatalf("the agent reply is listed as editable: %+v", m)
+		}
+		if m.ID != reply.ID && !m.CanEdit {
+			t.Fatalf("the requester's own message must stay editable: %+v", m)
+		}
+	}
+	if got := r.runReplies(t, thread)[0].Body; got != reply.Body {
+		t.Fatalf("reply body = %q, want it unchanged", got)
 	}
 }
 

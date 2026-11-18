@@ -1055,7 +1055,7 @@ export interface paths {
         head?: never;
         /**
          * Edit the body of your own message.
-         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body; an edit never starts a run. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
+         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. A reply written by an agent run is never editable, not even by the person who requested the run, and answers 403 `not_author` too. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body; an edit never starts a run. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
          */
         patch: operations["editMessage"];
         trace?: never;
