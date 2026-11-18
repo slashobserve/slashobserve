@@ -124,7 +124,9 @@ A saved search stores the query with its pills folded in as text.
 
 On Elasticsearch and OpenSearch a pill needs a KQL query, so the row asks you to switch the query to KQL while the text starts with `lucene:` or `{`.
 On Loki and ClickHouse only the is and is not operators apply.
-A pill the datasource cannot express is marked "not applied" and left out of the query.
+A pill the datasource cannot express, or the query cannot take, is marked "not applied" and left out of the query.
+On Loki, an exclusion on a stream label stays beside the matcher the query already holds, so `{service_name=~".+"}` with `NOT service_name: frontend` runs as `{service_name=~".+", service_name!="frontend"}`.
+The row holds at most 50 pills, and the address holds the pills in about 4,000 characters, so a form that would go past either limit says so under the row and adds nothing.
 
 ## Volume
 

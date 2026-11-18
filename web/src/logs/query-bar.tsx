@@ -51,7 +51,7 @@ import {
 } from "./discover-url"
 import { parseKql } from "./kql"
 import { LogLabelBrowser } from "./label-browser"
-import { addPill, decodePills, encodePills, unpinnedCleared } from "./pills"
+import { decodePills, encodePills, mergePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
 import { problemOf, type QueryProblem } from "./query-problem"
 import { QueryProblemCard } from "./query-problem.tsx"
@@ -381,20 +381,26 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
       return
     }
     const kept = decodePills(urlSearch.f)
-    const pills = imported.pills.reduce(
-      (current, pill) => addPill(current, pill),
-      imported.q === undefined ? kept : unpinnedCleared(kept)
+    const merged = mergePills(
+      imported.q === undefined ? kept : unpinnedCleared(kept),
+      imported.pills
     )
     const next: Partial<LogsSearch> = {}
     if (imported.q !== undefined) next.q = imported.q
     if (imported.from !== undefined) next.from = imported.from
     if (imported.to !== undefined) next.to = imported.to
     if (imported.cols !== undefined) next.cols = imported.cols.join(",")
-    if (imported.pills.length > 0) next.f = encodePills(pills)
+    if (imported.pills.length > 0 && "pills" in merged) {
+      next.f = encodePills(merged.pills)
+    }
     if (imported.q !== undefined) setDraft(imported.q)
     update(next)
     if (imported.q !== undefined) run(imported.q)
-    setDiscoverNote(importSummary(imported))
+    setDiscoverNote(
+      "blocked" in merged
+        ? `${importSummary(imported)} ${merged.blocked}.`
+        : importSummary(imported)
+    )
   }
 
   function insert(text: string) {

@@ -15,16 +15,18 @@ import { labelNamesQuery } from "@/panel-editor/queries"
 import { typeName } from "./datasource-picker"
 import { FilterForm } from "./filter-form"
 import {
-  addPill,
   applyPills,
   decodePills,
   encodePills,
+  mergePills,
   pillLabel,
   pillSupported,
+  refusedPillIds,
   removePill,
   replacePill,
   unpinnedCleared,
   type NewPill,
+  type PillChange,
   type Pill,
 } from "./pills"
 import { queryModeLabel } from "./search"
@@ -44,9 +46,17 @@ function usePillStore() {
   const q = search.q
   const filters = search.f
 
+  const [notice, setNotice] = useState<string | null>(null)
+
   function write(next: Pill[]) {
+    setNotice(null)
     update({ f: encodePills(next) })
     if (q !== undefined) run(q)
+  }
+
+  function change(next: PillChange) {
+    if ("pills" in next) write(next.pills)
+    else setNotice(next.blocked)
   }
 
   const previousQuery = useRef(q)
@@ -65,7 +75,7 @@ function usePillStore() {
     announce(filtersClearedText(pills.length - kept.length))
   }, [q, filters, pills, update, announce])
 
-  return { pills, write }
+  return { pills, write, change, notice }
 }
 
 function PillMenuButton({
@@ -92,6 +102,7 @@ function PillChip({
   pill,
   fields,
   supported,
+  refused,
   onChange,
   onReplace,
   onDelete,
@@ -99,6 +110,7 @@ function PillChip({
   pill: Pill
   fields: readonly string[]
   supported: boolean
+  refused: boolean
   onChange: (next: Pill) => void
   onReplace: (next: NewPill[]) => void
   onDelete: () => void
@@ -190,6 +202,9 @@ function PillChip({
           not applied on {typeName(datasource.type)}
         </StatusLabel>
       )}
+      {supported && refused ? (
+        <StatusLabel tone="warning">not applied to this query</StatusLabel>
+      ) : null}
     </li>
   )
 }
@@ -226,7 +241,7 @@ function AddFilter({
 
 export function FilterPills() {
   const { datasource, search, range } = useLogsWorkspace()
-  const { pills, write } = usePillStore()
+  const { pills, write, change, notice } = usePillStore()
   const type = datasource.type
   const names = useQuery(
     labelNamesQuery(datasource.uid, { from: range.from, to: range.to })
@@ -236,6 +251,13 @@ export function FilterPills() {
     pills.some((pill) => !pill.paused) &&
     search.q !== undefined &&
     applyPills(search.q, type, pills) === null
+  const refused = useMemo(
+    () =>
+      search.q === undefined
+        ? new Set<string>()
+        : refusedPillIds(search.q, type, pills),
+    [search.q, type, pills]
+  )
 
   return (
     <div className="flex flex-col gap-1">
@@ -247,19 +269,18 @@ export function FilterPills() {
               pill={pill}
               fields={fields}
               supported={pillSupported(type, pill)}
+              refused={refused.has(pill.id)}
               onChange={(next) =>
                 write(pills.map((item) => (item.id === pill.id ? next : item)))
               }
-              onReplace={(next) => write(replacePill(pills, pill.id, next))}
+              onReplace={(next) => change(replacePill(pills, pill.id, next))}
               onDelete={() => write(removePill(pills, pill.id))}
             />
           ))}
         </ul>
         <AddFilter
           fields={fields}
-          onAdd={(next) =>
-            write(next.reduce((current, item) => addPill(current, item), pills))
-          }
+          onAdd={(next) => change(mergePills(pills, next))}
         />
       </div>
       {pills.length > 0 ? (
@@ -268,6 +289,11 @@ export function FilterPills() {
           stay when the query changes.
         </p>
       ) : null}
+      {notice === null ? null : (
+        <p role="alert" className="text-xs text-status-critical">
+          {notice}
+        </p>
+      )}
       {blocked ? (
         <StatusLabel tone="warning">
           Filters are not applied: switch the query to KQL.
