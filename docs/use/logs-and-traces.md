@@ -289,7 +289,7 @@ A query the page cannot rewrite, such as a Lucene or Query DSL query or a ClickH
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.
 The rest fold under "9 of 14 patterns shown, 5 cover under 1% each" until you press **Show all**.
-The page asks for the 20 largest patterns; **Show 100** asks for more when there are more.
+The page asks for the 20 largest patterns, and when the datasource holds more, **Show 100** appears beside **Show all** and asks for up to 100.
 
 ### Pattern templates
 
