@@ -108,6 +108,11 @@ func (s *Store) Next(ctx context.Context, a folders.Audience, f Filter, from Pos
 	if err != nil {
 		return nil, from, false, err
 	}
+	// Read before the page: a row that commits between the two statements is then reported as held, never lost.
+	held, err = s.db.Queries().ActivityHeld(ctx)
+	if err != nil {
+		return nil, from, false, fmt.Errorf("check held activity: %w", err)
+	}
 	rows, err := s.db.Queries().ListActivityAfter(ctx, dbsqlc.ListActivityAfterParams{
 		Folders:       visibleFolders(a),
 		Admin:         a.Admin,
@@ -131,12 +136,8 @@ func (s *Store) Next(ctx context.Context, a folders.Audience, f Filter, from Pos
 	}
 	if len(rows) < limit {
 		to = later(to, head)
-		held, err = s.db.Queries().ActivityHeld(ctx)
-		if err != nil {
-			return nil, from, false, fmt.Errorf("check held activity: %w", err)
-		}
 	}
-	return eventsOf(rows), to, held, nil
+	return eventsOf(rows), to, held && len(rows) < limit, nil
 }
 
 func visibleFolders(a folders.Audience) []pgtype.UUID {
