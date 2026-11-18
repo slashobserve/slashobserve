@@ -269,7 +269,7 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		return err
 	}
 	if req.DashboardID != nil {
-		if title, ok := progress.finish(ctx, *req.DashboardID); ok {
+		if title, ok := progress.finish(ctx, *req.DashboardID, req.ResultVer); ok {
 			address = titled(address, *req.DashboardID, title)
 		}
 	}

@@ -442,7 +442,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 ## Logs
 
-`bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
+`bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and prints the lines oldest first, in the language of the datasource: LogQL, SQL, or KQL with the `lucene:` prefix and Query DSL forms of [Logs and traces](logs-and-traces.md#query-languages-on-elasticsearch-and-opensearch):
 
 ```sh
 bin/observe logs '{app="shop"} |= "error"' --datasource loki --from now-15m
@@ -471,7 +471,7 @@ bin/observe logs '{app="shop"}' --datasource loki --context 2026-11-01T10:00:00.
 Each field prints a header `<name> (<kind>, exact|sampled)`, with `bytes` added for a Loki index label, which counts bytes, then one `<count>  <value>` row per value.
 A sampled field counts the newest lines only, and `--field <name>`, which can be repeated, counts just the fields you name.
 
-`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched and sampled go to standard error.
+`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched go to standard error, with the number sampled when the server read the lines itself and `counted by loki` when Loki's own pattern API counted them.
 `--limit` is the most patterns to print, up to 100.
 
 `--context <time>` prints the lines around one line: the lines before it oldest first, a `-- <time> --` line, then the lines after it.
