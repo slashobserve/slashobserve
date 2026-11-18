@@ -17,26 +17,26 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder, by default your My Dashboards, so people can open it from the logs, traces or metrics page. Check the query with lint_query or draft_query first. Returns its url."
+	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder so people can open it from its page. Check the query with lint_query or draft_query first. Returns its url."
 	descListSavedSearches = "List the saved logs, trace and metrics searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
-		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
-		`"datasource_uid":{"type":"string","description":"The datasource to search, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces, Prometheus for metrics."},` +
+		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title."},` +
+		`"datasource_uid":{"type":"string","description":"The datasource, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: the shortest duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: the longest duration, such as 2s."},` +
-		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."},` +
-		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph for a time series, table for an instant query as rows. Default graph."}},` +
-		`"additionalProperties":false,"description":"A logs search takes only columns, a metrics search only mode, a traces search the other keys."},` +
-		`"from":{"type":"string","description":"Start of the saved range, such as now-1h or an RFC 3339 time. Default now-1h."},` +
-		`"to":{"type":"string","description":"End of the saved range, such as now or an RFC 3339 time. Default now."},` +
+		`"min":{"type":"string","description":"Traces: shortest duration, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: longest duration, such as 2s."},` +
+		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
+		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table of an instant query."}},` +
+		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
+		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +
+		`"to":{"type":"string","description":"End of the range, such as now or RFC 3339. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"The folder to save it in, from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource_uid"],"additionalProperties":false}`
 
