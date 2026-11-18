@@ -55,6 +55,21 @@ export function useMarkInboxRead() {
   })
 }
 
+export function useSetInboxItemUnread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { seq: number; unread: boolean }) =>
+      api
+        .PUT("/inbox/items/{seq}", {
+          params: { path: { seq: input.seq } },
+          body: { unread: input.unread },
+        })
+        .then(unwrap),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  })
+}
+
 export function useInboxLive() {
   const queryClient = useQueryClient()
   const visible = useDocumentVisible()

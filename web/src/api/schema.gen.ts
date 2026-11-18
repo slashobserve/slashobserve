@@ -3370,7 +3370,7 @@ export interface paths {
         };
         /**
          * List what asks something of the signed-in person, newest first.
-         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when it is newer than the position `POST /api/v1/inbox/read` stored for the caller, and every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. Items carry no comment, message or finding text, as in the activity log. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when `PUT /api/v1/inbox/items/{seq}` marked it unread, or, when that never touched it, when it is newer than the position `POST /api/v1/inbox/read` stored for the caller; every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. `target_title` is the title of the dashboard, observation or proposal an item is about, and `excerpt` is the start of the comment for a `mention` or `reply`, as plain text; the rest of an item carries no comment, message or finding text, as in the activity log. A comment that mentions the caller and replies in a thread the caller wrote in is one `mention` item, not two. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         get: operations["listInbox"];
         put?: never;
@@ -3392,9 +3392,29 @@ export interface paths {
         put?: never;
         /**
          * Mark the inbox read up to one event.
-         * @description Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread. The position only moves forward, so a `seq` older than the stored one changes nothing. Reading one item without the ones before it is not offered. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread. The position only moves forward, so a `seq` older than the stored one changes nothing. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         post: operations["markInboxRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inbox/items/{seq}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark one inbox item read or unread.
+         * @description Marks the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position. `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         */
+        put: operations["setInboxItemUnread"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4049,6 +4069,10 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | null;
             unread: boolean;
+            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists. */
+            target_title: string | null;
+            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items. */
+            excerpt: string | null;
         };
         InboxList: {
             items: components["schemas"]["InboxItem"][];
@@ -15086,6 +15110,53 @@ export interface operations {
         };
         responses: {
             /** @description The inbox is read up to the event, or already was. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No activity has that `seq` (`unknown_seq`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setInboxItemUnread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                seq: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    unread: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The item is in the requested state. */
             204: {
                 headers: {
                     [name: string]: unknown;

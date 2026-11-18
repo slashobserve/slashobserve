@@ -1,4 +1,9 @@
-import { useRef, useSyncExternalStore, type KeyboardEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type KeyboardEvent,
+} from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
@@ -17,7 +22,12 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { InboxDetail } from "./inbox-detail"
 import { groupItems, itemLink, type InboxItem } from "./inbox-item"
 import { InboxRow } from "./inbox-row"
-import { inboxInfiniteQuery, useInboxLive, useMarkInboxRead } from "./queries"
+import {
+  inboxInfiniteQuery,
+  useInboxLive,
+  useMarkInboxRead,
+  useSetInboxItemUnread,
+} from "./queries"
 
 const inboxViews: readonly { value: InboxView; label: string }[] = [
   { value: "for_you", label: "For you" },
@@ -84,6 +94,8 @@ export function InboxPage({ view, selected, onChange }: Props) {
   const list = useRef<HTMLDivElement>(null)
   const query = useInfiniteQuery(inboxInfiniteQuery(view))
   const markRead = useMarkInboxRead()
+  const setUnread = useSetInboxItemUnread()
+  const opened = useRef<number | null>(null)
   const items = query.data?.pages.flatMap((page) => page.items) ?? []
   const groups = groupItems(items)
   const ordered = groups.flatMap((group) => group.items)
@@ -97,6 +109,27 @@ export function InboxPage({ view, selected, onChange }: Props) {
   function select(item: InboxItem) {
     onChange({ view, item: String(item.seq) })
   }
+
+  function markOpened(item: InboxItem) {
+    if (item.unread) setUnread.mutate({ seq: item.seq, unread: false })
+  }
+
+  function toggleUnread(item: InboxItem) {
+    opened.current = item.seq
+    setUnread.mutate(
+      { seq: item.seq, unread: !item.unread },
+      { onError: (error) => toast.error(loadProblemText(error)) }
+    )
+  }
+
+  const selectedSeq = wide ? (selectedItem?.seq ?? null) : null
+  const selectedUnread = selectedItem?.unread === true
+  useEffect(() => {
+    if (selectedSeq === null || opened.current === selectedSeq) return
+    opened.current = selectedSeq
+    if (selectedUnread) setUnread.mutate({ seq: selectedSeq, unread: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSeq])
 
   function markAllRead() {
     if (newest === null) return
@@ -169,6 +202,8 @@ export function InboxPage({ view, selected, onChange }: Props) {
                     tabStop={item.seq === tabStop?.seq}
                     asLink={!wide}
                     onSelect={select}
+                    onOpen={markOpened}
+                    onToggleUnread={toggleUnread}
                   />
                 </li>
               ))}
@@ -230,7 +265,7 @@ export function InboxPage({ view, selected, onChange }: Props) {
             aria-label="Selected item"
             className="min-w-0 flex-1 border-l pl-6"
           >
-            <InboxDetail item={selectedItem} />
+            <InboxDetail item={selectedItem} onToggleUnread={toggleUnread} />
           </section>
         ) : null}
       </div>

@@ -17,11 +17,17 @@ The page lists the items in two groups, "Needs you" for the items with a reason,
 The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
 The list refreshes when new activity arrives.
 
+Each row names who did what and the real title of the dashboard, observation or proposal, shows the start of the comment for a mention or a reply, and has a dot while it is unread.
+A button at the right of the row, shown when you hover or focus the row, marks that one item read or unread.
+
 **Mark all read** marks the newest item on the page and everything older as read, and shows only while something is unread.
 Arrow keys move through the rows.
 On a window 1100 pixels wide or more, a selected row opens in a pane beside the list, and the address keeps the view and the item (`view` and `item`).
-A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page; any other item has an **Open** button.
-On a narrower window the list stands alone and each row is a link.
+A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page.
+A mention or a reply opens there as the whole thread, with a **Reply** box that works as it does on the page: `@` asks an agent, and you can edit or delete your own comments.
+Any other item shows its text, and every item has an **Open** button and **Mark as read** or **Mark as unread**.
+Opening an item marks it read, once: marking it unread again while it is open keeps it unread.
+On a narrower window the list stands alone and each row is a link, and following it marks the item read.
 
 ## What asks something of you
 

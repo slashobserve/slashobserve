@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  itemExcerpt,
+  threadTarget,
   groupItems,
   itemLink,
   itemText,
@@ -33,6 +35,8 @@ function item(over: Partial<InboxItem> = {}): InboxItem {
     created_at: "2026-11-11T10:00:00Z",
     reason: null,
     unread: false,
+    target_title: null,
+    excerpt: null,
     ...over,
   }
 }
@@ -112,6 +116,29 @@ describe("itemText", () => {
         data: withData({ object: { kind: "dashboard", id: other } }),
       },
       text: { actor: "Ada", verb: "mentioned you on", object: "a dashboard" },
+    },
+    {
+      name: "a mention names the target by its title",
+      over: {
+        type: "thread.mentioned",
+        target: { kind: "thread", id },
+        data: withData({ object: { kind: "dashboard", id: other } }),
+        target_title: "Checkout latency",
+      },
+      text: {
+        actor: "Ada",
+        verb: "mentioned you on",
+        object: "Checkout latency",
+      },
+    },
+    {
+      name: "a failed run names its dashboard by title",
+      over: {
+        type: "run.failed",
+        target: { kind: "run", id },
+        target_title: "Checkout",
+      },
+      text: { actor: "", verb: "Your run failed on", object: "Checkout" },
     },
     {
       name: "a reply on an observation",
@@ -391,6 +418,25 @@ describe("itemLink", () => {
     link: ItemLink | null
   }[])("$name", ({ over, link }) => {
     expect(itemLink(item(over))).toEqual(link)
+  })
+})
+
+describe("itemExcerpt", () => {
+  test("is the excerpt, or null when there is none", () => {
+    expect(itemExcerpt(item({ excerpt: "hello" }))).toBe("hello")
+    expect(itemExcerpt(item({ excerpt: "" }))).toBeNull()
+    expect(itemExcerpt(item({ excerpt: null }))).toBeNull()
+  })
+})
+
+describe("threadTarget", () => {
+  test("is the commented object of a thread item and nothing for other items", () => {
+    const threaded = item({
+      target: { kind: "thread", id },
+      data: withData({ object: { kind: "observation", id: other } }),
+    })
+    expect(threadTarget(threaded)).toBe(`observation:${other}`)
+    expect(threadTarget(item({}))).toBeNull()
   })
 })
 
