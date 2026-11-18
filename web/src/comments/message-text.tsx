@@ -13,6 +13,12 @@ import type { MentionPerson } from "./mentions"
 
 type Mention = components["schemas"]["Mention"]
 
+function writtenByPerson(actor: components["schemas"]["Actor"]): boolean {
+  return (
+    actor.kind === "user" && actor.run_id === null && actor.origin !== "mcp"
+  )
+}
+
 export function MessageText({
   message,
   people,
@@ -24,6 +30,7 @@ export function MessageText({
   message: {
     id: string
     body: string
+    actor: components["schemas"]["Actor"]
     mentions: readonly Mention[]
     can_edit: boolean
     can_delete: boolean
@@ -58,10 +65,20 @@ export function MessageText({
       />
     )
   }
+  const markdown = !folded && writtenByPerson(message.actor)
   return (
     <>
-      <EntryBody className={cn(folded && "line-clamp-1 text-muted-foreground")}>
-        <MessageBody body={message.body} mentions={message.mentions} />
+      <EntryBody
+        className={cn(
+          markdown && "whitespace-normal",
+          folded && "line-clamp-1 text-muted-foreground"
+        )}
+      >
+        <MessageBody
+          body={message.body}
+          mentions={message.mentions}
+          markdown={markdown}
+        />
       </EntryBody>
       {(message.can_edit || message.can_delete) && !folded ? (
         <div className="flex items-center">

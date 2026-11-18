@@ -70,14 +70,6 @@ Saving the text unchanged does nothing.
 An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
-## Delete a comment
-
-You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
-The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
-Someone with Manage on the folder can delete any comment, including an agent's reply; nobody else can delete an agent's reply.
-The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
-A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
-
 The **Mention** box, or typing `@` after a space, lists the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the thread is about; typing a name or an email narrows the people.
 A picked person shows in the box as `@Name`, and the comment is stored and shown with the mention.
 Someone who cannot see the dashboard, observation or proposal is not offered, and a mention of one is not recorded.
@@ -87,6 +79,19 @@ A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](gra
 A comment can mention at most 20 people and agents.
 A mention of a person is recorded, appears in the [activity log](activity.md) and reaches that person's [Inbox](inbox.md).
 A mention of an agent starts a run only when you send the comment from a composer that asks the agent, as described next.
+
+A comment written by a person renders Markdown: bold, italic, code, lists, quotes, tables and links.
+Links open in a new tab and only `http`, `https` and `mailto` links work.
+Raw HTML and images are not rendered.
+Text an agent wrote, a reply from a run or a message from a connected agent or service account, is always shown as plain text.
+
+## Delete a comment
+
+You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
+The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
+Someone with Manage on the folder can delete any comment, including an agent's reply; nobody else can delete an agent's reply.
+The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
+A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 ## Ask the agent from a comment
 

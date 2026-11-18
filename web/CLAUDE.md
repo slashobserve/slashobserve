@@ -66,7 +66,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - Pins (`web/src/pins/`) are the server's stars under their web name: they come from `GET /api/v1/stars` under `pinKeys` and change only through `usePinMutation`, which `PinToggle` and the sidebar's `PinnedDashboards` share through the one query.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
   Home's import tab hands it to `/import` in memory through `web/src/import/handoff.ts`, never through the address, history state or storage.
-- Comment bodies render as plain text only.
+- Comment bodies written by a person render as Markdown through the text panels' one sanitizing schema (`commentRehypePlugins` in `panels/text/html.tsx`, no raw HTML), with mention chips kept; text an agent wrote (a run, an MCP client, a service account) and folded rows stay plain text.
 
 ## Routes and shell
 
