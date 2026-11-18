@@ -146,6 +146,8 @@ The lists and the panel table print as columns aligned with spaces.
 
 `bin/observe import dashboard.json` (or `-` for standard input) imports a Grafana dashboard of up to 8 MiB and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](import-grafana.md)) and `--preview` shows the report without saving.
 The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
+A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the command exits 1, names that dashboard and its version, and says which flag to pass.
+`--update <dashboard id>` saves the file as the next version of that dashboard (it needs Edit and keeps the folder) and `--as-new` makes another dashboard on purpose; `--preview` shows the same dashboard in an `Already imported as` line.
 `-q` hides the report and the `Folder:` line, but the folder note always prints, because it says the folder you asked for was not used.
 
 To import a directory of exports into one folder:
@@ -153,6 +155,8 @@ To import a directory of exports into one folder:
 ```sh
 for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
 ```
+
+Running the loop again reports each file an earlier import already made as failed, instead of making a second copy.
 
 ## Folders
 
