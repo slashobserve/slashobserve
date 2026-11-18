@@ -1386,8 +1386,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
-         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         * Turn a question into a checked log query, PromQL query, TraceQL query or trace filters for one datasource.
+         * @description The server reads the datasource's metric names, labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, Prometheus answers PromQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki, `metrics` on Prometheus and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
          */
         post: operations["draftQuery"];
         delete?: never;
@@ -6185,13 +6185,13 @@ export interface components {
             from?: string;
             to?: string;
             /** @enum {string} */
-            signal?: "logs" | "traces";
+            signal?: "logs" | "traces" | "metrics";
         };
         DraftQuery: {
-            /** @description LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
+            /** @description LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
             query: string;
             /** @enum {string} */
-            language: "logql" | "clickhouse_sql" | "traceql" | "kql" | "filters";
+            language: "logql" | "clickhouse_sql" | "traceql" | "promql" | "kql" | "filters";
             /** @description The Traces form's fields; null unless `language` is `filters`. */
             trace_filters: components["schemas"]["TraceFilters"] | null;
             explanation: string;

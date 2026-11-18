@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -16,6 +17,8 @@ type metricsQueryOptions struct {
 	from       string
 	to         string
 	instant    bool
+	ask        string
+	dryRun     bool
 }
 
 const (
@@ -67,12 +70,13 @@ func (a *app) metricsCommand() *cobra.Command {
 
 func (a *app) metricsQueryCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "query <promql> --datasource <uid>",
+		Use:   "query [<promql>] --datasource <uid>",
 		Short: "Run a PromQL query and print one line per series",
-		Long:  "query runs a PromQL query on a Prometheus datasource over a time range and prints each series with its point count, last, min, max and mean.\nWith --instant it evaluates the query at the end of the range and prints one value per series.\nThe server caps a result at 200 series and 100,000 points and says which limit it hit.",
+		Long:  "query runs a PromQL query on a Prometheus datasource over a time range and prints each series with its point count, last, min, max and mean.\nWith --instant it evaluates the query at the end of the range and prints one value per series.\nWith --ask the server writes the PromQL from a question and prints it first.\nThe server caps a result at 200 series and 100,000 points and says which limit it hit.",
 		Example: "  observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datasource prom --from now-6h\n" +
-			"  observe metrics query 'up == 0' --datasource prom --instant",
-		Args: cobra.ExactArgs(1),
+			"  observe metrics query 'up == 0' --datasource prom --instant\n" +
+			"  observe metrics query --ask \"requests per second by service\" --datasource prom --dry-run",
+		Args: cobra.ArbitraryArgs,
 		RunE: a.runMetricsQuery,
 	}
 	flags := cmd.Flags()
@@ -80,11 +84,16 @@ func (a *app) metricsQueryCommand() *cobra.Command {
 	flags.StringVar(&a.metricsQuery.from, "from", "now-1h", "start of the range, such as now-15m or an RFC 3339 time")
 	flags.StringVar(&a.metricsQuery.to, "to", "now", "end of the range")
 	flags.BoolVar(&a.metricsQuery.instant, "instant", false, "evaluate the query once at the end of the range instead of over the whole range")
+	flags.StringVar(&a.metricsQuery.ask, "ask", "", "a question the server turns into the PromQL query, instead of the query argument")
+	flags.BoolVar(&a.metricsQuery.dryRun, "dry-run", false, "with --ask, print the query without running it")
 	return cmd
 }
 
 func (a *app) runMetricsQuery(cmd *cobra.Command, args []string) error {
 	opts := a.metricsQuery
+	if err := askUsage(cmd.Name(), "a PromQL query", args, opts.ask, opts.dryRun); err != nil {
+		return err
+	}
 	if opts.datasource == "" {
 		return usagef("%s needs --datasource <uid>; observe doctor lists them", cmd.CommandPath())
 	}
@@ -92,15 +101,27 @@ func (a *app) runMetricsQuery(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	out := a.output()
+	query := strings.Join(args, " ")
+	if opts.ask != "" {
+		answer, err := draftQuery(cmd.Context(), c, opts.datasource, signalMetrics, opts.ask, opts.from, opts.to)
+		if err != nil {
+			return err
+		}
+		printDraft(out, answer)
+		if opts.dryRun {
+			return nil
+		}
+		query = answer.Query
+	}
 	kind := "range"
 	if opts.instant {
 		kind = "instant"
 	}
-	data, body, err := explore(cmd.Context(), c, opts.datasource, exploreRequest{Query: args[0], Kind: kind, From: opts.from, To: opts.to})
+	data, body, err := explore(cmd.Context(), c, opts.datasource, exploreRequest{Query: query, Kind: kind, From: opts.from, To: opts.to})
 	if err != nil {
 		return err
 	}
-	out := a.output()
 	if a.json {
 		out.body(data)
 		return nil

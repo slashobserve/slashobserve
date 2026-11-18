@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { useInputMode } from "@/ask/input-mode"
 import { LoadProblem } from "@/components/load-problem"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -14,6 +15,7 @@ import { SourceTitle } from "@/datasources/source-title"
 import { useExploreSources } from "@/datasources/use-sources"
 import { exploreKeys } from "@/api/keys"
 import { useDocumentTitle } from "@/lib/document-title"
+import { useAgentInfo } from "@/observe/queries"
 import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
 import { roleAtLeast } from "@/lib/roles"
 import { metricsDraft } from "@/saved-searches/draft"
@@ -156,6 +158,12 @@ function MetricsWorkspaceView({
     setSeenQuery(q)
     if (q !== undefined) setDraft(q)
   }
+  const agentAvailable = useAgentInfo().data?.available === true
+  const [inputMode, setInputMode] = useInputMode({
+    agentAvailable,
+    hasQuery: q !== undefined,
+    hasAsk: search.ask !== undefined,
+  })
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const moreTrigger = useRef<HTMLButtonElement>(null)
   const [saveOpen, setSaveOpen] = useState(false)
@@ -185,6 +193,8 @@ function MetricsWorkspaceView({
     datasource,
     search,
     mode,
+    inputMode,
+    setInputMode,
     effectiveQuery: q,
     update,
     draft,

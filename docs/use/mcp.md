@@ -244,7 +244,9 @@ It lists the dashboards with [health problems](dashboard-health.md) in the folde
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
 `draft_query` is available over MCP only.
-It turns a question into a checked LogQL, ClickHouse SQL, KQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+It turns a question into a checked LogQL, ClickHouse SQL, KQL, PromQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+`signal` is `logs`, `traces` or `metrics`; it defaults to the one the datasource holds, and a ClickHouse datasource needs it.
+A Prometheus datasource answers with `language` `promql`, evaluated at the end of the range.
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
 A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
 

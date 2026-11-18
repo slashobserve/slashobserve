@@ -63,12 +63,13 @@ The logs page answers keys of its own, described in [Logs and traces](logs-and-t
 
 ## Metrics page keys
 
-The metrics page answers two keys, described in [Metrics](metrics.md).
+The metrics page answers three keys, described in [Metrics](metrics.md).
 
 | Keys | What they do |
 | --- | --- |
 | `/` | Focus the query. |
 | `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+| `⌘I` or `Ctrl+I` | Switch between Ask and PromQL, from anywhere on the page. |
 
 ## Trace search keys
 

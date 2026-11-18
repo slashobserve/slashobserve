@@ -215,3 +215,54 @@ func TestMetricsNamesRefusesBadFlagsBeforeAnyRequest(t *testing.T) {
 		t.Fatalf("requests %v", *requests)
 	}
 }
+
+const promDraft = `{"query":"sum by (service) (rate(http_requests_total[5m]))","language":"promql","trace_filters":null,"explanation":"Requests per second by service.","warnings":[]}`
+
+func runMetricsAsk(f *askFake, args ...string) (string, string, int) {
+	return runCLI(append([]string{"--server", f.server.URL, "--token", "k", "metrics", "query", "--datasource", "ds"}, args...)...)
+}
+
+func TestMetricsAskDraftsTheQueryThenRunsIt(t *testing.T) {
+	f := newAskFake(t, "prometheus", promDraft, promFrames)
+	stdout, stderr, code := runMetricsAsk(f, "--ask", "requests per service", "--from", "now-6h", "--instant")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	draft := f.drafts[0]
+	if len(f.drafts) != 1 || draft["question"] != "requests per service" || draft["from"] != "now-6h" || draft["signal"] != "metrics" {
+		t.Fatalf("drafts %v", f.drafts)
+	}
+	query := f.queries[0]
+	if len(f.queries) != 1 || query["query"] != "sum by (service) (rate(http_requests_total[5m]))" || query["kind"] != "instant" {
+		t.Fatalf("queries %v", f.queries)
+	}
+	if stderr != "Query: sum by (service) (rate(http_requests_total[5m]))\nRequests per second by service.\n" || !strings.Contains(stdout, "http_requests_total") {
+		t.Fatalf("stderr %q, stdout %q", stderr, stdout)
+	}
+}
+
+func TestMetricsAskDryRunNeverRunsTheQuery(t *testing.T) {
+	f := newAskFake(t, "prometheus", promDraft, promFrames)
+	stdout, stderr, code := runMetricsAsk(f, "--ask", "requests per service", "--dry-run")
+	if code != 0 || len(f.drafts) != 1 || len(f.queries) != 0 || stdout != "" || !strings.HasPrefix(stderr, "Query: ") {
+		t.Fatalf("exit %d, drafts %d, queries %d, stdout %q, stderr %q", code, len(f.drafts), len(f.queries), stdout, stderr)
+	}
+}
+
+func TestMetricsAskUsageErrors(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"up", "--ask", "targets"}, "give a PromQL query or --ask, not both"},
+		{nil, "query needs a PromQL query or --ask"},
+		{[]string{"up", "--dry-run"}, "--dry-run needs --ask"},
+	}
+	for _, c := range cases {
+		f := newAskFake(t, "prometheus", promDraft, promFrames)
+		_, stderr, code := runMetricsAsk(f, c.args...)
+		if code != 2 || !strings.Contains(stderr, c.want) || len(f.drafts)+len(f.queries) != 0 {
+			t.Errorf("%v: exit %d, stderr %q", c.args, code, stderr)
+		}
+	}
+}

@@ -30,6 +30,23 @@ A query the server finds invalid does not run.
 The page shows the message with its line and column and a caret under the position.
 A query that fails on the datasource shows the datasource's message and a **Retry** button.
 
+## Ask in plain language
+
+The mode switch at the top of the query card switches between **PromQL** and **Ask**.
+Ctrl+I or Cmd+I switches from anywhere on the page, and the page remembers the mode you last chose.
+Write a question such as "requests per second by service over the last hour" and press Enter or **Ask**, and press Shift+Enter to add a line.
+Esc cancels a question that is still running.
+
+The server reads the datasource's labels, the metric names that fit your question with their types, and the values of a service label, so the query names real ones.
+Then it asks the model once, checks the answer with the query lint and one instant run over the last 15 minutes of the range, and never runs the full query.
+When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
+When the whole catalog is small, every metric name is read; when it is large, the server searches it for the words of your question.
+The page runs the answer at once and shows its explanation and any warnings, such as "No series in the last 15 minutes."
+
+Editing the query switches to the PromQL segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the PromQL segment.
+Without a model the Ask segment is disabled and says "Add a model key to ask in plain language"; [LLM providers](../connect/llm-providers.md) describes how to configure one.
+
 ## Browse metrics
 
 **Browse metrics** opens a browser above the query box with the metrics of the datasource and a search box.
@@ -76,5 +93,5 @@ The query runs as given, so a Prometheus datasource shows what its credentials c
 
 ## With the CLI
 
-`observe metrics query` runs the same query from a terminal, `observe saved-searches save --kind metrics` saves it, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
-The MCP tools `query_range`, `query_instant`, `list_metrics`, `list_labels` and `list_label_values` do the same for an agent; see [MCP](mcp.md).
+`observe metrics query` runs the same query from a terminal, `--ask "<question>"` takes a question instead of the query, `observe saved-searches save --kind metrics` saves it, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
+The MCP tools `query_range`, `query_instant`, `list_metrics`, `list_labels` and `list_label_values` do the same for an agent, and `draft_query` answers a question with PromQL; see [MCP](mcp.md).

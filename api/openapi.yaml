@@ -5729,7 +5729,7 @@ components:
           maxLength: 128
         signal:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
     DraftQuery:
       type: object
       additionalProperties: false
@@ -5737,10 +5737,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, kql, filters]
+          enum: [logql, clickhouse_sql, traceql, promql, kql, filters]
         trace_filters:
           nullable: true
           allOf:

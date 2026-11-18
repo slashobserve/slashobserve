@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react"
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 
+import type { InputMode } from "@/ask/input-mode"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -45,6 +46,8 @@ export type MetricsWorkspace = {
   datasource: DatasourceStatus
   search: MetricsSearch
   mode: MetricsMode
+  inputMode: InputMode
+  setInputMode: (next: InputMode, remember?: boolean) => void
   effectiveQuery: string | undefined
   update: (
     next: Partial<MetricsSearch>,

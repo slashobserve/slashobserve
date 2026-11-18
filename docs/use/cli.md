@@ -521,11 +521,14 @@ A note on standard error says when some traces were not found in the range or mo
 ```sh
 bin/observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datasource prom --from now-6h
 bin/observe metrics query 'up == 0' --datasource prom --instant
+bin/observe metrics query --ask "requests per second by service" --datasource prom --dry-run
 ```
 
 `--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard.
 Each line shows the series name with its labels, then the number of points and the last, minimum, maximum and mean value.
 `--instant` evaluates the query once at the end of the range and prints the value of each series.
+`--ask` takes a question instead of the query, and the server writes the PromQL with [Ask](metrics.md#ask-in-plain-language) and prints it to stderr with its explanation and warnings before it runs.
+`--dry-run` prints them and runs nothing, and needs `--ask`; giving a query and `--ask` together exits 2.
 `--json` prints the response body.
 An invalid query exits 1 with the datasource's message, and so does a query that hits the server's limit of 15 seconds, 200 series or 100,000 points; the message names the limit.
 The [Metrics](metrics.md) page runs the same queries in the web app.

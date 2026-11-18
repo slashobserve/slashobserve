@@ -20,6 +20,13 @@ Loki (LogQL):
 - Filter by level on the level label the context lists: as a matcher when it is in the labels, such as {service_name="checkout", detected_level="error"}, or after the selector, such as {service_name="checkout"} | detected_level="error".
 - Use the level values the context lists, such as error or ERROR.
 
+Prometheus (PromQL):
+- Write one PromQL expression. The server evaluates it at the end of the time range, and a graph runs it over the whole range, so use range selectors such as [5m] inside rate and increase rather than writing times.
+- Start from a metric name the context lists, and filter with exact matchers on listed labels and values, such as http_requests_total{service="checkout"}.
+- A metric marked counter only grows: wrap it in rate(...[5m]) or increase(...[5m]), then sum by (label) (...) to group. A gauge is used as it is, with avg_over_time or max_over_time when the question asks over a window.
+- For a latency quantile use histogram_quantile(0.95, sum by (le) (rate(<name>_bucket[5m]))) on a listed histogram.
+- Use only metric and label names the context lists, written exactly. When the list is cut, pick the closest listed name and never guess one.
+
 ClickHouse logs (SQL):
 - Use this shape on the listed logs table and add conditions after the time filter:
   SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' ORDER BY Timestamp DESC LIMIT 1000
