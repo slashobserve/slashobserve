@@ -227,9 +227,9 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 		return false, nil
 	}
 	out := settled.Outcome
-	state.IssueCodes, state.Failing = nil, nil
+	state.IssueCodes, state.Failing, state.FailingOther = nil, nil, 0
 	if out.Rejected {
-		state.IssueCodes, state.Failing = out.IssueCodes, out.FailingPanels
+		state.IssueCodes, state.Failing, state.FailingOther = out.IssueCodes, out.FailingPanels, out.FailingOther
 	}
 	if settled.Stop != nil {
 		return false, sess.end(ctx, endSpec{failure: settled.Stop.Failure, step: settled.Stop.Step})

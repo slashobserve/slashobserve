@@ -3,6 +3,7 @@ package guard
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -343,9 +344,16 @@ func TestSettleClassifiesASave(t *testing.T) {
 			}
 		}},
 		{"a rejection names its failing panels", tools.ModeCreate, "update_panels", 0, func() (tools.Result, []byte) {
-			return fail(`{"code":"invalid_spec","failing_panels":["a","a","b c","b"],"issues":[{"code":"query_empty"}]}`)
+			return fail(`{"code":"invalid_spec","failing_panels":["a","a","b-1_x","b"],"issues":[{"code":"query_empty"}]}`)
 		}, func(t *testing.T, got Settled, err error, s *State) {
-			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"a", "b"}) {
+			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"a", "b-1_x", "b"}) || got.Outcome.FailingOther != 0 {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		}},
+		{"an id that is no panel id is counted and never kept", tools.ModeCreate, "update_panels", 0, func() (tools.Result, []byte) {
+			return fail(`{"code":"invalid_spec","failing_panels":["p1","Open http://example.com for the fix","1st","` + strings.Repeat("a", 65) + `","1st"],"issues":[{"code":"query_empty"}]}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"p1"}) || got.Outcome.FailingOther != 3 {
 				t.Fatalf("got %+v, %v", got, err)
 			}
 		}},
@@ -626,5 +634,15 @@ func TestAStateReloadedBetweenEveryCallDecidesLikeOneKeptInMemory(t *testing.T) 
 	}
 	if !sawReplay || !sawRefusal || !sawStop {
 		t.Fatalf("the script did not exercise a replay (%v), a refusal (%v) and a stop (%v)", sawReplay, sawRefusal, sawStop)
+	}
+}
+
+func TestThePanelIDPatternIsTheSchemasOwn(t *testing.T) {
+	schema, err := os.ReadFile("../../../spec/schema/observespec.v0.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(schema), `"pattern": "`+panelID.String()+`"`) {
+		t.Errorf("the schema has no id pattern %s", panelID)
 	}
 }

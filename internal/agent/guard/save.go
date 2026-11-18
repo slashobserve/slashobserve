@@ -21,6 +21,7 @@ var (
 	ErrMalformed = errors.New("save result is malformed")
 
 	plainCode = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
+	panelID   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
 )
 
 type Saved struct {
@@ -41,6 +42,7 @@ type Outcome struct {
 	IssueCodes []string
 
 	FailingPanels []string
+	FailingOther  int
 }
 
 type Settled struct {
@@ -117,7 +119,8 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{Outcome: Outcome{NotFound: true}}, nil
 	}
 	s.Rejections++
-	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes(), FailingPanels: body.failingPanels()}}, nil
+	failing, other := body.failingPanels()
+	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes(), FailingPanels: failing, FailingOther: other}}, nil
 }
 
 func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settled, error) {
@@ -165,14 +168,20 @@ func (s *State) classifyBuildSave(res tools.Result) Settled {
 	return Settled{Outcome: Outcome{Built: true}, Note: note}
 }
 
-func (b saveBody) failingPanels() []string {
-	var ids []string
+func (b saveBody) failingPanels() (ids []string, other int) {
+	var seen []string
 	for _, id := range b.FailingPanels {
-		if plainCode.MatchString(id) && !slices.Contains(ids, id) {
+		if slices.Contains(seen, id) {
+			continue
+		}
+		seen = append(seen, id)
+		if panelID.MatchString(id) {
 			ids = append(ids, id)
+		} else {
+			other++
 		}
 	}
-	return ids
+	return ids, other
 }
 
 func (b saveBody) issueCodes() []string {

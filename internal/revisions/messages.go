@@ -56,16 +56,19 @@ func FailureMessage(code FailureCode, source Source) string {
 	return failureMessages[code]
 }
 
-func FailingPanelsSuffix(ids []string) string {
-	if len(ids) == 0 {
+func FailingPanelsSuffix(ids []string, other int) string {
+	total := len(ids) + other
+	if total == 0 {
 		return ""
 	}
 	shown := ids[:min(len(ids), maxFailingPanelsShown)]
 	suffix := "; still failing: " + strings.Join(shown, ", ")
-	if more := len(ids) - len(shown); more > 0 {
+	if more := total - len(shown); more > 0 && len(shown) > 0 {
 		suffix += fmt.Sprintf(" and %d more", more)
+	} else if more > 0 {
+		suffix += fmt.Sprintf("%d more", more)
 	}
-	if len(ids) > 1 {
+	if total > 1 {
 		suffix += "; ask the agent to fix them one panel at a time"
 	}
 	return suffix

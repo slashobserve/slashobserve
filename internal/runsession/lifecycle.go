@@ -47,7 +47,7 @@ func (sess *session) end(ctx context.Context, e endSpec) error {
 	if e.message == "" {
 		e.message = revisions.FailureMessage(e.failure, sess.req.Source)
 		if e.failure == revisions.FailureValidationExhausted {
-			e.message += revisions.FailingPanelsSuffix(sess.state.Failing) + revisions.IssuesSuffix(sess.state.IssueCodes)
+			e.message += revisions.FailingPanelsSuffix(sess.state.Failing, sess.state.FailingOther) + revisions.IssuesSuffix(sess.state.IssueCodes)
 		}
 	}
 	row, err := sess.currentRow(ctx)
