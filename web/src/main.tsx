@@ -8,6 +8,7 @@ import { setUnauthorizedHandler } from "@/api/client"
 import { createQueryClient } from "@/api/query-client"
 import { refreshSession } from "@/lib/auth"
 import { parseSearch, stringifySearch } from "@/lib/search"
+import { followTraceOrigin } from "@/traces/trace-origin"
 import { routeTree } from "./routeTree.gen"
 import "./index.css"
 
@@ -24,6 +25,7 @@ const router = createRouter({
 })
 
 setUnauthorizedHandler(() => void router.invalidate())
+followTraceOrigin(router)
 
 declare module "@tanstack/react-router" {
   interface Register {

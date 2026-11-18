@@ -389,6 +389,8 @@ When Tempo did not search every block, a banner says that some spans may be miss
 
 ### Export and share
 
+A trace opened from the Logs page or from a trace search shows **Back to logs** or **Back to traces** under the top bar, which returns to that page with the same query and time range.
+A trace opened from a pasted link, a dashboard or after a reload has no such link, because the page it came from is not known.
 **Download JSON** and **Copy link** are icon buttons in the top bar, beside the time range and **Logs for this trace**.
 **Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
 **Copy link** copies the address of the trace with its datasource, time range and open span.
