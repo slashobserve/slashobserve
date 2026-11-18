@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import {
   asDashboardSpec,
   latestDashboardQuery,
-  useAddVersion,
+  usePatchPanels,
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
 import { useLatestPermissions } from "@/dashboards/permissions"
@@ -65,7 +65,8 @@ import {
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
-import { parsePanelJson, withPanel } from "./panel-json"
+import { withNewPanel } from "./new-panel"
+import { parsePanelJson } from "./panel-json"
 import { PreviewSection } from "./preview-section"
 import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
@@ -90,6 +91,7 @@ type Props = {
   dashboardId: string
   spec: Dashboard
   panel: EditablePanel
+  adding?: boolean
   version: number
   latestVersion: number
   readOnly: boolean
@@ -105,7 +107,7 @@ type Props = {
   onDiscard: () => void
 }
 
-const savingText = "Saving and running every panel query."
+const savingText = "Saving and running this panel's queries."
 const readOnlyAskReason = "Open the latest version to ask the agent."
 
 function focusIsFree() {
@@ -119,6 +121,7 @@ export default function PanelEditor({
   dashboardId,
   spec,
   panel,
+  adding = false,
   version,
   latestVersion,
   readOnly,
@@ -135,7 +138,7 @@ export default function PanelEditor({
 }: Props) {
   const datasourceId = useId()
   const queryClient = useQueryClient()
-  const save = useAddVersion(dashboardId)
+  const save = usePatchPanels(dashboardId)
   const navigate = useNavigate()
   const permissions = useLatestPermissions(dashboardId)
   const propose = !permissions.edit && permissions.comment
@@ -283,18 +286,14 @@ export default function PanelEditor({
       )
       return
     }
-    const placed = withPanel(source, parsed.panel.id, parsed.panel)
-    if (!placed) {
-      setProblem({ kind: "gone" })
-      return
-    }
     setProblem(null)
+    const title = normalised.title || normalised.id
     save.mutate(
       {
-        spec: placed,
+        patch: { upsert: [{ ...parsed.panel }] },
         summary:
           note.trim() ||
-          defaultSaveSummary(changes, normalised.title || normalised.id),
+          (adding ? `Add "${title}"` : defaultSaveSummary(changes, title)),
         parent_version: parent,
         propose,
       },
@@ -364,7 +363,13 @@ export default function PanelEditor({
         ...latestDashboardQuery(queryClient, dashboardId),
         staleTime: 0,
       })
-      const latestSpec = asDashboardSpec(latest.version.spec)
+      const savedSpec = asDashboardSpec(latest.version.spec)
+      const latestSpec =
+        adding &&
+        isDataPanel(draft.base) &&
+        findPanel(savedSpec, draft.base.id) === undefined
+          ? withNewPanel(savedSpec, draft.base)
+          : savedSpec
       const entry = findPanel(latestSpec, draft.panel.id)
       if (!entry) {
         setProblem({ kind: "gone" })

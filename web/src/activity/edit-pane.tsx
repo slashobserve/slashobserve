@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -36,6 +37,7 @@ import { Button } from "@/components/ui/button"
 import { guardLoad } from "@/panels/renderer-load"
 import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
 import { isEditablePanel } from "@/panel-editor/draft"
+import { useNewPanels, withNewPanel } from "@/panel-editor/new-panel"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
 import { EditorBoundary } from "./editor-boundary"
@@ -162,7 +164,14 @@ export function EditPane({
     [panelId]
   )
 
-  const current = findPanel(spec, panelId)?.panel
+  const pending = useNewPanels((state) => state.panels[dashboardId])
+  const adding =
+    pending?.id === panelId && findPanel(spec, panelId) === undefined
+  const editorSpec = useMemo(
+    () => (adding ? withNewPanel(spec, pending) : spec),
+    [adding, spec, pending]
+  )
+  const current = findPanel(editorSpec, panelId)?.panel
   const [retained, setRetained] = useState<Panel | undefined>()
   if (current && current !== retained) setRetained(current)
   const panel = current ?? (dirty ? retained : undefined)
@@ -269,8 +278,9 @@ export function EditPane({
         >
           <PanelEditor
             dashboardId={dashboardId}
-            spec={spec}
+            spec={editorSpec}
             panel={panel}
+            adding={adding}
             version={version}
             latestVersion={latestVersion}
             readOnly={readOnly}
@@ -301,11 +311,19 @@ export function EditPane({
       <DockHeader
         headingId={headingId}
         headingRef={headingRef}
-        title={panel ? `Edit ${panelTitle(panel)}` : "Panel not found"}
+        title={
+          adding
+            ? "Add a panel"
+            : panel
+              ? `Edit ${panelTitle(panel)}`
+              : "Panel not found"
+        }
         description={
-          panel
-            ? "A draft. Nothing changes until you save."
-            : `This panel is not in version ${version}.`
+          adding
+            ? "A new panel. Nothing changes until you save."
+            : panel
+              ? "A draft. Nothing changes until you save."
+              : `This panel is not in version ${version}.`
         }
         back={() => leave("back")}
         controls={

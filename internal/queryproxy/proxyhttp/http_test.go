@@ -402,10 +402,15 @@ func (hn *harness) previewAs(kind auth.PrincipalKind, uid string, edit func(*spe
 	if edit != nil {
 		edit(&panel)
 	}
+	return hn.previewPanel(kind, uid, "p_ts", panel)
+}
+
+func (hn *harness) previewPanel(kind auth.PrincipalKind, uid, panelID string, panel spec.Panel) *httptest.ResponseRecorder {
+	hn.t.Helper()
 	body, err := json.Marshal(map[string]any{
 		"dashboard_id": hn.id.String(),
 		"version":      1,
-		"panel_id":     "p_ts",
+		"panel_id":     panelID,
 		"panel":        panel,
 		"from":         "1760000000123",
 		"to":           "1760021600456",
@@ -489,6 +494,27 @@ func holdPrincipalSlots(t *testing.T, hn *harness, principal string) {
 		}
 		t.Cleanup(release)
 	}
+}
+
+func TestPreviewAddsAPanelTheVersionDoesNotHave(t *testing.T) {
+	hn := newPreviewHarness(t)
+	added := spec.Panel{ID: "p_new", Type: spec.Timeseries, Title: "new", Datasource: "prom", GridPos: spec.GridPos{Y: 8, W: 12, H: 8}, Queries: []spec.Query{{Query: "up"}}}
+	if rec := hn.previewPanel(auth.KindUser, "prom", "p_new", added); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 1 {
+		t.Fatalf("the datasource ran %d queries, want only the new panel's", ranges)
+	}
+
+	rec := hn.previewPanel(auth.KindUser, "prom", "p_other", added)
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got := decodeError(t, rec).Error; got != "the panel's id must be p_other" {
+		t.Fatalf("message = %q", got)
+	}
+
+	overlapping := added
+	overlapping.GridPos.Y = 0
+	expectError(t, hn.previewPanel(auth.KindUser, "prom", "p_new", overlapping), http.StatusUnprocessableEntity, "invalid_spec")
 }
 
 func TestPreviewRefusesAQueryOverridingTheDatasource(t *testing.T) {

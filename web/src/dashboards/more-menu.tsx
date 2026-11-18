@@ -3,6 +3,7 @@ import {
   DownloadIcon,
   EllipsisIcon,
   PencilIcon,
+  PlusIcon,
   TvIcon,
   TvMinimalPlayIcon,
   Trash2Icon,
@@ -31,6 +32,7 @@ import { moreMenuButtonId } from "./edit/layout-store"
 type Props = {
   mayEdit: boolean
   detailsBlockedBy: string | null
+  onAddPanel: (() => void) | null
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
   onEditDetails: () => void
@@ -46,6 +48,7 @@ type Props = {
 export function MoreMenu({
   mayEdit,
   detailsBlockedBy,
+  onAddPanel,
   duplicateBlockedBy,
   deleteBlockedBy,
   onEditDetails,
@@ -64,7 +67,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, add panel, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -87,6 +90,17 @@ export function MoreMenu({
             {detailsBlockedBy === null
               ? "Edit details"
               : `Edit details (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit && onAddPanel !== null ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={onAddPanel}
+          >
+            <PlusIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Add panel"
+              : `Add panel (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={onExport}>

@@ -1165,7 +1165,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, or is added to it as a new top-level panel when the version has none with that id, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -9521,7 +9521,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The datasource, dashboard or version does not exist (`not_found`), or the version has no panel `panel_id` (`panel_not_found`). */
+            /** @description The datasource, dashboard or version does not exist (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

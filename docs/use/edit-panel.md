@@ -29,6 +29,19 @@ An editor opened from a bookmark or a pasted link adds the dashboard without the
 
 The **Editor view** switch at the top changes between **Editor** and **JSON**.
 
+## Add a panel
+
+On a dashboard, open **More** and choose **Add panel**.
+The editor opens headed "Add a panel" with the line "A new panel. Nothing changes until you save.", on a time series panel titled "New panel" below the last panel, using the datasource of the dashboard's first data panel.
+Pick the type, datasource and query as for any panel; the save adds the panel and its summary is `Add "<title>"` unless you add a note.
+**Add panel** needs Edit on the dashboard, is missing when no datasource is configured, and is disabled while you are on a pinned older version or have unsaved layout moves.
+
+## Start from a blank dashboard
+
+On the Dashboards page, **Create dashboard** offers **Ask the agent**, which opens the chat and is marked "needs a model" when the server has no model provider, and **Blank dashboard**.
+**Blank dashboard** asks for a title and a folder, starting in My Dashboards, and creates a dashboard holding one text panel that says how to add panels.
+Remove that note from its panel menu once you have added your own panels.
+
 ## Edit queries
 
 For a data panel, the **Preview** section sits at the top and the query rows below it.
@@ -181,7 +194,7 @@ The footer states what you changed: "No changes", "2 changes: query, title", or 
 
 The save button reads "Save as version 4" when you are on the latest version, 3.
 It saves the whole dashboard with your panel replaced, as the next version after the one you opened.
-The save runs every panel query of the dashboard, not just yours, as the agent's saves do, and a panel that fails or returns no data is refused.
+The save runs only your panel's queries, as the agent's `update_panels` saves do, and a panel that fails or returns no data is refused.
 A panel that was already unverified and still fails is kept, marked "Unverified" with the reason it failed when it was saved.
 On success the toast reads "Saved version 4" and you return to the timeline.
 

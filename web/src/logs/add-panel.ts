@@ -41,7 +41,7 @@ function bottom(panels: readonly { gridPos: { y: number; h: number } }[]) {
   )
 }
 
-function gridBottom(spec: Dashboard): number {
+export function gridBottom(spec: Dashboard): number {
   return bottom(
     allPanels(spec)
       .filter((entry) => !entry.row?.collapsed)

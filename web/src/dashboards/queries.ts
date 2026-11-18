@@ -110,6 +110,31 @@ export function useMoveDashboard() {
   })
 }
 
+export function useCreateDashboard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { spec: Dashboard; folderId: string }) =>
+      api
+        .POST("/dashboards", {
+          body: {
+            spec: { ...input.spec },
+            folder_id: input.folderId,
+          },
+        })
+        .then(unwrap),
+    onSettled: () =>
+      Promise.all(
+        [
+          dashboardKeys.list(),
+          dashboardKeys.titles(),
+          dashboardKeys.tags(),
+          folderKeys.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+      ),
+  })
+}
+
 export function useDuplicateDashboard(sourceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -233,6 +258,7 @@ export function usePatchPanels(id: string) {
       patch: PanelPatch
       summary: string
       parent_version: number
+      propose?: boolean
     }): Promise<SaveOutcome> =>
       api
         .POST("/dashboards/{id}/panels", {
@@ -241,6 +267,7 @@ export function usePatchPanels(id: string) {
             ...input.patch,
             summary: input.summary,
             parent_version: input.parent_version,
+            ...(input.propose ? { propose_if_needed: true } : {}),
           },
         })
         .then((result) => saveOutcomeOf(unwrap(result))),

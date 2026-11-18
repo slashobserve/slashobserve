@@ -114,6 +114,7 @@ import {
   useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
+import { useAddPanel } from "./add-panel-action"
 import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
@@ -367,6 +368,7 @@ function DashboardView({
     [saveVersion, spec, version]
   )
   const layoutActions = usePanelLayoutActions(dashboardId, spec, version)
+  const addPanel = useAddPanel(dashboardId, spec)
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const kiosk = search.kiosk === true
@@ -722,6 +724,7 @@ function DashboardView({
       })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
+      onAddPanel={addPanel}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
