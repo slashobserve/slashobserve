@@ -165,3 +165,61 @@ func TestImportedOutStaysInsideTheResultCapWithALongFolderTitle(t *testing.T) {
 		t.Fatalf("attention rows = %d, truncated = %t, want a cut list", len(out.Attention), out.Truncated)
 	}
 }
+
+func TestImportRefusesContradictoryOrMalformedUpdateInput(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	tests := []struct {
+		name  string
+		input map[string]any
+	}{
+		{"update with import_as_new", map[string]any{"json": `{"title":"x"}`, "update_dashboard": dashA, "import_as_new": true}},
+		{"update that is not an id", map[string]any{"json": `{"title":"x"}`, "update_dashboard": "checkout"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := json.Marshal(tt.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := r.Call(ctx, nameImportGrafana, input)
+			if err != nil || !res.IsError || errorCode(t, res) != codeInvalidRequest {
+				t.Fatalf("res = %#v, err = %v, want invalid_request", res, err)
+			}
+		})
+	}
+}
+
+func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	r.deps.PublicURL = &url.URL{Scheme: "https", Host: "so.example"}
+	tests := []struct {
+		name      string
+		canUpdate bool
+		want      []string
+	}{
+		{"editable", true, []string{"update_dashboard argument to " + dashA, "import_as_new"}},
+		{"read only", false, []string{"cannot edit it", "import_as_new"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
+			if err != nil || !res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			body, ok := res.Content.(alreadyImportedOut)
+			if !ok || body.Code != codeAlreadyImported || body.Existing.DashboardID != dashA || body.Existing.Version != 3 || body.Existing.CanUpdate != tt.canUpdate || !strings.HasPrefix(body.Existing.URL, "https://so.example/") {
+				t.Fatalf("body = %#v", res.Content)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(body.Error, want) {
+					t.Errorf("error %q lacks %q", body.Error, want)
+				}
+			}
+		})
+	}
+	res, err := r.importFailed(imports.ErrNotFound)
+	if body, ok := res.Content.(importErrorOut); err != nil || !ok || body.Code != codeNotImported {
+		t.Fatalf("res = %#v, err = %v, want not_imported", res, err)
+	}
+}

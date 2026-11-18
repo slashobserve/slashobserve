@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -20,6 +21,8 @@ import (
 const (
 	codeDatasourcesUnresolved = "datasources_unresolved"
 	codeTooManyImports        = "too_many_imports"
+	codeAlreadyImported       = "already_imported"
+	codeNotImported           = "not_imported"
 
 	statusImported   grafana.Status = "imported"
 	statusUnverified grafana.Status = "unverified"
@@ -49,6 +52,7 @@ type importedOut struct {
 	Title       string         `json:"title"`
 	Folder      string         `json:"folder"`
 	Replayed    bool           `json:"replayed"`
+	Updated     bool           `json:"updated"`
 	Counts      grafana.Counts `json:"counts"`
 	Attention   []Attention    `json:"attention"`
 	Truncated   bool           `json:"truncated"`
@@ -58,6 +62,19 @@ type importedOut struct {
 type importErrorOut struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
+}
+
+type existingOut struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+	Version     int    `json:"version"`
+	URL         string `json:"url"`
+	CanUpdate   bool   `json:"can_update"`
+}
+
+type alreadyImportedOut struct {
+	importErrorOut
+	Existing existingOut `json:"existing"`
 }
 
 type unresolvedRowOut struct {
@@ -118,6 +135,9 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		JSON    string            `json:"json"`
 		Mapping map[string]string `json:"mapping"`
 		Folder  *string           `json:"folder"`
+
+		UpdateDashboard *string `json:"update_dashboard"`
+		ImportAsNew     bool    `json:"import_as_new"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -138,16 +158,28 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return Result{}, err
 	}
+	req := imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, Folder: folder, RequestID: requestID, RefuseExisting: !in.ImportAsNew}
+	if in.UpdateDashboard != nil {
+		if in.ImportAsNew {
+			return invalid("update_dashboard and import_as_new cannot be used together"), nil
+		}
+		if req.Update, err = db.ParseUUID(*in.UpdateDashboard); err != nil {
+			return invalid("update_dashboard must be the id of a dashboard an import made"), nil
+		}
+	}
 	if r.deps.Imports == nil {
 		return Result{}, errImportsNotConfigured
 	}
-	imported, err := r.deps.Imports.Import(ctx, principal, imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, Folder: folder, RequestID: requestID})
+	imported, err := r.deps.Imports.Import(ctx, principal, req)
 	if err != nil {
 		return r.importFailed(err)
 	}
 	step := "Imported " + plural(imported.Record.Report.Counts.Total, "panel", "panels") + " from Grafana"
-	if imported.Replayed {
+	switch {
+	case imported.Replayed:
 		step = "Imported again"
+	case imported.Updated:
+		step = fmt.Sprintf("Updated the dashboard from Grafana to version %d", imported.Version.Number)
 	}
 	return success(step, newImportedOut(r.deps.PublicURL, imported)), nil
 }
@@ -185,6 +217,7 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 		Title:       imported.Dashboard.Title,
 		Folder:      imported.Dashboard.Folder.Title,
 		Replayed:    imported.Replayed,
+		Updated:     imported.Updated,
 		Counts:      imported.Record.Report.Counts,
 		Attention:   []Attention{},
 		FolderNote:  httpapi.OptionalString(imported.FolderNote),
@@ -195,6 +228,13 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 	}
 	out.Attention, out.Truncated = fit(attentionOf(imported.Record.Report), listBudget-len(envelope))
 	return out
+}
+
+func alreadyImportedMessage(e imports.Existing) string {
+	if e.CanUpdate {
+		return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d); set this tool's update_dashboard argument to %s to save this JSON as its next version, or import_as_new true to make another dashboard", e.Title, e.Version, e.DashboardID)
+	}
+	return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d) and you cannot edit it; pass import_as_new true to make your own copy", e.Title, e.Version)
 }
 
 func parseImportFolder(raw *string) (string, Result, bool) {
@@ -211,7 +251,21 @@ func parseImportFolder(raw *string) (string, Result, bool) {
 func (r *Registry) importFailed(err error) (Result, error) {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
+	var already *imports.AlreadyImportedError
 	switch {
+	case errors.As(err, &already):
+		return failure(errorStep(nameImportGrafana, codeAlreadyImported), alreadyImportedOut{
+			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing), Code: codeAlreadyImported},
+			Existing: existingOut{
+				DashboardID: already.Existing.DashboardID,
+				Title:       already.Existing.Title,
+				Version:     already.Existing.Version,
+				URL:         links.Dashboard(r.deps.PublicURL, already.Existing.DashboardID, already.Existing.Title),
+				CanUpdate:   already.Existing.CanUpdate,
+			},
+		}), nil
+	case errors.Is(err, imports.ErrNotFound):
+		return importFailure(codeNotImported, "that dashboard was not made by an import; change it with update_dashboard"), nil
 	case errors.As(err, &input):
 		return importFailure(input.Code, input.Message), nil
 	case errors.As(err, &unresolved):
