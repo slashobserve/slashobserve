@@ -357,3 +357,35 @@ func folderOf(t *testing.T, r *accessRig, res Result) pgtype.UUID {
 	}
 	return folderID
 }
+
+func TestCreateDashboardTwiceWithTheSameSpecReturnsTheFirstOne(t *testing.T) {
+	r := newAccessRig(t)
+	eve, bob := r.person(t, "eve", auth.RoleEditor), r.person(t, "bob", auth.RoleEditor)
+	ops, other := r.newFolder(t, "Ops"), r.newFolder(t, "Other")
+
+	savedOf := func(res Result) savedOut {
+		t.Helper()
+		saved, ok := res.Content.(savedOut)
+		if res.IsError || !ok {
+			t.Fatalf("create_dashboard = %s", textOf(t, res))
+		}
+		return saved
+	}
+	first := savedOf(r.create(t, eve, "Checkout", ops))
+	if first.Replayed != nil && *first.Replayed {
+		t.Fatal("the first save was reported as a replay")
+	}
+	again := savedOf(r.create(t, eve, "Checkout", ops))
+	if again.DashboardID != first.DashboardID || again.Replayed == nil || !*again.Replayed {
+		t.Fatalf("a retry made %+v, want the first dashboard %s replayed", again, first.DashboardID)
+	}
+	for name, res := range map[string]Result{
+		"another folder": r.create(t, eve, "Checkout", other),
+		"another title":  r.create(t, eve, "Checkout 2", ops),
+		"another person": r.create(t, bob, "Checkout", ops),
+	} {
+		if got := savedOf(res); got.DashboardID == first.DashboardID {
+			t.Errorf("%s: returned the first dashboard", name)
+		}
+	}
+}

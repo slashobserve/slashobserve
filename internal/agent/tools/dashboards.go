@@ -416,6 +416,14 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if inBuildRun(run, scoped) {
 		return r.buildCreate(ctx, principal, run, in)
 	}
+	if !requestID.Valid {
+		if dash, ver, found, err := r.identicalDashboard(ctx, principal, folderID, in.Spec); err != nil {
+			return Result{}, err
+		} else if found {
+			replayed := true
+			return success("Found the dashboard already saved as version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+		}
+	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {
 		return res, nil
@@ -424,6 +432,47 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		return saveFailure(err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+}
+
+const identicalSearchLimit = 50
+
+func (r *Registry) identicalDashboard(ctx context.Context, principal auth.Principal, requested pgtype.UUID, raw json.RawMessage) (dashboards.Dashboard, dashboards.Version, bool, error) {
+	parsed, err := spec.Parse(raw)
+	if err != nil || r.deps.Folders == nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, nil
+	}
+	folder, err := r.deps.Folders.CreationFolder(ctx, principal, requested)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, nil
+	}
+	wanted, err := json.Marshal(parsed)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{
+		Limit: identicalSearchLimit, Query: parsed.Title, Folder: folder.ID, ByFolder: true, SkipTotal: true,
+		MadeBy: dashboards.MadeBy{CreatorKind: string(principal.Kind), CreatorID: principal.ID},
+	})
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	for _, item := range page.Items {
+		if item.Title != parsed.Title {
+			continue
+		}
+		id, err := db.ParseUUID(item.ID)
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		}
+		dash, ver, err := r.deps.Dashboards.Get(ctx, id)
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		}
+		if existing, err := json.Marshal(ver.Spec); err == nil && bytes.Equal(existing, wanted) {
+			return dash, ver, true, nil
+		}
+	}
+	return dashboards.Dashboard{}, dashboards.Version{}, false, nil
 }
 
 func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
