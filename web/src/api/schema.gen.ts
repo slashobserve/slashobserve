@@ -6339,6 +6339,8 @@ export interface components {
             dashboard_id: string | null;
             /** @description Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id. */
             pinned: boolean;
+            /** @description Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id. */
+            can_pin: boolean;
             /** @description How many messages the observation's discussion thread holds, replies included; 0 while it has no thread. */
             message_count: number;
             /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */

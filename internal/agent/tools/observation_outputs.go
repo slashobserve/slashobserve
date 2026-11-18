@@ -110,6 +110,8 @@ func (r *Registry) observationOutputFailure(step string, err error) (Result, err
 	switch {
 	case errors.Is(err, observations.ErrNoDashboard):
 		return toolError(codeObservationHasNoDashboard, err.Error()), nil
+	case errors.Is(err, observations.ErrDashboardNotFound):
+		return toolError(codeNotFound, err.Error()), nil
 	case errors.Is(err, observations.ErrNoPanels):
 		return toolError(codeObservationHasNoPanels, err.Error()), nil
 	}

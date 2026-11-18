@@ -41,7 +41,11 @@ function block(kind: "text" | "panel", state: "live" | "requested"): Block {
 }
 
 function envelope(
-  over: { dashboard_id?: string | null; pinned?: boolean },
+  over: {
+    dashboard_id?: string | null
+    pinned?: boolean
+    can_pin?: boolean
+  },
   blocks: Block[]
 ): ObservationEnvelope {
   return {
@@ -57,6 +61,7 @@ function envelope(
       run_id: null,
       dashboard_id: over.dashboard_id ?? null,
       pinned: over.pinned ?? false,
+      can_pin: over.can_pin ?? over.dashboard_id !== undefined,
       message_count: 0,
       url: "http://localhost/o/o1",
       created_by: author,
@@ -168,6 +173,16 @@ describe("ObservationHeader actions", () => {
     expect(item.getAttribute("aria-disabled")).toBe("true")
     expect(
       screen.queryByRole("menuitem", { name: "Make a dashboard" })
+    ).toBeNull()
+  })
+
+  it("leaves Pin out when the caller may not edit the dashboard", async () => {
+    await openMenu(
+      envelope({ dashboard_id: "d1", can_pin: false }, [block("panel", "live")])
+    )
+    await screen.findByRole("menuitem", { name: "Make a dashboard" })
+    expect(
+      screen.queryByRole("menuitem", { name: "Pin to dashboard" })
     ).toBeNull()
   })
 

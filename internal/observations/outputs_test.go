@@ -326,3 +326,30 @@ func TestSimultaneousMakesAndPinsGiveOneAnswerAndDeleteNothing(t *testing.T) {
 		t.Errorf("%d annotations, %v", left, err)
 	}
 }
+
+func TestAnObservationSaysWhetherTheCallerMayPinIt(t *testing.T) {
+	r := newRig(t)
+	about := r.dashboard(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	got, err := r.service.Get(t.Context(), editor, id)
+	if err != nil || got.CanPin {
+		t.Fatalf("an observation without a dashboard: can pin %v: %v", got.CanPin, err)
+	}
+	r.runOn(t, o, about)
+	for who, want := range map[string]bool{"editor": true, "viewer": false} {
+		by := map[string]auth.Principal{"editor": editor, "viewer": viewer}[who]
+		got, err := r.service.Get(t.Context(), by, id)
+		if err != nil || got.CanPin != want || got.DashboardID != about.String() {
+			t.Errorf("%s: can pin %v, dashboard %q: %v", who, got.CanPin, got.DashboardID, err)
+		}
+	}
+	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2::uuid WHERE id = $1::uuid`, about.String(), r.hiddenFolder(t).String())
+	got, err = r.service.Get(t.Context(), editor, id)
+	if err != nil || got.CanPin {
+		t.Errorf("a dashboard the caller cannot open: can pin %v: %v", got.CanPin, err)
+	}
+	if _, _, err := r.service.Pin(t.Context(), editor, id, about); !errors.Is(err, observations.ErrDashboardNotFound) {
+		t.Errorf("pin to a dashboard the caller cannot open: %v", err)
+	}
+}

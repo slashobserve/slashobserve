@@ -122,8 +122,9 @@ The state line also shows who started the observation and when, and links to its
 
 ### Pin it and make a dashboard
 
-**More actions** has **Pin to dashboard** when the observation came from a run about a dashboard.
-It adds an annotation at the end of the observation's range with the title and a link back, and you need edit access to that dashboard.
+**More actions** has **Pin to dashboard** when the observation came from a run about a dashboard and you have edit access to that dashboard.
+It adds an annotation at the end of the observation's range with the title and a link back.
+Over the API the observation's `can_pin` says whether you may, and a pin to a dashboard you cannot open answers 404 "dashboard not found".
 Once it is pinned the item reads **Pinned to dashboard**, and pinning again over the API or MCP returns the same annotation.
 
 **Make a dashboard**, in **More actions** and in the actions of a live panel block, saves the live panel blocks, or that one block, as a new dashboard in My Dashboards and opens it.

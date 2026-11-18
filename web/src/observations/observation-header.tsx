@@ -174,7 +174,7 @@ export function ObservationHeader({
   const { observation, folder } = envelope
   const canMove = observation.allowed_actions.includes("move")
   const canDelete = observation.allowed_actions.includes("delete")
-  const canPin = observation.dashboard_id !== null
+  const canPin = observation.can_pin
   const canMake = (observation.blocks ?? []).some(
     (block) => block.kind === "panel" && block.state === "live"
   )

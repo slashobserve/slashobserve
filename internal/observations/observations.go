@@ -22,6 +22,7 @@ type Observation struct {
 	RunID          string
 	DashboardID    string
 	Pinned         bool
+	CanPin         bool
 	MessageCount   int
 	Actor          actor.Actor
 	CreatedAt      time.Time

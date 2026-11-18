@@ -5810,7 +5810,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, can_pin, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
       properties:
         id:
           type: string
@@ -5856,6 +5856,9 @@ components:
         pinned:
           type: boolean
           description: Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id.
+        can_pin:
+          type: boolean
+          description: Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id.
         message_count:
           type: integer
           minimum: 0

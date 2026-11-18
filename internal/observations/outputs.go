@@ -26,9 +26,10 @@ import (
 const madeDashboardSummary = "Made from an observation"
 
 var (
-	ErrNoDashboard   = errors.New("the observation names no dashboard to pin to")
-	ErrNoPanels      = errors.New("the observation has no live panel blocks to make a dashboard from")
-	ErrRunInProgress = errors.New("an investigation is still running on this observation; delete it once the run ends or is stopped")
+	ErrNoDashboard       = errors.New("the observation names no dashboard to pin to")
+	ErrDashboardNotFound = errors.New("dashboard not found")
+	ErrNoPanels          = errors.New("the observation has no live panel blocks to make a dashboard from")
+	ErrRunInProgress     = errors.New("an investigation is still running on this observation; delete it once the run ends or is stopped")
 )
 
 type Dashboards interface {
@@ -72,6 +73,17 @@ func (s *Service) pinned(ctx context.Context, id, dashboardID pgtype.UUID) (bool
 		return false, fmt.Errorf("get observation pin: %w", err)
 	}
 	return true, nil
+}
+
+func (s *Service) mayEdit(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (bool, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("read access to the observation's dashboard: %w", err)
+	}
+	return access.Abilities.Edit, nil
 }
 
 func pinOf(dashboardID, annotationID pgtype.UUID) Pin {
@@ -120,7 +132,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 		})
 		switch {
 		case errors.Is(err, annotations.ErrNotFound):
-			return ErrNotFound
+			return ErrDashboardNotFound
 		case errors.Is(err, annotations.ErrForbidden):
 			return folders.ErrForbidden
 		case err != nil:

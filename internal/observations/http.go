@@ -49,6 +49,7 @@ type ObservationJSON struct {
 	RunID          *string      `json:"run_id"`
 	DashboardID    *string      `json:"dashboard_id"`
 	Pinned         bool         `json:"pinned"`
+	CanPin         bool         `json:"can_pin"`
 	MessageCount   int          `json:"message_count"`
 	URL            string       `json:"url"`
 	CreatedBy      actor.JSON   `json:"created_by"`
@@ -146,6 +147,7 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		RunID:          httpapi.OptionalString(o.RunID),
 		DashboardID:    httpapi.OptionalString(o.DashboardID),
 		Pinned:         o.Pinned,
+		CanPin:         o.CanPin,
 		MessageCount:   o.MessageCount,
 		URL:            url,
 		CreatedBy:      o.Actor.JSON(),
@@ -768,6 +770,8 @@ func abortKnown(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, ErrNoDashboard):
 		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error())
+	case errors.Is(err, ErrDashboardNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrDashboardNotFound.Error())
 	case errors.Is(err, ErrNoPanels):
 		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error())
 	case errors.Is(err, ErrRunInProgress):
