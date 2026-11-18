@@ -71,7 +71,7 @@ const (
 
 	schemaCreateObservation  = `{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200,"description":"A short title."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file it in, from list_folders. Default your My Dashboards, else General."},` + propObservationFrom + `,` + propObservationTo + `,` + propObservationBlock + `},"required":["title"],"additionalProperties":false}`
 	schemaGetObservation     = `{"type":"object","properties":{` + propObservationID + `},"required":["observation_id"],"additionalProperties":false}`
-	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `},"required":["observation_id","kind"],"additionalProperties":false}`
 	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propBlockPosition + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaResolveObservation = `{"type":"object","properties":{` + propObservationID + `,"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line on what was found."}},"required":["observation_id","summary"],"additionalProperties":false}`
@@ -737,6 +737,13 @@ func clipRunes(s string, limit int) (string, bool) {
 	return string([]rune(s)[:limit]), true
 }
 
+func checkListState(state observations.State) (Result, bool) {
+	if state != "" && state != observations.StateOpen && state != observations.StateResolved {
+		return invalid("state must be open or resolved"), false
+	}
+	return Result{}, true
+}
+
 func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) (Result, error) {
 	if r.deps.Observations == nil {
 		return Result{}, errObservationsNotConfigured
@@ -744,19 +751,23 @@ func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) 
 	var in struct {
 		FolderID string `json:"folder_id"`
 		State    string `json:"state"`
+		Title    string `json:"title"`
 		Limit    *int   `json:"limit"`
 		Cursor   string `json:"cursor"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if res, ok := checkLength("title", in.Title, maxNameBytes); !ok {
+		return res, nil
+	}
 	folderID, res, ok := parseFolderID(in.FolderID)
 	if !ok {
 		return res, nil
 	}
-	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State)}
-	if filter.State != "" && filter.State != observations.StateOpen && filter.State != observations.StateResolved {
-		return invalid("state must be open or resolved"), nil
+	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State), Query: in.Title}
+	if res, ok := checkListState(filter.State); !ok {
+		return res, nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListObservations, 1, maxListObservations, "limit")
 	if !ok {

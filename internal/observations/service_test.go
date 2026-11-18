@@ -43,7 +43,7 @@ func TestCreatingNeedsCreateInTheFolder(t *testing.T) {
 	if o.State != observations.StateOpen || o.FolderID != r.shared.String() || o.Title != "Checkout 5xx" || o.Summary != "" || o.ThreadID != "" {
 		t.Errorf("created %+v", o)
 	}
-	if !slices.Equal(o.AllowedActions, []observations.Action{observations.ActionUpdate, observations.ActionMove, observations.ActionResolve, observations.ActionPublish}) {
+	if !slices.Equal(o.AllowedActions, []observations.Action{observations.ActionUpdate, observations.ActionMove, observations.ActionResolve, observations.ActionPublish, observations.ActionDelete}) {
 		t.Errorf("allowed actions %v", o.AllowedActions)
 	}
 	if o.Actor.ID != editor.ID || o.Actor.Name != "Eve" {
@@ -590,6 +590,119 @@ func TestListingShowsOnlyVisibleFoldersFiltersAndPages(t *testing.T) {
 	}
 	if got, _, _ := r.service.List(t.Context(), viewer, observations.ListFilter{}, 10, ""); got[0].Blocks != nil {
 		t.Error("a list item carries blocks")
+	}
+}
+
+func TestListingSearchesTheTitleFiltersByAuthorAndSorts(t *testing.T) {
+	r := newRig(t)
+	create := func(by auth.Principal, title string) observations.Observation {
+		o, err := r.service.Create(t.Context(), by, observations.CreateInput{FolderID: r.shared, Title: title})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return o
+	}
+	beta := create(editor, "Beta latency")
+	alpha := create(otherEditor, "alpha 100% errors")
+	gamma := create(editor, "Gamma_queue")
+	list := func(filter observations.ListFilter) []string {
+		t.Helper()
+		got, err := r.service.Page(t.Context(), viewer, filter, 10, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ids(got.Observations)
+	}
+	if got, want := list(observations.ListFilter{Query: "LATENCY"}), []string{beta.ID}; !slices.Equal(got, want) {
+		t.Errorf("a case-insensitive title search found %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Query: "100%"}), []string{alpha.ID}; !slices.Equal(got, want) {
+		t.Errorf("a percent sign is literal: %v, want %v", got, want)
+	}
+	if got := list(observations.ListFilter{Query: "a_b"}); len(got) != 0 {
+		t.Errorf("an underscore is literal: %v", got)
+	}
+	if got, want := list(observations.ListFilter{Query: "_queue"}), []string{gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("an underscore matches itself: %v, want %v", got, want)
+	}
+	mine, err := r.service.Page(t.Context(), editor, observations.ListFilter{CreatedByMe: true}, 10, 0)
+	if err != nil || mine.Total != 2 || !slices.Equal(ids(mine.Observations), []string{gamma.ID, beta.ID}) {
+		t.Errorf("opened by me %v of %d, %v", ids(mine.Observations), mine.Total, err)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortTitle, Ascending: true}), []string{alpha.ID, beta.ID, gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("by title %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortCreated, Ascending: true}), []string{beta.ID, alpha.ID, gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("oldest first %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortTitle}), []string{gamma.ID, beta.ID, alpha.ID}; !slices.Equal(got, want) {
+		t.Errorf("by title descending %v, want %v", got, want)
+	}
+}
+
+func TestPagesCarryTheTotalAndTheRequestedSlice(t *testing.T) {
+	r := newRig(t)
+	var created []string
+	for range 5 {
+		created = append(created, r.create(t, editor, r.shared).ID)
+	}
+	slices.Reverse(created)
+	second, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 2)
+	if err != nil || second.Total != 5 || !slices.Equal(ids(second.Observations), created[2:4]) {
+		t.Errorf("second page %v of %d, %v", ids(second.Observations), second.Total, err)
+	}
+	past, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 10)
+	if err != nil || past.Total != 5 || len(past.Observations) != 0 {
+		t.Errorf("a page past the end %v of %d, %v", ids(past.Observations), past.Total, err)
+	}
+	if _, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{Sort: observations.SortTitle}, 2, "AAAA"); err == nil {
+		t.Error("a cursor with another order was accepted")
+	}
+}
+
+func TestDeletingRemovesTheObservationWithItsPartsAndKeepsTheActivity(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "a")
+	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.Get(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+		t.Errorf("get after delete: %v", err)
+	}
+	var blocks int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1::uuid`, o.ID).Scan(&blocks); err != nil || blocks != 0 {
+		t.Errorf("%d blocks left, %v", blocks, err)
+	}
+	got := r.activityTypes(t, o)
+	if len(got) == 0 || got[len(got)-1] != activity.TypeObservationDeleted {
+		t.Errorf("activity %v does not end with the delete", got)
+	}
+	if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+		t.Errorf("deleting twice: %v", err)
+	}
+}
+
+func TestOnlyTheAuthorWhoEditsOrAManagerDeletes(t *testing.T) {
+	r := newRig(t)
+	own := r.create(t, editor, r.shared)
+	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+		t.Errorf("another editor deleting: %v", err)
+	}
+	if err := r.service.Delete(t.Context(), viewer, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+		t.Errorf("a viewer deleting: %v", err)
+	}
+	if err := r.service.Delete(t.Context(), editor, mustUUID(t, own.ID)); err != nil {
+		t.Errorf("the author who edits: %v", err)
+	}
+	other := r.create(t, otherEditor, r.shared)
+	if err := r.service.Delete(t.Context(), admin, mustUUID(t, other.ID)); err != nil {
+		t.Errorf("a manager of the folder: %v", err)
+	}
+	mine := r.create(t, otherEditor, r.personalFolder(t, otherEditor))
+	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, mine.ID)); err != nil {
+		t.Errorf("the owner of My Dashboards: %v", err)
 	}
 }
 

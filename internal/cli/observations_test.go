@@ -265,6 +265,27 @@ func TestObservationCommands(t *testing.T) {
 			wantQuery:  "folder_id=" + testFolderTarget + "&limit=5&state=resolved",
 		},
 		{
+			name:       "list searches the title",
+			args:       []string{"o", "list", "--title", "checkout"},
+			response:   `{"observations":[],"next_cursor":null}`,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/observations",
+			wantQuery:  "limit=50&q=checkout",
+		},
+		{
+			name:       "delete with --yes removes the observation",
+			args:       []string{"o", "delete", testObservation, "--yes"},
+			wantMethod: http.MethodDelete,
+			wantPath:   "/api/v1/observations/" + testObservation,
+			wantOut:    []string{"Deleted observation " + testObservation},
+		},
+		{
+			name:     "delete asks for --yes",
+			args:     []string{"o", "delete", testObservation},
+			wantCode: 2,
+			wantErr:  "rerun with --yes",
+		},
+		{
 			name:       "list with --json prints the body",
 			args:       []string{"o", "list", "--json"},
 			response:   listed,

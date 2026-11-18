@@ -55,6 +55,9 @@ observations:
     description: >-
       Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404.
       The items carry no blocks; read one observation for them.
+      `q` keeps the observations whose title contains it, ignoring case, and `created_by=me` keeps those the caller started.
+      `sort` orders by `updated` (the default, newest first), `created` (newest first) or `title` (A to Z), and `order` reverses or sets the direction.
+      Page with `cursor` (the default order only) or with `offset`, which also returns `total`, the number of observations that match the filters, so a client can show page numbers.
     parameters:
       - name: folder_id
         in: query
@@ -65,6 +68,29 @@ observations:
         in: query
         schema:
           $ref: "../openapi.yaml#/components/schemas/ObservationState"
+      - name: q
+        in: query
+        description: Title text to look for, at most 200 characters; `%` and `_` match themselves.
+        schema:
+          type: string
+          maxLength: 200
+      - name: created_by
+        in: query
+        schema:
+          type: string
+          enum: [me]
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum: [updated, created, title]
+          default: updated
+      - name: order
+        in: query
+        description: "`desc` by default, and `asc` when `sort` is `title`."
+        schema:
+          type: string
+          enum: [asc, desc]
       - name: limit
         in: query
         schema:
@@ -74,9 +100,16 @@ observations:
           default: 20
       - name: cursor
         in: query
-        description: The `next_cursor` of the previous page.
+        description: The `next_cursor` of the previous page. It works only with the default order and not with `offset`.
         schema:
           type: string
+      - name: offset
+        in: query
+        description: How many matching observations to skip; the response then carries `total`.
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 100000
     responses:
       "200":
         description: One page of observations.
@@ -159,6 +192,29 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteObservation
+    x-surfaces:
+      cli: [observe o delete]
+    summary: Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
+    description: >-
+      Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may.
+      The delete cannot be undone, and an RCA's public links stop working with it.
+      The activity log keeps the observation's events, ending with `observation.deleted`.
+      No MCP tool deletes anything, so an agent cannot call this.
+    responses:
+      "204":
+        description: The observation and everything that belongs to it are deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-move:
   parameters:
     - name: id
@@ -176,7 +232,6 @@ observations-id-move:
     description: >-
       Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`).
       Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing.
-      There is no delete route: moving is the way out of a folder.
     requestBody:
       required: true
       content:

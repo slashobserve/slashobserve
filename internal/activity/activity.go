@@ -31,6 +31,7 @@ const (
 	TypeObservationCreated        = "observation.created"
 	TypeObservationUpdated        = "observation.updated"
 	TypeObservationMoved          = "observation.moved"
+	TypeObservationDeleted        = "observation.deleted"
 	TypeObservationResolved       = "observation.resolved"
 	TypeObservationReopened       = "observation.reopened"
 	TypeObservationPublished      = "observation.published"
@@ -81,6 +82,7 @@ var knownTypes = []string{
 	TypeObservationCreated,
 	TypeObservationUpdated,
 	TypeObservationMoved,
+	TypeObservationDeleted,
 	TypeObservationResolved,
 	TypeObservationReopened,
 	TypeObservationPublished,

@@ -32,7 +32,8 @@ An observation lives in one folder and follows that folder's access, as a dashbo
 - A person who can view the folder can read the observation.
 - A person who can comment adds blocks that are `requested`, and takes part in the observation's one discussion, a single comment thread for the whole page.
 - A person who can edit adds `live` blocks, changes and removes them, moves the observation, resolves and reopens it, and publishes it.
-- A person who can manage the folder creates public links to its RCA.
+- A person who can manage the folder creates public links to its RCA, and deletes any observation in it.
+- A person who started the observation and can still edit it deletes it.
 
 A requested block is visible but is not part of the page's settled content until someone who can edit keeps it.
 An editor keeps a requested block or discards it, and the one who asked for it may discard it too.
@@ -158,11 +159,24 @@ A panel's `repeat` setting is dropped.
 ## Work on one from MCP and the CLI
 
 [MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block` and `publish_rca`.
-The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard` and `publish`.
+The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard` and `publish`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
+
+`GET /api/v1/observations` filters with `folder_id`, `state`, `q` (a title that contains the text, ignoring case, at most 200 characters) and `created_by=me`, and sorts with `sort` (`updated`, the default, `created` or `title`) and `order` (`asc` or `desc`; `title` starts ascending, the others descending).
+It pages in one of two ways: `cursor` and `next_cursor` for the default order, or `offset` (at most 100000) with `limit`, which also answers `total`, the number of observations that match.
+A cursor cannot be combined with `offset` or with another sort.
+
 Every observation the HTTP API and the MCP observation tools return carries `message_count`, how many messages its discussion holds, replies included, and 0 before anyone has written one.
 To read what changed on one observation, filter the [activity](activity.md) with `observation_id`.
 Searching the workspace finds observations too (see [Search](search.md)).
+
+## Delete an observation
+
+Deleting removes the observation for everyone, with its blocks, snapshots, discussion and RCA revisions, and the public links of those revisions stop working.
+It cannot be undone.
+The person who started the observation and can edit it may delete it, and so may anyone who manages its folder.
+Over HTTP it is `DELETE /api/v1/observations/{id}`, which answers 204, and in the CLI `observe o delete <observation-id> --yes`.
+The [activity](activity.md) log keeps an `observation.deleted` event with the title.
 
 ## Resolve with a summary
 

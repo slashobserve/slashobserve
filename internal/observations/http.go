@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -28,6 +29,7 @@ import (
 const (
 	defaultLimit = 20
 	maxLimit     = 100
+	maxOffset    = 100000
 
 	maxBodyBytes            = 128 << 10
 	moveIntoPersonalMessage = "an observation cannot move into My Dashboards"
@@ -100,6 +102,7 @@ type envelopeJSON struct {
 type listJSON struct {
 	Observations []ObservationJSON `json:"observations"`
 	NextCursor   *string           `json:"next_cursor"`
+	Total        *int              `json:"total"`
 }
 
 type blockEnvelopeJSON struct {
@@ -205,6 +208,7 @@ func (h *Handler) Register(api auth.Routes) {
 	api.GET("/observations/:id", auth.RoleViewer, h.get)
 	api.PATCH("/observations/:id", auth.RoleViewer, h.update)
 	api.POST("/observations/:id/move", auth.RoleViewer, h.move)
+	api.DELETE("/observations/:id", auth.RoleViewer, h.remove)
 	api.POST("/observations/:id/resolve", auth.RoleViewer, h.resolve)
 	api.POST("/observations/:id/reopen", auth.RoleViewer, h.reopen)
 	api.POST("/observations/:id/blocks", auth.RoleViewer, h.addBlock)
@@ -283,37 +287,107 @@ func (h *Handler) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, h.envelope(o))
 }
 
+const maxQueryRunes = 200
+
 func (h *Handler) list(c *gin.Context) {
 	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
-	var filter ListFilter
-	if raw, present := c.GetQuery("folder_id"); present {
-		var ok bool
-		if filter.FolderID, ok = optionalUUID(c, "folder_id", &raw); !ok {
-			return
-		}
+	filter, ok := listFilter(c)
+	if !ok {
+		return
 	}
-	if raw, present := c.GetQuery("state"); present {
-		if filter.State = State(raw); filter.State != StateOpen && filter.State != StateResolved {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "state must be open or resolved")
+	if raw, present := c.GetQuery("offset"); present {
+		if c.Query("cursor") != "" {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor and offset cannot be used together")
 			return
 		}
+		offset, err := strconv.Atoi(raw)
+		if err != nil || offset < 0 || offset > maxOffset {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "offset must be an integer from 0 to "+strconv.Itoa(maxOffset))
+			return
+		}
+		listing, err := h.service.Page(c.Request.Context(), httpapi.Caller(c), filter, limit, offset)
+		if err != nil {
+			h.fail(c, "list observations", err)
+			return
+		}
+		body := h.listBody(listing.Observations)
+		body.Total = &listing.Total
+		c.JSON(http.StatusOK, body)
+		return
 	}
 	rows, next, err := h.service.List(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.fail(c, "list observations", err)
 		return
 	}
-	body := listJSON{Observations: make([]ObservationJSON, len(rows))}
-	for i, o := range rows {
-		body.Observations[i] = h.render(o)
-	}
+	body := h.listBody(rows)
 	if next != "" {
 		body.NextCursor = &next
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+func (h *Handler) listBody(rows []Observation) listJSON {
+	body := listJSON{Observations: make([]ObservationJSON, len(rows))}
+	for i, o := range rows {
+		body.Observations[i] = h.render(o)
+	}
+	return body
+}
+
+func listFilter(c *gin.Context) (ListFilter, bool) {
+	var filter ListFilter
+	if raw, present := c.GetQuery("folder_id"); present {
+		var ok bool
+		if filter.FolderID, ok = optionalUUID(c, "folder_id", &raw); !ok {
+			return filter, false
+		}
+	}
+	if raw, present := c.GetQuery("state"); present {
+		if filter.State = State(raw); filter.State != StateOpen && filter.State != StateResolved {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "state must be open or resolved")
+			return filter, false
+		}
+	}
+	filter.Query = c.Query("q")
+	if utf8.RuneCountInString(filter.Query) > maxQueryRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be at most 200 characters")
+		return filter, false
+	}
+	switch raw := c.DefaultQuery("created_by", ""); raw {
+	case "":
+	case "me":
+		filter.CreatedByMe = true
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "created_by must be me")
+		return filter, false
+	}
+	return filter, listOrder(c, &filter)
+}
+
+func listOrder(c *gin.Context, filter *ListFilter) bool {
+	filter.Sort = SortUpdated
+	if raw, present := c.GetQuery("sort"); present {
+		if filter.Sort = Sort(raw); filter.Sort != SortUpdated && filter.Sort != SortCreated && filter.Sort != SortTitle {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "sort must be updated, created or title")
+			return false
+		}
+	}
+	filter.Ascending = filter.Sort == SortTitle
+	switch raw := c.Query("order"); raw {
+	case "":
+	case "asc":
+		filter.Ascending = true
+	case "desc":
+		filter.Ascending = false
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be asc or desc")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) get(c *gin.Context) {
@@ -410,6 +484,18 @@ func (h *Handler) move(c *gin.Context) {
 
 type resolveRequest struct {
 	Summary string `json:"summary"`
+}
+
+func (h *Handler) remove(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.service.Delete(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		h.fail(c, "delete observation", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) resolve(c *gin.Context) {
@@ -604,6 +690,8 @@ func abortKnown(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
+	case errors.Is(err, ErrCursorOrder):
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrCursorOrder.Error())
 	case errors.Is(err, ErrNothingToUpdate):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error())
 	case errors.Is(err, folders.ErrMoveIntoPersonal):

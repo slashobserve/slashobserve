@@ -224,13 +224,17 @@ Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range
 `bin/observe o move <observation-id> --folder <folder-id>` files the observation in another folder and prints `Moved <title> to folder <id>`.
 It needs Edit on the observation and on the folder, and My Dashboards takes no moves.
 
+`bin/observe o delete <observation-id> --yes` deletes the observation for everyone, with its blocks, snapshots, RCA revisions, the public links of those revisions and its discussion, and prints `Deleted observation <id>`.
+It needs Manage on the observation's folder, or Edit on it when you started the observation, and it cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
+
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
 
 `bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
 `bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 
-`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
+`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>`, `--state open|resolved` and `--title <text>` (a title that contains the text, ignoring case) narrow it, and `--limit` and `--cursor` page through the result.
 
 `bin/observe o keep <block-id> --version <n>` makes a requested block live and needs the block's version from `o show`, and `bin/observe o discard <block-id>` deletes a requested block.
 Keeping needs Edit on the observation's folder, and discarding is open to an editor and to whoever asked for the block.

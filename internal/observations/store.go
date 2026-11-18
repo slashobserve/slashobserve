@@ -143,7 +143,8 @@ func actorOf(kind string, id pgtype.UUID, name string, origin, client pgtype.Tex
 	return actor.FromColumns(actor.Columns{Kind: kind, ID: id, Name: name, Origin: origin, Client: client, RunID: runID})
 }
 
-func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities folders.Abilities, thread pgtype.UUID, messages int) Observation {
+func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities folders.Abilities, viewer actor.Actor, thread pgtype.UUID, messages int) Observation {
+	author := actorOf(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.Origin, row.OriginClient, row.RunID)
 	return Observation{
 		ID:             row.ID.String(),
 		FolderID:       row.FolderID.String(),
@@ -155,13 +156,13 @@ func observationOf(row dbsqlc.Observation, folder folders.Folder, abilities fold
 		ThreadID:       thread.String(),
 		RunID:          row.RunID.String(),
 		MessageCount:   messages,
-		Actor:          actorOf(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.Origin, row.OriginClient, row.RunID),
+		Actor:          author,
 		CreatedAt:      row.CreatedAt.Time.UTC(),
 		UpdatedAt:      row.UpdatedAt.Time.UTC(),
 		ResolvedAt:     timePtr(row.ResolvedAt),
 		Folder:         folder,
 		Abilities:      abilities,
-		AllowedActions: allowedActions(State(row.State), abilities),
+		AllowedActions: allowedActions(State(row.State), abilities, author.Kind == viewer.Kind && author.ID == viewer.ID),
 	}
 }
 

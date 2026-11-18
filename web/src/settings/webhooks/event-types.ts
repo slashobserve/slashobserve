@@ -20,6 +20,7 @@ export const eventTypeLabels = {
   "observation.created": "Observation created",
   "observation.updated": "Observation updated",
   "observation.moved": "Observation moved",
+  "observation.deleted": "Observation deleted",
   "observation.resolved": "Observation resolved",
   "observation.reopened": "Observation reopened",
   "observation.published": "RCA published",

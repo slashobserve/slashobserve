@@ -53,6 +53,7 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
+	"deleteObservation":      {MCP: noMCPDeletes},
 	"updateObservationBlock": {CLI: notBuilt},
 	"removeObservationBlock": {MCP: noMCPDeletes, CLI: notBuilt},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},

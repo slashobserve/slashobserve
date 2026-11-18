@@ -148,6 +148,13 @@ func TestObservationToolsBuildAPageFromCreateToResolve(t *testing.T) {
 		t.Fatalf("open list = %#v", list)
 	}
 
+	if list := r.call(t, viewerCaller, nameListObservations, `{"title":"nothing like it"}`).Content.(observationListOut); len(list.Observations) != 0 {
+		t.Errorf("a title that matches nothing lists %#v", list)
+	}
+	if list := r.call(t, viewerCaller, nameListObservations, `{"title":"CHECKOUT"}`).Content.(observationListOut); len(list.Observations) != 1 {
+		t.Errorf("a title that matches lists %#v", list)
+	}
+
 	resolved := r.written(t, editorCaller, nameResolveObservation, fmt.Sprintf(`{"observation_id":%q,"summary":"A bad deploy of checkout"}`, created.ObservationID))
 	if resolved.State != "resolved" {
 		t.Fatalf("resolved = %#v", resolved)

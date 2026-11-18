@@ -86,7 +86,7 @@ func (a *app) observationsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationRCAsCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationDeleteCommand(), a.observationRCAsCommand())
 	return cmd
 }
 
@@ -362,11 +362,36 @@ func (a *app) observationResolveCommand() *cobra.Command {
 	return cmd
 }
 
+func (a *app) observationDeleteCommand() *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "delete <observation-id> --yes",
+		Short: "Delete an observation with its blocks, RCA revisions and discussion",
+		Long:  "delete removes an observation for everyone, with its blocks, snapshots, RCA revisions, the public links of those revisions and its discussion.\nYou need Manage on its folder, or Edit on it when you started the observation.\nIt cannot be undone, so --yes is required.",
+		Args:  exactArgs(1, "one observation id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			if !yes {
+				return usagef("deleting %s removes it with its blocks, RCA revisions and discussion for everyone and cannot be undone; rerun with --yes", id)
+			}
+			return a.observationCall(cmd, http.MethodDelete, "observations/"+id, nil, func(out *output, _ []byte) error {
+				out.confirm("Deleted observation %s", text(id))
+				return nil
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm that the observation is deleted for everyone")
+	return cmd
+}
+
 func (a *app) observationListCommand() *cobra.Command {
-	var folder, state string
+	var folder, state, title string
 	var page pageOptions
 	cmd := &cobra.Command{
-		Use:   "list [--folder <id>] [--state open|resolved]",
+		Use:   "list [--folder <id>] [--state open|resolved] [--title <text>]",
 		Short: "List observations, most recently changed first",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -384,12 +409,16 @@ func (a *app) observationListCommand() *cobra.Command {
 				}
 				query.Set("state", state)
 			}
+			if title != "" {
+				query.Set("q", title)
+			}
 			return a.observationList(cmd, query)
 		},
 	}
 	addPageFlags(cmd, &page)
 	cmd.Flags().StringVar(&folder, "folder", "", "only observations in this folder id")
 	cmd.Flags().StringVar(&state, "state", "", "only open or resolved observations")
+	cmd.Flags().StringVar(&title, "title", "", "only observations whose title contains this text, ignoring case")
 	return cmd
 }
 

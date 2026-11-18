@@ -82,9 +82,26 @@ type UpdateInput struct {
 	RunID      pgtype.UUID
 }
 
+type Sort string
+
+const (
+	SortUpdated Sort = "updated"
+	SortCreated Sort = "created"
+	SortTitle   Sort = "title"
+)
+
 type ListFilter struct {
-	FolderID pgtype.UUID
-	State    State
+	FolderID    pgtype.UUID
+	State       State
+	Query       string
+	CreatedByMe bool
+	Sort        Sort
+	Ascending   bool
+}
+
+type Listing struct {
+	Observations []Observation
+	Total        int
 }
 
 type BlockInput struct {

@@ -21,6 +21,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
+| Observation | `observation.deleted` | An observation is deleted with its blocks, RCA revisions and discussion; the event stays in the log and carries the title the observation had. |
 | Observation | `observation.published` | An RCA is published from an observation. |
 | Observation | `observation.block_added`, `observation.block_updated` | A block is added to an observation's page, or one changes or moves. |
 | Observation | `observation.block_kept`, `observation.block_discarded` | An editor keeps a block someone requested, or discards it; its author may discard it too. |

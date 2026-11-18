@@ -21,6 +21,7 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"observation.created":         "observation",
 		"observation.updated":         "observation",
 		"observation.moved":           "observation",
+		"observation.deleted":         "observation",
 		"observation.resolved":        "observation",
 		"observation.reopened":        "observation",
 		"observation.published":       "observation",
