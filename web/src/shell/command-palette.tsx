@@ -14,6 +14,7 @@ import {
   ArrowUpRightIcon,
   BookmarkIcon,
   BotIcon,
+  BookOpenIcon,
   ChartGanttIcon,
   DatabaseIcon,
   FlagIcon,
@@ -38,6 +39,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { useExploreSources } from "@/datasources/use-sources"
+import { docsUrl } from "@/lib/docs"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -90,6 +92,7 @@ const actionIcons: Record<
   "action:ask": TerminalIcon,
   "action:import": UploadIcon,
   "action:theme": SunMoonIcon,
+  "action:docs": BookOpenIcon,
   "action:sign-out": LogOutIcon,
 }
 
@@ -204,6 +207,8 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: "/", search: {} })
     } else if (entry.id === "action:import") {
       void navigate({ to: "/", search: { tab: "import" } })
+    } else if (entry.id === "action:docs") {
+      window.open(docsUrl, "_blank", "noopener")
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {

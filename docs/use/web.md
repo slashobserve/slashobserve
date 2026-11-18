@@ -203,6 +203,7 @@ The command palette lists the pages, your dashboards and the log and trace sourc
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
+**Help and docs** in the palette, and in the account menu, opens these docs in a new tab.
 [Search](search.md) describes what each kind matches and how to write a query.
 
 ## Keyboard shortcuts

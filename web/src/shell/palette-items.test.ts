@@ -18,6 +18,7 @@ describe("paletteGroups", () => {
       "Pages",
       "Dashboards",
       "Actions",
+      "Help",
       "Account",
     ])
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
@@ -42,6 +43,9 @@ describe("paletteGroups", () => {
       "Import a dashboard",
     ])
     expect(groups[3]?.items.map((entry) => entry.label)).toEqual([
+      "Help and docs",
+    ])
+    expect(groups[4]?.items.map((entry) => entry.label)).toEqual([
       "Switch theme",
       "Sign out",
     ])
@@ -87,6 +91,16 @@ describe("paletteGroups", () => {
     expect(groups[0]?.items).toEqual([
       { kind: "action", id: "action:sign-out", label: "Sign out" },
     ])
+  })
+
+  test("finds the docs in the Help group by help or docs", () => {
+    for (const query of ["help", "DOCS"]) {
+      const groups = paletteGroups(query, [], [], "viewer", [])
+      expect(groups.map((group) => group.value)).toEqual(["Help"])
+      expect(groups[0]?.items).toEqual([
+        { kind: "action", id: "action:docs", label: "Help and docs" },
+      ])
+    }
   })
 
   test("finds switch theme in the Account group", () => {
@@ -174,6 +188,7 @@ describe("paletteGroups with search results", () => {
       "Pages",
       "Dashboards",
       "Actions",
+      "Help",
     ])
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(
       thirty.slice(0, 20).map((dashboard) => dashboard.id)

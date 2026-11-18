@@ -47,6 +47,7 @@ type ActionId =
   | "action:import"
   | "action:sign-out"
   | "action:theme"
+  | "action:docs"
 type ActionEntry = {
   kind: "action"
   id: ActionId
@@ -63,6 +64,7 @@ export type PaletteGroup = {
     | "Annotations"
     | "Saved searches"
     | "Actions"
+    | "Help"
     | "Account"
   items: PaletteEntry[]
 }
@@ -91,6 +93,12 @@ const newActionEntries: ActionEntry[] = [
   { kind: "action", id: "action:ask", label: "Ask Observe Agent" },
   { kind: "action", id: "action:import", label: "Import a dashboard" },
 ]
+
+const docsEntry: ActionEntry = {
+  kind: "action",
+  id: "action:docs",
+  label: "Help and docs",
+}
 
 const themeEntry: ActionEntry = {
   kind: "action",
@@ -239,6 +247,10 @@ export function paletteGroups(
     {
       value: "Actions",
       items: newActionEntries.filter((e) => matches(e.label)),
+    },
+    {
+      value: "Help",
+      items: [docsEntry].filter((e) => matches(e.label)),
     },
     {
       value: "Account",
