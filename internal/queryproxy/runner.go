@@ -510,6 +510,14 @@ func (pq *preparedQuery) result(ref string, out fetched) QueryResult {
 	return QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
 }
 
+func namedTimeZone(d *spec.Dashboard) string {
+	switch d.Timezone {
+	case "", spec.TimezoneUTC, spec.TimezoneBrowser:
+		return ""
+	}
+	return d.Timezone
+}
+
 func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
 	q := panel.Queries[j]
 	inst, err := r.selectedDatasource(ctx, req.Dashboard, panel.QueryDatasource(j), req.Range, req.Selections, req.User, st)
@@ -521,7 +529,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
+	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User, TimeZone: namedTimeZone(req.Dashboard)}
 	if applies := implicitScope(inst.Datasource.Type(), use); applies != nil {
 		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
 			return nil, err

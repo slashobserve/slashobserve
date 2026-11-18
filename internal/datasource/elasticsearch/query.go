@@ -54,6 +54,7 @@ type plan struct {
 	step      time.Duration
 	timeout   time.Duration
 	totalHits any
+	zone      string
 }
 
 type prepared struct {
@@ -91,7 +92,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	}
 	p := plan{kind: searchLines, size: min(lim.MaxRows, maxLogLines), timeout: lim.Timeout, totalHits: trackedHits}
 	if !instant && prep.form != FormDSL {
-		p.kind, p.totalHits = searchCount, false
+		p.kind, p.totalHits, p.zone = searchCount, false, q.TimeZone
 		if p.step, err = histogramStep(r, step, lim); err != nil {
 			return nil, err
 		}
@@ -318,7 +319,7 @@ func buildBody(u userQuery, timeField string, r datasource.TimeRange, adhoc []an
 	case p.kind == searchCount && u.dsl == nil:
 		body["size"] = 0
 		body["track_total_hits"] = false
-		body["aggs"] = map[string]any{countAgg: map[string]any{"date_histogram": map[string]any{
+		histogram := map[string]any{
 			"field":          timeField,
 			"fixed_interval": fixedInterval(p.step),
 			"min_doc_count":  0,
@@ -326,7 +327,11 @@ func buildBody(u userQuery, timeField string, r datasource.TimeRange, adhoc []an
 				"min": r.From.UnixMilli(),
 				"max": r.To.UnixMilli(),
 			},
-		}}}
+		}
+		if p.zone != "" {
+			histogram["time_zone"] = p.zone
+		}
+		body["aggs"] = map[string]any{countAgg: map[string]any{"date_histogram": histogram}}
 	case tree != nil:
 		body["size"] = 0
 		body["track_total_hits"] = true
