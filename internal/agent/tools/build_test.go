@@ -11,7 +11,10 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -1478,6 +1481,70 @@ func TestTheNoBuildMessageSaysHowToChangeAnExistingDashboard(t *testing.T) {
 	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "that dashboard's own page"} {
 		if !strings.Contains(noBuildYet, want) {
 			t.Errorf("message lacks %q: %s", want, noBuildYet)
+		}
+	}
+}
+
+func (r *panelsRig) folderOfSaved(t *testing.T, res Result) string {
+	t.Helper()
+	saved := savedVersion(t, res)
+	id, err := db.ParseUUID(saved.DashboardID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder, err := r.database.Queries().DashboardFolder(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return folder.String()
+}
+
+func TestABuildPlacesTheDashboardInTheFolderTheFirstSaveNamedAndOnlyThere(t *testing.T) {
+	rig := newPanelsRig(t)
+	named, err := rig.database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Ops"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hidden := foldertest.Restricted(t, rig.database, "Payroll", "payroll-team")
+
+	run := rig.createRun(t)
+	if res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("p1", "One", "count(up)", 0), `,"folder_id":"`+hidden.String()+`"`)); !res.IsError || errorCode(t, res) != codeNotFound {
+		t.Fatalf("a folder the requester cannot see: %#v", res.Content)
+	}
+	if res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("p1", "One", "count(up)", 0), `,"folder_id":"not-a-uuid"`)); !res.IsError || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("a folder id that is no UUID: %#v", res.Content)
+	}
+	if res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("p1", "One", "count(up)", 0), `,"folder_id":"`+named.ID.String()+`"`)); res.IsError {
+		t.Fatalf("first save: %#v", res.Content)
+	}
+	res, _ := run.run(t, nameUpdatePanels, `{"summary":"Finish","dashboard":{"title":"Board"},"finish":true}`)
+	if got := rig.folderOfSaved(t, res); got != named.ID.String() {
+		t.Fatalf("the dashboard landed in %s, want the named folder %s", got, named.ID)
+	}
+
+	other := rig.createRun(t)
+	res, _ = other.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("p1", "One", "count(up)", 0), `,"finish":true`))
+	if got := rig.folderOfSaved(t, res); got == named.ID.String() || got == hidden.String() {
+		t.Fatalf("a build with no folder landed in %s", got)
+	}
+}
+
+func TestTheBuiltInAgentIsOfferedListFoldersAndAFolderIDOnCreateDashboard(t *testing.T) {
+	var folderTool, createTool *Tool
+	for _, tool := range New(Deps{}).List() {
+		switch tool.Name {
+		case nameListFolders:
+			folderTool = &tool
+		case nameCreateDashboard:
+			createTool = &tool
+		}
+	}
+	if folderTool == nil || createTool == nil || !folderTool.OfferedIn(ModeCreate) || !folderTool.ReadOnly {
+		t.Fatalf("list_folders = %+v", folderTool)
+	}
+	for _, text := range []string{createTool.ForAgent().Description + string(createTool.ForAgent().InputSchema), folderTool.ForAgent().Description} {
+		if !strings.Contains(text, "can_create") {
+			t.Errorf("the agent wording does not tell it to use only folders it can create in: %s", text)
 		}
 	}
 }

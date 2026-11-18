@@ -7,6 +7,7 @@ The chat on Home's **Ask Observe Agent** tab, and on the Ask page at `/ask`, tur
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
+
 A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
 A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
@@ -43,7 +44,8 @@ The footer shows the model and, when the server sets one, its effort, for exampl
 While one of your runs in the chat is queued or running, a square stop button, labelled "Stop the run", sits next to the send button and cancels it, see [Cancel a run](#cancel-a-run).
 
 Everyone can start a dashboard: it goes to your My Dashboards, where only you see it until you publish it.
-The agent cannot choose a folder, so a request that names one still builds the dashboard in My Dashboards and the version summary says so; move it from the dashboards list.
+Name a folder in the request and the agent builds the dashboard there when you can create dashboards in that folder.
+If you cannot, or no folder has that name, the agent builds it in My Dashboards and the version summary says so; move it from the dashboards list.
 See [Roles](../teams/roles.md).
 
 The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md) and [Tempo](../connect/tempo.md).
@@ -121,7 +123,7 @@ Its heading links to the full chat page at `/c/<request id>`.
 The dashboard is saved once, as one version, and the build page then opens it.
 
 If the agent stops before it finishes, the build page keeps what was built for 7 days.
-Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
+Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
 When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
 You need Edit access to the target to save it, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
@@ -181,7 +183,7 @@ The cost is the server's estimate from its price table, and it shows only when t
 Open it to see every step again.
 The result card shows the title, "N panels from `<datasources>`" and the footer "Saved as version 1".
 Choose **Open dashboard** to go to it.
-The dashboard lands in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
+The dashboard lands in the folder you named, or in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
 
 A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next:
 

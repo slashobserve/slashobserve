@@ -92,6 +92,7 @@ type AgentRequestBuild struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	PlannedPanels  int32
+	FolderID       pgtype.UUID
 }
 
 type AgentWorker struct {

@@ -279,7 +279,7 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
-A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key.
+A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key, unless the request names a folder the requester can create in: the agent reads the folders with `list_folders` and passes one as `folder_id`, and a folder it cannot create in is refused and never replaced by another.
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
@@ -299,15 +299,15 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 ### Tools in a run
 
 The server has 72 tools: MCP clients get 71, every one except `save_finding`, which only a run offers.
-The built-in agent gets 26 in a new-dashboard or revision request and 25 in a suggestion, which leaves out `save_finding`.
+The built-in agent gets 27 in a new-dashboard or revision request and 26 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 45 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 44 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` is offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into; MCP clients also read them in full with `get_observation`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
-Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.
+Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` takes `folder_id` only on the first save of a build, which the server keeps with the build until it becomes a version.
 Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide with the sections of the configured types, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 When a message that mentions an agent started the run, the server instead posts one status reply in that thread when the run ends, whatever the outcome, and leaves the thread as it is; the agent also reads the thread's earlier messages with the request.
@@ -329,6 +329,6 @@ It looks for `observe-agent` on `PATH`, and it does not start when the binary is
 An MCP client such as Claude Code runs the loop itself, with its own model, against the same tools at `<public url>/mcp`.
 The server needs no LLM provider for that.
 Each call is checked against the role of the key's service account and the folders it can see, and a save goes through the same validation and query check as above.
-The client can also read and answer comments and pick a folder, which the built-in agent cannot.
+The client can also read and answer comments, which the built-in agent cannot.
 A version saved this way records `mcp` as its origin and the client's name.
 See [MCP](../use/mcp.md) for the tools and the setup.

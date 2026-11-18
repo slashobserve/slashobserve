@@ -414,7 +414,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		}
 	}
 	if inBuildRun(run, scoped) {
-		return r.buildCreate(ctx, principal, run, in)
+		return r.buildCreate(ctx, principal, run, in, folderID)
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {

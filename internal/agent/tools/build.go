@@ -97,6 +97,7 @@ type buildSave struct {
 	run           Run
 	requestID     pgtype.UUID
 	dashboardID   pgtype.UUID
+	folderID      pgtype.UUID
 	raw           []byte
 	summary       string
 	planned       *int
@@ -166,6 +167,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		RequestID:     in.requestID,
 		Attempt:       in.run.Attempt,
 		DashboardID:   in.dashboardID,
+		FolderID:      in.folderID,
 		Spec:          in.raw,
 		Summary:       in.summary,
 		PlannedPanels: in.planned,
@@ -177,6 +179,9 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	var invalidSpec *dashboards.InvalidSpecError
 	if errors.As(err, &invalidSpec) && in.panelIDs != nil {
 		return buildRejected(invalidSpec.Issues, in.panelIDs), nil
+	}
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
 	}
 	if err != nil {
 		return saveFailure(err)
@@ -201,6 +206,9 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 
 func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep string) (Result, error) {
 	commit, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.Attempt)
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
+	}
 	if err != nil {
 		return saveFailure(err)
 	}
@@ -498,7 +506,7 @@ func (r *Registry) hasBuild(ctx context.Context, run Run) (bool, error) {
 	return found, err
 }
 
-func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, run Run, in createInput) (Result, error) {
+func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, run Run, in createInput, folderID pgtype.UUID) (Result, error) {
 	requestID, err := buildRequestID(run)
 	if err != nil {
 		return Result{}, err
@@ -515,7 +523,7 @@ func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, ru
 		return res, err
 	}
 	save := buildSave{
-		principal: principal, run: run, requestID: requestID, plannedBefore: plannedBefore,
+		principal: principal, run: run, requestID: requestID, plannedBefore: plannedBefore, folderID: folderID,
 		raw: raw, summary: summaryOr(in.Summary, defaultCreateSummary),
 		planned: in.PlannedPanels, finish: in.Finish,
 	}
