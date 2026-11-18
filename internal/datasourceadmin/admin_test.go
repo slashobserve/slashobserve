@@ -78,7 +78,7 @@ func TestCreateNamesTheFieldsThatAreWrong(t *testing.T) {
 		def   Definition
 		field string
 	}{
-		{"no address", Definition{UID: "p", Type: TypePrometheus}, "url"},
+		{"no address", Definition{UID: "p", Type: TypePrometheus}, "address"},
 		{"bad scheme", prometheus("p", "ftp://prom:9090"), "address"},
 		{"login in the address", prometheus("p", "http://bob:pw@prom:9090"), "address"},
 		{"link-local", prometheus("p", "http://169.254.169.254/latest"), "address"},

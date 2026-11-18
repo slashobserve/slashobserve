@@ -223,7 +223,7 @@ func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
 	cfg, problems := def.Config(secrets)
 	problems = append(problems, s.aliasConflicts(def)...)
 	host, addressProblem := endpointOf(def)
-	if addressProblem != nil && !slices.ContainsFunc(problems, func(p config.FieldError) bool { return p.Field == "url" || p.Field == "addr" }) {
+	if addressProblem != nil && !slices.ContainsFunc(problems, func(p config.FieldError) bool { return p.Field == "address" }) {
 		problems = append(problems, *addressProblem)
 	}
 	if len(problems) > 0 {

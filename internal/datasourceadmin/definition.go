@@ -145,7 +145,38 @@ func (d Definition) Config(secrets Secrets) (config.Datasource, []config.FieldEr
 			TLS:      d.TLS,
 		}
 	}
-	return out, append(problems, out.Validate()...)
+	for _, problem := range out.Validate() {
+		problems = append(problems, config.FieldError{Field: apiField(problem.Field), Message: problem.Message})
+	}
+	return out, problems
+}
+
+var apiFields = map[string]string{
+	"url":                         "address",
+	"addr":                        "address",
+	"basicAuth.username":          "username",
+	"basicAuth.password":          "secrets.password",
+	"basicAuth":                   "secrets.bearer_token",
+	"bearerToken":                 "secrets.bearer_token",
+	"password":                    "secrets.password",
+	"apiKey":                      "secrets.api_key",
+	"scrapeInterval":              "scrape_interval",
+	"tenantId":                    "tenant_id",
+	"timeField":                   "time_field",
+	"queryLanguage":               "query_language",
+	"fields.traceId":              "fields.trace_id",
+	"fields.spanId":               "fields.span_id",
+	"limits.maxSeries":            "limits.max_series",
+	"limits.maxPoints":            "limits.max_points",
+	"limits.maxRows":              "limits.max_rows",
+	"limits.maxConcurrentQueries": "limits.max_concurrent_queries",
+}
+
+func apiField(field string) string {
+	if name, ok := apiFields[field]; ok {
+		return name
+	}
+	return field
 }
 
 func (d Definition) search(conn config.HTTPConnection, secrets Secrets) config.SearchDatasource {

@@ -41,7 +41,7 @@ func TestConfigReportsBadDurationsAndMissingFieldsByName(t *testing.T) {
 		fields = append(fields, p.Field)
 	}
 	slices.Sort(fields)
-	if want := []string{"limits.timeout", "scrape_interval", "url"}; !slices.Equal(fields, want) {
+	if want := []string{"address", "limits.timeout", "scrape_interval"}; !slices.Equal(fields, want) {
 		t.Fatalf("fields = %v, want %v", fields, want)
 	}
 }
