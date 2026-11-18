@@ -268,7 +268,7 @@ func (t *tail) poll() (pollResult, error) {
 	res := pollResult{truncated: merged.Truncated, partial: merged.Partial, warning: merged.Warning}
 	hold := t.holdCursor(merged.Partial)
 	if newest, ok := newestOf(frames); ok && !hold {
-		t.last = laterOf(t.last, newest.Add(time.Nanosecond))
+		t.last = laterOf(t.last, earlierOf(newest.Add(time.Nanosecond), now))
 	}
 	if t.seen != nil {
 		frames = t.seen.fresh(frames)
@@ -296,6 +296,13 @@ func (t *tail) rangeStart() time.Time {
 		return t.last
 	}
 	return laterOf(t.last.Add(-t.req.lag), t.req.from)
+}
+
+func earlierOf(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 func laterOf(a, b time.Time) time.Time {
@@ -558,6 +565,7 @@ func (s *seenRows) prune() {
 
 func rowKey(f datasource.Frame, row int) string {
 	var id, index, body, ns string
+	labels := fmt.Sprint(f.Labels)
 	for _, field := range f.Fields {
 		if row >= len(field.Values) {
 			continue
@@ -577,7 +585,7 @@ func rowKey(f datasource.Frame, row int) string {
 	if id != "" {
 		return index + "\x00" + id
 	}
-	return ns + "\x00" + body
+	return labels + "\x00" + ns + "\x00" + body
 }
 
 func keepRows(f datasource.Frame, keep []bool) datasource.Frame {

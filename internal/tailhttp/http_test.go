@@ -672,3 +672,29 @@ func TestTailAdvancesAfterThreeHeldPartialPolls(t *testing.T) {
 		}
 	}
 }
+
+func TestTailCapsTheCursorAtTheTimeOfThePollWhenALineIsStampedInTheFuture(t *testing.T) {
+	future := time.Now().Add(time.Hour).UnixNano() - baseNs
+	f := newFixture(t, lines(future), lines(1))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	s.next(t)
+	seen := waitForRequests(t, f.logs, 2)
+	if got := seen[1].Range.From; got.After(time.Now()) {
+		t.Fatalf("second poll from = %v, want a cursor no later than now", got)
+	}
+}
+
+func TestTailOnADatasourceWithLagKeepsTwoStreamsThatShareATimeAndALine(t *testing.T) {
+	stream := func(name string) datasource.Frame {
+		f := linesFrame(false, atSeconds(10)...)
+		f.Labels = map[string]string{"pod": name}
+		return f
+	}
+	f := laggedFixture(t, response{frames: []datasource.Frame{stream("a"), stream("b")}}, response{frames: []datasource.Frame{stream("a"), stream("b")}})
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	if got := bodiesOf(t, s.next(t)); len(got) != 2 {
+		t.Fatalf("lines = %v, want one from each stream", got)
+	}
+}

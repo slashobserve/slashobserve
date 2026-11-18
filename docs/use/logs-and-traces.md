@@ -240,7 +240,7 @@ Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, wi
 
 **Live tail** opens one stream to the server, which watches the query and sends new lines as they arrive, so the browser runs no query of its own.
 You may hold 5 tails at a time, and a tail reconnects by itself after a dropped connection or at the server's 30 minute limit, from the newest line it already holds, so no line is lost or repeated.
-On Elasticsearch and OpenSearch the server waits a few seconds before it sends a line, so late-indexed documents are not missed.
+On every datasource the server reads the last 5 seconds again at each poll and drops the lines it already sent, so a line that arrives out of order or is indexed late still appears, and a line stamped in the future does not hide the lines that follow it.
 When the store says a poll did not cover everything, such as a failed shard, the stream flags that poll as partial with the store's text, and the next polls ask again from the same point for up to three polls, so the missing lines arrive without repeating the ones already shown.
 The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top, and the note under the list says so.
 
