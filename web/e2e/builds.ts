@@ -27,3 +27,24 @@ export async function holdRequestPollsUntilFinished(page: Page) {
     open()
   }
 }
+
+const requestPage = /\/[bc]\/([0-9a-f-]{36})$/
+const dashboardPage = /\/d\/[0-9a-f-]{36}/
+
+export async function sentRequestId(page: Page): Promise<string> {
+  await expect(page).toHaveURL(requestPage)
+  return requestPage.exec(page.url())?.[1] ?? ""
+}
+
+export async function reachDashboard(page: Page, timeout = 90_000) {
+  const open = page.getByRole("link", { name: "Open dashboard", exact: true })
+  await expect
+    .poll(
+      async () =>
+        dashboardPage.test(page.url()) || (await open.first().isVisible()),
+      { timeout }
+    )
+    .toBe(true)
+  if (!dashboardPage.test(page.url())) await open.first().click()
+  await expect(page).toHaveURL(dashboardPage)
+}
