@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	maxHealthLimit     = 100
-	maxRepairIDs       = 50
+	maxHealthLimit = 100
+	maxRepairIDs   = 50
 )
 
 var errNothingQueued = errors.New("no repair was queued")
