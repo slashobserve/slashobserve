@@ -904,6 +904,7 @@ function DashboardView({
             <LayoutAnnouncer />
             <main
               ref={gridBox}
+              data-export-pane=""
               className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
             >
               <ActionProvider value={actionContext}>

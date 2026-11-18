@@ -1,17 +1,25 @@
 import { create } from "zustand"
 
+import { restoreScroll, saveScroll, type SavedScroll } from "./scroll"
+
 type ExportMode = "print" | "image"
 
 type ExportState = {
   mode: ExportMode | null
+  scroll: SavedScroll | null
   start: (mode: ExportMode) => void
   finish: () => void
 }
 
-export const useExportStore = create<ExportState>()((set) => ({
+export const useExportStore = create<ExportState>()((set, get) => ({
   mode: null,
-  start: (mode) => set({ mode }),
-  finish: () => set({ mode: null }),
+  scroll: null,
+  start: (mode) => set({ mode, scroll: saveScroll() }),
+  finish: () => {
+    const { mode, scroll } = get()
+    set({ mode: null, scroll: null })
+    if (mode !== null && scroll !== null) restoreScroll(scroll)
+  },
 }))
 
 export function useExporting(): boolean {
