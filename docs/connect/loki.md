@@ -41,7 +41,8 @@ Log patterns use Loki's pattern ingester (`pattern_ingester: enabled: true` in L
 Any other query, such as `sum by (service_name) (count_over_time({service_name=~".+"}[5m]))`, is a metric query.
 It returns series with `Time` and `Value` fields, like a Prometheus query, and the series and points limits apply.
 
-Queries take dashboard variables, escaped for the place they appear in, as in PromQL: inside a regex matcher several values become one alternation.
+Queries take dashboard variables, escaped for the place they appear in, as in PromQL: inside a regex matcher several values become one alternation, and All becomes `.+` because Loki refuses a stream selector whose every matcher can match an empty value.
+A variable's own `allValue` replaces that text, so set it to `.+` there, never `.*`.
 They also take the PromQL time macros `$__interval`, `$__interval_ms`, `$__range`, `$__range_s`, `$__range_ms`, `$__from` and `$__to`, plus `$__dashboard` and the `$__user` macros, so `count_over_time({service_name="checkout"}[$__interval])` follows the panel's step.
 `$__rate_interval` is Prometheus only, because it depends on a scrape interval.
 
