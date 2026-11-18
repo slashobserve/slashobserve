@@ -105,6 +105,15 @@ The choice belongs to you and follows you to every browser.
 `GET`, `PUT` and `DELETE /api/v1/me/home-dashboard` read, set and clear it; `status` is `none`, `ok`, `gone` or `unreadable`, and setting a dashboard you cannot view answers `404 not_found`.
 Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` do the same; only people have one, so a service-account key gets `403 user_session_required` and the CLI has no command.
 
+## Print a dashboard
+
+**Print or save as PDF** in a dashboard's **More** menu lays the dashboard out for paper and opens the browser's print dialog, where **Save as PDF** is a destination.
+The page shows only the dashboard: no sidebar, toolbar or side panes, a header with the title, folder, version, time range, variables and the time of printing, and then the panels in one column in reading order.
+Every panel loads before the dialog opens, including the ones far down the page, and a panel is moved whole to the next page instead of being cut when it does not fit.
+Rows you collapsed stay collapsed, the variables and time range you chose are the ones printed, and the page uses the colors of your current theme.
+**Back to dashboard** at the top of the page, or closing the print dialog, returns to the dashboard.
+The item is off while you are rearranging the layout, and it needs no server feature, so there is no API or MCP tool for it; an agent that needs the data reads the dashboard and its panel queries instead.
+
 ## TV mode
 
 TV mode shows a dashboard on a wall screen with nothing but its panels, and can cycle through its rows or its folder's dashboards.

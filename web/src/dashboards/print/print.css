@@ -1,0 +1,29 @@
+@page {
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .export-bar {
+    display: none !important;
+  }
+
+  .export-sheet {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+
+  .export-sheet * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

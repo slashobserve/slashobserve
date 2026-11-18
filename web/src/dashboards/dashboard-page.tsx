@@ -136,6 +136,8 @@ import { TimeRangePicker } from "./time-range-picker"
 import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
+import { ExportView } from "./print/export-view"
+import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
 
@@ -432,6 +434,7 @@ function DashboardView({
   const [duplicating, setDuplicating] = useState(false)
   const folders = useQuery(foldersQuery()).data ?? []
   const viewsText = useViewsText(dashboardId)
+  const exporting = useExportStore((state) => state.mode !== null)
   const duplicate = duplicateTargets(folders, envelope.dashboard.folder.id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -722,6 +725,7 @@ function DashboardView({
         editingLayout: editing,
       })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
+      exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
@@ -817,6 +821,24 @@ function DashboardView({
       onInspectTarget={setInspectTarget}
     />
   )
+
+  if (exporting) {
+    return (
+      <ExportView
+        dashboardId={dashboardId}
+        spec={spec}
+        folder={access.folder.title}
+        version={version}
+        from={effectiveFrom}
+        to={effectiveTo}
+        states={states}
+        selections={selections}
+        values={values}
+        actions={actionContext}
+        renderPanel={(item, size) => renderPanel(item, size)}
+      />
+    )
+  }
 
   return (
     <div className="flex min-h-svh bg-chrome">
