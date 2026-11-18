@@ -21,6 +21,7 @@ import { CancelRequestButton } from "@/observe/request-actions"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
+import type { Finding } from "@/findings/queries"
 
 import { BuildCard } from "./build-card"
 import { PromptBubble } from "./prompt-bubble"
@@ -78,7 +79,7 @@ type Props = {
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
-  answerActions?: ReactNode
+  answerActions?: (finding: Finding) => ReactNode
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -328,7 +329,11 @@ export function RequestTurn({
             detail?.finding != null ? (
               <>
                 <FindingCard finding={detail.finding} showOpenLink />
-                {answerActions}
+                {answerActions === undefined ? null : (
+                  <div className="flex flex-wrap gap-1">
+                    {answerActions(detail.finding)}
+                  </div>
+                )}
               </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { AskAgainButton } from "./ask-again"
+import { AskAgainButton, AskOnButton } from "./ask-again"
 
 function stubCreate() {
   const fetch = vi.fn<(request: Request) => Promise<Response>>(
@@ -71,5 +71,34 @@ describe("AskAgainButton", () => {
     const { user } = render({ disabled: true })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe("AskOnButton", () => {
+  it("revises the named dashboard with the same prompt and follows the run", async () => {
+    const fetch = stubCreate()
+    const onSent = vi.fn()
+    const { user } = renderWithProviders(
+      <AskOnButton
+        askOn={{ dashboardId: "d1", title: "Checkout" }}
+        prompt="add a latency row"
+        disabled={false}
+        onSent={onSent}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Ask this on Checkout" })
+    )
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    const sent = (await fetch.mock.calls[0][0].json()) as Record<
+      string,
+      unknown
+    >
+    expect(sent).toMatchObject({
+      prompt: "add a latency row",
+      dashboard_id: "d1",
+    })
+    expect(onSent.mock.calls[0][1]).toBe("chat")
   })
 })
