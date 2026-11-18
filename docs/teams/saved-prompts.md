@@ -9,15 +9,17 @@ Each prompt belongs to the person who saved it and is either private or shared w
 
 ## Save a prompt
 
-The web app has one place to save a prompt, the History panel.
+The web app has two places to save a prompt, the History panel and the **Chats** page.
+Only an Editor or an Admin sees the button.
 
-1. Open the chat home or any conversation and choose **History**.
-2. On the **Chats** tab, point at a chat and choose the bookmark button (**Save prompt**).
+1. Open the chat home or any conversation and choose **History**, or open **Chats** in the sidebar.
+2. Point at one of your chats and choose the bookmark button (**Save prompt**).
    On a device without hover the button is always visible.
 3. Check the name and the text, choose **Only me** or **Everyone on this server**, and choose **Save prompt**.
 
-The button appears only on a chat that started a new dashboard.
-A follow-up message on an existing dashboard has none.
+The button appears on a chat you started from the chat box.
+A chat started by a saved prompt, by a comment or by an outside agent has none.
+A follow-up message on an existing dashboard counts as a chat of its own and has the button.
 The panel starts with the first three words of the prompt as the name and the whole prompt as the text, and you can change both.
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.
@@ -32,12 +34,13 @@ A service-account key cannot create, change or delete a prompt.
 
 ## Run a prompt
 
-On the chat home, saved prompts are listed under the example prompts: name, a preview of the text, and who can use it (**Only me**, **Everyone**, or **By** the owner's name for someone else's shared prompt).
+On the chat page (`/ask`, **Ask** in the sidebar), saved prompts are listed under the example prompts and the dashboards: name, a preview of the text, and who can use it (**Only me**, **Everyone**, or **By** the owner's name for someone else's shared prompt).
 The list shows 5 and has a **Show all** button, labelled with the total, for the rest.
 **Run** sends the prompt at once and opens the conversation.
-The list is hidden when you have no prompts or the agent is off.
+The list is hidden when there are no prompts to show or the agent is off.
+The Home page (`/`) has no list, only the picker.
 
-To pick one without leaving the keyboard, type `/` as the only line in the home prompt box.
+To pick one without leaving the keyboard, type `/` as the only line in the prompt box of Home or of the chat page.
 The picker lists the prompts that match what follows the slash, in this order: names that start with it, names that contain it, then prompts whose text contains it.
 It shows the first 50.
 The arrow keys move, **Enter** fills the box and **Esc** closes the picker.
@@ -57,14 +60,14 @@ An Admin can also edit and delete any shared prompt, but cannot see another pers
 
 ## Who can use them
 
-| Role      | Saved prompts                                                                                                                           |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin     | Create, run and change their own, and change or delete any shared prompt.                                                               |
-| Editor    | Create, run and change their own, and run shared prompts.                                                                               |
-| Commenter | Run shared prompts only when a folder's list gives them Edit. Otherwise none, and the chat home shows a note. The API refuses a change. |
-| Viewer    | Run shared prompts only when a folder's list gives them Edit. Otherwise none, and the chat home shows a note. The API refuses a change. |
+| Role      | Saved prompts                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Admin     | Create, run and change their own, and change or delete any shared prompt.                                                |
+| Editor    | Create, run and change their own, and run shared prompts.                                                                |
+| Commenter | List and run shared prompts. Cannot create, change or delete one: the API refuses it and the web app has no Save button. |
+| Viewer    | List and run shared prompts. Cannot create, change or delete one: the API refuses it and the web app has no Save button. |
 
-Running a prompt starts a new dashboard, which needs Edit on some folder (see [Roles](roles.md) and [Folders and access](folders.md)).
-A Commenter or Viewer without such an entry sees the chat-home note and no saved prompts.
+Running a prompt starts a chat like any other: a new dashboard goes to your My Dashboards, where only you see it until you publish it (see [Chat](../use/chat.md)).
+There is no note on the chat page for a Commenter or a Viewer: the list is the same for every role.
 Creating and editing prompts stays with Editors and Admins.
 A key can run shared prompts with `observe run` when its service account is an Editor or Admin.

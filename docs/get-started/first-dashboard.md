@@ -20,10 +20,6 @@ Under the box, a chip lists each healthy datasource the agent may use, followed 
 In the demo the datasources are `prom` (Prometheus) and `ch` (ClickHouse).
 The buttons under "Example prompts" send a ready-made prompt at once, such as "Service health by pod, last 6h" or "Error logs by service from ClickHouse".
 
-Starting a dashboard from the chat needs Edit on a folder.
-Without it the chat home shows "Starting a dashboard needs Edit on a folder. Ask an Admin if you need it."
-See [Roles](../teams/roles.md).
-
 A prompt is 1 to 4000 characters.
 
 ## Watch the agent work
