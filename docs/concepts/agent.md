@@ -64,8 +64,8 @@ The model repairs the panels the server names when it rejects a save, as [What a
 Every accepted save, into a build or by an MCP client, also returns advice that never rejects a save:
 
 - `uncovered` names up to 50 families of the caller's last scoped inventory that no panel query names, and `uncovered_total` counts them all; a histogram, summary or counter is covered when a query names any of its series.
-- `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
-  A save into a build lists them only for the panels it added or changed, and the finished version lists them for the whole dashboard.
+- `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, a stat with no `description`, and a query, custom, textbox, interval or constant variable that an earlier version used and this save left without a user.
+  A save into a build lists the panel hints only for the panels it added or changed, and the finished version lists them for the whole dashboard.
 
 The model is told to finish only when `uncovered` is empty or the `summary` of its last save says why each family in it was left out.
 
@@ -152,6 +152,8 @@ Three rejected saves in a row end it.
 The guards steer before they stop, and every refusal and every stop shows as a step that names its rule, such as "Refused query_range: ..." or "Stopped: ...".
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
+When a read was refused because the run reached its window of model calls, the finding the run then saves ends with a line saying reading stopped early and how many reads were refused, so its counts are not taken for complete.
+A run that is stopped after three rejected saves names the panels that kept failing in its reason.
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards (see [MCP](../use/mcp.md#the-run-session-enforces-the-guards)).
 

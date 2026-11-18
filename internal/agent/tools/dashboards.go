@@ -475,16 +475,18 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return r.saveSucceeded(ctx, saved), nil
+	return r.saveSucceeded(ctx, saved, nil), nil
 }
 
-func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult) Result {
+func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult, before *spec.Dashboard) Result {
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
-	return success(savedStep(saved), withAdvice(ctx, out, saved.Version.Spec))
+	out = withAdvice(ctx, out, saved.Version.Spec)
+	out.advice.noteDroppedVariables(before, saved.Version.Spec)
+	return success(savedStep(saved), out)
 }
 
 func savedStep(saved dashboards.SaveResult) string {

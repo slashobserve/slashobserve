@@ -90,6 +90,7 @@ The instructions allow three repair attempts; if the agent still cannot save, th
 A save that finishes the dashboard ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
+When the agent answers a question after its reads were refused at six model calls, the answer ends with a line saying reading stopped early and the counts may be partial.
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
@@ -189,7 +190,7 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 | `provider_error`                         | The model provider answered with an error.                 | Try again, and ask an admin to check the provider if it keeps failing. |
 | `output_limit`                           | The model's answer was cut off at its output limit.        | Try again and ask for fewer panels.                                    |
 | `no_tool_call`, `no_progress`            | The agent stopped making progress.                         | Try again and name the metric, service or table you want.              |
-| `validation_exhausted`, `check_failed`   | The agent could not get its queries past the checks.       | Try again and name the metric, service or table you want.              |
+| `validation_exhausted`, `check_failed`   | The agent could not get its queries past the checks; the reason names the panels that kept failing. | Try again and name the metric, service or table you want, or ask for those panels one at a time. |
 | `refused`                                | The model declined the request.                            | Rephrase the prompt.                                                   |
 | `conflict`                               | Someone saved a newer version while the agent worked.      | Open the dashboard and ask again.                                      |
 | `canceled`                               | The run was canceled.                                      | Save what was built, continue it, or try again.                        |
@@ -270,6 +271,7 @@ Only the person who started a chat can rename, pin or delete it.
 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
+- **Change an existing dashboard from Home.** A request on Home builds a new dashboard; to change one, open it and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.
 

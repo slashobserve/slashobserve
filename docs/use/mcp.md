@@ -107,7 +107,7 @@ If both changed the same panel, variable or setting, it returns the tool error `
 `update_dashboard` and `update_panels` save a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
 The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
 A Viewer still gets `forbidden_role`.
-`get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
+`get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:

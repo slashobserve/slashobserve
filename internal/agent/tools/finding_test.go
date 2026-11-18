@@ -118,8 +118,8 @@ func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 		message string
 	}{
 		{"save_finding outside a run", editor, nameSaveFinding, `{}`, true, "save_finding runs inside the agent; MCP clients use create_observation"},
-		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard"},
-		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels"},
+		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard, so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"},
+		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels, so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"},
 		{"query_range in an investigation", investigate, nameQueryRange, `{"datasource":"fake","query":"up"}`, false, ""},
 		{"save_finding in a create run", create, nameSaveFinding, `{}`, false, ""},
 		{"save_finding in a revise run", revise, nameSaveFinding, `{}`, false, ""},

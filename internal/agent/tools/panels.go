@@ -291,7 +291,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return saveFailure(err)
 	}
-	return r.saveSucceeded(ctx, res), nil
+	return r.saveSucceeded(ctx, res, parent.Spec), nil
 }
 
 func patchSizeWithinLimits(p spec.PanelPatch) (Result, bool) {

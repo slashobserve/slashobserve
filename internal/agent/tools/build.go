@@ -31,7 +31,7 @@ const (
 	maxLayoutPanels = 24
 	maxLayoutGaps   = 8
 
-	noBuildYet            = "this run has no build yet; call create_dashboard first with the title, time, variables and the first panel"
+	noBuildYet            = "this run builds a new dashboard and has no build yet: call create_dashboard first with the title, time, variables and the first panel; it cannot change an existing dashboard, so if the request asks for that, end with save_finding saying the change has to be asked for on that dashboard's own page"
 	agentOnlyBuildFields  = "finish, planned_panels and row apply only to the built-in agent's builds"
 	importInBuildRun      = "this run is building a dashboard; continue with update_panels"
 	hasBuildAlready       = "this run already has a build; add panels with update_panels"
@@ -104,6 +104,7 @@ type buildSave struct {
 	finish        bool
 	changes       panelChanges
 	panelIDs      map[string]string
+	before        *spec.Dashboard
 }
 
 func inBuildRun(run Run, scoped bool) bool {
@@ -186,12 +187,14 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	if in.finish {
 		return r.commitBuild(ctx, in, step)
 	}
-	res := success(step, buildAdvice(ctx, buildOut{
+	out := buildAdvice(ctx, buildOut{
 		Build:         buildStateOut{Saves: build.Saves, Panels: progress.Panels, PlannedPanels: progress.PlannedPanels},
 		ChangedPanels: in.changes.shown,
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
-	}, build.Spec, in.changes.edits.Panels))
+	}, build.Spec, in.changes.edits.Panels)
+	out.advice.noteDroppedVariables(in.before, build.Spec)
+	res := success(step, out)
 	res.Edits = in.changes.edits
 	return res, nil
 }
@@ -204,7 +207,9 @@ func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep strin
 	if commit.Proposal != nil {
 		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
 	}
-	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)), nil
+	out := withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)
+	out.advice.noteDroppedVariables(in.before, commit.Version.Spec)
+	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), out), nil
 }
 
 func finishStep(saveStep string, changes panelChanges, version int, shape string) string {
@@ -590,7 +595,7 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 	save := buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id, plannedBefore: plannedBefore,
 		raw: raw, summary: summaryOr(in.Summary, defaultUpdateSummary),
-		planned: in.PlannedPanels, finish: in.Finish,
+		planned: in.PlannedPanels, finish: in.Finish, before: base,
 	}
 	if parsed != nil {
 		if issues := importOnlyIssues(parsed, base); len(issues) > 0 {
@@ -766,7 +771,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 	return r.saveToBuild(ctx, buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id,
 		raw: raw, summary: in.Summary, planned: in.PlannedPanels, plannedBefore: plannedBefore, finish: in.Finish,
-		changes: changes, panelIDs: panelIDsOf(merged),
+		changes: changes, panelIDs: panelIDsOf(merged), before: base,
 	})
 }
 

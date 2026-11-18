@@ -1473,3 +1473,11 @@ func TestAProposeModeFinishThatRemovedAPanelAnswersProposalRequiredAndKeepsTheBu
 		t.Fatalf("after putting the panel back: res = %#v", res.Content)
 	}
 }
+
+func TestTheNoBuildMessageSaysHowToChangeAnExistingDashboard(t *testing.T) {
+	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "that dashboard's own page"} {
+		if !strings.Contains(noBuildYet, want) {
+			t.Errorf("message lacks %q: %s", want, noBuildYet)
+		}
+	}
+}

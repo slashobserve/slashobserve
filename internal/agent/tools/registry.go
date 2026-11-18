@@ -522,7 +522,7 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case t.MCPOnly:
 		return Result{}, true
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
-		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
+		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
 	case inRun && !t.OfferedIn(run.Mode):
