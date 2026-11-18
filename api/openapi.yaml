@@ -110,6 +110,8 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
+  /datasources/{uid}/recheck:
+    $ref: "./paths/datasources.yaml#/datasources-uid-recheck"
   /datasources/{uid}/lint:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
   /datasources/{uid}/preview:
@@ -1343,7 +1345,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1351,6 +1353,10 @@ components:
           type: string
         name:
           type: string
+        source:
+          type: string
+          enum: [file, app]
+          description: "`file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app."
         index:
           type: string
           description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.
@@ -1361,10 +1367,14 @@ components:
           type: boolean
         message:
           type: string
+          description: A fixed sentence naming the kind of failure; absent when healthy.
+        detail:
+          type: string
+          description: The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret.
         checked_at:
           type: string
           format: date-time
-          description: When the server last checked the datasource; checks are cached for 10 seconds.
+          description: When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
         dashboard_count:
           type: integer
           minimum: 0

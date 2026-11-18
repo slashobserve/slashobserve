@@ -1108,6 +1108,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a fresh health check on one datasource now.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         */
+        post: operations["recheckDatasource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/lint": {
         parameters: {
             query?: never;
@@ -3910,15 +3932,23 @@ export interface components {
             uid: string;
             type: string;
             name: string;
+            /**
+             * @description `file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app.
+             * @enum {string}
+             */
+            source: "file" | "app";
             /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
+            /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
+            detail?: string;
             /**
              * Format: date-time
-             * @description When the server last checked the datasource; checks are cached for 10 seconds.
+             * @description When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
              */
             checked_at: string;
             /** @description Dashboards whose latest version uses this datasource. */
@@ -9307,6 +9337,31 @@ export interface operations {
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
             504: components["responses"]["QueryTimeout"];
+        };
+    };
+    recheckDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource's status after the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     lintDatasourceQuery: {

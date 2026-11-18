@@ -3,7 +3,7 @@ datasources:
     operationId: listDatasources
     x-surfaces:
       mcp: [list_datasources]
-      cli: [observe doctor]
+      cli: [observe doctor, observe datasources list]
     summary: Report the health and dashboard usage of every configured datasource, never its connection details.
     responses:
       "200":
@@ -14,5 +14,35 @@ datasources:
               $ref: "../openapi.yaml#/components/schemas/DatasourceList"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+datasources-uid-recheck:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: recheckDatasource
+    x-surfaces:
+      mcp: [recheck_datasource]
+      cli: [observe datasources recheck]
+    summary: Run a fresh health check on one datasource now.
+    description: >-
+      Skips the 10 second cache of `GET /datasources` and returns the new status.
+      Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource.
+      An unhealthy status carries `message` and, when known, `detail`.
+    responses:
+      "200":
+        description: The datasource's status after the check.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"

@@ -102,13 +102,13 @@ func decodeResponse(status int, raw []byte) (json.RawMessage, error) {
 	}
 	var env envelope
 	if err := json.Unmarshal(raw, &env); err != nil || (env.Status != "success" && env.Status != "error") {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
+		return nil, datasource.ErrorfStatus(datasource.ErrUnavailable, status, "upstream returned HTTP %d", status)
 	}
 	if env.Status == "error" {
 		return nil, upstreamError(env)
 	}
 	if status < 200 || status > 299 {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
+		return nil, datasource.ErrorfStatus(datasource.ErrUnavailable, status, "upstream returned HTTP %d", status)
 	}
 	return env.Data, nil
 }

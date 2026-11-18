@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -405,7 +405,7 @@ key         ok      ci-deploy (service_account)
 role        ok      editor
 version     ok      CLI v0.2.0, server v0.2.0
 datasource  ok      prom (prometheus)
-datasource  fail    logs (loki): connection refused
+datasource  fail    logs (loki): The datasource is not answering (The server could not connect to the datasource's address)
 model       ok      anthropic claude-haiku-5-5, effort low
 ```
 
@@ -418,6 +418,13 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
+
+## Datasources
+
+`bin/observe datasources list` prints each datasource's uid, type, name, health, source (`file` or `app`), the dashboards that use it and when it was last checked.
+An unhealthy one shows the failure and, when the server knows it, the cause.
+`bin/observe datasources recheck <uid>` skips the server's 10 second health cache, prints the new status and exits 1 while the datasource is unhealthy.
+Any role can list and recheck; `--json` prints the API response.
 
 ## Logs
 

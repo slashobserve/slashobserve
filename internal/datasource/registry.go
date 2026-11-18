@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	healthTTL     = 10 * time.Second
-	healthTimeout = 5 * time.Second
+	healthTTL       = 10 * time.Second
+	recheckInterval = 2 * time.Second
+	healthTimeout   = 5 * time.Second
 )
 
 const UIDPattern = `^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`
@@ -28,26 +29,34 @@ var uidPattern = regexp.MustCompile(UIDPattern)
 
 func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
+const (
+	SourceFile = "file"
+	SourceApp  = "app"
+)
+
 type Instance struct {
 	UID         string
 	Name        string
 	GrafanaUIDs []string
 	Datasource  Datasource
+	Source      string
 }
 
 type Status struct {
 	UID       string    `json:"uid"`
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`
+	Source    string    `json:"source"`
 	Index     string    `json:"index,omitempty"`
 	TimeField string    `json:"time_field,omitempty"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
+	Detail    string    `json:"detail,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
 }
 
 func statusFor(in Instance) Status {
-	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name}
+	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name, Source: in.Source}
 	if indexed, ok := in.Datasource.(IndexSource); ok {
 		s.Index, s.TimeField = indexed.Index()
 	}
@@ -92,6 +101,9 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		if strings.TrimSpace(in.Name) == "" {
 			in.Name = in.UID
 		}
+		if in.Source == "" {
+			in.Source = SourceFile
+		}
 		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		r.instances[in.UID] = in
 	}
@@ -120,11 +132,19 @@ func (r *Registry) Health(ctx context.Context) []Status {
 	var wg sync.WaitGroup
 	for i, in := range list {
 		wg.Go(func() {
-			out[i] = r.status(ctx, in)
+			out[i] = r.status(ctx, in, healthTTL)
 		})
 	}
 	wg.Wait()
 	return out
+}
+
+func (r *Registry) Recheck(ctx context.Context, uid string) (Status, bool) {
+	in, ok := r.Get(uid)
+	if !ok {
+		return Status{}, false
+	}
+	return r.status(ctx, in, recheckInterval), true
 }
 
 func (r *Registry) Close() error {
@@ -137,12 +157,12 @@ func (r *Registry) Close() error {
 	return errors.Join(errs...)
 }
 
-func (r *Registry) status(ctx context.Context, in Instance) Status {
-	if s, ok := r.fresh(in.UID); ok {
+func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration) Status {
+	if s, ok := r.fresh(in.UID, maxAge); ok {
 		return s
 	}
 	ch := r.group.DoChan(in.UID, func() (any, error) {
-		if s, ok := r.fresh(in.UID); ok {
+		if s, ok := r.fresh(in.UID, maxAge); ok {
 			return s, nil
 		}
 		return r.check(ctx, in), nil
@@ -158,11 +178,11 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 	}
 }
 
-func (r *Registry) fresh(uid string) (Status, bool) {
+func (r *Registry) fresh(uid string, maxAge time.Duration) (Status, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	e, ok := r.cached[uid]
-	if !ok || time.Since(e.at) >= healthTTL {
+	if !ok || time.Since(e.at) >= maxAge {
 		return Status{}, false
 	}
 	return e.status, true
@@ -178,6 +198,7 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	s.CheckedAt = time.Now().UTC()
 	if err != nil {
 		s.Message = healthMessage(err)
+		s.Detail = healthDetail(err)
 	}
 
 	r.mu.Lock()
@@ -222,6 +243,21 @@ func healthMessage(err error) string {
 		}
 	}
 	return "The health check failed"
+}
+
+const connectionFailedMessage = "connection failed"
+
+func healthDetail(err error) string {
+	var upstream *UpstreamError
+	switch {
+	case !errors.As(err, &upstream):
+		return ""
+	case upstream.Status > 0:
+		return fmt.Sprintf("The datasource answered HTTP %d", upstream.Status)
+	case upstream.Message == connectionFailedMessage:
+		return "The server could not connect to the datasource's address"
+	}
+	return ""
 }
 
 func (r *Registry) safeCheckHealth(ctx context.Context, in Instance) (err error) {

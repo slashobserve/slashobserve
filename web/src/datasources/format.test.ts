@@ -10,6 +10,7 @@ function makeDatasource(
     uid: "prom",
     type: "prometheus",
     name: "Prometheus",
+    source: "file",
     healthy: true,
     checked_at: "2026-03-10T12:00:00Z",
     dashboard_count: 0,

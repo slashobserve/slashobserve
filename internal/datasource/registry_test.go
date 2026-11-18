@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -189,3 +191,79 @@ type indexedBlocked struct {
 
 func (indexedBlocked) Type() string                       { return "elasticsearch" }
 func (indexedBlocked) Index() (pattern, timeField string) { return "logs-*", "@timestamp" }
+
+type flippingHealth struct {
+	datasource.Datasource
+	err   atomic.Pointer[error]
+	calls atomic.Int32
+}
+
+func (f *flippingHealth) Type() string { return "loki" }
+func (f *flippingHealth) CheckHealth(context.Context) error {
+	f.calls.Add(1)
+	if err := f.err.Load(); err != nil {
+		return *err
+	}
+	return nil
+}
+func (f *flippingHealth) Close() error { return nil }
+
+func TestHealthDetailNamesTheCauseWithoutTheAddress(t *testing.T) {
+	address := "http://10.1.2.3:3100"
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"connection failed", datasource.Errorf(datasource.ErrUnavailable, "connection failed"), "The server could not connect to the datasource's address"},
+		{"http status", datasource.ErrorfStatus(datasource.ErrUnavailable, 503, "Ingester not ready at %s", address), "The datasource answered HTTP 503"},
+		{"no detail", datasource.Errorf(datasource.ErrTimeout, "%s timed out", address), ""},
+		{"not an upstream error", errors.New(address), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: failingHealth{err: tt.err}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := registry.Health(t.Context())[0]
+			if got.Detail != tt.want {
+				t.Errorf("detail = %q, want %q", got.Detail, tt.want)
+			}
+			if strings.Contains(got.Detail, "10.1.2.3") {
+				t.Errorf("detail %q carries the address", got.Detail)
+			}
+		})
+	}
+}
+
+func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := registry.Health(t.Context())[0]; first.Healthy {
+		t.Fatalf("first status = %+v", first)
+	}
+
+	var recovered *error
+	ds.err.Store(recovered)
+	if cached := registry.Health(t.Context())[0]; cached.Healthy {
+		t.Fatalf("a plain health read inside the cache window must not recheck: %+v", cached)
+	}
+	time.Sleep(2100 * time.Millisecond)
+	got, ok := registry.Recheck(t.Context(), "loki")
+	if !ok || !got.Healthy || got.Detail != "" {
+		t.Fatalf("recheck = %+v, ok %v", got, ok)
+	}
+	calls := ds.calls.Load()
+	if again, _ := registry.Recheck(t.Context(), "loki"); !again.Healthy || ds.calls.Load() != calls {
+		t.Errorf("a recheck inside the throttle window ran another check: calls %d -> %d", calls, ds.calls.Load())
+	}
+	if _, ok := registry.Recheck(t.Context(), "missing"); ok {
+		t.Error("recheck of an unknown uid reported found")
+	}
+}

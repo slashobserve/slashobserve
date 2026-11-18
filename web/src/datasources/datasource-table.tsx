@@ -1,18 +1,24 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
+import { LoaderCircleIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { logsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
-import { datasourcesQuery, type DatasourceStatus } from "./queries"
+import {
+  datasourcesQuery,
+  useRecheckDatasource,
+  type DatasourceStatus,
+} from "./queries"
 
 const columnCount = 6
 const tableMinWidth = 760
@@ -40,6 +46,19 @@ export function DatasourceTable() {
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
+  const recheck = useRecheckDatasource()
+
+  function runRecheck(datasource: DatasourceStatus) {
+    recheck.mutate(datasource.uid, {
+      onSuccess: (status) => {
+        const { text } = statusOf(status)
+        if (status.healthy) toast.success(`${datasource.name}: ${text}`)
+        else toast.error(`${datasource.name}: ${text}`)
+      },
+      onError: (error) =>
+        toast.error(`Could not recheck ${datasource.name}: ${error.message}`),
+    })
+  }
 
   if (datasources.status === "pending") {
     return (
@@ -93,10 +112,17 @@ export function DatasourceTable() {
               </Cell>
               <Cell>{typeLabel(datasource.type)}</Cell>
               <Cell>
-                <div className="flex">
-                  <StatusLabel tone={tone} title={text}>
-                    <span className="max-w-[360px] truncate">{text}</span>
-                  </StatusLabel>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex">
+                    <StatusLabel tone={tone} title={text}>
+                      <span className="max-w-[360px] truncate">{text}</span>
+                    </StatusLabel>
+                  </div>
+                  {datasource.detail ? (
+                    <span className="pl-[19px] text-xs text-muted-foreground">
+                      {datasource.detail}
+                    </span>
+                  ) : null}
                 </div>
               </Cell>
               <Cell className="text-muted-foreground">
@@ -106,7 +132,16 @@ export function DatasourceTable() {
                 <RelativeTime iso={datasource.checked_at} />
               </Cell>
               <Cell data-cell="action">
-                <ExploreLinks datasource={datasource} />
+                <div className="flex justify-end gap-1.5">
+                  <RecheckButton
+                    datasource={datasource}
+                    pending={
+                      recheck.isPending && recheck.variables === datasource.uid
+                    }
+                    onRecheck={() => runRecheck(datasource)}
+                  />
+                  <ExploreLinks datasource={datasource} />
+                </div>
               </Cell>
             </tr>
           )
@@ -134,13 +169,42 @@ function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
   )
 }
 
+function RecheckButton({
+  datasource,
+  pending,
+  onRecheck,
+}: {
+  datasource: DatasourceStatus
+  pending: boolean
+  onRecheck: () => void
+}) {
+  return (
+    <Button
+      variant="outline"
+      size="xs"
+      disabled={pending}
+      aria-busy={pending}
+      aria-label={`Recheck ${datasource.uid}`}
+      onClick={onRecheck}
+    >
+      {pending ? (
+        <LoaderCircleIcon
+          aria-hidden="true"
+          className="motion-safe:animate-spin"
+        />
+      ) : null}
+      Recheck
+    </Button>
+  )
+}
+
 const exploreLinkClass = cn(buttonVariants({ variant: "outline", size: "xs" }))
 
 function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
   const targets = exploreTargets(datasource.type)
   if (targets.length === 0) return null
   return (
-    <div className="flex justify-end gap-1.5">
+    <>
       {targets.includes("logs") ? (
         <Link
           {...logsLink(datasource.uid)}
@@ -159,6 +223,6 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
           Search traces
         </Link>
       ) : null}
-    </div>
+    </>
   )
 }

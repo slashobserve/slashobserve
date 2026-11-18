@@ -43,6 +43,7 @@ func (k *refinedKind) Unwrap() error { return k.parent }
 type UpstreamError struct {
 	Kind    error
 	Message string
+	Status  int
 }
 
 func (e *UpstreamError) Error() string {
@@ -62,6 +63,13 @@ func (e *ConfigError) Error() string { return e.Message }
 
 func ConfigErrorf(format string, args ...any) error {
 	return &ConfigError{Message: fmt.Sprintf(format, args...)}
+}
+
+func ErrorfStatus(kind error, status int, format string, args ...any) error {
+	if kind == nil {
+		kind = ErrUnavailable
+	}
+	return &UpstreamError{Kind: kind, Message: fmt.Sprintf(format, args...), Status: status}
 }
 
 func IsTransient(err error) bool {
