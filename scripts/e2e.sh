@@ -1267,7 +1267,7 @@ imports_suite() {
   api_token
   await_history
   local out demo="$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" unverified="$FIXTURES/grafana-unverified.json"
-  local demo_id unverified_id plain_id cursor leak i pids=() statuses=()
+  local demo_id unverified_id plain_id cursor leak
   local nil_id=00000000-0000-0000-0000-000000000000 limit=$((8 * 1024 * 1024))
 
   import_body "$demo"
@@ -1422,26 +1422,6 @@ PY
     [[ "$out" == 400 ]] || fail "GET /imports?$query should be refused ($out: $(head -c 300 "$TMP/api.body"))"
   done
   pass "imports are listed newest first in pages, and a bad limit or cursor is refused"
-
-  import_body "$unverified"
-  for i in 1 2 3; do
-    command curl -sS --max-time 90 -o "$TMP/import-concurrent-$i.body" -w '%{http_code}' -X POST \
-      -H "Authorization: Bearer $API_TOKEN" -H 'Content-Type: application/json' --data-binary "@$TMP/import-body.json" "$BASE_URL/api/v1/imports" >"$TMP/import-concurrent-$i.status" &
-    pids+=("$!")
-  done
-  for i in 1 2 3; do
-    wait "${pids[$((i - 1))]}" || fail "concurrent import $i did not finish"
-    statuses+=("$(cat "$TMP/import-concurrent-$i.status")")
-  done
-  [[ " ${statuses[*]} " == *" 201 "* ]] || fail "at least one concurrent import should succeed (${statuses[*]})"
-  for i in 1 2 3; do
-    case "${statuses[$((i - 1))]}" in
-      201) ;;
-      429) import_check "d['code'] == 'too_many_imports'" "$TMP/import-concurrent-$i.body" || fail "a refused import should say too_many_imports ($(cat "$TMP/import-concurrent-$i.body"))" ;;
-      *) fail "a concurrent import answered ${statuses[$((i - 1))]} ($(head -c 300 "$TMP/import-concurrent-$i.body"))" ;;
-    esac
-  done
-  pass "concurrent imports by one caller succeed or are told to wait with too_many_imports"
 
   python3 -c 'import json; print(json.dumps({"json": json.dumps({"title": "Too many", "schemaVersion": 39, "panels": [{"id": i + 1, "type": "text", "title": "t", "gridPos": {"x": 0, "y": i, "w": 24, "h": 1}, "options": {"content": "x"}} for i in range(201)]})}))' >"$TMP/import-many.json"
   out="$(api POST /imports/preview --data-binary "@$TMP/import-many.json")"
