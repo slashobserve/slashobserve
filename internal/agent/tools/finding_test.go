@@ -450,3 +450,12 @@ func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
 		t.Fatalf("300 words with the note: ok %v, got %q", ok, got)
 	}
 }
+
+func TestTheFindingToolNamesNoCallLimitThatIsOnlyRightForSomeRuns(t *testing.T) {
+	tool := toolsByName(t)[nameSaveFinding]
+	for _, word := range []string{"six", "twelve", "6 ", "12 "} {
+		if strings.Contains(tool.Description, word) {
+			t.Errorf("save_finding names a call limit %q, but a build run has six and an investigation twelve: %s", word, tool.Description)
+		}
+	}
+}
