@@ -124,7 +124,7 @@ func (h *Handler) list(c *gin.Context) {
 		h.fail(c, "list folders", err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"folders": bodies})
+	httpapi.RevalidatedJSON(c, gin.H{"folders": bodies})
 }
 
 func (h *Handler) get(c *gin.Context) {

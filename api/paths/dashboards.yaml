@@ -471,13 +471,22 @@ dashboards-id-versions-version:
       mcp: [get_dashboard]
       cli: [observe dashboards show]
     summary: Get one version of a dashboard with its Spec.
+    description: >-
+      The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
     responses:
       "200":
         description: The dashboard summary and the requested version.
+        headers:
+          ETag:
+            required: true
+            schema:
+              type: string
         content:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "304":
+        $ref: "../openapi.yaml#/components/responses/NotModified"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

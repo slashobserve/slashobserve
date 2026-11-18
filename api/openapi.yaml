@@ -6345,6 +6345,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    NotModified:
+      description: The `If-None-Match` header names the current `ETag`, so the body is not sent again.
+      headers:
+        ETag:
+          required: true
+          schema:
+            type: string
     Unauthorized:
       description: Authentication is missing or invalid.
       headers:
