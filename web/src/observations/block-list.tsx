@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,7 +14,13 @@ import { addBlockRowId, useFreezeBlock } from "./add-block-row"
 import { PanelBlock } from "./blocks/panel-block"
 import { RunBlock } from "./blocks/run-block"
 import { SnapshotBlock } from "./blocks/snapshot-block"
-import { blockRows, blockTitle, moveTarget, nextBlockId } from "./block-rows"
+import {
+  blockRows,
+  blockTitle,
+  holdsAgentOutput,
+  moveTarget,
+  nextBlockId,
+} from "./block-rows"
 import { blockWriteProblem } from "./errors"
 import {
   useRemoveBlock,
@@ -22,6 +28,7 @@ import {
   type Block,
   type Observation,
 } from "./queries"
+import { RemoveBlockDialog } from "./remove-block-dialog"
 import { RequestedBlock } from "./requested-block"
 import { TextBlock } from "./text-block"
 
@@ -83,6 +90,7 @@ function BlockMenu({
 }) {
   const update = useUpdateBlock(observation.id)
   const remove = useRemoveBlock(observation.id)
+  const [confirming, setConfirming] = useState(false)
   const freeze = useFreezeBlock(observation.id, {
     onAdded,
     onProblem: (text) => toast.error(text),
@@ -96,6 +104,16 @@ function BlockMenu({
   const up = canUpdate ? moveTarget(blocks, block.id, "up") : null
   const down = canUpdate ? moveTarget(blocks, block.id, "down") : null
 
+  function removeBlock() {
+    remove.mutate(
+      { blockId: block.id, version: block.version },
+      {
+        onSuccess: () => focusAfterRemoval(nextId),
+        onError: (error) => toast.error(blockWriteProblem(error).text),
+      }
+    )
+  }
+
   function move(position: number) {
     update.mutate(
       { blockId: block.id, version: block.version, position },
@@ -108,70 +126,73 @@ function BlockMenu({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Block actions"
-            className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-          />
-        }
-      >
-        <MoreHorizontalIcon aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
-        {up === null ? null : (
-          <DropdownMenuItem onClick={() => move(up)}>Move up</DropdownMenuItem>
-        )}
-        {down === null ? null : (
-          <DropdownMenuItem onClick={() => move(down)}>
-            Move down
-          </DropdownMenuItem>
-        )}
-        {canUpdate ? (
-          <DropdownMenuItem
-            onClick={() =>
-              update.mutate(
-                {
-                  blockId: block.id,
-                  version: block.version,
-                  width: half ? "full" : "half",
-                },
-                {
-                  onError: (error) =>
-                    toast.error(blockWriteProblem(error).text),
-                }
-              )
-            }
-          >
-            {half ? "Make full width" : "Make half width"}
-          </DropdownMenuItem>
-        ) : null}
-        {canFreeze ? (
-          <DropdownMenuItem onClick={() => freeze.freeze(block)}>
-            Freeze as snapshot
-          </DropdownMenuItem>
-        ) : null}
-        {canRemove ? (
-          <DropdownMenuItem
-            onClick={() =>
-              remove.mutate(
-                { blockId: block.id, version: block.version },
-                {
-                  onSuccess: () => focusAfterRemoval(nextId),
-                  onError: (error) =>
-                    toast.error(blockWriteProblem(error).text),
-                }
-              )
-            }
-          >
-            Delete block
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Block actions"
+              className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+            />
+          }
+        >
+          <MoreHorizontalIcon aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {up === null ? null : (
+            <DropdownMenuItem onClick={() => move(up)}>
+              Move up
+            </DropdownMenuItem>
+          )}
+          {down === null ? null : (
+            <DropdownMenuItem onClick={() => move(down)}>
+              Move down
+            </DropdownMenuItem>
+          )}
+          {canUpdate ? (
+            <DropdownMenuItem
+              onClick={() =>
+                update.mutate(
+                  {
+                    blockId: block.id,
+                    version: block.version,
+                    width: half ? "full" : "half",
+                  },
+                  {
+                    onError: (error) =>
+                      toast.error(blockWriteProblem(error).text),
+                  }
+                )
+              }
+            >
+              {half ? "Make full width" : "Make half width"}
+            </DropdownMenuItem>
+          ) : null}
+          {canFreeze ? (
+            <DropdownMenuItem onClick={() => freeze.freeze(block)}>
+              Freeze as snapshot
+            </DropdownMenuItem>
+          ) : null}
+          {canRemove ? (
+            <DropdownMenuItem
+              onClick={() =>
+                holdsAgentOutput(block) ? setConfirming(true) : removeBlock()
+              }
+            >
+              Delete block
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RemoveBlockDialog
+        title={blockTitle(block)}
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirm={removeBlock}
+      />
+    </>
   )
 }
 

@@ -41,6 +41,14 @@ export function blockTitle(block: Block): string {
   }
 }
 
+export function holdsAgentOutput(block: Block): boolean {
+  return (
+    block.kind === "run" ||
+    block.created_by.run_id !== null ||
+    block.created_by.origin === "mcp"
+  )
+}
+
 export function moveTarget(
   blocks: readonly Block[],
   blockId: string,

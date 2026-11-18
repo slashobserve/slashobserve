@@ -8,6 +8,7 @@ import {
   blockRows,
   blockTitle,
   newPanelBody,
+  holdsAgentOutput,
   moveTarget,
   nextBlockId,
 } from "./block-rows"
@@ -126,6 +127,28 @@ describe("nextBlockId", () => {
   it("names nothing after the last block or an unknown block", () => {
     expect(nextBlockId(blocks, "c")).toBeNull()
     expect(nextBlockId(blocks, "zzz")).toBeNull()
+  })
+})
+
+describe("holdsAgentOutput", () => {
+  it("is true for a run block and for a block an agent wrote", () => {
+    expect(holdsAgentOutput(block("a", 0, "full", { kind: "run" }))).toBe(true)
+    expect(
+      holdsAgentOutput(
+        block("a", 0, "full", {
+          created_by: { ...author, run_id: "r1", origin: "web" },
+        })
+      )
+    ).toBe(true)
+    expect(
+      holdsAgentOutput(
+        block("a", 0, "full", { created_by: { ...author, origin: "mcp" } })
+      )
+    ).toBe(true)
+  })
+
+  it("is false for a block a person wrote", () => {
+    expect(holdsAgentOutput(block("a", 0))).toBe(false)
   })
 })
 
