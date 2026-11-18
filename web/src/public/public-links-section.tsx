@@ -35,6 +35,7 @@ import {
   expiryChoices,
   expiryFor,
   frozenSelections,
+  frozenValuesText,
   linkStatus,
   modeChoices,
   modeLabel,
@@ -262,6 +263,7 @@ function PublicLinkRow({
   link: PublicLink
 }) {
   const status = linkStatus(link)
+  const frozen = frozenValuesText(link)
   return (
     <li className="flex items-start justify-between gap-3 border-b px-3 py-2 text-[13px] last:border-b-0">
       <div className="flex min-w-0 flex-col gap-0.5">
@@ -276,6 +278,11 @@ function PublicLinkRow({
             )}
           </span>
         </span>
+        {frozen !== null ? (
+          <span className="text-xs wrap-anywhere text-muted-foreground">
+            {frozen}
+          </span>
+        ) : null}
         {status !== null ? (
           <span className="text-xs text-destructive">{status}</span>
         ) : null}

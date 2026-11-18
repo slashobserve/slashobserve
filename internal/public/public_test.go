@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/url"
@@ -21,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func TestMain(m *testing.M) {
@@ -155,6 +157,42 @@ func TestCreateRefusals(t *testing.T) {
 	}
 	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); !errors.Is(err, ErrTooManyLinks) {
 		t.Fatalf("link %d: %v, want ErrTooManyLinks", maxLinksPerDashboard+1, err)
+	}
+}
+
+type fakeOptions struct {
+	values map[string][]string
+	err    error
+}
+
+func (f fakeOptions) VariableOptions(_ context.Context, _ *spec.Dashboard, name string, _ map[string][]string) ([]string, error) {
+	return f.values[name], f.err
+}
+
+func TestCreateChecksFreeSelectionsAgainstTheVariableOptions(t *testing.T) {
+	r := newRig(t)
+	r.service.options = fakeOptions{values: map[string][]string{"env": {"prod", "staging"}}}
+	cases := []struct {
+		name string
+		in   CreateInput
+		want error
+	}{
+		{"an option", CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}, nil},
+		{"a value that is not an option", CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"checkout"}}}, ErrSelectionNotAllowed},
+		{"no selections", CreateInput{Mode: ModeFree}, nil},
+		{"a frozen link keeps its stored value", CreateInput{Mode: ModeFrozen, Selections: map[string][]string{"env": {"checkout"}}}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := r.service.Create(t.Context(), admin, r.shared, tc.in); !errors.Is(err, tc.want) {
+				t.Fatalf("err = %v, want %v", err, tc.want)
+			}
+		})
+	}
+	r.service.options = fakeOptions{err: errors.New("datasource down")}
+	in := CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, in); !errors.Is(err, ErrOptionsUnavailable) {
+		t.Fatalf("err = %v, want ErrOptionsUnavailable", err)
 	}
 }
 

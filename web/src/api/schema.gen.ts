@@ -2913,7 +2913,7 @@ export interface paths {
         put?: never;
         /**
          * Create a public link that opens the dashboard read-only without sign-in.
-         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A dashboard has at most 20 links.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given. A dashboard has at most 20 links.
          */
         post: operations["createPublicLink"];
         delete?: never;
@@ -2957,7 +2957,7 @@ export interface paths {
         };
         /**
          * Read the dashboard a public link shows.
-         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text, tags and links: every panel query's `query` and every variable's `query` are left out, and so are the dashboard's `tags` and `links`. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
          */
         get: operations["getPublicDashboard"];
         put?: never;
@@ -14135,7 +14135,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`). */
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 links (`too_many_links`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14145,6 +14145,15 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+            /** @description A `free` link's selections could not be checked because a variable's options could not be read from its datasource (`variable_options_unavailable`); try again or create a `frozen` link. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     deletePublicLink: {

@@ -246,6 +246,11 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_expiry", err.Error())
 	case errors.Is(err, ErrUnknownVariable):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_variable", err.Error())
+	case errors.Is(err, ErrSelectionNotAllowed):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "selection_not_allowed", err.Error()+"; choose one of its options on the dashboard first, or make the link frozen")
+	case errors.Is(err, ErrOptionsUnavailable):
+		h.logger.WarnContext(c.Request.Context(), "read variable options for a public link", logattrs.Failure("internal", err)...)
+		httpapi.AbortError(c, http.StatusBadGateway, "variable_options_unavailable", "the options of a variable could not be read from its datasource, so the selections cannot be checked; try again, or create a frozen link")
 	case errors.Is(err, ErrTooManyLinks):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_links", err.Error())
 	default:

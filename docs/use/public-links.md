@@ -28,6 +28,7 @@ Each link chooses how its variables behave:
 - **Frozen** links always use the selections stored with the link, whatever the address says.
 - **Free** links let the viewer choose values of query, custom, interval and datasource variables, but only among the options the server lists for that variable, so a viewer cannot type in a label value the dashboard does not offer.
   Textbox, adhoc, group by and constant variables keep the stored selections or the dashboard's defaults.
+  A free link's stored selections are checked against those options when you create it, so a value that is not an option is refused instead of making every panel fail for the viewer.
 
 The viewer can always change the time range and the refresh interval; the query proxy's limits bound every query whatever the range.
 
@@ -41,7 +42,7 @@ People with Manage see **Public links** in the dashboard's Share pane, below "Wh
 Choose how the variables behave: **Frozen** stores the values in the address you are looking at, and a variable the address does not set uses the dashboard's default; **Free** lets viewers choose.
 Then choose an expiry: none, 1 day, 7 days, 30 days, or a date, after which the link stops working at local midnight.
 **Create public link** shows the link's address once, with **Copy** and "Copy it now. It is not shown again."
-The list shows each link's prefix, its variables mode, its expiry, "Expired" or "Not usable: uses the viewer's identity" when it no longer opens, who created it and when, and when it was last viewed.
+The list shows each link's prefix, its variables mode, the values a frozen link holds, its expiry, "Expired" or "Not usable: uses the viewer's identity" when it no longer opens, who created it and when, and when it was last viewed.
 **Revoke** asks for confirmation, then deletes the link.
 
 ## What a public view shows
@@ -88,7 +89,7 @@ Every route except the public ones needs a session or a service-account key with
 | `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
 | `POST /api/v1/dashboards/{id}/public-links` | Creates a link and returns its token and `url` once. |
 | `DELETE /api/v1/dashboards/{id}/public-links/{link_id}` | Revokes a link. |
-| `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text left out, and the datasources it uses; the token is the only credential. |
+| `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text, the dashboard's tags and its links left out, and the datasources it uses (uid and type); the token is the only credential. |
 | `GET /api/v1/public/{token}/panels/{panel_id}/data` | Runs one panel's saved queries for the link. |
 | `GET /api/v1/public/{token}/variables/{name}/values` | Lists one variable's values for the link. |
 
@@ -102,5 +103,5 @@ curl -s -X POST "$OBSERVE_SERVER/api/v1/dashboards/$DASHBOARD_ID/public-links" \
 ```
 
 The answer's `url` is the address to share.
-Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 422 `user_scoped`, `invalid_expiry`, `unknown_variable` or `too_many_links`.
+Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 422 `user_scoped`, `invalid_expiry`, `unknown_variable`, `selection_not_allowed` (a free link whose selections hold a value that is not one of the variable's options) or `too_many_links`, and 502 `variable_options_unavailable` when the options could not be read to check them.
 A public route answers 404 `not_found` for a token that is unknown, revoked or expired, and a free link answers 400 `selection_not_allowed` for a value that is not one of the variable's options.

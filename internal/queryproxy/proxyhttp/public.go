@@ -34,6 +34,16 @@ func (d *PublicData) RegisterPublic(g *gin.RouterGroup) {
 	g.GET("/:token/variables/:name/values", d.values)
 }
 
+func (h *Handler) VariableOptions(ctx context.Context, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error) {
+	rng, _, err := params{}.timeRange(d, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	user, _ := cacheScope(ctx, loadedVersion{dashboard: d})
+	options, _, err := h.runner.VariableValues(ctx, d, name, valuesRange(rng), selectionsOf(earlier), user)
+	return spec.OptionValues(options), err
+}
+
 func publicSlot(link public.Resolved) string {
 	return "public:" + link.LinkID.String()
 }

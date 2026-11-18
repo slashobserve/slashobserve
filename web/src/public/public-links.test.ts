@@ -5,6 +5,7 @@ import type { Variable } from "@/spec"
 import {
   expiryFor,
   frozenSelections,
+  frozenValuesText,
   linkStatus,
   type ExpiryChoice,
 } from "./public-links"
@@ -62,6 +63,29 @@ describe("linkStatus", () => {
     [{ state: "active", usable: true }, null],
   ] as const)("%o reads %j", (link, expected) => {
     expect(linkStatus(link)).toBe(expected)
+  })
+})
+
+describe("frozenValuesText", () => {
+  it("lists each frozen variable with its values", () => {
+    expect(
+      frozenValuesText({
+        variables: "frozen",
+        selections: { job: ["shop"], env: ["prod", "dev"] },
+      })
+    ).toBe("job: shop; env: prod, dev")
+  })
+
+  it("says a frozen link without selections uses the defaults", () => {
+    expect(frozenValuesText({ variables: "frozen", selections: {} })).toBe(
+      "Uses the dashboard's default values"
+    )
+  })
+
+  it("says nothing for a free link, whose viewers choose", () => {
+    expect(
+      frozenValuesText({ variables: "free", selections: { job: ["shop"] } })
+    ).toBeNull()
   })
 })
 

@@ -41,7 +41,17 @@ var (
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")
 	ErrTooManyLinks    = fmt.Errorf("a dashboard has at most %d public links; revoke one first", maxLinksPerDashboard)
 	ErrInvalidMode     = errors.New("variables must be frozen or free")
+
+	ErrOptionsUnavailable = errors.New("the options of a variable could not be read")
 )
+
+type VariableOptions interface {
+	VariableOptions(ctx context.Context, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error)
+}
+
+func WithVariableOptions(o VariableOptions) Option {
+	return func(s *Service) { s.options = o }
+}
 
 type Creator struct {
 	Kind string
@@ -100,6 +110,7 @@ type Service struct {
 	logger     *slog.Logger
 	now        func() time.Time
 	rcas       RCAs
+	options    VariableOptions
 }
 
 type Option func(*Service)
@@ -153,6 +164,21 @@ func (s *Service) checkInput(d *spec.Dashboard, in CreateInput) error {
 	return nil
 }
 
+func (s *Service) checkSelections(ctx context.Context, d *spec.Dashboard, in CreateInput) error {
+	if in.Mode != ModeFree || s.options == nil || len(in.Selections) == 0 {
+		return nil
+	}
+	options := func(name string, earlier map[string][]string) ([]string, error) {
+		values, err := s.options.VariableOptions(ctx, d, name, earlier)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %q: %w", ErrOptionsUnavailable, name, err)
+		}
+		return values, nil
+	}
+	_, err := EffectiveSelections(ModeFree, d, in.Selections, in.Selections, options)
+	return err
+}
+
 func storedSelections(selections map[string][]string) ([]byte, error) {
 	if selections == nil {
 		selections = map[string][]string{}
@@ -172,6 +198,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 		return Created{}, err
 	}
 	if err := s.checkInput(d, in); err != nil {
+		return Created{}, err
+	}
+	if err := s.checkSelections(ctx, d, in); err != nil {
 		return Created{}, err
 	}
 	count, err := s.db.Queries().CountPublicLinks(ctx, dashboardID)
