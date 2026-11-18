@@ -55,6 +55,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g.POST("/repairs", auth.RoleEditor, h.repair)
 	g.POST("/run", auth.RoleAdmin, h.run)
 	api.POST("/dashboards/:id/views", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.view)
+	api.GET("/dashboards/:id/views", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.views)
 }
 
 func (h *Handler) Wait() {
@@ -312,6 +313,24 @@ func (h *Handler) view(c *gin.Context) {
 		h.logger.WarnContext(c.Request.Context(), "record dashboard view", logattrs.Failure("internal", err, slog.String("dashboard_id", id.String()))...)
 	}
 	c.Status(http.StatusNoContent)
+}
+
+type viewsJSON struct {
+	ViewCount  int `json:"view_count"`
+	WindowDays int `json:"window_days"`
+}
+
+func (h *Handler) views(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	views, err := h.svc.Views(c.Request.Context(), id)
+	if err != nil {
+		h.fail(c, "count dashboard views", err)
+		return
+	}
+	c.JSON(http.StatusOK, viewsJSON{ViewCount: views.Count, WindowDays: views.WindowDays})
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error) {

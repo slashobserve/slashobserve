@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -205,5 +206,37 @@ func TestGetDashboardInABuildRunPointsAtGetPanels(t *testing.T) {
 	}
 	if got, want := refusal(t, outside), "dashboard_id must be a UUID from list_dashboards or create_dashboard"; got != want {
 		t.Errorf("message outside a run = %q, want %q", got, want)
+	}
+}
+
+func TestListDashboardsRejectsAnOrderItDoesNotOffer(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := call(t, r, nameListDashboards, `{"order":"title"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := refusal(t, res), "order must be updated or views"; got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+}
+
+func TestListDashboardsSchemaOffersBothOrders(t *testing.T) {
+	var schema struct {
+		Properties struct {
+			Order struct {
+				Enum []string `json:"enum"`
+			} `json:"order"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal([]byte(schemaListDashboards), &schema); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(schema.Properties.Order.Enum, ","); got != "updated,views" {
+		t.Errorf("order enum = %q, want updated,views", got)
+	}
+	for _, text := range []string{descListDashboards, descGetDashboard} {
+		if !strings.Contains(text, "view") {
+			t.Errorf("description does not mention views: %s", text)
+		}
 	}
 }

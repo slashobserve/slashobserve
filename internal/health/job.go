@@ -63,6 +63,9 @@ func (s *Service) Run(ctx context.Context) error {
 	budget, cancel := context.WithTimeout(ctx, runBudget)
 	defer cancel()
 	started := time.Now()
+	if err := s.pruneViews(budget); err != nil && budget.Err() == nil {
+		s.logger.WarnContext(ctx, "prune dashboard view days", logattrs.Failure("prune_views_failed", err)...)
+	}
 	var counts runCounts
 	for budget.Err() == nil {
 		rows, err := s.db.Queries().DashboardsDueForHealth(budget, dbsqlc.DashboardsDueForHealthParams{

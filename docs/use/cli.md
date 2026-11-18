@@ -122,8 +122,8 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page. |
-| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
+| `bin/observe dashboards list [--order updated\|views]` | Lists dashboards, newest update first or, with `--order views`, most viewed in the last 30 days first, 50 at a time, with a `VIEWS` column; when there are more it prints the `--cursor` value for the next page, which only works with the same `--order`. |
+| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`, and how many views the dashboard had in the last 30 days; `--json` adds `view_count` and `view_window_days`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |

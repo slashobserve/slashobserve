@@ -223,6 +223,12 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DashboardViewDay struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	Day         pgtype.Date
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID

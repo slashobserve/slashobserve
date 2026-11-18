@@ -109,6 +109,9 @@ The answer is a success, not a tool error: its code is `proposed` and it carries
 A Viewer still gets `forbidden_role`.
 `get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
 
+`get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `view_window_days`.
+`list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default) or `views` for the most viewed first; pass a `next_cursor` back with the order that produced it.
+
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
 

@@ -84,6 +84,16 @@ Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
 Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.
 
+## How often a dashboard is opened
+
+The dashboards list has a **Views** column and the dashboard's header says how many views it had, such as **12 views in 30 days**.
+A view is one person opening the dashboard on one UTC day, so three people who each open it twice today make three views, and the count covers the last 30 UTC days including today.
+Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
+`GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
+`order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
+The daily records are kept for 90 days.
+`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `view_window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+
 ## TV mode
 
 TV mode shows a dashboard on a wall screen with nothing but its panels, and can cycle through its rows or its folder's dashboards.

@@ -2,8 +2,11 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +25,12 @@ type dashboardSummary struct {
 	LatestVersion int    `json:"latest_version"`
 	UpdatedAt     string `json:"updated_at"`
 	UpdatedBy     author `json:"updated_by"`
+	ViewCount     int    `json:"view_count"`
+}
+
+type dashboardViews struct {
+	ViewCount  int `json:"view_count"`
+	WindowDays int `json:"window_days"`
 }
 
 type actorLabel struct {
@@ -59,7 +68,10 @@ type shownPanel struct {
 type pageOptions struct {
 	limit  int
 	cursor string
+	order  string
 }
+
+var dashboardOrders = []string{"updated", "views"}
 
 type showOptions struct {
 	version int
@@ -101,21 +113,28 @@ func (o pageOptions) query() url.Values {
 	if o.cursor != "" {
 		query.Set("cursor", o.cursor)
 	}
+	if o.order != "" {
+		query.Set("order", o.order)
+	}
 	return query
 }
 
 func (a *app) listCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List dashboards, newest update first",
+		Short: "List dashboards, newest update first or most viewed first",
 		Args:  noArgs,
 		RunE:  a.runList,
 	}
 	addPageFlags(cmd, &a.list)
+	cmd.Flags().StringVar(&a.list.order, "order", "", "updated (default) or views, most opened in the last 30 days first")
 	return cmd
 }
 
 func (a *app) runList(cmd *cobra.Command, _ []string) error {
+	if a.list.order != "" && !slices.Contains(dashboardOrders, a.list.order) {
+		return usagef("--order must be one of %s, not %q", strings.Join(dashboardOrders, ", "), text(a.list.order))
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
@@ -135,9 +154,9 @@ func (a *app) runList(cmd *cobra.Command, _ []string) error {
 	}
 	rows := make([][]string, 0, len(page.Dashboards))
 	for _, d := range page.Dashboards {
-		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), when(d.UpdatedAt), text(d.UpdatedBy.Name)})
+		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), strconv.Itoa(d.ViewCount), when(d.UpdatedAt), text(d.UpdatedBy.Name)})
 	}
-	out.table([]string{"ID", "TITLE", "VERSION", "UPDATED", "UPDATED BY"}, rows)
+	out.table([]string{"ID", "TITLE", "VERSION", "VIEWS", "UPDATED", "UPDATED BY"}, rows)
 	nextPageHint(out, page.NextCursor)
 	return nil
 }
@@ -179,9 +198,21 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	viewData, err := c.get(cmd.Context(), "dashboards/"+id+"/views", nil)
+	if err != nil {
+		return err
+	}
+	views, err := decode[dashboardViews](viewData)
+	if err != nil {
+		return err
+	}
 	out := a.output()
 	if a.json {
-		out.body(data)
+		withViews, err := withViewCount(data, views)
+		if err != nil {
+			return err
+		}
+		out.body(withViews)
 		return nil
 	}
 	shown, err := decode[dashboardWithVersion](data)
@@ -193,6 +224,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 		{"ID", text(shown.Dashboard.ID)},
 		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
+		{"Views", fmt.Sprintf("%d in the last %d days", views.ViewCount, views.WindowDays)},
 		{"Author", text(shown.Version.Actor.Label)},
 		{"Summary", text(shown.Version.Summary)},
 	})
@@ -203,6 +235,17 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.line("")
 	out.table([]string{"PANEL", "TYPE", "DATASOURCE", "TITLE"}, rows)
 	return nil
+}
+
+func withViewCount(data []byte, views dashboardViews) ([]byte, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, fmt.Errorf("read the dashboard: %w", err)
+	}
+	count, _ := json.Marshal(views.ViewCount)
+	window, _ := json.Marshal(views.WindowDays)
+	fields["view_count"], fields["view_window_days"] = count, window
+	return json.Marshal(fields)
 }
 
 func (a *app) versionsCommand() *cobra.Command {

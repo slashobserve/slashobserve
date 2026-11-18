@@ -66,6 +66,7 @@ type dashboardItemOut struct {
 	Tags          []string `json:"tags"`
 	LatestVersion int      `json:"latest_version"`
 	UpdatedAt     string   `json:"updated_at"`
+	ViewCount     int      `json:"view_count"`
 	URL           string   `json:"url"`
 	Folder        string   `json:"folder"`
 }
@@ -79,9 +80,13 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 	var in struct {
 		Limit  *int   `json:"limit"`
 		Cursor string `json:"cursor"`
+		Order  string `json:"order"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	if in.Order != "" && in.Order != "updated" && in.Order != "views" {
+		return invalid("order must be updated or views"), nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListDashboards, 1, maxListDashboards, "limit")
 	if !ok {
@@ -96,7 +101,7 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views"})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}
@@ -126,6 +131,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			Tags:          nonNilStrings(d.Tags),
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
+			ViewCount:     d.ViewCount,
 			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
 		}
@@ -154,6 +160,8 @@ type dashboardOut struct {
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
+	ViewCount                *int            `json:"view_count,omitempty"`
+	ViewWindowDays           int             `json:"view_window_days,omitempty"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -240,6 +248,13 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
+	}
+	if r.deps.Health != nil {
+		views, err := r.deps.Health.Views(ctx, id)
+		if err != nil {
+			return Result{}, err
+		}
+		out.ViewCount, out.ViewWindowDays = &views.Count, views.WindowDays
 	}
 	body, err := json.Marshal(out)
 	if err != nil {

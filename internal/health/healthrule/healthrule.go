@@ -19,6 +19,11 @@ const AnyProblem = "any"
 
 const UnopenedAfter = 90 * 24 * time.Hour
 
+const (
+	ViewWindowDays    = 30
+	ViewRetentionDays = 90
+)
+
 var Kinds = []Kind{KindNoData, KindQueryFailed, KindVariableFailed, KindDuplicateTitle, KindUnopened}
 
 func ValidKind(raw string) (Kind, bool) {
@@ -36,4 +41,17 @@ func ValidFilter(raw string) (string, bool) {
 
 func UnopenedBefore(now time.Time) time.Time {
 	return now.Add(-UnopenedAfter)
+}
+
+func ViewsSince(now time.Time) time.Time {
+	return utcDay(now).AddDate(0, 0, -(ViewWindowDays - 1))
+}
+
+func ViewsKeptSince(now time.Time) time.Time {
+	return utcDay(now).AddDate(0, 0, -ViewRetentionDays)
+}
+
+func utcDay(t time.Time) time.Time {
+	y, m, d := t.UTC().Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
