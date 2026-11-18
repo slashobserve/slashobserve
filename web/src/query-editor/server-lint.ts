@@ -39,6 +39,29 @@ function failureMessage(error: unknown) {
   return unavailableMessage
 }
 
+export async function lintQuery(
+  uid: string,
+  query: string,
+  signal?: AbortSignal
+): Promise<LintResult> {
+  const body = await api
+    .POST("/datasources/{uid}/lint", {
+      params: { path: { uid } },
+      body: { query },
+      signal,
+    })
+    .then(unwrap)
+  return {
+    status: "ok",
+    query,
+    items: body.diagnostics.map((item) => ({
+      severity: item.severity,
+      message: item.message,
+      from: byteRangeToIndices(query, item.start, item.end).from,
+    })),
+  }
+}
+
 export function serverLinter(
   uid: string,
   onResult: (result: LintResult) => void

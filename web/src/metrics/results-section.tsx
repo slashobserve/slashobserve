@@ -5,8 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
-import { exploreErrorText, offlineText } from "@/logs/explore"
-import { ExploreFailure } from "@/logs/explore-failure"
+import { offlineText } from "@/logs/explore"
 import { useElementSize } from "@/logs/use-element-size"
 import { describeRange } from "@/lib/time"
 import { lowerFirst } from "@/lib/text"
@@ -14,7 +13,8 @@ import { PanelBody } from "@/panels/panel-body"
 import { createSharedCursor } from "@/panels/shared-cursor"
 
 import { metricsPanelFor } from "./panel"
-import { failureHint, truncationNote } from "./problems"
+import { truncationNote } from "./problems"
+import { QueryFailure } from "./query-failure"
 import type { MetricsMode } from "./search"
 import { useMetricsResults } from "./workspace"
 
@@ -104,16 +104,14 @@ export function ResultsSection({
       )
     }
     if (results.isError && data === undefined) {
-      const hint = failureHint(results.error)
       return (
         <div className="flex flex-col gap-2 p-4">
-          <ExploreFailure
-            text={exploreErrorText(results.error)}
+          <QueryFailure
+            uid={uid}
+            query={query}
+            error={results.error}
             onRetry={() => void results.refetch()}
           />
-          {hint === null ? null : (
-            <p className="text-[13px] text-muted-foreground">{hint}</p>
-          )}
         </div>
       )
     }

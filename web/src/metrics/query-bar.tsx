@@ -18,6 +18,7 @@ import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import type { LintResult } from "@/query-editor/server-lint"
 
 import { syntaxProblem } from "./problems"
+import { SyntaxProblemView } from "./syntax-problem"
 import { useMetricsWorkspace } from "./workspace"
 
 const helpText = "Ctrl Space completes metric names, labels and functions."
@@ -192,19 +193,7 @@ export function QueryBar() {
           </div>
         ) : null}
         {problem === null || !editorShown ? null : (
-          <div role="alert" className="flex flex-col gap-0.5">
-            <p className="text-xs text-destructive">
-              Line {problem.line}, column {problem.column}: {problem.message}
-            </p>
-            <pre className="m-0 overflow-x-auto font-mono text-xs">
-              {problem.source}
-              {"\n"}
-              <span className="text-destructive">{problem.caret}</span>
-            </pre>
-            <p className="text-xs text-muted-foreground">
-              Nothing ran. Fix the query and run it again.
-            </p>
-          </div>
+          <SyntaxProblemView problem={problem} />
         )}
         {asking ? null : (
           <p className="text-xs text-muted-foreground">
