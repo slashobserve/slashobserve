@@ -26,7 +26,7 @@ It works only for a person's connection, never for a key.
 1. Call get_spec_guide once before your first save; every save is checked against its guide and JSON Schema.
 2. Take a datasource uid from list_datasources and find real names with list_metrics, list_labels, list_label_values, get_schema and sample_rows; never guess a metric, label or column.
 3. Check each query with lint_query and run it with query_range, or with query_instant for an instant query or a table.
-4. Save with create_dashboard; list_folders gives a folder_id.
+4. Save with create_dashboard; list_folders gives a folder_id, and create_folder makes a new folder.
    A save rejects the panels whose queries fail or return no data and lists them in failing_panels: fix only those and save again.
 
 ## Change a dashboard
@@ -97,7 +97,8 @@ A call with a run that is not yours is refused, and a connection in propose mode
 ## Limits
 
 Lists show only what you may see, and not_found can mean you may not see it.
-Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
+Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, who can see a folder, webhooks or connected agents: tell the person to do it in the web app.
+create_folder and rename_folder make and rename folders.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.
 
 ## With only a shell

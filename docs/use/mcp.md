@@ -9,6 +9,7 @@ The server exposes its tools to MCP clients over Streamable HTTP at `<public url
 Requests must carry `Authorization: Bearer <token>`, where the token is either a person's OAuth access token (the default for people, see [Connect your own agent](#connect-your-own-agent)) or a [service-account key](../operate/service-account-keys.md) (for headless bots, see [Keys for bots](#keys-for-bots)).
 Browser sessions are not accepted on `/mcp`, and an OAuth access token is accepted nowhere else.
 A request without a token, or with one the server refuses, gets `401` with `WWW-Authenticate: Bearer realm="slashobserve", resource_metadata="<public url>/.well-known/oauth-protected-resource/mcp"`, which is how an MCP client finds the sign-in; a refused token adds `error="invalid_token"`.
+
 The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key or person and `503` above 32 across all callers.
 Those three, and a refused JSON-RPC batch (one request per POST), come back as JSON-RPC error bodies with the short code in `error.data.code`, so a client SDK backs off on `Retry-After` instead of reporting a broken transport.
 `tools/list` has no pages: a `cursor` is ignored.
@@ -26,6 +27,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
 | `create_dashboard` | Viewer |
+| `create_folder` | Viewer |
 | `create_observation` | Viewer |
 | `diff_dashboard_versions` | Viewer |
 | `discard_block` | Viewer |
@@ -75,6 +77,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
+| `rename_folder` | Viewer |
 | `reopen_comment` | Viewer |
 | `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |
@@ -175,6 +178,10 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
+`create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
+
+`rename_folder` takes a `folder_id` and a `title` and needs the Manage permission on the folder.
+Both answer `folder_exists` for a taken title and `rename_folder` answers `general_folder` for the General folder; no tool deletes a folder or changes who may see one, because people do that in the web app or with `observe folders`.
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A retry is safe: when the same caller already saved a dashboard with that title and an identical spec in that folder, `create_dashboard` returns it with `replayed` true instead of making a second one.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.

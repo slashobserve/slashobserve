@@ -63,9 +63,7 @@ var exceptions = map[string]exception{
 	"viewPublicRca":          {MCP: publicView, CLI: publicView},
 	"viewPublicRcaSnapshot":  {MCP: publicView, CLI: publicView},
 
-	"createFolder":         {MCP: notBuilt},
 	"getFolder":            {MCP: notBuilt, CLI: notBuilt},
-	"renameFolder":         {MCP: notBuilt},
 	"deleteFolder":         {MCP: noMCPDeletes},
 	"getFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
 	"setFolderPermissions": {MCP: notBuilt, CLI: notBuilt},

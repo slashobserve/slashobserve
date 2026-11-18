@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -67,11 +66,6 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	}
 	h.logger.ErrorContext(c.Request.Context(), action, logattrs.Failure("internal", err, slog.String("actor_id", httpapi.Caller(c).ID))...)
 	httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
-}
-
-func isPgError(err error, code string) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == code
 }
 
 func (h *Handler) bodies(ctx context.Context, items []folderAccess) ([]folderJSON, error) {
@@ -140,51 +134,34 @@ func (h *Handler) create(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
-	title, err := cleanTitle(req.Title)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-		return
-	}
-	if reservedTitle(title) {
-		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
-		return
-	}
-	ctx := c.Request.Context()
 	caller := httpapi.Caller(c)
-	callerID, err := db.ParseUUID(caller.ID)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+	folder, abilities, err := h.access.CreateFolder(c.Request.Context(), caller, req.Title)
+	if h.abortTitleWrite(c, err, "create folder") {
 		return
 	}
-	row, err := h.db.Queries().CreateFolder(ctx, dbsqlc.CreateFolderParams{
-		Title:         title,
-		CreatedByKind: pgtype.Text{String: string(caller.Kind), Valid: true},
-		CreatedByID:   callerID,
-		CreatedByName: pgtype.Text{String: callerName(caller), Valid: true},
-	})
-	if isPgError(err, uniqueViolation) {
-		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
-		return
-	}
-	if err != nil {
-		h.fail(c, "create folder", err)
-		return
-	}
-	h.logger.InfoContext(ctx, "created a folder", slog.String("actor_id", caller.ID), slog.String("folder_id", row.ID.String()))
-	folder, abilities, err := h.access.Folder(ctx, caller, row.ID)
-	if err != nil {
-		h.fail(c, "create folder", err)
-		return
-	}
-	c.Header("Location", "/api/v1/folders/"+row.ID.String())
+	c.Header("Location", "/api/v1/folders/"+folder.ID.String())
 	h.respondFolder(c, http.StatusCreated, folderAccess{Folder: folder, Abilities: abilities})
 }
 
-func callerName(p auth.Principal) string {
-	if p.Name != "" {
-		return p.Name
+func (h *Handler) abortTitleWrite(c *gin.Context, err error, action string) bool {
+	var invalidTitle *InvalidTitleError
+	switch {
+	case err == nil:
+		return false
+	case errors.As(err, &invalidTitle):
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	case errors.Is(err, ErrFolderExists):
+		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
+	case errors.Is(err, ErrGeneralFolder):
+		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder cannot be renamed")
+	case errors.Is(err, ErrNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
+	case errors.Is(err, ErrForbidden):
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+	default:
+		h.fail(c, action, err)
 	}
-	return p.Email
+	return true
 }
 
 func (h *Handler) rename(c *gin.Context) {
@@ -192,36 +169,11 @@ func (h *Handler) rename(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
-	title, err := cleanTitle(req.Title)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	folder, abilities, err := h.access.RenameFolder(c.Request.Context(), httpapi.Caller(c), folderFrom(c).Folder.ID, req.Title)
+	if h.abortTitleWrite(c, err, "rename folder") {
 		return
 	}
-	if reservedTitle(title) {
-		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
-		return
-	}
-	current := folderFrom(c)
-	if current.Folder.General {
-		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder cannot be renamed")
-		return
-	}
-	ctx := c.Request.Context()
-	row, err := h.db.Queries().RenameFolder(ctx, dbsqlc.RenameFolderParams{ID: current.Folder.ID, Title: title})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
-		return
-	case isPgError(err, uniqueViolation):
-		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
-		return
-	case err != nil:
-		h.fail(c, "rename folder", err)
-		return
-	}
-	h.logger.InfoContext(ctx, "renamed a folder", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("folder_id", row.ID.String()))
-	current.Folder.Title = row.Title
-	h.respondFolder(c, http.StatusOK, current)
+	h.respondFolder(c, http.StatusOK, folderAccess{Folder: folder, Abilities: abilities})
 }
 
 func (h *Handler) remove(c *gin.Context) {
