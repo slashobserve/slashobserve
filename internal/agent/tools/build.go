@@ -193,7 +193,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
 	}, build.Spec, in.changes.edits.Panels)
-	out.advice.noteDroppedVariables(in.before, build.Spec)
+	out.noteDroppedVariables(in.before, build.Spec)
 	res := success(step, out)
 	res.Edits = in.changes.edits
 	return res, nil
@@ -208,7 +208,7 @@ func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep strin
 		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
 	}
 	out := withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)
-	out.advice.noteDroppedVariables(in.before, commit.Version.Spec)
+	out.noteDroppedVariables(in.before, commit.Version.Spec)
 	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), out), nil
 }
 

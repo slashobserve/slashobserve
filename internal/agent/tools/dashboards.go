@@ -485,7 +485,7 @@ func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResul
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
 	out = withAdvice(ctx, out, saved.Version.Spec)
-	out.advice.noteDroppedVariables(before, saved.Version.Spec)
+	out.noteDroppedVariables(before, saved.Version.Spec)
 	return success(savedStep(saved), out)
 }
 
