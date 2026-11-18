@@ -21,10 +21,14 @@ usage() {
   cat <<EOF
 Usage: scripts/evals-stack.sh <command>
 
-  up [--k8s] replay   prepare fixtures and series, then boot the isolated ${PROJECT}
+  up [--k8s] [--no-history] replay
+                      prepare fixtures and series, then boot the isolated ${PROJECT}
                       stack on the replay provider; deploy/compose/.env is not read
-  up [--k8s] <env-file>
+  up [--k8s] [--no-history] <env-file>
                       the same, with the provider settings of the named env file
+  wait-history [--k8s]
+                      wait until the synthetic series hold the history a retime step needs;
+                      what 'up' without --no-history already waited for
   server [--k8s] <env-file>
                       recreate only the server with another env file, for matrix runs
   down                drop the volumes of ${PROJECT} only, and remove its containers
@@ -32,8 +36,11 @@ Usage: scripts/evals-stack.sh <command>
 
 up returns once Prometheus serves what the stack itself guarantees: node_uname_info for the node
 and node-exporter (synthetic) jobs, rates of node_cpu_seconds_total (node job) and the shop's
-http_requests_total, and the synth exporter.
+http_requests_total, the synth exporter, and three minutes of synth samples.
 It waits for rates because they need two scrapes, about 30 seconds after the containers are healthy.
+The three minutes count from Prometheus starting to scrape, so they are the last thing up waits for.
+--no-history returns without them; wait-history then blocks until they are there, so work that
+does not read them can run while they accumulate.
 Series that depend on the host kernel, such as node_pressure_*, are never waited for.
 With --k8s only the node job and the shop are required, because the synthetic series are empty.
 
@@ -118,6 +125,16 @@ SERIES_TIMEOUT=300
 SYNTH_SCRAPE_SECONDS=15
 RETIME_HISTORY_MINUTES=3
 SYNTH_HISTORY_SAMPLES=$((RETIME_HISTORY_MINUTES * 60 / SYNTH_SCRAPE_SECONDS))
+NODE_SERIES_QUERIES=(
+  'count(node_uname_info{job="node"})'
+  'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
+  'count(rate(http_requests_total[1m]))'
+)
+SYNTH_SERIES_QUERIES=(
+  'count(node_uname_info{job="node-exporter"})'
+  'count(up{job="synth"} == 1)'
+)
+SYNTH_HISTORY_QUERY="count_over_time(up{job=\"synth\"}[${RETIME_HISTORY_MINUTES}m]) >= ${SYNTH_HISTORY_SAMPLES}"
 
 series_served() {
   curl -fsS --max-time 5 --get "http://127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}/api/v1/query" --data-urlencode "query=$1" 2>/dev/null |
@@ -125,18 +142,7 @@ series_served() {
 }
 
 wait_for_series() {
-  local queries=(
-    'count(node_uname_info{job="node"})'
-    'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
-    'count(rate(http_requests_total[1m]))'
-  )
-  if [[ "$K8S" == 0 ]]; then
-    queries+=(
-      'count(node_uname_info{job="node-exporter"})'
-      'count(up{job="synth"} == 1)'
-      "count_over_time(up{job=\"synth\"}[${RETIME_HISTORY_MINUTES}m]) >= ${SYNTH_HISTORY_SAMPLES}"
-    )
-  fi
+  local queries=("$@")
   local deadline=$((SECONDS + SERIES_TIMEOUT)) missing query
   while true; do
     missing=()
@@ -154,10 +160,15 @@ wait_for_series() {
 }
 
 cmd_up() {
-  if [[ "${1:-}" == "--k8s" ]]; then
-    use_k8s
+  local wait_history=1 queries
+  while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+      --k8s) use_k8s ;;
+      --no-history) wait_history=0 ;;
+      *) die "unknown option $1" ;;
+    esac
     shift
-  fi
+  done
   [[ $# -eq 1 ]] || die "up needs 'replay' or an env file"
   select_provider "$1"
   cd "$ROOT"
@@ -170,10 +181,23 @@ cmd_up() {
   else
     compose "$ENV_FILE" up -d --no-build --pull missing --wait --wait-timeout 300
   fi
-  wait_for_series || die "the stack is up but its metrics are not ready"
+  queries=("${NODE_SERIES_QUERIES[@]}")
+  if [[ "$K8S" == 0 ]]; then
+    queries+=("${SYNTH_SERIES_QUERIES[@]}")
+    if [[ "$wait_history" == 1 ]]; then queries+=("$SYNTH_HISTORY_QUERY"); fi
+  fi
+  wait_for_series "${queries[@]}" || die "the stack is up but its metrics are not ready"
   if [[ "$K8S" == 1 ]]; then
     join_cluster
   fi
+}
+
+cmd_wait_history() {
+  if [[ "${1:-}" == "--k8s" ]]; then
+    return 0
+  fi
+  [[ $# -eq 0 ]] || die "wait-history takes no argument but --k8s"
+  wait_for_series "$SYNTH_HISTORY_QUERY" || die "the synthetic series did not reach ${RETIME_HISTORY_MINUTES} minutes of history"
 }
 
 cmd_server() {
@@ -203,6 +227,7 @@ command="${1:-}"
 case "$command" in
   up) cmd_up "$@" ;;
   server) cmd_server "$@" ;;
+  wait-history) cmd_wait_history "$@" ;;
   down) cmd_down ;;
   status) cmd_status ;;
   -h | --help | help) usage ;;
