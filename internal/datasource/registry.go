@@ -327,6 +327,10 @@ var healthTexts = []struct {
 	{context.Canceled, "The health check was cancelled"},
 }
 
+func Reason(err error) (message, detail string) {
+	return healthMessage(err), healthDetail(err)
+}
+
 func healthMessage(err error) string {
 	for _, h := range healthTexts {
 		if errors.Is(err, h.kind) {

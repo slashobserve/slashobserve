@@ -317,13 +317,6 @@ func run() error {
 	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
 	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
 
-	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey), Logger: logger})
-	if err := datasourceAdmin.Load(ctx); err != nil {
-		return withheld("datasources_load_failed", err)
-	}
-	stopDatasourceSync := startBackground(ctx, "datasource sync", datasourceAdmin.Run, logger)
-	defer stopDatasourceSync()
-
 	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
 	proposalsService := proposals.New(database, folderAccess, dashboardsService, logger)
@@ -451,6 +444,16 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
+	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
+		DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey),
+		Domains: outbound, OutboundLocked: cfg.OutboundDomainsLocked, Access: folderAccess, Logger: logger,
+	})
+	if err := datasourceAdmin.Load(ctx); err != nil {
+		return withheld("datasources_load_failed", err)
+	}
+	stopDatasourceSync := startBackground(ctx, "datasource sync", datasourceAdmin.Run, logger)
+	defer stopDatasourceSync()
+
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
 		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
@@ -512,6 +515,7 @@ func run() error {
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			datasourceadmin.NewHandler(datasourceAdmin, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},

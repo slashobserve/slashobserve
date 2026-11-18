@@ -8,7 +8,7 @@ Both are fields of the [ObserveSpec](observespec.md) document.
 
 ## Datasources
 
-The `uid` of an entry in the [datasources file](../reference/datasources-file.md) is the name a dashboard uses.
+The `uid` of an entry in the [datasources file](../reference/datasources-file.md), or of a datasource an Admin [added in the app](../connect/datasources-in-the-app.md), is the name a dashboard uses.
 A uid is up to 40 letters, digits, `_` or `-`, starting with a letter or digit.
 The entry's `type`, `prometheus`, `clickhouse`, `loki` or `tempo`, decides the query language and which macros a query may use.
 

@@ -10,10 +10,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 )
@@ -27,12 +30,20 @@ type Slots interface {
 	SetTotal(datasourceUID string, total int)
 }
 
+type Domains interface {
+	Allowed(ctx context.Context) (domains.List, error)
+	Add(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error)
+}
+
 type Deps struct {
-	DB       *db.DB
-	Registry *datasource.Registry
-	Slots    Slots
-	Key      sealed.Key
-	Logger   *slog.Logger
+	DB             *db.DB
+	Registry       *datasource.Registry
+	Slots          Slots
+	Key            sealed.Key
+	Domains        Domains
+	OutboundLocked bool
+	Access         *folders.Access
+	Logger         *slog.Logger
 }
 
 type version struct {
@@ -45,7 +56,11 @@ type Service struct {
 	registry *datasource.Registry
 	slots    Slots
 	key      sealed.Key
+	domains  Domains
+	access   *folders.Access
 	logger   *slog.Logger
+
+	outboundLocked bool
 
 	mu      sync.Mutex
 	applied map[string]version
@@ -56,7 +71,7 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Service{db: d.DB, registry: d.Registry, slots: d.Slots, key: d.Key, logger: logger, applied: map[string]version{}}
+	return &Service{db: d.DB, registry: d.Registry, slots: d.Slots, key: d.Key, domains: d.Domains, access: d.Access, outboundLocked: d.OutboundLocked, logger: logger, applied: map[string]version{}}
 }
 
 func (s *Service) Load(ctx context.Context) error { return s.Reconcile(ctx) }

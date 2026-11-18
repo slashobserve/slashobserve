@@ -13,12 +13,12 @@ var errDatasourceUnhealthy = errors.New("the datasource is still unhealthy")
 func (a *app) datasourcesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "datasources",
-		Short: "List datasources and recheck their health",
-		Long:  "datasources lists the datasources the server queries and runs a fresh health check on one.",
+		Short: "List, recheck and manage datasources",
+		Long:  "datasources lists the datasources the server queries and runs a fresh health check on one.\nget, add, edit, test and remove manage the datasources added in the app and need an Admin key; a datasource from the datasources file cannot be changed here.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand())
+	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand(), a.datasourcesGetCommand(), a.datasourcesAddCommand(), a.datasourcesEditCommand(), a.datasourcesTestCommand(), a.datasourcesRemoveCommand())
 	return cmd
 }
 

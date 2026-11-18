@@ -100,6 +100,91 @@ func (q *Queries) InsertDatasource(ctx context.Context, arg InsertDatasourcePara
 	return i, err
 }
 
+const listDatasourceDashboards = `-- name: ListDatasourceDashboards :many
+SELECT d.id, d.title, (d.folder_id = ANY($1::uuid[]))::boolean AS visible
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+WHERE v.datasource_uids @> ARRAY[$2::text]
+ORDER BY d.title, d.id
+LIMIT 200
+`
+
+type ListDatasourceDashboardsParams struct {
+	Visible []pgtype.UUID
+	Uid     string
+}
+
+type ListDatasourceDashboardsRow struct {
+	ID      pgtype.UUID
+	Title   string
+	Visible bool
+}
+
+func (q *Queries) ListDatasourceDashboards(ctx context.Context, arg ListDatasourceDashboardsParams) ([]ListDatasourceDashboardsRow, error) {
+	rows, err := q.db.Query(ctx, listDatasourceDashboards, arg.Visible, arg.Uid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDatasourceDashboardsRow
+	for rows.Next() {
+		var i ListDatasourceDashboardsRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.Visible); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDatasourceSavedSearches = `-- name: ListDatasourceSavedSearches :many
+SELECT id, title, kind, (folder_id = ANY($1::uuid[]))::boolean AS visible
+FROM saved_searches
+WHERE datasource_uid = $2
+ORDER BY title, id
+LIMIT 200
+`
+
+type ListDatasourceSavedSearchesParams struct {
+	Visible []pgtype.UUID
+	Uid     string
+}
+
+type ListDatasourceSavedSearchesRow struct {
+	ID      pgtype.UUID
+	Title   string
+	Kind    string
+	Visible bool
+}
+
+func (q *Queries) ListDatasourceSavedSearches(ctx context.Context, arg ListDatasourceSavedSearchesParams) ([]ListDatasourceSavedSearchesRow, error) {
+	rows, err := q.db.Query(ctx, listDatasourceSavedSearches, arg.Visible, arg.Uid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDatasourceSavedSearchesRow
+	for rows.Next() {
+		var i ListDatasourceSavedSearchesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Kind,
+			&i.Visible,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDatasources = `-- name: ListDatasources :many
 SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at FROM datasources ORDER BY uid
 `

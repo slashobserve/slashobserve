@@ -285,6 +285,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `spec.DatasourceVariableName` is the only parser.
   A literal uid's type comes from the registry and a `${name}` reference's from the variable's `datasourceType`, so the query proxy, not `spec.Parse`, rejects a macro the type lacks (`unknown_macro`).
 - `GET /api/v1/datasources` never returns a URL, address, user or secret.
+  Only the Admin-only `GET /api/v1/datasources/{uid}/config` returns the address and login, and no route returns a stored credential; app datasources are sealed with `sealed.Key` and managed through `datasourceadmin`, HTTP and CLI only.
   The health `message` is a fixed string chosen by error kind, never the error's own text.
   Datasources never gate `/readyz`.
 - ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.

@@ -2,20 +2,28 @@ package datasourceadmin
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 )
 
@@ -53,18 +61,44 @@ type rig struct {
 	db       *db.DB
 	registry *datasource.Registry
 	slots    *slotTotals
+	domains  *allowlist.Store
+	access   *folders.Access
+	admin    auth.Principal
+}
+
+type rigOptions struct {
+	key  sealed.Key
+	lock allowlist.Lock
+	file []datasource.Instance
 }
 
 func newRig(t *testing.T, key sealed.Key, file ...datasource.Instance) (*rig, *Service) {
 	t.Helper()
+	return newRigWith(t, rigOptions{key: key, file: file})
+}
+
+func newRigWith(t *testing.T, opts rigOptions) (*rig, *Service) {
+	t.Helper()
 	database := dbtest.New(t)
-	registry, err := datasource.NewRegistry(nil, file...)
+	registry, err := datasource.NewRegistry(nil, opts.file...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = registry.Close() })
-	r := &rig{db: database.DB, registry: registry, slots: &slotTotals{}}
-	return r, New(Deps{DB: database.DB, Registry: registry, Slots: r.slots, Key: key})
+	r := &rig{
+		db: database.DB, registry: registry, slots: &slotTotals{},
+		domains: allowlist.New(database.DB, opts.lock, slog.New(slog.DiscardHandler)),
+		access:  folders.NewAccess(database.DB),
+	}
+	user, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: "ada", Email: "ada@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.admin = auth.Principal{Kind: auth.KindUser, ID: user.ID.String(), Name: "ada", Email: "ada@example.com", Role: auth.RoleAdmin}
+	return r, New(Deps{
+		DB: database.DB, Registry: registry, Slots: r.slots, Key: opts.key,
+		Domains: r.domains, OutboundLocked: opts.lock.Locked, Access: r.access,
+	})
 }
 
 func prometheus(uid, address string) Definition {
@@ -99,15 +133,6 @@ func namesOrEmpty(secrets Secrets) []string {
 	return []string{}
 }
 
-func newID() pgtype.UUID {
-	var id pgtype.UUID
-	_, _ = rand.Read(id.Bytes[:])
-	id.Bytes[6] = id.Bytes[6]&0x0f | 0x40
-	id.Bytes[8] = id.Bytes[8]&0x3f | 0x80
-	id.Valid = true
-	return id
-}
-
 func upstream(t *testing.T, seenAuth *string) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +140,11 @@ func upstream(t *testing.T, seenAuth *string) *httptest.Server {
 			*seenAuth = r.Header.Get("Authorization")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+		if strings.HasSuffix(r.URL.Path, "/query_range") {
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{},"values":[[1700000000,"1"],[1700000060,"2"]]}]}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1700000000,"1"]}]}}`))
 	}))
 	t.Cleanup(server.Close)
 	return server
@@ -253,5 +282,19 @@ func TestReconcileNeverReplacesAFileDatasource(t *testing.T) {
 	in, _ := r.registry.Get("prom")
 	if in.Source != datasource.SourceFile || in.Name != "From file" {
 		t.Fatalf("instance = %+v, the file datasource must win", in)
+	}
+}
+
+func addDashboard(t *testing.T, r *rig, title, datasourceUID string) {
+	t.Helper()
+	logger := slog.New(slog.DiscardHandler)
+	service := dashboards.New(r.db, queryproxy.NewRunner(r.registry, logger), r.access, logger)
+	spec := fmt.Sprintf(`{"specVersion":"0","title":%q,"description":"","tags":[],"time":{"from":"now-15m","to":"now"},"panels":[{"id":"p","type":"timeseries","title":"p","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":%q,"queries":[{"query":"up"}]}]}`, title, datasourceUID)
+	if _, _, err := service.Create(t.Context(), r.admin, pgtype.UUID{}, []byte(spec), "create"); err != nil {
+		var invalidSpec *dashboards.InvalidSpecError
+		if errors.As(err, &invalidSpec) {
+			t.Fatalf("%v: %+v", err, invalidSpec.Issues)
+		}
+		t.Fatal(err)
 	}
 }

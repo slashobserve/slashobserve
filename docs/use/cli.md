@@ -426,6 +426,11 @@ An unhealthy one shows the failure and, when the server knows it, the cause.
 `bin/observe datasources recheck <uid>` skips the server's 10 second health cache, prints the new status and exits 1 while the datasource is unhealthy.
 Any role can list and recheck; `--json` prints the API response.
 
+An Admin can also run `datasources get <uid>` (address, login and which credentials are set, never their values), `add <uid> --type <type> --address <address>`, `edit <uid>`, `test <uid> [--saved]` and `remove <uid>`.
+Credentials come from `--password-file`, `--bearer-token-file`, `--api-key-file` or `--header NAME=FILE`, where `-` reads standard input once, and `--clear` removes a stored one.
+`test` exits 1 while the datasource is unhealthy, and `remove` lists the dashboards and saved searches that still use the datasource.
+See [Add datasources in the app](../connect/datasources-in-the-app.md).
+
 ## Logs
 
 `bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:

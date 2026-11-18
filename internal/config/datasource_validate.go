@@ -13,14 +13,14 @@ import (
 const maxDatasourceNameRunes = 100
 
 type FieldError struct {
-	Field   string
-	Message string
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }
 
 func (e FieldError) Error() string { return e.Field + ": " + e.Message }
 
 func (d Datasource) Validate() []FieldError {
-	errs := d.validateCommon()
+	errs := append(d.validateCommon(), d.validateAliases()...)
 	blocks := map[string]bool{
 		typePrometheus:    d.Prometheus != nil,
 		typeClickHouse:    d.ClickHouse != nil,
@@ -64,6 +64,25 @@ func (d Datasource) validateCommon() []FieldError {
 	}
 	if d.MaxConcurrentQueries > maxConcurrentQueries {
 		errs = append(errs, FieldError{"limits.maxConcurrentQueries", fmt.Sprintf("must be at most %d", maxConcurrentQueries)})
+	}
+	return errs
+}
+
+func (d Datasource) validateAliases() []FieldError {
+	var errs []FieldError
+	if len(d.GrafanaUIDs) > maxGrafanaUIDs {
+		errs = append(errs, FieldError{"grafana_uids", fmt.Sprintf("at most %d entries", maxGrafanaUIDs)})
+	}
+	seen := map[string]bool{}
+	for i, alias := range d.GrafanaUIDs {
+		field := fmt.Sprintf("grafana_uids[%d]", i)
+		switch problem := grafanaUIDProblem(alias); {
+		case problem != "":
+			errs = append(errs, FieldError{field, problem})
+		case seen[alias]:
+			errs = append(errs, FieldError{field, fmt.Sprintf("duplicate %q", alias)})
+		}
+		seen[alias] = true
 	}
 	return errs
 }

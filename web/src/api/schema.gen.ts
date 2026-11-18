@@ -461,7 +461,11 @@ export interface paths {
         /** Report the health and dashboard usage of every configured datasource, never its connection details. */
         get: operations["listDatasources"];
         put?: never;
-        post?: never;
+        /**
+         * Add a datasource in the app.
+         * @description Only Admins can call this endpoint. The server saves the definition, encrypts every credential with a key derived from `SLASHOBSERVE_SECRET_KEY`, and starts using the datasource at once; other servers pick it up within 15 seconds. The uid must not belong to any datasource, from the file or the app, so a retried request answers 409 `uid_taken` and never adds a second one. The address host must pass the outbound allowlist like a Grafana connection's: a domain name is added to an unlocked list, and refused when the list is set by configuration and does not hold it. An IP address or a name without a dot cannot be listed, so it is refused when the list is set by configuration. Link-local, unspecified and multicast addresses are always refused. At most 100 datasources can be added in the app.
+         */
+        post: operations["createDatasource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1100,6 +1104,74 @@ export interface paths {
          * @description A custom variable returns its options without an upstream call. A constant returns its value, an interval variable its options with `$__auto` first when `auto` is set, and a datasource variable the uids of the configured datasources of its type; a textbox variable lists nothing, and an adhoc or group by variable has no list, so asking for it is a 400. A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters (not listed below, see the panel data operation); an earlier variable without a selection gets its default, and a selection for the listed variable or a later one is a 400. `from` and `to` behave as for panel data, and the range is aligned like the default range of a range panel. The same query-text refusal and in-flight limit apply.
          */
         get: operations["getVariableValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a datasource definition against the real datasource without saving it.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, and a domain name is added to an unlocked list. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+         */
+        post: operations["testDatasource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a datasource added in the app.
+         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        delete: operations["deleteDatasource"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a datasource added in the app.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        patch: operations["updateDatasource"];
+        trace?: never;
+    };
+    "/datasources/{uid}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the definition of a datasource added in the app.
+         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        get: operations["getDatasourceConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3956,6 +4028,123 @@ export interface components {
         };
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];
+        };
+        DatasourceLimits: {
+            /** @description A duration such as `30s`; empty uses the adapter default. */
+            timeout?: string;
+            max_series?: number;
+            max_points?: number;
+            max_rows?: number;
+            /** @description The most queries this datasource runs at once across the fleet; 0 uses the default of 32. */
+            max_concurrent_queries?: number;
+        };
+        /** @description Which fields of an Elasticsearch or OpenSearch index play which role in logs and traces. */
+        DatasourceFieldRoles: {
+            message?: string;
+            level?: string;
+            service?: string;
+            trace_id?: string;
+            span_id?: string;
+        };
+        /** @description Credentials, written and never read back. A field left out keeps what is stored; a value replaces it. */
+        DatasourceSecrets: {
+            /** @description The basic-auth password, or the ClickHouse password. */
+            password?: string;
+            bearer_token?: string;
+            /** @description The Elasticsearch or OpenSearch API key. */
+            api_key?: string;
+            /** @description Custom request headers by name. Every value is treated as a credential. */
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        /** @description A datasource definition. Creating needs `uid`, `type` and `address`. Changing and testing a saved datasource take only the fields to change. */
+        DatasourceDraft: {
+            uid?: string;
+            /** @enum {string} */
+            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
+            /** @description The display name; the uid when empty. */
+            name?: string;
+            /** @description Grafana datasource uids this one stands for when dashboards are imported. */
+            grafana_uids?: string[];
+            /** @description An http or https URL, or `host:port` for ClickHouse. A login belongs in `username` and `secrets`, not here. */
+            address?: string;
+            /** @description The basic-auth user, or the ClickHouse user. */
+            username?: string;
+            /** @description ClickHouse only. */
+            database?: string;
+            /** @description ClickHouse only. */
+            tls?: boolean;
+            /** @description Loki only. */
+            tenant_id?: string;
+            /** @description Prometheus only, a duration such as `15s`. */
+            scrape_interval?: string;
+            /** @description Elasticsearch and OpenSearch only. */
+            index?: string;
+            time_field?: string;
+            /** @enum {string} */
+            query_language?: "" | "kql" | "lucene";
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            secrets?: components["schemas"]["DatasourceSecrets"];
+            /** @description Credentials to remove, each `password`, `bearer_token`, `api_key` or `header:<name>`. */
+            clear_secrets?: string[];
+        };
+        /** @description A datasource added in the app, without its credentials. */
+        DatasourceConfig: {
+            uid: string;
+            type: string;
+            name: string;
+            /** @enum {string} */
+            source: "app";
+            grafana_uids?: string[];
+            address: string;
+            username?: string;
+            database?: string;
+            tls?: boolean;
+            tenant_id?: string;
+            scrape_interval?: string;
+            index?: string;
+            time_field?: string;
+            query_language?: string;
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */
+            secrets_set: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DatasourceTestResult: {
+            healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
+            message?: string;
+            /** @description The cause when the server knows it; never an address, user or secret. */
+            detail?: string;
+        };
+        InvalidDatasourceError: {
+            error: string;
+            /** @enum {string} */
+            code: "invalid_datasource";
+            fields: {
+                field: string;
+                message: string;
+            }[];
+        };
+        DatasourceInUseError: {
+            error: string;
+            /** @enum {string} */
+            code: "datasource_in_use";
+            used_by: {
+                /** @enum {string} */
+                kind: "dashboard" | "saved_search";
+                /** Format: uuid */
+                id: string;
+                title: string;
+            }[];
+            /** @description How many more dashboards and saved searches use it in folders the caller cannot see. */
+            hidden: number;
         };
         MetricName: {
             name: string;
@@ -7716,6 +7905,61 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    createDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The datasource is saved and in use; credentials are not returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix), 100 datasources already exist (`too_many_datasources`), or the outbound allowlist is full (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     listFolders: {
         parameters: {
             query?: never;
@@ -9337,6 +9581,191 @@ export interface operations {
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
             504: components["responses"]["QueryTimeout"];
+        };
+    };
+    testDatasource: {
+        parameters: {
+            query?: {
+                /** @description The uid of a saved app datasource to start from. */
+                base?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The result of the health check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceInUseError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The changed datasource; credentials are not returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the new address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDatasourceConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The definition without credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
         };
     };
     recheckDatasource: {
