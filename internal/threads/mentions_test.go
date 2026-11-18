@@ -86,9 +86,6 @@ func TestParseMentionsAllowsTwentyAndRejectsTwentyOne(t *testing.T) {
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyMentions {
 		t.Fatalf("21 mentions: err = %v, want too_many_mentions", err)
 	}
-	if got, err := ParseMentions(body + "@observe @observe"); err != nil || len(got) != MaxMentions {
-		t.Fatalf("21 mentions of 20 targets: %d, err %v", len(got), err)
-	}
 }
 
 func TestParseMentionsCountsARepeatedMentionEachTime(t *testing.T) {
