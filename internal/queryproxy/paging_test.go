@@ -202,3 +202,48 @@ func TestLimitNoteTellsHowToGetMore(t *testing.T) {
 		}
 	}
 }
+
+func TestRunPageTiesACursorToTheSortItWasMadeWith(t *testing.T) {
+	source := &fakePageSource{fakeDatasource: newFake("clickhouse"), byOffset: true, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return dataFrames(), datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, Next: &datasource.PageCursor{Page: req.Page + 1}}, nil
+	}}
+	inst := datasource.Instance{UID: "logs", Datasource: sortablePageSource{source}}
+	r := newRunnerOf(t, discardLogger(), inst)
+	first := pageParams(1, "")
+	first.Sort = "-Duration"
+	res, err := r.RunPage(context.Background(), inst, first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]struct{ sort, want string }{
+		"no sort":      {"", "this cursor was made with sort -Duration; send sort -Duration with it"},
+		"another sort": {"Duration", "this cursor was made with sort -Duration; send sort -Duration with it"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			params := pageParams(1, res.Next)
+			params.Sort = tc.sort
+			_, err := r.RunPage(context.Background(), inst, params)
+			if !errors.Is(err, ErrInvalidRequest) || err.Error() != tc.want {
+				t.Fatalf("err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+	same := pageParams(1, res.Next)
+	same.Sort = "-Duration"
+	if _, err := r.RunPage(context.Background(), inst, same); err != nil {
+		t.Fatalf("same sort refused: %v", err)
+	}
+	unsorted, err := r.RunPage(context.Background(), inst, pageParams(1, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	withSort := pageParams(1, unsorted.Next)
+	withSort.Sort = "-Duration"
+	if _, err := r.RunPage(context.Background(), inst, withSort); err == nil || err.Error() != "this cursor was made without a sort; leave sort out" {
+		t.Fatalf("err = %v, want the cursor made without a sort refused", err)
+	}
+	if len(source.pages) != 3 {
+		t.Fatalf("%d pages ran, want 3 (two firsts and the walk with the same sort)", len(source.pages))
+	}
+}

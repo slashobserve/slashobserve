@@ -82,7 +82,7 @@ datasources-uid-query:
               cursor:
                 type: string
                 maxLength: 2048
-                description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused.
+                description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused, and so is one whose `sort` differs from the one sent with it.
               sort:
                 type: string
                 maxLength: 65

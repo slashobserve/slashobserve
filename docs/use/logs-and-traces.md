@@ -558,6 +558,7 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 
 `limit` lowers the row limit and never raises it above 1,000.
 With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
+A cursor remembers the sort it was made with, so send the same `sort` with every cursor of a walk; a cursor sent without it, or with another, is refused with a message naming the sort.
 `POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 

@@ -46,7 +46,7 @@ const (
 	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows."}`
 	propPage     = `"page":{"type":"integer","minimum":1,"description":"Page to read, from 1; on Loki and Tempo pass cursor instead of a page above 1."}`
 	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page."}`
-	propSort     = `"sort":{"type":"string","maxLength":65,"description":"ClickHouse paging: order all rows by this result column, minus for descending, such as -Duration."}`
+	propSort     = `"sort":{"type":"string","maxLength":65,"description":"ClickHouse: order all rows by this result column, - for descending, e.g. -Duration; resend it with each cursor."}`
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `,` + propSort + `},"required":["datasource","query"],"additionalProperties":false}`
 )

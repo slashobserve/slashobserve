@@ -89,6 +89,9 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 		if err != nil {
 			return PageResult{}, invalidPage(cursorMessage(err))
 		}
+		if cursor.Sort != p.Sort {
+			return PageResult{}, invalidPage(cursorSortMessage(cursor.Sort))
+		}
 		req.Cursor, req.Page = cursor, cursor.Page
 		req.Range = datasource.TimeRange{From: time.Unix(0, cursor.FromNs).UTC(), To: time.Unix(0, cursor.ToNs).UTC()}
 	} else if req.Page > 1 && !source.PagesByOffset() {
@@ -109,6 +112,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	res := PageResult{Frames: frames, Range: req.Range, Info: info, HasPrev: info.Page > 1}
 	if info.Next != nil {
 		next := *info.Next
+		next.Sort = p.Sort
 		next.Scope, next.FromNs, next.ToNs = scope, req.Range.From.UnixNano(), req.Range.To.UnixNano()
 		res.Next = datasource.EncodeCursor(next)
 	}
@@ -116,6 +120,13 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 		res.Prev = p.Cursor
 	}
 	return res, nil
+}
+
+func cursorSortMessage(made string) string {
+	if made == "" {
+		return "this cursor was made without a sort; leave sort out"
+	}
+	return "this cursor was made with sort " + made + "; send sort " + made + " with it"
 }
 
 func cursorMessage(err error) string {

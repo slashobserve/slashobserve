@@ -42,6 +42,7 @@ type PageCursor struct {
 	ToNs   int64    `json:"to_ns"`
 	EndNs  int64    `json:"end_ns"`
 	Seen   []string `json:"seen,omitempty"`
+	Sort   string   `json:"sort,omitempty"`
 }
 
 type PageSort struct {
