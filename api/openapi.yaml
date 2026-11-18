@@ -333,6 +333,17 @@ components:
           type: string
         code:
           type: string
+        needed_role:
+          type: string
+          enum: [viewer, commenter, editor, admin]
+          description: On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+        needed_access:
+          type: string
+          enum: [view, comment, edit, manage]
+          description: On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+        folder_title:
+          type: string
+          description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
     Issue:
       type: object
       additionalProperties: false

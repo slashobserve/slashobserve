@@ -23,6 +23,7 @@ An MCP client a person connects has the same reach: it may do over MCP what the 
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
+The body says what would let it through: `needed_access` (`view`, `comment`, `edit` or `manage`) with the `folder_title` it applies to, or `needed_role` for a route that needs a role, and the web app shows it as "it needs Edit on Payments".
 A service-account key can never create or revoke keys, whatever its role.
 A canvas action sends a request to another site on a person's behalf (see [Actions](../operate/outbound-access.md#actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
 

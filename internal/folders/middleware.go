@@ -54,7 +54,7 @@ func (a *Access) RequireDashboard(n Need) gin.HandlerFunc {
 			return
 		}
 		if !access.Abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+			c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsAccess(n.Level(), access.Folder.Title))
 			return
 		}
 		c.Set(dashboardKey{}, access)
@@ -81,7 +81,7 @@ func (a *Access) RequireFolder(n Need) gin.HandlerFunc {
 			return
 		}
 		if !abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+			c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsAccess(n.Level(), folder.Title))
 			return
 		}
 		c.Set(folderKey{}, folderAccess{Folder: folder, Abilities: abilities})

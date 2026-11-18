@@ -3384,6 +3384,18 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /**
+             * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+             * @enum {string}
+             */
+            needed_role?: "viewer" | "commenter" | "editor" | "admin";
+            /**
+             * @description On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+             * @enum {string}
+             */
+            needed_access?: "view" | "comment" | "edit" | "manage";
+            /** @description The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder. */
+            folder_title?: string;
         };
         Issue: {
             path: string;
