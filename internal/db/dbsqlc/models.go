@@ -640,6 +640,19 @@ type Snapshot struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type Team struct {
+	ID            pgtype.UUID
+	Name          string
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+}
+
+type TeamMember struct {
+	TeamID  pgtype.UUID
+	UserID  pgtype.UUID
+	AddedAt pgtype.Timestamptz
+}
+
 type Thread struct {
 	ID                   pgtype.UUID
 	DashboardID          pgtype.UUID

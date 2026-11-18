@@ -1,6 +1,6 @@
 ---
 title: People
-description: How people join, how an Admin invites, deactivates, reactivates and removes them, and what happens to what they made.
+description: How people join, how an Admin invites, deactivates, reactivates and removes them, how teams share folders, and what happens to what they made.
 ---
 
 The People page lists everyone who has signed in, and the people invited who have not signed in yet.
@@ -63,11 +63,23 @@ What they made in shared folders stays, under the name it was saved with: dashbo
 Service accounts and API keys they created stay and keep working.
 Removal cannot be undone; if the same identity-provider account signs in later, it joins as a new person with an empty My Dashboards.
 
+## Teams
+
+A team is a named group of people that an Admin keeps in SlashObserve, for when your identity provider sends no groups or not the ones you need.
+Under **Teams** on the People page, choose **New team**, then **Add person** on its row; the X on a member removes them.
+
+A team's name works like a group from the identity provider in a folder's access list: add the name as a group entry (see [Folders and access](folders.md)), and every member gets that level.
+A change applies at each member's next request, with no new sign-in.
+A team never changes anyone's role, because roles come only from the identity provider's groups and the rules in [Roles](roles.md).
+Names are unique without regard to case, but a folder entry matches the exact name; a team with the same name as an identity-provider group adds its members to that group's entries.
+Deleting a team ends what its name gave its members; folder entries for the name stay and match no one until a team or an identity-provider group of that name exists.
+Removing a person also removes them from every team.
+
 ## Over the API
 
-`GET /api/v1/users`, `POST /api/v1/invites`, `GET /api/v1/invites` and `DELETE /api/v1/invites/{id}` take an Admin signed in or an Admin service-account key, so an agent with an Admin key can list and invite people through [`observe people`](../use/cli.md#people).
+`GET /api/v1/users`, the `/api/v1/invites` routes and the `/api/v1/teams` routes take an Admin signed in or an Admin service-account key, so an agent with an Admin key can list and invite people through [`observe people`](../use/cli.md#people) and manage teams through [`observe teams`](../use/cli.md#teams).
 Inviting a pending email again answers 200 and changes its role.
-No MCP tool manages people: who may sign in, and with which role, is an Admin's decision, as a webhook is.
+No MCP tool manages people or teams: who may sign in, with which role and with which access, is an Admin's decision, as a webhook is.
 
 `POST /api/v1/users/{id}/deactivate`, `POST /api/v1/users/{id}/reactivate` and `DELETE /api/v1/users/{id}` need an Admin signed in to the web app.
 Removing an active person answers 409 with code `not_deactivated`; a deactivated person's `personal_items` gives the counts the removal deletes.

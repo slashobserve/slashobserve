@@ -42,6 +42,12 @@ paths:
     $ref: "./paths/invites.yaml#/invites"
   /invites/{id}:
     $ref: "./paths/invites.yaml#/invites-id"
+  /teams:
+    $ref: "./paths/teams.yaml#/teams"
+  /teams/{id}:
+    $ref: "./paths/teams.yaml#/teams-id"
+  /teams/{id}/members/{user_id}:
+    $ref: "./paths/teams.yaml#/teams-id-members-userid"
   /outbound-domains:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
@@ -415,6 +421,60 @@ components:
         next_cursor:
           type: string
           nullable: true
+    TeamMember:
+      type: object
+      additionalProperties: false
+      required: [id, name, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    Team:
+      type: object
+      additionalProperties: false
+      required: [id, name, created_by, created_at, members]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The group name a folder entry uses to share with the team's members.
+        created_by:
+          type: string
+          description: The name of the Admin or service account that created the team.
+        created_at:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+    TeamList:
+      type: object
+      additionalProperties: false
+      required: [teams]
+      properties:
+        teams:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/Team"
+    CreateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
     CreateInviteRequest:
       type: object
       additionalProperties: false

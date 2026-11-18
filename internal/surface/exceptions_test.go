@@ -196,6 +196,11 @@ var exceptions = map[string]exception{
 	"listInvites":           {MCP: peopleAdmin},
 	"createInvite":          {MCP: peopleAdmin},
 	"deleteInvite":          {MCP: noMCPDeletes},
+	"listTeams":             {MCP: peopleAdmin},
+	"createTeam":            {MCP: peopleAdmin},
+	"deleteTeam":            {MCP: noMCPDeletes},
+	"addTeamMember":         {MCP: peopleAdmin},
+	"removeTeamMember":      {MCP: noMCPDeletes},
 
 	"listWebhooks":          {MCP: webhookAdmin},
 	"createWebhook":         {MCP: webhookAdmin},

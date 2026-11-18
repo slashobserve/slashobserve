@@ -68,7 +68,8 @@ SELECT p.user_id, p.group_name, p.level,
   coalesce(u.email, '')::text AS user_email,
   coalesce(u.role, '')::text AS user_role,
   CASE WHEN p.group_name IS NULL THEN 0
-    ELSE (SELECT count(*) FROM users m WHERE p.group_name = ANY(m.groups))
+    ELSE (SELECT count(*) FROM users m WHERE p.group_name = ANY(m.groups)
+      OR EXISTS (SELECT 1 FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = m.id AND t.name = p.group_name))
   END::integer AS member_count
 FROM folder_permissions p
 LEFT JOIN users u ON u.id = p.user_id

@@ -70,7 +70,8 @@ UPDATE users SET role = @role, role_source = @role_source, role_group = sqlc.nar
 WHERE id = @id;
 
 -- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = @id AND deactivated_at IS NULL;
+SELECT u.id, u.email, u.name, u.role, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
+FROM users u WHERE u.id = @id AND u.deactivated_at IS NULL;
 
 -- name: SetManualRole :exec
 UPDATE users SET manual_role = sqlc.narg('manual_role'), manual_role_by_id = sqlc.narg('by_id'), manual_role_by_name = sqlc.narg('by_name')

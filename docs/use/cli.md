@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `people`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `people`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -636,6 +636,22 @@ bin/observe people uninvite <invite id>
 - `uninvite <invite id>` withdraws a pending invite.
 
 Deactivating and reactivating people is done by an Admin in the web app, because a key never ends another person's sessions.
+
+## Teams
+
+`bin/observe teams` manages the [teams](../teams/people.md#teams) whose names share folders with their members.
+Every verb needs an Admin key.
+
+```sh
+bin/observe teams create sre
+bin/observe teams add <team id> <person id>
+bin/observe teams list
+```
+
+- `list` prints each team's id, name, number of members and their names.
+- `create <name>` creates a team with no members; a name another team has, in any case, fails with `team_exists`.
+- `add <team id> <person id>` and `remove <team id> <person id>` change the members and print the team; `observe people list` prints the person ids.
+- `delete <team id>` deletes the team.
 
 ## Agent skill
 

@@ -77,6 +77,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g.POST("/:id/reactivate", auth.RoleAdmin, auth.RequireUser, h.reactivate)
 	g.DELETE("/:id", auth.RoleAdmin, auth.RequireUser, h.remove)
 	h.registerInvites(api)
+	h.registerTeams(api)
 }
 
 func (h *Handler) list(c *gin.Context) {

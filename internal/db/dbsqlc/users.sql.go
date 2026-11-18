@@ -147,7 +147,8 @@ func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserFo
 }
 
 const getUserPrincipal = `-- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = $1 AND deactivated_at IS NULL
+SELECT u.id, u.email, u.name, u.role, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
+FROM users u WHERE u.id = $1 AND u.deactivated_at IS NULL
 `
 
 type GetUserPrincipalRow struct {

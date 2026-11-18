@@ -122,7 +122,7 @@ func (a *app) command() *cobra.Command {
 	a.addPromptFlags(root)
 	a.addOpenFlag(root)
 
-	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.peopleCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand())
+	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.peopleCommand(), a.teamsCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand())
 	root.Long += quotedCommandsNote(root)
 	return root
 }

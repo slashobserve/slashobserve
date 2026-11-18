@@ -10,6 +10,7 @@ import { InvitesTable } from "@/people/invites-table"
 import { PeopleTable } from "@/people/people-table"
 import { RoleLegend } from "@/people/role-legend"
 import { SignInBanner } from "@/people/sign-in-banner"
+import { TeamsCard } from "@/people/teams-card"
 
 export const Route = createFileRoute("/_authed/_shell/people")({
   staticData: { crumbs: [{ label: "People" }] },
@@ -44,6 +45,7 @@ function PeoplePage() {
       <InvitesTable />
       <RoleLegend />
       <PeopleTable />
+      <TeamsCard />
     </RoleGate>
   )
 }
