@@ -380,19 +380,37 @@ func checkSpecPresent(raw json.RawMessage) (Result, bool) {
 	return Result{}, true
 }
 
+func decodeCreateInput(input json.RawMessage, inBuild bool) (createInput, Result, bool) {
+	var in createInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return in, res, false
+	}
+	if res, ok := checkSpecPresent(in.Spec); !ok {
+		return in, res, false
+	}
+	res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuild)
+	return in, res, ok
+}
+
+func importOnlyRefusal(raw json.RawMessage) (Result, bool) {
+	parsed, err := spec.Parse(raw)
+	if err != nil {
+		return Result{}, false
+	}
+	issues := importOnlyIssues(parsed, nil)
+	if len(issues) == 0 {
+		return Result{}, false
+	}
+	return importOnlyFailure(issues), true
+}
+
 func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
 	principal, run, scoped, err := r.saveRun(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	var in createInput
-	if res, ok := decodeInput(input, &in); !ok {
-		return res, nil
-	}
-	if res, ok := checkSpecPresent(in.Spec); !ok {
-		return res, nil
-	}
-	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuildRun(run, scoped)); !ok {
+	in, res, ok := decodeCreateInput(input, inBuildRun(run, scoped))
+	if !ok {
 		return res, nil
 	}
 	if scoped {
@@ -408,20 +426,15 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
-	if parsed, err := spec.Parse(in.Spec); err == nil {
-		if issues := importOnlyIssues(parsed, nil); len(issues) > 0 {
-			return importOnlyFailure(issues), nil
-		}
+	if res, ok := importOnlyRefusal(in.Spec); ok {
+		return res, nil
 	}
 	if inBuildRun(run, scoped) {
 		return r.buildCreate(ctx, principal, run, in)
 	}
 	if !requestID.Valid {
-		if dash, ver, found, err := r.identicalDashboard(ctx, principal, folderID, in.Spec); err != nil {
-			return Result{}, err
-		} else if found {
-			replayed := true
-			return success("Found the dashboard already saved as version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+		if res, found, err := r.alreadySaved(ctx, principal, folderID, in.Spec); err != nil || found {
+			return res, err
 		}
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
@@ -435,6 +448,15 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 }
 
 const identicalSearchLimit = 50
+
+func (r *Registry) alreadySaved(ctx context.Context, principal auth.Principal, folderID pgtype.UUID, raw json.RawMessage) (Result, bool, error) {
+	dash, ver, found, err := r.identicalDashboard(ctx, principal, folderID, raw)
+	if err != nil || !found {
+		return Result{}, false, err
+	}
+	replayed := true
+	return success("Found the dashboard already saved as version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), true, nil
+}
 
 func (r *Registry) identicalDashboard(ctx context.Context, principal auth.Principal, requested pgtype.UUID, raw json.RawMessage) (dashboards.Dashboard, dashboards.Version, bool, error) {
 	parsed, err := spec.Parse(raw)

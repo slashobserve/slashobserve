@@ -19,7 +19,7 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query is checked with the same lint as lint_query and a query that fails it is not saved; draft_query writes one. Returns its url."
+	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. The query must pass lint_query, or it is not saved; draft_query writes one. Returns its url."
 	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
