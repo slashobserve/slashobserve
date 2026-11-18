@@ -15,7 +15,8 @@ function focusElement(element: HTMLElement) {
 export function focusPage(doc: Document) {
   const target =
     doc.querySelector<HTMLElement>("main h1") ??
-    doc.querySelector<HTMLElement>("main")
+    doc.querySelector<HTMLElement>("main") ??
+    doc.querySelector<HTMLElement>("h1")
   if (target) focusElement(target)
 }
 

@@ -23,4 +23,21 @@ describe("SkipLink", () => {
     await user.keyboard("{Enter}")
     expect(screen.getByRole("heading", { name: "Dashboards" })).toHaveFocus()
   })
+
+  it("moves focus to the page heading on a page that has no main landmark", async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <SkipLink />
+        <div>
+          <h1>Approve access</h1>
+        </div>
+      </>
+    )
+    await user.tab()
+    await user.keyboard("{Enter}")
+    expect(
+      screen.getByRole("heading", { name: "Approve access" })
+    ).toHaveFocus()
+  })
 })
