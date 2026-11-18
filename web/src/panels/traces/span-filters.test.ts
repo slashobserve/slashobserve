@@ -153,7 +153,7 @@ describe("criticalPath", () => {
     expect([...criticalPath(spans)].sort()).toEqual(["first", "root", "second"])
   })
 
-  it("clamps a child that ends after its parent", () => {
+  it("keeps a child that ends after its parent", () => {
     const spans = [
       span("root", null, 0, 50, { hasChildren: true }),
       span("skewed", "root", 10, 80, { depth: 1 }),
@@ -161,12 +161,28 @@ describe("criticalPath", () => {
     expect([...criticalPath(spans)].sort()).toEqual(["root", "skewed"])
   })
 
-  it("ignores a child that starts after its parent ended", () => {
+  it("keeps an async child that starts after its parent ended", () => {
     const spans = [
       span("root", null, 0, 50, { hasChildren: true }),
       span("late", "root", 60, 10, { depth: 1 }),
     ]
-    expect([...criticalPath(spans)]).toEqual(["root"])
+    expect([...criticalPath(spans)].sort()).toEqual(["late", "root"])
+  })
+
+  it("reaches the last finishing span through parents that ended long before", () => {
+    const spans = [
+      span("root", null, 0, 100, { hasChildren: true }),
+      span("http", "root", 0, 90, { depth: 1, hasChildren: true }),
+      span("checkout", "http", 5, 40, { depth: 2, hasChildren: true }),
+      span("quick", "http", 5, 20, { depth: 2 }),
+      span("process", "checkout", 200, 1250, { depth: 3 }),
+    ]
+    expect([...criticalPath(spans)].sort()).toEqual([
+      "checkout",
+      "http",
+      "process",
+      "root",
+    ])
   })
 
   it("covers a trace with several roots and an empty trace", () => {

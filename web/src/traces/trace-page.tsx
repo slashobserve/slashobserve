@@ -741,7 +741,7 @@ function TraceExplorer({
 
   const status = [
     showPath
-      ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans add up to the ${model.formatDuration(model.duration)} total; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
+      ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans are the chain that decides when the trace ends; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
       : "",
     folded ? foldedToolbarHint : toolbarHint,
     folded ? foldedHint : "",

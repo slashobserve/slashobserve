@@ -344,7 +344,8 @@ The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 
 - **Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
-- **Critical path** outlines the spans on the longest chain, the ones that add up to the trace's duration, and dims the rest; the line under the waterfall says how many spans are on it.
+- **Critical path** outlines the chain that decides when the trace ends and dims the rest; the line under the waterfall says how many spans are on it.
+  The chain starts at the span that finishes last and includes a span that outlives its parent or starts after the parent ended, such as work the parent started and did not wait for.
 - **Errors only** dims every span that neither failed nor contains a failed span.
 - **Collapse all** folds every span with children, and **Expand all** opens them again.
 - The services legend lists each service with its colour and span count; click a service to dim its spans, and click it again to show them.
