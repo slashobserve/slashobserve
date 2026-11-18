@@ -3027,7 +3027,7 @@ PY
 built_cli_is_current() {
   local newer
   [[ -x "$ROOT/bin/observe" ]] || return 1
-  newer="$(find "$ROOT/cmd" "$ROOT/internal" "$ROOT/pkg" "$ROOT/go.mod" "$ROOT/go.sum" \( -name '*.go' -o -name go.mod -o -name go.sum \) -newer "$ROOT/bin/observe" -print -quit)"
+  newer="$(find "$ROOT/cmd" "$ROOT/internal" "$ROOT/pkg" "$ROOT/go.mod" "$ROOT/go.sum" -newer "$ROOT/bin/observe" -print -quit)"
   [[ -z "$newer" ]]
 }
 
