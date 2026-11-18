@@ -31,6 +31,8 @@ func newPeopleFake(t *testing.T) *peopleFake {
 		f.requests = append(f.requests, recordedRequest{method: r.Method, path: r.URL.Path, query: r.URL.RawQuery, body: string(data)})
 		w.Header().Set("Content-Type", "application/json")
 		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/users":
+			_, _ = io.WriteString(w, `{"users":[{"id":"u1","name":"Ada","email":"ada@example.com","role":"admin","last_seen_at":"2026-11-19T09:00:00Z","deactivated_at":null},{"id":"u2","name":"Bob","email":"bob@example.com","role":"editor","last_seen_at":"2026-11-18T09:00:00Z","deactivated_at":"2026-11-19T08:00:00Z"}],"next_cursor":null}`)
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/invites":
 			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, inviteBody)
@@ -98,5 +100,19 @@ func TestPeopleUninviteDeletesByID(t *testing.T) {
 	}
 	if !strings.Contains(stdout+stderr, "Withdrew invite "+testInvite) {
 		t.Fatalf("stdout %q stderr %q", stdout, stderr)
+	}
+}
+
+func TestPeopleListShowsWhoIsDeactivated(t *testing.T) {
+	f := newPeopleFake(t)
+	stdout, stderr, code := f.run("list")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	got := spaces.ReplaceAllString(stdout, " ")
+	for _, want := range []string{"ID NAME EMAIL ROLE STATUS LAST ACTIVE\n", "u1 Ada ada@example.com admin active ", "u2 Bob bob@example.com editor deactivated "} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout %q lacks %q", got, want)
+		}
 	}
 }

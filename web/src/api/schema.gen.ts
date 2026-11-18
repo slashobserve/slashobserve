@@ -198,7 +198,7 @@ export interface paths {
         };
         /**
          * List everyone who has signed in, newest first.
-         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Service accounts cannot call this endpoint.
+         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Only Admins can call this endpoint, and an Admin service-account key can too.
          */
         get: operations["listUsers"];
         put?: never;

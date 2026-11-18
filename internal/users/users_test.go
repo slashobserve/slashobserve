@@ -170,7 +170,6 @@ func TestServiceAccountsCannotUseThePeopleRoutes(t *testing.T) {
 	r.addSession(user, "ada-1")
 	sa := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID}
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/api/v1/users"},
 		{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
 		{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
 		{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
@@ -457,5 +456,18 @@ func TestLockedMessageNamesWhereTheRoleComesFrom(t *testing.T) {
 		if got := lockedMessage(tt.source); got != tt.want {
 			t.Errorf("lockedMessage(%q) = %q, want %q", tt.source, got, tt.want)
 		}
+	}
+}
+
+func TestAnAdminKeyCanListPeopleAndAnEditorKeyCannot(t *testing.T) {
+	r := newRig(t)
+	r.addUser("ada", time.Now())
+	admin := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID, Role: auth.RoleAdmin}
+	if got := names(decodeList(t, r.do(http.MethodGet, "/api/v1/users", admin))); len(got) != 1 || got[0] != "ada" {
+		t.Fatalf("an Admin key lists %v, want ada", got)
+	}
+	editor := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID, Role: auth.RoleEditor}
+	if rec := r.do(http.MethodGet, "/api/v1/users", editor); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {
+		t.Fatalf("an Editor key's GET /users = %d %s, want 403 forbidden_role", rec.Code, rec.Body)
 	}
 }

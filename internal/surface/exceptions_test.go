@@ -187,7 +187,7 @@ var exceptions = map[string]exception{
 
 	"traceStats": {CLI: notBuilt},
 
-	"listUsers":             {MCP: personOnly, CLI: personOnly},
+	"listUsers":             {MCP: peopleAdmin},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},
 	"signOutUserEverywhere": {MCP: personOnly, CLI: personOnly},
 	"deactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},

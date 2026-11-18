@@ -65,7 +65,7 @@ Removal cannot be undone; if the same identity-provider account signs in later, 
 
 ## Over the API
 
-`POST /api/v1/invites`, `GET /api/v1/invites` and `DELETE /api/v1/invites/{id}` take an Admin signed in or an Admin service-account key, so an agent with an Admin key can invite people through [`observe people`](../use/cli.md#people).
+`GET /api/v1/users`, `POST /api/v1/invites`, `GET /api/v1/invites` and `DELETE /api/v1/invites/{id}` take an Admin signed in or an Admin service-account key, so an agent with an Admin key can list and invite people through [`observe people`](../use/cli.md#people).
 Inviting a pending email again answers 200 and changes its role.
 No MCP tool manages people: who may sign in, and with which role, is an Admin's decision, as a webhook is.
 

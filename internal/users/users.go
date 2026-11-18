@@ -70,7 +70,7 @@ func NewHandler(database *db.DB, authService *auth.Service, access *folders.Acce
 
 func (h *Handler) Register(api auth.Routes) {
 	g := api.Group("/users")
-	g.GET("", auth.RoleAdmin, auth.RequireUser, h.list)
+	g.GET("", auth.RoleAdmin, h.list)
 	g.PATCH("/:id", auth.RoleAdmin, auth.RequireUser, h.update)
 	g.DELETE("/:id/sessions", auth.RoleAdmin, auth.RequireUser, h.signOut)
 	g.POST("/:id/deactivate", auth.RoleAdmin, auth.RequireUser, h.deactivate)

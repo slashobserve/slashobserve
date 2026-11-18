@@ -617,16 +617,18 @@ bin/observe webhooks test <webhook id>
 
 ## People
 
-`bin/observe people` invites people by email with the role they get at their first sign-in, as described in [People](../teams/people.md#invite-people).
+`bin/observe people` lists everyone who has signed in and invites people by email with the role they get at their first sign-in, as described in [People](../teams/people.md#invite-people).
 Every verb needs an Admin key.
 No email is sent: send the printed sign-in link yourself.
 
 ```sh
+bin/observe people list
 bin/observe people invite new@example.com --role viewer
 bin/observe people invites
 bin/observe people uninvite <invite id>
 ```
 
+- `list` prints everyone who has signed in, newest first, as a table of id, name, email, role, status (`active` or `deactivated`) and when they were last active, up to `--limit` of them; `--cursor` prints the next page.
 - `invite <email> --role <role>` records a pending invite and prints it with its sign-in link; `--role` is `admin`, `editor`, `commenter` or `viewer`.
   Inviting an email that already has a pending invite changes its role.
   An email that has already signed in fails with `already_member`, and one outside `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` with `email_domain_not_allowed`.

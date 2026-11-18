@@ -23,6 +23,27 @@ type inviteView struct {
 	SignInURL string `json:"sign_in_url"`
 }
 
+type personView struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Email         string  `json:"email"`
+	Role          string  `json:"role"`
+	LastSeenAt    string  `json:"last_seen_at"`
+	DeactivatedAt *string `json:"deactivated_at"`
+}
+
+type personList struct {
+	Users      []personView `json:"users"`
+	NextCursor *string      `json:"next_cursor"`
+}
+
+func (p personView) status() string {
+	if p.DeactivatedAt != nil {
+		return "deactivated"
+	}
+	return "active"
+}
+
 type inviteList struct {
 	Invites    []inviteView `json:"invites"`
 	NextCursor *string      `json:"next_cursor"`
@@ -31,12 +52,23 @@ type inviteList struct {
 func (a *app) peopleCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "people",
-		Short: "Invite people and see who is invited",
-		Long:  "people invites people by email and lists pending invites.\nEvery verb needs an Admin key.\nDeactivating and removing people is done by an Admin in the web app, because keys never end another person's sessions.",
+		Short: "List people, invite them and see who is invited",
+		Long:  "people lists everyone who has signed in, invites people by email and lists pending invites.\nEvery verb needs an Admin key.\nDeactivating and removing people is done by an Admin in the web app, because keys never end another person's sessions.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.peopleInviteCommand(), a.peopleInvitesCommand(), a.peopleUninviteCommand())
+	cmd.AddCommand(a.peopleListCommand(), a.peopleInviteCommand(), a.peopleInvitesCommand(), a.peopleUninviteCommand())
+	return cmd
+}
+
+func (a *app) peopleListCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List everyone who has signed in, newest first",
+		Args:  noArgs,
+		RunE:  a.runPeopleList,
+	}
+	addPageFlags(cmd, &a.people.page)
 	return cmd
 }
 
@@ -100,6 +132,37 @@ func (a *app) runPeopleInvite(cmd *cobra.Command, args []string) error {
 		{"ID", text(invite.ID)},
 		{"Sign-in link", text(invite.SignInURL)},
 	})
+	return nil
+}
+
+func (a *app) runPeopleList(cmd *cobra.Command, _ []string) error {
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	data, err := c.get(cmd.Context(), "users", a.people.page.query())
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	page, err := decode[personList](data)
+	if err != nil {
+		return err
+	}
+	if len(page.Users) == 0 {
+		out.notice("Nobody has signed in yet")
+		return nil
+	}
+	rows := make([][]string, 0, len(page.Users))
+	for _, p := range page.Users {
+		rows = append(rows, []string{text(p.ID), text(p.Name), text(p.Email), text(p.Role), p.status(), when(p.LastSeenAt)})
+	}
+	out.table([]string{"ID", "NAME", "EMAIL", "ROLE", "STATUS", "LAST ACTIVE"}, rows)
+	nextPageHint(out, page.NextCursor)
 	return nil
 }
 
