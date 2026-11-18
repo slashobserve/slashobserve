@@ -1,6 +1,12 @@
 package health_test
 
-import "testing"
+import (
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+)
 
 func TestViewsCountOnePersonOncePerDay(t *testing.T) {
 	r := newRig(t)
@@ -75,5 +81,24 @@ func TestRunPrunesViewDaysOlderThanNinetyDays(t *testing.T) {
 	}
 	if left != 1 {
 		t.Fatalf("%d view days left, want only the one 89 days old", left)
+	}
+}
+
+func TestHTTPViewsCountNeedsViewOnTheDashboard(t *testing.T) {
+	r := newRig(t)
+	open := r.create(t, boardSpec("Open", "up"))
+	hidden := r.create(t, boardSpec("Payroll", "up"))
+	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", "payroll-team"))
+	jobs := &fakeJobs{}
+
+	rec := serve(t, r.svc, r.repairs, jobs, r.viewer, http.MethodGet, "/dashboards/"+open.String()+"/views", "")
+	if rec.Code != http.StatusOK || rec.Body.String() != `{"view_count":0,"window_days":30}` {
+		t.Fatalf("visible dashboard = %d %s, want 200 with the count and the window", rec.Code, rec.Body)
+	}
+	for name, id := range map[string]string{"hidden": hidden.String(), "missing": "0b9e9a3e-5d5e-4f0e-9e1a-7d2f3c4b5a61"} {
+		rec := serve(t, r.svc, r.repairs, jobs, r.viewer, http.MethodGet, "/dashboards/"+id+"/views", "")
+		if rec.Code != http.StatusForbidden && rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "view_count") {
+			t.Errorf("%s dashboard = %d %s, want 403 or 404 without a count", name, rec.Code, rec.Body)
+		}
 	}
 }
