@@ -13,6 +13,6 @@ export const Route = createFileRoute("/_authed/_shell/_chat/ask")({
 
 function Ask() {
   useDocumentTitle("Ask - SlashObserve")
-  const { prompt } = Route.useSearch()
-  return <ChatHome initialPrompt={prompt} />
+  const { prompt, dashboard } = Route.useSearch()
+  return <ChatHome initialPrompt={prompt} dashboardId={dashboard} />
 }

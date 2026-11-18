@@ -2,10 +2,9 @@ import { describe, expect, test } from "vitest"
 
 import { examplePrompts } from "./examples"
 
-function labels(
-  types: string[],
-  dashboards: { id: string; title: string }[] = []
-) {
+type Dashboard = { id: string; title: string; canEdit: boolean }
+
+function labels(types: string[], dashboards: Dashboard[] = []) {
   return examplePrompts({ types, dashboards }).map((example) => example.label)
 }
 
@@ -52,8 +51,8 @@ describe("examplePrompts", () => {
     const [first] = examplePrompts({
       types: ["prometheus"],
       dashboards: [
-        { id: "d1", title: "Checkout" },
-        { id: "d2", title: "Payments" },
+        { id: "d1", title: "Checkout", canEdit: true },
+        { id: "d2", title: "Payments", canEdit: true },
       ],
     })
     expect(first).toEqual({
@@ -63,25 +62,48 @@ describe("examplePrompts", () => {
     })
   })
 
+  test("names the first dashboard the person can edit, never one they can only view", () => {
+    const dashboards = [
+      { id: "d1", title: "Someone else's", canEdit: false },
+      { id: "d2", title: "Payments", canEdit: true },
+      { id: "d3", title: "Checkout", canEdit: true },
+    ]
+    expect(labels(["prometheus"], dashboards)[0]).toBe(
+      "Add a latency row to Payments"
+    )
+  })
+
+  test("offers no dashboard example when every dashboard is view only", () => {
+    expect(
+      labels(["prometheus"], [{ id: "d1", title: "Checkout", canEdit: false }])
+    ).toEqual(["Service health by pod, last 6h", "p95 latency by route"])
+  })
+
   test("offers no dashboard example without prometheus", () => {
-    expect(labels(["loki"], [{ id: "d1", title: "Checkout" }])).toEqual([
-      "Error logs by service, last hour",
-    ])
+    expect(
+      labels(["loki"], [{ id: "d1", title: "Checkout", canEdit: true }])
+    ).toEqual(["Error logs by service, last hour"])
   })
 
   test("clips a dashboard title over 40 characters", () => {
     const title = "A".repeat(41)
-    expect(labels(["prometheus"], [{ id: "d1", title }])[0]).toBe(
-      `Add a latency row to ${"A".repeat(40)}...`
-    )
     expect(
-      labels(["prometheus"], [{ id: "d1", title: "B".repeat(40) }])[0]
+      labels(["prometheus"], [{ id: "d1", title, canEdit: true }])[0]
+    ).toBe(`Add a latency row to ${"A".repeat(40)}...`)
+    expect(
+      labels(
+        ["prometheus"],
+        [{ id: "d1", title: "B".repeat(40), canEdit: true }]
+      )[0]
     ).toBe(`Add a latency row to ${"B".repeat(40)}`)
   })
 
   test("keeps at most 4 examples", () => {
     expect(
-      labels(["prometheus", "loki", "tempo"], [{ id: "d1", title: "Checkout" }])
+      labels(
+        ["prometheus", "loki", "tempo"],
+        [{ id: "d1", title: "Checkout", canEdit: true }]
+      )
     ).toEqual([
       "Add a latency row to Checkout",
       "Service health by pod, last 6h",

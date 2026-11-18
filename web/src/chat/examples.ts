@@ -18,13 +18,13 @@ function example(text: string, dashboardId?: string): Example {
 
 export function examplePrompts(input: {
   types: readonly string[]
-  dashboards: readonly { id: string; title: string }[]
+  dashboards: readonly { id: string; title: string; canEdit: boolean }[]
 }): Example[] {
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
   const ch = input.types.includes("clickhouse")
   const traces = input.types.includes("tempo")
-  const first = input.dashboards.at(0)
+  const first = input.dashboards.find((dashboard) => dashboard.canEdit)
   const examples: Example[] = []
   if (prom && first !== undefined) {
     examples.push(

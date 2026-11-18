@@ -1,30 +1,43 @@
 import { useQuery } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { DashboardsSection } from "@/home/dashboards-section"
+import { askLink } from "@/lib/links"
 import { useAgentInfo } from "@/observe/queries"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
-import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
+import { ChatComposer, useOpenSent } from "./chat-composer"
 import { composerPlaceholder } from "./prompt-length"
+import { useChooseExample } from "./use-choose-example"
 import { examplePrompts } from "./examples"
 import { RecentChats } from "./recent-chats"
 
-const noDashboards: readonly { id: string; title: string }[] = []
+type Props = { initialPrompt?: string; dashboardId?: string }
 
-export function ChatHome({ initialPrompt }: { initialPrompt?: string }) {
+const noDashboards: readonly {
+  id: string
+  title: string
+  canEdit: boolean
+}[] = []
+
+export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
-  const { send, pending } = useSendExample()
+  const { choose, pending } = useChooseExample()
+  const navigate = useNavigate()
   const openSent = useOpenSent()
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
   })
+  const revising = dashboards.data?.find(
+    (dashboard) => dashboard.id === dashboardId && dashboard.canEdit
+  )
   const agentReady = !agent.isPending && agent.data?.available !== false
   const agentOff = agent.data?.available === false
 
@@ -38,6 +51,17 @@ export function ChatHome({ initialPrompt }: { initialPrompt?: string }) {
         <ChatComposer
           key={initialPrompt ?? ""}
           rows={3}
+          dashboardId={revising?.id}
+          dashboardTitle={revising?.title}
+          onRemoveDashboard={
+            revising === undefined
+              ? undefined
+              : () =>
+                  void navigate({
+                    ...askLink(initialPrompt ?? ""),
+                    replace: true,
+                  })
+          }
           placeholder={composerPlaceholder}
           initialPrompt={initialPrompt}
           autoFocus
@@ -58,7 +82,7 @@ export function ChatHome({ initialPrompt }: { initialPrompt?: string }) {
               variant="outline"
               className="font-normal text-muted-foreground"
               disabled={pending}
-              onClick={() => void send(example.prompt, example.dashboardId)}
+              onClick={() => choose(example)}
             >
               {example.label}
             </Button>

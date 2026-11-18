@@ -188,4 +188,11 @@ describe("askLink", () => {
       search: { prompt: "why is checkout slow" },
     })
   })
+
+  it("names the dashboard the prompt revises", () => {
+    expect(askLink("add a row", "d1")).toEqual({
+      to: "/ask",
+      search: { prompt: "add a row", dashboard: "d1" },
+    })
+  })
 })

@@ -7,9 +7,10 @@ import {
   UploadIcon,
 } from "lucide-react"
 
-import { ChatComposer, useOpenSent, useSendExample } from "@/chat/chat-composer"
+import { ChatComposer, useOpenSent } from "@/chat/chat-composer"
 import { examplePrompts } from "@/chat/examples"
 import { composerPlaceholder } from "@/chat/prompt-length"
+import { useChooseExample } from "@/chat/use-choose-example"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDatasources } from "@/datasources/queries"
@@ -27,7 +28,11 @@ type Props = {
   autoFocusTab: HomeTab | null
 }
 
-const noDashboards: readonly { id: string; title: string }[] = []
+const noDashboards: readonly {
+  id: string
+  title: string
+  canEdit: boolean
+}[] = []
 
 const triggerClass =
   "h-7 flex-none gap-1.5 rounded-control px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground data-active:bg-muted data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-muted narrow:h-11"
@@ -124,7 +129,7 @@ export function ExampleChips() {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
-  const { send, pending } = useSendExample()
+  const { choose, pending } = useChooseExample()
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
@@ -147,7 +152,7 @@ export function ExampleChips() {
           size="sm"
           className="font-normal narrow:h-11"
           disabled={pending}
-          onClick={() => void send(example.prompt, example.dashboardId)}
+          onClick={() => choose(example)}
         >
           {example.label}
         </Button>

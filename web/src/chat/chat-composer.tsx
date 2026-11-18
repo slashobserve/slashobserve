@@ -55,6 +55,7 @@ type Props = {
   dashboardId?: string
   followsId?: string
   dashboardTitle?: string
+  onRemoveDashboard?: () => void
   runningRequestId?: string
   placeholder: string
   initialPrompt?: string
@@ -110,6 +111,7 @@ export function ChatComposer({
   dashboardId,
   followsId,
   dashboardTitle,
+  onRemoveDashboard,
   runningRequestId,
   placeholder,
   initialPrompt = "",
@@ -366,7 +368,13 @@ export function ChatComposer({
         ]),
     ...(dashboardTitle === undefined
       ? []
-      : [{ id: "dashboard", label: dashboardTitle }]),
+      : [
+          {
+            id: "dashboard",
+            label: dashboardTitle,
+            onRemove: onRemoveDashboard,
+          },
+        ]),
   ]
 
   return (

@@ -26,6 +26,7 @@ From 3600 characters a counter such as "3650 of 4000" appears in the box's foote
 A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
 
 An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
+Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send revises it; the chip appears only for a dashboard you can edit.
 Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.
@@ -57,8 +58,10 @@ Without a model the box is replaced by "No model is connected to this server."
 **Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
 
 The example prompts under the box are built from your datasources and dashboards, at most four of them.
-With Prometheus and a dashboard, the first one adds a latency row to that dashboard and opens its chat; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
-Choosing one sends it at once.
+With Prometheus and a dashboard you can edit, the first one adds a latency row to the one you changed most recently; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
+Choosing a new-dashboard example sends it at once.
+Choosing the latency-row example sends nothing: it opens the box with the text and the dashboard's name as a chip, so you can check or remove the target, edit the text and press Enter.
+A dashboard you can only view is never offered.
 
 Under the example prompts, the Ask page at `/ask` lists your saved prompts and those shared with everyone, and typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
 
