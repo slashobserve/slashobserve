@@ -197,11 +197,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	request := importRequest{JSON: source, Mapping: mapping, Folder: a.importing.folder, UpdateDashboard: a.importing.update, RefuseExisting: !a.importing.asNew}
-	path := "imports"
-	if a.importing.preview {
-		path, request = "imports/preview", importRequest{JSON: source, Mapping: mapping}
-	}
+	path, request := a.importRequest(source, mapping)
 	data, err := c.withTimeout(importTimeout).post(cmd.Context(), path, request)
 	if err != nil {
 		return importFailureFrom(err)
@@ -216,18 +212,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		out.fields(previewFields(preview))
-		if preview.Existing != nil {
-			out.line("")
-			out.line("Already imported as %q (dashboard %s, version %d). %s", text(preview.Existing.Title), preview.Existing.DashboardID, preview.Existing.Version, preview.Existing.nextStep())
-		}
-		out.line("")
-		out.line("%s", datasourcesTable(preview.Datasources))
-		out.line("%s", preview.Report.Counts.line())
-		if table := preview.Report.attention(); table != "" {
-			out.line("")
-			out.line("%s", table)
-		}
+		printPreview(out, preview)
 		return nil
 	}
 	imported, err := decode[importedDashboard](data)
@@ -250,6 +235,28 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	}
 	a.openLink(out, address)
 	return nil
+}
+
+func (a *app) importRequest(source string, mapping map[string]string) (string, importRequest) {
+	if a.importing.preview {
+		return "imports/preview", importRequest{JSON: source, Mapping: mapping}
+	}
+	return "imports", importRequest{JSON: source, Mapping: mapping, Folder: a.importing.folder, UpdateDashboard: a.importing.update, RefuseExisting: !a.importing.asNew}
+}
+
+func printPreview(out *output, preview importPreview) {
+	out.fields(previewFields(preview))
+	if preview.Existing != nil {
+		out.line("")
+		out.line("Already imported as %q (dashboard %s, version %d). %s", text(preview.Existing.Title), preview.Existing.DashboardID, preview.Existing.Version, preview.Existing.nextStep())
+	}
+	out.line("")
+	out.line("%s", datasourcesTable(preview.Datasources))
+	out.line("%s", preview.Report.Counts.line())
+	if table := preview.Report.attention(); table != "" {
+		out.line("")
+		out.line("%s", table)
+	}
 }
 
 func importFailureFrom(err error) error {

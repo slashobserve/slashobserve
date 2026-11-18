@@ -247,9 +247,10 @@ func inStreamSelector(query string, offset int) bool {
 				quote = 0
 			}
 		case quote != 0:
-			if ch == '\\' {
+			switch ch {
+			case '\\':
 				i++
-			} else if ch == quote {
+			case quote:
 				quote = 0
 			}
 		case ch == '"' || ch == '\'' || ch == '`':
