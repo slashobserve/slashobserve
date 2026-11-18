@@ -588,26 +588,47 @@ func TestPickRetimeRangeStaysWithinTheStacksHistory(t *testing.T) {
 	}
 }
 
-func TestTheStacksHistoryOutlastsTheWidestRetimeStepByTwoScrapes(t *testing.T) {
-	script, err := os.ReadFile(filepath.Join("..", "..", "scripts", "evals-stack.sh"))
+func TestSynthHistoryOutlastsTheWidestRetimeStepByTwoScrapes(t *testing.T) {
+	useCorpus(t)
+	dir := t.TempDir()
+	if err := generateSynth(dir); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, synthHistoryFile))
 	if err != nil {
 		t.Fatal(err)
 	}
-	read := func(name string) int {
-		m := regexp.MustCompile(`(?m)^` + name + `=(\d+)$`).FindSubmatch(script)
-		if m == nil {
-			t.Fatalf("%s is not set in scripts/evals-stack.sh", name)
-		}
-		n, err := strconv.Atoi(string(m[1]))
+	minutes, err := strconv.Atoi(strings.TrimSpace(string(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, need := time.Duration(minutes)*time.Minute, retimeMaxStep+2*synthScrape
+	if history < need {
+		t.Errorf("the stack waits for %s of history but a retime step of %s needs %s", history, retimeMaxStep, need)
+	}
+}
+
+func TestSynthScrapeIntervalIsTheOneTheStackUses(t *testing.T) {
+	want := fmt.Sprintf("%ds", int(synthScrape.Seconds()))
+	for path, pattern := range map[string]string{
+		filepath.Join("..", "..", "deploy", "compose", "evals", "scrape.d", "synth.yml"): `scrape_interval: (\S+)`,
+		filepath.Join("..", "..", "scripts", "evals-stack.sh"):                           `(?m)^SYNTH_SCRAPE_SECONDS=(\d+)$`,
+	} {
+		body, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return n
-	}
-	history := time.Duration(read("RETIME_HISTORY_MINUTES")) * time.Minute
-	scrape := time.Duration(read("SYNTH_SCRAPE_SECONDS")) * time.Second
-	if history < retimeMaxStep+2*scrape {
-		t.Errorf("the stack waits for %s of history but a retime step of %s needs %s", history, retimeMaxStep, retimeMaxStep+2*scrape)
+		m := regexp.MustCompile(pattern).FindSubmatch(body)
+		if m == nil {
+			t.Fatalf("%s has no match for %s", path, pattern)
+		}
+		got := string(m[1])
+		if !strings.HasSuffix(got, "s") {
+			got += "s"
+		}
+		if got != want {
+			t.Errorf("%s says %s, the runner assumes %s", path, got, want)
+		}
 	}
 }
 

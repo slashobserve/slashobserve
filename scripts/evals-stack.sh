@@ -43,9 +43,9 @@ Usage: scripts/evals-stack.sh <command>
 
 up returns once Prometheus serves what the stack itself guarantees: node_uname_info for the node
 and node-exporter (synthetic) jobs, rates of node_cpu_seconds_total (node job) and the shop's
-http_requests_total, the synth exporter, and six minutes of synth samples.
+http_requests_total, the synth exporter, and the synth samples of the history a retime step needs.
 It waits for rates because they need two scrapes, about 30 seconds after the containers are healthy.
-The six minutes count from Prometheus starting to scrape, so they are the last thing up waits for.
+That history counts from Prometheus starting to scrape, so it is the last thing up waits for.
 --no-history returns without them; wait-history then blocks until they are there, so work that
 does not read them can run while they accumulate.
 Series that depend on the host kernel, such as node_pressure_*, are never waited for.
@@ -127,11 +127,8 @@ join_cluster() {
   "$ROOT/scripts/demo-k8s.sh" connect "${PROJECT}-server-1"
 }
 
-SERIES_TIMEOUT=480
-# A query is evaluated on a grid of its step, so a point has data only when the history is longer than the step plus two scrapes: the widest retime step is 5 minutes (retimeMaxStep in evals/runner/tasks.go).
+SERIES_TIMEOUT_SLACK=120
 SYNTH_SCRAPE_SECONDS=15
-RETIME_HISTORY_MINUTES=6
-SYNTH_HISTORY_SAMPLES=$((RETIME_HISTORY_MINUTES * 60 / SYNTH_SCRAPE_SECONDS))
 NODE_SERIES_QUERIES=(
   'count(node_uname_info{job="node"})'
   'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
@@ -141,7 +138,16 @@ SYNTH_SERIES_QUERIES=(
   'count(node_uname_info{job="node-exporter"})'
   'count(up{job="synth"} == 1)'
 )
-SYNTH_HISTORY_QUERY="count_over_time(up{job=\"synth\"}[${RETIME_HISTORY_MINUTES}m]) >= ${SYNTH_HISTORY_SAMPLES}"
+
+synth_history_minutes() {
+  cat "$SLASHOBSERVE_EVALS_RUNTIME_DIR/synth/history-minutes"
+}
+
+synth_history_query() {
+  local minutes
+  minutes="$(synth_history_minutes)"
+  printf 'count_over_time(up{job="synth"}[%sm]) >= %s' "$minutes" $((minutes * 60 / SYNTH_SCRAPE_SECONDS))
+}
 
 series_served() {
   curl -fsS --max-time 5 --get "http://127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}/api/v1/query" --data-urlencode "query=$1" 2>/dev/null |
@@ -150,7 +156,8 @@ series_served() {
 
 wait_for_series() {
   local queries=("$@")
-  local deadline=$((SECONDS + SERIES_TIMEOUT)) missing query
+  local timeout=$((SERIES_TIMEOUT_SLACK + $(synth_history_minutes) * 60))
+  local deadline=$((SECONDS + timeout)) missing query
   while true; do
     missing=()
     for query in "${queries[@]}"; do
@@ -158,7 +165,7 @@ wait_for_series() {
     done
     [[ ${#missing[@]} -eq 0 ]] && return 0
     if ((SECONDS >= deadline)); then
-      printf 'evals-stack: Prometheus on port %s did not serve these within %ss:\n' "$SLASHOBSERVE_PROMETHEUS_HOST_PORT" "$SERIES_TIMEOUT" >&2
+      printf 'evals-stack: Prometheus on port %s did not serve these within %ss:\n' "$SLASHOBSERVE_PROMETHEUS_HOST_PORT" "$timeout" >&2
       printf '  %s\n' "${missing[@]}" >&2
       return 1
     fi
@@ -247,7 +254,7 @@ cmd_up() {
   queries=("${NODE_SERIES_QUERIES[@]}")
   if [[ "$K8S" == 0 ]]; then
     queries+=("${SYNTH_SERIES_QUERIES[@]}")
-    if [[ "$wait_history" == 1 ]]; then queries+=("$SYNTH_HISTORY_QUERY"); fi
+    if [[ "$wait_history" == 1 ]]; then queries+=("$(synth_history_query)"); fi
   fi
   wait_for_series "${queries[@]}" || die "the stack is up but its metrics are not ready"
   if [[ "$K8S" == 1 ]]; then
@@ -260,7 +267,7 @@ cmd_wait_history() {
     return 0
   fi
   [[ $# -eq 0 ]] || die "wait-history takes no argument but --k8s"
-  wait_for_series "$SYNTH_HISTORY_QUERY" || die "the synthetic series did not reach ${RETIME_HISTORY_MINUTES} minutes of history"
+  wait_for_series "$(synth_history_query)" || die "the synthetic series did not reach $(synth_history_minutes) minutes of history"
 }
 
 cmd_server() {
