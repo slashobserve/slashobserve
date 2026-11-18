@@ -389,13 +389,8 @@ func (d *Datasource) resultFrames(raw []byte, body map[string]any, prep prepared
 		if err != nil {
 			return nil, err
 		}
-		if resp.partial() && len(frames) > 0 {
-			meta := datasource.FrameMeta{}
-			if frames[0].Meta != nil {
-				meta = *frames[0].Meta
-			}
-			meta.Partial = true
-			frames[0].Meta = &meta
+		if resp.partial() {
+			frames = datasource.MarkPartial(frames)
 		}
 		return frames, nil
 	}
