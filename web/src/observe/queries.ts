@@ -180,6 +180,7 @@ export function observeRequestQuery(id: string) {
         .then(unwrap)
         .then((body) => body.request),
     staleTime: 0,
+    refetchIntervalInBackground: true,
     refetchInterval: (query) => {
       if (isTerminal(query.state.data)) return false
       const { error } = query.state

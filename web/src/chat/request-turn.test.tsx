@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { RequestTurn, type TurnSummary } from "./request-turn"
+import {
+  opensBuildPage,
+  RequestTurn,
+  workingText,
+  type TurnSummary,
+} from "./request-turn"
 
 const fetchMock = vi.hoisted(() => vi.fn())
 
@@ -63,5 +68,78 @@ describe("RequestTurn", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+const building: Pick<
+  TurnSummary,
+  "source" | "status" | "dashboard_id" | "build"
+> = {
+  source: "observe",
+  status: "running",
+  dashboard_id: null,
+  build: {
+    saves: 1,
+    panels: 1,
+    planned_panels: 4,
+    title: "Checkout",
+    updated_at: "2026-11-06T10:00:30Z",
+  },
+}
+
+describe("opensBuildPage", () => {
+  it("opens the canvas once a new dashboard has a saved panel", () => {
+    expect(
+      opensBuildPage({ request: building, own: true, onChatPage: true })
+    ).toBe(true)
+  })
+
+  it("keeps a question on the chat page until a build exists", () => {
+    expect(
+      opensBuildPage({
+        request: { ...building, build: null },
+        own: true,
+        onChatPage: true,
+      })
+    ).toBe(false)
+  })
+
+  it("stays put for a finished run, another person's run and the pane", () => {
+    const base = { request: building, own: true, onChatPage: true }
+    expect(
+      opensBuildPage({ ...base, request: { ...building, status: "failed" } })
+    ).toBe(false)
+    expect(opensBuildPage({ ...base, own: false })).toBe(false)
+    expect(opensBuildPage({ ...base, onChatPage: false })).toBe(false)
+  })
+
+  it("never moves a revision of an existing dashboard", () => {
+    expect(
+      opensBuildPage({
+        request: { ...building, dashboard_id: "d1" },
+        own: true,
+        onChatPage: true,
+      })
+    ).toBe(false)
+  })
+})
+
+describe("workingText", () => {
+  it("does not promise a dashboard before one is being built", () => {
+    expect(workingText({ dashboard_id: null, build: null }, undefined)).toBe(
+      "Working on your request"
+    )
+  })
+
+  it("names the dashboard being built or revised", () => {
+    expect(
+      workingText({ dashboard_id: null, build: building.build }, undefined)
+    ).toBe("Building the dashboard")
+    expect(workingText({ dashboard_id: "d1", build: null }, undefined)).toBe(
+      "Revising the dashboard"
+    )
+    expect(workingText({ dashboard_id: "d1", build: null }, "Checkout")).toBe(
+      "Revising Checkout"
+    )
   })
 })

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
-import { useState } from "react"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
@@ -77,6 +77,36 @@ function isActive(status: TurnSummary["status"]): boolean {
   return status === "queued" || status === "running"
 }
 
+export function opensBuildPage({
+  request,
+  own,
+  onChatPage,
+}: {
+  request: Pick<TurnSummary, "source" | "status" | "dashboard_id" | "build">
+  own: boolean
+  onChatPage: boolean
+}): boolean {
+  return (
+    onChatPage &&
+    own &&
+    request.source === "observe" &&
+    isActive(request.status) &&
+    request.dashboard_id === null &&
+    request.build !== null
+  )
+}
+
+export function workingText(
+  request: Pick<TurnSummary, "dashboard_id" | "build">,
+  dashboardTitle: string | undefined
+): string {
+  if (dashboardTitle !== undefined) return `Revising ${dashboardTitle}`
+  if (request.dashboard_id !== null) return "Revising the dashboard"
+  return request.build === null
+    ? "Working on your request"
+    : "Building the dashboard"
+}
+
 function Sender({ summary }: { summary: TurnSummary }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const own = summary.requested_by.id === principal.id
@@ -145,6 +175,20 @@ export function RequestTurn({
   const steps = live?.steps ?? []
   const savedBuild = request.result_kind === "partial_version"
   const inPane = opensRunsIn === "build"
+  const navigate = useNavigate()
+  const opensBuild = opensBuildPage({
+    request,
+    own: request.requested_by.id === principal.id,
+    onChatPage: opensRunsIn === "chat",
+  })
+  useEffect(() => {
+    if (!opensBuild) return
+    void navigate({
+      to: "/b/$requestId",
+      params: { requestId: summary.id },
+      replace: true,
+    })
+  }, [opensBuild, navigate, summary.id])
 
   useSettledRefresh({
     active,
@@ -194,11 +238,7 @@ export function RequestTurn({
                       })
                     : investigates
                       ? "Investigating"
-                      : dashboardTitle !== undefined
-                        ? `Revising ${dashboardTitle}`
-                        : request.dashboard_id !== null
-                          ? "Revising the dashboard"
-                          : "Building the dashboard"}
+                      : workingText(request, dashboardTitle)}
                 </span>
               )}
               {detail?.can_cancel ? (

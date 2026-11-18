@@ -105,7 +105,10 @@ It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and othe
 ## Watch the build
 
 A large dashboard is not written in one model call.
-The agent builds it panel by panel, and sending a new dashboard opens its build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved.
+The agent builds it panel by panel.
+Every message opens its chat page at `/c/<request id>` first, because the agent decides only while it works whether the message is a question or a dashboard.
+The moment it saves the first panel of a new dashboard, the page moves to the build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved; a question never shows it.
+Until then the status line reads "Working on your request" and the steps list what the agent is doing.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 
@@ -207,7 +210,7 @@ A retried investigation writes into the same observation when the person retryin
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
-The page keeps polling the server.
+The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
 The run itself goes on server-side either way.
 

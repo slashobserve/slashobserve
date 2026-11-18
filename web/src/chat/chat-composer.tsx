@@ -72,9 +72,8 @@ export function useOpenSent(append?: (request: ObserveRequest) => void) {
       return
     }
     await navigate({
-      to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
+      to: "/c/$requestId",
       params: { requestId: request.id },
-      viewTransition: opens === "build",
     })
   }
 }
@@ -86,7 +85,7 @@ export function useSendExample() {
   async function send(prompt: string, dashboardId?: string) {
     try {
       const request = await create.mutateAsync({ prompt, dashboardId })
-      await openSent(request, dashboardId === undefined ? "build" : "chat")
+      await openSent(request, "chat")
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     }

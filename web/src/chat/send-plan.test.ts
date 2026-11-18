@@ -5,10 +5,10 @@ import { planSend } from "./send-plan"
 const dashboardId = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 
 describe("planSend", () => {
-  it("opens a new build for a plain prompt without a dashboard", () => {
+  it("opens the chat for a plain prompt without a dashboard", () => {
     expect(planSend({ command: null, text: "checkout health" })).toEqual({
       input: { prompt: "checkout health" },
-      opens: "build",
+      opens: "chat",
     })
   })
 
@@ -19,10 +19,10 @@ describe("planSend", () => {
     })
   })
 
-  it("imports into a new build even beside a dashboard", () => {
+  it("imports into a new chat even beside a dashboard", () => {
     expect(
       planSend({ command: "import", text: "https://grafana/d/x", dashboardId })
-    ).toEqual({ input: { prompt: "https://grafana/d/x" }, opens: "build" })
+    ).toEqual({ input: { prompt: "https://grafana/d/x" }, opens: "chat" })
   })
 
   it("revises the open dashboard", () => {
