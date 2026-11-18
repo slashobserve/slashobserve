@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -127,32 +129,68 @@ func importFailure(code, message string) Result {
 	return failure(errorStep(nameImportGrafana, code), importErrorOut{Error: message, Code: code})
 }
 
+type importArgs struct {
+	JSON    string            `json:"json"`
+	Mapping map[string]string `json:"mapping"`
+	Folder  *string           `json:"folder"`
+
+	UpdateDashboard *string `json:"update_dashboard"`
+	ImportAsNew     bool    `json:"import_as_new"`
+}
+
+func (in importArgs) request(folder string, requestID pgtype.UUID, scoped bool) (imports.Request, Result, bool) {
+	req := imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, Folder: folder, RequestID: requestID, RefuseExisting: !in.ImportAsNew && !scoped}
+	if in.UpdateDashboard == nil {
+		return req, Result{}, true
+	}
+	if in.ImportAsNew {
+		return req, invalid("update_dashboard and import_as_new cannot be used together"), false
+	}
+	id, err := db.ParseUUID(*in.UpdateDashboard)
+	if err != nil {
+		return req, invalid("update_dashboard must be the id of a dashboard an import made"), false
+	}
+	req.Update = id
+	return req, Result{}, true
+}
+
+func (r *Registry) importScope(ctx context.Context, run Run, scoped bool, in importArgs) (Result, bool, error) {
+	if !scoped {
+		return Result{}, true, nil
+	}
+	if res, ok, err := r.importRunAllowed(ctx, run, in.JSON); err != nil || !ok {
+		return res, false, err
+	}
+	if in.UpdateDashboard != nil {
+		return invalid("this run creates a new dashboard and may not save a version of an existing one; leave out update_dashboard, or set import_as_new to make another dashboard"), false, nil
+	}
+	return Result{}, true, nil
+}
+
+func importStep(imported imports.Imported) string {
+	switch {
+	case imported.Replayed:
+		return "Imported again"
+	case imported.Updated:
+		return fmt.Sprintf("Updated the dashboard from Grafana to version %d", imported.Version.Number)
+	}
+	return "Imported " + plural(imported.Record.Report.Counts.Total, "panel", "panels") + " from Grafana"
+}
+
 func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Result, error) {
 	principal, run, scoped, err := r.saveRun(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	var in struct {
-		JSON    string            `json:"json"`
-		Mapping map[string]string `json:"mapping"`
-		Folder  *string           `json:"folder"`
-
-		UpdateDashboard *string `json:"update_dashboard"`
-		ImportAsNew     bool    `json:"import_as_new"`
-	}
+	var in importArgs
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
 	if len(in.JSON) > imports.MaxBodyBytes {
 		return importFailure(codeTooLarge, fmt.Sprintf("json is larger than %d MiB", imports.MaxBodyBytes>>20)), nil
 	}
-	if scoped {
-		if res, ok, err := r.importRunAllowed(ctx, run, in.JSON); err != nil || !ok {
-			return res, err
-		}
-		if in.UpdateDashboard != nil {
-			return invalid("this run creates a new dashboard and may not save a version of an existing one; leave out update_dashboard, or set import_as_new to make another dashboard"), nil
-		}
+	if res, ok, err := r.importScope(ctx, run, scoped, in); err != nil || !ok {
+		return res, err
 	}
 	folder, res, ok := parseImportFolder(in.Folder)
 	if !ok {
@@ -162,30 +200,18 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	req := imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, Folder: folder, RequestID: requestID, RefuseExisting: !in.ImportAsNew}
-	if in.UpdateDashboard != nil {
-		if in.ImportAsNew {
-			return invalid("update_dashboard and import_as_new cannot be used together"), nil
-		}
-		if req.Update, err = db.ParseUUID(*in.UpdateDashboard); err != nil {
-			return invalid("update_dashboard must be the id of a dashboard an import made"), nil
-		}
+	req, res, ok := in.request(folder, requestID, scoped)
+	if !ok {
+		return res, nil
 	}
 	if r.deps.Imports == nil {
 		return Result{}, errImportsNotConfigured
 	}
 	imported, err := r.deps.Imports.Import(ctx, principal, req)
 	if err != nil {
-		return r.importFailed(err, scoped)
+		return r.importFailed(err)
 	}
-	step := "Imported " + plural(imported.Record.Report.Counts.Total, "panel", "panels") + " from Grafana"
-	switch {
-	case imported.Replayed:
-		step = "Imported again"
-	case imported.Updated:
-		step = fmt.Sprintf("Updated the dashboard from Grafana to version %d", imported.Version.Number)
-	}
-	return success(step, newImportedOut(r.deps.PublicURL, imported)), nil
+	return success(importStep(imported), newImportedOut(r.deps.PublicURL, imported)), nil
 }
 
 func (r *Registry) importRunAllowed(ctx context.Context, run Run, jsonText string) (Result, bool, error) {
@@ -234,10 +260,7 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 	return out
 }
 
-func alreadyImportedMessage(e imports.Existing, scoped bool) string {
-	if scoped {
-		return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d); tell the person where it is, or set import_as_new true to make another dashboard", e.Title, e.Version)
-	}
+func alreadyImportedMessage(e imports.Existing) string {
 	if e.CanUpdate {
 		return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d); set this tool's update_dashboard argument to %s to save this JSON as its next version, or import_as_new true to make another dashboard", e.Title, e.Version, e.DashboardID)
 	}
@@ -255,7 +278,7 @@ func parseImportFolder(raw *string) (string, Result, bool) {
 	return title, Result{}, true
 }
 
-func (r *Registry) importFailed(err error, scoped bool) (Result, error) {
+func (r *Registry) importFailed(err error) (Result, error) {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
 	var already *imports.AlreadyImportedError
@@ -265,7 +288,7 @@ func (r *Registry) importFailed(err error, scoped bool) (Result, error) {
 		return importFailure(codeGrafanaUIDMismatch, mismatch.Error()), nil
 	case errors.As(err, &already):
 		return failure(errorStep(nameImportGrafana, codeAlreadyImported), alreadyImportedOut{
-			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing, scoped), Code: codeAlreadyImported},
+			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing), Code: codeAlreadyImported},
 			Existing: existingOut{
 				DashboardID: already.Existing.DashboardID,
 				Title:       already.Existing.Title,

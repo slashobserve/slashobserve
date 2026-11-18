@@ -93,7 +93,7 @@ The preview's `existing` field names that dashboard when you can see it, and the
 Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history; **Import as new dashboard** still makes a second copy.
 The API takes the same choice as `update_dashboard` on `POST /api/v1/imports`, which answers 200 instead of 201.
 An update only takes the file the dashboard was imported from: a file with another Grafana uid answers 409 `grafana_uid_mismatch` naming both uids and changes nothing, so import it as a new dashboard instead.
-A client that must never make a second copy sets `refuse_existing` on the same request, and gets 409 `already_imported` with `existing` instead; the MCP tool `import_grafana_dashboard` and `observe import` set it unless told `import_as_new` or `--as-new`, and take `update_dashboard` or `--update <dashboard id>` for the update.
+A client that must never make a second copy sets `refuse_existing` on the same request, and gets 409 `already_imported` with `existing` instead; the MCP tool `import_grafana_dashboard` (outside the built-in agent's runs) and `observe import` set it unless told `import_as_new` or `--as-new`, and take `update_dashboard` or `--update <dashboard id>` for the update.
 
 ## Dashboard settings
 

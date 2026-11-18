@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -203,7 +205,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}}, false)
+			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
 			if err != nil || !res.IsError {
 				t.Fatalf("res = %#v, err = %v", res, err)
 			}
@@ -218,7 +220,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 			}
 		})
 	}
-	res, err := r.importFailed(imports.ErrNotFound, false)
+	res, err := r.importFailed(imports.ErrNotFound)
 	if body, ok := res.Content.(importErrorOut); err != nil || !ok || body.Code != codeNotImported {
 		t.Fatalf("res = %#v, err = %v, want not_imported", res, err)
 	}
@@ -238,18 +240,30 @@ func TestAnImportRunMayNotUpdateAnExistingDashboard(t *testing.T) {
 	}
 }
 
-func TestImportFailedInARunDoesNotOfferTheUpdate(t *testing.T) {
-	r := newTestRegistry(t, &fakeDS{}, nil)
-	res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: true}}, true)
-	body, ok := res.Content.(alreadyImportedOut)
-	if err != nil || !ok || strings.Contains(body.Error, "update_dashboard") || !strings.Contains(body.Error, "import_as_new") {
-		t.Fatalf("res = %#v, err = %v", res.Content, err)
+func TestAnImportRunDoesNotAskTheServerToRefuseAnImportedFile(t *testing.T) {
+	in := importArgs{JSON: "{}"}
+	for _, tt := range []struct {
+		name   string
+		in     importArgs
+		scoped bool
+		want   bool
+	}{
+		{"a connected client", in, false, true},
+		{"a connected client importing as new", importArgs{JSON: "{}", ImportAsNew: true}, false, false},
+		{"a run that creates a dashboard", in, true, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _, ok := tt.in.request("", pgtype.UUID{}, tt.scoped)
+			if !ok || req.RefuseExisting != tt.want {
+				t.Fatalf("RefuseExisting = %v (ok %v), want %v", req.RefuseExisting, ok, tt.want)
+			}
+		})
 	}
 }
 
 func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"}, false)
+	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"})
 	body, ok := res.Content.(importErrorOut)
 	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Error, `"abc"`) || !strings.Contains(body.Error, `"zzz"`) || !strings.Contains(body.Error, "new dashboard") {
 		t.Fatalf("res = %#v, err = %v", res.Content, err)
