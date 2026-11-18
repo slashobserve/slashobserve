@@ -203,7 +203,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
+			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}}, false)
 			if err != nil || !res.IsError {
 				t.Fatalf("res = %#v, err = %v", res, err)
 			}
@@ -218,8 +218,31 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 			}
 		})
 	}
-	res, err := r.importFailed(imports.ErrNotFound)
+	res, err := r.importFailed(imports.ErrNotFound, false)
 	if body, ok := res.Content.(importErrorOut); err != nil || !ok || body.Code != codeNotImported {
 		t.Fatalf("res = %#v, err = %v, want not_imported", res, err)
+	}
+}
+
+func TestAnImportRunMayNotUpdateAnExistingDashboard(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	dashboard := `{"title":"Checkout","panels":[]}`
+	input, err := json.Marshal(map[string]any{"json": dashboard, "update_dashboard": dashA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := r.Call(WithRun(ctx, Run{Mode: ModeCreate, Prompt: "Import this: " + dashboard}), nameImportGrafana, input)
+	if err != nil || !res.IsError || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("res = %#v, err = %v, want invalid_request before any save", res, err)
+	}
+}
+
+func TestImportFailedInARunDoesNotOfferTheUpdate(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: true}}, true)
+	body, ok := res.Content.(alreadyImportedOut)
+	if err != nil || !ok || strings.Contains(body.Error, "update_dashboard") || !strings.Contains(body.Error, "import_as_new") {
+		t.Fatalf("res = %#v, err = %v", res.Content, err)
 	}
 }

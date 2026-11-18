@@ -149,6 +149,9 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		if res, ok, err := r.importRunAllowed(ctx, run, in.JSON); err != nil || !ok {
 			return res, err
 		}
+		if in.UpdateDashboard != nil {
+			return invalid("this run creates a new dashboard and may not save a version of an existing one; leave out update_dashboard, or set import_as_new to make another dashboard"), nil
+		}
 	}
 	folder, res, ok := parseImportFolder(in.Folder)
 	if !ok {
@@ -172,7 +175,7 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	}
 	imported, err := r.deps.Imports.Import(ctx, principal, req)
 	if err != nil {
-		return r.importFailed(err)
+		return r.importFailed(err, scoped)
 	}
 	step := "Imported " + plural(imported.Record.Report.Counts.Total, "panel", "panels") + " from Grafana"
 	switch {
@@ -230,7 +233,10 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 	return out
 }
 
-func alreadyImportedMessage(e imports.Existing) string {
+func alreadyImportedMessage(e imports.Existing, scoped bool) string {
+	if scoped {
+		return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d); tell the person where it is, or set import_as_new true to make another dashboard", e.Title, e.Version)
+	}
 	if e.CanUpdate {
 		return fmt.Sprintf("this Grafana dashboard is already imported as %q (version %d); set this tool's update_dashboard argument to %s to save this JSON as its next version, or import_as_new true to make another dashboard", e.Title, e.Version, e.DashboardID)
 	}
@@ -248,14 +254,14 @@ func parseImportFolder(raw *string) (string, Result, bool) {
 	return title, Result{}, true
 }
 
-func (r *Registry) importFailed(err error) (Result, error) {
+func (r *Registry) importFailed(err error, scoped bool) (Result, error) {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
 	var already *imports.AlreadyImportedError
 	switch {
 	case errors.As(err, &already):
 		return failure(errorStep(nameImportGrafana, codeAlreadyImported), alreadyImportedOut{
-			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing), Code: codeAlreadyImported},
+			importErrorOut: importErrorOut{Error: alreadyImportedMessage(already.Existing, scoped), Code: codeAlreadyImported},
 			Existing: existingOut{
 				DashboardID: already.Existing.DashboardID,
 				Title:       already.Existing.Title,
