@@ -445,6 +445,10 @@ When Tempo did not search every block, a **Partial** note says why and which tim
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 
+The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces.
+On Tempo its query is TraceQL; on ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
+A statement such as `SELECT 1`, a second statement, a comment or unbalanced parentheses is refused with that example, and a condition ClickHouse cannot run is reported without the SQL the server built around it.
+
 ### Paging
 
 The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 500 per page.
@@ -511,7 +515,7 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
-A trace search whose minimum span duration is above its maximum is refused with 422 `invalid` and "min must not be greater than max", because it could only return nothing.
+A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
 A folder with no saved search of that kind is not listed, and a folder's header counts its searches unless the list is cut at 100.
 Each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.

@@ -191,3 +191,28 @@ func TestTraceListShowsTheWholeTraceForEachMatch(t *testing.T) {
 		}
 	})
 }
+
+func TestTraceStatsRefusesABadConditionWithoutTheGeneratedSQL(t *testing.T) {
+	ctx := context.Background()
+	provisionTraceList(ctx, t)
+	ds := traceListDS(t)
+	for _, condition := range []string{"service = checkout", "ServiceName = ", "SELECT 1"} {
+		_, err := ds.TraceStats(ctx, datasource.TraceStatsRequest{Query: condition, Range: lastHour(), Step: time.Minute})
+		if err == nil {
+			t.Fatalf("condition %q was accepted", condition)
+		}
+		t.Logf("%q -> %v", condition, err)
+		for _, leak := range []string{"toStartOfInterval", "countIf", "GROUP BY", "exp2"} {
+			if strings.Contains(err.Error(), leak) {
+				t.Errorf("condition %q: error names %q: %v", condition, leak, err)
+			}
+		}
+	}
+	stats, err := ds.TraceStats(ctx, datasource.TraceStatsRequest{Query: "ServiceName = 'tl-front'", Range: lastHour(), Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Spans != 2 {
+		t.Errorf("spans = %d, want 2", stats.Spans)
+	}
+}
