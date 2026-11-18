@@ -78,7 +78,12 @@ import { AddToObservationAction } from "./add-to-observation-action"
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
-import { askAfterSubmit, tracesTimeRange, type TraceSearch } from "./search"
+import {
+  askAfterSubmit,
+  rangeInFuture,
+  tracesTimeRange,
+  type TraceSearch,
+} from "./search"
 import {
   attributeFilter,
   keepSelectionSearch,
@@ -688,9 +693,11 @@ function TraceResults({
     { ...base, page },
     byOffset ? undefined : cursors.cursorFor(page)
   )
+  const future = rangeInFuture(range, Date.now())
   const results = useQuery({
     ...exploreQuery(datasource.uid, params),
     ...polling,
+    enabled: !future,
   })
   const stats = useQuery({
     ...traceStatsQuery(datasource.uid, {
@@ -698,6 +705,7 @@ function TraceResults({
       ...range,
     }),
     ...polling,
+    enabled: !future,
   })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
@@ -727,6 +735,16 @@ function TraceResults({
     results.data ??
     (results.isError && lastGood?.scope === scope ? lastGood.data : undefined)
 
+  if (future) {
+    return (
+      <p role="status" className="text-[13px]">
+        <StatusLabel tone="warning">
+          This time range starts in the future, so no trace can match. Pick an
+          earlier range.
+        </StatusLabel>
+      </p>
+    )
+  }
   if (results.fetchStatus === "paused" && !data) {
     return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
   }

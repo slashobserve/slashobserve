@@ -1,4 +1,5 @@
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
+import { resolveTime } from "@/lib/time"
 import {
   firstString,
   validAsk,
@@ -120,6 +121,10 @@ export function validateTraceViewSearch(
 
 export function tracesTimeRange(search: TraceSearch): TimeRangeValue {
   return { from: search.from ?? "now-1h", to: search.to ?? "now" }
+}
+
+export function rangeInFuture(range: TimeRangeValue, now: number): boolean {
+  return resolveTime(range.from, now, false) > now
 }
 
 export function traceViewRange(search: TraceViewSearch): TimeRangeValue {

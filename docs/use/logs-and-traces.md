@@ -404,6 +404,7 @@ The collapsed sidebar and the phone title open the sources as they do for logs, 
 The time range, **Live**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
 **Live** runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
+A range that starts in the future runs no search and says so.
 On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 

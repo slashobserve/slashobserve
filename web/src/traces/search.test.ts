@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   askAfterSubmit,
   normaliseTraceId,
+  rangeInFuture,
   tracesTimeRange,
   traceViewRange,
   validateTraceEntrySearch,
@@ -141,5 +142,29 @@ describe("askAfterSubmit", () => {
     expect(
       askAfterSubmit(search, { service: "payments", min: "500ms", errors: "1" })
     ).toBeUndefined()
+  })
+})
+
+describe("rangeInFuture", () => {
+  const now = Date.parse("2026-11-18T19:59:00Z")
+
+  it("is true when the range starts after now", () => {
+    expect(
+      rangeInFuture(
+        { from: "2026-11-18T20:10:00Z", to: "2026-11-18T20:20:00Z" },
+        now
+      )
+    ).toBe(true)
+  })
+
+  it("is false for a past or relative range, or one that reaches now", () => {
+    expect(rangeInFuture({ from: "now-1h", to: "now" }, now)).toBe(false)
+    expect(
+      rangeInFuture(
+        { from: "2026-11-18T19:00:00Z", to: "2026-11-18T20:00:00Z" },
+        now
+      )
+    ).toBe(false)
+    expect(rangeInFuture({ from: "now", to: "now+1h" }, now)).toBe(false)
   })
 })
