@@ -309,6 +309,7 @@ Each connected agent in the list has a `state`, always `active` there because th
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's in Settings, Agent access.
+Disconnecting a client also ends a run it already claimed: the run's token stops working at once, and the run ends when its lease lapses.
 The [Agents page](agents.md) lists the same connections with their mode and presence, and its **Connect an agent** button shows the Claude Code command.
 
 Each client's setup:
