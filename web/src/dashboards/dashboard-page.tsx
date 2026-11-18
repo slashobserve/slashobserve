@@ -835,7 +835,7 @@ function DashboardView({
             "min-w-0 narrow:flex-1"
           )}
         >
-          <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+          <div className="@container/dash flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
             {kiosk ? null : (
               <DashboardTopRow
                 title={spec.title}
