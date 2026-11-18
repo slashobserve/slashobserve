@@ -100,6 +100,28 @@ describe("replaceBlock", () => {
     expect(result.observation.blocks?.[2]).toBe(c)
   })
 
+  it("shifts the blocks between when a block moves up", () => {
+    const [a, b, c] = [block("a", 0), block("b", 1), block("c", 2)]
+    const moved = block("c", 0, 2)
+    const result = replaceBlock(envelope([a, b, c]), moved)
+    expect(result.observation.blocks?.map((x) => [x.id, x.position])).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 0],
+    ])
+  })
+
+  it("shifts the blocks between when a block moves down", () => {
+    const [a, b, c] = [block("a", 0), block("b", 1), block("c", 2)]
+    const moved = block("a", 2, 2)
+    const result = replaceBlock(envelope([a, b, c]), moved)
+    expect(result.observation.blocks?.map((x) => [x.id, x.position])).toEqual([
+      ["a", 2],
+      ["b", 0],
+      ["c", 1],
+    ])
+  })
+
   it("does not add a block the page does not have", () => {
     const blocks = [block("a", 0)]
     expect(

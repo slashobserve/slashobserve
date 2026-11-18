@@ -14,7 +14,7 @@ import { addBlockRowId, useFreezeBlock } from "./add-block-row"
 import { PanelBlock } from "./blocks/panel-block"
 import { RunBlock } from "./blocks/run-block"
 import { SnapshotBlock } from "./blocks/snapshot-block"
-import { blockRows, blockTitle, nextBlockId } from "./block-rows"
+import { blockRows, blockTitle, moveTarget, nextBlockId } from "./block-rows"
 import { blockWriteProblem } from "./errors"
 import {
   useRemoveBlock,
@@ -69,12 +69,14 @@ function focusAfterRemoval(nextId: string | null) {
 function BlockMenu({
   observation,
   block,
+  blocks,
   canAdd,
   nextId,
   onAdded,
 }: {
   observation: Observation
   block: Block
+  blocks: readonly Block[]
   canAdd: boolean
   nextId: string | null
   onAdded: (blockId: string) => void
@@ -91,6 +93,19 @@ function BlockMenu({
   if (!canUpdate && !canRemove && !canFreeze) return null
 
   const half = block.width === "half"
+  const up = canUpdate ? moveTarget(blocks, block.id, "up") : null
+  const down = canUpdate ? moveTarget(blocks, block.id, "down") : null
+
+  function move(position: number) {
+    update.mutate(
+      { blockId: block.id, version: block.version, position },
+      {
+        onSuccess: () =>
+          requestAnimationFrame(() => focusBlock(block.id, true)),
+        onError: (error) => toast.error(blockWriteProblem(error).text),
+      }
+    )
+  }
 
   return (
     <DropdownMenu>
@@ -107,6 +122,14 @@ function BlockMenu({
         <MoreHorizontalIcon aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
+        {up === null ? null : (
+          <DropdownMenuItem onClick={() => move(up)}>Move up</DropdownMenuItem>
+        )}
+        {down === null ? null : (
+          <DropdownMenuItem onClick={() => move(down)}>
+            Move down
+          </DropdownMenuItem>
+        )}
         {canUpdate ? (
           <DropdownMenuItem
             onClick={() =>
@@ -191,6 +214,7 @@ function BlockSection({
       <BlockMenu
         observation={observation}
         block={block}
+        blocks={blocks}
         canAdd={canAdd}
         nextId={nextId}
         onAdded={onAdded}

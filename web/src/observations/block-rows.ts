@@ -41,6 +41,17 @@ export function blockTitle(block: Block): string {
   }
 }
 
+export function moveTarget(
+  blocks: readonly Block[],
+  blockId: string,
+  direction: "up" | "down"
+): number | null {
+  const sorted = blocks.toSorted((a, b) => a.position - b.position)
+  const index = sorted.findIndex((block) => block.id === blockId)
+  if (index === -1) return null
+  return sorted[direction === "up" ? index - 1 : index + 1]?.position ?? null
+}
+
 export function nextBlockId(
   blocks: readonly Block[],
   removedId: string

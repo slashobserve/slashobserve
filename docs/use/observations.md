@@ -96,12 +96,13 @@ A person who can only comment suggests that snapshot, as with any other block.
 ### Change blocks
 
 Hover a block, or focus it, to show its **Block actions** menu.
-It offers **Make half width** or **Make full width**, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
+It offers **Move up** and **Move down**, which swap the block with its neighbour and keep it in view, **Make half width** or **Make full width**, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
 Two half width blocks in a row sit side by side when the page is wide enough, and a half width block with no half width neighbour takes the left half of its row.
 **Edit** on a text block opens its Markdown, and **Save** or `⌘Enter` keeps the change.
 If someone changed the block first, the editor says so and **Use their version** replaces your text with theirs.
 Text that is empty is refused; delete the block instead.
-Editing, resizing and deleting need edit access to the folder.
+Editing, moving, resizing and deleting need edit access to the folder.
+An agent reorders blocks with `update_block` and its `position`.
 
 ### Rename, resolve, reopen and move
 

@@ -8,6 +8,7 @@ import {
   blockRows,
   blockTitle,
   newPanelBody,
+  moveTarget,
   nextBlockId,
 } from "./block-rows"
 import type { Block } from "./queries"
@@ -125,6 +126,21 @@ describe("nextBlockId", () => {
   it("names nothing after the last block or an unknown block", () => {
     expect(nextBlockId(blocks, "c")).toBeNull()
     expect(nextBlockId(blocks, "zzz")).toBeNull()
+  })
+})
+
+describe("moveTarget", () => {
+  const blocks = [block("b", 1), block("a", 0), block("c", 2)]
+
+  it("names the position of the neighbour in that direction", () => {
+    expect(moveTarget(blocks, "b", "up")).toBe(0)
+    expect(moveTarget(blocks, "b", "down")).toBe(2)
+  })
+
+  it("names nothing past either end or for an unknown block", () => {
+    expect(moveTarget(blocks, "a", "up")).toBeNull()
+    expect(moveTarget(blocks, "c", "down")).toBeNull()
+    expect(moveTarget(blocks, "zzz", "up")).toBeNull()
   })
 })
 

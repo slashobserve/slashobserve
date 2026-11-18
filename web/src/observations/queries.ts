@@ -37,15 +37,34 @@ export function replaceBlock(
 ): ObservationEnvelope {
   const blocks = envelope.observation.blocks
   if (blocks === undefined) return envelope
+  const before = blocks.find((existing) => existing.id === block.id)?.position
   return {
     ...envelope,
     observation: {
       ...envelope.observation,
       blocks: blocks.map((existing) =>
-        existing.id === block.id ? block : existing
+        existing.id === block.id
+          ? block
+          : shiftedBy(existing, before, block.position)
       ),
     },
   }
+}
+
+function shiftedBy(
+  existing: Block,
+  from: number | undefined,
+  to: number
+): Block {
+  if (from === undefined || from === to) return existing
+  const here = existing.position
+  if (to < from && here >= to && here < from) {
+    return { ...existing, position: here + 1 }
+  }
+  if (to > from && here > from && here <= to) {
+    return { ...existing, position: here - 1 }
+  }
+  return existing
 }
 
 export function withoutBlock(
