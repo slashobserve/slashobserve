@@ -77,6 +77,14 @@ func parse(data []byte, touched map[string]bool) (*Dashboard, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&d); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) && strings.HasPrefix(typeErr.Value, "number") {
+			return nil, newValidationError([]Issue{{
+				Code:    CodeSchema,
+				Path:    "/" + strings.ReplaceAll(typeErr.Field, ".", "/"),
+				Message: fmt.Sprintf("%s does not fit the field; use a smaller number", typeErr.Value),
+			}})
+		}
 		return nil, fmt.Errorf("spec: decode validated document: %w", err)
 	}
 	if issues := checkSemantics(&d, touched); len(issues) > 0 {

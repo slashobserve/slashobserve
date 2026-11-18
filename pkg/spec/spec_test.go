@@ -48,3 +48,17 @@ func TestParseRefusesTheNULCharacterInAValueAndPropertyName(t *testing.T) {
 		t.Fatalf("issues = %+v, want one NUL issue at /title", issues)
 	}
 }
+
+func TestParseAnswersANumberTooLargeForAFilterAsAValidationIssue(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	doc := strings.Replace(minimal, `"datasource": "ch",`, `"datasource": "ch", "transform": [{"type": "filterByValue", "filters": [{"field": "n", "op": "gt", "value": 1e999}]}],`, 1)
+	if doc == minimal {
+		t.Fatal("the example has no datasource to put the transform after")
+	}
+
+	issues := parseIssues(t, []byte(doc))
+
+	if len(issues) != 1 || !strings.HasPrefix(issues[0].Path, "/panels/0/transform/0/filters/0") {
+		t.Fatalf("issues = %+v, want one at the filter", issues)
+	}
+}
