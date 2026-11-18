@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 )
@@ -474,4 +475,132 @@ func TestInboxHidesWhatTheCallerCannotSee(t *testing.T) {
 
 	wantReasons(t, "a restricted folder the Editor holds no grant on", r.inbox(t, mia, ViewForYou))
 	wantReasons(t, "everything", r.inbox(t, mia, ViewEverything))
+}
+
+func (r rig) messageSaying(t *testing.T, thread pgtype.UUID, by actor.Actor, body string) pgtype.UUID {
+	t.Helper()
+	return r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, $2, 'user', $3::uuid, $4) RETURNING id::text`, thread.String(), body, by.ID, by.Name))
+}
+
+func (r rig) repliedAndMentioned(t *testing.T, observation, thread pgtype.UUID, by actor.Actor, mentioned string, body string) (reply, mention int64) {
+	t.Helper()
+	message := r.messageSaying(t, thread, by, body)
+	object := map[string]any{"kind": "observation", "id": observation.String()}
+	ctx := t.Context()
+	err := r.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		reply, err = Append(ctx, q, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: OnObservation(observation), Actor: by, Data: map[string]any{"object": object, "message_id": message.String()}}, nil)
+		if err != nil {
+			return err
+		}
+		mention, err = Append(ctx, q, Entry{Type: TypeThreadMentioned, TargetID: thread, Owner: OnObservation(observation), Actor: by, Data: map[string]any{
+			"object": object, "message_id": message.String(), "mentioned": map[string]any{"kind": "user", "id": mentioned, "name": "Mia"},
+		}}, nil)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return reply, mention
+}
+
+func TestInboxItemsNameTheTargetAndQuoteTheComment(t *testing.T) {
+	r := newRig(t)
+	r.inboxUser(t, mia)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	_, mention := r.repliedAndMentioned(t, o, thread, ola, mia.ID, "  @["+mia.Name+"](user:"+mia.ID+")   can you look at\nthe checkout p99?  ")
+
+	page := r.inbox(t, mia, ViewForYou)
+	if len(page.Items) != 1 || page.Items[0].Seq != mention {
+		t.Fatalf("items = %v, want only the mention %d", inboxSeqs(page), mention)
+	}
+	item := page.Items[0]
+	if item.TargetTitle != "Checkout latency" {
+		t.Fatalf("target title = %q, want the observation's title", item.TargetTitle)
+	}
+	if item.Excerpt != "@Mia can you look at the checkout p99?" {
+		t.Fatalf("excerpt = %q, want the comment as plain text", item.Excerpt)
+	}
+}
+
+func TestInboxShowsOneItemForACommentThatMentionsAndRepliesToTheCaller(t *testing.T) {
+	r := newRig(t)
+	r.inboxUser(t, mia)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	r.message(t, thread, miaActor)
+	_, mention := r.repliedAndMentioned(t, o, thread, ola, mia.ID, "ping")
+	plainReply := r.reply(t, o, thread, ola)
+
+	forYou := r.inbox(t, mia, ViewForYou)
+	if got := inboxSeqs(forYou); !slices.Equal(got, []int64{plainReply, mention}) {
+		t.Fatalf("for you = %v, want the plain reply and the mention only", got)
+	}
+	if forYou.UnreadCount != 2 {
+		t.Fatalf("unread_count = %d, want 2", forYou.UnreadCount)
+	}
+	if got := inboxSeqs(r.inbox(t, mia, ViewEverything)); !slices.Equal(got, []int64{plainReply, mention}) {
+		t.Fatalf("everything = %v, want no second item for the mentioned comment", got)
+	}
+}
+
+func TestInboxItemsCanBeMarkedUnreadOrReadOneByOne(t *testing.T) {
+	r := newRig(t)
+	r.inboxUser(t, mia)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	first := r.mention(t, o, thread, ola, mia.ID)
+	second := r.mention(t, o, thread, ola, mia.ID)
+	third := r.mention(t, o, thread, ola, mia.ID)
+	unread := func() []bool {
+		var out []bool
+		for _, item := range r.inbox(t, mia, ViewForYou).Items {
+			out = append(out, item.Unread)
+		}
+		return out
+	}
+
+	if err := r.store.SetItemUnread(t.Context(), mia, second, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := unread(); !slices.Equal(got, []bool{true, false, true}) {
+		t.Fatalf("after reading only the second = %v, want the others unread", got)
+	}
+	if page := r.inbox(t, mia, ViewForYou); page.UnreadCount != 2 {
+		t.Fatalf("unread_count = %d, want 2", page.UnreadCount)
+	}
+
+	if err := r.store.MarkRead(t.Context(), mia, third); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.store.SetItemUnread(t.Context(), mia, first, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := unread(); !slices.Equal(got, []bool{false, false, true}) {
+		t.Fatalf("after marking the first unread past the cursor = %v, want only the first", got)
+	}
+	if page := r.inbox(t, mia, ViewForYou); page.UnreadCount != 1 {
+		t.Fatalf("unread_count = %d, want 1", page.UnreadCount)
+	}
+
+	if err := r.store.MarkRead(t.Context(), mia, third); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.store.SetItemUnread(t.Context(), mia, second, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.store.MarkRead(t.Context(), mia, third); err != nil {
+		t.Fatal(err)
+	}
+	if got := unread(); !slices.Equal(got, []bool{false, true, true}) {
+		t.Fatalf("a mark read that moves nothing must keep the unread mark = %v", got)
+	}
+
+	if err := r.store.SetItemUnread(t.Context(), mia, third+1000, true); !errors.Is(err, ErrUnknownSeq) {
+		t.Fatalf("set unread of an unknown seq = %v, want ErrUnknownSeq", err)
+	}
+	if err := r.store.SetItemUnread(t.Context(), botKey, first, true); !errors.Is(err, ErrPersonOnly) {
+		t.Fatalf("set unread by a key = %v, want ErrPersonOnly", err)
+	}
 }

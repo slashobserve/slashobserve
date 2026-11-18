@@ -5,7 +5,7 @@ description: See what asks something of you, a proposal to merge, a block to kee
 
 The inbox is the activity you can see, filtered to what asks something of you now.
 It is a read over the [activity log](activity.md), not a second store of events, so it cannot show something that did not happen.
-`GET /api/v1/inbox` lists it, newest first, and `POST /api/v1/inbox/read` marks it read.
+`GET /api/v1/inbox` lists it, newest first, `POST /api/v1/inbox/read` marks it read up to one item, and `PUT /api/v1/inbox/items/{seq}` marks one item read or unread.
 Both need the Viewer role or higher and a signed-in person: a service-account key gets 403 `user_session_required`.
 A connected agent signed in as a person reads the same list with the MCP tool `list_inbox`, which marks nothing read.
 
@@ -38,6 +38,7 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 | `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
+A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
 
 ## Opening an item
 
@@ -59,14 +60,18 @@ An item recorded before the title and panel count were stored reads "Your repair
 | `everything` | Every visible event from others, and every item with a reason, with `reason` null on the events that have none. |
 
 `limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
-An item is the event as `GET /api/v1/activity` returns it, plus `reason` and `unread`, and like the log it carries no comment, message or finding text.
+An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title` and `excerpt`.
+`target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
+`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters, and is null for other items.
+The rest of an item carries no comment, message or finding text, as in the log.
 
 ## What you have read
 
 The server keeps one read position per person, so it follows you from one browser to the next.
 `POST /api/v1/inbox/read` takes `{"seq": N}`, the `seq` of the newest item you saw: that event and everything older is read.
 The position only moves forward, so marking an older `seq` changes nothing, and an unknown `seq` is refused with 422 `unknown_seq`.
-Marking one item without the ones before it is not offered.
+`PUT /api/v1/inbox/items/{seq}` takes `{"unread": true}` or `{"unread": false}` and marks that one item, whatever its place relative to the position.
+Marking a later `seq` read with `POST /api/v1/inbox/read` sets every item up to it to read again, including those you marked unread.
 Until you read once, every item in the last 30 days is unread.
 
 Every list answers `unread_count`, the number of unread `for_you` items whatever the view is, and 100 means 100 or more.

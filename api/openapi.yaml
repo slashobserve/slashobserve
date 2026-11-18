@@ -314,6 +314,8 @@ paths:
     $ref: "./paths/inbox.yaml#/inbox"
   /inbox/read:
     $ref: "./paths/inbox.yaml#/inbox-read"
+  /inbox/items/{seq}:
+    $ref: "./paths/inbox.yaml#/inbox-item"
 components:
   securitySchemes:
     sessionCookie:
@@ -1505,7 +1507,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -1547,6 +1549,14 @@ components:
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        target_title:
+          type: string
+          nullable: true
+          description: The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists.
+        excerpt:
+          type: string
+          nullable: true
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items.
     InboxList:
       type: object
       additionalProperties: false

@@ -338,6 +338,13 @@ type InboxCursor struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type InboxItemState struct {
+	UserID    pgtype.UUID
+	Seq       int64
+	Unread    bool
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID

@@ -52,8 +52,10 @@ var (
 
 type InboxItem struct {
 	Event
-	Reason Reason
-	Unread bool
+	Reason      Reason
+	Unread      bool
+	TargetTitle string
+	Excerpt     string
 }
 
 type InboxPage struct {
@@ -155,6 +157,9 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, cursor 
 			Unread: r.Unread,
 		})
 	}
+	if err := s.describeInbox(ctx, page.Items); err != nil {
+		return InboxPage{}, err
+	}
 	count, err := q.InboxUnreadCount(ctx, dbsqlc.InboxUnreadCountParams{
 		ReaderID:     a.ReaderID,
 		Editable:     reader.editable,
@@ -188,6 +193,26 @@ func (s *Store) MarkRead(ctx context.Context, by auth.Principal, seq int64) erro
 	}
 	if err := q.MarkInboxRead(ctx, dbsqlc.MarkInboxReadParams{UserID: userID, ReadXid: xid, ReadSeq: seq}); err != nil {
 		return fmt.Errorf("mark inbox read: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) SetItemUnread(ctx context.Context, by auth.Principal, seq int64, unread bool) error {
+	if by.Kind != auth.KindUser {
+		return ErrPersonOnly
+	}
+	userID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return folders.ErrForbidden
+	}
+	q := s.db.Queries()
+	if _, err := q.ActivityXid(ctx, seq); errors.Is(err, pgx.ErrNoRows) {
+		return ErrUnknownSeq
+	} else if err != nil {
+		return fmt.Errorf("get activity position: %w", err)
+	}
+	if err := q.SetInboxItemUnread(ctx, dbsqlc.SetInboxItemUnreadParams{UserID: userID, Seq: seq, Unread: unread}); err != nil {
+		return fmt.Errorf("set inbox item unread: %w", err)
 	}
 	return nil
 }

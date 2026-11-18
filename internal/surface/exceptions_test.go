@@ -96,8 +96,9 @@ var exceptions = map[string]exception{
 
 	"listMentionablePeople": {MCP: notBuilt, CLI: notBuilt},
 
-	"listInbox":     {CLI: personOnly},
-	"markInboxRead": {MCP: personOnly, CLI: personOnly},
+	"listInbox":          {CLI: personOnly},
+	"markInboxRead":      {MCP: personOnly, CLI: personOnly},
+	"setInboxItemUnread": {MCP: personOnly, CLI: personOnly},
 
 	"requestHealthRepairs": {MCP: builtInAgentQueue},
 	"runDashboardHealth":   {MCP: notBuilt},
