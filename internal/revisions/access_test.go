@@ -74,8 +74,7 @@ func TestRefusalNamesWhatWouldLetTheRequestThrough(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := refusal(tc.source, tc.hasDashboard, tc.role, "Payments")
-			var need *NeedError
-			if !errors.Is(err, ErrForbidden) || !errors.As(err, &need) || need.Body != tc.want {
+			if !errors.Is(err, ErrForbidden) || forbidden.BodyOf(err) != tc.want {
 				t.Fatalf("refusal = %#v, want a forbidden error with %+v", err, tc.want)
 			}
 		})

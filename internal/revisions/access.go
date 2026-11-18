@@ -13,24 +13,18 @@ import (
 
 var ErrForbidden = errors.New(forbidden.RoleMessage)
 
-type NeedError struct{ Body forbidden.Body }
-
-func (e *NeedError) Error() string { return forbidden.RoleMessage }
-
-func (e *NeedError) Is(target error) bool { return target == ErrForbidden }
-
 func refusal(source Source, hasDashboard bool, role auth.Role, folderTitle string) error {
 	switch {
 	case source == SourceInvestigate && !role.AtLeast(auth.RoleEditor):
-		return &NeedError{Body: forbidden.NeedsRole(string(auth.RoleEditor))}
+		return forbidden.Need(ErrForbidden, forbidden.NeedsRole(string(auth.RoleEditor)))
 	case source == SourceInvestigate:
 		return ErrForbidden
 	case hasDashboard && source == SourceSuggest:
-		return &NeedError{Body: forbidden.NeedsAccess("edit", folderTitle)}
+		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", folderTitle))
 	case hasDashboard:
-		return &NeedError{Body: forbidden.NeedsAccess("comment", folderTitle)}
+		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("comment", folderTitle))
 	}
-	return &NeedError{Body: forbidden.NeedsAccess("edit", "")}
+	return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", ""))
 }
 
 const requesterForbiddenMessage = "the person or key that asked no longer has access to change this dashboard"

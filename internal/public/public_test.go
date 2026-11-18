@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -11,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -20,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -122,6 +126,14 @@ func TestCreateNeedsManage(t *testing.T) {
 	}
 	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); err != nil {
 		t.Fatalf("an admin could not create a link: %v", err)
+	}
+}
+
+func TestCreateRefusalNamesTheAccessItNeeds(t *testing.T) {
+	r := newRig(t)
+	_, err := r.service.Create(t.Context(), editor, r.shared, CreateInput{Mode: ModeFrozen})
+	if want := forbidden.NeedsAccess("manage", "General"); !errors.Is(err, folders.ErrForbidden) || forbidden.BodyOf(err) != want {
+		t.Fatalf("error %v answers %+v, want %+v", err, forbidden.BodyOf(err), want)
 	}
 }
 
@@ -350,5 +362,17 @@ func TestAnUnexpiredLinkStaysListedBehindManyExpiredOnes(t *testing.T) {
 	}
 	if len(list) == 0 || list[0].ID != permanent.Link.ID || list[0].Expired {
 		t.Fatalf("the live link is not first in the list of %d", len(list))
+	}
+}
+
+func TestRefuseAnswersAForbiddenManagerCallWithItsNeed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	(&Handler{}).refuse(c, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", "QA")))
+	want := `{"error":"your role does not allow this","code":"forbidden_role","needed_access":"manage","folder_title":"QA"}`
+	if rec.Code != http.StatusForbidden || rec.Body.String() != want {
+		t.Fatalf("status %d body %s, want %s", rec.Code, rec.Body.String(), want)
 	}
 }

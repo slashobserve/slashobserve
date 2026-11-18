@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
@@ -144,7 +145,7 @@ func (s *Service) manage(ctx context.Context, by auth.Principal, dashboardID pgt
 		return ErrPersonalFolder
 	}
 	if !access.Abilities.Manage {
-		return folders.ErrForbidden
+		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", access.Folder.Title))
 	}
 	return nil
 }

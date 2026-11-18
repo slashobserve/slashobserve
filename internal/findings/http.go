@@ -232,7 +232,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrNoEvidence):
 		httpapi.AbortError(c, http.StatusConflict, "finding_has_no_evidence", err.Error())
 	case errors.Is(err, annotations.ErrForbidden), errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, folders.ErrNoAccess):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 	case errors.As(err, &invalid):

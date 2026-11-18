@@ -240,7 +240,7 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
 	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrPersonalFolder):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, ErrUserScoped):
