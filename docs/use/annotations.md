@@ -5,7 +5,7 @@ description: Mark deploys, incidents and maintenance on a moment or a range of t
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts draw them as markers, you add them with the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, and you delete them through the HTTP API.
+Charts draw them as markers, you add them with the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, you edit their text and tags with the CLI, the HTTP API or an MCP client, and you delete them through the HTTP API or the CLI.
 
 ## Global and dashboard annotations
 
@@ -20,7 +20,7 @@ Who may do what:
 - Adding a dashboard annotation needs Edit on the dashboard's folder (see [Folders](../teams/folders.md)).
 - Adding a global annotation needs the Editor role or higher.
 - Reading the annotations of a dashboard needs only that you can see the dashboard; a dashboard you cannot see answers 404, as if it did not exist.
-- Deleting an annotation is for the person or key that added it, and for Admins.
+- Editing or deleting an annotation is for the person or key that added it, and for Admins.
 
 ## Markers on charts
 
@@ -68,7 +68,8 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/annotations" \
 
 Without `time_from`, the annotation is placed at the server's current time.
 Send `time_from` and `time_to` as RFC 3339 times, such as `2026-11-01T10:00:00Z`, to mark a range instead of a moment.
-Add `dashboard_id`, and optionally `panel_id`, to pin the note to one dashboard or panel.
+A time before 1970-01-01 or after 2099-12-31 is refused with 422 `invalid_time`, never replaced by the current time.
+Add `dashboard_id`, and optionally `panel_id`, to pin the note to one dashboard or panel; a `panel_id` that is not a panel of the dashboard's latest version is refused with 422 `unknown_panel`.
 
 The text is 1 to 2000 characters.
 
@@ -90,8 +91,9 @@ A pipeline that needs a key before anyone signs in can get one from the [service
 
 ## From MCP clients
 
-An MCP client such as Claude Code lists annotations with `list_annotations` and adds one with `create_annotation`, so the agent that just deployed can post the marker itself.
+An MCP client such as Claude Code lists annotations with `list_annotations`, adds one with `create_annotation` and changes the text or tags of one it added with `update_annotation`, so the agent that just deployed can post and correct the marker itself.
 `create_annotation` takes the fields of `POST /api/v1/annotations` and needs Edit on the dashboard, or the Editor role for an annotation on every dashboard.
+`update_annotation` takes an `id` and `text`, `tags` or both, like `PATCH /api/v1/annotations/{id}`.
 The built-in agent reads annotations with `list_annotations` when it investigates, so it can see a deploy beside a spike, and it never adds one.
 No tool deletes an annotation.
 See [MCP](mcp.md).
@@ -120,6 +122,22 @@ curl -fsS -H "Authorization: Bearer $OBSERVE_TOKEN" \
 - `limit` is 1 to 500 and defaults to 100; pass the `next_cursor` of a page as `cursor` to read the next one, until `next_cursor` is null.
 - Each annotation carries `created_by_name`, the name of the person or service account that added it, or null once they are deleted.
   It also carries `actor`, with the `label` the web app shows, such as `deploy-bot (via Claude Code)`, or null once they are deleted; `list_annotations` over MCP returns that label as `created_by_label`.
+
+## Edit an annotation
+
+Fix a typo or change the tags without deleting the annotation, so its author and time stay:
+
+```sh
+curl -fsS -X PATCH "$OBSERVE_SERVER/api/v1/annotations/<annotation id>" \
+  -H "Authorization: Bearer $OBSERVE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Deploy checkout v1.4.3", "tags": ["deploy"]}'
+```
+
+Send `text`, `tags` or both; a field you leave out stays as it was, and `tags` replaces the old tags.
+Only the person or key that added the annotation, or an Admin, may edit it, and its time, dashboard and panel never change.
+The change is recorded as `annotation.updated` in the [activity](activity.md) log, without the text.
+`observe annotations update <id> --text <text> --tags <tags>` does the same from the CLI.
 
 ## Delete an annotation
 

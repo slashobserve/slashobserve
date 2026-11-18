@@ -206,6 +206,8 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"dashboard.deleted", `{}`, `deleted a dashboard`},
 		{"annotation.created", `{"tags":["deploy","checkout"]}`, `added an annotation (deploy, checkout)`},
 		{"annotation.created", `{"tags":[]}`, `added an annotation`},
+		{"annotation.updated", `{"tags":["deploy"]}`, `edited an annotation (deploy)`},
+		{"annotation.updated", `{"tags":[]}`, `edited an annotation`},
 		{"annotation.deleted", `{}`, `deleted an annotation`},
 		{"finding.created", `{"title":"Slow pod"}`, `saved the finding "Slow pod"`},
 		{"finding.pinned", `{"annotation_id":"a"}`, `pinned a finding`},

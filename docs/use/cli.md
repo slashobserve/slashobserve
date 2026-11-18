@@ -342,11 +342,15 @@ It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides
 
 ```sh
 bin/observe annotations list --dashboard <dashboard-id> --from 2026-11-01T00:00:00Z --tag deploy
+bin/observe annotations update <annotation-id> --text "Deploy checkout v1.4.3" --tags deploy
 bin/observe annotations delete <annotation-id>
 ```
 
 Without `--dashboard` it lists only the global annotations, and with it that dashboard's annotations and the global ones.
 `--from` and `--to` are RFC 3339 times, `--tag` can be repeated to match any of several tags, and `--limit` and `--cursor` page through the result.
+
+`bin/observe annotations update <annotation-id>` changes the text with `--text`, the tags with `--tags` (a comma-separated list that replaces the old tags, and `--tags ""` removes them) or both, prints `Updated annotation <id>`, and keeps the annotation's time, dashboard and author; only its creator or an Admin may.
+
 `bin/observe annotations delete <annotation-id>` prints `Deleted annotation <id>`.
 
 ## Dashboard health

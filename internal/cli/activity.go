@@ -255,6 +255,11 @@ func describe(e activityEvent) string {
 			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
 		}
 		return "added an annotation"
+	case "annotation.updated":
+		if len(d.Tags) > 0 {
+			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+		}
+		return "edited an annotation"
 	case "annotation.deleted":
 		return "deleted an annotation"
 	case "finding.created":
