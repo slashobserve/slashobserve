@@ -1,5 +1,5 @@
 name: Set up Go
-description: Install the Go toolchain of go.mod and restore a module and build cache that belongs to one job.
+description: Install the Go toolchain of go.mod and restore a module and build cache that belongs to one job kind. Only runs on main save the cache, so a pull request never spends time uploading one.
 
 inputs:
   cache-name:
@@ -15,8 +15,21 @@ runs:
         go-version-file: go.mod
         cache: false
 
-    - name: Restore the Go caches
+    - name: Restore and save the Go caches
+      if: github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-
+          go-${{ inputs.cache-name }}-${{ runner.os }}-
+
+    - name: Restore the Go caches
+      if: github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/go/pkg/mod
