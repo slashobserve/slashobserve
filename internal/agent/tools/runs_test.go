@@ -201,7 +201,7 @@ func TestRunToolsMapTheServicesRefusals(t *testing.T) {
 		"not the requester":  {revisions.ErrNotRequester, "forbidden"},
 		"no role":            {revisions.ErrForbidden, codeForbiddenRole},
 		"assignee gone":      {revisions.ErrAssigneeUnavailable, "assignee_unavailable"},
-		"wrong state":        {&lifecycle.Refusal{Machine: "run", State: "succeeded", Action: "retry", Allowed: []string{}}, codeInvalidTransition},
+		"wrong state":        {&lifecycle.Refusal{Machine: "run", State: "running", Action: "retry", Allowed: []string{"cancel"}}, codeInvalidTransition},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
