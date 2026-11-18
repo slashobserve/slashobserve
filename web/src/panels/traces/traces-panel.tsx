@@ -54,6 +54,7 @@ import {
   spanFilters,
   type SpanFilters,
 } from "./span-filters"
+import { switcherHeight, TraceSwitcher } from "./trace-switcher"
 import {
   eventTicks,
   traceModel,
@@ -1272,14 +1273,20 @@ export function TraceView(props: TraceViewProps) {
 }
 
 const TracesPanel: PanelRenderer = ({
+  panel,
   frames,
   fields,
   display,
   zone,
+  links,
   width,
   height,
 }) => {
-  const model = useMemo(() => traceModel(frames, fields), [frames, fields])
+  const [traceIndex, setTraceIndex] = useState(0)
+  const model = useMemo(
+    () => traceModel(frames, fields, { traceIndex }),
+    [frames, fields, traceIndex]
+  )
   const filters = useMemo(() => spanFilters(display), [display])
   if (model.reason !== null) {
     return (
@@ -1291,15 +1298,30 @@ const TracesPanel: PanelRenderer = ({
       </div>
     )
   }
+  const range =
+    links.from !== undefined && links.to !== undefined
+      ? { from: links.from, to: links.to }
+      : undefined
   return (
-    <TraceView
-      model={model}
-      filters={filters}
-      zone={zone}
-      width={width}
-      height={height}
-      attributes="inline"
-    />
+    <div className="flex flex-col" style={{ width, height }}>
+      <TraceSwitcher
+        index={model.traceIndex}
+        count={model.traceCount}
+        traceId={model.traceId}
+        datasource={panel.datasource}
+        range={range}
+        onChange={setTraceIndex}
+      />
+      <TraceView
+        key={model.traceId}
+        model={model}
+        filters={filters}
+        zone={zone}
+        width={width}
+        height={Math.max(height - switcherHeight, 0)}
+        attributes="inline"
+      />
+    </div>
   )
 }
 

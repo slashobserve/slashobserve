@@ -52,6 +52,8 @@ export type TraceModel =
   | {
       reason: null
       traceId: string
+      traceCount: number
+      traceIndex: number
       rootService: string
       rootOperation: string
       start: number
@@ -324,7 +326,7 @@ function treeOrder(rows: SpanRow[]) {
 export function traceModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  options: { maxSpans?: number } = {}
+  options: { maxSpans?: number; traceIndex?: number } = {}
 ): TraceModel {
   const cap = options.maxSpans ?? maxSpans
   const located = frames.flatMap((frame) => {
@@ -339,13 +341,15 @@ export function traceModel(
       traces.set(traceId, spans)
     }
   }
-  const first = traces.entries().next()
-  if (first.done) return { reason: missingColumnsReason }
-  const [traceId, all] = first.value
+  if (traces.size === 0) return { reason: missingColumnsReason }
+  const traceIndex = Math.min(
+    Math.max(options.traceIndex ?? 0, 0),
+    traces.size - 1
+  )
+  const [traceId, all] = [...traces.entries()][traceIndex]
   const { frame, columns } = located[0]
 
   const notes: string[] = []
-  if (traces.size > 1) notes.push(`Showing trace 1 of ${traces.size}.`)
   const byStart = [...all].sort((a, b) => a.start - b.start)
   const rows = byStart.slice(0, cap)
   if (byStart.length > cap) {
@@ -388,6 +392,8 @@ export function traceModel(
   return {
     reason: null,
     traceId,
+    traceCount: traces.size,
+    traceIndex,
     rootService: spans[0].service,
     rootOperation: spans[0].operation,
     start: traceStart,

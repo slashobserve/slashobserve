@@ -343,6 +343,7 @@ An address with a trace id and no `ds` opens the only trace datasource when ther
 The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
+When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
 
 - **Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
 - **Critical path** outlines the chain that decides when the trace ends and dims the rest; the line under the waterfall says how many spans are on it.
