@@ -173,10 +173,13 @@ func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
 	}
 }
 
-var queryHints = regexp.MustCompile(`(?i)\bwith\s*\(`)
+var (
+	queryHints    = regexp.MustCompile(`(?i)\bwith\s*\(`)
+	quotedStrings = regexp.MustCompile("\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`")
+)
 
 func newestFirst(text string) string {
-	if queryHints.MatchString(text) {
+	if queryHints.MatchString(quotedStrings.ReplaceAllString(text, `""`)) {
 		return text
 	}
 	return text + " with (most_recent=true)"

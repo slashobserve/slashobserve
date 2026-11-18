@@ -512,10 +512,13 @@ const newestHint = " with (most_recent=true)"
 
 func TestSearchAsksTempoForTheNewestTracesUnlessTheQueryHasHints(t *testing.T) {
 	cases := map[string]string{
-		`{ status = error }`:                          `{ status = error }` + newestHint,
-		`{ status = error } | count() > 2`:            `{ status = error } | count() > 2` + newestHint,
-		`{ status = error } with (most_recent=false)`: `{ status = error } with (most_recent=false)`,
-		`{ status = error } WITH ( sample=true )`:     `{ status = error } WITH ( sample=true )`,
+		`{ status = error }`:                           `{ status = error }` + newestHint,
+		`{ status = error } | count() > 2`:             `{ status = error } | count() > 2` + newestHint,
+		`{ status = error } with (most_recent=false)`:  `{ status = error } with (most_recent=false)`,
+		`{ status = error } WITH ( sample=true )`:      `{ status = error } WITH ( sample=true )`,
+		`{ span.db.statement =~ ".*with (nolock).*" }`: `{ span.db.statement =~ ".*with (nolock).*" }` + newestHint,
+		"{ name = \"a \\\" with (b\" }":                `{ name = "a \" with (b" }` + newestHint,
+		"{ name = `with (x)` }":                        "{ name = `with (x)` }" + newestHint,
 	}
 	for text, want := range cases {
 		ds, fake := serve(t, map[string]reply{"/api/search": {0, `{"traces":[]}`}})
