@@ -31,7 +31,7 @@ export function ChatHome() {
         What do you want to see?
       </h1>
       {agentOff ? <DashboardsSection /> : null}
-      <div className="w-full max-w-[720px]">
+      <div className="w-full max-w-[720px] min-[1800px]:max-w-[960px]">
         <ChatComposer
           rows={3}
           placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
@@ -44,7 +44,7 @@ export function ChatHome() {
         <div
           role="group"
           aria-label="Example prompts"
-          className="flex max-w-[720px] flex-wrap justify-center gap-2"
+          className="flex max-w-[720px] flex-wrap justify-center gap-2 min-[1800px]:max-w-[960px]"
         >
           {examples.map((example) => (
             <Button

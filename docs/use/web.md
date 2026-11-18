@@ -236,6 +236,12 @@ Each panel type keeps a minimum height there, so a chart or a table stays readab
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
 
+## Wide and narrow screens
+
+On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
+The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+Browser zoom scales the whole app if the text is small on a large display.
+
 ## Connected agents
 
 Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
