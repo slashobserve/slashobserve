@@ -47,6 +47,10 @@ function cachedLatestVersion(
   )?.version.version
 }
 
+export function isGone(error: ApiError): boolean {
+  return error.status === 404 || error.status === 403
+}
+
 function describeVersion(event: { summary: string; authorName: string }) {
   if (event.summary && event.authorName) {
     return `${event.summary} by ${event.authorName}`
@@ -120,7 +124,8 @@ export function useDashboardEvents(
       invalidate(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
-        dashboardKeys.list()
+        dashboardKeys.list(),
+        dashboardKeys.panels(dashboardId, event.version)
       )
       const saving = queryClient.isMutating({
         mutationKey: dashboardKeys.saves(dashboardId),
@@ -232,7 +237,7 @@ export function useDashboardEvents(
         })
       } catch (error) {
         if (disposed) return
-        if (!(error instanceof ApiError) || error.status !== 404) return
+        if (!(error instanceof ApiError) || !isGone(error)) return
         queryClient.removeQueries({
           queryKey: dashboardKeys.latest(dashboardId),
           exact: true,

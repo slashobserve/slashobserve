@@ -57,6 +57,7 @@ import {
   withoutPage,
   type ListSearch,
 } from "./list-filters"
+import { useDashboardListLive } from "./live/use-dashboards-live"
 import { ListPagination } from "./list-pagination"
 import {
   listOffset,
@@ -302,6 +303,7 @@ export function DashboardList({
   folderId,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
+  useDashboardListLive()
   const folderLocked = folderId !== undefined
   const page = search.page ?? 1
   const query = useDashboardList(
