@@ -188,7 +188,7 @@ const tickClass: Record<TickAnchor, string> = {
   end: "right-0",
 }
 
-const spanColumns = "grid-cols-[min(288px,40%)_minmax(0,1fr)_60px]"
+const spanColumns = "grid-cols-[min(288px,40%)_minmax(0,1fr)_76px]"
 
 function SpanRow({
   span,
@@ -323,7 +323,7 @@ function SpanRow({
         </div>
       </div>
       <div
-        className="pr-2 text-right text-muted-foreground tabular-nums"
+        className="pr-2 text-right whitespace-nowrap text-muted-foreground tabular-nums"
         onClick={onOpen}
       >
         {formatDuration(span.duration)}
@@ -645,7 +645,7 @@ function AttributeRow({
       <span className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
         {attribute.text}
       </span>
-      <span className="flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+      <span className="flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
         {include ? (
           <SearchAction
             link={include}

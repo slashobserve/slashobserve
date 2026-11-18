@@ -411,7 +411,9 @@ The fields and the **Search traces** button sit in the query card, with Ctrl+Ent
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 The minimum and maximum are span durations: a trace matches when a span that also fits the service and span name is that long, so a span name with a minimum of `1s` finds nothing when that span runs for 100 ms, even if a later span makes the whole trace slower.
-On Tempo you can also write TraceQL, which replaces the fields, and the link under the TraceQL field opens the TraceQL reference.
+On Tempo you can also write TraceQL, which replaces the fields: while the TraceQL field has text the other fields are disabled, and only the TraceQL goes into the address.
+The link under the TraceQL field opens the TraceQL reference.
+On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 
 ### Results

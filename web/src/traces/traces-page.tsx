@@ -58,6 +58,7 @@ import {
   type PageSize,
 } from "@/lib/paging"
 import { isModEnter } from "@/lib/shortcuts"
+import { tracesLink } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
 import { usePageCursors } from "@/lib/use-page-cursors"
@@ -201,6 +202,18 @@ export function TracesPage({ uid }: { uid: string }) {
         <p className="text-[13px] text-muted-foreground">
           No trace source has the uid {uid}.
         </p>
+        <ul className="mt-2 flex flex-col gap-1 text-[13px]">
+          {sources.map((source) => (
+            <li key={source.uid}>
+              <Link
+                {...tracesLink(source.uid)}
+                className="underline underline-offset-3"
+              >
+                Open {source.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
         <Link
           to="/traces"
           className="mt-2 inline-block text-[13px] underline underline-offset-3"
