@@ -224,7 +224,8 @@ Live tail replaces the lines and hides the bar.
 
 ## Reading a line
 
-Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line.
+Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line, and press `j` with nothing focused to land on the first line.
+Only one line is a Tab stop, the one you last had focus on, so Tab crosses the list in one press.
 Opening a line adds `line` to the address, closing it removes `line`, and **Copy link** in the line's details copies an address that opens that line.
 When the linked line is not in the results, the page says so and **Clear** removes `line` from the address.
 

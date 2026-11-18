@@ -39,6 +39,7 @@ import { ColumnsHeader, FieldsMenu } from "./fields-menu"
 import { defaultColumns, fieldNames, lineId } from "./line-fields"
 import { usePrepared } from "./prepared"
 import { traceIdOf, traceRangeAround } from "./trace-link"
+import { useFirstRowShortcut } from "./row-shortcut"
 import { useElementSize } from "./use-element-size"
 
 type ExploreLogsProps = {
@@ -272,6 +273,7 @@ export function LogsResults({
   newSince?: NewSince
 }) {
   const phone = usePhone()
+  useFirstRowShortcut()
   const sortId = useId()
   const { ref: rowsRef, height: rowsHeight } = useElementSize<HTMLDivElement>()
   const [emitted, setEmitted] = useState<ResultsModel | null>(null)
