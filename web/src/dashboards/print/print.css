@@ -22,6 +22,12 @@
     background: transparent !important;
   }
 
+  .export-scroll {
+    overflow: visible !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
   .export-sheet * {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;

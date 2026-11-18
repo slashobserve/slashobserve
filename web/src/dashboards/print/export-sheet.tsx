@@ -101,21 +101,19 @@ export function ExportSheet({
           {statusText(mode, ready)}
         </p>
       </div>
-      <div
-        ref={sheet}
-        style={{ width: sheetWidth }}
-        className="mx-auto max-w-full"
-      >
-        <header className="mb-3 flex flex-col gap-0.5 border-b pb-2">
-          <h1 className="text-lg font-semibold">{title}</h1>
-          <p className="text-xs text-muted-foreground">{context}</p>
-          <p className="text-xs text-muted-foreground">{range}</p>
-          {variables === null ? null : (
-            <p className="text-xs text-muted-foreground">{variables}</p>
-          )}
-          <p className="text-xs text-muted-foreground">{printed}</p>
-        </header>
-        {children}
+      <div className="export-scroll mx-auto max-w-[680px] overflow-x-auto">
+        <div ref={sheet} style={{ width: sheetWidth }}>
+          <header className="mb-3 flex flex-col gap-0.5 border-b pb-2">
+            <h1 className="text-lg font-semibold">{title}</h1>
+            <p className="text-xs text-muted-foreground">{context}</p>
+            <p className="text-xs text-muted-foreground">{range}</p>
+            {variables === null ? null : (
+              <p className="text-xs text-muted-foreground">{variables}</p>
+            )}
+            <p className="text-xs text-muted-foreground">{printed}</p>
+          </header>
+          {children}
+        </div>
       </div>
     </div>
   )

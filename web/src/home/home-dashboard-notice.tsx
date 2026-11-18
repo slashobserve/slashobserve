@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button"
 import { useClearHomeDashboard, useHomeDashboard } from "./home-dashboard"
 
 const reasons = {
-  gone: "The dashboard you chose to open on sign-in was deleted, so Home opens instead.",
+  gone: "The dashboard you chose to open on sign-in was deleted, so Home opens instead. Choose another from a dashboard's More menu.",
   unreadable:
-    "You can no longer view the dashboard you chose to open on sign-in, so Home opens instead.",
+    "You can no longer view the dashboard you chose to open on sign-in, so Home opens instead. Choose another from a dashboard's More menu.",
 } as const
 
 export function HomeDashboardNotice() {
