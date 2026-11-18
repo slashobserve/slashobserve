@@ -481,6 +481,7 @@ The loop of an agent that takes runs:
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
 5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
+   When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.

@@ -15,6 +15,9 @@ WHERE t.token_hash = @token_hash
 -- name: GetRunTokenDeadline :one
 SELECT max(expires_at)::timestamptz FROM run_tokens WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
 
+-- name: RenewRunTokens :exec
+UPDATE run_tokens SET expires_at = @expires_at WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
+
 -- name: DeleteRunTokens :exec
 DELETE FROM run_tokens WHERE agent_request_id = @agent_request_id;
 
