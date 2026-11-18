@@ -43,6 +43,8 @@ const (
 	frameRef            = "A"
 	notLineSource       = "tail reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 	maxSeenKeys         = 10000
+	maxPartialHolds     = 3
+	partialSeenWindow   = time.Minute
 	idFieldName         = "ID"
 	indexFieldName      = "Index"
 	bodyFieldName       = "Body"
@@ -95,6 +97,8 @@ type linesData struct {
 	Frames    json.RawMessage `json:"frames"`
 	Newest    string          `json:"newest"`
 	Truncated bool            `json:"truncated"`
+	Partial   bool            `json:"partial,omitempty"`
+	Warning   string          `json:"warning,omitempty"`
 }
 
 type errorData struct {
@@ -225,12 +229,15 @@ type tail struct {
 	last       time.Time
 	seen       *seenRows
 	catchingUp bool
+	holds      int
 }
 
 type pollResult struct {
 	frames    []datasource.Frame
 	newest    time.Time
 	truncated bool
+	partial   bool
+	warning   string
 }
 
 func (t *tail) poll() (pollResult, error) {
@@ -257,8 +264,10 @@ func (t *tail) poll() (pollResult, error) {
 	if err != nil {
 		return pollResult{}, err
 	}
-	res := pollResult{truncated: datasource.MergeMeta(frames).Truncated}
-	if newest, ok := newestOf(frames); ok {
+	merged := datasource.MergeMeta(frames)
+	res := pollResult{truncated: merged.Truncated, partial: merged.Partial, warning: merged.Warning}
+	hold := t.holdCursor(merged.Partial)
+	if newest, ok := newestOf(frames); ok && !hold {
 		t.last = laterOf(t.last, newest.Add(time.Nanosecond))
 	}
 	if t.seen != nil {
@@ -268,6 +277,18 @@ func (t *tail) poll() (pollResult, error) {
 	res.newest, _ = newestOf(frames)
 	t.catchingUp = res.truncated
 	return res, nil
+}
+
+func (t *tail) holdCursor(partial bool) bool {
+	if !partial || t.holds == maxPartialHolds {
+		t.holds = 0
+		return false
+	}
+	t.holds++
+	if t.seen == nil {
+		t.seen = newSeenRows(partialSeenWindow, maxSeenKeys)
+	}
+	return true
 }
 
 func (t *tail) rangeStart() time.Time {
@@ -314,7 +335,7 @@ func rowTime(f datasource.Frame, row int) (time.Time, bool) {
 }
 
 func (t *tail) emit(res pollResult) bool {
-	if datasource.Points(res.frames) == 0 {
+	if datasource.Points(res.frames) == 0 && !res.partial {
 		return true
 	}
 	frames, err := marshalFrames(frameRef, res.frames)
@@ -323,7 +344,7 @@ func (t *tail) emit(res pollResult) bool {
 		writeEvent(t.c, "error", errorData{Code: string(queryproxy.CodeInternal), Error: "internal error"})
 		return false
 	}
-	return writeEvent(t.c, "lines", linesData{Frames: frames, Newest: httpapi.FormatTime(res.newest), Truncated: res.truncated})
+	return writeEvent(t.c, "lines", linesData{Frames: frames, Newest: httpapi.FormatTime(res.newest), Truncated: res.truncated, Partial: res.partial, Warning: res.warning})
 }
 
 func (t *tail) pump(immediate bool) {

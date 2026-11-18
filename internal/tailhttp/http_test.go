@@ -624,3 +624,51 @@ func TestSeenRowsForgetByCountAndByTime(t *testing.T) {
 		t.Fatalf("a key inside the window should be remembered: fresh rows = %d", got)
 	}
 }
+
+func partialLines(offsets ...int64) response {
+	f := linesFrame(false, offsets...)
+	f.Meta = &datasource.FrameMeta{Partial: true, Warning: "a shard failed"}
+	return response{frames: []datasource.Frame{f}}
+}
+
+func TestTailFlagsAPartialPollAndFetchesTheMissingLinesOnTheNext(t *testing.T) {
+	f := newFixture(t, partialLines(1, 2), lines(1, 2, 3), lines(4))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+
+	firstEvent := s.next(t)
+	first := decode[linesData](t, firstEvent, "lines")
+	if !first.Partial || first.Warning != "a shard failed" || len(bodiesOf(t, firstEvent)) != 2 {
+		t.Fatalf("first lines = %+v, want two lines flagged partial with the warning", first)
+	}
+	secondEvent := s.next(t)
+	if second := decode[linesData](t, secondEvent, "lines"); second.Partial {
+		t.Fatalf("second lines = %+v, want complete", second)
+	}
+	if got := bodiesOf(t, secondEvent); !slices.Equal(got, []string{"line 3"}) {
+		t.Fatalf("second poll sent %v, want only the line the partial poll missed", got)
+	}
+	decode[linesData](t, s.next(t), "lines")
+	seen := waitForRequests(t, f.logs, 3)
+	if got := seen[1].Range.From; !got.Equal(fromTime) {
+		t.Fatalf("poll after a partial one from = %v, want the cursor held at %v", got, fromTime)
+	}
+	if got := seen[2].Range.From; !got.Equal(time.Unix(0, baseNs+4)) {
+		t.Fatalf("poll after a complete one from = %v, want %v", got, time.Unix(0, baseNs+4).UTC())
+	}
+}
+
+func TestTailAdvancesAfterThreeHeldPartialPolls(t *testing.T) {
+	f := newFixture(t, partialLines(1), partialLines(1), partialLines(1), partialLines(1))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	for range 4 {
+		decode[linesData](t, s.next(t), "lines")
+	}
+	seen := waitForRequests(t, f.logs, 4)
+	for i := 1; i <= 3; i++ {
+		if got := seen[i].Range.From; !got.Equal(fromTime) {
+			t.Fatalf("poll %d from = %v, want the held cursor %v", i, got, fromTime)
+		}
+	}
+}
