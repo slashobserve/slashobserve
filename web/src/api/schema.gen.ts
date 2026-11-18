@@ -4630,6 +4630,8 @@ export interface components {
             truncated: boolean;
             /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
             partial: boolean;
+            /** @description The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one. */
+            warning?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */

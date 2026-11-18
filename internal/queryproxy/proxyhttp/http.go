@@ -117,6 +117,7 @@ type dataMeta struct {
 	SourcePanel    string          `json:"source_panel,omitempty"`
 	Truncated      bool            `json:"truncated"`
 	Partial        bool            `json:"partial"`
+	Warning        string          `json:"warning,omitempty"`
 	Rows           int             `json:"rows"`
 	RowsTotal      int             `json:"rows_total,omitempty"`
 	Oldest         string          `json:"oldest,omitempty"`
@@ -145,6 +146,7 @@ type resultMeta struct {
 	page           *pageMeta
 	truncated      bool
 	partial        bool
+	warning        string
 	rows           int
 	rowsTotal      int
 	oldest         time.Time
@@ -161,6 +163,7 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 	m := resultMeta{
 		truncated:      merged.Truncated,
 		partial:        merged.Partial,
+		warning:        merged.Warning,
 		rowsTotal:      merged.RowsTotal,
 		jobsDone:       merged.JobsDone,
 		jobsTotal:      merged.JobsTotal,
@@ -463,6 +466,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			SourcePanel:    sourcePanel,
 			Truncated:      e.meta.truncated,
 			Partial:        e.meta.partial,
+			Warning:        e.meta.warning,
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,
 			Oldest:         formatEdge(e.meta.oldest),
