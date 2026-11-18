@@ -1,3 +1,5 @@
+import { textError, textRule } from "@/lib/user-text"
+
 export const maxPromptLength = 4000
 const maxPromptNameLength = 64
 const suggestedWordCount = 3
@@ -23,12 +25,7 @@ export function promptNameError(raw: string): string | null {
 }
 
 export function promptBodyError(raw: string): string | null {
-  const body = raw.trim()
-  if (body === "") return "Enter the prompt."
-  if ([...body].length > maxPromptLength) {
-    return `Use at most ${maxPromptLength} characters.`
-  }
-  return null
+  return textError("prompt", raw, textRule(maxPromptLength))
 }
 
 function cutAtWord(text: string, limit: number): string {
