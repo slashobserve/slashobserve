@@ -268,6 +268,8 @@ paths:
     $ref: "./paths/stars.yaml#/dashboards-id-star"
   /stars:
     $ref: "./paths/stars.yaml#/stars"
+  /me/home-dashboard:
+    $ref: "./paths/home-dashboard.yaml#/me-home-dashboard"
   /dashboards/{id}/public-links:
     $ref: "./paths/public.yaml#/dashboards-id-public-links"
   /dashboards/{id}/public-links/{link_id}:
@@ -1722,6 +1724,37 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+    HomeDashboard:
+      type: object
+      additionalProperties: false
+      required: [status, dashboard, set_at]
+      properties:
+        status:
+          type: string
+          enum: [none, ok, gone, unreadable]
+          description: "`none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it."
+        dashboard:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, title, folder_id, folder_title]
+          description: Set only when `status` is `ok`.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            folder_id:
+              type: string
+              format: uuid
+            folder_title:
+              type: string
+        set_at:
+          type: string
+          nullable: true
+          format: date-time
+          description: When the person chose it; null when `status` is `none`.
     DashboardListItem:
       type: object
       additionalProperties: false

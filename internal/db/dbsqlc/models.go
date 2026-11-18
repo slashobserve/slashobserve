@@ -317,6 +317,12 @@ type GrafanaSyncItem struct {
 	Error             pgtype.Text
 }
 
+type HomeDashboard struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	SetAt       pgtype.Timestamptz
+}
+
 type Import struct {
 	ID              pgtype.UUID
 	DashboardID     pgtype.UUID

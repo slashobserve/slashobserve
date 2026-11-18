@@ -174,6 +174,10 @@ var exceptions = map[string]exception{
 	"unstarDashboard": {CLI: personOnly},
 	"listStars":       {CLI: personOnly},
 
+	"getHomeDashboard":   {CLI: personOnly},
+	"setHomeDashboard":   {CLI: personOnly},
+	"clearHomeDashboard": {CLI: personOnly},
+
 	"createPanelSuggestion": {MCP: builtInAgentQueue, CLI: notBuilt},
 	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
 

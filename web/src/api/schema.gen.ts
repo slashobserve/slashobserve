@@ -2900,6 +2900,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/home-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the dashboard that opens for the signed-in person after sign-in.
+         * @description `status` says whether it is set and still usable. `gone` and `unreadable` keep the choice so the web app can tell the person, and the person clears it or picks another. Only signed-in people have one: a service-account key gets 403 `user_session_required`.
+         */
+        get: operations["getHomeDashboard"];
+        /**
+         * Choose the dashboard that opens after sign-in.
+         * @description It replaces the earlier choice, and choosing the same dashboard again changes nothing. The caller must be able to view the dashboard, otherwise 404 `not_found`. A service-account key gets 403 `user_session_required`.
+         */
+        put: operations["setHomeDashboard"];
+        post?: never;
+        /**
+         * Clear the home dashboard so Home opens after sign-in.
+         * @description Clearing when none is set changes nothing. A service-account key gets 403 `user_session_required`.
+         */
+        delete: operations["clearHomeDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/public-links": {
         parameters: {
             query?: never;
@@ -4126,6 +4154,27 @@ export interface components {
             creator: components["schemas"]["Creator"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+        };
+        HomeDashboard: {
+            /**
+             * @description `none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it.
+             * @enum {string}
+             */
+            status: "none" | "ok" | "gone" | "unreadable";
+            /** @description Set only when `status` is `ok`. */
+            dashboard: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** Format: uuid */
+                folder_id: string;
+                folder_title: string;
+            } | null;
+            /**
+             * Format: date-time
+             * @description When the person chose it; null when `status` is `none`.
+             */
+            set_at: string | null;
         };
         DashboardListItem: {
             /** Format: uuid */
@@ -14067,6 +14116,106 @@ export interface operations {
                         }[];
                     };
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The home dashboard choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The choice after the write. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    clearHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No home dashboard is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
