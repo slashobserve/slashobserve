@@ -696,3 +696,27 @@ func TestCommentsCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestStartRunsWithoutAMentionSaysNoRunStarted(t *testing.T) {
+	reply := `{"thread":{"id":"` + testAnnotation + `","target":{"kind":"dashboard","id":"` + testDashboard + `"}},"message":{"id":"` + testAnnotation + `","run":null,"run_refusal":null}}`
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"add", []string{"comments", "add", "--on", "dashboard:" + testDashboard, "--start-runs", "no mention here"}, "No run started: the text mentions no agent"},
+		{"reply", []string{"comments", "reply", "--start-runs", testAnnotation, "nobody mentioned"}, "No run started: the text mentions no agent"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, stderr, code := runAgainst(t, 200, reply, tc.args...)
+			if code != 0 || !strings.Contains(stderr, tc.want) {
+				t.Fatalf("exit %d, stderr %q", code, stderr)
+			}
+		})
+	}
+	_, _, stderr, _ := runAgainst(t, 200, reply, "comments", "add", "--on", "dashboard:"+testDashboard, "plain comment")
+	if strings.Contains(stderr, "No run started") {
+		t.Fatalf("a comment without --start-runs warned: %q", stderr)
+	}
+}

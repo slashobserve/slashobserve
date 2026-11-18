@@ -307,7 +307,9 @@ A mention shows in the [activity log](activity.md) and starts no agent run unles
 `--start-runs` on `comments add` or `comments reply` starts a run for the one agent the text mentions, in the same transaction as the comment.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
 A dashboard thread starts a comment run, which a Commenter may start and which ends in a proposal when you cannot edit; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
-Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing.
+Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing and prints `No run started: the text mentions no agent` on stderr.
+An observation has one discussion, so `comments add` on an observation that has one answers `observation_thread_exists` and names the `comments reply` command for it.
+Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.

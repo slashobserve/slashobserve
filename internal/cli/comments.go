@@ -315,7 +315,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe observations get, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when the run cannot start, and the reason is printed.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and the reason is printed: a text that mentions no agent says so, and a refused run names its code.\nAn observation has one discussion, so a second add on it is refused with the thread to reply to; use comments reply.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -370,7 +370,7 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
-	reportRun(out, created.Message)
+	reportRun(out, created.Message, a.commentAdd.startRuns)
 	return nil
 }
 
@@ -386,12 +386,14 @@ func setID(payload map[string]any, key, value string) error {
 	return nil
 }
 
-func reportRun(out *output, message threadMessage) {
-	if message.Run != nil {
+func reportRun(out *output, message threadMessage, startRuns bool) {
+	switch {
+	case message.Run != nil:
 		out.confirm("Started run %s, taken by %s", text(message.Run.ID), text(message.Run.AssignedKind))
-	}
-	if message.RunRefusal != nil {
+	case message.RunRefusal != nil:
 		out.warn("No run started (%s): %s", text(message.RunRefusal.Code), text(message.RunRefusal.Message))
+	case startRuns:
+		out.warn("No run started: the text mentions no agent. Mention @observe, @[Name](grant:<id>) or @[Name](service_account:<id>) to ask one.")
 	}
 }
 
@@ -466,7 +468,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Replied to thread %s as %s", text(thread), text(message.ID))
-	reportRun(out, message)
+	reportRun(out, message, a.commentReply.startRuns)
 	return nil
 }
 
