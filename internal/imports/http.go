@@ -46,6 +46,7 @@ type importRequest struct {
 	Folder  *string           `json:"folder"`
 
 	UpdateDashboard *string `json:"update_dashboard"`
+	RefuseExisting  bool    `json:"refuse_existing"`
 }
 
 type authorJSON struct {
@@ -75,6 +76,12 @@ type existingJSON struct {
 	Title       string `json:"title"`
 	Version     int    `json:"version"`
 	CanUpdate   bool   `json:"can_update"`
+}
+
+type alreadyImportedJSON struct {
+	Error    string       `json:"error"`
+	Code     string       `json:"code"`
+	Existing existingJSON `json:"existing"`
 }
 
 type importJSON struct {
@@ -185,7 +192,7 @@ func decodeImportBody(c *gin.Context) (Request, bool) {
 			return Request{}, false
 		}
 	}
-	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping}
+	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping, RefuseExisting: body.RefuseExisting}
 	if body.UpdateDashboard != nil {
 		id, err := db.ParseUUID(*body.UpdateDashboard)
 		if err != nil {
@@ -321,6 +328,7 @@ func (h *Handler) forDashboard(c *gin.Context) {
 func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var input *grafana.InputError
 	var unresolved *UnresolvedError
+	var already *AlreadyImportedError
 	var invalid *dashboards.InvalidSpecError
 	if clientgone.Handle(c, h.svc.logger, action, err) {
 		return
@@ -330,6 +338,8 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, input.Code, input.Message)
 	case errors.As(err, &unresolved):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, unresolvedJSON{Error: unresolved.Error(), Code: "datasources_unresolved", Datasources: unresolved.Datasources})
+	case errors.As(err, &already):
+		c.AbortWithStatusJSON(http.StatusConflict, alreadyImportedJSON{Error: already.Error(), Code: "already_imported", Existing: *newExistingJSON(&already.Existing)})
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.Is(err, ErrBusy):

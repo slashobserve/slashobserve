@@ -92,6 +92,7 @@ Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digi
 The preview's `existing` field names that dashboard when you can see it, and the import page then says "Already imported as `<title>` (version `<n>`)" and, when you can edit it, offers **Update `<title>`**.
 Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history; **Import as new dashboard** still makes a second copy.
 The API takes the same choice as `update_dashboard` on `POST /api/v1/imports`, which answers 200 instead of 201.
+A client that must never make a second copy sets `refuse_existing` on the same request, and gets 409 `already_imported` with `existing` instead; the MCP tool `import_grafana_dashboard` and `observe import` set it unless told `import_as_new` or `--as-new`, and take `update_dashboard` or `--update <dashboard id>` for the update.
 
 ## Dashboard settings
 

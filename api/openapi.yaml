@@ -4372,6 +4372,41 @@ components:
             The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard.
             Needs Edit on the dashboard; the folder is not changed.
             Only the import uses it; the preview ignores it.
+        refuse_existing:
+          type: boolean
+          default: false
+          description: >-
+            Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid.
+            Ignored with `update_dashboard`, and by the preview.
+    ImportExisting:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title, version, can_update]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          description: The dashboard's latest version.
+        can_update:
+          type: boolean
+          description: True when the caller has Edit on the dashboard, so `update_dashboard` is accepted.
+    AlreadyImported:
+      type: object
+      additionalProperties: false
+      required: [error, code, existing]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [already_imported]
+        existing:
+          $ref: "#/components/schemas/ImportExisting"
     ImportSummary:
       type: object
       additionalProperties: false
@@ -4631,24 +4666,10 @@ components:
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
         existing:
-          type: object
-          additionalProperties: false
           nullable: true
-          required: [dashboard_id, title, version, can_update]
+          allOf:
+            - $ref: "#/components/schemas/ImportExisting"
           description: The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise.
-          properties:
-            dashboard_id:
-              type: string
-              format: uuid
-            title:
-              type: string
-            version:
-              type: integer
-              minimum: 1
-              description: The dashboard's latest version.
-            can_update:
-              type: boolean
-              description: True when the caller has Edit on the dashboard, so `update_dashboard` is accepted.
         ready:
           type: boolean
           description: True when every source datasource has a match, so the import can be saved.

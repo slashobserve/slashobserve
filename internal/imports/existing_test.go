@@ -105,3 +105,65 @@ func TestAnUpdateNeedsAnImportTheCallerMayEdit(t *testing.T) {
 		t.Fatalf("latest = %d, err %v, want the refused updates to save nothing", latest, err)
 	}
 }
+
+func TestRefuseExistingAnswersWithTheDashboardInsteadOfMakingACopy(t *testing.T) {
+	r := newRig(t)
+	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "refuse_existing": true}
+	rec := r.serve(t, ada, http.MethodPost, "/imports", body)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var refused struct {
+		Code     string `json:"code"`
+		Existing struct {
+			DashboardID string `json:"dashboard_id"`
+			Version     int    `json:"version"`
+			CanUpdate   bool   `json:"can_update"`
+		} `json:"existing"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &refused); err != nil {
+		t.Fatal(err)
+	}
+	if refused.Code != "already_imported" || refused.Existing.DashboardID != first.Dashboard.ID || refused.Existing.Version != 1 || !refused.Existing.CanUpdate {
+		t.Fatalf("refused = %+v, want already_imported naming the first dashboard", refused)
+	}
+	list := r.serve(t, ada, http.MethodGet, "/imports", nil)
+	var listed struct {
+		Imports []json.RawMessage `json:"imports"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &listed); err != nil || len(listed.Imports) != 1 {
+		t.Fatalf("imports after the refusal: %s (err %v), want only the first", list.Body.String(), err)
+	}
+}
+
+func TestRefuseExistingStillImportsANewFileAndAllowsAnUpdate(t *testing.T) {
+	r := newRig(t)
+	if rec := r.serve(t, ada, http.MethodPost, "/imports", map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "refuse_existing": true}); rec.Code != http.StatusCreated {
+		t.Fatalf("first import status %d: %s", rec.Code, rec.Body.String())
+	}
+	first, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "abc")
+	if err != nil || !ok {
+		t.Fatalf("holder = %+v ok %v err %v", first, ok, err)
+	}
+	body := map[string]any{"json": string(grafanaJSON("Shop", "prom", 2)), "refuse_existing": true, "update_dashboard": first.DashboardID.String()}
+	if rec := r.serve(t, ada, http.MethodPost, "/imports", body); rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRefuseExistingDoesNotRevealADashboardTheCallerCannotSee(t *testing.T) {
+	r := newRig(t)
+	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foldertest.Move(t, r.db, uuid(t, first.Dashboard.ID), foldertest.Restricted(t, r.db, "Payroll", privateGroup))
+	rec := r.serve(t, editorNoGrant, http.MethodPost, "/imports", map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "refuse_existing": true})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}

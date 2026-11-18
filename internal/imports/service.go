@@ -66,6 +66,7 @@ type Request struct {
 	GrafanaVersion int
 	RequestID      pgtype.UUID
 	Update         pgtype.UUID
+	RefuseExisting bool
 }
 
 type Existing struct {
@@ -73,6 +74,12 @@ type Existing struct {
 	Title       string
 	Version     int
 	CanUpdate   bool
+}
+
+type AlreadyImportedError struct{ Existing Existing }
+
+func (e *AlreadyImportedError) Error() string {
+	return fmt.Sprintf("this Grafana dashboard was already imported as %q (dashboard %s, version %d)", e.Existing.Title, e.Existing.DashboardID, e.Existing.Version)
 }
 
 type GrafanaImport struct {
@@ -227,6 +234,15 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	}
 	if !result.Ready() {
 		return Imported{}, &UnresolvedError{Datasources: result.Datasources}
+	}
+	if req.RefuseExisting {
+		existing, err := s.ExistingFor(ctx, by, result.Summary.UID)
+		if err != nil {
+			return Imported{}, err
+		}
+		if existing != nil {
+			return Imported{}, &AlreadyImportedError{Existing: *existing}
+		}
 	}
 	rawSpec, err := json.Marshal(result.Spec)
 	if err != nil {
