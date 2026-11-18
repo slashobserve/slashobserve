@@ -192,7 +192,16 @@ function describeInstantRange(from: string, to: string): string | null {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`
   const endText =
     day(start) === day(end) ? clock(end) : `${day(end)}, ${clock(end)}`
-  return `${day(start)}, ${clock(start)} to ${endText}`
+  return `${day(start)}, ${clock(start)} to ${endText} ${browserZoneName(end)}`
+}
+
+export function browserZoneName(at: Date): string {
+  const part = new Intl.DateTimeFormat(undefined, {
+    timeZoneName: "short",
+  })
+    .formatToParts(at)
+    .find((item) => item.type === "timeZoneName")
+  return part?.value ?? "local time"
 }
 
 const absoluteUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }

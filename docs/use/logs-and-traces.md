@@ -27,6 +27,7 @@ An address that carries a search but no source, such as `/logs?q=...`, opens the
 The page searches that one source in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
 On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
 The address keeps the source, `q`, `from` and `to`, so **Copy link** in the top bar copies a search that opens the same way.
+Times on the page are in the time zone of your browser, and a range between two moments reads with that zone after it, such as `Nov 18, 19:53 to 19:59 GMT+5:30`.
 
 ### What the page shows first
 
