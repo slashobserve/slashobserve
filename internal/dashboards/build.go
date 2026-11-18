@@ -224,6 +224,11 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 	if !found {
 		return Commit{}, ErrBuildNotFound
 	}
+	note, err := s.describeBuild(ctx, build)
+	if err != nil {
+		return Commit{}, err
+	}
+	build.Summary = note.summary
 	deleteBuild := deleteBuildFenced(ctx, requestID, attempt)
 	if build.DashboardID.Valid {
 		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
@@ -234,7 +239,7 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 			return s.proposeBuild(ctx, by, build, access, deleteBuild)
 		}
 	}
-	dash, ver, replayed, err := s.commitBuild(ctx, by, build, build.Summary, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
+	dash, ver, replayed, err := s.commitBuild(ctx, by, build, note, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
 		return deleteBuild(q)
 	})
 	if err != nil {
@@ -377,7 +382,7 @@ func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, reque
 	if build.origin.Kind != "" {
 		ctx = origin.With(ctx, build.origin)
 	}
-	return s.commitBuild(ctx, by, build, stoppedSummary(progress), func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error {
+	return s.commitBuild(ctx, by, build, versionNote{summary: stoppedSummary(progress)}, func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error {
 		kept, err := revisions.KeepBuild(ctx, q, requestID, dashboardID, version)
 		if err != nil {
 			return err
@@ -396,7 +401,7 @@ func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, reque
 	})
 }
 
-func (s *Service) commitBuild(ctx context.Context, by auth.Principal, build Build, summary string, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
+func (s *Service) commitBuild(ctx context.Context, by auth.Principal, build Build, note versionNote, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
 	if !build.DashboardID.Valid {
 		closed, err := closeLines(build.Spec)
 		if err != nil {
@@ -409,7 +414,7 @@ func (s *Service) commitBuild(ctx context.Context, by auth.Principal, build Buil
 	if err != nil {
 		return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)
 	}
-	in := newVersion{spec: build.Spec, canonical: canonical, summary: summary, author: authorOf(by), requestID: build.RequestID, origin: origin.From(ctx), unverified: build.Unverified}
+	in := newVersion{spec: build.Spec, canonical: canonical, summary: note.summary, restoredFrom: note.restoredFrom, author: authorOf(by), requestID: build.RequestID, origin: origin.From(ctx), unverified: build.Unverified}
 	if !build.DashboardID.Valid {
 		return s.commitCreate(ctx, by, in, inTx)
 	}

@@ -35,11 +35,11 @@ The last 20 prompts are kept in this browser only, never on the server.
 A slash command at the start of the box changes what the send does.
 Type the command and a space, and it turns into a chip above the box:
 
-| Command        | Chip        | What the send does                                              |
-| -------------- | ----------- | --------------------------------------------------------------- |
+| Command        | Chip        | What the send does                                                                |
+| -------------- | ----------- | --------------------------------------------------------------------------------- |
 | `/investigate` | Investigate | Asks a question and answers in an observation, see [Investigate](investigate.md). |
-| `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.            |
-| `/revise`      | Revise      | Changes the dashboard this chat is about.                       |
+| `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.                              |
+| `/revise`      | Revise      | Changes the dashboard this chat is about.                                         |
 
 While you type a command, a line under the box lists the matching commands and says "Type a space after the command to use it."
 Remove the chip with its button, or press Backspace in the empty box.
@@ -86,20 +86,24 @@ Its order of work is:
 
 The conversation shows these as phases, each with a message from the server:
 
-| Phase            | Examples of what you see                                                               |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch"                         |
-| Checking queries | "Checked a query on prom: 0 errors"                                                    |
-| Running queries  | "Ran a query on prom: ..."                                                             |
-| Saving           | "Saved version 1"                                                                      |
-| Repairing        | "Save rejected: 2 issues (...)"                                                        |
+| Phase            | Examples of what you see                                       |
+| ---------------- | -------------------------------------------------------------- |
+| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch" |
+| Checking queries | "Checked a query on prom: 0 errors"                            |
+| Running queries  | "Ran a query on prom: ..."                                     |
+| Saving           | "Saved version 1"                                              |
+| Repairing        | "Save rejected: 2 issues (...)"                                |
 
 A save is the real check.
 A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed.
 Either rejects a panel whose query is invalid or returns no data, except for alert list panels.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
 The instructions allow three repair attempts; if the agent still cannot save, the request fails.
-A save that finishes the dashboard ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
+A save that finishes the dashboard ends the run.
+
+The server writes the version summary from the finished build, not from the agent's last save: a new dashboard reads `Built the dashboard with 6 panels: "A", "B", "C", "D" and 2 more.`, and a revision lists what changed since the version it started from, such as `Added "p99 latency"; renamed "Orders" to "Orders (agent)"; changed the description.`
+When the build ends up identical to an earlier version, such as after "undo that", the version is a restore: its summary reads `Restored version 3 (removed "p99 latency").` and the history marks it as restored from that version.
+A build that changed nothing keeps the sentence the agent wrote.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
@@ -208,24 +212,24 @@ A failed request shows "The dashboard could not be built" (or "The dashboard cou
 The advice to save or continue a build shows only while a build is left to save or continue; otherwise the table's last column reads "Try again." or "Try again with a narrower prompt.".
 A run you stopped shows "You stopped this run" instead.
 
-| Code                                     | What it means                                              | What to do                                                             |
-| ---------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `run_timeout`                            | The run reached the server's time limit.                   | Try again with a narrower prompt, or continue the build.               |
-| `call_timeout`                           | A model call took too long to answer.                      | Try again.                                                             |
-| `rate_limited`                           | The model provider is limiting requests from this server.  | Wait a minute, then try again.                                         |
-| `provider_error`                         | The model provider answered with an error.                 | Try again, and ask an admin to check the provider if it keeps failing. |
-| `output_limit`                           | The model's answer was cut off at its output limit.        | Try again and ask for fewer panels.                                    |
-| `no_tool_call`, `no_progress`            | The agent stopped making progress.                         | Try again and name the metric, service or table you want.              |
-| `validation_exhausted`, `check_failed`   | The agent could not get its queries past the checks.       | Try again and name the metric, service or table you want.              |
-| `refused`                                | The model declined the request.                            | Rephrase the prompt.                                                   |
-| `conflict`                               | Someone saved a newer version while the agent worked.      | Open the dashboard and ask again.                                      |
-| `canceled`                               | The run was canceled.                                      | Save what was built, continue it, or try again.                        |
-| `requester_forbidden`, `requester_gone`  | You no longer have access to this dashboard.               | Ask an admin for Edit access.                                          |
-| `crashed`, `lease_expired`               | The server stopped while it ran this request.              | Try again.                                                             |
-| `no_finding`                             | The agent ended without writing a finding.                 | Ask a narrower question, with the service and the time range.          |
-| `budget_exhausted`                       | The run reached the server's cost limit.                   | Save what was built or continue it, or ask an admin about the limit.   |
-| `agent_unavailable`                      | No outside agent took this run within 10 minutes.          | Check that the agent is connected and asking for work, then try again. |
-| `agent_failed`                           | The outside agent said it could not finish the run.        | Read its message, then try again.                                      |
+| Code                                    | What it means                                             | What to do                                                             |
+| --------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `run_timeout`                           | The run reached the server's time limit.                  | Try again with a narrower prompt, or continue the build.               |
+| `call_timeout`                          | A model call took too long to answer.                     | Try again.                                                             |
+| `rate_limited`                          | The model provider is limiting requests from this server. | Wait a minute, then try again.                                         |
+| `provider_error`                        | The model provider answered with an error.                | Try again, and ask an admin to check the provider if it keeps failing. |
+| `output_limit`                          | The model's answer was cut off at its output limit.       | Try again and ask for fewer panels.                                    |
+| `no_tool_call`, `no_progress`           | The agent stopped making progress.                        | Try again and name the metric, service or table you want.              |
+| `validation_exhausted`, `check_failed`  | The agent could not get its queries past the checks.      | Try again and name the metric, service or table you want.              |
+| `refused`                               | The model declined the request.                           | Rephrase the prompt.                                                   |
+| `conflict`                              | Someone saved a newer version while the agent worked.     | Open the dashboard and ask again.                                      |
+| `canceled`                              | The run was canceled.                                     | Save what was built, continue it, or try again.                        |
+| `requester_forbidden`, `requester_gone` | You no longer have access to this dashboard.              | Ask an admin for Edit access.                                          |
+| `crashed`, `lease_expired`              | The server stopped while it ran this request.             | Try again.                                                             |
+| `no_finding`                            | The agent ended without writing a finding.                | Ask a narrower question, with the service and the time range.          |
+| `budget_exhausted`                      | The run reached the server's cost limit.                  | Save what was built or continue it, or ask an admin about the limit.   |
+| `agent_unavailable`                     | No outside agent took this run within 10 minutes.         | Check that the agent is connected and asking for work, then try again. |
+| `agent_failed`                          | The outside agent said it could not finish the run.       | Read its message, then try again.                                      |
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.

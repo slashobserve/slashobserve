@@ -227,7 +227,7 @@ func versionShape(d *spec.Dashboard) string {
 	if rows == 0 {
 		return plural(panels, "panel", "panels")
 	}
-	return plural(rows, "row", "rows") + ", " + plural(panels, "panel", "panels")
+	return plural(panels, "panel", "panels") + " in " + plural(rows, "row", "rows")
 }
 
 func changesOf(prev, next *spec.Dashboard) panelChanges {
