@@ -204,6 +204,7 @@ Searching the workspace finds observations too (see [Search](search.md)).
 
 Deleting removes the observation for everyone, with its blocks, snapshots, discussion and RCA revisions, and the public links of those revisions stop working.
 It cannot be undone.
+A pin of the observation on a dashboard is taken off it too, when you started that pin or are an Admin; otherwise the marker stays and its link shows "Observation not found".
 While an investigation on the observation is queued or running, the delete is refused with `run_in_progress`; delete it once the run ends or has been stopped.
 The person who started the observation and can edit it may delete it, and so may anyone who manages its folder.
 In the web app it is **More actions**, then **Delete observation**, on the page, or **Delete** on the list, and it asks you to confirm first.

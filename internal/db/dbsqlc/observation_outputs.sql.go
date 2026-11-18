@@ -141,6 +141,30 @@ func (q *Queries) InsertObservationPin(ctx context.Context, arg InsertObservatio
 	return err
 }
 
+const listObservationPinAnnotations = `-- name: ListObservationPinAnnotations :many
+SELECT annotation_id FROM observation_pins WHERE observation_id = $1
+`
+
+func (q *Queries) ListObservationPinAnnotations(ctx context.Context, observationID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listObservationPinAnnotations, observationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var annotation_id pgtype.UUID
+		if err := rows.Scan(&annotation_id); err != nil {
+			return nil, err
+		}
+		items = append(items, annotation_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockObservationOutput = `-- name: LockObservationOutput :exec
 SELECT pg_advisory_xact_lock(hashtextextended('observation-output:' || $1::text, 0))
 `

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -19,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -84,6 +86,14 @@ func (s *Service) mayEdit(ctx context.Context, by auth.Principal, dashboardID pg
 		return false, fmt.Errorf("read access to the observation's dashboard: %w", err)
 	}
 	return access.Abilities.Edit, nil
+}
+
+func (s *Service) unpin(ctx context.Context, by auth.Principal, id pgtype.UUID, annotationIDs []pgtype.UUID) {
+	for _, annotationID := range annotationIDs {
+		if err := s.annotations.Delete(ctx, by, annotationID); err != nil {
+			s.logger.WarnContext(ctx, "delete the pin of a deleted observation", logattrs.Failure("observation_unpin_failed", err, slog.String("observation_id", id.String()), slog.String("annotation_id", annotationID.String()))...)
+		}
+	}
 }
 
 func pinOf(dashboardID, annotationID pgtype.UUID) Pin {

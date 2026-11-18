@@ -34,3 +34,6 @@ SELECT r.dashboard_id
 FROM observations o
 JOIN agent_requests r ON r.id = o.run_id
 WHERE o.id = @id;
+
+-- name: ListObservationPinAnnotations :many
+SELECT annotation_id FROM observation_pins WHERE observation_id = @observation_id;

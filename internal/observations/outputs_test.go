@@ -353,3 +353,30 @@ func TestAnObservationSaysWhetherTheCallerMayPinIt(t *testing.T) {
 		t.Errorf("pin to a dashboard the caller cannot open: %v", err)
 	}
 }
+
+func TestDeletingAnObservationTakesItsPinOffTheDashboard(t *testing.T) {
+	r := newRig(t)
+	about := r.dashboard(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.runOn(t, o, about)
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'stopped'`)
+	if _, _, err := r.service.Pin(t.Context(), editor, id, pgtype.UUID{}); err != nil {
+		t.Fatal(err)
+	}
+	count := func() (n int) {
+		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM annotations WHERE dashboard_id = $1::uuid`, about.String()).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if count() != 1 {
+		t.Fatalf("%d annotations after the pin", count())
+	}
+	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+		t.Fatal(err)
+	}
+	if count() != 0 {
+		t.Errorf("%d annotations left after the observation was deleted", count())
+	}
+}

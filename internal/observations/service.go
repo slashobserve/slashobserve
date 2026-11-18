@@ -351,10 +351,15 @@ func (s *Service) render(ctx context.Context, rows []dbsqlc.Observation, byID ma
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	var pinned []pgtype.UUID
 	err := s.write(ctx, by, id, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		author := string(who.Kind) == row.CreatedByKind && who.ID == row.CreatedByID.String()
 		if !slices.Contains(allowedActions(State(row.State), abilities, author), ActionDelete) {
 			return folders.ErrForbidden
+		}
+		var err error
+		if pinned, err = q.ListObservationPinAnnotations(ctx, id); err != nil {
+			return fmt.Errorf("list the pins of an observation: %w", err)
 		}
 		active, err := q.ObservationHasActiveRun(ctx, id)
 		switch {
@@ -378,6 +383,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return err
 	}
+	s.unpin(ctx, by, id, pinned)
 	s.logger.InfoContext(ctx, "observation deleted", slog.String("actor_id", by.ID), slog.String("observation_id", id.String()))
 	return nil
 }
