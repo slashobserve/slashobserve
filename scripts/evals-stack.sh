@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_DIR="$ROOT/deploy/compose"
 PROJECT="slashobserve-evals"
+WARM_MAX_AGE=1800
+WARM_WAIT=600
 
 export SLASHOBSERVE_HOST_PORT="${SLASHOBSERVE_EVALS_PORT:-28080}"
 export SLASHOBSERVE_DEX_HOST_PORT="${SLASHOBSERVE_EVALS_DEX_PORT:-25556}"
@@ -21,6 +23,11 @@ usage() {
   cat <<EOF
 Usage: scripts/evals-stack.sh <command>
 
+  warm [--k8s] replay|<env-file>
+                      prepare fixtures and series and start every service except the server, without
+                      waiting for health, then return; 'up' adopts it within ${WARM_MAX_AGE}s and skips
+                      prepare, so the synthetic history accumulates while the server image is built;
+                      it needs the shop image, not the server image
   up [--k8s] [--no-history] replay
                       prepare fixtures and series, then boot the isolated ${PROJECT}
                       stack on the replay provider; deploy/compose/.env is not read
@@ -159,6 +166,65 @@ wait_for_series() {
   done
 }
 
+warm_marker() {
+  printf '%s/warm' "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
+}
+
+take_warm() {
+  local marker waited=0 state="" stamp=""
+  marker="$(warm_marker)"
+  while [[ -f "$marker" ]]; do
+    read -r state stamp <"$marker" || true
+    [[ "$state" == pending && "$stamp" =~ ^[0-9]+$ ]] && kill -0 "$stamp" 2>/dev/null && ((waited++ < WARM_WAIT)) || break
+    sleep 1
+  done
+  rm -f "$marker"
+  [[ "$state" == ready && "$stamp" =~ ^[0-9]+$ ]] && (($(date +%s) - stamp <= WARM_MAX_AGE))
+}
+
+warm_services() {
+  local names
+  if [[ "$BUILD" == 1 ]]; then
+    names="$(compose_build "$ENV_FILE" config --services)"
+  else
+    names="$(compose "$ENV_FILE" config --services)"
+  fi
+  grep -vx server <<<"$names"
+}
+
+prepare_runtime() {
+  go run ./evals/runner prepare --out "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
+  if [[ "$K8S" == 1 ]]; then
+    printf '[]\n' >"$SLASHOBSERVE_EVALS_RUNTIME_DIR/synth/series.json"
+  fi
+}
+
+cmd_warm() {
+  local services=() marker
+  while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+      --k8s) use_k8s ;;
+      *) die "unknown option $1" ;;
+    esac
+    shift
+  done
+  [[ $# -eq 1 ]] || die "warm needs 'replay' or an env file"
+  select_provider "$1"
+  cd "$ROOT"
+  marker="$(warm_marker)"
+  rm -f "$marker"
+  prepare_runtime
+  printf 'pending %s\n' "$$" >"$marker"
+  mapfile -t services < <(warm_services)
+  [[ ${#services[@]} -gt 0 ]] || { rm -f "$marker"; die "docker compose config listed no services"; }
+  if [[ "$BUILD" == 1 ]]; then
+    compose_build "$ENV_FILE" up -d --build "${services[@]}" || { rm -f "$marker"; die "the warm services did not start"; }
+  else
+    compose "$ENV_FILE" up -d --no-build --pull missing "${services[@]}" || { rm -f "$marker"; die "the warm services did not start"; }
+  fi
+  printf 'ready %s\n' "$(date +%s)" >"$marker"
+}
+
 cmd_up() {
   local wait_history=1 queries
   while [[ "${1:-}" == --* ]]; do
@@ -172,10 +238,7 @@ cmd_up() {
   [[ $# -eq 1 ]] || die "up needs 'replay' or an env file"
   select_provider "$1"
   cd "$ROOT"
-  go run ./evals/runner prepare --out "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
-  if [[ "$K8S" == 1 ]]; then
-    printf '[]\n' >"$SLASHOBSERVE_EVALS_RUNTIME_DIR/synth/series.json"
-  fi
+  take_warm || prepare_runtime
   if [[ "$BUILD" == 1 ]]; then
     compose_build "$ENV_FILE" up -d --build --wait --wait-timeout 300
   else
@@ -215,6 +278,7 @@ cmd_server() {
 
 cmd_down() {
   printf 'evals-stack: dropping the volumes of compose project %s only\n' "$PROJECT"
+  rm -f "$(warm_marker)"
   compose /dev/null down -v --remove-orphans
 }
 
@@ -225,6 +289,7 @@ cmd_status() {
 command="${1:-}"
 [[ $# -gt 0 ]] && shift
 case "$command" in
+  warm) cmd_warm "$@" ;;
   up) cmd_up "$@" ;;
   server) cmd_server "$@" ;;
   wait-history) cmd_wait_history "$@" ;;
