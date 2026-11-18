@@ -1,10 +1,15 @@
 const loading = '[data-panel-id][data-state="loading"]'
 
 export function panelsSettled(root: ParentNode): boolean {
-  return (
-    root.querySelector("[data-panel-id]") !== null &&
-    root.querySelector(loading) === null
-  )
+  return root.querySelector(loading) === null
+}
+
+export function slowPanelNames(root: ParentNode): string[] {
+  return [...root.querySelectorAll(loading)].map((panel) => {
+    const label = panel.getAttribute("aria-labelledby")
+    const title = label === null ? null : document.getElementById(label)
+    return title?.textContent ?? panel.getAttribute("data-panel-id") ?? ""
+  })
 }
 
 function nextFrame(): Promise<void> {

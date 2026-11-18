@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { panelsSettled, waitForPanels } from "./settle"
+import { panelsSettled, slowPanelNames, waitForPanels } from "./settle"
 
 function sheet(states: string[]) {
   const root = document.createElement("div")
@@ -14,12 +14,32 @@ function sheet(states: string[]) {
 }
 
 describe("panelsSettled", () => {
-  it("is false until there is a panel and none is loading", () => {
-    expect(panelsSettled(sheet([]))).toBe(false)
+  it("is false while any panel is loading", () => {
     expect(panelsSettled(sheet(["ready", "loading"]))).toBe(false)
     expect(
       panelsSettled(sheet(["ready", "empty", "error", "unsupported"]))
     ).toBe(true)
+  })
+
+  it("is true for a sheet with no panel, so an empty dashboard does not wait", () => {
+    expect(panelsSettled(sheet([]))).toBe(true)
+  })
+})
+
+describe("slowPanelNames", () => {
+  it("names the panels that are still loading by their title", () => {
+    const root = sheet(["ready", "loading", "loading"])
+    const panels = root.querySelectorAll("article")
+    panels.forEach((panel, index) => {
+      const title = document.createElement("h3")
+      title.id = `t${index}`
+      title.textContent = `Panel ${index}`
+      panel.setAttribute("aria-labelledby", title.id)
+      panel.append(title)
+    })
+    document.body.append(root)
+    expect(slowPanelNames(root)).toEqual(["Panel 1", "Panel 2"])
+    root.remove()
   })
 })
 

@@ -6,12 +6,16 @@ import { ExportSheet } from "./export-sheet"
 import { useExportStore } from "./export-store"
 import { saveDashboardImage } from "./image"
 
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+}))
 
 vi.mock("sonner", () => ({ toast }))
 vi.mock("./image", () => ({ saveDashboardImage: vi.fn() }))
 
-function Sheet({ state }: { state: string }) {
+function Sheet({ state, timeoutMs }: { state: string; timeoutMs?: number }) {
   return (
     <ExportSheet
       title="Checkout health"
@@ -19,6 +23,7 @@ function Sheet({ state }: { state: string }) {
       range="Time range: Last 6 hours"
       variables="env: prod"
       imageName="checkout-v7.png"
+      timeoutMs={timeoutMs}
     >
       <article data-panel-id="p1" data-state={state} />
     </ExportSheet>
@@ -31,6 +36,7 @@ beforeEach(() => {
   vi.mocked(saveDashboardImage).mockReset()
   toast.success.mockReset()
   toast.error.mockReset()
+  toast.warning.mockReset()
   print = vi.fn()
   vi.stubGlobal("print", print)
   useExportStore.getState().start("print")
@@ -106,6 +112,52 @@ describe("ExportSheet", () => {
       timeout: 3000,
     })
     expect(toast.error.mock.calls[0][0]).toMatch(/Print or save as PDF/)
+    await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
+  })
+
+  it("prints at once for a dashboard with no panel", async () => {
+    render(
+      <ExportSheet
+        title="Empty"
+        context="Ops, version 1"
+        range="Time range: Last 1 hour"
+        variables={null}
+        imageName="empty-v1.png"
+      >
+        <p>No panels</p>
+      </ExportSheet>
+    )
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    })
+  })
+
+  it("does not print a half-loaded sheet and names the slow panel instead", async () => {
+    render(<Sheet state="loading" timeoutMs={150} />)
+    await waitFor(() => expect(toast.warning).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    })
+    expect(toast.warning.mock.calls[0][0]).toMatch(/Still loading: p1/)
+    expect(print).not.toHaveBeenCalled()
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Some panels are still loading."
+    )
+    expect(
+      screen.getByRole("button", { name: "Print or save as PDF" })
+    ).toBeEnabled()
+  })
+
+  it("lets the person save the image anyway when a panel is slow", async () => {
+    useExportStore.getState().start("image")
+    render(<Sheet state="loading" timeoutMs={150} />)
+    const anyway = await screen.findByRole(
+      "button",
+      { name: "Save the image anyway" },
+      { timeout: 3000 }
+    )
+    expect(saveDashboardImage).not.toHaveBeenCalled()
+    await userEvent.click(anyway)
+    await waitFor(() => expect(saveDashboardImage).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
   })
 })
