@@ -6,7 +6,7 @@ import (
 	"github.com/slashobserve/slashobserve/api"
 )
 
-func TestLoadParsesTheDocumentOnceAndKeepsItValid(t *testing.T) {
+func TestLoadParsesTheDocumentOnEveryCall(t *testing.T) {
 	first, err := api.Load(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -18,7 +18,7 @@ func TestLoadParsesTheDocumentOnceAndKeepsItValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first != second {
-		t.Fatal("Load parsed the document again")
+	if first == second {
+		t.Fatal("Load returned a shared document")
 	}
 }
