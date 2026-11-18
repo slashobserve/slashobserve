@@ -247,7 +247,7 @@ func (r *Registry) updatePanels(ctx context.Context, input json.RawMessage) (Res
 		return Result{}, err
 	}
 	if !scoped {
-		if res, ok, err := r.viewableDashboard(ctx, target.id, "dashboard not found"); err != nil || !ok {
+		if res, ok, err := r.commentableDashboard(ctx, target.id, "dashboard not found"); err != nil || !ok {
 			return res, err
 		}
 	}

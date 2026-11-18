@@ -931,3 +931,19 @@ func TestAMissingVersionIsNotMistakenForAMissingDashboard(t *testing.T) {
 		t.Fatalf("missing dashboard: %#v", res.Content)
 	}
 }
+
+func TestAViewerIsRefusedByRoleBeforeThePatchIsValidated(t *testing.T) {
+	rig := newPanelsRig(t)
+	id := rig.seedStats(t)
+	noGridPos := `{"id":"p9","type":"stat","title":"No place","queries":[{"datasource":"` + fakeUID + `","query":"count(up)"}]}`
+	viewer := auth.WithPrincipal(context.Background(), viewerCaller)
+
+	res, _ := rig.as(viewer).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+noGridPos+`]`))
+	if got := errorCodeOf(t, res); got != codeForbiddenRole {
+		t.Fatalf("code = %q, want forbidden_role before any spec issue", got)
+	}
+	res, _ = rig.as(rig.ctx).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+noGridPos+`]`))
+	if rejected, ok := res.Content.(patchRejectedOut); !ok || rejected.Code != codeInvalidSpec {
+		t.Fatalf("an editor's invalid patch: %#v, want invalid_spec", res.Content)
+	}
+}

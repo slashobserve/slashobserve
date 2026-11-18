@@ -60,18 +60,34 @@ func (r *Registry) listFolders(ctx context.Context, input json.RawMessage) (Resu
 }
 
 func (r *Registry) viewableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
-	if r.deps.Folders == nil {
-		return Result{}, false, errFoldersNotConfigured
+	_, res, ok, err := r.dashboardAbilities(ctx, id, notFoundMessage)
+	return res, ok, err
+}
+
+func (r *Registry) commentableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
+	abilities, res, ok, err := r.dashboardAbilities(ctx, id, notFoundMessage)
+	if err != nil || !ok {
+		return res, ok, err
 	}
-	principal, _ := auth.FromContext(ctx)
-	_, err := r.deps.Folders.Dashboard(ctx, principal, id)
-	switch {
-	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden), errors.Is(err, dashboards.ErrNotFound):
-		return toolError(codeNotFound, notFoundMessage), false, nil
-	case err != nil:
-		return Result{}, false, err
+	if !abilities.Comment {
+		return toolError(codeForbiddenRole, roleDeniedMessage), false, nil
 	}
 	return Result{}, true, nil
+}
+
+func (r *Registry) dashboardAbilities(ctx context.Context, id pgtype.UUID, notFoundMessage string) (folders.Abilities, Result, bool, error) {
+	if r.deps.Folders == nil {
+		return folders.Abilities{}, Result{}, false, errFoldersNotConfigured
+	}
+	principal, _ := auth.FromContext(ctx)
+	access, err := r.deps.Folders.Dashboard(ctx, principal, id)
+	switch {
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden), errors.Is(err, dashboards.ErrNotFound):
+		return folders.Abilities{}, toolError(codeNotFound, notFoundMessage), false, nil
+	case err != nil:
+		return folders.Abilities{}, Result{}, false, err
+	}
+	return access.Abilities, Result{}, true, nil
 }
 
 func createFolderFailure(err error) (Result, bool) {
