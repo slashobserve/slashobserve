@@ -679,6 +679,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/panels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a new version that adds, replaces, removes or moves panels, running only the queries of what changed.
+         * @description The patch is applied to `parent_version` with the same merge as the `update_panels` tool, then saved like `createDashboardVersion` with `merge: auto`. Only the changed panels and variables run their queries, or every query when `dashboard.time` changes. A retried request with the same parent and body answers 200 with `Idempotent-Replay: true`.
+         */
+        post: operations["patchDashboardPanels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/duplicate": {
         parameters: {
             query?: never;
@@ -8323,6 +8345,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    patchDashboardPanels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Complete panels matched by id; an existing id replaces that panel and keeps its position without `gridPos`, a new id adds one. */
+                    upsert?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Ids of panels to remove; a row only with all of its children. */
+                    delete?: string[];
+                    /** @description Moves of existing panels. */
+                    layout?: {
+                        id: string;
+                        gridPos?: {
+                            [key: string]: unknown;
+                        };
+                        /** @description Id of the row to move the panel into; an empty string moves it to the top level. */
+                        row?: string;
+                    }[];
+                    /** @description The complete variable list; replaces the existing one. */
+                    variables?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Dashboard-level values to replace; a key left out is kept. */
+                    dashboard?: {
+                        time?: {
+                            [key: string]: unknown;
+                        };
+                        title?: string;
+                        tags?: string[];
+                        links?: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                    summary: string;
+                    parent_version: number;
+                    /**
+                     * @description Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+                     * @default false
+                     */
+                    propose_if_needed?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The request repeats the latest version, so that version is returned. */
+            200: {
+                headers: {
+                    "Idempotent-Replay": "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The new version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The change became a proposal, or a revision of the caller's open one; no version was saved. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -61,6 +61,13 @@ type versionRequest struct {
 	ProposeIfNeeded bool    `json:"propose_if_needed"`
 }
 
+type panelsRequest struct {
+	spec.PanelPatch
+	Summary         *string `json:"summary"`
+	ParentVersion   *int    `json:"parent_version"`
+	ProposeIfNeeded bool    `json:"propose_if_needed"`
+}
+
 type restoreRequest struct {
 	ParentVersion *int   `json:"parent_version"`
 	Summary       string `json:"summary"`
@@ -79,6 +86,7 @@ func (s *Service) Register(api auth.Routes) {
 	g.GET("/:id/versions", auth.RoleViewer, view, s.listVersions)
 	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
 	g.POST("/:id/versions", auth.RoleViewer, view, s.addVersion)
+	g.POST("/:id/panels", auth.RoleViewer, view, s.patchPanels)
 	g.POST("/:id/versions/:version/restore", auth.RoleViewer, edit, s.restoreVersion)
 	g.POST("/:id/duplicate", auth.RoleViewer, view, s.duplicateDashboard)
 	g.GET("/:id/diff", auth.RoleViewer, view, s.diff)
@@ -388,6 +396,10 @@ func (s *Service) addVersion(c *gin.Context) {
 		s.fail(c, "add dashboard version", err)
 		return
 	}
+	s.answerSave(c, res)
+}
+
+func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 	if res.Proposal != nil {
 		c.Header("Location", "/api/v1/proposals/"+res.Proposal.ID)
 		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened})
@@ -401,6 +413,41 @@ func (s *Service) addVersion(c *gin.Context) {
 	}
 	c.Header("Location", versionLocation(res.Dashboard.ID, res.Version.Number))
 	c.JSON(http.StatusCreated, body)
+}
+
+func (s *Service) patchPanels(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if abilities := folders.DashboardFrom(c).Abilities; !abilities.Edit && !abilities.Comment {
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		return
+	}
+	var req panelsRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	if req.Summary == nil || req.ParentVersion == nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "summary and parent_version are required")
+		return
+	}
+	if !validVersion(*req.ParentVersion) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "parent_version must be a positive 32-bit integer")
+		return
+	}
+	res, err := s.SavePatch(c.Request.Context(), httpapi.Caller(c), PatchInput{
+		DashboardID:     id,
+		Parent:          *req.ParentVersion,
+		Patch:           req.PanelPatch,
+		Summary:         *req.Summary,
+		ProposeIfNeeded: req.ProposeIfNeeded,
+	})
+	if err != nil {
+		s.fail(c, "patch dashboard panels", err)
+		return
+	}
+	s.answerSave(c, res)
 }
 
 func (s *Service) restoreVersion(c *gin.Context) {
@@ -464,6 +511,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	ctx := c.Request.Context()
 	var conflict *ConflictError
 	var invalid *InvalidSpecError
+	var patchErr *spec.PatchError
 	var invalidInput *InvalidInputError
 	var proposalRequired *ProposalRequiredError
 	if clientgone.Handle(c, s.logger, action, err) {
@@ -484,6 +532,8 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		c.AbortWithStatusJSON(http.StatusConflict, proposalRequiredJSON{Error: proposalRequired.Error(), Code: "proposal_required", Removed: proposalRequired.Removed})
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
+	case errors.As(err, &patchErr):
+		httpapi.AbortInvalidSpec(c, "patch is invalid", patchErr.Issues)
 	case errors.As(err, &invalidInput):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidInput.Message)
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):

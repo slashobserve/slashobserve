@@ -177,6 +177,14 @@ The PNG is the panel's body at twice the screen's pixel density, on the page's b
 **Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
 The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
 
+## Duplicate or remove a panel
+
+An Editor's panel menu has **Duplicate** and **Remove** on the latest version, while no layout change is unsaved.
+**Duplicate** saves a new version with a copy titled "<title> copy" right under the panel, moving the panels below it down, and runs only the copy's queries.
+**Remove** asks to confirm with the panel's title, then saves a new version without the panel and runs no query.
+Restoring the version before it from History brings a removed panel back.
+Agents and scripts make the same changes with the `update_panels` MCP tool or `observe dashboards panels`, both on `POST /api/v1/dashboards/{id}/panels`.
+
 ## Add to an observation
 
 **Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.

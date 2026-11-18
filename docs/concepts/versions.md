@@ -11,12 +11,13 @@ These all save a version:
 - The first save, which is version 1, whether it comes from the agent, the web app, the API or a Grafana import.
 - A change in the web app: saving a layout, or saving a panel from the panel editor.
   Both ask for a short summary.
+- **Duplicate** or **Remove** in a panel's menu, which write `Duplicate "<title>"` or `Remove "<title>"`.
 - A change to the title, description or tags with **Edit details** in the **More** menu.
   It asks for no summary and writes `Rename to "<title>"` when only the title changed and "Edit dashboard details" otherwise.
 - The agent creating or revising a dashboard: one version per request, saved when the agent finishes, so the rows it builds along the way never appear in the history.
   Saving what a stopped run built is one version too.
 - `update_panels` or `update_dashboard` from an MCP client, one version per accepted save.
-- `POST /api/v1/dashboards/{id}/versions` over the API.
+- `POST /api/v1/dashboards/{id}/versions` over the API, or `POST /api/v1/dashboards/{id}/panels` with only the panels to add, replace, remove or move, which runs only their queries like `update_panels` and `observe dashboards panels`.
 - A restore of an older version.
 
 Moving a dashboard to another folder saves no version.
@@ -84,7 +85,7 @@ Duplicating needs View on the dashboard and Edit in the folder you choose.
 The copy starts its own history: earlier versions, comments, agent requests and the import record stay with the original, and its version 1 reads "Duplicated from "<title>" version 7".
 Like a restore, it checks that the datasources are still configured but does not run the queries again, and it keeps the list of unverified panels and variables.
 Over the API it is `POST /api/v1/dashboards/{id}/duplicate` with a `title` and an optional `folder_id`.
-MCP and the CLI have no duplicate command.
+Over MCP it is `duplicate_dashboard`, and in the CLI `observe dashboards duplicate`.
 
 ## Comments
 

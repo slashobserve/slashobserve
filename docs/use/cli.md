@@ -128,6 +128,7 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
+| `bin/observe dashboards panels <dashboard-id> --summary <text> [--file <patch.json>] [--remove <panel-id>]...` | Saves a new version that adds, replaces, removes or moves only the panels it names, runs only their queries, and prints `Saved version <n> of <title>`; the file holds `upsert`, `delete`, `layout`, `variables` and `dashboard`, the fields of the `update_panels` MCP tool. |
 | `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
 | `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)). |
@@ -136,6 +137,8 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
 
 `restore` reads the latest version for `--parent` when it is omitted, and answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.
+`panels` reads the latest version for `--parent` the same way, and a change that touches only other panels than a newer version merges onto it.
+To duplicate a panel, upsert a copy under a new id with a `gridPos` below the original.
 `bin/observe dashboards diff <dashboard-id> --from 2 --to 3` shows what changed between versions 2 and 3.
 Pins (stars) are a signed-in person's and cannot be set with a key, so the CLI has no pin command; pin dashboards in the web app or over MCP.
 

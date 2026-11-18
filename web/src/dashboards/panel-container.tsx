@@ -44,6 +44,7 @@ import { useCanvasTool } from "./canvas-tools"
 import { commentOnPanel } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
+import type { PanelLayoutActions } from "./panel-layout-actions"
 import { PanelMenu } from "./panel-menu"
 import { PanelToolbar } from "./panel-toolbar"
 import {
@@ -132,6 +133,7 @@ type PanelContainerProps = {
   canComment: boolean
   canEdit: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
+  layoutActions?: PanelLayoutActions
   focusOnRender: boolean
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -174,6 +176,7 @@ export const PanelContainer = memo(function PanelContainer({
   canComment,
   canEdit,
   onToggleResponsive,
+  layoutActions,
   focusOnRender,
   onFocused,
   composerRef,
@@ -432,6 +435,7 @@ export const PanelContainer = memo(function PanelContainer({
           ? () => onToggleResponsive(panel)
           : undefined
       }
+      layoutActions={layoutSession ? undefined : layoutActions}
       composerRef={composerRef}
       inToolbar={inToolbar}
     />

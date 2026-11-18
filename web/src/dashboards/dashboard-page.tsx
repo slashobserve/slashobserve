@@ -114,6 +114,7 @@ import {
   useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
+import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
 import { saveToast } from "./save-outcome"
@@ -365,6 +366,7 @@ function DashboardView({
     },
     [saveVersion, spec, version]
   )
+  const layoutActions = usePanelLayoutActions(dashboardId, spec, version)
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const kiosk = search.kiosk === true
@@ -803,6 +805,9 @@ function DashboardView({
       canEdit={permissions.edit}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
+      }
+      layoutActions={
+        permissions.edit && !editing && !pinned ? layoutActions : undefined
       }
       focusOnRender={
         focusesLinkedPanel && item.first && item.panel.id === linkedPanel

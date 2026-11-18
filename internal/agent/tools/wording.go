@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 )
 
 type wording struct{ replacer *strings.Replacer }
@@ -32,7 +34,7 @@ var variants = []variant{
 		},
 		agent: map[string]string{"{panels_dashboard}": agentPanelsDashboard}},
 	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},
-		mcp: map[string]string{"{upsert_max}": strconv.Itoa(maxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
+		mcp: map[string]string{"{upsert_max}": strconv.Itoa(dashboards.MaxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
 		agent: map[string]string{
 			"{build_note}":     agentBuildNote,
 			"{build_props}":    agentBuildProps,
