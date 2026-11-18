@@ -283,7 +283,7 @@ The page asks for the 20 largest patterns; **Show 100** asks for more when there
 
 Patterns group the lines a query matches into line templates with counts, the variable tokens written `<*>`, through `POST /api/v1/datasources/{uid}/log-patterns` and the `log_patterns` tool, so a noisy service reads as a few templates instead of thousands of lines.
 
-- On a Loki whose pattern ingester is enabled, a query that is a bare stream selector answers from Loki's pattern index over the whole range, and the response says `source: loki`.
+- On a Loki whose pattern ingester is enabled, a query that is a bare stream selector answers from Loki's pattern index over the whole range, and the response says `source: loki`, unless the index counts fewer lines than the sample size, because an ingester that has seen a small share of the lines would claim full coverage; then the server groups the newest lines as below.
 - Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest 2,000 lines by default, up to 5,000, masks numbers, identifiers, addresses and timestamps, clusters lines that share at least 60% of their tokens, and answers `source: server` with each pattern's newest line as its sample.
 - On Elasticsearch the cluster's `categorize_text` aggregation answers over the whole range with `source: elasticsearch`, each pattern being the words its lines share; OpenSearch has no such aggregation, and a cluster without it or without the licence for it falls back to the `source: server` clustering above.
 
