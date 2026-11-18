@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -175,18 +176,38 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		return "", failure
 	}
 
-	groups := groupsClaim(claims.Groups)
+	return s.signIn(ctx, identity{
+		Issuer:  idToken.Issuer,
+		Subject: idToken.Subject,
+		Email:   claims.Email,
+		Name:    truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
+		Groups:  groupsClaim(claims.Groups),
+	})
+}
+
+type identity struct {
+	Issuer  string
+	Subject string
+	Email   string
+	Name    string
+	Groups  []string
+}
+
+func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailure) {
 	user, err := s.queries.UpsertUser(ctx, dbsqlc.UpsertUserParams{
-		OidcIssuer:  idToken.Issuer,
-		OidcSubject: idToken.Subject,
-		Email:       claims.Email,
-		Name:        truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
-		Groups:      groups,
+		OidcIssuer:  id.Issuer,
+		OidcSubject: id.Subject,
+		Email:       id.Email,
+		Name:        id.Name,
+		Groups:      id.Groups,
 	})
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
-	if err := s.assignRole(ctx, user, groups); err != nil {
+	if user.DeactivatedAt.Valid {
+		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}}
+	}
+	if err := s.assignRole(ctx, user, id.Groups); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := opaquetoken.New("")
@@ -257,7 +278,7 @@ func (s *Service) refuse(c *gin.Context, f *loginFailure) {
 	}
 	attrs = append(attrs, f.attrs...)
 	msg := "sign-in failed"
-	if f.code == "email_not_allowed" {
+	if f.code == "email_not_allowed" || f.code == "account_deactivated" {
 		msg = "sign-in refused"
 	}
 	s.logger.WarnContext(c.Request.Context(), msg, attrs...)

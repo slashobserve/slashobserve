@@ -10,6 +10,8 @@ type LoginSearch = { return_to?: string; error?: string }
 const errorMessages: Record<string, string> = {
   access_denied: "Sign-in was cancelled.",
   email_not_allowed: "This account is not allowed to sign in.",
+  account_deactivated:
+    "This account was deactivated by an Admin. Ask an Admin to reactivate it.",
   unavailable: "The identity provider is unavailable. Try again shortly.",
   session_unavailable: "SlashObserve is unavailable. Try again shortly.",
 }

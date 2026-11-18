@@ -1,0 +1,65 @@
+package auth
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+)
+
+var ErrDeactivateSelf = errors.New("cannot deactivate self")
+
+type Deactivation struct {
+	Sessions int64
+	Grants   int64
+}
+
+func Deactivate(ctx context.Context, q *dbsqlc.Queries, by Principal, userID pgtype.UUID) (Deactivation, error) {
+	admins, err := q.LockAdmins(ctx)
+	if err != nil {
+		return Deactivation{}, err
+	}
+	user, err := q.GetUserForRole(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Deactivation{}, ErrNoUser
+	}
+	if err != nil {
+		return Deactivation{}, err
+	}
+	if user.DeactivatedAt.Valid {
+		return Deactivation{}, nil
+	}
+	if by.ID == userID.String() {
+		return Deactivation{}, ErrDeactivateSelf
+	}
+	if leavesNoAdmin(admins, userID, "") {
+		return Deactivation{}, ErrLastAdmin
+	}
+	var byID pgtype.UUID
+	_ = byID.Scan(by.ID)
+	if err := q.DeactivateUser(ctx, dbsqlc.DeactivateUserParams{ID: userID, ByID: byID, ByName: pgtype.Text{String: by.Name, Valid: by.Name != ""}}); err != nil {
+		return Deactivation{}, err
+	}
+	var d Deactivation
+	if d.Sessions, err = q.DeleteUserSessions(ctx, userID); err != nil {
+		return Deactivation{}, err
+	}
+	if d.Grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: byID, UserID: userID}); err != nil {
+		return Deactivation{}, err
+	}
+	return d, nil
+}
+
+func Reactivate(ctx context.Context, q *dbsqlc.Queries, userID pgtype.UUID) error {
+	n, err := q.ReactivateUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNoUser
+	}
+	return nil
+}

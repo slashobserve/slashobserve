@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deactivateUser = `-- name: DeactivateUser :exec
+UPDATE users SET deactivated_at = now(), deactivated_by_id = $1, deactivated_by_name = $2
+WHERE id = $3 AND deactivated_at IS NULL
+`
+
+type DeactivateUserParams struct {
+	ByID   pgtype.UUID
+	ByName pgtype.Text
+	ID     pgtype.UUID
+}
+
+func (q *Queries) DeactivateUser(ctx context.Context, arg DeactivateUserParams) error {
+	_, err := q.db.Exec(ctx, deactivateUser, arg.ByID, arg.ByName, arg.ID)
+	return err
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :execrows
 DELETE FROM sessions WHERE user_id = $1
 `
@@ -26,6 +42,7 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID pgtype.UUID) (i
 const getPerson = `-- name: GetPerson :one
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
@@ -46,19 +63,21 @@ type GetPersonParams struct {
 }
 
 type GetPersonRow struct {
-	ID               pgtype.UUID
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRoleByName pgtype.Text
-	DashboardCount   int32
-	KeyCount         int32
-	SessionCount     int32
+	ID                pgtype.UUID
+	Email             string
+	Name              string
+	CreatedAt         pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+	LastSeenAt        pgtype.Timestamptz
+	Role              string
+	RoleSource        string
+	RoleGroup         pgtype.Text
+	ManualRoleByName  pgtype.Text
+	DeactivatedAt     pgtype.Timestamptz
+	DeactivatedByName pgtype.Text
+	DashboardCount    int32
+	KeyCount          int32
+	SessionCount      int32
 }
 
 func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPersonRow, error) {
@@ -75,6 +94,8 @@ func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPerson
 		&i.RoleSource,
 		&i.RoleGroup,
 		&i.ManualRoleByName,
+		&i.DeactivatedAt,
+		&i.DeactivatedByName,
 		&i.DashboardCount,
 		&i.KeyCount,
 		&i.SessionCount,
@@ -83,16 +104,17 @@ func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPerson
 }
 
 const getUserForRole = `-- name: GetUserForRole :one
-SELECT id, email, groups, manual_role, role, role_source FROM users WHERE id = $1 FOR UPDATE
+SELECT id, email, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = $1 FOR UPDATE
 `
 
 type GetUserForRoleRow struct {
-	ID         pgtype.UUID
-	Email      string
-	Groups     []string
-	ManualRole pgtype.Text
-	Role       string
-	RoleSource string
+	ID            pgtype.UUID
+	Email         string
+	Groups        []string
+	ManualRole    pgtype.Text
+	Role          string
+	RoleSource    string
+	DeactivatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserForRoleRow, error) {
@@ -105,12 +127,13 @@ func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserFo
 		&i.ManualRole,
 		&i.Role,
 		&i.RoleSource,
+		&i.DeactivatedAt,
 	)
 	return i, err
 }
 
 const getUserPrincipal = `-- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = $1
+SELECT id, email, name, role, groups FROM users WHERE id = $1 AND deactivated_at IS NULL
 `
 
 type GetUserPrincipalRow struct {
@@ -149,6 +172,7 @@ func (q *Queries) IsFirstUser(ctx context.Context, id pgtype.UUID) (bool, error)
 const listUsers = `-- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
@@ -174,19 +198,21 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID               pgtype.UUID
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRoleByName pgtype.Text
-	DashboardCount   int32
-	KeyCount         int32
-	SessionCount     int32
+	ID                pgtype.UUID
+	Email             string
+	Name              string
+	CreatedAt         pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+	LastSeenAt        pgtype.Timestamptz
+	Role              string
+	RoleSource        string
+	RoleGroup         pgtype.Text
+	ManualRoleByName  pgtype.Text
+	DeactivatedAt     pgtype.Timestamptz
+	DeactivatedByName pgtype.Text
+	DashboardCount    int32
+	KeyCount          int32
+	SessionCount      int32
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
@@ -214,6 +240,8 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.RoleSource,
 			&i.RoleGroup,
 			&i.ManualRoleByName,
+			&i.DeactivatedAt,
+			&i.DeactivatedByName,
 			&i.DashboardCount,
 			&i.KeyCount,
 			&i.SessionCount,
@@ -274,7 +302,7 @@ func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow
 }
 
 const lockAdmins = `-- name: LockAdmins :many
-SELECT id FROM users WHERE role = 'admin' FOR UPDATE
+SELECT id FROM users WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE
 `
 
 func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
@@ -295,6 +323,19 @@ func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const reactivateUser = `-- name: ReactivateUser :execrows
+UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
+WHERE id = $1
+`
+
+func (q *Queries) ReactivateUser(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, reactivateUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setManualRole = `-- name: SetManualRole :exec

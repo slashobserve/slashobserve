@@ -34,6 +34,10 @@ paths:
     $ref: "./paths/users.yaml#/users-id"
   /users/{id}/sessions:
     $ref: "./paths/users.yaml#/users-id-sessions"
+  /users/{id}/deactivate:
+    $ref: "./paths/users.yaml#/users-id-deactivate"
+  /users/{id}/reactivate:
+    $ref: "./paths/users.yaml#/users-id-reactivate"
   /outbound-domains:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
@@ -606,6 +610,8 @@ components:
         - role_group
         - role_set_by
         - role_locked
+        - deactivated_at
+        - deactivated_by
       properties:
         id:
           type: string
@@ -651,6 +657,15 @@ components:
         role_locked:
           type: boolean
           description: True when the role cannot be changed through the API.
+        deactivated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+        deactivated_by:
+          type: string
+          nullable: true
+          description: The name of the Admin who deactivated the person.
     ConnectedAgent:
       type: object
       additionalProperties: false

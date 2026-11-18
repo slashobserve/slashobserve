@@ -104,3 +104,72 @@ users-id-sessions:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+users-id-deactivate:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: deactivatePerson
+    summary: Stop a person from signing in or acting, and keep what they made.
+    description: >-
+      Admin only, from a person's session; service-account keys cannot.
+      Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in.
+      Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop.
+      Service-account keys they created keep working, because a key acts as its service account.
+      Deactivating a deactivated person answers 200 and changes nothing.
+      Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+    responses:
+      "200":
+        description: The person, deactivated.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Person"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/Conflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+users-id-reactivate:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: reactivatePerson
+    summary: Let a deactivated person sign in again.
+    description: >-
+      Admin only, from a person's session; service-account keys cannot.
+      The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected.
+      Reactivating an active person answers 200 and changes nothing.
+    responses:
+      "200":
+        description: The person, active.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Person"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

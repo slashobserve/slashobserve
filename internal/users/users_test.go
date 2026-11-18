@@ -61,7 +61,7 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 			if given := c.GetHeader("X-Test-Role"); given != "" {
 				role = auth.Role(given)
 			}
-			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Role: role}
+			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Name: c.GetHeader("X-Test-Name"), Role: role}
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
@@ -96,6 +96,7 @@ func (r *rig) do(method, path string, caller auth.Principal) *httptest.ResponseR
 		req.Header.Set("X-Test-Kind", string(caller.Kind))
 		req.Header.Set("X-Test-Id", caller.ID)
 		req.Header.Set("X-Test-Role", string(caller.Role))
+		req.Header.Set("X-Test-Name", caller.Name)
 	}
 	rec := httptest.NewRecorder()
 	r.engine.ServeHTTP(rec, req)
@@ -171,6 +172,8 @@ func TestServiceAccountsCannotUseThePeopleRoutes(t *testing.T) {
 	for _, tc := range []struct{ method, path string }{
 		{http.MethodGet, "/api/v1/users"},
 		{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
+		{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
+		{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
 	} {
 		rec := r.do(tc.method, tc.path, sa)
 		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden"`) {
@@ -192,6 +195,8 @@ func TestOnlyAdminsCanUseThePeopleRoutes(t *testing.T) {
 			{http.MethodGet, "/api/v1/users"},
 			{http.MethodPatch, "/api/v1/users/" + user.String()},
 			{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
+			{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
+			{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
 		} {
 			rec := r.do(tc.method, tc.path, caller)
 			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {

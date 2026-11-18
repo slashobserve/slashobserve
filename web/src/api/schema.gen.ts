@@ -249,6 +249,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a person from signing in or acting, and keep what they made.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         */
+        post: operations["deactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a deactivated person sign in again.
+         * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
+         */
+        post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outbound-domains": {
         parameters: {
             query?: never;
@@ -3534,6 +3578,13 @@ export interface components {
             role_set_by: string | null;
             /** @description True when the role cannot be changed through the API. */
             role_locked: boolean;
+            /**
+             * Format: date-time
+             * @description When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+             */
+            deactivated_at: string | null;
+            /** @description The name of the Admin who deactivated the person. */
+            deactivated_by: string | null;
         };
         ConnectedAgent: {
             /** Format: uuid */
@@ -7106,6 +7157,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, deactivated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, active. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

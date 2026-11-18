@@ -19,6 +19,7 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
+	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -186,6 +187,8 @@ var exceptions = map[string]exception{
 	"listUsers":             {MCP: personOnly, CLI: personOnly},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},
 	"signOutUserEverywhere": {MCP: personOnly, CLI: personOnly},
+	"deactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"reactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
 
 	"listWebhooks":          {MCP: webhookAdmin},
 	"createWebhook":         {MCP: webhookAdmin},

@@ -691,21 +691,24 @@ type ThreadMessage struct {
 }
 
 type User struct {
-	ID               pgtype.UUID
-	OidcIssuer       string
-	OidcSubject      string
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRole       pgtype.Text
-	ManualRoleByID   pgtype.UUID
-	ManualRoleByName pgtype.Text
-	Groups           []string
+	ID                pgtype.UUID
+	OidcIssuer        string
+	OidcSubject       string
+	Email             string
+	Name              string
+	CreatedAt         pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+	LastSeenAt        pgtype.Timestamptz
+	Role              string
+	RoleSource        string
+	RoleGroup         pgtype.Text
+	ManualRole        pgtype.Text
+	ManualRoleByID    pgtype.UUID
+	ManualRoleByName  pgtype.Text
+	Groups            []string
+	DeactivatedAt     pgtype.Timestamptz
+	DeactivatedByID   pgtype.UUID
+	DeactivatedByName pgtype.Text
 }
 
 type Webhook struct {

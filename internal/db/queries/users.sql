@@ -1,6 +1,7 @@
 -- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
@@ -20,6 +21,7 @@ LIMIT @row_limit;
 -- name: GetPerson :one
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
@@ -52,14 +54,22 @@ UPDATE users SET role = @role, role_source = @role_source, role_group = sqlc.nar
 WHERE id = @id;
 
 -- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = @id;
+SELECT id, email, name, role, groups FROM users WHERE id = @id AND deactivated_at IS NULL;
 
 -- name: SetManualRole :exec
 UPDATE users SET manual_role = sqlc.narg('manual_role'), manual_role_by_id = sqlc.narg('by_id'), manual_role_by_name = sqlc.narg('by_name')
 WHERE id = @id;
 
 -- name: LockAdmins :many
-SELECT id FROM users WHERE role = 'admin' FOR UPDATE;
+SELECT id FROM users WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE;
 
 -- name: GetUserForRole :one
-SELECT id, email, groups, manual_role, role, role_source FROM users WHERE id = @id FOR UPDATE;
+SELECT id, email, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = @id FOR UPDATE;
+
+-- name: DeactivateUser :exec
+UPDATE users SET deactivated_at = now(), deactivated_by_id = sqlc.narg('by_id'), deactivated_by_name = sqlc.narg('by_name')
+WHERE id = @id AND deactivated_at IS NULL;
+
+-- name: ReactivateUser :execrows
+UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
+WHERE id = @id;
