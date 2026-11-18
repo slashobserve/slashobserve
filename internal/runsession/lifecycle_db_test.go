@@ -629,12 +629,12 @@ func execErr(r *rig, query string, args ...any) error {
 type lockProbe struct {
 	db       *sql.DB
 	runID    string
-	lockedBy error
+	lockErr  error
 }
 
 func (p *lockProbe) Health(ctx context.Context) []datasource.Status {
 	var held int
-	p.lockedBy = p.db.QueryRowContext(ctx, "SELECT 1 FROM run_sessions WHERE agent_request_id = $1 FOR UPDATE NOWAIT", p.runID).Scan(&held)
+	p.lockErr = p.db.QueryRowContext(ctx, "SELECT 1 FROM run_sessions WHERE agent_request_id = $1 FOR UPDATE NOWAIT", p.runID).Scan(&held)
 	return nil
 }
 
@@ -651,7 +651,7 @@ func TestBriefChecksDatasourceHealthOutsideTheSessionLock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !errors.Is(probe.lockedBy, sql.ErrNoRows) {
-		t.Fatalf("locking the session row during the health check = %v, want it free (no rows locked by the brief)", probe.lockedBy)
+	if probe.lockErr != nil {
+		t.Fatalf("locking the session row during the health check = %v, want it free", probe.lockErr)
 	}
 }
