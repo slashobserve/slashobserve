@@ -5,7 +5,7 @@ import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import { panelRetry } from "@/dashboards/use-panel-data"
-import { formatDate } from "@/lib/date-format"
+import { formatDate, zoneLabel } from "@/lib/date-format"
 import type { Block } from "@/observations/queries"
 import type { DataPanel, Panel } from "@/spec"
 
@@ -65,7 +65,7 @@ const frozenFormat = "YYYY-MM-DD HH:mm"
 export function frozenCaption(from: string, to: string): string {
   const start = formatDate(Date.parse(from), frozenFormat)
   const end = formatDate(Date.parse(to), frozenFormat)
-  return `Frozen, ${start} to ${end}`
+  return `Frozen, ${start} to ${end} ${zoneLabel(Date.parse(to))}`
 }
 
 export function useBlockPanelData({

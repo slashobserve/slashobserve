@@ -121,7 +121,7 @@ The discussion is the observation's one comment thread, in a pane on the right o
 Drag the pane's left edge to make it wider or narrower; it shares its width with a dashboard's activity pane.
 The **Discussion** button in the top row, which shows the number of messages, hides and shows the pane, and **Close panel** in the pane hides it.
 The pane lists the messages together with the changes to the page, newest at the bottom, grouped under a heading for each day, with each entry showing its author's mark and the time of day.
-The changes are who started the observation (with its title, its folder and whether it is open or resolved), who added or suggested each block (a panel block also names its datasource and says it is live), who removed a block, and who renamed the observation.
+The changes are who started the observation (with the title it was created with, its folder and whether it is open or resolved), who added or suggested each block (a panel block also names its datasource and says it is live, and a snapshot names the panel it froze), who removed a block, and who renamed the observation, from which title to which.
 A removed block is drawn without a name, because the block is gone.
 A block's name scrolls the page to that block.
 
@@ -257,10 +257,10 @@ Creating, listing and revoking links need Manage on the folder, and the panel sh
 
 `<public url>/rca/<token>` opens with no sign-in and shows the SlashObserve name, then:
 
-- The title, and a line "Revision N, published by `<name>`, `<date and time>`".
+- The title, and a line "Revision N, published by `<name>`, `<date and time>` `<time zone>`", in the time zone of the reader's browser.
 - "Resolved", or "Open at publish time", and the summary when there is one.
 - The blocks in page order: text as Markdown, and each panel as its frozen data under the panel's title.
-  A panel's caption is "Frozen" with the observation's time range when it had one, and otherwise "Frozen when published".
+  A panel's caption is "Frozen" with the observation's time range and its time zone when it had one, and otherwise "Frozen when published".
 - Half width blocks side by side when the page is wide enough.
 
 It shows no query, discussion, comment, activity, live panel or other revision, and it runs no query against a datasource.

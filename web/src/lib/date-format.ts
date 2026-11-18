@@ -75,6 +75,13 @@ function render(token: string, parts: Parts): string {
   }
 }
 
+export function zoneLabel(ms: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZoneName: "short",
+  }).formatToParts(new Date(ms))
+  return parts.find((part) => part.type === "timeZoneName")?.value ?? ""
+}
+
 export function formatDate(ms: number, format: string, utc = false): string {
   const date = new Date(ms)
   if (Number.isNaN(date.getTime())) return String(ms)

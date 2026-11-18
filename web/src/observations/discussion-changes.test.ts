@@ -216,6 +216,36 @@ describe("observationChanges from activity", () => {
     ])
   })
 
+  it("names the title a rename started from and starts the page under it", () => {
+    const changes = observationChanges(
+      { ...observation([]), title: "Checkout 5xx" },
+      {
+        ...noContext,
+        events: [
+          event(2, "observation.updated", {
+            title: "Checkout 5xx",
+            from_title: "Checkout errors",
+          }),
+        ],
+      }
+    )
+    expect(changes[0].detail).toBe("Checkout errors · In My Dashboards · Open")
+    expect(changes[1].verb).toBe(
+      "renamed this observation from Checkout errors to Checkout 5xx"
+    )
+  })
+
+  it("starts the page under the title it was created with", () => {
+    const changes = observationChanges(
+      { ...observation([]), title: "Renamed" },
+      {
+        ...noContext,
+        events: [event(1, "observation.created", { title: "First title" })],
+      }
+    )
+    expect(changes[0].detail).toBe("First title · In My Dashboards · Open")
+  })
+
   it("draws no rename for the first update when the start is not known", () => {
     expect(
       fromEvents([event(2, "observation.updated", { title: "New name" })])
@@ -233,6 +263,14 @@ describe("blockSubject", () => {
     expect(blockSubject(titled)).toBe("Panel: Latency")
     expect(blockSubject(untitled)).toBe("Panel")
     expect(blockSubject(block("b3"))).toBe("Text")
+    const snapshot = block("b4", {
+      kind: "snapshot",
+      body: { snapshot_id: "s1" },
+    })
+    expect(blockSubject(snapshot)).toBe("Snapshot")
+    expect(blockSubject(snapshot, new Map([["s1", "Checkout latency"]]))).toBe(
+      "Snapshot: Checkout latency"
+    )
     expect(blockSubject(block("b4", { kind: "snapshot" }))).toBe("Snapshot")
     expect(blockSubject(block("b5", { kind: "run" }))).toBe("Run")
   })

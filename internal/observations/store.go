@@ -112,6 +112,11 @@ type eventData struct {
 	Title string `json:"title"`
 }
 
+type renamedEventData struct {
+	Title     string `json:"title"`
+	FromTitle string `json:"from_title"`
+}
+
 type movedEventData struct {
 	Title        string `json:"title"`
 	FromFolderID string `json:"from_folder_id"`

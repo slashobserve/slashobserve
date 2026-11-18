@@ -102,7 +102,9 @@ describe("PublicRcaPage", () => {
     expect(screen.getByRole("heading", { name: "Cause" })).toBeTruthy()
     expect(screen.getByText("new build").tagName).toBe("STRONG")
     expect(
-      await screen.findByText("Frozen, 2026-11-06 10:00 to 2026-11-06 11:30")
+      await screen.findByText(
+        /^Frozen, 2026-11-06 10:00 to 2026-11-06 11:30 \S+$/
+      )
     ).toBeTruthy()
     expect(await screen.findByText("Error rate")).toBeTruthy()
     expect(await screen.findByText("No data")).toBeTruthy()

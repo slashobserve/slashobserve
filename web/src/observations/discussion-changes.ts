@@ -3,13 +3,18 @@ import type { ActivityEvent } from "@/live/activity-match"
 import { isDataPanel } from "@/spec"
 
 import { blockTitle } from "./block-rows"
-import { datasourceUidOf, panelBlockBody } from "./blocks/block-data"
+import {
+  datasourceUidOf,
+  panelBlockBody,
+  snapshotIdOf,
+} from "./blocks/block-data"
 import type { Block, Observation } from "./queries"
 
 type ChangeContext = {
   folderTitle: string
   datasources: readonly { uid: string; name: string }[]
   events: readonly ActivityEvent[]
+  snapshotTitles?: ReadonlyMap<string, string>
 }
 
 export const changeEventTypes = [
@@ -18,9 +23,17 @@ export const changeEventTypes = [
   "observation.block_removed",
 ] as const
 
-export function blockSubject(block: Block): string {
+export function blockSubject(
+  block: Block,
+  snapshotTitles?: ReadonlyMap<string, string>
+): string {
   const title = blockTitle(block)
-  return block.kind === "panel" && title !== "Panel" ? `Panel: ${title}` : title
+  if (block.kind === "panel" && title !== "Panel") return `Panel: ${title}`
+  if (block.kind === "snapshot") {
+    const frozen = snapshotTitles?.get(snapshotIdOf(block) ?? "")
+    if (frozen !== undefined) return `Snapshot: ${frozen}`
+  }
+  return title
 }
 
 function panelLine(
@@ -41,9 +54,28 @@ function eventTitle(event: ActivityEvent): string | null {
   return typeof title === "string" ? title : null
 }
 
-function startedDetail(observation: Observation, folderTitle: string): string {
-  const state = observation.state === "open" ? "Open" : "Resolved"
-  return `${observation.title} · In ${folderTitle} · ${state}`
+function eventFromTitle(event: ActivityEvent): string | null {
+  const { from_title } = event.data as { from_title?: unknown }
+  return typeof from_title === "string" ? from_title : null
+}
+
+function originalTitle(
+  observation: Observation,
+  events: readonly ActivityEvent[]
+): string {
+  const ordered = events.toSorted((a, b) => a.seq - b.seq)
+  const created = ordered.find((event) => event.type === "observation.created")
+  const first = created === undefined ? null : eventTitle(created)
+  if (first !== null) return first
+  for (const event of ordered) {
+    const from = eventFromTitle(event)
+    if (from !== null) return from
+  }
+  return observation.title
+}
+
+function startedDetail(title: string, folderTitle: string, state: string) {
+  return `${title} · In ${folderTitle} · ${state === "open" ? "Open" : "Resolved"}`
 }
 
 function eventChanges(events: readonly ActivityEvent[]): DiscussionChange[] {
@@ -62,7 +94,18 @@ function eventChanges(events: readonly ActivityEvent[]): DiscussionChange[] {
       continue
     }
     const next = eventTitle(event)
+    const from = eventFromTitle(event)
     if (
+      event.type === "observation.updated" &&
+      next !== null &&
+      from !== null &&
+      next !== from
+    ) {
+      changes.push({
+        ...base,
+        verb: `renamed this observation from ${from} to ${next}`,
+      })
+    } else if (
       event.type === "observation.updated" &&
       next !== null &&
       title !== null &&
@@ -77,7 +120,7 @@ function eventChanges(events: readonly ActivityEvent[]): DiscussionChange[] {
 
 export function observationChanges(
   observation: Observation,
-  { folderTitle, datasources, events }: ChangeContext
+  { folderTitle, datasources, events, snapshotTitles }: ChangeContext
 ): DiscussionChange[] {
   const started: DiscussionChange = {
     key: "started",
@@ -85,14 +128,18 @@ export function observationChanges(
     actor: observation.created_by,
     verb: "started this observation",
     subject: null,
-    detail: startedDetail(observation, folderTitle),
+    detail: startedDetail(
+      originalTitle(observation, events),
+      folderTitle,
+      observation.state
+    ),
   }
   const added = (observation.blocks ?? []).map((block): DiscussionChange => ({
     key: block.id,
     at: block.created_at,
     actor: block.created_by,
     verb: block.state === "requested" ? "suggested a block" : "added a block",
-    subject: { id: block.id, title: blockSubject(block) },
+    subject: { id: block.id, title: blockSubject(block, snapshotTitles) },
     detail: panelLine(block, datasources),
   }))
   return [started, ...added, ...eventChanges(events)]

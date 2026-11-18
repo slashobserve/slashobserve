@@ -14,6 +14,7 @@ import {
   DatasourceListProvider,
 } from "@/datasources/queries"
 import { FindingMarkdown } from "@/findings/finding-markdown"
+import { zoneLabel } from "@/lib/date-format"
 import { formatDateTime } from "@/lib/time"
 import { useDocumentTitle } from "@/lib/document-title"
 import { frozenCaption } from "@/observations/blocks/block-data"
@@ -173,7 +174,8 @@ export function PublicRcaPage({ token }: { token: string }) {
             </h1>
             <p className="text-[13px] text-muted-foreground">
               Revision {rca.revision}, published by {rca.published_by},{" "}
-              {formatDateTime(rca.created_at)}
+              {formatDateTime(rca.created_at)}{" "}
+              {zoneLabel(Date.parse(rca.created_at))}
             </p>
             <p className="text-[13px] font-medium">
               {rca.observation_state === "resolved"

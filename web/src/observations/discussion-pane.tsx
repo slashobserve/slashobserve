@@ -1,6 +1,6 @@
 import { useContext, useId, useMemo, useState, type RefObject } from "react"
 import { createPortal } from "react-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQueries, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
@@ -18,13 +18,14 @@ import { noFilter, type DiscussionFilter } from "@/discussion/discussion-filter"
 import type { DiscussionShow } from "@/discussion/discussion-model"
 import { PanelHostContext } from "@/shell/side-panel"
 
+import { snapshotIdOf, snapshotQuery } from "./blocks/block-data"
 import { addProblemText } from "./block-rows"
 import {
   blockSubject,
   changeEventTypes,
   observationChanges,
 } from "./discussion-changes"
-import { useAddBlock, type Observation } from "./queries"
+import { useAddBlock, type Block, type Observation } from "./queries"
 
 const showOptions: { value: DiscussionShow; label: string }[] = [
   { value: "everything", label: "Everything" },
@@ -87,6 +88,33 @@ function AddToPage({
   )
 }
 
+type FrozenPanel = { id: string; panel: { [key: string]: unknown } }
+
+function snapshotTitlesOf(
+  results: readonly { data?: FrozenPanel }[]
+): ReadonlyMap<string, string> {
+  const titles = new Map<string, string>()
+  for (const { data } of results) {
+    const title = data?.panel.title
+    if (
+      data !== undefined &&
+      typeof title === "string" &&
+      title.trim() !== ""
+    ) {
+      titles.set(data.id, title)
+    }
+  }
+  return titles
+}
+
+function useSnapshotTitles(blocks: readonly Block[]) {
+  const ids = blocks.flatMap((block) => snapshotIdOf(block) ?? [])
+  return useQueries({
+    queries: ids.map(snapshotQuery),
+    combine: snapshotTitlesOf,
+  })
+}
+
 function useChangeEvents(observation: Observation) {
   return useQuery({
     queryKey: observationKeys.changes(observation.id, observation.updated_at),
@@ -126,21 +154,26 @@ export function DiscussionPane({
   const headingId = useId()
   const datasources = useDatasources()
   const events = useChangeEvents(observation)
+  const snapshotTitles = useSnapshotTitles(observation.blocks ?? [])
   const entries = useMemo(
     () =>
       observationChanges(observation, {
         folderTitle,
         datasources: datasources.data ?? [],
         events: events.data ?? [],
+        snapshotTitles,
       }),
-    [observation, folderTitle, datasources.data, events.data]
+    [observation, folderTitle, datasources.data, events.data, snapshotTitles]
   )
   const blocks = useMemo(
     () =>
       (observation.blocks ?? [])
         .toSorted((a, b) => a.position - b.position)
-        .map((block) => ({ id: block.id, title: blockSubject(block) })),
-    [observation.blocks]
+        .map((block) => ({
+          id: block.id,
+          title: blockSubject(block, snapshotTitles),
+        })),
+    [observation.blocks, snapshotTitles]
   )
   const [show, setShow] = useState<DiscussionShow>("everything")
   const [filterBlock, setFilterBlock] = useState<string | null>(null)

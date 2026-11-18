@@ -350,6 +350,13 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	return nil
 }
 
+func updatedEvent(before, after string) any {
+	if before == after {
+		return eventData{Title: after}
+	}
+	return renamedEventData{Title: after, FromTitle: before}
+}
+
 func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID, in UpdateInput) (Observation, error) {
 	if in.Title == nil && in.From == nil && in.To == nil && !in.ClearRange {
 		return Observation{}, ErrNothingToUpdate
@@ -376,7 +383,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		if err != nil {
 			return fmt.Errorf("update observation: %w", err)
 		}
-		return appendEvent(ctx, q, activity.TypeObservationUpdated, who, id, eventData{Title: updated.Title})
+		return appendEvent(ctx, q, activity.TypeObservationUpdated, who, id, updatedEvent(row.Title, updated.Title))
 	})
 	if err != nil {
 		return Observation{}, err

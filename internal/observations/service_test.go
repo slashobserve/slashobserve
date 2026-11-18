@@ -451,6 +451,42 @@ func TestUpdatingChangesTheTitleAndTheRangeAndClearsItOnRequest(t *testing.T) {
 	}
 }
 
+func TestRenamingRecordsTheTitleBeforeAndAChangeOfRangeDoesNot(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	title := "Renamed"
+	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{ClearRange: true}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data FROM activity WHERE observation_id = $1::uuid AND type = 'observation.updated' ORDER BY seq`, o.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []map[string]any
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(raw, &data); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, data)
+	}
+	if len(got) != 2 || got[0]["from_title"] != o.Title || got[0]["title"] != "Renamed" {
+		t.Fatalf("rename event %v, want from_title %q", got, o.Title)
+	}
+	if _, has := got[1]["from_title"]; has || got[1]["title"] != "Renamed" {
+		t.Errorf("range event %v carries from_title", got[1])
+	}
+}
+
 func TestEveryWriteAppendsExactlyOneActivityRowOfTheObservationTarget(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
