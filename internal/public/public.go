@@ -8,7 +8,10 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -26,7 +29,10 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxLinksPerDashboard = 20
+const (
+	maxLinksPerDashboard = 20
+	maxLabelRunes        = 80
+)
 
 const (
 	reasonExpired    = "expired"
@@ -41,6 +47,7 @@ var (
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")
 	ErrTooManyLinks    = fmt.Errorf("a dashboard has at most %d public links; revoke one first", maxLinksPerDashboard)
 	ErrInvalidMode     = errors.New("variables must be frozen or free")
+	ErrInvalidLabel    = fmt.Errorf("label must be at most %d characters without control characters", maxLabelRunes)
 
 	ErrOptionsUnavailable = errors.New("the options of a variable could not be read")
 )
@@ -63,6 +70,7 @@ type Link struct {
 	ID           string
 	DashboardID  string
 	Prefix       string
+	Label        string
 	Mode         Mode
 	Selections   map[string][]string
 	ExpiresAt    *time.Time
@@ -74,6 +82,7 @@ type Link struct {
 }
 
 type CreateInput struct {
+	Label      string
 	Mode       Mode
 	Selections map[string][]string
 	ExpiresAt  *time.Time
@@ -190,6 +199,10 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
 	}
+	label, ok := cleanLabel(in.Label)
+	if !ok {
+		return Created{}, ErrInvalidLabel
+	}
 	if err := s.manage(ctx, by, dashboardID); err != nil {
 		return Created{}, err
 	}
@@ -203,7 +216,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err := s.checkSelections(ctx, d, in); err != nil {
 		return Created{}, err
 	}
-	count, err := s.db.Queries().CountPublicLinks(ctx, dashboardID)
+	count, err := s.db.Queries().CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 	if err != nil {
 		return Created{}, err
 	}
@@ -226,6 +239,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 		DashboardID:   dashboardID,
 		TokenHash:     hash,
 		DisplayPrefix: displayPrefix(token),
+		Label:         label,
 		Variables:     string(in.Mode),
 		Selections:    stored,
 		ExpiresAt:     timestamp(in.ExpiresAt),
@@ -358,6 +372,7 @@ func linkOf(row dbsqlc.ListPublicLinksRow) (Link, error) {
 		ID:           row.ID.String(),
 		DashboardID:  row.DashboardID.String(),
 		Prefix:       row.DisplayPrefix,
+		Label:        row.Label,
 		Mode:         Mode(row.Variables),
 		ExpiresAt:    timeOf(row.ExpiresAt),
 		CreatedBy:    Creator{Kind: row.CreatedByKind, ID: row.CreatedByID.String(), Name: row.CreatedByName},
@@ -389,4 +404,17 @@ func timeOf(t pgtype.Timestamptz) *time.Time {
 		return nil
 	}
 	return &t.Time
+}
+
+func cleanLabel(raw string) (string, bool) {
+	label := strings.TrimSpace(raw)
+	if utf8.RuneCountInString(label) > maxLabelRunes {
+		return "", false
+	}
+	for _, r := range label {
+		if unicode.IsControl(r) {
+			return "", false
+		}
+	}
+	return label, true
 }

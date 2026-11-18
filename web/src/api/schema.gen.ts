@@ -2913,7 +2913,7 @@ export interface paths {
         put?: never;
         /**
          * Create a public link that opens the dashboard read-only without sign-in.
-         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given. A dashboard has at most 20 links.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given. A dashboard has at most 20 unexpired links; an expired link no longer counts. An optional `label` of up to 80 characters says what the link is for; a longer one or one with a control character is refused with 400 `invalid_request`.
          */
         post: operations["createPublicLink"];
         delete?: never;
@@ -6007,6 +6007,8 @@ export interface components {
             id: string;
             /** @description The first 12 characters of the token, to tell links apart; the token itself is never shown again. */
             prefix: string;
+            /** @description What the link is for, set when it was created; empty when none was given. */
+            label: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections: components["schemas"]["PublicLinkSelections"];
@@ -6036,6 +6038,8 @@ export interface components {
             state: "expired" | "active";
         };
         CreatePublicLinkRequest: {
+            /** @description Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for. */
+            label?: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections?: components["schemas"]["PublicLinkSelections"];
@@ -14135,7 +14139,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 links (`too_many_links`). */
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 unexpired links (`too_many_links`). */
             422: {
                 headers: {
                     [name: string]: unknown;

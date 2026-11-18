@@ -19,7 +19,8 @@ Some dashboards cannot have a public link:
 - A dashboard whose queries read the viewer's identity through `${__user.*}` has nobody to read on a public link.
   Creating a link for it is refused, and an existing link stops working, and shows as not usable, once a new version starts using `${__user.*}`.
 
-A dashboard has at most 20 links.
+A dashboard has at most 20 unexpired links, and an expired link stops counting.
+Give a link a label of up to 80 characters when you create it, so the list says what each one is for.
 
 ## Variables, expiry and revoke
 
@@ -86,8 +87,8 @@ Every route except the public ones needs a session or a service-account key with
 
 | Route | Does |
 | --- | --- |
-| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
-| `POST /api/v1/dashboards/{id}/public-links` | Creates a link and returns its token and `url` once. |
+| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, label, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
+| `POST /api/v1/dashboards/{id}/public-links` | Creates a link, with an optional `label`, and returns its token and `url` once. |
 | `DELETE /api/v1/dashboards/{id}/public-links/{link_id}` | Revokes a link. |
 | `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text, the dashboard's tags and its links left out, and the datasources it uses (uid and type); the token is the only credential. |
 | `GET /api/v1/public/{token}/panels/{panel_id}/data` | Runs one panel's saved queries for the link. |

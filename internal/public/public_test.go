@@ -144,6 +144,8 @@ func TestCreateRefusals(t *testing.T) {
 		{"an expiry in the past", admin, r.shared, CreateInput{Mode: ModeFrozen, ExpiresAt: &past}, ErrInvalidExpiry},
 		{"an unknown variable", admin, r.shared, CreateInput{Mode: ModeFrozen, Selections: map[string][]string{"nope": {"x"}}}, ErrUnknownVariable},
 		{"an unknown mode", admin, r.shared, CreateInput{Mode: "pinned"}, ErrInvalidMode},
+		{"a label that is too long", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: strings.Repeat("x", maxLabelRunes+1)}, ErrInvalidLabel},
+		{"a label with a control character", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: "a\nb"}, ErrInvalidLabel},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -280,5 +282,33 @@ func TestViewServesTheLatestSpecWithoutQueryText(t *testing.T) {
 	list, err := r.service.List(t.Context(), admin, r.shared)
 	if err != nil || len(list) != 1 || list[0].Usable || list[0].Expired {
 		t.Fatalf("list %+v, %v", list, err)
+	}
+}
+
+func TestALabelIsKeptTrimmedAndListed(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, CreateInput{Mode: ModeFrozen, Label: "  For the board  "})
+	if created.Link.Label != "For the board" {
+		t.Fatalf("created label %q", created.Link.Label)
+	}
+	list, err := r.service.List(t.Context(), admin, r.shared)
+	if err != nil || len(list) != 1 || list[0].Label != "For the board" {
+		t.Fatalf("list %+v, %v", list, err)
+	}
+}
+
+func TestExpiredLinksDoNotCountTowardTheCap(t *testing.T) {
+	r := newRig(t)
+	expires := time.Now().Add(time.Hour)
+	r.create(t, CreateInput{Mode: ModeFrozen, ExpiresAt: &expires})
+	for range maxLinksPerDashboard - 1 {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); !errors.Is(err, ErrTooManyLinks) {
+		t.Fatalf("with every link live: %v, want ErrTooManyLinks", err)
+	}
+	r.service.now = func() time.Time { return expires.Add(time.Second) }
+	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); err != nil {
+		t.Fatalf("after one link expired: %v", err)
 	}
 }

@@ -5406,7 +5406,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -5414,6 +5414,10 @@ components:
         prefix:
           type: string
           description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        label:
+          type: string
+          maxLength: 80
+          description: What the link is for, set when it was created; empty when none was given.
         variables:
           type: string
           enum: [frozen, free]
@@ -5458,6 +5462,10 @@ components:
       additionalProperties: false
       required: [variables]
       properties:
+        label:
+          type: string
+          maxLength: 80
+          description: Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for.
         variables:
           type: string
           enum: [frozen, free]

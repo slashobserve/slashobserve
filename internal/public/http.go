@@ -46,6 +46,7 @@ type creatorJSON struct {
 type linkJSON struct {
 	ID           string              `json:"id"`
 	Prefix       string              `json:"prefix"`
+	Label        string              `json:"label"`
 	Variables    Mode                `json:"variables"`
 	Selections   map[string][]string `json:"selections"`
 	ExpiresAt    *string             `json:"expires_at"`
@@ -68,6 +69,7 @@ type createdJSON struct {
 }
 
 type createRequest struct {
+	Label      string              `json:"label"`
 	Variables  Mode                `json:"variables"`
 	Selections map[string][]string `json:"selections"`
 	ExpiresAt  *string             `json:"expires_at"`
@@ -128,7 +130,7 @@ func (h *Handler) create(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
-	in := CreateInput{Mode: req.Variables, Selections: req.Selections}
+	in := CreateInput{Label: req.Label, Mode: req.Variables, Selections: req.Selections}
 	if req.ExpiresAt != nil {
 		at, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
@@ -206,6 +208,7 @@ func linkJSONOf(link Link) linkJSON {
 	return linkJSON{
 		ID:           link.ID,
 		Prefix:       link.Prefix,
+		Label:        link.Label,
 		Variables:    link.Mode,
 		Selections:   selections,
 		ExpiresAt:    optionalTime(link.ExpiresAt),
@@ -230,7 +233,7 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 	switch {
 	case err == nil:
 		return false
-	case errors.Is(err, ErrInvalidMode):
+	case errors.Is(err, ErrInvalidMode), errors.Is(err, ErrInvalidLabel):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")

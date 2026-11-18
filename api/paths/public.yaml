@@ -53,7 +53,8 @@ dashboards-id-public-links:
       The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again.
       `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`.
       A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given.
-      A dashboard has at most 20 links.
+      A dashboard has at most 20 unexpired links; an expired link no longer counts.
+      An optional `label` of up to 80 characters says what the link is for; a longer one or one with a control character is refused with 400 `invalid_request`.
     requestBody:
       required: true
       content:
@@ -92,7 +93,7 @@ dashboards-id-public-links:
       "422":
         description: >-
           The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`),
-          `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 links (`too_many_links`).
+          `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 unexpired links (`too_many_links`).
         content:
           application/json:
             schema:
