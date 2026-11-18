@@ -43,9 +43,9 @@ Usage: scripts/evals-stack.sh <command>
 
 up returns once Prometheus serves what the stack itself guarantees: node_uname_info for the node
 and node-exporter (synthetic) jobs, rates of node_cpu_seconds_total (node job) and the shop's
-http_requests_total, the synth exporter, and three minutes of synth samples.
+http_requests_total, the synth exporter, and six minutes of synth samples.
 It waits for rates because they need two scrapes, about 30 seconds after the containers are healthy.
-The three minutes count from Prometheus starting to scrape, so they are the last thing up waits for.
+The six minutes count from Prometheus starting to scrape, so they are the last thing up waits for.
 --no-history returns without them; wait-history then blocks until they are there, so work that
 does not read them can run while they accumulate.
 Series that depend on the host kernel, such as node_pressure_*, are never waited for.
@@ -127,10 +127,10 @@ join_cluster() {
   "$ROOT/scripts/demo-k8s.sh" connect "${PROJECT}-server-1"
 }
 
-SERIES_TIMEOUT=300
-# A retime step is bounded to 2 minutes (retimeMaxStep in evals/runner/tasks.go); a shorter history leaves no point with data.
+SERIES_TIMEOUT=480
+# A query is evaluated on a grid of its step, so a point has data only when the history is longer than the step plus two scrapes: the widest retime step is 5 minutes (retimeMaxStep in evals/runner/tasks.go).
 SYNTH_SCRAPE_SECONDS=15
-RETIME_HISTORY_MINUTES=3
+RETIME_HISTORY_MINUTES=6
 SYNTH_HISTORY_SAMPLES=$((RETIME_HISTORY_MINUTES * 60 / SYNTH_SCRAPE_SECONDS))
 NODE_SERIES_QUERIES=(
   'count(node_uname_info{job="node"})'

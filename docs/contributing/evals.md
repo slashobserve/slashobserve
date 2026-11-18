@@ -26,7 +26,7 @@ make evals-stack-down
 ```
 
 `make evals-replay` boots the isolated `slashobserve-evals` stack on http://localhost:28080 with scripted model turns and fails unless every scenario passes.
-It boots the stack with `up --no-history` and runs the runner with `--await-history`: the synthetic series need about three minutes of history for the scenarios that retime a dashboard, so the runner starts the scenarios that need none first, then runs `scripts/evals-stack.sh wait-history` once before the first scenario that does.
+It boots the stack with `up --no-history` and runs the runner with `--await-history`: the synthetic series need about six minutes of history for the scenarios that retime a dashboard, so the runner starts the scenarios that need none first, then runs `scripts/evals-stack.sh wait-history` once before the first scenario that does.
 The report keeps the scenario order whatever the run order.
 To rerun one failed scenario against the running stack, pass its id:
 

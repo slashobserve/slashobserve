@@ -7,10 +7,13 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -553,25 +556,58 @@ func TestWorkTargetsAreVerifiedAtImport(t *testing.T) {
 
 func TestPickRetimeRangeStaysWithinTheStacksHistory(t *testing.T) {
 	cases := []struct {
-		name   string
-		from   string
-		factor int
-		want   string
+		name          string
+		from          string
+		factor        int
+		maxDataPoints int
+		interval      string
+		want          string
 	}{
-		{"one step per point on a day default", "now-24h", 1, "now-6h"},
-		{"the dashboard already defaults to six hours", "now-6h", 1, "now-3h"},
-		{"a factor of 2 on a three hour default", "now-3h", 2, "now-1h"},
-		{"a factor of 10 on a half hour default", "now-30m", 10, "now-15m"},
-		{"a factor of 10 on a quarter hour default", "now-15m", 10, ""},
+		{"one step per point on a day default", "now-24h", 1, 0, "", "now-6h"},
+		{"the dashboard already defaults to six hours", "now-6h", 1, 0, "", "now-3h"},
+		{"a factor of 2 on a three hour default", "now-3h", 2, 0, "", "now-6h"},
+		{"a factor of 3 on a day default", "now-24h", 3, 0, "", "now-3h"},
+		{"a factor of 10 on a half hour default", "now-30m", 10, 0, "", "now-1h"},
+		{"a factor of 20 on a half hour default", "now-30m", 20, 0, "", "now-15m"},
+		{"a factor of 70 on a quarter hour default", "now-15m", 70, 0, "", ""},
+		{"a panel capped at 50 points", "now-24h", 1, 50, "", "now-3h"},
+		{"a panel capped above the 200 points of a check", "now-24h", 1, 1000, "", "now-6h"},
+		{"a minimum step of 240 seconds", "now-24h", 1, 0, "240s", "now-6h"},
+		{"a minimum step of 5 minutes", "now-24h", 1, 0, "5m", "now-6h"},
+		{"a minimum step of 10 minutes", "now-24h", 1, 0, "10m", ""},
+		{"a minimum step that is a variable", "now-24h", 1, 0, "${step}", "now-6h"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			dash := &spec.Dashboard{Time: spec.TimeRange{From: c.from, To: "now"}, Panels: []spec.Panel{{ID: "p1", Type: spec.Timeseries, Title: "A", Queries: []spec.Query{{Query: "up", IntervalFactor: c.factor}}}}}
+			dash := &spec.Dashboard{Time: spec.TimeRange{From: c.from, To: "now"}, Panels: []spec.Panel{{ID: "p1", Type: spec.Timeseries, Title: "A", MaxDataPoints: c.maxDataPoints, Interval: c.interval, Queries: []spec.Query{{Query: "up", IntervalFactor: c.factor}}}}}
 			got, ok := pickRetimeRange(dash)
 			if got.from != c.want || ok != (c.want != "") {
 				t.Errorf("pickRetimeRange = %q, %v; want %q", got.from, ok, c.want)
 			}
 		})
+	}
+}
+
+func TestTheStacksHistoryOutlastsTheWidestRetimeStepByTwoScrapes(t *testing.T) {
+	script, err := os.ReadFile(filepath.Join("..", "..", "scripts", "evals-stack.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) int {
+		m := regexp.MustCompile(`(?m)^` + name + `=(\d+)$`).FindSubmatch(script)
+		if m == nil {
+			t.Fatalf("%s is not set in scripts/evals-stack.sh", name)
+		}
+		n, err := strconv.Atoi(string(m[1]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	history := time.Duration(read("RETIME_HISTORY_MINUTES")) * time.Minute
+	scrape := time.Duration(read("SYNTH_SCRAPE_SECONDS")) * time.Second
+	if history < retimeMaxStep+2*scrape {
+		t.Errorf("the stack waits for %s of history but a retime step of %s needs %s", history, retimeMaxStep, retimeMaxStep+2*scrape)
 	}
 }
 
