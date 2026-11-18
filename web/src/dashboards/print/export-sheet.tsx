@@ -3,6 +3,7 @@ import { ArrowLeftIcon, ImageIcon, PrinterIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { holdLightTheme } from "@/lib/theme"
 
 import { holdSheet, useExportStore } from "./export-store"
 import { stampedAt } from "./header-text"
@@ -72,6 +73,15 @@ export function ExportSheet({
   const [phase, setPhase] = useState<Phase>("waiting")
 
   useEffect(() => holdSheet(), [])
+
+  useEffect(() => {
+    document.documentElement.dataset.export = ""
+    return () => {
+      delete document.documentElement.dataset.export
+    }
+  }, [])
+
+  useEffect(() => (mode === "print" ? holdLightTheme() : undefined), [mode])
 
   useEffect(() => {
     const root = sheet.current

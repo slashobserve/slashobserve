@@ -1,34 +1,30 @@
-@page {
-  margin: 12mm;
-}
-
 @media print {
-  html,
-  body {
+  html[data-export],
+  html[data-export] body {
     background: #fff !important;
   }
 
-  [data-sonner-toaster] {
+  html[data-export] [data-sonner-toaster] {
     display: none !important;
   }
 
-  .export-bar {
+  html[data-export] .export-bar {
     display: none !important;
   }
 
-  .export-sheet {
+  html[data-export] .export-sheet {
     padding: 0 !important;
     min-height: 0 !important;
     background: transparent !important;
   }
 
-  .export-scroll {
+  html[data-export] .export-scroll {
     overflow: visible !important;
     max-width: none !important;
     margin: 0 !important;
   }
 
-  .export-sheet * {
+  html[data-export] .export-sheet * {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

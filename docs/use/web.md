@@ -111,6 +111,7 @@ Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` 
 The page shows only the dashboard: no sidebar, toolbar or side panes, a header with the title, folder, version, time range, variables and the time of printing, and then the panels in one column in reading order.
 Every panel loads before the dialog opens, including the ones far down the page, and a panel is moved whole to the next page instead of being cut when it does not fit.
 Rows you collapsed are expanded on the sheet so that no panel is left out, and the variables and time range you chose are the ones printed.
+The sheet prints in the light theme whatever theme you use, so a dark theme does not print as a page of dark boxes; the image keeps your current theme.
 **Back to dashboard** at the top of the page, or closing the print dialog, returns to the dashboard.
 
 **Download as image** in the same menu opens the same sheet, draws it as one PNG named after the dashboard and its version, such as `checkout-service-health-v7.png`, and returns to the dashboard.

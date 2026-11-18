@@ -1,6 +1,14 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { useTheme } from "@/lib/theme"
 
 import { ExportSheet } from "./export-sheet"
 import { useExportStore } from "./export-store"
@@ -159,5 +167,26 @@ describe("ExportSheet", () => {
     await userEvent.click(anyway)
     await waitFor(() => expect(saveDashboardImage).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
+  })
+
+  it("prints in the light theme and gives the theme back afterwards", () => {
+    const theme = renderHook(() => useTheme())
+    act(() => theme.result.current.setPreference("dark"))
+    const { unmount } = render(<Sheet state="loading" />)
+    expect(theme.result.current.resolved).toBe("light")
+    expect(document.documentElement).toHaveAttribute("data-export")
+    unmount()
+    expect(theme.result.current.resolved).toBe("dark")
+    expect(document.documentElement).not.toHaveAttribute("data-export")
+    act(() => theme.result.current.setPreference("system"))
+  })
+
+  it("keeps the person's theme for the image", () => {
+    useExportStore.getState().start("image")
+    const theme = renderHook(() => useTheme())
+    act(() => theme.result.current.setPreference("dark"))
+    render(<Sheet state="loading" />)
+    expect(theme.result.current.resolved).toBe("dark")
+    act(() => theme.result.current.setPreference("system"))
   })
 })
