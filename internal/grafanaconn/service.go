@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
@@ -242,7 +243,7 @@ func (s *Service) releaseHost(ctx context.Context, rawURL string) {
 		return
 	}
 	if err := s.domains.Release(ctx, strings.ToLower(u.Hostname())); err != nil {
-		s.logger.WarnContext(ctx, "release outbound domain", slog.String("host", u.Hostname()), slog.Any("error", err))
+		s.logger.WarnContext(ctx, "release outbound domain", logattrs.Failure("outbound_release_failed", err, slog.String("host", u.Hostname()))...)
 	}
 }
 

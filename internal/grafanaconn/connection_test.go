@@ -246,8 +246,8 @@ func TestDeletingAConnectionKeepsAHostAnAdminAllowedByHand(t *testing.T) {
 func TestMovingAConnectionToAnotherHostReleasesTheOldOne(t *testing.T) {
 	r := newRig(t)
 	conn := r.connect(t)
-	newURL, token := "https://grafana2.example.com", "glsa_new"
-	if _, err := r.svc.Update(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &token}); err != nil {
+	newURL, replacement := "https://grafana2.example.com", "glsa_new"
+	if _, err := r.svc.Update(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &replacement}); err != nil {
 		t.Fatal(err)
 	}
 	list, err := r.domains.Allowed(t.Context())

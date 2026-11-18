@@ -142,27 +142,40 @@ func (s *Service) checkHost(ctx context.Context, host string) error {
 	return nil
 }
 
-func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Created, error) {
+type cleanedInput struct {
+	name, address, host, format string
+	types                       []string
+}
+
+func cleanInput(in Input) (cleanedInput, error) {
 	name, err := cleanName(in.Name)
 	if err != nil {
-		return Created{}, err
+		return cleanedInput{}, err
 	}
 	address, host, err := cleanURL(in.URL)
 	if err != nil {
-		return Created{}, err
+		return cleanedInput{}, err
 	}
 	format, err := cleanFormat(cmp.Or(in.Format, FormatGeneric))
 	if err != nil {
-		return Created{}, err
+		return cleanedInput{}, err
 	}
 	types, err := cleanEventTypes(in.EventTypes)
+	if err != nil {
+		return cleanedInput{}, err
+	}
+	return cleanedInput{name: name, address: address, host: host, format: format, types: types}, nil
+}
+
+func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Created, error) {
+	clean, err := cleanInput(in)
 	if err != nil {
 		return Created{}, err
 	}
 	if !s.key.Set() {
 		return Created{}, ErrNoSecretKey
 	}
-	if err := s.checkHost(ctx, host); err != nil {
+	if err := s.checkHost(ctx, clean.host); err != nil {
 		return Created{}, err
 	}
 	ownerKind, ownerID, err := owner(by)
@@ -195,7 +208,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 			return ErrTooMany
 		}
 		if _, err := q.InsertWebhook(ctx, dbsqlc.InsertWebhookParams{
-			ID: id, Name: name, Url: address, Format: format, SecretCiphertext: ciphertext, EventTypes: types,
+			ID: id, Name: clean.name, Url: clean.address, Format: clean.format, SecretCiphertext: ciphertext, EventTypes: clean.types,
 			OwnerKind: ownerKind, OwnerID: ownerID,
 			CursorXid: pgtype.Uint64{Uint64: head.xid, Valid: true}, CursorSeq: head.seq,
 		}); err != nil {

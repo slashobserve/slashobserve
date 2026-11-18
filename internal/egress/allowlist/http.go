@@ -90,7 +90,7 @@ func (s *Store) list(c *gin.Context) {
 		entry := entryJSON{Domain: r.Domain, AddedAt: &at, FromConnection: r.ForConnection, UsedBy: []userJSON{}}
 		if p, err := domains.ParsePattern(r.Domain); err == nil {
 			for _, u := range usersOf(users, p) {
-				entry.UsedBy = append(entry.UsedBy, userJSON{Kind: u.Kind, Name: u.Name})
+				entry.UsedBy = append(entry.UsedBy, userJSON(u))
 			}
 		}
 		if r.HasAuthor {
