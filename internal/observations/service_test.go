@@ -993,3 +993,49 @@ VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timesta
 		t.Fatalf("delete after the run ended: %v", err)
 	}
 }
+
+func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	a := r.addText(t, editor, o, "a")
+	hidden, err := r.service.AddBlock(t.Context(), otherCommen, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("someone else's suggestion")})
+	if err != nil || hidden.State != observations.BlockRequested {
+		t.Fatalf("suggest: %+v %v", hidden, err)
+	}
+	b := r.addText(t, editor, o, "b")
+	order := func(by auth.Principal) []string {
+		got, err := r.service.Get(t.Context(), by, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]string, len(got.Blocks))
+		for i, block := range got.Blocks {
+			ids[i] = block.ID
+			if block.Position != i {
+				t.Errorf("block %d of %s reads position %d", i, by.Name, block.Position)
+			}
+		}
+		return ids
+	}
+	if got := order(commenter); !slices.Equal(got, []string{a.ID, b.ID}) {
+		t.Fatalf("what the commenter reads: %v", got)
+	}
+
+	at := 2
+	mine, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("mine"), Position: &at})
+	if err != nil || mine.Position != 2 {
+		t.Fatalf("add at the end the commenter sees: position %d: %v", mine.Position, err)
+	}
+	if got := order(commenter); !slices.Equal(got, []string{a.ID, b.ID, mine.ID}) {
+		t.Errorf("what the commenter reads after adding: %v", got)
+	}
+	if got := order(editor); !slices.Equal(got, []string{a.ID, hidden.ID, b.ID, mine.ID}) {
+		t.Errorf("what the editor reads after the commenter added: %v", got)
+	}
+
+	first := 0
+	if _, err := r.service.UpdateBlock(t.Context(), commenter, mustUUID(t, mine.ID), observations.BlockChange{Version: mine.Version, Position: &first}); err == nil {
+		t.Error("a commenter moved a suggestion, so UpdateBlock needs the reader's positions too")
+	}
+}

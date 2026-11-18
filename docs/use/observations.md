@@ -20,6 +20,7 @@ A block is one of these kinds:
 | `run` | The agent run that is investigating, added by the server. |
 
 Each block is `full` width or `half` width, and blocks keep the order of their `position`.
+A person who can only comment sees positions that count only the blocks they can see, and a suggestion they place at one of those positions lands there once an editor keeps it.
 A page holds at most 100 blocks, of which at most 24 are panel and snapshot blocks together.
 A panel must be a valid data panel, and one that an agent or MCP client adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.
 Frozen data is limited to 2 MiB, and a larger result is refused with `snapshot_too_large`.

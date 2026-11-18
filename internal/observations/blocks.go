@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -211,20 +212,50 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 	var added dbsqlc.ObservationBlock
 	var held folders.Abilities
 	var who actor.Actor
+	var readerAt int
 	err = s.write(ctx, by, observationID, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, by actor.Actor) error {
 		state, ok := addedState(abilities)
 		if !ok {
 			return folders.ErrForbidden
 		}
-		var err error
-		added, err = insertBlock(ctx, q, row, prepared, state, by)
+		rows, err := q.BlocksOfObservation(ctx, row.ID)
+		if err != nil {
+			return fmt.Errorf("list observation blocks: %w", err)
+		}
+		placed := prepared
+		placed.position = storedPosition(readableBlocks(rows, abilities, by), prepared.position)
+		if added, err = insertBlock(ctx, q, row, placed, state, by); err != nil {
+			return err
+		}
 		held, who = abilities, by
-		return err
+		if rows, err = q.BlocksOfObservation(ctx, row.ID); err != nil {
+			return fmt.Errorf("list observation blocks: %w", err)
+		}
+		readerAt = readerPosition(readableBlocks(rows, abilities, by), added.Position)
+		return nil
 	})
 	if err != nil {
 		return Block{}, err
 	}
-	return blockOf(added, held, who), nil
+	shown := blockOf(added, held, who)
+	shown.Position = readerAt
+	return shown, nil
+}
+
+func readableBlocks(rows []dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor) []dbsqlc.ObservationBlock {
+	return slices.DeleteFunc(slices.Clone(rows), func(b dbsqlc.ObservationBlock) bool { return !visibleTo(b, abilities, viewer) })
+}
+
+func storedPosition(shown []dbsqlc.ObservationBlock, reader *int) *int {
+	if reader == nil || *reader >= len(shown) {
+		return nil
+	}
+	stored := int(shown[max(0, *reader)].Position)
+	return &stored
+}
+
+func readerPosition(shown []dbsqlc.ObservationBlock, stored int32) int {
+	return len(slices.DeleteFunc(slices.Clone(shown), func(b dbsqlc.ObservationBlock) bool { return b.Position >= stored }))
 }
 
 func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
