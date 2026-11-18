@@ -28,8 +28,9 @@ import (
 const madeDashboardSummary = "Made from an observation"
 
 var (
-	ErrNoDashboard = errors.New("the observation names no dashboard to pin to")
-	ErrNoPanels    = errors.New("the observation has no live panel blocks to make a dashboard from")
+	ErrNoDashboard   = errors.New("the observation names no dashboard to pin to")
+	ErrNoPanels      = errors.New("the observation has no live panel blocks to make a dashboard from")
+	ErrRunInProgress = errors.New("an investigation is still running on this observation; delete it once the run ends or is stopped")
 )
 
 type Dashboards interface {

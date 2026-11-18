@@ -202,6 +202,7 @@ observations-id:
       Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may.
       The delete cannot be undone, and an RCA's public links stop working with it.
       The activity log keeps the observation's events, ending with `observation.deleted`.
+      It is refused with 409 `run_in_progress` while an investigation on the observation is queued or running, because the run would file a new observation when it finished.
       No MCP tool deletes anything, so an agent cannot call this.
     responses:
       "204":
@@ -214,6 +215,8 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-move:

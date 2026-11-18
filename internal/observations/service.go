@@ -354,6 +354,13 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 		if !slices.Contains(allowedActions(State(row.State), abilities, author), ActionDelete) {
 			return folders.ErrForbidden
 		}
+		active, err := q.ObservationHasActiveRun(ctx, id)
+		switch {
+		case err != nil:
+			return fmt.Errorf("check the observation's runs: %w", err)
+		case active:
+			return ErrRunInProgress
+		}
 		if err := appendEvent(ctx, q, activity.TypeObservationDeleted, who, id, eventData{Title: row.Title}); err != nil {
 			return err
 		}

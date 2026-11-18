@@ -968,3 +968,28 @@ func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testin
 		t.Errorf("a viewer sees %v after the editor kept it", got)
 	}
 }
+
+func TestDeletingWaitsForTheRunsOfTheObservationToEnd(t *testing.T) {
+	r := newRig(t)
+	about := r.dashboard(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	var run string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
+VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []string{"queued", "running"} {
+		r.db.Exec(t, `UPDATE agent_requests SET state = $2, status = $2 WHERE id = $1::uuid`, run, state)
+		if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrRunInProgress) {
+			t.Fatalf("delete while %s: %v", state, err)
+		}
+	}
+	if _, err := r.service.Get(t.Context(), editor, id); err != nil {
+		t.Fatalf("the observation went with the refused delete: %v", err)
+	}
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'stopped' WHERE id = $1::uuid`, run)
+	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+		t.Fatalf("delete after the run ended: %v", err)
+	}
+}

@@ -1937,7 +1937,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
-         * @description Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may. The delete cannot be undone, and an RCA's public links stop working with it. The activity log keeps the observation's events, ending with `observation.deleted`. No MCP tool deletes anything, so an agent cannot call this.
+         * @description Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may. The delete cannot be undone, and an RCA's public links stop working with it. The activity log keeps the observation's events, ending with `observation.deleted`. It is refused with 409 `run_in_progress` while an investigation on the observation is queued or running, because the run would file a new observation when it finished. No MCP tool deletes anything, so an agent cannot call this.
          */
         delete: operations["deleteObservation"];
         options?: never;
@@ -6628,7 +6628,7 @@ export interface components {
                 "application/json": components["schemas"]["ValidationError"];
             };
         };
-        /** @description The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`). */
+        /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). */
         ObservationConflict: {
             headers: {
                 [name: string]: unknown;
@@ -12006,6 +12006,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["ObservationConflict"];
             500: components["responses"]["Internal"];
         };
     };

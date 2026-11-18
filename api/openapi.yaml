@@ -6370,7 +6370,7 @@ components:
           schema:
             $ref: "#/components/schemas/ValidationError"
     ObservationConflict:
-      description: The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`).
+      description: The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
       content:
         application/json:
           schema:

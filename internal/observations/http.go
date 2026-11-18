@@ -770,6 +770,8 @@ func abortKnown(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error())
 	case errors.Is(err, ErrNoPanels):
 		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error())
+	case errors.Is(err, ErrRunInProgress):
+		httpapi.AbortError(c, http.StatusConflict, "run_in_progress", ErrRunInProgress.Error())
 	case errors.As(err, &badSpec):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)
 	case errors.Is(err, ErrNotFound):
