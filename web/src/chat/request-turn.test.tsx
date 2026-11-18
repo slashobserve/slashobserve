@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -69,6 +69,51 @@ describe("RequestTurn", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe("RequestTurn while a run settles", () => {
+  const answered: TurnSummary = {
+    ...failed,
+    source: "observe",
+    status: "succeeded",
+    state: "succeeded",
+    result_kind: "observation",
+    allowed_actions: [],
+    failure_code: null,
+    error: null,
+  }
+
+  function serve(detail: object) {
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ request: detail }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+    )
+  }
+
+  it("does not describe a stale running read as a run with no steps", async () => {
+    serve({
+      ...answered,
+      status: "running",
+      state: "running",
+      steps: [],
+      finding: null,
+    })
+    renderTurn(answered)
+    expect(await screen.findByText("Show steps")).toBeInTheDocument()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(screen.queryByText("No steps recorded")).toBeNull()
+    expect(screen.queryByText(/finished without a dashboard/)).toBeNull()
+  })
+
+  it("waits for the answer instead of saying nothing was produced", async () => {
+    serve({ ...answered, steps: [{ id: "s1" }], finding: null })
+    renderTurn(answered)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(screen.queryByText(/finished without a dashboard/)).toBeNull()
   })
 })
 

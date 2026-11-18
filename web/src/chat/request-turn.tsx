@@ -177,7 +177,7 @@ export function RequestTurn({
   const pollFailures = usePollFailures(summary.id)
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
-  const steps = live?.steps ?? []
+  const steps = detail?.steps ?? []
   const planChange = planChangeText(steps)
   const savedBuild = request.result_kind === "partial_version"
   const inPane = opensRunsIn === "build"
@@ -276,16 +276,16 @@ export function RequestTurn({
               onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer text-[13px] text-muted-foreground">
-                {live === undefined
+                {detail === undefined
                   ? "Show steps"
                   : stepSummary(
-                      live.steps,
+                      detail.steps,
                       tookText(request.started_at, request.finished_at),
-                      costText(live.usage?.cost_usd)
+                      costText(detail.usage?.cost_usd)
                     )}
               </summary>
               <div className="flex flex-col gap-2.5 pt-2.5 pl-0.5">
-                {live !== undefined ? (
+                {detail !== undefined ? (
                   <StepTimeline
                     steps={steps}
                     working={false}
@@ -323,9 +323,10 @@ export function RequestTurn({
             </p>
           ) : null}
           {answers && request.status === "succeeded" ? (
-            live?.finding != null ? (
-              <FindingCard finding={live.finding} showOpenLink />
-            ) : live !== undefined ? (
+            detail?.finding != null ? (
+              <FindingCard finding={detail.finding} showOpenLink />
+            ) : detail !== undefined &&
+              (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
                 {investigates
                   ? "The run finished without a finding."
