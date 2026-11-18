@@ -99,7 +99,7 @@ A range query is refused when its step would make more than 11,000 buckets or mo
 
 `$__from` and `$__to` expand to epoch milliseconds, `$__interval` to the step in seconds such as `300s`, and `$__range` as on Loki.
 Inside a quoted string, such as a Query DSL value, a variable is escaped for JSON, and a variable with several values needs a format such as `${var:pipe}`.
-Outside quotes, a variable with several values expands to a parenthesised list of quoted values joined with `or`.
+Outside quotes, a variable with several values expands to a parenthesised list of quoted values joined with `OR`, which KQL and Lucene both read as an operator.
 
 ### Aggregations
 
