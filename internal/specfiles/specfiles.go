@@ -2,6 +2,7 @@ package specfiles
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -42,6 +43,15 @@ func FolderOf(path string) string {
 	return FolderTitle(dir)
 }
 
+func Read(dir, rel string) ([]byte, error) {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+	return root.ReadFile(filepath.FromSlash(rel))
+}
+
 func Scan(dir string) ([]File, error) {
 	var files []File
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -55,6 +65,9 @@ func Scan(dir string) ([]File, error) {
 			return nil
 		}
 		if d.IsDir() || !strings.HasSuffix(d.Name(), Ext) {
+			return nil
+		}
+		if kind := d.Type(); !kind.IsRegular() && kind&fs.ModeSymlink == 0 {
 			return nil
 		}
 		rel, err := filepath.Rel(dir, path)

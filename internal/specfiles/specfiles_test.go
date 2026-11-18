@@ -93,3 +93,54 @@ func TestScanFailsOnAMissingDirectory(t *testing.T) {
 		t.Error("Scan of a missing directory succeeded")
 	}
 }
+
+func TestReadFollowsSymlinksInsideTheDirectoryAndRefusesOnesThatLeaveIt(t *testing.T) {
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.json"), []byte(`{"outside":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for path, content := range map[string]string{"data/real.json": `{"inside":true}`} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, path)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, path), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	links := map[string]string{
+		"configmap.json": "data/real.json",
+		"escape.json":    filepath.Join(outside, "secret.json"),
+		"climb.json":     "../" + filepath.Base(outside) + "/secret.json",
+	}
+	for name, target := range links {
+		if err := os.Symlink(target, filepath.Join(dir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Join(dir, "cm", "..2026"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cm", "..2026", "x.json"), []byte(`{"mounted":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("..2026", filepath.Join(dir, "cm", "..data")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("..data/x.json", filepath.Join(dir, "cm", "x.json")); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := specfiles.Read(dir, "cm/x.json"); err != nil || string(got) != `{"mounted":true}` {
+		t.Errorf("Read(cm/x.json) = %q, %v; want the file of a ConfigMap-style mount", got, err)
+	}
+
+	if got, err := specfiles.Read(dir, "configmap.json"); err != nil || string(got) != `{"inside":true}` {
+		t.Errorf("Read(configmap.json) = %q, %v; want the file the link points to inside the directory", got, err)
+	}
+	for _, name := range []string{"escape.json", "climb.json"} {
+		if got, err := specfiles.Read(dir, name); err == nil {
+			t.Errorf("Read(%s) = %q, want a refusal because the link leaves the directory", name, got)
+		}
+	}
+}
