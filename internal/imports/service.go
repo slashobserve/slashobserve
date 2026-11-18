@@ -198,14 +198,18 @@ func (s *Service) ExistingFor(ctx context.Context, by auth.Principal, uid string
 	if err != nil || !found {
 		return nil, err
 	}
-	access, err := s.access.Dashboard(ctx, by, held.DashboardID)
+	return s.existingOf(ctx, by, held.DashboardID)
+}
+
+func (s *Service) existingOf(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (*Existing, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	dash, ver, err := s.dashboard.Get(ctx, held.DashboardID)
+	dash, ver, err := s.dashboard.Get(ctx, dashboardID)
 	if errors.Is(err, dashboards.ErrNotFound) {
 		return nil, nil
 	}
@@ -284,6 +288,11 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 			if err := q.LockImportGrafanaUID(ctx, params.GrafanaUid); err != nil {
 				return fmt.Errorf("lock grafana uid: %w", err)
 			}
+			if req.RefuseExisting {
+				if err := s.refuseHeld(ctx, q, by, params.GrafanaUid); err != nil {
+					return err
+				}
+			}
 		}
 		inserted, err = q.InsertImport(ctx, params)
 		if err != nil {
@@ -320,6 +329,21 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	}
 	s.logImported(ctx, imported)
 	return imported, nil
+}
+
+func (s *Service) refuseHeld(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, uid string) error {
+	held, err := q.DashboardByGrafanaUID(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("find import by grafana uid: %w", err)
+	}
+	existing, err := s.existingOf(ctx, by, held.DashboardID)
+	if err != nil || existing == nil {
+		return err
+	}
+	return &AlreadyImportedError{Existing: *existing}
 }
 
 func (s *Service) importFolder(ctx context.Context, by auth.Principal, req Request, fromJSON string) (folders.ImportFolder, error) {
