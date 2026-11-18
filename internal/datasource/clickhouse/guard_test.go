@@ -219,7 +219,7 @@ func TestGuardFallbackFormatTableFunction(t *testing.T) {
 }
 
 func TestGuardNamesAMisspeltFirstWord(t *testing.T) {
-	for _, typo := range []string{"SELEC", "selct", "SELCT", "WTIH"} {
+	for _, typo := range []string{"SELEC", "selct", "SELCT", "WITT"} {
 		_, err := guard(typo + " * FROM otel_logs")
 		var ue *datasource.UpstreamError
 		if !errors.As(err, &ue) || !errors.Is(ue.Kind, datasource.ErrInvalidQuery) || !strings.Contains(ue.Message, "must start with SELECT or WITH") || !strings.Contains(ue.Message, typo) {
