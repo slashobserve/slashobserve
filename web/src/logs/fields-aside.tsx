@@ -302,7 +302,7 @@ function FieldsPanel({
   onHide?: () => void
   onApplied?: () => void
 }) {
-  const { datasource, search, effectiveQuery, range, setDraft, run } =
+  const { datasource, search, effectiveQuery, range, setDraft, run, results } =
     useLogsWorkspace()
   const [filterText, setFilterText] = useState("")
   const [openField, setOpenField] = useState<string | null>(null)
@@ -320,7 +320,7 @@ function FieldsPanel({
       to: range.to,
       limit: topValues,
     }),
-    enabled: q !== undefined,
+    enabled: q !== undefined && !results.isLoading,
   })
   const base: Base = {
     data: facets.data,
@@ -346,7 +346,7 @@ function FieldsPanel({
   }
 
   const problem = facets.isError ? facetsErrorText(facets.error) : null
-  const loading = rows.length === 0 && (names.isLoading || facets.isLoading)
+  const loading = rows.length === 0 && (names.isLoading || base.pending)
   return (
     <>
       <div className="flex items-start justify-between gap-1 px-4 pt-3 pb-2">

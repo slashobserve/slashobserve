@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, exploreKeys } from "@/api/keys"
@@ -79,7 +79,11 @@ function setup({
   effectiveQuery = search.q,
   openLine = false,
   drawer = false,
+  linesLoading = false,
+  seedFacets = true,
 }: {
+  seedFacets?: boolean
+  linesLoading?: boolean
   drawer?: boolean
   openLine?: boolean
   type?: string
@@ -105,6 +109,7 @@ function setup({
     range,
     run,
     setDraft,
+    results: { isLoading: linesLoading },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
@@ -112,7 +117,7 @@ function setup({
     labels: names,
     truncated: false,
   })
-  if (effectiveQuery !== undefined) {
+  if (effectiveQuery !== undefined && seedFacets) {
     queryClient.setQueryData(
       exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
       facets
@@ -153,6 +158,21 @@ describe("FieldsAside", () => {
     )
     expect(run).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole("dialog", { name: "Fields" })).toBeNull()
+  })
+
+  it("counts the values only once the lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesLoading: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts the values as soon as the lines are in", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalled())
   })
 
   it("offers no drawer while the side panel fits", () => {

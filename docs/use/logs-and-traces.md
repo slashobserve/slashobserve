@@ -159,6 +159,7 @@ Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings
 
 The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
 The note under **Fields** says where the list comes from, and the search box narrows it by name.
+The counts are read after the lines have arrived, so a wide range shows the lines first and the value counts a moment later.
 A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
 On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
