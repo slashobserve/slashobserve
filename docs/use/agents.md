@@ -73,7 +73,7 @@ Retrying or continuing such a run goes to the same agent, and answers `assignee_
 ## Recent work
 
 The page of one agent, at `/agents/<ref>`, ends with a **Recent work** list of the runs behind its seven day counts, newest first.
-Each row shows the run's title, its state (Queued, Running, Stopping, Done, Failed or Canceled), when it was asked and the dashboard or observation it touched.
+Each row shows the run's title, its state (Queued, Running, Stopping, Done, Failed or Canceled), when it was asked, what it cost when a cost was recorded, and the dashboard or observation it touched.
 "Load more" shows the next page, and an agent with no runs says "No runs yet."
 `GET /api/v1/agents/runs?kind=<builtin|grant|service_account>&id=<id>` returns the same list, 20 runs a page by default and at most 50, with the `next_cursor` of one page as the `cursor` of the next.
 The `id` is the grant id or the service account id, and it is refused for `builtin`.

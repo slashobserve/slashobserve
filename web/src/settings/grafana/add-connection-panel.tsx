@@ -36,7 +36,7 @@ export function AddConnectionPanel({
   return (
     <SidePanel
       title="Add a connection"
-      description={connectionsHint}
+      description="Connect a Grafana to import its dashboards."
       onClose={onClose}
       closeDisabled={create.isPending}
       initialFocus={nameInput}
@@ -74,7 +74,8 @@ export function AddConnectionPanel({
         firstInputRef={nameInput}
       />
       <p className="text-xs text-muted-foreground">
-        The token is stored encrypted and is never shown again.
+        The token needs the Viewer role on the folders to import. It is stored
+        encrypted and is never shown again.
       </p>
     </SidePanel>
   )
