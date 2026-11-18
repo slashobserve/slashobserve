@@ -646,7 +646,8 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
           ) : null}
           {paging.lostPage !== null ? (
             <p role="status" className="pt-2 text-[13px] text-muted-foreground">
-              Page {paging.lostPage} could not be restored; showing page 1
+              Page {paging.lostPage} could not be restored; showing page{" "}
+              {paging.page}
             </p>
           ) : null}
           {shownData.meta.partial && isSearchFamily(datasource.type) ? (

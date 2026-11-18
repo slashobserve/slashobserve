@@ -213,6 +213,7 @@ The bar under the lines says which lines are on the page, such as "51-100 of 48,
 The header above the lines gains ", page 3" from the second page on.
 ClickHouse, Elasticsearch and OpenSearch offer numbered pages and an exact total of the lines that match.
 Elasticsearch and OpenSearch stop at the largest offset the index pages to, `max_result_window`, and a note under the bar says which page that is and to narrow the time range to reach older lines.
+An address that names a page past it opens the last page that can be reached, with a note saying which page was asked for, and keeps the page bar.
 Loki pages by time from the last line shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, because a Loki page is reached through the page before it.
 
 The page and size are in the address as `page` and `size`, so a link to a page opens on it; a Loki address beyond page 1 reopens on page 1 with a note, and a query, filter, datasource or time range change returns to page 1.
