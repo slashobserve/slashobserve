@@ -16,7 +16,7 @@ describe("traceFilterChips", () => {
   it("gives chips for service and min duration in order, with the form's labels", () => {
     expect(traceFilterChips({ min: "500ms", service: "frontend" })).toEqual([
       { key: "service", label: "Service", value: "frontend" },
-      { key: "min", label: "Min duration", value: "500ms" },
+      { key: "min", label: "Min span duration", value: "500ms" },
     ])
   })
 
@@ -45,8 +45,8 @@ describe("traceFilterChips", () => {
     ).toEqual([
       ["service", "Service", "cart"],
       ["span", "Span name", "GET /cart"],
-      ["min", "Min duration", "250ms"],
-      ["max", "Max duration", "2s"],
+      ["min", "Min span duration", "250ms"],
+      ["max", "Max span duration", "2s"],
       ["errors", "Errors only", ""],
       ["q", "TraceQL", "{ }"],
     ])

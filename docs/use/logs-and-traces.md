@@ -407,6 +407,7 @@ On an absolute range **Live** is disabled and says "Live works on a relative tim
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
+The minimum and maximum are span durations: a trace matches when a span that also fits the service and span name is that long, so a span name with a minimum of `1s` finds nothing when that span runs for 100 ms, even if a later span makes the whole trace slower.
 On Tempo you can also write TraceQL, which replaces the fields, and the link under the TraceQL field opens the TraceQL reference.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 
@@ -458,7 +459,7 @@ The mode you last chose on either page is the one both pages open in, and the tr
 The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
 A duration the form cannot read is left empty.
 The search runs at once, and the address keeps the question as `ask`.
-The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
+The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min span duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
 The row under the form then shows a "From: <question>" line and **Ask again**, which brings the question back.
 
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
