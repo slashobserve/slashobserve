@@ -127,6 +127,20 @@ export function rangeInFuture(range: TimeRangeValue, now: number): boolean {
   return resolveTime(range.from, now, false) > now
 }
 
+export function linkWithoutPage(href: string): string {
+  const url = new URL(href)
+  url.searchParams.delete("page")
+  return url.toString()
+}
+
+export function traceViewDatasource<Source extends { uid: string }>(
+  eligible: readonly Source[],
+  ds: string | undefined
+): Source | undefined {
+  if (ds !== undefined) return eligible.find((source) => source.uid === ds)
+  return eligible.length === 1 ? eligible[0] : undefined
+}
+
 export function traceViewRange(search: TraceViewSearch): TimeRangeValue {
   return { from: search.from ?? "now-24h", to: search.to ?? "now" }
 }

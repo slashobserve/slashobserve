@@ -80,6 +80,7 @@ import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
 import {
   askAfterSubmit,
+  linkWithoutPage,
   rangeInFuture,
   tracesTimeRange,
   type TraceSearch,
@@ -221,6 +222,11 @@ export function TracesPage({ uid }: { uid: string }) {
         onLiveChange={setLive}
         saveTrigger={saveTrigger}
         saveBlocked={saveBlocked}
+        shareHref={
+          datasource.type === "tempo"
+            ? linkWithoutPage(window.location.href)
+            : window.location.href
+        }
         onSave={() => setSaving(true)}
       />
       <SaveSearchDialog
@@ -245,9 +251,9 @@ export function TracesPage({ uid }: { uid: string }) {
   )
 }
 
-async function copyLink() {
+async function copyLink(href: string) {
   try {
-    await navigator.clipboard.writeText(window.location.href)
+    await navigator.clipboard.writeText(href)
     toast.success("Link copied")
   } catch {
     toast.error("Could not copy. Select the text and press Ctrl+C or Cmd+C.")
@@ -288,6 +294,7 @@ function TraceSearchActions({
   onLiveChange,
   saveTrigger,
   saveBlocked,
+  shareHref,
   onSave,
 }: {
   range: { from: string; to: string }
@@ -296,6 +303,7 @@ function TraceSearchActions({
   onLiveChange: (next: boolean) => void
   saveTrigger: RefObject<HTMLButtonElement | null>
   saveBlocked: string | undefined
+  shareHref: string
   onSave: () => void
 }) {
   const phone = usePhone()
@@ -354,7 +362,7 @@ function TraceSearchActions({
               </DropdownMenuSub>
               <DropdownMenuItem
                 className="min-h-11"
-                onClick={() => void copyLink()}
+                onClick={() => void copyLink(shareHref)}
               >
                 <LinkIcon aria-hidden="true" />
                 Copy link
@@ -377,7 +385,7 @@ function TraceSearchActions({
               <span className="@max-[780px]/top:sr-only">Save search</span>
             </Button>
             <CopyButton
-              text={window.location.href}
+              text={shareHref}
               label="Copy link"
               variant="ghost"
               size="icon"

@@ -336,6 +336,7 @@ The title in the top bar reads **Traces / <source> / <root service> <root span>*
 The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
 A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
+An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
 
@@ -440,7 +441,7 @@ The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 5
 ClickHouse offers numbered pages and an exact total of matching traces.
 Tempo pages by start time from the last trace shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, and no total while a search is partial.
 The page and size are in the address as `page` and `size`, and sorting a column sorts only the traces on the current page.
-A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it.
+A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it, so **Copy link** on a Tempo source leaves the page out and a shared link opens on page 1.
 
 ### Compare selected traces
 

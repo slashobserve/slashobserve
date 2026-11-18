@@ -69,6 +69,7 @@ import { TraceMinimap } from "./minimap.tsx"
 import {
   normaliseTraceId,
   traceDatasourceTypes,
+  traceViewDatasource,
   traceViewRange,
   type TraceViewSearch,
 } from "./search"
@@ -152,7 +153,7 @@ function TraceForId({ id }: { id: string }) {
   const { search, update } = useTraceViewSearch()
   const datasources = useDatasources()
   const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
-  const datasource = eligible.find((candidate) => candidate.uid === search.ds)
+  const datasource = traceViewDatasource(eligible, search.ds)
   const range = traceViewRange(search)
   const actions: PageActions = {
     time: <TimeRangeControl value={range} onChange={update} />,

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import {
   askAfterSubmit,
+  linkWithoutPage,
   normaliseTraceId,
   rangeInFuture,
+  traceViewDatasource,
   tracesTimeRange,
   traceViewRange,
   validateTraceEntrySearch,
@@ -166,5 +168,38 @@ describe("rangeInFuture", () => {
       )
     ).toBe(false)
     expect(rangeInFuture({ from: "now", to: "now+1h" }, now)).toBe(false)
+  })
+})
+
+describe("linkWithoutPage", () => {
+  it("drops the page and keeps the rest of the address", () => {
+    expect(
+      linkWithoutPage("http://x.test/traces/tempo?service=a&page=3&size=100")
+    ).toBe("http://x.test/traces/tempo?service=a&size=100")
+  })
+
+  it("leaves an address without a page as it is", () => {
+    expect(linkWithoutPage("http://x.test/traces/tempo")).toBe(
+      "http://x.test/traces/tempo"
+    )
+  })
+})
+
+describe("traceViewDatasource", () => {
+  const tempo = { uid: "tempo" }
+  const ch = { uid: "ch" }
+
+  it("opens the datasource the address names", () => {
+    expect(traceViewDatasource([tempo, ch], "ch")).toBe(ch)
+    expect(traceViewDatasource([tempo], "gone")).toBeUndefined()
+  })
+
+  it("opens the only trace datasource when the address names none", () => {
+    expect(traceViewDatasource([tempo], undefined)).toBe(tempo)
+  })
+
+  it("asks when several could hold the trace", () => {
+    expect(traceViewDatasource([tempo, ch], undefined)).toBeUndefined()
+    expect(traceViewDatasource([], undefined)).toBeUndefined()
   })
 })
