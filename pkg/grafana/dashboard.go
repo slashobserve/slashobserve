@@ -99,6 +99,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	}
 	c.noteClickHouseAdhoc()
 	c.noteLokiAllValues()
+	c.noteAlertRules()
 	result := &Result{
 		Summary:     src.summary(),
 		Datasources: reg.sources(),

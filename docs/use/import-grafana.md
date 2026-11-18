@@ -70,6 +70,9 @@ A very large dashboard lists at most 200 options per block and 10,000 in all, ke
 
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.
 
+Query-based annotations are not imported, and the report says so under the dashboard's annotations; add SlashObserve annotations with the CLI, the HTTP API or an MCP client (see [Annotations](annotations.md)).
+When any panel carried Grafana alert rules (an alert list of Grafana-managed alerts, or a legacy graph alert), one dashboard note named "alert rules" lists those panels and says that alert rules, contact points and silences are not imported, so alerting stays on Prometheus rules and Alertmanager.
+
 ### The stored original and Grafana links
 
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
@@ -305,7 +308,7 @@ An axis color mode other than `series` is Grafana's default, `text`.
 
 A candlestick imports its up, down and flat candle colors; a flat candle, whose open equals its close, otherwise takes the up color.
 
-The annotation lane options of a time series panel (`options.annotations.multiLane` and `clustering`) import without a note, because Grafana 12.3 does not define them and SlashObserve draws no annotations.
+The annotation lane options of a time series panel (`options.annotations.multiLane` and `clustering`) import without a note, because Grafana 12.3 does not define them and SlashObserve draws annotations as markers, not lanes.
 
 ### State timeline and status history
 
