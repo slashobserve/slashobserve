@@ -40,7 +40,7 @@ func init() { registerEntries((*Registry).inboxEntries) }
 
 func (r *Registry) inboxEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listInbox},
+		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listInbox},
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +104,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithPromptCapabilities(false),
 		mcpserver.WithRecovery(),
+		mcpserver.WithToolFilter(listablePersonTools(reg.List())),
 		mcpserver.WithInstructions(tools.ServerInstructions))
 	for _, t := range reg.List() {
 		if t.AgentOnly {
@@ -134,6 +136,22 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		h.runTransports[mode] = h.newTransport(run)
 	}
 	return h
+}
+
+// The library also runs the filter on a one-tool list before each call; that call must still reach the tool, which answers a key with user_session_required.
+func listablePersonTools(all []tools.Tool) mcpserver.ToolFilterFunc {
+	personOnly := map[string]bool{}
+	for _, t := range all {
+		if t.PersonOnly {
+			personOnly[t.Name] = true
+		}
+	}
+	return func(ctx context.Context, listed []mcplib.Tool) []mcplib.Tool {
+		if p, ok := auth.FromContext(ctx); len(listed) == 1 || !ok || p.Kind == auth.KindUser {
+			return listed
+		}
+		return slices.DeleteFunc(slices.Clone(listed), func(t mcplib.Tool) bool { return personOnly[t.Name] })
+	}
 }
 
 func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
@@ -395,7 +413,7 @@ type serving struct {
 func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
 	if !h.slots.acquire(s.key) {
 		w.Header().Set("Retry-After", "1")
-		writeError(w, http.StatusTooManyRequests, "too_many_requests", "too many concurrent requests")
+		writeRPCError(w, http.StatusTooManyRequests, rpcServerError, "too_many_requests", "too many concurrent requests")
 		return
 	}
 	defer h.slots.release(s.key)
@@ -412,19 +430,25 @@ func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
 		body, readErr = io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 		var tooLarge *http.MaxBytesError
 		if errors.As(readErr, &tooLarge) {
-			writeError(w, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
+			writeRPCError(w, http.StatusRequestEntityTooLarge, mcplib.INVALID_REQUEST, "too_large", "request body is too large")
 			return
 		}
 		if readErr != nil {
-			writeError(w, http.StatusBadRequest, "invalid_request", "could not read request body")
+			writeRPCError(w, http.StatusBadRequest, mcplib.INVALID_REQUEST, "invalid_request", "could not read request body")
 			return
 		}
+		if isBatch(body) {
+			writeRPCError(w, http.StatusBadRequest, mcplib.INVALID_REQUEST, "invalid_request", "JSON-RPC batches are not supported; send one request per POST")
+			return
+		}
+		body = withoutListCursor(body)
 		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
 	}
 	if !isClaimPoll(body) {
 		if !h.slots.acquireGlobal() {
 			w.Header().Set("Retry-After", "1")
-			writeError(w, http.StatusServiceUnavailable, "busy", "server is busy")
+			writeRPCError(w, http.StatusServiceUnavailable, rpcServerError, "busy", "server is busy")
 			return
 		}
 		defer h.slots.releaseGlobal()
@@ -529,6 +553,49 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.WriteHeader(status)
 	body, _ := json.Marshal(map[string]string{"error": message, "code": code})
 	_, _ = w.Write(body)
+}
+
+const rpcServerError = -32000
+
+func writeRPCError(w http.ResponseWriter, status, rpcCode int, code, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	body, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      nil,
+		"error":   map[string]any{"code": rpcCode, "message": message, "data": map[string]string{"code": code}},
+	})
+	_, _ = w.Write(body)
+}
+
+func isBatch(body []byte) bool {
+	return bytes.HasPrefix(bytes.TrimSpace(body), []byte("["))
+}
+
+// The server lists everything in one reply and never issues a cursor, and the library answers a made-up one with a base64 decoding error.
+func withoutListCursor(body []byte) []byte {
+	if !bytes.Contains(body, []byte(`"cursor"`)) {
+		return body
+	}
+	var msg map[string]json.RawMessage
+	if json.Unmarshal(body, &msg) != nil {
+		return body
+	}
+	var method string
+	if json.Unmarshal(msg["method"], &method) != nil || !strings.HasSuffix(method, "/list") {
+		return body
+	}
+	var params map[string]json.RawMessage
+	if json.Unmarshal(msg["params"], &params) != nil {
+		return body
+	}
+	delete(params, "cursor")
+	msg["params"], _ = json.Marshal(params)
+	out, err := json.Marshal(msg)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 func principalKey(p auth.Principal) string {

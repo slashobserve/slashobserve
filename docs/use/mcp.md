@@ -10,6 +10,8 @@ Requests must carry `Authorization: Bearer <token>`, where the token is either a
 Browser sessions are not accepted on `/mcp`, and an OAuth access token is accepted nowhere else.
 A request without a token, or with one the server refuses, gets `401` with `WWW-Authenticate: Bearer realm="slashobserve", resource_metadata="<public url>/.well-known/oauth-protected-resource/mcp"`, which is how an MCP client finds the sign-in; a refused token adds `error="invalid_token"`.
 The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key or person and `503` above 32 across all callers.
+Those three, and a refused JSON-RPC batch (one request per POST), come back as JSON-RPC error bodies with the short code in `error.data.code`, so a client SDK backs off on `Retry-After` instead of reporting a broken transport.
+`tools/list` has no pages: a `cursor` is ignored.
 For a key, `initialize` returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 For an OAuth client, the name it registered under is used and `clientInfo` is ignored.
 Each version, agent request, finding and annotation records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name, and the web app, the CLI and the API show the author as `<name> (via <client>)`.
@@ -180,7 +182,7 @@ No tool deletes a dashboard: people do that in the web app, through the HTTP API
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
 `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
-They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
+They work only over a person's OAuth connection: a service-account key does not see them in `tools/list`, as it does not see `list_inbox`, and answers `user_session_required` if it calls one.
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.

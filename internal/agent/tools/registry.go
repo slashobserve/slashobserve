@@ -104,6 +104,7 @@ type Tool struct {
 	AgentOnly   bool
 	Claim       bool
 	MinRole     auth.Role
+	PersonOnly  bool
 
 	InvestigateOnly bool
 	Answers         bool
