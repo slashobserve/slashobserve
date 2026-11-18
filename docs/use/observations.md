@@ -61,6 +61,7 @@ On the icon rail, a dot on **Observations** shows that some are open.
 
 An observation opens at `/o/<id>`.
 The page updates when someone else changes its blocks, its state or the discussion.
+An address that is not an observation id, or an observation you cannot see, shows "Observation not found" with a link back to the list, and no Retry, because retrying cannot help.
 **Share** in the top row copies the address of the page, which only people who can see the observation can open; a read-only link for everyone else is a [public link to an RCA revision](#share-a-revision-in-the-web-app).
 
 ### Start one

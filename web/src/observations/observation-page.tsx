@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
 import { opensByDefault } from "@/components/dock/card-width"
 import { LoadProblem } from "@/components/load-problem"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -19,6 +18,7 @@ import { rcasQuery } from "@/rca/queries"
 import { AddBlockRow } from "./add-block-row"
 import { BlockList, type Reveal } from "./block-list"
 import { DiscussionPane } from "./discussion-pane"
+import { observationIsMissing } from "./errors"
 import { MovePanel } from "./move-panel"
 import { ObservationHeader } from "./observation-header"
 import {
@@ -228,7 +228,7 @@ export function ObservationPage({
   )
   if (query.data !== undefined)
     return <LoadedObservation envelope={query.data} rca={rca} />
-  if (query.error instanceof ApiError && query.error.status === 404) {
+  if (observationIsMissing(query.error)) {
     return <ObservationNotFound />
   }
   if (query.isError) {
