@@ -108,7 +108,8 @@ import {
   partialReason,
   traceStatsQuery,
 } from "./trace-stats"
-import { TraceTable } from "./trace-table"
+import { decodeSort, encodeSort } from "./trace-rows"
+import { TraceTable, type TraceSortControl } from "./trace-table"
 
 const skeletonRows = [0, 1, 2, 3, 4]
 const askPlaceholder =
@@ -715,6 +716,7 @@ function TraceResults({
     base.from,
     base.to,
     pageSize,
+    base.sort,
   ])
   const cursors = usePageCursors(scope, byOffset)
   const requested = search.page ?? 1
@@ -944,6 +946,16 @@ function SelectableTraceTable({
     y: 0,
   })
   const [selection, setSelection] = useState<Selection | null>(null)
+  const sortControl: TraceSortControl | undefined =
+    datasource.type === "clickhouse"
+      ? {
+          value: decodeSort(search.sort),
+          onChange: (next) => {
+            setSelection(null)
+            update({ sort: encodeSort(next) })
+          },
+        }
+      : undefined
 
   function keep(next: Partial<TraceSearch>) {
     setSelection(null)
@@ -958,6 +970,7 @@ function SelectableTraceTable({
       p95Ms={p95}
       p95Label={label}
       fitWindow={fitWindow}
+      sortControl={sortControl}
       headerActions={
         <>
           <AddToDashboardAction panel={panel} />

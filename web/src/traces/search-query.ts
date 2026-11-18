@@ -4,6 +4,7 @@ import { matcherInsert } from "@/panel-editor/insert-text"
 
 import type { Selection } from "./scatter"
 import { tracesTimeRange, type TraceSearch } from "./search"
+import { decodeSort, pageSortParam } from "./trace-rows"
 
 const durationPattern = /^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$/
 
@@ -266,7 +267,13 @@ export function traceSearchParams(
     ...tracesTimeRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
+    ...(type === "clickhouse" && sortFor(search)),
   }
+}
+
+function sortFor(search: TraceSearch): { sort?: string } {
+  const sort = pageSortParam(decodeSort(search.sort))
+  return sort === undefined ? {} : { sort }
 }
 
 export function traceSearchParamsWithCursor(

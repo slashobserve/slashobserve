@@ -157,6 +157,11 @@ describe("traceSearchParams", () => {
 
   it("asks for the page and size in the address and never a limit", () => {
     const params = traceSearchParams("clickhouse", { page: 3, size: 250 })
+    expect(params.sort).toBe("-Duration")
+    expect(traceSearchParams("clickhouse", { sort: "spans" }).sort).toBe(
+      "Spans"
+    )
+    expect(traceSearchParams("tempo", { sort: "spans" }).sort).toBeUndefined()
     expect(params).toMatchObject({ pageSize: 250, page: 3 })
     expect(params).not.toHaveProperty("limit")
   })

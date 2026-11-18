@@ -16,6 +16,7 @@ import {
 } from "@/lib/paging"
 
 import { parseDuration } from "./search-query"
+import { encodeSort, decodeSort, isSortText } from "./trace-rows"
 
 export type TraceSearch = {
   service?: string
@@ -29,6 +30,7 @@ export type TraceSearch = {
   to?: string
   page?: number
   size?: PageSize
+  sort?: string
 }
 
 export type TraceFormSearch = Pick<
@@ -71,6 +73,12 @@ function validDuration(value: unknown): string | undefined {
   return text !== undefined && parseDuration(text) !== null ? text : undefined
 }
 
+function validSort(value: unknown): string | undefined {
+  const text = firstString(value)
+  if (text === undefined || !isSortText(text)) return undefined
+  return encodeSort(decodeSort(text)) === text ? text : undefined
+}
+
 function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
   return value === standard ? undefined : value
 }
@@ -87,6 +95,7 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     ...validRange(raw),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
+    sort: validSort(raw.sort),
   }
 }
 

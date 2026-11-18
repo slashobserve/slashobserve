@@ -292,6 +292,11 @@ type TraceP95 = {
   headerActions?: ReactNode
 }
 
+export type TraceSortControl = {
+  value: TraceSort | null
+  onChange: (next: TraceSort | null) => void
+}
+
 type TraceSelection = {
   selection: Selection | null
   onSelectionChange: (next: Selection | null) => void
@@ -314,21 +319,28 @@ function SortedTraceTable({
   onSelectionChange,
   selectionActions,
   selectionPanel,
+  sortControl,
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
   hidden: ReadonlySet<TraceSortKey>
   onToggleColumn: (key: TraceSortKey, visible: boolean) => void
+  sortControl?: TraceSortControl
 } & TraceP95 &
   TraceSelection) {
-  const [sort, setSort] = useState<TraceSort | null>(defaultTraceSort)
+  const [pageSort, setPageSort] = useState<TraceSort | null>(defaultTraceSort)
+  const sort = sortControl === undefined ? pageSort : sortControl.value
+  const setSort = sortControl === undefined ? setPageSort : sortControl.onChange
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const listed = useMemo(
     () => (selection === null ? rows : selectedRows(rows, selection)),
     [rows, selection]
   )
-  const sorted = useMemo(() => sortTraceRows(listed, sort), [listed, sort])
+  const sorted = useMemo(
+    () => (sortControl === undefined ? sortTraceRows(listed, sort) : listed),
+    [listed, sort, sortControl]
+  )
   const window = useMemo(
     () =>
       (fitWindow ? fittedWindow(rows) : null) ??
@@ -405,7 +417,8 @@ function SortedTraceTable({
           </p>
         ) : null}
         <p className="ml-auto text-xs text-muted-foreground">
-          {sortHint(sort)} Sorting applies to this page.
+          {sortHint(sort)}
+          {sortControl === undefined ? " Sorting applies to this page." : ""}
         </p>
         {headerActions}
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
@@ -470,6 +483,7 @@ export function TraceTable({
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
+  sortControl?: TraceSortControl
 } & TraceP95 &
   TraceSelection) {
   const [hidden, setHidden] = useState<ReadonlySet<TraceSortKey>>(

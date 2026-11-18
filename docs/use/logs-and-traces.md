@@ -428,13 +428,15 @@ That p95 is of every trace the search matches in the range, not only the listed 
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 
 The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
+On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range and the sort is in the address as `sort`, such as `sort=-spans`; on Tempo only the traces on the current page are sorted, and the line above the table says so.
 Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line, **Spans**, **Errors** and **Started**, which opens the trace.
 **Columns** hides a column.
 **Add to dashboard**, beside **Columns**, adds a full-width traces panel with the same query under the last row of a dashboard you can edit, as it does for logs; **Add to observation** copies the search you ran into an [observation](observations.md) as a traces panel over the time range the page shows: the TraceQL on Tempo, or on ClickHouse a query for the spans of the latest matching trace.
 **Errors** reads OK, or Failed with the number of error spans.
 **Spans** and **Errors** show only when every row carries the count.
 
-- ClickHouse lists the newest traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
+- ClickHouse lists each trace that has a matching span as a whole: the root span's service and name, the number of spans in the whole trace, and the full length of the trace from its first start to its last end, so a row agrees with the trace it opens.
+  With a filter set, a smaller "N matching" under the span count says how many of those spans matched.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, so more traces match than the ones shown, or Tempo stopped at its time limit, so some matching traces may be missing.
@@ -446,7 +448,7 @@ On a phone the table becomes a list.
 The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 500 per page.
 ClickHouse offers numbered pages and an exact total of matching traces.
 Tempo pages by start time from the last trace shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, and no total while a search is partial.
-The page and size are in the address as `page` and `size`, and sorting a column sorts only the traces on the current page.
+The page and size are in the address as `page` and `size`, and sorting a column resets to page 1.
 A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it, so **Copy link** on a Tempo source leaves the page out and a shared link opens on page 1.
 
 ### Compare selected traces
@@ -542,6 +544,7 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 ```
 
 `limit` lowers the row limit and never raises it above 1,000.
+With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
 `POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 

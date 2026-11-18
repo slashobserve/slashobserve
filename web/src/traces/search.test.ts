@@ -218,3 +218,12 @@ describe("changesQuery", () => {
     expect(changesQuery({ from: "now-6h", to: "now" })).toBe(false)
   })
 })
+
+describe("the trace sort", () => {
+  it("keeps a sort other than the default and drops the rest", () => {
+    expect(validateTraceSearch({ sort: "-spans" }).sort).toBe("-spans")
+    expect(validateTraceSearch({ sort: "none" }).sort).toBe("none")
+    expect(validateTraceSearch({ sort: "-duration" }).sort).toBeUndefined()
+    expect(validateTraceSearch({ sort: "Duration; drop" }).sort).toBeUndefined()
+  })
+})
