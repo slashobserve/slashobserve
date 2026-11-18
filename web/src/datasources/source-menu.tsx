@@ -206,9 +206,7 @@ export function PhoneSourceTitle({
           finalFocus={switcher}
           className="gap-1 pt-3"
         >
-          <SheetTitle className="px-4">
-            {kind === "logs" ? "Log sources" : "Trace sources"}
-          </SheetTitle>
+          <SheetTitle className="px-4">{exploreText[kind].sources}</SheetTitle>
           <SourceSheetList kind={kind} onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
