@@ -156,6 +156,7 @@ export function PanelChrome({
             <button
               type="button"
               data-panel-title=""
+              aria-pressed={selected}
               className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={onSelect}
             >
