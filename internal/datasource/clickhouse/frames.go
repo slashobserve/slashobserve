@@ -253,11 +253,15 @@ func (rs *resultSet) seriesFrames() []datasource.Frame {
 		frames = append(frames, *newFrame(nil))
 	}
 	if slices.ContainsFunc(valueCols, rs.roundsInColumn) {
-		for i := range frames {
-			frames[i].Meta = &datasource.FrameMeta{Warning: roundedValueWarning}
-		}
+		warnRounded(frames)
 	}
 	return frames
+}
+
+func warnRounded(frames []datasource.Frame) {
+	for i := range frames {
+		frames[i].Meta = &datasource.FrameMeta{Warning: roundedValueWarning}
+	}
 }
 
 func orEmpty(v any) any {
