@@ -40,6 +40,8 @@ const (
 	MaxStepMessageRunes              = 200
 	BuildRetentionDays               = 7
 	UnclaimedFor                     = 10 * time.Minute
+	ReplyRetryFor                    = 24 * time.Hour
+	ReplyRetryBatch                  = 50
 
 	WakeChannel      = "slashobserve_agent_requests"
 	ExhaustedMessage = "agent run did not finish"

@@ -203,7 +203,7 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day.
 
 `save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
 It takes `kind` (`logs` or `traces`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
