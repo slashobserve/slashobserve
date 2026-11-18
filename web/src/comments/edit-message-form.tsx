@@ -4,13 +4,15 @@ import type { QueryKey } from "@tanstack/react-query"
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { isModEnter } from "@/lib/shortcuts"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
 import { toDisplay, type MentionAgent, type MentionPerson } from "./mentions"
 import { useEditMessage } from "./queries"
+import { SendHint } from "./send-hint"
 import { useMentionPicks } from "./use-mention-picks"
 
 const noAgents: readonly MentionAgent[] = []
@@ -41,6 +43,7 @@ export function EditMessageForm({
   const [error, setError] = useState<string | null>(null)
   const [mentioning, setMentioning] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const coarse = useCoarsePointer()
   const edit = useEditMessage(queryKey)
   const text = body.trim()
   const wire = picks.wire(text)
@@ -78,7 +81,10 @@ export function EditMessageForm({
       event.preventDefault()
       event.stopPropagation()
       dismiss()
-    } else if (isModEnter(event) && !event.nativeEvent.isComposing) {
+    } else if (
+      (isModEnter(event) && !event.nativeEvent.isComposing) ||
+      (event.target === textarea.current && sendsOnEnter(event, coarse))
+    ) {
       event.preventDefault()
       save()
     }
@@ -104,6 +110,7 @@ export function EditMessageForm({
         readOnly={busy}
         onChange={(event) => setBody(event.target.value)}
       />
+      <SendHint action="save" />
       {error === null ? null : (
         <p role="alert" className="text-xs text-destructive">
           {error}

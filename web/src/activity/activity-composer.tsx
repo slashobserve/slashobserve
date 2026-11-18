@@ -57,6 +57,7 @@ import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
+import { SendHint } from "@/comments/send-hint"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -532,6 +533,7 @@ export function ActivityComposer({
           </div>
         </div>
       </div>
+      <SendHint />
       {model !== null ? (
         <span className="truncate text-xs text-muted-foreground">{model}</span>
       ) : null}

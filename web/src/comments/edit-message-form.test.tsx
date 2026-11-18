@@ -74,6 +74,27 @@ describe("EditMessageForm", () => {
     ])
   })
 
+  it("saves on Enter, keeps Shift+Enter as a new line and says so", async () => {
+    const sent = stubServer(() => json({ thread: {}, message: {} }))
+    const { user, onClose } = renderForm()
+    const field = screen.getByRole("textbox", { name: "Edit comment" })
+    expect(
+      screen.getByText("Enter to save, Shift+Enter for a new line.")
+    ).toBeVisible()
+    await user.type(field, "{Shift>}{Enter}{/Shift}more")
+    expect(sent).toEqual([])
+    expect(field).toHaveValue("Latency looks high\nmore")
+    await user.type(field, "{Enter}")
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(sent).toEqual([
+      {
+        url: "/api/v1/messages/message-1",
+        method: "PATCH",
+        body: { body: "Latency looks high\nmore" },
+      },
+    ])
+  })
+
   it("closes without a request when the body did not change", async () => {
     const sent = stubServer(() => json({}))
     const { user, onClose } = renderForm()

@@ -16,6 +16,7 @@ import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
+import { SendHint } from "./send-hint"
 import { MentionButton } from "./mention-button"
 import {
   mentionedAgents,
@@ -197,7 +198,14 @@ export function Composer({
       )}
       <div className="flex items-center gap-1 pt-1 pr-1.5 pb-1.5 pl-3">
         <div className="mr-auto min-w-0 text-xs text-muted-foreground">
-          {unavailable ? disabledReason : hint}
+          {unavailable ? (
+            disabledReason
+          ) : (
+            <>
+              {hint}
+              <SendHint />
+            </>
+          )}
         </div>
         <MentionButton
           agents={agents}

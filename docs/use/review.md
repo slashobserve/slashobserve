@@ -64,7 +64,7 @@ See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 ## Edit a comment and mention people
 
 Your own comments and replies have an **Edit** button while you can still comment on the dashboard.
-It opens the text in place; **Save** or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, and **Cancel** or Escape drops it.
+It opens the text in place; **Save**, Enter or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, Shift+Enter adds a new line, and **Cancel** or Escape drops it.
 An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
 An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
@@ -80,6 +80,9 @@ A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](gra
 A comment can contain at most 20 mentions, and a repeated mention counts each time.
 A mention of a person is recorded, appears in the [activity log](activity.md) and reaches that person's [Inbox](inbox.md).
 A mention of an agent starts a run only when you send the comment from a composer that asks the agent, as described next.
+
+Every comment box says how to send under it: "Enter to send, Shift+Enter for a new line", or "Tap the arrow to send" on a touch screen, where Enter adds a new line.
+The one rule holds in the dashboard Activity box, the discussion box, replies and the edit box.
 
 A comment written by a person renders Markdown: bold, italic, code, lists, quotes, tables and links.
 Links open in a new tab and only `http`, `https` and `mailto` links work.
