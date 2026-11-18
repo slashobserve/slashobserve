@@ -286,7 +286,7 @@ Patterns group the lines a query matches into line templates with counts, the va
 - Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest 2,000 lines by default, up to 5,000, masks numbers, identifiers, addresses and timestamps, clusters lines that share at least 60% of their tokens, and answers `source: server` with each pattern's newest line as its sample.
 - On Elasticsearch the cluster's `categorize_text` aggregation answers over the whole range with `source: elasticsearch`, each pattern being the words its lines share; OpenSearch has no such aggregation, and a cluster without it or without the licence for it falls back to the `source: server` clustering above.
 
-Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist.
+Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist, or when the server clustering folded lines into the nearest of its 500 clusters or dropped lines past its 5,000.
 Every pattern carries a `trend` of 30 equal buckets over the range, empty ones included with a count of 0, and a `level` (`error`, `warning`, `info`, `other` or empty): for `source: loki` it is the first level word in the pattern, for `source: server` the level most of the pattern's lines carry.
 
 ## Add to dashboard
