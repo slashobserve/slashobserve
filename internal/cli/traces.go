@@ -77,17 +77,9 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed("compare") {
 		return a.compareTraces(cmd, args)
 	}
-	if cmd.Flags().Changed("sort") && opts.ask == "" {
-		return usagef("--sort needs --ask")
-	}
-	sort, err := parseTraceSort(opts.sort)
+	sort, err := tracesFlagsUsage(cmd, opts)
 	if err != nil {
 		return err
-	}
-	for _, name := range []string{"baseline", "limit"} {
-		if cmd.Flags().Changed(name) {
-			return usagef("--%s needs --compare", name)
-		}
 	}
 	if err := askUsage(cmd.Name(), "a trace id", args, opts.ask, opts.dryRun); err != nil {
 		return err
@@ -117,6 +109,18 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 		return a.searchTraces(ctx, c, kind, sort)
 	}
 	return a.showTrace(ctx, c, kind, strings.ToLower(args[0]))
+}
+
+func tracesFlagsUsage(cmd *cobra.Command, opts tracesOptions) (*traceSort, error) {
+	if cmd.Flags().Changed("sort") && opts.ask == "" {
+		return nil, usagef("--sort needs --ask")
+	}
+	for _, name := range []string{"baseline", "limit"} {
+		if cmd.Flags().Changed(name) {
+			return nil, usagef("--%s needs --compare", name)
+		}
+	}
+	return parseTraceSort(opts.sort)
 }
 
 func (a *app) showTrace(ctx context.Context, c *client, kind, id string) error {

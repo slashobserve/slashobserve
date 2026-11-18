@@ -31,7 +31,7 @@ func TestTempoTraceQL(t *testing.T) {
 
 func readTraceListSQL(t *testing.T, name string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "datasource", "clickhouse", "testdata", name))
+	data, err := os.ReadFile(filepath.Join("..", "datasource", "clickhouse", "testdata", name)) //nolint:gosec // a checked-in fixture
 	if err != nil {
 		t.Fatal(err)
 	}

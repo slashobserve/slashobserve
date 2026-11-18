@@ -48,11 +48,11 @@ func TestTraceQLProblemSaysWhereAndWhat(t *testing.T) {
 
 func TestTraceQLProblemLeavesOtherErrorsAlone(t *testing.T) {
 	other := datasource.Errorf(datasource.ErrTimeout, "query timed out")
-	if got := traceQLProblem(other, "{}"); got != other {
+	if got := traceQLProblem(other, "{}"); !errors.Is(got, other) {
 		t.Fatalf("got %v", got)
 	}
 	plain := datasource.Errorf(datasource.ErrInvalidQuery, "query rejected by the datasource")
-	if got := traceQLProblem(plain, "{}"); got != plain {
+	if got := traceQLProblem(plain, "{}"); !errors.Is(got, plain) {
 		t.Fatalf("got %v", got)
 	}
 	if got := traceQLProblem(nil, "{}"); got != nil {
