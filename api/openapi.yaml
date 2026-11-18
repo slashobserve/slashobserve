@@ -4219,10 +4219,10 @@ components:
           maxLength: 200
         min:
           type: string
-          description: The shortest duration, such as `250ms` or `2s`.
+          description: The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long.
         max:
           type: string
-          description: The longest duration, such as `250ms` or `2s`.
+          description: The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer.
         errors:
           type: boolean
           description: Only traces with an error.

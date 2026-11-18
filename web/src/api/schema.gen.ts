@@ -5412,9 +5412,9 @@ export interface components {
             columns?: string[];
             service?: string;
             span?: string;
-            /** @description The shortest duration, such as `250ms` or `2s`. */
+            /** @description The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long. */
             min?: string;
-            /** @description The longest duration, such as `250ms` or `2s`. */
+            /** @description The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer. */
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
