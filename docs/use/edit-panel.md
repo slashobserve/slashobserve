@@ -67,7 +67,7 @@ It draws the panel in the type you chose, and reports its state:
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
 A preview is limited like the agent's draft queries: 15 seconds, 200 series, 100,000 points and 1,000 rows, and it is never cached.
-It runs for the signed-in person only, not for service-account keys.
+It runs for a signed-in person who can comment on the dashboard, so a Commenter sees it too while suggesting an edit, and not for service-account keys.
 If the datasource is slow or busy, the preview says so ("The datasource is not answering.", "Too many requests right now. The preview runs again in a moment.", or "Query A failed: it took too long to run.") and the draft stays as it is.
 
 ### Ask the agent for a query
