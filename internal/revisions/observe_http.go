@@ -247,39 +247,17 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 }
 
 func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt string) {
-	if req.PanelID != nil || req.From != nil || req.To != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
+	if message := buildFieldConflict(req); message != "" {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", message)
 		return
 	}
-	if req.ObservationID != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "observation_id goes with kind investigate")
+	dashboardID, ok := optionalUUIDField(c, "dashboard_id", req.DashboardID)
+	if !ok {
 		return
 	}
-	if req.DashboardID == nil && req.BaseVersion != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version needs dashboard_id")
+	followsID, ok := optionalUUIDField(c, "follows_id", req.FollowsID)
+	if !ok {
 		return
-	}
-	if req.DashboardID != nil && req.FollowsID != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "follows_id and dashboard_id exclude each other")
-		return
-	}
-	var dashboardID pgtype.UUID
-	var followsID pgtype.UUID
-	if req.FollowsID != nil {
-		id, err := db.ParseUUID(*req.FollowsID)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "follows_id must be a UUID")
-			return
-		}
-		followsID = id
-	}
-	if req.DashboardID != nil {
-		id, err := db.ParseUUID(*req.DashboardID)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
-			return
-		}
-		dashboardID = id
 	}
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
@@ -295,6 +273,32 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
 	h.replyRequest(c, http.StatusAccepted, row, false)
+}
+
+func buildFieldConflict(req observeRequest) string {
+	switch {
+	case req.PanelID != nil || req.From != nil || req.To != nil:
+		return "panel_id, from and to need kind investigate"
+	case req.ObservationID != nil:
+		return "observation_id goes with kind investigate"
+	case req.DashboardID == nil && req.BaseVersion != nil:
+		return "base_version needs dashboard_id"
+	case req.DashboardID != nil && req.FollowsID != nil:
+		return "follows_id and dashboard_id exclude each other"
+	}
+	return ""
+}
+
+func optionalUUIDField(c *gin.Context, name string, raw *string) (pgtype.UUID, bool) {
+	if raw == nil {
+		return pgtype.UUID{}, true
+	}
+	id, err := db.ParseUUID(*raw)
+	if err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
+		return pgtype.UUID{}, false
+	}
+	return id, true
 }
 
 func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest, prompt string) {

@@ -8,10 +8,11 @@ The server runs the agent against your configured datasources, checks every quer
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
 A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
-The observation, and a dashboard saved from it, take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
-A chat is titled the same way, from your message.
 A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
+
+The observation, and a dashboard saved from it, take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+A chat is titled the same way, from your message.
 
 ## Start a chat
 
@@ -266,6 +267,7 @@ The Chats page lists all your chats, newest first, grouped Today, This week and 
 Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
+
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
 An answer is written into an observation, because a finding always lives in one; it goes in your My Dashboards, where only you see it, under the short title described above.
