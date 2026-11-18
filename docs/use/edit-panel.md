@@ -91,6 +91,7 @@ The settings column has:
 - **Thresholds**, up to 10 rows, each with a colour (OK, Info, Warning, Critical, Text for the theme's text colour, or a custom hex colour) and the value it starts from; the first row can leave the value empty ("Base").
 - **Title**, up to 200 characters.
 - The display options that belong to the chosen type, listed under [Display options by panel type](#display-options-by-panel-type).
+- The field and panel options that the chosen type draws, in groups you can open and close, listed under [Field and panel options](#field-and-panel-options).
 
 ### Display options by panel type
 
@@ -116,7 +117,7 @@ The settings column has:
 - Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**.
   They also have **Show line attributes**, which hides the label chips on each line when it is off, **Line fields** (up to 20 field names that build the line instead of the message) and **Time precision** (Milliseconds or Nanoseconds).
 - Table panels have **Show header**, **Row height** (Small, Medium, Large or Fit content), **Maximum row height** (20 to 1000 pixels, for rows that fit their content), **Frame** (0 to 99, to show only that frame when the data has several), **Show column type icons**, **Paginate rows**, **Frozen columns** (0 to 10), **Sort by** (a column name), **Sort descending**, **Footer** (up to 5 calculations), **Footer columns** (up to 50 names) and **Footer row count**.
-  Settings that belong to one column, such as its width or cell type, are edited in the JSON view.
+  Column settings such as width and alignment are under **Table columns**; the cell type is edited in the JSON view.
 - Heatmap panels have **Calculate buckets** with **Time buckets** and **Value buckets** (each with a scale and a log base), **Pre-bucketed rows** with a **Pre-bucketed value field** for data that is already bucketed, and **Y scale**; **Color mode** (Opacity or Scheme) with **Color scheme**, **Opacity color**, **Color steps**, **Opacity scale**, **Opacity exponent**, **Color range start**, **Color range end** and **Reverse colors**; **Cell gap**, **Cell radius**, **Cell value unit** and **Cell value decimals**; **Color legend**; **Hide cells at or below** and **Hide cells at or above**; **Y axis** (Left, Right or Hidden) with its label, width, unit, decimals, minimum and maximum, and **Reverse Y axis**; **Tooltip** (Hovered cell, Every row of the column or Hidden) with **Tooltip histogram**, **Tooltip color scale** and the max width and height; and **Show exemplars** with **Exemplar color**.
 - State timeline panels have **Merge equal values**, **Show values** (Auto, Always or Never), **Row height** (a share of the row, 0.1 to 1), **Rows per page** (1 to 100, empty for every row), **Align values** (Left, Center or Right), **Legend**, **Legend mode**, **Legend width**, **Tooltip**, **Tooltip sort**, **Hide zero values in the tooltip** and the tooltip max width and height.
 - Status history panels have the same, with **Column width** (a share of the cell, 0.1 to 1) in place of **Merge equal values** and **Align values**.
@@ -126,6 +127,26 @@ The settings column has:
   The editor has no layer settings; edit `layers` in the JSON view.
 - Canvas panels have **Calculation**, **Background color**, **Border color**, **Border width** (0 to 20 pixels), **Border radius** (0 to 100 pixels), **Pan and zoom**, **Pan beyond the canvas** and **Tooltip** (Details or None).
 - Alert list panels have **Limit** (1 to 100), **Sort** (A to Z, Z to A, Importance, Oldest first or Newest first) and **View** (List or Count).
+
+### Field and panel options
+
+Below the display options the column lists the ObserveSpec field and panel options that the chosen panel type draws, grouped as the Spec groups them.
+Each group shows how many of its options are set, and only **Standard options** starts open.
+An empty field shows the Spec default, or "Auto" when there is none, and a choice list starts on "Default", naming the default value when the Spec has one.
+Choosing the default value removes the option from the panel, so the saved JSON holds only what you changed.
+A number or text that the Spec would refuse is marked with what it accepts, such as "A whole number from 0 to 10.", and is not applied until it fits.
+
+- **Standard options**: **Decimals**, **Min**, **Max**, **Display name**, **No value text**, **Color mode**, **Color scheme**, **Color** and **Threshold mode**, for every type that draws field values; heatmaps leave out the color options, which their own color settings replace, and flame graphs have only **Decimals**.
+- **Range**: **Range each field by its own values** for gauges and bar gauges, and **Neutral value** for gauges.
+- **Series**: draw style, line width, interpolation and style, fill opacity, points and point size, stacking and its group, value labels, line, fill and point colors, bar alignment, width factor and max width, **Show thresholds**, **Transform**, **Fill below to**, **Treat nulls as zero** and the three hide options, for Time series, Trend and Candlestick panels; Time series also has **Color by value**.
+- **Axis**: placement, label, soft min and max, scale, log base, linear threshold, centered zero, width, grid lines, border and color, for Time series, Trend, Candlestick, Bar chart, Histogram and XY chart panels.
+- **Bars** for Bar chart and Histogram panels, **Cells** for State timeline and Status history panels, and **Points and lines** for XY chart panels hold the fill, line width, stacking, point and hide options those types draw.
+- **Series visibility**: the hide options for pie charts, and **Hide in chart** for heatmaps, geomaps and canvases.
+- **Table columns**: column width and min width, cell alignment, column filter, cell inspect, hide and wrap header, field description and the cell tooltip field and placement.
+- **Panel**, for every data panel: **Description**, **Transparent background**, **Hide title**, **Relative time** (like `now-1h`), **Time shift** (like `1h`), **Hide time info**, **Min interval** and **Max data points**; Time series, State timeline and Status history panels add **Time zone**.
+- **Repeat**: **Repeat for variable**, **Repeat direction** and **Max per row**.
+
+Value mappings, links, actions, cell types, dash patterns, gap and null handling, overrides and transformations are edited in the JSON view; **Edit in JSON** under the groups opens it.
 
 ### Text and dashboard list panels
 

@@ -529,6 +529,7 @@ export default function PanelEditor({
                 draft={draft.panel}
                 dispatch={dispatch}
                 readOnly={locked}
+                onOpenJson={() => onViewChange("json")}
               />
             </div>
           </>
