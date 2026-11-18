@@ -4,7 +4,7 @@
   "description": "Is the demo shop healthy: traffic, orders, its database, and what checkout's logs and traces say.",
   "tags": ["demo", "shop"],
   "time": { "from": "now-1h", "to": "now" },
-  "refresh": "30s",
+  "refresh": "1m",
   "panels": [
     { "id": "p_requests", "type": "stat", "title": "Requests per second",
       "description": "Requests per second the frontend answered, the traffic customers send.",
@@ -138,15 +138,11 @@
           "gridPos": { "x": 0, "y": 91, "w": 12, "h": 8 }, "datasource": "ch",
           "queries": [{ "query": "SELECT toFloat64(intDiv(toUInt64OrZero(LogAttributes['queue_wait_ms']), 100) * 100) AS queue_wait_ms, count() AS orders FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND Body = 'order processed' GROUP BY queue_wait_ms ORDER BY queue_wait_ms", "format": "table" }],
           "display": { "xField": "queue_wait_ms", "legend": "bottom" } },
-        { "id": "p_queue_candles", "type": "candlestick", "title": "Orders waiting every 5 minutes",
-          "gridPos": { "x": 12, "y": 91, "w": 12, "h": 8 }, "datasource": "prom",
-          "queries": [
-            { "ref": "open", "query": "sum(shop_orders_queue_depth offset 5m)" },
-            { "ref": "high", "query": "max_over_time(sum(shop_orders_queue_depth)[5m:15s])" },
-            { "ref": "low", "query": "min_over_time(sum(shop_orders_queue_depth)[5m:15s])" },
-            { "ref": "close", "query": "sum(shop_orders_queue_depth)" }
-          ],
-          "display": { "mode": "candles", "candleStyle": "candles", "colorStrategy": "close-close" } }
+        { "id": "p_checkout_candles", "type": "candlestick", "title": "Checkout request time every 5 minutes",
+          "description": "Each candle is five minutes of checkout requests: first and last duration, with the fastest and slowest as the wicks.",
+          "gridPos": { "x": 12, "y": 91, "w": 12, "h": 8 }, "datasource": "ch", "unit": "ms",
+          "queries": [{ "query": "SELECT toStartOfInterval(Timestamp, INTERVAL 5 MINUTE) AS time, toFloat64(argMin(Duration, Timestamp)) / 1e6 AS open, toFloat64(max(Duration)) / 1e6 AS high, toFloat64(min(Duration)) / 1e6 AS low, toFloat64(argMax(Duration, Timestamp)) / 1e6 AS close FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND SpanName = 'POST /checkout' GROUP BY time ORDER BY time", "format": "table" }],
+          "display": { "mode": "candles", "candleStyle": "candles", "colorStrategy": "open-close" } }
       ] },
     { "id": "r_states", "type": "row", "title": "What state is everything in?",
       "gridPos": { "x": 0, "y": 99, "w": 24, "h": 1 },
