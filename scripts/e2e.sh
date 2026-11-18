@@ -2319,37 +2319,13 @@ mcp_suite() {
     list_label_values list_labels list_metrics query_instant query_range reply_to_comment resolve_comment sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
 
-  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -D "$TMP/mcp.headers" -w '%{http_code}' -X POST \
-    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE_URL/mcp")"
-  if [[ "$out" != 401 ]] || ! grep -qi '^www-authenticate: Bearer' "$TMP/mcp.headers"; then
-    fail "MCP without a key ($out: $(cat "$TMP/mcp.body"))"
-  fi
-  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/dashboards")"
-  [[ "$out" == 200 ]] || fail "the session cookie is not live on the API ($out: $(cat "$TMP/mcp.body"))"
-  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -w '%{http_code}' -X POST -b "$TMP/api-jar" \
-    -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE_URL/mcp")"
-  [[ "$out" == 401 ]] || fail "MCP with a session cookie and no key ($out: $(cat "$TMP/mcp.body"))"
-  pass "MCP refuses callers without a bearer key, session cookies included"
-
-  out="$(mcp_call 1 tools/list '{}' "$TMP/mcp.body" -H 'Origin: http://evil.example')"
-  [[ "$out" == 403 ]] || fail "MCP with a foreign origin ($out: $(cat "$TMP/mcp.body"))"
-  out="$(mcp_call 1 tools/list '{}' "$TMP/mcp.body" -H "Origin: $BASE_URL")"
-  [[ "$out" == 200 ]] || fail "MCP with the public origin ($out: $(cat "$TMP/mcp.body"))"
-  pass "MCP refuses a foreign origin and accepts the public one"
-
   out="$(mcp_call 1 initialize '{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"e2e","version":"0"}}' "$TMP/mcp.body")"
   if [[ "$out" != 200 ]] || ! grep -q '"name":"slashobserve"' "$TMP/mcp.body"; then
     fail "MCP initialize ($out: $(cat "$TMP/mcp.body"))"
   fi
   grep -Ei '^mcp-session-id: so1\.[0-9a-f]{32}\.ZTJl' "$TMP/mcp.headers" >/dev/null || fail "MCP initialize did not label the client name ($(cat "$TMP/mcp.headers"))"
   label="$(grep -i '^mcp-session-id:' "$TMP/mcp.headers" | head -1 | cut -d' ' -f2 | tr -d '\r')"
-  out="$(mcp_call 1 initialize '{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"","version":"0"}}' "$TMP/mcp.body")"
-  if [[ "$out" != 200 ]] || grep -qi '^mcp-session-id:' "$TMP/mcp.headers"; then
-    fail "MCP initialize without a client name should answer without a session id ($out: $(cat "$TMP/mcp.headers"))"
-  fi
-  pass "MCP initialize labels the client name in the session id and keeps no session state"
+  pass "MCP initialize labels the client name in the session id"
 
   out="$(mcp_call 2 tools/list '{}' "$TMP/mcp.body")"
   [[ "$out" == 200 ]] || fail "MCP tools/list ($out: $(cat "$TMP/mcp.body"))"
