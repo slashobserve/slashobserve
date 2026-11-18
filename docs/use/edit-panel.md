@@ -161,8 +161,11 @@ The save runs every panel query of the dashboard, not just yours, as the agent's
 A panel that was already unverified and still fails is kept, marked "Unverified" with the reason it failed when it was saved.
 On success the toast reads "Saved version 4" and you return to the timeline.
 
-If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
-It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
+If someone saves a version while you edit, the editor says who saved it ("Ada saved version 4 while you were editing.") and the button becomes "Save my changes as version 5".
+The header keeps the title the panel had when you started, so it agrees with your draft.
+When you and that version changed the same things, the notice lists them, with both values for a title, datasource, panel type or unit ("title: version 4 has "A", yours is "B""); saving keeps your values for those and version 4's for everything else.
+When nothing overlaps, it says so.
+The button saves at once: it applies your change to that version's copy of the panel, and if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
 The toast then reads "Saved version 5, merged with changes made since version 3".
