@@ -25,7 +25,7 @@ func linkEvents(t *testing.T, r rig) []linkEvent {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []linkEvent
 	for rows.Next() {
 		var e linkEvent

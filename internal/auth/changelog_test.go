@@ -13,7 +13,6 @@ import (
 )
 
 type recordedChanges struct {
-	unrecorded
 	calls []string
 	roles []RoleChange
 }

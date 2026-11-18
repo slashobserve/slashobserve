@@ -130,50 +130,27 @@ func (o activityOptions) filters(now time.Time) (url.Values, error) {
 		return nil, usagef("--limit must be 1 to %d", maxActivityLimit)
 	}
 	query := url.Values{}
-	if o.dashboard != "" {
-		id, err := parseID(o.dashboard)
+	for _, flag := range []struct{ key, value string }{{"dashboard_id", o.dashboard}, {"folder_id", o.folder}, {"observation_id", o.observation}, {"actor_id", o.actor}} {
+		if flag.value == "" {
+			continue
+		}
+		id, err := parseID(flag.value)
 		if err != nil {
 			return nil, err
 		}
-		query.Set("dashboard_id", id)
-	}
-	if o.folder != "" {
-		id, err := parseID(o.folder)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("folder_id", id)
-	}
-	if o.observation != "" {
-		id, err := parseID(o.observation)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("observation_id", id)
+		query.Set(flag.key, id)
 	}
 	for _, kind := range o.types {
 		query.Add("type", kind)
 	}
-	since, err := parseTimeFlag("--since", o.since, now)
-	if err != nil {
-		return nil, err
-	}
-	if since != "" {
-		query.Set("since", since)
-	}
-	until, err := parseTimeFlag("--until", o.until, now)
-	if err != nil {
-		return nil, err
-	}
-	if until != "" {
-		query.Set("until", until)
-	}
-	if o.actor != "" {
-		id, err := parseID(o.actor)
+	for _, flag := range []struct{ name, key, value string }{{"--since", "since", o.since}, {"--until", "until", o.until}} {
+		at, err := parseTimeFlag(flag.name, flag.value, now)
 		if err != nil {
 			return nil, err
 		}
-		query.Set("actor_id", id)
+		if at != "" {
+			query.Set(flag.key, at)
+		}
 	}
 	if o.admin {
 		query.Set("scope", "admin")

@@ -129,14 +129,9 @@ func (s *Server) exchangeCode(ctx context.Context, f tokenForm) (tokenResponse, 
 			return err
 		}
 		if code.UsedAt.Valid {
-			if n, err := q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: code.GrantID, Reason: "code_reuse"}); err != nil {
+			if err := s.revokeReusedCode(ctx, q, code.GrantID); err != nil {
 				return err
-			} else if n > 0 {
-				if err := recordDisconnected(ctx, q, code.GrantID, "code_reuse", nil); err != nil {
-					return err
-				}
 			}
-			s.logger.WarnContext(ctx, "oauth code reused; grant revoked", slog.String("grant_id", code.GrantID.String()))
 			committed = errInvalidGrant
 			return nil
 		}
@@ -155,32 +150,44 @@ func (s *Server) exchangeCode(ctx context.Context, f tokenForm) (tokenResponse, 
 		if err := q.ReplaceLiveOAuthGrant(ctx, dbsqlc.ReplaceLiveOAuthGrantParams{ClientID: code.ClientID, UserID: code.UserID}); err != nil {
 			return err
 		}
-		grant, err := q.CreateOAuthGrant(ctx, dbsqlc.CreateOAuthGrantParams{
-			ClientID:  code.ClientID,
-			UserID:    code.UserID,
-			Resource:  code.Resource,
-			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(refreshTTL), Valid: true},
-		})
-		if err != nil {
-			return err
-		}
-		_, err = q.UseOAuthCode(ctx, dbsqlc.UseOAuthCodeParams{CodeHash: hash, GrantID: grant.ID})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return errInvalidGrant
-		}
-		if err != nil {
-			return err
-		}
-		if err := recordConnected(ctx, q, grant.ID); err != nil {
-			return err
-		}
-		resp, err = s.issue(ctx, q, grant.ID, grant.CreatedAt.Time)
+		resp, err = s.connectGrant(ctx, q, code, hash)
 		return err
 	})
 	if committed != nil {
 		return tokenResponse{}, committed
 	}
 	return resp, err
+}
+
+func (s *Server) connectGrant(ctx context.Context, q *dbsqlc.Queries, code dbsqlc.GetOAuthCodeRow, hash []byte) (tokenResponse, error) {
+	grant, err := q.CreateOAuthGrant(ctx, dbsqlc.CreateOAuthGrantParams{
+		ClientID:  code.ClientID,
+		UserID:    code.UserID,
+		Resource:  code.Resource,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(refreshTTL), Valid: true},
+	})
+	if err != nil {
+		return tokenResponse{}, err
+	}
+	_, err = q.UseOAuthCode(ctx, dbsqlc.UseOAuthCodeParams{CodeHash: hash, GrantID: grant.ID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tokenResponse{}, errInvalidGrant
+	}
+	if err != nil {
+		return tokenResponse{}, err
+	}
+	if err := recordConnected(ctx, q, grant.ID); err != nil {
+		return tokenResponse{}, err
+	}
+	return s.issue(ctx, q, grant.ID, grant.CreatedAt.Time)
+}
+
+func (s *Server) revokeReusedCode(ctx context.Context, q *dbsqlc.Queries, grantID pgtype.UUID) error {
+	if err := revokeReused(ctx, q, grantID, "code_reuse"); err != nil {
+		return err
+	}
+	s.logger.WarnContext(ctx, "oauth code reused; grant revoked", slog.String("grant_id", grantID.String()))
+	return nil
 }
 
 func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error) {
@@ -205,12 +212,8 @@ func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error
 			if row.DbNow.Time.Sub(row.RotatedAt.Time) <= refreshReuseLeeway {
 				return errInvalidGrant
 			}
-			if n, err := q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: row.GrantID, Reason: "refresh_reuse"}); err != nil {
+			if err := revokeReused(ctx, q, row.GrantID, "refresh_reuse"); err != nil {
 				return err
-			} else if n > 0 {
-				if err := recordDisconnected(ctx, q, row.GrantID, "refresh_reuse", nil); err != nil {
-					return err
-				}
 			}
 			s.logger.WarnContext(ctx, "oauth refresh token reused; grant revoked",
 				slog.String("grant_id", row.GrantID.String()), slog.String("user_id", row.UserID.String()))

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -141,6 +142,30 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 	c.JSON(http.StatusCreated, newServiceAccountJSON(account, dbsqlc.ListServiceAccountPresenceRow{}))
 }
 
+func (s *Service) applyServiceAccountUpdate(ctx context.Context, caller Principal, id pgtype.UUID, role *Role, takesRuns *bool) (account dbsqlc.ServiceAccount, err error) {
+	err = s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		before, err := q.GetServiceAccount(ctx, id)
+		if err != nil {
+			return err
+		}
+		if before.Provisioned {
+			return errProvisioned
+		}
+		params := dbsqlc.UpdateServiceAccountParams{ID: id}
+		if role != nil {
+			params.Role = pgtype.Text{String: string(*role), Valid: true}
+		}
+		if takesRuns != nil {
+			params.TakesRuns = pgtype.Bool{Bool: *takesRuns, Valid: true}
+		}
+		if account, err = q.UpdateServiceAccount(ctx, params); err != nil {
+			return err
+		}
+		return s.changes.ServiceAccountUpdated(ctx, q, caller, before, account)
+	})
+	return account, err
+}
+
 func (s *Service) updateServiceAccount(c *gin.Context) {
 	id, ok := parseUUIDParam(c, "id")
 	if !ok {
@@ -168,27 +193,7 @@ func (s *Service) updateServiceAccount(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	caller, _ := FromContext(ctx)
-	var account dbsqlc.ServiceAccount
-	err := s.inTx(ctx, func(q *dbsqlc.Queries) error {
-		before, err := q.GetServiceAccount(ctx, id)
-		if err != nil {
-			return err
-		}
-		if before.Provisioned {
-			return errProvisioned
-		}
-		params := dbsqlc.UpdateServiceAccountParams{ID: id}
-		if role != nil {
-			params.Role = pgtype.Text{String: string(*role), Valid: true}
-		}
-		if req.TakesRuns != nil {
-			params.TakesRuns = pgtype.Bool{Bool: *req.TakesRuns, Valid: true}
-		}
-		if account, err = q.UpdateServiceAccount(ctx, params); err != nil {
-			return err
-		}
-		return s.changes.ServiceAccountUpdated(ctx, q, caller, before, account)
-	})
+	account, err := s.applyServiceAccountUpdate(ctx, caller, id, role, req.TakesRuns)
 	if errors.Is(err, errProvisioned) {
 		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
 		return

@@ -136,16 +136,21 @@ func (s *Service) checkHost(ctx context.Context, host string) error {
 	return nil
 }
 
+func cleanInput(in Input) (name, address, host string, types []string, err error) {
+	if name, err = cleanName(in.Name); err != nil {
+		return "", "", "", nil, err
+	}
+	if address, host, err = cleanURL(in.URL); err != nil {
+		return "", "", "", nil, err
+	}
+	if types, err = cleanEventTypes(in.EventTypes); err != nil {
+		return "", "", "", nil, err
+	}
+	return name, address, host, types, nil
+}
+
 func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Created, error) {
-	name, err := cleanName(in.Name)
-	if err != nil {
-		return Created{}, err
-	}
-	address, host, err := cleanURL(in.URL)
-	if err != nil {
-		return Created{}, err
-	}
-	types, err := cleanEventTypes(in.EventTypes)
+	name, address, host, types, err := cleanInput(in)
 	if err != nil {
 		return Created{}, err
 	}
@@ -191,11 +196,11 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 		}); err != nil {
 			return err
 		}
-		created, err = view(ctx, q, id)
-		if err != nil {
+		if err := record(ctx, q, by, activity.TypeWebhookCreated, id, recordedWebhook{Name: name, Host: host, EventTypes: types}); err != nil {
 			return err
 		}
-		return record(ctx, q, by, activity.TypeWebhookCreated, id, recordedWebhook{Name: name, Host: host, EventTypes: types})
+		created, err = view(ctx, q, id)
+		return err
 	})
 	if err != nil {
 		return Created{}, wrapStore("create webhook", err)

@@ -53,3 +53,11 @@ func (s *Server) revokeRecorded(ctx context.Context, grantID pgtype.UUID, reason
 	})
 	return revoked, err
 }
+
+func revokeReused(ctx context.Context, q *dbsqlc.Queries, grantID pgtype.UUID, reason string) error {
+	n, err := q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: grantID, Reason: reason})
+	if err != nil || n == 0 {
+		return err
+	}
+	return recordDisconnected(ctx, q, grantID, reason, nil)
+}

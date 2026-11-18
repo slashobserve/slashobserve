@@ -91,7 +91,7 @@ func TestAddAndRemoveRecordOneAdminEventEach(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var got []string
 	var ids []string
 	for rows.Next() {

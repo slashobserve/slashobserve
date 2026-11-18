@@ -22,7 +22,7 @@ func (r *rig) grantEvents(t *testing.T) []recordedEvent {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []recordedEvent
 	for rows.Next() {
 		var e recordedEvent

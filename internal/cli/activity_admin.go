@@ -70,7 +70,14 @@ func changes(parts map[string]json.RawMessage, order ...string) string {
 
 func describeAdmin(e activityEvent) (string, bool) {
 	d := e.Data.admin()
-	switch e.Type {
+	if line, ok := describeAccess(e.Type, d); ok {
+		return line, true
+	}
+	return describeIntegration(e.Type, d)
+}
+
+func describeAccess(typ string, d adminData) (string, bool) {
+	switch typ {
 	case "user.role_changed":
 		if !d.Manual {
 			return fmt.Sprintf("cleared the role override of %s; the role is now %s (was %s)", text(d.Name), text(d.ToRole), text(d.FromRole)), true
@@ -86,6 +93,12 @@ func describeAdmin(e activityEvent) (string, bool) {
 		return fmt.Sprintf("created the key %q for %s", text(d.KeyName), quotedName("service account", d.Name)), true
 	case "service_account.key_revoked":
 		return fmt.Sprintf("revoked the key %q of %s", text(d.KeyName), quotedName("service account", d.Name)), true
+	}
+	return "", false
+}
+
+func describeIntegration(typ string, d adminData) (string, bool) {
+	switch typ {
 	case "webhook.created":
 		return "created " + quotedName("webhook", d.Name) + " to " + text(d.Host), true
 	case "webhook.updated":

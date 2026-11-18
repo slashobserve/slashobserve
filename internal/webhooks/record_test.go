@@ -19,7 +19,7 @@ func (r *rig) adminEvents(t *testing.T) []recordedRow {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []recordedRow
 	for rows.Next() {
 		var typ string
