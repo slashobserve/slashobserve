@@ -19,6 +19,7 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
+	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -37,10 +38,10 @@ var exceptions = map[string]exception{
 	"getMe":        {MCP: notBuilt},
 	"getInstance":  {MCP: notBuilt},
 
-	"createDashboard":        {CLI: notBuilt},
+	"createDashboard":        {CLI: viaApply},
 	"listDashboardTags":      {MCP: notBuilt},
 	"deleteDashboard":        {MCP: noMCPDeletes},
-	"createDashboardVersion": {CLI: notBuilt},
+	"createDashboardVersion": {CLI: viaApply},
 	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
