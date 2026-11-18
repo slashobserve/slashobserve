@@ -24,6 +24,8 @@ type agentRequest struct {
 	ID          string        `json:"id"`
 	Source      string        `json:"source"`
 	Trigger     string        `json:"trigger"`
+	Title       string        `json:"title"`
+	Prompt      string        `json:"prompt"`
 	DashboardID *string       `json:"dashboard_id"`
 	Status      string        `json:"status"`
 	State       string        `json:"state"`
@@ -213,6 +215,8 @@ func printRequest(out *output, req agentRequest) {
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
+		{"Title", dash(req.Title)},
+		{"Prompt", dash(req.Prompt)},
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", text(req.Finding.URL)})

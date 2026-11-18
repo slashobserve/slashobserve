@@ -87,6 +87,7 @@ An Admin can show anyone's request with `observe status`, read only.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 `observe status` also shows the request's trigger, what started it; in this release that is always `person`, the requester.
+It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
 ### Your requests
