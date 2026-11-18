@@ -1,6 +1,7 @@
 package usertext
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -24,9 +25,9 @@ type Rule struct {
 	Lines bool
 }
 
-func Line(max int) Rule { return Rule{Max: max} }
+func Line(runes int) Rule { return Rule{Max: runes} }
 
-func Text(max int) Rule { return Rule{Max: max, Lines: true} }
+func Text(runes int) Rule { return Rule{Max: runes, Lines: true} }
 
 type Error struct {
 	Field  string
@@ -57,7 +58,8 @@ func (e *Error) Error() string {
 }
 
 func ReasonOf(err error) (Reason, bool) {
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Reason, true
 	}
 	return "", false

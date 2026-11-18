@@ -2,7 +2,6 @@ package folders
 
 import (
 	"errors"
-	"github.com/slashobserve/slashobserve/internal/usertext"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -10,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const (
