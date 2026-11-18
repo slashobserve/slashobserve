@@ -166,7 +166,7 @@ function Results({ q, kind }: { q: string; kind: SearchKind | null }) {
   const results = query.data.pages.flatMap((page) => page.results)
   if (results.length === 0) {
     return (
-      <EmptyState title={`Nothing matches "${q}".`}>
+      <EmptyState title={`Nothing matches "${q}".`} docs="use/search">
         Search finds whole words and their English stems, not misspellings. Try
         fewer words, the start of a word, or all kinds instead of one.
       </EmptyState>
@@ -223,7 +223,7 @@ export function SearchPage({
         onSearch={(next) => onChange({ q: next, kind })}
       />
       {q === "" ? (
-        <EmptyState title="Search the workspace">
+        <EmptyState title="Search the workspace" docs="use/search">
           Type some words to find dashboards, observations, comments,
           annotations and saved searches you can open. Quote words to match a
           phrase, put or between words, and put a minus before a word to leave
