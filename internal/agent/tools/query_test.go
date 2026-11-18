@@ -214,9 +214,9 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 		meta datasource.FrameMeta
 		want string
 	}{
-		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (" + queryproxy.MoreRowsNote + ")"},
+		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ")"},
 		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + ")"},
-		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.MoreRowsNote + ") (" + queryproxy.PartialNote + ")"},
+		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ") (" + queryproxy.PartialNote + ")"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -709,5 +709,38 @@ func TestSummaryNoteTellsHowToGetMore(t *testing.T) {
 	summary := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}})
 	if summary.Note != queryproxy.PartialNote {
 		t.Fatalf("note = %q", summary.Note)
+	}
+}
+
+func TestQueryOffersPagingOnlyOnAnInstantQueryOfADatasourceThatPages(t *testing.T) {
+	truncated := func() []datasource.Frame {
+		f := logRows(3)
+		f.Meta = &datasource.FrameMeta{Truncated: true}
+		return []datasource.Frame{f}
+	}
+	ds := &fakePageDS{fakeDS: &fakeDS{
+		typ: "loki",
+		instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+			return truncated(), nil
+		},
+		rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+			return truncated(), nil
+		},
+	}}
+	r := newPageRegistry(t, ds)
+	for name, want := range map[string]struct{ tool, note string }{
+		"instant": {nameQueryInstant, queryproxy.MoreRowsNote},
+		"range":   {nameQueryRange, queryproxy.NarrowNote},
+	} {
+		res, err := call(t, r, want.tool, `{"datasource":"fake","query":"{a=\"b\"}"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", name, res, err)
+		}
+		if got := res.Content.(querySummary).Note; got != want.note {
+			t.Errorf("%s: note = %q, want %q", name, got, want.note)
+		}
+		if !strings.Contains(res.Step, want.note) {
+			t.Errorf("%s: step = %q, want the note %q", name, res.Step, want.note)
+		}
 	}
 }

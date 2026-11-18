@@ -577,3 +577,35 @@ func TestExploreAnswers422WhenTheSortColumnIsNotInTheResult(t *testing.T) {
 	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
 	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
 }
+
+func TestExploreOffersPagingOnlyWhereItWorks(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	truncated := func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		frames := logFrames()
+		frames[0].Meta = &datasource.FrameMeta{Truncated: true}
+		return frames, nil
+	}
+	hn.ds.onInstant, logs.onInstant = truncated, truncated
+	logs.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		frames, _ := truncated(context.Background(), datasource.TimeRange{})
+		return frames, nil
+	}
+	rangeBody := instantBody(pagedQuery)
+	rangeBody["kind"] = "range"
+	cases := []struct {
+		name, uid string
+		body      map[string]any
+		want      string
+	}{
+		{"instant on a datasource that pages", "logs", instantBody(pagedQuery), queryproxy.MoreRowsNote},
+		{"instant on a datasource that does not page", "prom", instantBody("up"), queryproxy.NarrowNote},
+		{"range on a datasource that pages", "logs", rangeBody, queryproxy.NarrowNote},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := decodeData(t, hn.explore(auth.KindUser, tc.uid, tc.body)).Meta.Note; got != tc.want {
+				t.Fatalf("note = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

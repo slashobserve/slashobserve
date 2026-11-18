@@ -233,7 +233,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		Range:   out.Range,
 	})
 	summary.Page = pageOutOf(out)
-	summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, summary.Page != nil && summary.Page.HasNext)
+	summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, summary.Page != nil && summary.Page.HasNext, false)
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -278,6 +278,10 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		return datasourceFailure("Ran a query on "+inst.UID, err)
 	}
 	summary := summarize(out)
+	if _, pages := inst.Datasource.(datasource.PageSource); pages && panelType == spec.Table {
+		summary.canPage = true
+		summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, false, true)
+	}
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -416,6 +420,7 @@ type querySummary struct {
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 	Page      *pageOut        `json:"page,omitempty"`
+	canPage   bool
 }
 
 func (s querySummary) describe() string {
@@ -436,10 +441,17 @@ func (s querySummary) describeData() string {
 	return "no data"
 }
 
+func (s querySummary) moreRowsNote() string {
+	if s.canPage {
+		return queryproxy.MoreRowsNote
+	}
+	return queryproxy.NarrowNote
+}
+
 func (s querySummary) describeLimits() string {
 	var out string
 	if s.MoreRows {
-		out += " (" + queryproxy.MoreRowsNote + ")"
+		out += " (" + s.moreRowsNote() + ")"
 	}
 	if s.Partial {
 		out += " (" + queryproxy.PartialNote + ")"
@@ -462,7 +474,7 @@ func summarize(res queryproxy.Result) querySummary {
 		Frames:   len(frames),
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
-		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false),
+		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
 	}
 	if s.Empty {
 		return s

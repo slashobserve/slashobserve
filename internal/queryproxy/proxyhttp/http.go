@@ -464,7 +464,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			SourcePanel:    sourcePanel,
 			Truncated:      e.meta.truncated,
 			Partial:        e.meta.partial,
-			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext),
+			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext, e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,
 			Oldest:         formatEdge(e.meta.oldest),

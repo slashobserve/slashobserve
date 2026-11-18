@@ -179,22 +179,26 @@ func TestRunPageRefusesASortThatIsNotAColumnName(t *testing.T) {
 
 func TestLimitNoteTellsHowToGetMore(t *testing.T) {
 	cases := []struct {
-		name                        string
-		truncated, partial, hasNext bool
-		want                        string
+		name                                 string
+		truncated, partial, hasNext, canPage bool
+		want                                 string
 	}{
-		{"nothing to say", false, false, false, ""},
-		{"row limit", true, false, false, MoreRowsNote},
-		{"full page", false, false, true, FullPageNote},
-		{"time limit", false, true, false, PartialNote},
-		{"full page and time limit", false, true, true, FullPageNote + ". " + PartialNote},
+		{"nothing to say", false, false, false, false, ""},
+		{"row limit where paging is offered", true, false, false, true, MoreRowsNote},
+		{"row limit where it is not", true, false, false, false, NarrowNote},
+		{"full page", false, false, true, false, FullPageNote},
+		{"time limit", false, true, false, false, PartialNote},
+		{"full page and time limit", false, true, true, false, FullPageNote + ". " + PartialNote},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := LimitNote(tc.truncated, tc.partial, tc.hasNext); got != tc.want {
+			if got := LimitNote(tc.truncated, tc.partial, tc.hasNext, tc.canPage); got != tc.want {
 				t.Fatalf("note = %q, want %q", got, tc.want)
 			}
 		})
+	}
+	if strings.Contains(NarrowNote, "page_size") {
+		t.Errorf("%q offers paging", NarrowNote)
 	}
 	for note, want := range map[string]string{MoreRowsNote: "page_size", FullPageNote: "cursor", PartialNote: "add a filter"} {
 		if !strings.Contains(note, want) {

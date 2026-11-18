@@ -23,17 +23,20 @@ const (
 	SortUnsupported  = "sort applies to ClickHouse datasources; this datasource pages in its own order"
 
 	MoreRowsNote = "more rows exist than were returned; repeat with page_size to read them in pages, or narrow from and to"
+	NarrowNote   = "more rows exist than were returned; narrow from and to"
 	FullPageNote = "the page is full and more rows exist; " + PageWalkSentence
 	PartialNote  = "the datasource stopped before it searched everything, so some matches may be missing; narrow from and to or add a filter, then repeat"
 )
 
-func LimitNote(truncated, partial, hasNext bool) string {
+func LimitNote(truncated, partial, hasNext, canPage bool) string {
 	var notes []string
 	switch {
 	case hasNext:
 		notes = append(notes, FullPageNote)
-	case truncated:
+	case truncated && canPage:
 		notes = append(notes, MoreRowsNote)
+	case truncated:
+		notes = append(notes, NarrowNote)
 	}
 	if partial {
 		notes = append(notes, PartialNote)

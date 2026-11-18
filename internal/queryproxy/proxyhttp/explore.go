@@ -101,6 +101,8 @@ func (h *Handler) explore(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
+	_, entry.canPage = inst.Datasource.(datasource.PageSource)
+	entry.canPage = entry.canPage && kind == queryproxy.KindInstant
 	writeData(c, entry, false, entry.executedAt, "")
 }
 

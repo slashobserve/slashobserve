@@ -2707,7 +2707,8 @@ components:
           type: string
           description: >-
             One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page:
-            read the next page with `page.next` as `cursor`, repeat with `page_size`, narrow `from` and `to`, or add a filter.
+            read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter.
+            Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing.
         rows:
           type: integer
           minimum: 0
