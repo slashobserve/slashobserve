@@ -105,7 +105,7 @@ annotations:
                 description: The end of a range annotation, not before `time_from`.
               text:
                 type: string
-                description: 1 to 2000 characters once trimmed, without control or bidirectional override characters.
+                description: 1 to 2000 visible characters once trimmed, without control or bidirectional override characters.
               tags:
                 type: array
                 maxItems: 10

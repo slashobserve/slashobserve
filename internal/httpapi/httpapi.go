@@ -16,6 +16,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -23,6 +24,14 @@ const maxCursorMicros = 253402300799999999
 
 func AbortError(c *gin.Context, status int, code, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
+}
+
+func AbortText(c *gin.Context, status int, code string, err error) {
+	body := gin.H{"error": err.Error(), "code": code}
+	if reason, ok := usertext.ReasonOf(err); ok {
+		body["reason"] = reason
+	}
+	c.AbortWithStatusJSON(status, body)
 }
 
 type InvalidSpecBody struct {

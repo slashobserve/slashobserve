@@ -657,6 +657,9 @@ func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	if err != nil {
 		return nil, nil, asInvalidSpec(err)
 	}
+	if issues := cleanTitles(parsed); len(issues) > 0 {
+		return nil, nil, &InvalidSpecError{Issues: issues}
+	}
 	canonical, err := json.Marshal(parsed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)

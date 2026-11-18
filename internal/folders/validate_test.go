@@ -25,6 +25,11 @@ func TestCleanTitle(t *testing.T) {
 		{"NUL inside", "a\x00b", "", true},
 		{"tab inside", "a\tb", "", true},
 		{"invalid UTF-8", "a\xffb", "", true},
+		{"zero-width only", "\u200b\u200b", "", true},
+		{"zero-width at the ends", "\u200bQA-r2-\u200b", "QA-r2-", false},
+		{"zero-width inside", "QA\u200b-r2", "", true},
+		{"bidirectional override", "QA-r2-\u202eevil", "", true},
+		{"emoji joiner", "Team \U0001F469\u200d\U0001F4BB", "Team \U0001F469\u200d\U0001F4BB", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

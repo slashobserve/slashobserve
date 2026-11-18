@@ -16,7 +16,7 @@ For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 Type into the box labelled "Message the agent" and press Enter.
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
 Pressing `/` outside a text field moves the cursor to the box.
-A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
+A prompt is 1 to 4000 characters, at least one of them visible, and cannot contain control or bidirectional-text characters; see [Text rules](../reference/text-rules.md).
 The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.

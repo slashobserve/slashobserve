@@ -142,7 +142,7 @@ func (h *Handler) create(c *gin.Context) {
 	}
 	title, err := cleanTitle(req.Title)
 	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	if reservedTitle(title) {
@@ -194,7 +194,7 @@ func (h *Handler) rename(c *gin.Context) {
 	}
 	title, err := cleanTitle(req.Title)
 	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	if reservedTitle(title) {

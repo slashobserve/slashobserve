@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"slices"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const (
@@ -25,7 +25,6 @@ const (
 )
 
 const (
-	messageInvalidText  = "text must be 1 to 2000 characters without control or bidirectional override characters"
 	MessageInvalidTags  = "tags must be at most 10 lowercase tags of 1 to 40 letters, digits, _, . or -, starting with a letter or digit"
 	messageInvalidTime  = "time_to must not be before time_from, and both must be after 1970-01-01"
 	messageInvalidPanel = "panel_id must be 1 to 64 characters without NUL and needs a dashboard_id"
@@ -44,9 +43,12 @@ var tagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
 type InvalidError struct {
 	Code    string
 	Message string
+	Cause   error
 }
 
 func (e *InvalidError) Error() string { return e.Message }
+
+func (e *InvalidError) Unwrap() error { return e.Cause }
 
 type Annotation struct {
 	ID            string
@@ -260,9 +262,9 @@ func (s *Service) dashboard(ctx context.Context, by auth.Principal, id pgtype.UU
 }
 
 func validate(in CreateInput) (CreateInput, error) {
-	text, ok := revisions.CleanPrompt(in.Text)
-	if !ok || utf8.RuneCountInString(text) > MaxTextRunes {
-		return in, &InvalidError{Code: "invalid_text", Message: messageInvalidText}
+	text, err := usertext.Clean("text", in.Text, usertext.Text(MaxTextRunes))
+	if err != nil {
+		return in, &InvalidError{Code: "invalid_text", Message: err.Error(), Cause: err}
 	}
 	in.Text = text
 	if in.PanelID != "" && (!in.DashboardID.Valid || revisions.ValidPanelID(in.PanelID) != nil) {

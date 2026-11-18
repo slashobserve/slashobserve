@@ -152,7 +152,7 @@ func TestCreateRefusesBadRequests(t *testing.T) {
 		{"time not RFC 3339", `{"text":"x","time_from":"yesterday"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
 		{"end not RFC 3339", `{"text":"x","time_to":"1700000000"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
 		{"too large", `{"text":"` + strings.Repeat("x", maxBodyBytes) + `"}`, nil, http.StatusRequestEntityTooLarge, "too_large"},
-		{"invalid input", `{"text":""}`, &InvalidError{Code: "invalid_text", Message: messageInvalidText}, http.StatusUnprocessableEntity, "invalid_text"},
+		{"invalid input", `{"text":""}`, &InvalidError{Code: "invalid_text", Message: "text must not be empty; enter 1 to 2000 characters"}, http.StatusUnprocessableEntity, "invalid_text"},
 		{"dashboard not found", `{"text":"x","dashboard_id":"` + dashboardText + `"}`, ErrNotFound, http.StatusNotFound, "not_found"},
 		{"level too low", `{"text":"x"}`, ErrForbidden, http.StatusForbidden, "forbidden_role"},
 		{"database down", `{"text":"x"}`, errors.New("connection refused"), http.StatusInternalServerError, "internal"},

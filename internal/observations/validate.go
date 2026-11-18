@@ -8,10 +8,10 @@ import (
 	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -44,28 +44,19 @@ type PanelBody struct {
 }
 
 func validateTitle(title string) (string, error) {
-	trimmed := strings.TrimSpace(title)
-	if n := utf8.RuneCountInString(trimmed); n < 1 || n > MaxTitleRunes {
-		return "", invalid(CodeInvalidTitle, "title must be 1 to 200 characters")
+	cleaned, err := usertext.Clean("title", title, usertext.Line(MaxTitleRunes))
+	if err != nil {
+		return "", invalid(CodeInvalidTitle, err.Error())
 	}
-	if strings.ContainsRune(trimmed, 0) {
-		return "", invalid(CodeInvalidTitle, "title must not contain the NUL character")
-	}
-	return trimmed, nil
+	return cleaned, nil
 }
 
 func validateSummary(summary string) (string, error) {
-	trimmed := strings.TrimSpace(summary)
-	if n := utf8.RuneCountInString(trimmed); n < 1 || n > MaxSummaryRunes {
-		return "", invalid(CodeInvalidSummary, "summary must be 1 to 500 characters")
+	cleaned, err := usertext.Clean("summary", summary, usertext.Line(MaxSummaryRunes))
+	if err != nil {
+		return "", invalid(CodeInvalidSummary, err.Error())
 	}
-	if strings.ContainsAny(trimmed, "\r\n") {
-		return "", invalid(CodeInvalidSummary, "summary must be one line")
-	}
-	if strings.ContainsRune(trimmed, 0) {
-		return "", invalid(CodeInvalidSummary, "summary must not contain the NUL character")
-	}
-	return trimmed, nil
+	return cleaned, nil
 }
 
 func validateRange(from, to *time.Time) error {
@@ -102,11 +93,8 @@ func textBody(raw json.RawMessage) (TextBody, error) {
 		return TextBody{}, invalid(CodeInvalidBlock, `a text block body is {"markdown": string}`)
 	}
 	markdown := *body.Markdown
-	if strings.TrimSpace(markdown) == "" || utf8.RuneCountInString(markdown) > MaxTextRunes {
-		return TextBody{}, invalid(CodeInvalidBlock, "markdown must be 1 to 8000 characters")
-	}
-	if strings.ContainsRune(markdown, 0) {
-		return TextBody{}, invalid(CodeInvalidBlock, "markdown must not contain the NUL character")
+	if err := usertext.Check("markdown", markdown, usertext.Text(MaxTextRunes)); err != nil {
+		return TextBody{}, invalid(CodeInvalidBlock, err.Error())
 	}
 	return TextBody{Markdown: markdown}, nil
 }
