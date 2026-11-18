@@ -22,29 +22,16 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 	if o.version < 1 {
 		return nil, usagef("--version <n> is required, the block's version from observe o show")
 	}
-	markdown, hasText, err := o.source.markdown()
-	if err != nil {
-		return nil, err
-	}
-	if hasText && o.panelFile != "" {
-		return nil, usagef("give --text or --text-file, or --panel-file, not both")
-	}
-	if (o.from != "" || o.to != "") && o.panelFile == "" {
-		return nil, usagef("--from and --to go with --panel-file")
-	}
 	if o.half && o.full {
 		return nil, usagef("--half and --full cannot be used together")
 	}
+	content, err := o.content()
+	if err != nil {
+		return nil, err
+	}
 	body := map[string]any{"version": o.version}
-	switch {
-	case hasText:
-		body["body"] = map[string]string{"markdown": markdown}
-	case o.panelFile != "":
-		panel, err := addBlockOptions{panelFile: o.panelFile, from: o.from, to: o.to}.panel()
-		if err != nil {
-			return nil, err
-		}
-		body["body"] = panel
+	if content != nil {
+		body["body"] = content
 	}
 	switch {
 	case o.half:
@@ -62,6 +49,26 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 		return nil, usagef("give something to change: --text, --text-file, --panel-file, --half, --full or --position")
 	}
 	return body, nil
+}
+
+func (o blockEditOptions) content() (any, error) {
+	markdown, hasText, err := o.source.markdown()
+	if err != nil {
+		return nil, err
+	}
+	if hasText && o.panelFile != "" {
+		return nil, usagef("give --text or --text-file, or --panel-file, not both")
+	}
+	if (o.from != "" || o.to != "") && o.panelFile == "" {
+		return nil, usagef("--from and --to go with --panel-file")
+	}
+	switch {
+	case hasText:
+		return map[string]string{"markdown": markdown}, nil
+	case o.panelFile != "":
+		return addBlockOptions{panelFile: o.panelFile, from: o.from, to: o.to}.panel()
+	}
+	return nil, nil
 }
 
 func (a *app) observationEditBlockCommand() *cobra.Command {
