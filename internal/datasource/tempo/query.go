@@ -186,15 +186,16 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 	if err := rangeStartsInFuture(r); err != nil {
 		return nil, searchMetrics{}, err
 	}
+	sent := newestFirst(text)
 	params := url.Values{
-		"q":     {newestFirst(text)},
+		"q":     {sent},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
 		"limit": {strconv.Itoa(limit)},
 	}
 	var resp searchResponse
 	if err := d.getJSON(ctx, "/api/search", params, &resp); err != nil {
-		return nil, searchMetrics{}, traceQLProblem(err, text)
+		return nil, searchMetrics{}, traceQLProblem(err, text, sent)
 	}
 	rows := make([]spanRow, 0, len(resp.Traces))
 	for _, t := range resp.Traces {

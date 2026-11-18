@@ -81,7 +81,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 				"end":   {strconv.FormatInt(req.Range.To.UnixNano(), 10)},
 				"step":  {strconv.FormatInt(max(int64(req.Step/time.Second), 1), 10) + "s"},
 			}
-			return traceQLProblem(d.getJSON(groupCtx, metricsPath, params, &responses[i]), text)
+			return traceQLProblem(d.getJSON(groupCtx, metricsPath, params, &responses[i]), text, text)
 		})
 	}
 	if err := group.Wait(); err != nil {

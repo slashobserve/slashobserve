@@ -298,7 +298,7 @@ func TestTempoSaysWhatIsWrongWithARangeOrAQuery(t *testing.T) {
 		t.Errorf("long range: err = %v, want the range limit kind naming 7 days", err)
 	}
 	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = "}, aroundSend())
-	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "Invalid TraceQL at line 1, column") || strings.Contains(err.Error(), "$end") {
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), `Invalid TraceQL at line 1, column 9 after "{ name =": unexpected end of the query.`) {
 		t.Errorf("parse error: err = %v, want a cleaned position message", err)
 	}
 	t.Logf("parse error reads: %v", err)
