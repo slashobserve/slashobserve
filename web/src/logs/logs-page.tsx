@@ -29,7 +29,7 @@ import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
 import { DetailDrawer } from "./detail-drawer"
-import { FieldsAside } from "./fields-aside"
+import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
@@ -394,6 +394,7 @@ function LogsWorkspaceView({
           <ResultsSection
             actions={
               <>
+                <FieldsDrawer />
                 <Button
                   ref={addTrigger}
                   type="button"
