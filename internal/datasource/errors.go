@@ -21,6 +21,9 @@ var (
 	ErrUnsafeGrant    = refine(ErrForbiddenQuery)
 	ErrAuthFailed     = refine(ErrUnavailable)
 	ErrHostNotAllowed = refine(ErrUnavailable)
+	ErrNoSecretKey    = refine(ErrUnavailable)
+	ErrUnreadable     = refine(ErrUnavailable)
+	ErrNotLoadable    = refine(ErrUnavailable)
 
 	ErrWrongFlavor        = refine(ErrInvalidQuery)
 	ErrIsOpenSearch       = refine(ErrWrongFlavor)

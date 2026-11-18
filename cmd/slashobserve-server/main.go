@@ -31,6 +31,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
+	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
@@ -315,6 +316,13 @@ func run() error {
 
 	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
 	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
+
+	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey), Logger: logger})
+	if err := datasourceAdmin.Load(ctx); err != nil {
+		return withheld("datasources_load_failed", err)
+	}
+	stopDatasourceSync := startBackground(ctx, "datasource sync", datasourceAdmin.Run, logger)
+	defer stopDatasourceSync()
 
 	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)

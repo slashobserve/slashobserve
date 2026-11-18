@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"regexp"
 	"runtime/debug"
 	"slices"
@@ -21,7 +22,10 @@ const (
 	healthTTL       = 10 * time.Second
 	recheckInterval = 2 * time.Second
 	healthTimeout   = 5 * time.Second
+	closeGrace      = 30 * time.Second
 )
+
+var ErrFileOwned = errors.New("a datasource from the file already has this uid")
 
 const UIDPattern = `^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`
 
@@ -64,12 +68,20 @@ func statusFor(in Instance) Status {
 }
 
 type Registry struct {
-	logger    *slog.Logger
-	instances map[string]Instance
-	group     singleflight.Group
+	logger *slog.Logger
+	group  singleflight.Group
+
+	instancesMu sync.RWMutex
+	instances   map[string]Instance
+	retired     map[*retired]struct{}
 
 	mu     sync.Mutex
 	cached map[string]cacheEntry
+}
+
+type retired struct {
+	datasource Datasource
+	timer      *time.Timer
 }
 
 type cacheEntry struct {
@@ -85,43 +97,110 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		logger:    logger,
 		instances: make(map[string]Instance, len(instances)),
 		cached:    make(map[string]cacheEntry, len(instances)),
+		retired:   map[*retired]struct{}{},
 	}
 	for _, in := range instances {
-		switch {
-		case in.UID == "":
-			return nil, errors.New("datasource uid is required")
-		case !ValidUID(in.UID):
-			return nil, fmt.Errorf("datasource uid %q must match %s", in.UID, UIDPattern)
-		case in.Datasource == nil:
-			return nil, fmt.Errorf("datasource %q has no implementation", in.UID)
+		in, err := normalized(in)
+		if err != nil {
+			return nil, err
 		}
 		if _, dup := r.instances[in.UID]; dup {
 			return nil, fmt.Errorf("duplicate datasource uid %q", in.UID)
 		}
-		if strings.TrimSpace(in.Name) == "" {
-			in.Name = in.UID
-		}
-		if in.Source == "" {
-			in.Source = SourceFile
-		}
-		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		r.instances[in.UID] = in
 	}
 	return r, nil
 }
 
+func normalized(in Instance) (Instance, error) {
+	switch {
+	case in.UID == "":
+		return Instance{}, errors.New("datasource uid is required")
+	case !ValidUID(in.UID):
+		return Instance{}, fmt.Errorf("datasource uid %q must match %s", in.UID, UIDPattern)
+	case in.Datasource == nil:
+		return Instance{}, fmt.Errorf("datasource %q has no implementation", in.UID)
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		in.Name = in.UID
+	}
+	if in.Source == "" {
+		in.Source = SourceFile
+	}
+	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
+	return in, nil
+}
+
+func (r *Registry) Put(in Instance) error {
+	in.Source = SourceApp
+	in, err := normalized(in)
+	if err != nil {
+		return err
+	}
+	r.instancesMu.Lock()
+	old, exists := r.instances[in.UID]
+	if exists && old.Source == SourceFile {
+		r.instancesMu.Unlock()
+		return ErrFileOwned
+	}
+	r.instances[in.UID] = in
+	r.instancesMu.Unlock()
+	r.dropCached(in.UID)
+	if exists {
+		r.retire(old.Datasource)
+	}
+	return nil
+}
+
+func (r *Registry) Remove(uid string) bool {
+	r.instancesMu.Lock()
+	old, exists := r.instances[uid]
+	if !exists || old.Source == SourceFile {
+		r.instancesMu.Unlock()
+		return false
+	}
+	delete(r.instances, uid)
+	r.instancesMu.Unlock()
+	r.dropCached(uid)
+	r.retire(old.Datasource)
+	return true
+}
+
+func (r *Registry) dropCached(uid string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.cached, uid)
+}
+
+func (r *Registry) retire(ds Datasource) {
+	entry := &retired{datasource: ds}
+	r.instancesMu.Lock()
+	entry.timer = time.AfterFunc(closeGrace, func() {
+		r.instancesMu.Lock()
+		delete(r.retired, entry)
+		r.instancesMu.Unlock()
+		_ = ds.Close()
+	})
+	r.retired[entry] = struct{}{}
+	r.instancesMu.Unlock()
+}
+
 func (r *Registry) Get(uid string) (Instance, bool) {
+	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
+	r.instancesMu.RUnlock()
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, ok
 }
 
 func (r *Registry) List() []Instance {
+	r.instancesMu.RLock()
 	out := make([]Instance, 0, len(r.instances))
 	for _, in := range r.instances {
 		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		out = append(out, in)
 	}
+	r.instancesMu.RUnlock()
 	slices.SortFunc(out, func(a, b Instance) int { return strings.Compare(a.UID, b.UID) })
 	return out
 }
@@ -152,6 +231,15 @@ func (r *Registry) Close() error {
 	for _, in := range r.List() {
 		if err := in.Datasource.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close datasource %q: %w", in.UID, err))
+		}
+	}
+	r.instancesMu.Lock()
+	pending := slices.Collect(maps.Keys(r.retired))
+	clear(r.retired)
+	r.instancesMu.Unlock()
+	for _, entry := range pending {
+		if entry.timer.Stop() {
+			_ = entry.datasource.Close()
 		}
 	}
 	return errors.Join(errs...)
@@ -221,6 +309,9 @@ var healthTexts = []struct {
 	{context.DeadlineExceeded, "Timed out waiting for the datasource"},
 	{ErrAuthFailed, "The datasource refused the credentials"},
 	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address"},
+	{ErrNoSecretKey, "This datasource's credentials need SLASHOBSERVE_SECRET_KEY on the server"},
+	{ErrUnreadable, "The saved credentials cannot be read with the server's secret key; set them again"},
+	{ErrNotLoadable, "The saved definition cannot be used; open the datasource and save it again"},
 	{ErrUnavailable, "The datasource is not answering"},
 	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
 	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},

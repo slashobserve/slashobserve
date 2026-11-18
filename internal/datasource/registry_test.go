@@ -267,3 +267,98 @@ func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
 		t.Error("recheck of an unknown uid reported found")
 	}
 }
+
+type closeCounting struct {
+	failingHealth
+	closed atomic.Int32
+}
+
+func (c *closeCounting) Close() error {
+	c.closed.Add(1)
+	return nil
+}
+
+func TestPutAddsAndReplacesAppDatasources(t *testing.T) {
+	fromFile := datasource.Instance{UID: "file", Datasource: failingHealth{}}
+	registry, err := datasource.NewRegistry(nil, fromFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := &closeCounting{}, &closeCounting{}
+
+	if err := registry.Put(datasource.Instance{UID: "added", Name: "One", Datasource: first}); err != nil {
+		t.Fatal(err)
+	}
+	in, ok := registry.Get("added")
+	if !ok || in.Source != datasource.SourceApp || in.Name != "One" {
+		t.Fatalf("instance = %+v, ok = %v", in, ok)
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Name: "Two", Datasource: second}); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := registry.Get("added"); in.Name != "Two" {
+		t.Fatalf("name after replace = %q", in.Name)
+	}
+	if first.closed.Load() != 0 {
+		t.Fatal("the replaced adapter closed before the grace period")
+	}
+	_ = registry.Close()
+	if first.closed.Load() != 1 || second.closed.Load() != 1 {
+		t.Fatalf("closed first=%d second=%d, want each once", first.closed.Load(), second.closed.Load())
+	}
+}
+
+func TestPutAndRemoveLeaveFileDatasourcesAlone(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "file", Name: "From file", Datasource: failingHealth{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Put(datasource.Instance{UID: "file", Datasource: failingHealth{}}); !errors.Is(err, datasource.ErrFileOwned) {
+		t.Fatalf("Put over a file uid = %v, want ErrFileOwned", err)
+	}
+	if registry.Remove("file") {
+		t.Fatal("Remove took a file datasource")
+	}
+	if in, ok := registry.Get("file"); !ok || in.Source != datasource.SourceFile || in.Name != "From file" {
+		t.Fatalf("instance = %+v, ok = %v", in, ok)
+	}
+}
+
+func TestPutForgetsTheCachedHealthOfTheReplacedDatasource(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := datasource.Instance{UID: "added", Datasource: failingHealth{err: datasource.Errorf(datasource.ErrUnavailable, "down")}}
+	if err := registry.Put(broken); err != nil {
+		t.Fatal(err)
+	}
+	if got := registry.Health(t.Context()); got[0].Healthy {
+		t.Fatalf("status = %+v", got[0])
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := registry.Health(t.Context()); !got[0].Healthy {
+		t.Fatalf("an edited datasource still reports the cached failure: %+v", got[0])
+	}
+}
+
+func TestRemoveDropsAnAppDatasource(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.Remove("added") {
+		t.Fatal("Remove found nothing")
+	}
+	if _, ok := registry.Get("added"); ok || len(registry.Health(t.Context())) != 0 {
+		t.Fatal("a removed datasource is still listed")
+	}
+	if registry.Remove("added") {
+		t.Fatal("Remove reported a second removal")
+	}
+}

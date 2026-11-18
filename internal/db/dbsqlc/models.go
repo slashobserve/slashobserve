@@ -223,6 +223,19 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type Datasource struct {
+	ID          pgtype.UUID
+	Uid         string
+	Type        string
+	Name        string
+	Config      []byte
+	Secrets     []byte
+	SecretNames []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID
