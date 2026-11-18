@@ -219,6 +219,7 @@ With nothing typed, the palette lists the observations you opened last under **R
 **See all results** at the end of a search, or the address `/search?q=checkout`, opens the Search page: every match in pages of 20 with **Show more**, one button per kind to narrow them, and global annotations as rows with no link.
 Search matches whole words, their English stems and the start of the last word, so a misspelling finds nothing, and the empty result says so.
 **Help and docs** in the palette, and in the account menu, opens these docs in a new tab.
+The empty Dashboards list and the Search page link to their docs page the same way.
 [Search](search.md) describes what each kind matches and how to write a query.
 
 ## Keyboard shortcuts
