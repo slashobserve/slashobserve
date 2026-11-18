@@ -711,6 +711,17 @@ type User struct {
 	DeactivatedByName pgtype.Text
 }
 
+type UserInvite struct {
+	ID            pgtype.UUID
+	Email         string
+	Role          string
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type Webhook struct {
 	ID                  pgtype.UUID
 	Name                string

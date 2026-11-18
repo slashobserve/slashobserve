@@ -177,20 +177,22 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	}
 
 	return s.signIn(ctx, identity{
-		Issuer:  idToken.Issuer,
-		Subject: idToken.Subject,
-		Email:   claims.Email,
-		Name:    truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
-		Groups:  groupsClaim(claims.Groups),
+		Issuer:        idToken.Issuer,
+		Subject:       idToken.Subject,
+		Email:         claims.Email,
+		EmailVerified: claims.EmailVerified,
+		Name:          truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
+		Groups:        groupsClaim(claims.Groups),
 	})
 }
 
 type identity struct {
-	Issuer  string
-	Subject string
-	Email   string
-	Name    string
-	Groups  []string
+	Issuer        string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	Name          string
+	Groups        []string
 }
 
 func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailure) {
@@ -206,6 +208,16 @@ func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailur
 	}
 	if user.DeactivatedAt.Valid {
 		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}}
+	}
+	if id.EmailVerified {
+		manual, err := s.queries.AcceptInvite(ctx, dbsqlc.AcceptInviteParams{ID: user.ID, Email: id.Email})
+		switch {
+		case err == nil:
+			user.ManualRole = manual
+			s.logger.InfoContext(ctx, "invite accepted", slog.String("user_id", user.ID.String()), slog.String("role", manual.String))
+		case !errors.Is(err, pgx.ErrNoRows):
+			return "", &loginFailure{code: "internal", err: err}
+		}
 	}
 	if err := s.assignRole(ctx, user, id.Groups); err != nil {
 		return "", &loginFailure{code: "internal", err: err}

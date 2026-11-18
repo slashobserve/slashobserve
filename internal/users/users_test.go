@@ -50,7 +50,7 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService, err := auth.New(auth.Config{PublicURL: publicURL, IssuerURL: "http://issuer.example/dex"}, database.Queries(), logger)
+	authService, err := auth.New(auth.Config{PublicURL: publicURL, IssuerURL: "http://issuer.example/dex", AllowedEmailDomains: []string{"example.com"}}, database.Queries(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}

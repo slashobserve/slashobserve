@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `people`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -614,6 +614,26 @@ bin/observe webhooks test <webhook id>
 
 `--json` prints the response body of each request unchanged.
 `update`, `enable`, `disable` and `rotate-secret` make the caller the webhook's owner, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+
+## People
+
+`bin/observe people` invites people by email with the role they get at their first sign-in, as described in [People](../teams/people.md#invite-people).
+Every verb needs an Admin key.
+No email is sent: send the printed sign-in link yourself.
+
+```sh
+bin/observe people invite new@example.com --role viewer
+bin/observe people invites
+bin/observe people uninvite <invite id>
+```
+
+- `invite <email> --role <role>` records a pending invite and prints it with its sign-in link; `--role` is `admin`, `editor`, `commenter` or `viewer`.
+  Inviting an email that already has a pending invite changes its role.
+  An email that has already signed in fails with `already_member`, and one outside `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` with `email_domain_not_allowed`.
+- `invites` prints the pending invites, newest first, as a table of id, email, role, who invited and when, up to `--limit` of them; `--cursor` prints the next page.
+- `uninvite <invite id>` withdraws a pending invite.
+
+Deactivating and reactivating people is done by an Admin in the web app, because a key never ends another person's sessions.
 
 ## Agent skill
 

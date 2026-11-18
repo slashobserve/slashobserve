@@ -38,6 +38,10 @@ paths:
     $ref: "./paths/users.yaml#/users-id-deactivate"
   /users/{id}/reactivate:
     $ref: "./paths/users.yaml#/users-id-reactivate"
+  /invites:
+    $ref: "./paths/invites.yaml#/invites"
+  /invites/{id}:
+    $ref: "./paths/invites.yaml#/invites-id"
   /outbound-domains:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
@@ -375,6 +379,53 @@ components:
     Role:
       type: string
       enum: [admin, editor, commenter, viewer]
+    Invite:
+      type: object
+      additionalProperties: false
+      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        invited_by:
+          type: string
+          description: The name of the Admin or service account that sent the invite.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sign_in_url:
+          type: string
+          description: The address to share with the person; signing in there with the invited email uses the invite.
+    InviteList:
+      type: object
+      additionalProperties: false
+      required: [invites, next_cursor]
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invite"
+        next_cursor:
+          type: string
+          nullable: true
+    CreateInviteRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+        role:
+          $ref: "#/components/schemas/Role"
     RoleSource:
       type: string
       enum: [admin_emails, first_user, group, manual, default]

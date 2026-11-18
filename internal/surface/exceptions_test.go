@@ -20,6 +20,7 @@ const (
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
 	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
+	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -189,6 +190,9 @@ var exceptions = map[string]exception{
 	"signOutUserEverywhere": {MCP: personOnly, CLI: personOnly},
 	"deactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
 	"reactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"listInvites":           {MCP: peopleAdmin},
+	"createInvite":          {MCP: peopleAdmin},
+	"deleteInvite":          {MCP: noMCPDeletes},
 
 	"listWebhooks":          {MCP: webhookAdmin},
 	"createWebhook":         {MCP: webhookAdmin},

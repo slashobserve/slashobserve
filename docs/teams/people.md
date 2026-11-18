@@ -1,15 +1,31 @@
 ---
 title: People
-description: How people join, how an Admin deactivates and reactivates them, and what happens to what they made.
+description: How people join, how an Admin invites, deactivates and reactivates them, and what happens to what they made.
 ---
 
-The People page lists everyone who has signed in.
+The People page lists everyone who has signed in, and the people invited who have not signed in yet.
 Only Admins see it.
 
 ## How a person joins
 
-A person appears the first time they sign in through the identity provider, when the sign-in rules allow their email (`SLASHOBSERVE_ALLOWED_EMAIL_DOMAINS`, see [OIDC](../connect/oidc.md)).
+A person appears the first time they sign in through the identity provider, when the sign-in rules allow their email (`SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`, see [OIDC](../connect/oidc.md)).
 Their role follows [Roles](roles.md).
+
+## Invite people
+
+Choose Invite people, enter an email and pick the role they should have.
+No email is sent: the dialog shows the sign-in link, and Copy puts it on the clipboard for you to send.
+The invite appears under Pending invites, where you can change its role, copy the link again or withdraw it.
+
+When someone first signs in with that email, and the identity provider says the email is verified, they get the invited role and it shows as set by the Admin who invited them.
+The pending invite is then gone.
+An invite lets no one in that the sign-in rules refuse:
+
+- an email outside `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` cannot be invited;
+- with `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS=*`, a sign-in whose email is not verified gets the usual role and leaves the invite pending;
+- admin emails and identity-provider group roles still decide the role over an invite, as [Roles](roles.md) describes.
+
+An email that has already signed in cannot be invited; change that person's role in the table instead.
 
 ## Deactivate a person
 
@@ -38,6 +54,10 @@ They can sign in again at once, with the role the rules give them.
 The agents they had connected stay disconnected until they connect them again.
 
 ## Over the API
+
+`POST /api/v1/invites`, `GET /api/v1/invites` and `DELETE /api/v1/invites/{id}` take an Admin signed in or an Admin service-account key, so an agent with an Admin key can invite people through [`observe people`](../use/cli.md#people).
+Inviting a pending email again answers 200 and changes its role.
+No MCP tool manages people: who may sign in, and with which role, is an Admin's decision, as a webhook is.
 
 `POST /api/v1/users/{id}/deactivate` and `POST /api/v1/users/{id}/reactivate` need an Admin signed in to the web app.
 A service-account key cannot call them, because keys never end another person's sessions or connected agents, so the `observe` CLI and MCP have no command for them.

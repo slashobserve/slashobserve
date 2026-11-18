@@ -40,3 +40,67 @@ func TestADeactivatedPersonCannotSignIn(t *testing.T) {
 		t.Errorf("sessions = %d, last login kept = %v; want only the first session and the old last login", sessions, stale)
 	}
 }
+
+func addInvite(t *testing.T, database *dbtest.Database, email, role string) {
+	t.Helper()
+	database.Exec(t, "INSERT INTO user_invites (email, role, created_by_kind, created_by_id, created_by_name) VALUES ($1, $2, 'user', gen_random_uuid(), 'Ada')", email, role)
+}
+
+func roleOf(t *testing.T, database *dbtest.Database, email string) (role, source, by string) {
+	t.Helper()
+	var setBy *string
+	if err := database.SQLDB(t).QueryRowContext(t.Context(), "SELECT role, role_source, manual_role_by_name FROM users WHERE email = $1", email).Scan(&role, &source, &setBy); err != nil {
+		t.Fatal(err)
+	}
+	if setBy != nil {
+		by = *setBy
+	}
+	return role, source, by
+}
+
+func countInvites(t *testing.T, database *dbtest.Database) int {
+	t.Helper()
+	var n int
+	if err := database.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM user_invites").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestAVerifiedFirstSignInTakesTheInvitedRole(t *testing.T) {
+	s, database := newSignInService(t)
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "first", Email: "first@example.com"}); failure != nil {
+		t.Fatal(failure)
+	}
+	addInvite(t, database, "New@Example.com", "viewer")
+
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "new", Email: "new@example.com", EmailVerified: true}); failure != nil {
+		t.Fatal(failure)
+	}
+
+	if role, source, by := roleOf(t, database, "new@example.com"); role != "viewer" || source != "manual" || by != "Ada" {
+		t.Errorf("role = %s from %s by %q, want viewer chosen by Ada", role, source, by)
+	}
+	if n := countInvites(t, database); n != 0 {
+		t.Errorf("%d invites left, want the accepted one gone", n)
+	}
+}
+
+func TestAnUnverifiedSignInLeavesTheInvitePending(t *testing.T) {
+	s, database := newSignInService(t)
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "first", Email: "first@example.com"}); failure != nil {
+		t.Fatal(failure)
+	}
+	addInvite(t, database, "new@example.com", "viewer")
+
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "new", Email: "new@example.com"}); failure != nil {
+		t.Fatal(failure)
+	}
+
+	if role, source, _ := roleOf(t, database, "new@example.com"); role != "editor" || source != "default" {
+		t.Errorf("role = %s from %s, want the default Editor", role, source)
+	}
+	if n := countInvites(t, database); n != 1 {
+		t.Errorf("%d invites, want the invite still pending", n)
+	}
+}

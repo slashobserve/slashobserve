@@ -293,6 +293,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the pending invites, newest first.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. An invite stays pending until someone signs in with its email verified by the identity provider.
+         */
+        get: operations["listInvites"];
+        put?: never;
+        /**
+         * Invite an email with the role it gets at its first sign-in.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. No email is sent: share the returned sign_in_url with the person. The role applies at the first sign-in of that email, only when the identity provider says the email is verified, and it then shows as set by the Admin who invited. An invite lets no one in that the sign-in rules would refuse; admin emails and identity-provider group roles still win over it. Inviting an email that already has a pending invite changes its role and answers 200.
+         */
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a pending invite.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The email can still sign in when the sign-in rules allow it, with the role those rules give.
+         */
+        delete: operations["deleteInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outbound-domains": {
         parameters: {
             query?: never;
@@ -3442,6 +3488,28 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "editor" | "commenter" | "viewer";
+        Invite: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            /** @description The name of the Admin or service account that sent the invite. */
+            invited_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description The address to share with the person; signing in there with the invited email uses the invite. */
+            sign_in_url: string;
+        };
+        InviteList: {
+            invites: components["schemas"]["Invite"][];
+            next_cursor: string | null;
+        };
+        CreateInviteRequest: {
+            email: string;
+            role: components["schemas"]["Role"];
+        };
         /**
          * @description Where a person's role comes from. admin_emails, first_user and group are decided by the server settings or the identity provider and cannot be changed through the API.
          * @enum {string}
@@ -7212,6 +7280,114 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Person"];
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listInvites: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of pending invites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description The pending invite for this email, with the new role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            /** @description The invite is created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Someone with this email has already signed in (`already_member`); change their role instead. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The email's domain is not in `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` (`email_domain_not_allowed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invite is withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
