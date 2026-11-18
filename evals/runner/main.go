@@ -88,6 +88,8 @@ type options struct {
 	shops         shopURLs
 	stackScript   string
 	readyTimeout  time.Duration
+	awaitHistory  bool
+	waitHistory   func(context.Context) error
 
 	faults *shopFaults
 }
@@ -124,6 +126,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.BoolVar(&o.bootstrapDex, "bootstrap-dex", false, "sign in to the demo stack as its development user and mint a service-account key for this run")
 	fs.StringVar(&o.profile, "profile", profileDefault, "corpus profile: default, or k8s for the Kubernetes dashboards on the demo cluster (live suite only)")
 	fs.BoolVar(&o.verifyK8s, "verify-k8s", false, "import the Kubernetes dashboards and compare their unverified panels with "+defaultK8sGapsFile+", then exit; needs no scenarios and no LLM")
+	fs.BoolVar(&o.awaitHistory, "await-history", false, "run the scenarios that need no synthetic history first and call "+defaultStackScript+" wait-history once before the first that does; for a stack booted with up --no-history")
 	fs.Var(&o.shops, "shop-url", "pod=url of a demo shop fault API (repeatable; defaults to the evals stack's ports)")
 	if err := fs.Parse(args); err != nil {
 		return o, err
@@ -143,6 +146,9 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 		return o, err
 	}
 	o.corpus = defaultCorpus(o.suite, o.corpus)
+	if o.awaitHistory {
+		o.waitHistory = scriptHistoryWaiter(o.stackScript, stderr)
+	}
 	return o, nil
 }
 
@@ -502,10 +508,22 @@ func runAll(ctx context.Context, c *client, pricing Pricing, scenarios []Scenari
 	results := make([]Result, len(scenarios)*repeat)
 	previous := make([]chan struct{}, len(scenarios))
 	slots := make(chan struct{}, o.parallel)
+	plan := dispatchPlan(scenarios, o.awaitHistory)
 	var wg sync.WaitGroup
 	var logMu sync.Mutex
 	for round := range repeat {
-		for i, sc := range scenarios {
+		for _, step := range plan {
+			i, sc := step.index, scenarios[step.index]
+			if step.awaitHistory && round == 0 && o.waitHistory != nil {
+				logMu.Lock()
+				_, _ = fmt.Fprintln(stderr, "waiting for the synthetic history before "+sc.ID)
+				logMu.Unlock()
+				if err := o.waitHistory(ctx); err != nil {
+					logMu.Lock()
+					_, _ = fmt.Fprintln(stderr, err)
+					logMu.Unlock()
+				}
+			}
 			if previous[i] != nil {
 				<-previous[i]
 			}
