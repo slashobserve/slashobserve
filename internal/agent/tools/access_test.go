@@ -391,6 +391,21 @@ func TestCreateDashboardTwiceWithTheSameSpecReturnsTheFirstOne(t *testing.T) {
 	}
 }
 
+func TestCreateDashboardDoesNotReplayForSomeoneWhoMayNoLongerCreate(t *testing.T) {
+	r := newAccessRig(t)
+	eve := r.person(t, "eve", auth.RoleEditor)
+	ops := r.newFolder(t, "Ops")
+	if res := r.create(t, eve, "Checkout", ops); res.IsError {
+		t.Fatalf("first save: %s", textOf(t, res))
+	}
+	demoted := eve
+	demoted.Role = auth.RoleViewer
+	res := r.create(t, demoted, "Checkout", ops)
+	if code := errorCode(t, res); code != codeForbiddenRole {
+		t.Fatalf("a demoted Viewer's retry: code %q, want %q: %s", code, codeForbiddenRole, textOf(t, res))
+	}
+}
+
 func TestCreateAndRenameFolder(t *testing.T) {
 	r := newAccessRig(t)
 	eve := r.person(t, "eve", auth.RoleEditor)
