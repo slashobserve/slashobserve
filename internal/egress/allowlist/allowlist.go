@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -59,10 +61,18 @@ func (s *Store) Allowed(ctx context.Context) (domains.List, error) {
 }
 
 func (s *Store) Add(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error) {
+	return s.insert(ctx, by, pattern, false)
+}
+
+func (s *Store) AddForConnection(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error) {
+	return s.insert(ctx, by, pattern, true)
+}
+
+func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.Pattern, forConnection bool) (dbsqlc.InsertOutboundDomainRow, error) {
 	if s.lock.Locked {
 		return dbsqlc.InsertOutboundDomainRow{}, ErrLocked
 	}
-	params := dbsqlc.InsertOutboundDomainParams{Domain: pattern.String(), CreatedByName: by.Name}
+	params := dbsqlc.InsertOutboundDomainParams{Domain: pattern.String(), CreatedByName: by.Name, ForConnection: forConnection}
 	if params.CreatedByName == "" {
 		params.CreatedByName = by.Email
 	}
@@ -88,4 +98,50 @@ func (s *Store) Add(ctx context.Context, by auth.Principal, pattern domains.Patt
 		return err
 	})
 	return row, err
+}
+
+type User struct {
+	Kind string
+	Name string
+}
+
+func (s *Store) Users(ctx context.Context, pattern domains.Pattern) ([]User, error) {
+	rows, err := s.db.Queries().ListOutboundUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list outbound users: %w", err)
+	}
+	return usersOf(rows, pattern), nil
+}
+
+func usersOf(rows []dbsqlc.ListOutboundUsersRow, pattern domains.Pattern) []User {
+	users := []User{}
+	for _, r := range rows {
+		u, err := url.Parse(r.Url)
+		if err != nil || !pattern.Matches(strings.ToLower(u.Hostname())) {
+			continue
+		}
+		users = append(users, User{Kind: r.Kind, Name: r.Name})
+	}
+	return users
+}
+
+func (s *Store) Release(ctx context.Context, host string) error {
+	if s.lock.Locked {
+		return nil
+	}
+	pattern, err := domains.ParsePattern(host)
+	if err != nil {
+		return nil
+	}
+	users, err := s.Users(ctx, pattern)
+	if err != nil {
+		return err
+	}
+	if len(users) > 0 {
+		return nil
+	}
+	if _, err := s.db.Queries().DeleteConnectionOutboundDomain(ctx, pattern.String()); err != nil {
+		return fmt.Errorf("release outbound domain: %w", err)
+	}
+	return nil
 }

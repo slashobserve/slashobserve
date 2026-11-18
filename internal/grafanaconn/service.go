@@ -221,7 +221,7 @@ func (s *Service) ensureAllowed(ctx context.Context, by auth.Principal, host str
 	if err != nil {
 		return &InvalidError{Message: "url must name a domain"}
 	}
-	_, err = s.domains.Add(ctx, by, pattern)
+	_, err = s.domains.AddForConnection(ctx, by, pattern)
 	switch {
 	case err == nil:
 		s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", pattern.String()))
@@ -234,6 +234,16 @@ func (s *Service) ensureAllowed(ctx context.Context, by auth.Principal, host str
 		return ErrTooManyDomains
 	}
 	return err
+}
+
+func (s *Service) releaseHost(ctx context.Context, rawURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return
+	}
+	if err := s.domains.Release(ctx, strings.ToLower(u.Hostname())); err != nil {
+		s.logger.WarnContext(ctx, "release outbound domain", slog.String("host", u.Hostname()), slog.Any("error", err))
+	}
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Connection, error) {
@@ -314,14 +324,22 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	if err != nil {
 		return Connection{}, err
 	}
+	if params.Url != current.URL {
+		s.releaseHost(ctx, current.URL)
+	}
 	s.logger.InfoContext(ctx, "grafana connection updated", slog.String("connection_id", updated.ID), slog.String("actor_id", by.ID), slog.Bool("token_changed", p.Token != nil))
 	return updated.Connection, nil
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	current, err := s.store.get(ctx, id)
+	if err != nil {
+		return err
+	}
 	if err := s.store.delete(ctx, id); err != nil {
 		return err
 	}
+	s.releaseHost(ctx, current.URL)
 	s.logger.InfoContext(ctx, "grafana connection deleted", slog.String("connection_id", id.String()), slog.String("actor_id", by.ID))
 	return nil
 }

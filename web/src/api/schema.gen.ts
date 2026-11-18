@@ -258,7 +258,7 @@ export interface paths {
         };
         /**
          * List the domains the server may fetch content from.
-         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. Service accounts cannot call this endpoint.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry; dashboard feeds, actions and assets are fetched on demand and not listed. Service accounts cannot call this endpoint.
          */
         get: operations["listOutboundDomains"];
         put?: never;
@@ -3766,6 +3766,14 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
+            /** @description True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host. */
+            from_connection: boolean;
+            /** @description The webhooks and Grafana connections whose address this entry allows, so removing it would stop them. */
+            used_by: {
+                /** @enum {string} */
+                kind: "webhook" | "grafana_connection";
+                name: string;
+            }[];
             /**
              * Format: date-time
              * @description Null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS`.

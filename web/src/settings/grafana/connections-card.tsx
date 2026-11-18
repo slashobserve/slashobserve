@@ -213,8 +213,10 @@ export function ConnectionsCard({ connections, onImport }: Props) {
               Delete {deleting?.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              The stored URL and token are removed. Dashboards imported from
-              this Grafana stay, with their folders and import records.
+              The stored URL and token are removed, and so is its host on the
+              Outbound access list unless a webhook, another connection or an
+              entry added by hand uses it. Dashboards imported from this
+              Grafana stay, with their folders and import records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {remove.isError ? (

@@ -478,6 +478,7 @@ type OutboundDomain struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+	ForConnection bool
 }
 
 type Proposal struct {

@@ -6,6 +6,7 @@ outbound-domains:
       The list is empty until a person allows a domain.
       When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`.
       Entries are sorted by `domain` in byte order.
+      `used_by` names the webhooks and Grafana connections that depend on an entry; dashboard feeds, actions and assets are fetched on demand and not listed.
       Service accounts cannot call this endpoint.
     responses:
       "200":

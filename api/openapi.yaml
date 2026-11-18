@@ -1031,11 +1031,27 @@ components:
     OutboundDomain:
       type: object
       additionalProperties: false
-      required: [domain, added_at, added_by]
+      required: [domain, added_at, added_by, from_connection, used_by]
       properties:
         domain:
           type: string
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
+        from_connection:
+          type: boolean
+          description: True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host.
+        used_by:
+          type: array
+          description: The webhooks and Grafana connections whose address this entry allows, so removing it would stop them.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, name]
+            properties:
+              kind:
+                type: string
+                enum: [webhook, grafana_connection]
+              name:
+                type: string
         added_at:
           type: string
           format: date-time
@@ -4965,7 +4981,7 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, name, url, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      required: [id, name, url, format, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, waiting_events, created_at, updated_at]
       properties:
         id:
           type: string

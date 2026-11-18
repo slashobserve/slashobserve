@@ -49,6 +49,7 @@ Other outbound fetches, such as news feeds and images, reach only `https` on por
 A Grafana connection is the one exception: its URL may be `http` or `https` on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the same network as SlashObserve.
 This is safe to allow only because the person adding the URL is an Admin, who already controls the server's datasources and settings.
 The host must still be a domain name, not an IP address, and it must be on the outbound allowlist: adding a connection allows its domain when the list is managed in Settings, and is refused with `403 outbound_domain_not_allowed` when `SLASHOBSERVE_OUTBOUND_DOMAINS` locks the list and does not name it.
+Deleting the connection removes that entry again unless something else still uses the host; see [Outbound access](../operate/outbound-access.md).
 Every request to Grafana keeps the outbound timeout and an 8 MiB size cap, and a redirect is never followed.
 
 ## Import

@@ -67,3 +67,43 @@ func TestAddRefusesWhenConfigurationLocksTheList(t *testing.T) {
 		t.Fatalf("error = %v, want ErrLocked", err)
 	}
 }
+
+func TestUsersNameTheWebhooksAndConnectionsAnEntryAllows(t *testing.T) {
+	rows := []dbsqlc.ListOutboundUsersRow{
+		{Kind: "webhook", Name: "Deploys", Url: "https://Hooks.Example.com/in"},
+		{Kind: "grafana_connection", Name: "Prod", Url: "http://grafana.example.com:3000"},
+		{Kind: "webhook", Name: "Other", Url: "https://elsewhere.test/in"},
+	}
+	exact := usersOf(rows, pattern(t, "hooks.example.com"))
+	if len(exact) != 1 || exact[0] != (User{Kind: "webhook", Name: "Deploys"}) {
+		t.Fatalf("exact entry users = %+v", exact)
+	}
+	wild := usersOf(rows, pattern(t, "*.example.com"))
+	if len(wild) != 2 {
+		t.Fatalf("wildcard entry users = %+v", wild)
+	}
+	if none := usersOf(rows, pattern(t, "unused.example.com")); none == nil || len(none) != 0 {
+		t.Fatalf("unused entry users = %#v, want an empty list", none)
+	}
+}
+
+func TestReleaseRemovesOnlyAnUnusedConnectionEntry(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	by := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
+	if _, err := store.AddForConnection(t.Context(), by, pattern(t, "grafana.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add(t.Context(), by, pattern(t, "manual.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	for _, host := range []string{"grafana.example.com", "manual.example.com"} {
+		if err := store.Release(t.Context(), host); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list, err := store.Allowed(t.Context())
+	if err != nil || list.Allows("grafana.example.com") || !list.Allows("manual.example.com") {
+		t.Fatalf("allowlist %v, err %v", list, err)
+	}
+}

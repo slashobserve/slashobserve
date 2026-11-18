@@ -23,10 +23,17 @@ const (
 	managedByConfig   = "config"
 )
 
+type userJSON struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
 type entryJSON struct {
-	Domain  string  `json:"domain"`
-	AddedAt *string `json:"added_at"`
-	AddedBy *string `json:"added_by"`
+	Domain         string     `json:"domain"`
+	AddedAt        *string    `json:"added_at"`
+	AddedBy        *string    `json:"added_by"`
+	FromConnection bool       `json:"from_connection"`
+	UsedBy         []userJSON `json:"used_by"`
 }
 
 type listJSON struct {
@@ -61,7 +68,7 @@ func (s *Store) list(c *gin.Context) {
 	if s.lock.Locked {
 		entries := make([]entryJSON, 0, len(s.lock.Domains))
 		for _, p := range s.lock.Domains {
-			entries = append(entries, entryJSON{Domain: p.String()})
+			entries = append(entries, entryJSON{Domain: p.String(), UsedBy: []userJSON{}})
 		}
 		slices.SortFunc(entries, func(a, b entryJSON) int { return strings.Compare(a.Domain, b.Domain) })
 		c.JSON(http.StatusOK, listJSON{ManagedBy: managedByConfig, Domains: entries})
@@ -72,10 +79,20 @@ func (s *Store) list(c *gin.Context) {
 		s.fail(c, "list outbound domains", err)
 		return
 	}
+	users, err := s.db.Queries().ListOutboundUsers(c.Request.Context())
+	if err != nil {
+		s.fail(c, "list outbound users", err)
+		return
+	}
 	body := listJSON{ManagedBy: managedBySettings, Domains: make([]entryJSON, 0, len(rows))}
 	for _, r := range rows {
 		at := httpapi.FormatTime(r.CreatedAt.Time)
-		entry := entryJSON{Domain: r.Domain, AddedAt: &at}
+		entry := entryJSON{Domain: r.Domain, AddedAt: &at, FromConnection: r.ForConnection, UsedBy: []userJSON{}}
+		if p, err := domains.ParsePattern(r.Domain); err == nil {
+			for _, u := range usersOf(users, p) {
+				entry.UsedBy = append(entry.UsedBy, userJSON{Kind: u.Kind, Name: u.Name})
+			}
+		}
 		if r.HasAuthor {
 			name := r.CreatedByName
 			entry.AddedBy = &name
@@ -117,7 +134,7 @@ func (s *Store) add(c *gin.Context) {
 	s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", caller.ID), slog.String("domain", row.Domain))
 	at := httpapi.FormatTime(row.CreatedAt.Time)
 	by := row.CreatedByName
-	c.JSON(http.StatusCreated, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by})
+	c.JSON(http.StatusCreated, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by, FromConnection: row.ForConnection, UsedBy: []userJSON{}})
 }
 
 func (s *Store) remove(c *gin.Context) {

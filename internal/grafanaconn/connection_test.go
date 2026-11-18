@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 )
 
@@ -200,6 +201,58 @@ func TestConnectionDeleteForgetsIt(t *testing.T) {
 	}
 	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, conn.ID)); !errors.Is(err, grafanaconn.ErrNotFound) {
 		t.Fatalf("second delete: %v", err)
+	}
+}
+
+func TestDeletingTheLastConnectionToAHostRemovesTheEntryItAdded(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	second, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Copy", URL: grafanaURL + "/grafana", Token: grafanaToken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, conn.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || !list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the host kept for the other connection", list, err)
+	}
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, second.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the host removed", list, err)
+	}
+}
+
+func TestDeletingAConnectionKeepsAHostAnAdminAllowedByHand(t *testing.T) {
+	r := newRig(t)
+	p, err := domains.ParsePattern(grafanaHost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.domains.Add(t.Context(), r.admin, p); err != nil {
+		t.Fatal(err)
+	}
+	conn := r.connect(t)
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, conn.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || !list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the hand-added host kept", list, err)
+	}
+}
+
+func TestMovingAConnectionToAnotherHostReleasesTheOldOne(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	newURL, token := "https://grafana2.example.com", "glsa_new"
+	if _, err := r.svc.Update(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &token}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := r.domains.Allowed(t.Context())
+	if err != nil || list.Allows(grafanaHost) || !list.Allows("grafana2.example.com") {
+		t.Fatalf("allowlist %v, err %v; want only the new host", list, err)
 	}
 }
 
