@@ -18,6 +18,7 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
   Do not remove or rename the file while a run is active.
 - Every `docker compose exec` in the script uses `-T` with stdin from `/dev/null`, because an inherited stdin once hung a run for 29 minutes.
 - Checks on telemetry that may still be arriving poll with a bound instead of asserting once.
+- `warm` starts every service except the server and writes `/tmp/slashobserve-e2e-warm` (`pending <pid>`, then `ready <epoch>`); `boot` consumes that marker once and skips its reset when it is `ready`, under 30 minutes old, with Prometheus running and no server container, and `run`, `up` and `browser` wait up to 10 minutes for the lock while a live `warm` holds it; `down` removes the marker.
 - `boot` does not wait for Prometheus history; a check that reads three minutes of it (the imports) calls `await_history` first and runs near the end of `run`, so the wait elapses while other checks run.
 
 ## Replay model

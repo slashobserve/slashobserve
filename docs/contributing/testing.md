@@ -43,6 +43,11 @@ The browser suite needs no API suite first and no more history than the boot wai
 Reuse does not rebuild the images, so run `make e2e` again after a code change.
 `make e2e-all` runs the API suite and then the browser suite.
 
+`make e2e-warm` starts every service except the server and returns, so the Prometheus history and the shop run while the server image builds.
+The next `make e2e`, `make e2e-up` or `make e2e-browser` within 30 minutes adopts that stack, starts the server and waits for health as usual.
+With no warm stack they reset and boot as before.
+The warm step needs the shop image, never the server image.
+
 Set `PW_SHARD` to run one part of the suite, for example `PW_SHARD=2/4 make e2e-browser` for the second of four.
 List what a shard holds without a stack with `PW_SHARD=2/4 bunx playwright test --list` from `web/`.
 Every shard runs the sign-in setup first.

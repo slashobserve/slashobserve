@@ -58,11 +58,17 @@ fi
 
 usage() {
   cat <<EOF
-Usage: scripts/e2e.sh [run|up|browser|down|logs]
+Usage: scripts/e2e.sh [run|warm|up|browser|down|logs]
 
+  warm     reset the isolated ${PROJECT} compose stack and start every service
+           except the server, without waiting for health, then return; 'run',
+           'up' and 'browser' adopt that stack within ${WARM_MAX_AGE}s instead of
+           resetting it, so Prometheus history and the shop accumulate while the
+           server image is built; it builds the shop image, or with a prebuilt
+           image needs SLASHOBSERVE_SHOP_IMAGE present or pullable, not the server image
   run      reset the isolated ${PROJECT} compose stack, boot it, and run the
            API smoke suite (default); the stack is left running
-  up       reuse the running, healthy ${PROJECT} stack, or reset and boot one,
+  up       adopt a warm stack, or reuse the running, healthy ${PROJECT} stack, or reset and boot one,
            as soon as Prometheus has scraped every target and ClickHouse holds
            logs and traces; reuse does not rebuild, so rerun 'run' after code
            changes
@@ -361,9 +367,57 @@ stack_reusable() {
   [[ -n "$running" ]] && is_ready
 }
 
+warm_state() {
+  local state="" stamp=""
+  [[ -f "$WARM_MARKER" ]] && read -r state stamp <"$WARM_MARKER" || true
+  printf '%s %s' "$state" "$stamp"
+}
+
+warm_pending() {
+  local state stamp
+  read -r state stamp <<<"$(warm_state)"
+  [[ "$state" == pending && "$stamp" =~ ^[0-9]+$ ]] && kill -0 "$stamp" 2>/dev/null
+}
+
+take_warm() {
+  local state stamp running="" server=""
+  read -r state stamp <<<"$(warm_state)"
+  rm -f "$WARM_MARKER"
+  [[ "$state" == ready && "$stamp" =~ ^[0-9]+$ ]] && (($(date +%s) - stamp <= WARM_MAX_AGE)) || return 1
+  capture running compose_ps --status running -q prometheus || return 1
+  capture server compose_ps --all -q server || return 1
+  [[ -n "$running" && -z "$server" ]]
+}
+
+warm_services() {
+  local names
+  capture names bounded "$PS_TIMEOUT" "${COMPOSE_CMD[@]}" config --services </dev/null || fail "docker compose config failed ($LAST_ERR)"
+  grep -vx server <<<"$names"
+}
+
+warm() {
+  local services=()
+  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
+  printf 'pending %s\n' "$$" >"$WARM_MARKER"
+  grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  mapfile -t services < <(warm_services)
+  ((${#services[@]} > 0)) || { rm -f "$WARM_MARKER"; fail "docker compose config listed no services"; }
+  if ! grouped "${COMPOSE_CMD[@]}" up -d "${BUILD_FLAGS[@]}" "${services[@]}"; then
+    rm -f "$WARM_MARKER"
+    dump_logs 200
+    fail "the warm services did not start"
+  fi
+  printf 'ready %s\n' "$(date +%s)" >"$WARM_MARKER"
+  pass "warm stack started without the server (${#services[@]} services)"
+}
+
 boot() {
   [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
-  grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  if take_warm; then
+    echo "Adopting the warm $PROJECT stack"
+  else
+    grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  fi
   if ! grouped "${COMPOSE_CMD[@]}" up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
     dump_logs 200
     fail "stack did not become healthy"
@@ -377,6 +431,9 @@ boot() {
 
 TMP=""
 LOCK_FILE=/tmp/slashobserve-e2e-run.lock
+WARM_MARKER=/tmp/slashobserve-e2e-warm
+WARM_MAX_AGE=1800
+WARM_WAIT=600
 SSE_PID=""
 CLAIM_LOCK_APP="slashobserve-e2e-claim-lock"
 CLAIM_LOCK_PID=""
@@ -411,11 +468,16 @@ chmod(0666, $f);
 PERL
 
 acquire_lock() {
-  local rc=0
+  local rc=0 waited=0
   [[ ! -L "$LOCK_FILE" ]] || fail "$LOCK_FILE is a symlink; remove it"
   [[ ! -d "$LOCK_FILE" ]] || fail "stale directory from an older e2e.sh at $LOCK_FILE; rmdir it"
   { exec 9>>"$LOCK_FILE"; } 2>/dev/null || fail "cannot open $LOCK_FILE"
-  perl -e "$LOCK_PERL" "$LOCK_FILE" "$$" || rc=$?
+  while :; do
+    rc=0
+    perl -e "$LOCK_PERL" "$LOCK_FILE" "$$" || rc=$?
+    [[ "$rc" == 1 && "${1:-}" == wait_for_warm ]] && warm_pending && ((waited++ < WARM_WAIT)) || break
+    sleep 1
+  done
   case "$rc" in
     0) ;;
     1) fail "another e2e run is active ($(lock_owner))" ;;
@@ -3485,8 +3547,12 @@ browser() {
 }
 
 case "${1:-run}" in
-  run | up | browser | down | logs)
-    [[ "${1:-run}" == logs ]] || acquire_lock
+  run | warm | up | browser | down | logs)
+    case "${1:-run}" in
+      logs) ;;
+      warm | down) acquire_lock ;;
+      *) acquire_lock wait_for_warm ;;
+    esac
     TMP="$(mktemp -d)"
     OUT_FILE="$TMP/capture.out"
     ERR_FILE="$TMP/capture.err"
@@ -3502,9 +3568,13 @@ case "${1:-run}" in
     check_api_contract
     check_no_keys_in_server_log
     ;;
+  warm) warm ;;
   up) ensure_stack ;;
   browser) browser ;;
-  down) grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans ;;
+  down)
+    rm -f "$WARM_MARKER"
+    grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans
+    ;;
   logs) all_logs ;;
   -h | --help | help) usage ;;
   *)
