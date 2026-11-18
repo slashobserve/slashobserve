@@ -2,13 +2,20 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 func promCatalog(metrics []datasource.Metric, truncated bool) func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
@@ -156,5 +163,53 @@ func TestDraftOnPrometheusRefusesALogsSignal(t *testing.T) {
 	_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "prom", Question: "errors", Signal: signalLogs})
 	if !errors.Is(err, ErrDraftInvalid) || !strings.Contains(err.Error(), "prom is a Prometheus datasource, which holds metrics; signal must be metrics") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func largePrometheus(t *testing.T) datasource.Datasource {
+	t.Helper()
+	names := make([]string, 300)
+	for i := range names {
+		names[i] = fmt.Sprintf("go_metric_%03d", i)
+	}
+	names = append(names, "checkout_latency_seconds_bucket")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		data := []string{}
+		switch {
+		case r.URL.Path == "/api/v1/label/__name__/values":
+			data = names
+		case r.URL.Path == "/api/v1/labels":
+			data = []string{"job", "service"}
+		case r.URL.Path == "/api/v1/metadata":
+			_, _ = w.Write([]byte(`{"status":"success","data":{}}`))
+			return
+		}
+		body, _ := json.Marshal(map[string]any{"status": "success", "data": data})
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := prometheus.New(prometheus.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	return ds
+}
+
+func TestDraftContextOnARealPrometheusSearchesALargeCatalog(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Name: "prom", Datasource: largePrometheus(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	inst, _ := reg.Get("prom")
+	facts, err := r.draftContext(context.Background(), inst, signalMetrics, draftRange, "p95 checkout latency")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(facts.Text, "metrics: checkout_latency_seconds_bucket"+moreNotShown+"\n") || strings.Contains(facts.Text, "go_metric_000") {
+		t.Fatalf("facts:\n%s", facts.Text)
 	}
 }
