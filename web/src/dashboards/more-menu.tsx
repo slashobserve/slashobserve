@@ -28,6 +28,23 @@ import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 
 import { moreMenuButtonId } from "./edit/layout-store"
 
+export function moreLabel(menu: {
+  mayEdit: boolean
+  canDuplicate: boolean
+  folderTv: boolean
+}): string {
+  const items = [
+    menu.mayEdit ? "edit details" : null,
+    "export",
+    menu.canDuplicate ? "duplicate" : null,
+    "TV mode",
+    menu.folderTv ? "TV mode for this folder" : null,
+    "chart hover",
+    menu.mayEdit ? "delete" : null,
+  ]
+  return `More: ${items.filter((item) => item !== null).join(", ")}`
+}
+
 type Props = {
   mayEdit: boolean
   detailsBlockedBy: string | null
@@ -64,7 +81,11 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label={moreLabel({
+              mayEdit,
+              canDuplicate: onDuplicate !== null,
+              folderTv: onTvModeFolder !== null,
+            })}
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
