@@ -697,6 +697,7 @@ function TraceResults({
   live: boolean
 }) {
   const range = tracesTimeRange(search)
+  const [openedAt] = useState(Date.now)
   const polling = {
     refetchInterval: liveRefreshMs(live, range),
     refetchIntervalInBackground: false,
@@ -721,7 +722,7 @@ function TraceResults({
     { ...base, page },
     byOffset ? undefined : cursors.cursorFor(page)
   )
-  const future = rangeInFuture(range, Date.now())
+  const future = rangeInFuture(range, openedAt)
   const results = useQuery({
     ...exploreQuery(datasource.uid, params),
     ...polling,

@@ -1308,7 +1308,7 @@ const TracesPanel: PanelRenderer = ({
         index={model.traceIndex}
         count={model.traceCount}
         traceId={model.traceId}
-        datasource={panel.datasource}
+        datasource={panel.datasource ?? ""}
         range={range}
         onChange={setTraceIndex}
       />
