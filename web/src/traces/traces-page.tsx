@@ -81,6 +81,7 @@ import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
 import {
   askAfterSubmit,
+  changesQuery,
   linkWithoutPage,
   rangeInFuture,
   tracesTimeRange,
@@ -96,6 +97,7 @@ import {
 import { isRelativeRange, liveBlockedText, liveRefreshMs } from "./live-refresh"
 import { traceFilterChips } from "./trace-filters"
 import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
+import { traceQLProblem } from "./trace-query-problem"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
@@ -659,7 +661,12 @@ function TraceSearchWorkspace({
       <TraceResults
         datasource={datasource}
         search={search}
-        update={update}
+        update={(next, options) => {
+          if (changesQuery(next)) {
+            setMode("code", false)
+            update({ ask: undefined, ...next }, options)
+          } else update(next, options)
+        }}
         live={live}
       />
     </>
@@ -771,7 +778,7 @@ function TraceResults({
   }
   const failure = results.isError ? (
     <ExploreFailure
-      text={exploreErrorText(results.error)}
+      text={traceQLProblem(exploreErrorText(results.error), base.query)}
       onRetry={() => void results.refetch()}
     />
   ) : null
@@ -828,7 +835,8 @@ function TraceResults({
       {stats.isError ? (
         <p role="status" className="text-[13px]">
           <StatusLabel tone="critical">
-            Stats failed: {exploreErrorText(stats.error)}
+            Stats failed:{" "}
+            {traceQLProblem(exploreErrorText(stats.error), base.query)}
           </StatusLabel>
         </p>
       ) : null}

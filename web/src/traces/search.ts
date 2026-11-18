@@ -101,6 +101,10 @@ export function askAfterSubmit(
     : undefined
 }
 
+export function changesQuery(next: Partial<TraceSearch>): boolean {
+  return formKeys.some((key) => key in next)
+}
+
 export type TraceEntrySearch = TraceSearch & { ds?: string }
 
 export function validateTraceEntrySearch(

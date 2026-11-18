@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   askAfterSubmit,
+  changesQuery,
   linkWithoutPage,
   normaliseTraceId,
   rangeInFuture,
@@ -201,5 +202,19 @@ describe("traceViewDatasource", () => {
   it("asks when several could hold the trace", () => {
     expect(traceViewDatasource([tempo, ch], undefined)).toBeUndefined()
     expect(traceViewDatasource([], undefined)).toBeUndefined()
+  })
+})
+
+describe("changesQuery", () => {
+  it("is true when a filter key is written, even to clear it", () => {
+    expect(changesQuery({ q: "{}" })).toBe(true)
+    expect(changesQuery({ service: undefined })).toBe(true)
+    expect(changesQuery({ min: "1s", from: "now-1h" })).toBe(true)
+  })
+
+  it("is false for paging and range changes", () => {
+    expect(changesQuery({ page: 2 })).toBe(false)
+    expect(changesQuery({ size: 100 })).toBe(false)
+    expect(changesQuery({ from: "now-6h", to: "now" })).toBe(false)
   })
 })

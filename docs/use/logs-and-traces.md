@@ -415,6 +415,7 @@ On Tempo you can also write TraceQL, which replaces the fields: while the TraceQ
 The link under the TraceQL field opens the TraceQL reference.
 On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
+A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it.
 
 ### Results
 
@@ -455,6 +456,7 @@ While a selection exists, the **What is different about the selected traces** pa
 It ranks the attribute values that appear in a larger share of the selected traces than of the other matching traces: span names, kinds, statuses and the span and resource attributes, each with its share of both sets.
 It reads every span of the newest 50 selected and 150 other loaded traces, says when it could not read them all, and keeps the weaker differences behind **Show weaker differences**.
 **Filter** on a row adds that attribute value to the search: on Tempo it appends the condition to the TraceQL, and on ClickHouse it fills the Span name or Service field, so the other attributes have no **Filter** there.
+Applying a filter, or **Keep only the selection**, switches the query card to Query so the written TraceQL or the filled fields are visible, and drops the Ask question from the address.
 
 ## Ask on the trace search
 
