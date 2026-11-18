@@ -201,6 +201,10 @@ func (a *app) runExport(cmd *cobra.Command, arg, dir string) error {
 		}
 		written = append(written, exported{Path: rel, DashboardID: it.ID, Title: it.Title})
 	}
+	return a.printExported(written)
+}
+
+func (a *app) printExported(written []exported) error {
 	out := a.output()
 	if a.json {
 		raw, err := json.Marshal(written)
