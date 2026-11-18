@@ -147,7 +147,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	}
 	o.corpus = defaultCorpus(o.suite, o.corpus)
 	if o.awaitHistory {
-		o.waitHistory = scriptHistoryWaiter(o.stackScript, stderr)
+		o.waitHistory = scriptHistoryWaiter(o.stackScript, o.profile, stderr)
 	}
 	return o, nil
 }
@@ -511,6 +511,7 @@ func runAll(ctx context.Context, c *client, pricing Pricing, scenarios []Scenari
 	plan := dispatchPlan(scenarios, o.awaitHistory)
 	var wg sync.WaitGroup
 	var logMu sync.Mutex
+	var historyErr error
 	for round := range repeat {
 		for _, step := range plan {
 			i, sc := step.index, scenarios[step.index]
@@ -518,11 +519,22 @@ func runAll(ctx context.Context, c *client, pricing Pricing, scenarios []Scenari
 				logMu.Lock()
 				_, _ = fmt.Fprintln(stderr, "waiting for the synthetic history before "+sc.ID)
 				logMu.Unlock()
-				if err := o.waitHistory(ctx); err != nil {
-					logMu.Lock()
-					_, _ = fmt.Fprintln(stderr, err)
-					logMu.Unlock()
+				historyErr = o.waitHistory(ctx)
+			}
+			if historyErr != nil && historyNeed(sc) > 0 {
+				res := newExecution(c, pricing, sc, o).notRun(historyErr)
+				res.StartedAt = time.Now().UTC()
+				res.FinishedAt = res.StartedAt
+				label := sc.ID
+				if repeat > 1 {
+					res.Run = round + 1
+					label = fmt.Sprintf("%s (run %d of %d)", sc.ID, res.Run, repeat)
 				}
+				results[i*repeat+round] = res
+				logMu.Lock()
+				_, _ = fmt.Fprintf(stderr, "%s  %s\n", verdictWord(res), label)
+				logMu.Unlock()
+				continue
 			}
 			if previous[i] != nil {
 				<-previous[i]
@@ -604,11 +616,7 @@ func runScenario(ctx context.Context, c *client, pricing Pricing, sc Scenario, o
 }
 
 func runFaulted(ctx context.Context, c *client, pricing Pricing, sc Scenario, o options) (Result, *AgentRequest) {
-	e := &execution{
-		c: c, pricing: pricing, sc: sc, o: o,
-		res: Result{ID: sc.ID, Prompt: sc.Prompt, Category: sc.Category, DoneWhen: sc.DoneWhen, Tags: sc.Tags, Kind: kindOf(sc), Suite: o.suite, Status: "not_started"},
-		obs: observation{panels: map[string]panelOutcome{}},
-	}
+	e := newExecution(c, pricing, sc, o)
 	if sc.Fault == nil {
 		return e.dispatch(ctx)
 	}
@@ -622,14 +630,26 @@ func runFaulted(ctx context.Context, c *client, pricing Pricing, sc Scenario, o 
 	})
 	switch {
 	case !ran:
-		e.res.Error = err.Error()
-		e.obs.request = AgentRequest{Status: e.res.Status}
-		return finish(sc, pricing, e.res, e.obs), nil
+		return e.notRun(err), nil
 	case err != nil:
 		res.Error = strings.TrimSpace(res.Error + " " + err.Error())
 		res.Passed, res.LatencyOnly = false, false
 	}
 	return res, abandoned
+}
+
+func newExecution(c *client, pricing Pricing, sc Scenario, o options) *execution {
+	return &execution{
+		c: c, pricing: pricing, sc: sc, o: o,
+		res: Result{ID: sc.ID, Prompt: sc.Prompt, Category: sc.Category, DoneWhen: sc.DoneWhen, Tags: sc.Tags, Kind: kindOf(sc), Suite: o.suite, Status: "not_started"},
+		obs: observation{panels: map[string]panelOutcome{}},
+	}
+}
+
+func (e *execution) notRun(err error) Result {
+	e.res.Error = err.Error()
+	e.obs.request = AgentRequest{Status: e.res.Status}
+	return finish(e.sc, e.pricing, e.res, e.obs)
 }
 
 func (e *execution) dispatch(ctx context.Context) (Result, *AgentRequest) {

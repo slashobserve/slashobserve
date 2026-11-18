@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"slices"
 	"sync"
@@ -136,5 +137,37 @@ func TestAwaitHistoryFlagSelectsTheWaitThroughTheStackScript(t *testing.T) {
 	o, err = parseFlags(nil, io.Discard)
 	if err != nil || o.awaitHistory || o.waitHistory != nil {
 		t.Fatalf("default: %+v, %v", o.awaitHistory, err)
+	}
+}
+
+func TestFailedHistoryWaitFailsTheScenariosThatNeedHistoryWithTheWaitError(t *testing.T) {
+	_, c := newFake(t, 1, 10*time.Millisecond)
+	scenarios := []Scenario{scenarioWithRange("needy", "now-6h"), scenarioWithRange("plain")}
+	waitErr := errors.New("wait-history: exit status 1")
+	o := options{parallel: 1, repeat: 2, timeout: 5 * time.Second, awaitHistory: true, waitHistory: func(context.Context) error { return waitErr }}
+	results := runAll(t.Context(), c, Pricing{}, scenarios, o, io.Discard)
+	if len(results) != 4 {
+		t.Fatalf("%d results, want 4", len(results))
+	}
+	for _, r := range results {
+		switch r.ID {
+		case "needy":
+			if r.Passed || r.Error != waitErr.Error() {
+				t.Errorf("needy run %d: passed %v, error %q, want a failure with %q", r.Run, r.Passed, r.Error, waitErr)
+			}
+		case "plain":
+			if r.Error == waitErr.Error() {
+				t.Errorf("plain run %d failed with the wait error", r.Run)
+			}
+		}
+	}
+}
+
+func TestHistoryWaitPassesTheK8sProfileToTheStackScript(t *testing.T) {
+	if got := historyWaitArgs(profileK8s); !slices.Equal(got, []string{"wait-history", "--k8s"}) {
+		t.Fatalf("k8s: %v", got)
+	}
+	if got := historyWaitArgs(profileDefault); !slices.Equal(got, []string{"wait-history"}) {
+		t.Fatalf("default: %v", got)
 	}
 }

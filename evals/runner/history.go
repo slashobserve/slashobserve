@@ -45,9 +45,16 @@ func dispatchPlan(scenarios []Scenario, awaitHistory bool) []dispatch {
 	return plan
 }
 
-func scriptHistoryWaiter(script string, stderr io.Writer) func(context.Context) error {
+func historyWaitArgs(profile string) []string {
+	if profile == profileK8s {
+		return []string{"wait-history", "--k8s"}
+	}
+	return []string{"wait-history"}
+}
+
+func scriptHistoryWaiter(script, profile string, stderr io.Writer) func(context.Context) error {
 	return func(ctx context.Context) error {
-		cmd := exec.CommandContext(ctx, script, "wait-history")
+		cmd := exec.CommandContext(ctx, script, historyWaitArgs(profile)...)
 		cmd.Stdout, cmd.Stderr = stderr, stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("%s wait-history: %w", script, err)
