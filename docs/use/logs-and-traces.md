@@ -144,7 +144,7 @@ The level chips above the bars show a count for each level, and a chip hides or 
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
-When the volume request does not finish, the strip says so with the server's reason, the lines below still load, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
+When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
 - On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both, and the failure names the column to add.
@@ -543,7 +543,7 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 ```
 
 `limit` lowers the row limit and never raises it above 1,000.
-`POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
+`POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki, ClickHouse, Elasticsearch and OpenSearch.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 
 Scripts ask a question with `POST /api/v1/datasources/{uid}/draft-query`:

@@ -2,10 +2,12 @@ package proxyhttp
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -91,7 +93,7 @@ func (h *Handler) volume(c *gin.Context) {
 	}
 	source, supported := volumeSources[inst.Datasource.Type()]
 	if !supported {
-		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "volume reads Loki and ClickHouse datasources")
+		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "volume reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources")
 		return
 	}
 	al, ok := h.volumeWindow(c, uid, req, exploreDashboard(uid, *req.Query, source.kind))
@@ -116,7 +118,7 @@ func (h *Handler) volume(c *gin.Context) {
 		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {
-		h.exploreFail(c, uid, err)
+		h.exploreFail(c, uid, volumeProblem(err))
 		return
 	}
 	hist := logvolume.New(al.rng.From, al.step, al.maxDataPoints)
@@ -135,6 +137,25 @@ func (h *Handler) volume(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, newVolumeJSON(hist.Volume()))
+}
+
+var (
+	pipelineFailure = regexp.MustCompile(`pipeline error: '([A-Za-z]+)'`)
+	wrapperPosition = regexp.MustCompile(`parse error at line \d+, col \d+|failed at position \d+|fromUnixTimestamp64Milli`)
+)
+
+func volumeProblem(err error) error {
+	var upstream *datasource.UpstreamError
+	if !errors.As(err, &upstream) || !errors.Is(upstream.Kind, datasource.ErrInvalidQuery) {
+		return err
+	}
+	if match := pipelineFailure.FindStringSubmatch(upstream.Message); match != nil {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "a parser stage failed on some lines (%s), so the volume cannot count them; add | __error__=\"\" after the parser to skip those lines", match[1])
+	}
+	if wrapperPosition.MatchString(upstream.Message) {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "the volume could not read the query as written; fix the query itself and the volume follows")
+	}
+	return err
 }
 
 func (h *Handler) volumeWindow(c *gin.Context, uid string, req volumeRequest, d *spec.Dashboard) (alignment, bool) {

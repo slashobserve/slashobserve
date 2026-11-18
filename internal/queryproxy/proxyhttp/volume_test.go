@@ -144,7 +144,7 @@ func TestVolumeRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	hn, _, _ := newVolumeHarness(t)
 	rec := hn.volume("prom", volumeBody("up"))
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
-	if got := decodeError(t, rec).Error; got != "volume reads Loki and ClickHouse datasources" {
+	if got := decodeError(t, rec).Error; got != "volume reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
 		t.Fatalf("error = %q", got)
 	}
 	expectError(t, hn.volume("missing", volumeBody("up")), http.StatusNotFound, "not_found")
@@ -449,5 +449,29 @@ func TestVolumeAlignmentCoversTheWholeRangeAtEveryWidth(t *testing.T) {
 		if got := queryproxy.StepFor(al.rng, al.maxDataPoints); got != al.step {
 			t.Fatalf("%v: the runner would step by %v, not %v", span, got, al.step)
 		}
+	}
+}
+
+func TestVolumeProblemSpeaksOfTheQueryNotOfTheWrapper(t *testing.T) {
+	invalid := func(message string) error { return datasource.Errorf(datasource.ErrInvalidQuery, "%s", message) }
+	cases := []struct {
+		name string
+		in   error
+		want string
+	}{
+		{"a parser failing on plain text", invalid(`pipeline error: 'JSONParserErr' for series: {app="x"}. Use a label filter to intentionally skip this error.`), "a parser stage failed on some lines (JSONParserErr)"},
+		{"a wrapper parse position", invalid("parse error at line 0, col 1: syntax error: unexpected RANGE, expecting } or ,"), "could not read the query as written"},
+		{"a ClickHouse wrapper position", invalid("failed at position 443 (*) ) GROUP BY Time"), "could not read the query as written"},
+		{"the expanded time macro", invalid("Unknown table in WHERE fromUnixTimestamp64Milli(toInt64(1), 'UTC')"), "could not read the query as written"},
+		{"a message that names only the query", invalid("the volume needs the query to select SeverityText"), "the volume needs the query to select SeverityText"},
+		{"another kind of error", datasource.Errorf(datasource.ErrTimeout, "parse error at line 1, col 1"), "parse error at line 1, col 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := volumeProblem(tc.in)
+			if !strings.Contains(got.Error(), tc.want) || strings.Contains(got.Error(), "line 0, col 1") && tc.name != "another kind of error" {
+				t.Fatalf("got %q, want it to contain %q", got, tc.want)
+			}
+		})
 	}
 }

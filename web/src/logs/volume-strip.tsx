@@ -79,7 +79,7 @@ export function VolumeStrip({
   from: string
   to: string
 }) {
-  const { update } = useLogsWorkspace()
+  const { update, results } = useLogsWorkspace()
   const volume = useQuery(logVolumeQuery(uid, { query, from, to }))
   if (volume.isError) {
     return (
@@ -120,7 +120,7 @@ export function VolumeStrip({
           className="flex h-12 items-center gap-2 text-[13px]"
         >
           <p className="min-w-0 truncate">
-            {volumeFailureText(exploreErrorText(volume.error))}
+            {volumeFailureText(exploreErrorText(volume.error), results.isError)}
           </p>
           <Button
             type="button"
