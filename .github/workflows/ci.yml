@@ -99,7 +99,7 @@ jobs:
       - name: Set up Go
         uses: ./.github/actions/setup-go
         with:
-          cache-name: test-${{ matrix.shard }}
+          cache-name: test
 
       - name: Go tests
         env:
