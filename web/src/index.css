@@ -310,6 +310,11 @@
   }
 }
 
+h1[tabindex="-1"]:focus,
+main[tabindex="-1"]:focus {
+  outline: none;
+}
+
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
   box-shadow: none;
 }

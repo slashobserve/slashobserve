@@ -1,6 +1,16 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 
 import { getSession } from "@/lib/auth"
+import { SkipLink } from "@/shell/skip-link"
+
+function AuthedLayout() {
+  return (
+    <>
+      <SkipLink />
+      <Outlet />
+    </>
+  )
+}
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: async ({ location }) => {
@@ -10,5 +20,5 @@ export const Route = createFileRoute("/_authed")({
     }
     return { principal: session.principal }
   },
-  component: Outlet,
+  component: AuthedLayout,
 })
