@@ -272,6 +272,7 @@ export function SidebarContent({
   const pinned = useVisiblePins()
   const logs = useListedSources("logs")
   const traces = useListedSources("traces")
+  const metrics = useListedSources("metrics")
 
   const subLists: Partial<
     Record<
@@ -319,6 +320,17 @@ export function SidebarContent({
         <SourceList
           kind="traces"
           {...traces}
+          currentId={currentId}
+          onNavigate={onNavigate}
+        />
+      ),
+    },
+    "/metrics": {
+      rows: sourceRows("metrics", metrics.shown),
+      render: (currentId) => (
+        <SourceList
+          kind="metrics"
+          {...metrics}
           currentId={currentId}
           onNavigate={onNavigate}
         />

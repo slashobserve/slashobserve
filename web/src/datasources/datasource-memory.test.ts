@@ -12,19 +12,20 @@ describe("parseMemory", () => {
   it("reads lists most recent first", () => {
     expect(
       parseMemory(JSON.stringify({ logs: ["a", "b"], traces: ["t"] }))
-    ).toEqual({ logs: ["a", "b"], traces: ["t"] })
+    ).toEqual({ logs: ["a", "b"], traces: ["t"], metrics: [] })
   })
 
   it("reads the old single uid as a one entry list", () => {
     expect(
       parseMemory(JSON.stringify({ logs: "ch", traces: "tempo" }))
-    ).toEqual({ logs: ["ch"], traces: ["tempo"] })
+    ).toEqual({ logs: ["ch"], traces: ["tempo"], metrics: [] })
   })
 
   it("leaves out a kind that was never stored", () => {
     expect(parseMemory(JSON.stringify({ logs: ["a"] }))).toEqual({
       logs: ["a"],
       traces: [],
+      metrics: [],
     })
   })
 
@@ -32,13 +33,14 @@ describe("parseMemory", () => {
     expect(parseMemory(JSON.stringify({ logs: ["a", 3, null, "b"] }))).toEqual({
       logs: ["a", "b"],
       traces: [],
+      metrics: [],
     })
   })
 
   it.each([null, "", "not json", "[]", "3", '{"logs": 3}'])(
     "reads %j as empty lists",
     (raw) => {
-      expect(parseMemory(raw)).toEqual({ logs: [], traces: [] })
+      expect(parseMemory(raw)).toEqual({ logs: [], traces: [], metrics: [] })
     }
   )
 
@@ -70,7 +72,7 @@ describe("rememberIn", () => {
 
 describe("useSourceMemory", () => {
   beforeEach(() => {
-    const loaded = { logs: ["a", "b"], traces: ["t"] }
+    const loaded = { logs: ["a", "b"], traces: ["t"], metrics: ["p"] }
     useSourceMemory.setState({ ...loaded, atLoad: loaded })
   })
 
@@ -81,6 +83,7 @@ describe("useSourceMemory", () => {
     expect(useSourceMemory.getState().atLoad).toEqual({
       logs: ["a", "b"],
       traces: ["t"],
+      metrics: ["p"],
     })
   })
 

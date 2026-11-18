@@ -47,8 +47,11 @@ describe("exploreTargets", () => {
     expect(exploreTargets("opensearch")).toEqual(["logs"])
   })
 
-  test("offers nothing for Prometheus or an unknown type", () => {
-    expect(exploreTargets("prometheus")).toEqual([])
+  test("offers metrics for Prometheus", () => {
+    expect(exploreTargets("prometheus")).toEqual(["metrics"])
+  })
+
+  test("offers nothing for an unknown type", () => {
     expect(exploreTargets("graphite")).toEqual([])
   })
 })

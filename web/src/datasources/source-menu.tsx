@@ -9,21 +9,21 @@ import {
   DropdownMenuLinkItem,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { logsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import type { LogsSearch } from "@/logs/search"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
-import type { TraceSearch } from "@/traces/search"
 
 import type { DatasourceStatus } from "./queries"
-import { sourceLanguage, type ExploreKind } from "./sources"
+import {
+  exploreLink,
+  exploreText,
+  sourceLanguage,
+  type ExploreKind,
+} from "./sources"
 import {
   useExploreSources,
   useRouteSource,
   useSourceSwitchSearch,
 } from "./use-sources"
-
-const kindWord = { logs: "log", traces: "trace" } as const
 
 function sourceTitle(kind: ExploreKind, source: DatasourceStatus): string {
   const base = `${source.name}, ${sourceLanguage(kind, source.type)}`
@@ -55,10 +55,7 @@ function SourceRowContent({
 }
 
 function useSourceTarget(kind: ExploreKind, source: DatasourceStatus) {
-  const search = useSourceSwitchSearch(kind, source.type)
-  return kind === "logs"
-    ? logsLink(source.uid, search as LogsSearch)
-    : tracesLink(source.uid, search as TraceSearch)
+  return exploreLink(kind, source.uid, useSourceSwitchSearch(kind, source.type))
 }
 
 export function SourceLink({
@@ -114,14 +111,14 @@ export function SourceFlyoutItems({ kind }: { kind: ExploreKind }) {
   return (
     <>
       <DropdownMenuLinkItem
-        render={<Link to={kind === "logs" ? "/logs" : "/traces"} />}
+        render={<Link to={exploreText[kind].path} />}
         className={cn(railFlyoutItemClass, "font-semibold")}
       >
-        {kind === "logs" ? "Logs" : "Traces"}
+        {exploreText[kind].page}
       </DropdownMenuLinkItem>
       <DropdownMenuGroup>
         <DropdownMenuLabel className={railFlyoutLabelClass}>
-          {kind === "logs" ? "Log sources" : "Trace sources"}
+          {exploreText[kind].sources}
         </DropdownMenuLabel>
         <div className="max-h-80 overflow-y-auto">
           {sources.map((source) => (
@@ -143,7 +140,7 @@ function SourceSheetList({
   const { current, sources } = useRouteSource(kind)
   return (
     <ul
-      aria-label={kind === "logs" ? "Log sources" : "Trace sources"}
+      aria-label={exploreText[kind].sources}
       className="flex max-h-[60svh] flex-col gap-0.5 overflow-y-auto px-2 pb-3"
     >
       {sources.map((source) => (
@@ -197,7 +194,7 @@ export function PhoneSourceTitle({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${label} in ${source.name}, ${language}. Switch ${kindWord[kind]} source`}
+        aria-label={`${label} in ${source.name}, ${language}. Switch ${exploreText[kind].word} source`}
         onClick={() => setOpen(true)}
         className="flex h-11 min-w-0 flex-col items-start justify-center rounded-control px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >

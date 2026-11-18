@@ -15,6 +15,7 @@ import {
   BookmarkIcon,
   BotIcon,
   ChartGanttIcon,
+  ChartLineIcon,
   DatabaseIcon,
   FlagIcon,
   HouseIcon,
@@ -62,6 +63,7 @@ const pageIcons: Record<PagePath, LucideIcon> = {
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
+  "/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
@@ -80,6 +82,7 @@ const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
 const sourceIcons: Record<SourceEntry["explore"], LucideIcon> = {
   logs: LogsIcon,
   traces: ChartGanttIcon,
+  metrics: ChartLineIcon,
 }
 
 const actionIcons: Record<
@@ -156,6 +159,7 @@ function PaletteBody({ close }: { close: () => void }) {
     searching && !search.isError && (settled !== needle || search.isFetching)
   const logSources = useExploreSources("logs").sources
   const traceSources = useExploreSources("traces").sources
+  const metricSources = useExploreSources("metrics").sources
   const sources = useMemo(
     () => [
       ...logSources.map(({ uid, name, type }) => ({
@@ -170,8 +174,14 @@ function PaletteBody({ close }: { close: () => void }) {
         name,
         type,
       })),
+      ...metricSources.map(({ uid, name, type }) => ({
+        explore: "metrics" as const,
+        uid,
+        name,
+        type,
+      })),
     ],
-    [logSources, traceSources]
+    [logSources, traceSources, metricSources]
   )
   const groups = paletteGroups(
     query,

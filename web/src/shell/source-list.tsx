@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 
 import { SourceLink } from "@/datasources/source-menu"
 import type { DatasourceStatus } from "@/datasources/queries"
-import type { ExploreKind } from "@/datasources/sources"
+import { exploreText, type ExploreKind } from "@/datasources/sources"
 import { cn } from "@/lib/utils"
 
 import { SubNavList, subNavLinkClass, subNavMoreClass } from "./sub-nav"
@@ -21,10 +21,10 @@ export function SourceList({
   onNavigate?: () => void
 }) {
   if (shown.length === 0) return null
-  const word = kind === "logs" ? "log" : "trace"
+  const { word, sources, path } = exploreText[kind]
 
   return (
-    <SubNavList label={kind === "logs" ? "Log sources" : "Trace sources"}>
+    <SubNavList label={sources}>
       {shown.map((source) => (
         <li key={source.uid}>
           <SourceLink
@@ -39,7 +39,7 @@ export function SourceList({
       {more ? (
         <li>
           <Link
-            to={kind === "logs" ? "/logs" : "/traces"}
+            to={path}
             onClick={onNavigate}
             aria-label={`More ${word} sources`}
             className={subNavMoreClass}

@@ -1,0 +1,224 @@
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  Link,
+  useNavigate,
+  useRouteContext,
+  useSearch,
+} from "@tanstack/react-router"
+import { useQueryClient } from "@tanstack/react-query"
+
+import { LoadProblem } from "@/components/load-problem"
+import { useSourceMemory } from "@/datasources/datasource-memory"
+import type { DatasourceStatus } from "@/datasources/queries"
+import { SourceTitle } from "@/datasources/source-title"
+import { useExploreSources } from "@/datasources/use-sources"
+import { exploreKeys } from "@/api/keys"
+import { useDocumentTitle } from "@/lib/document-title"
+import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
+import { roleAtLeast } from "@/lib/roles"
+import { loadProblemText } from "@/service-accounts/queries"
+
+import { MetricsPageActions } from "./page-actions"
+import { QueryBar } from "./query-bar"
+import { ResultsSection } from "./results-section"
+import {
+  metricsTimeRange,
+  modeOf,
+  searchAfter,
+  type MetricsSearch,
+} from "./search"
+import { MetricsWorkspaceContext, type MetricsWorkspace } from "./workspace"
+
+const routeId = "/_authed/_shell/metrics/$datasourceUid"
+
+type Update = MetricsWorkspace["update"]
+
+function useMetricsSearch() {
+  const search = useSearch({ from: routeId })
+  const navigate = useNavigate({ from: "/metrics/$datasourceUid" })
+  const update = useCallback<Update>(
+    (next, options) =>
+      void navigate({
+        search: (state) => searchAfter(state, next),
+        replace: options?.replace,
+      }),
+    [navigate]
+  )
+  return { search, update }
+}
+
+export function MetricsPage({ uid }: { uid: string }) {
+  const { search, update } = useMetricsSearch()
+  const { sources, isPending, isError, error, refetch } =
+    useExploreSources("metrics")
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const datasource = sources.find((candidate) => candidate.uid === uid)
+  const rememberedUid = datasource?.uid
+  useDocumentTitle(
+    datasource
+      ? `Metrics / ${datasource.name} - SlashObserve`
+      : "Metrics - SlashObserve"
+  )
+  useEffect(() => {
+    if (rememberedUid !== undefined) {
+      useSourceMemory.getState().remember("metrics", rememberedUid)
+    }
+  }, [rememberedUid])
+
+  if (isPending) {
+    return (
+      <>
+        <h1 className="sr-only">Metrics</h1>
+        <p role="status" className="text-[13px] text-muted-foreground">
+          Loading the datasources.
+        </p>
+      </>
+    )
+  }
+  if (isError) {
+    return (
+      <>
+        <h1 className="sr-only">Metrics</h1>
+        <LoadProblem
+          title="Could not load the datasources"
+          detail={loadProblemText(error)}
+          retrying={false}
+          onRetry={() => void refetch()}
+        />
+      </>
+    )
+  }
+  if (sources.length === 0) {
+    return (
+      <>
+        <h1 className="sr-only">Metrics</h1>
+        <p className="text-[13px] text-muted-foreground">
+          No metrics datasource is configured. An Admin adds a Prometheus
+          datasource in the datasources file.
+        </p>
+        {roleAtLeast(principal.role, "admin") ? (
+          <Link
+            to="/datasources"
+            className="mt-2 inline-block text-[13px] underline underline-offset-3"
+          >
+            Open datasources
+          </Link>
+        ) : null}
+      </>
+    )
+  }
+  if (datasource === undefined) {
+    return (
+      <>
+        <h1 className="sr-only">Metrics</h1>
+        <p className="text-[13px] text-muted-foreground">
+          No metric source has the uid {uid}.
+        </p>
+        <Link
+          to="/metrics"
+          className="mt-2 inline-block text-[13px] underline underline-offset-3"
+        >
+          Open Metrics
+        </Link>
+      </>
+    )
+  }
+  return (
+    <MetricsWorkspaceView
+      key={datasource.uid}
+      datasource={datasource}
+      search={search}
+      update={update}
+    />
+  )
+}
+
+function MetricsWorkspaceView({
+  datasource,
+  search,
+  update,
+}: {
+  datasource: DatasourceStatus
+  search: MetricsSearch
+  update: Update
+}) {
+  const queryClient = useQueryClient()
+  const uid = datasource.uid
+  const range = metricsTimeRange(search)
+  const mode = modeOf(search)
+  const q = search.q
+  const [draft, setDraft] = useState(q ?? "")
+  const [seenQuery, setSeenQuery] = useState(q)
+  if (seenQuery !== q) {
+    setSeenQuery(q)
+    if (q !== undefined) setDraft(q)
+  }
+  const queryFocus = useRef<() => void>(() => {})
+  const registerQueryFocus = useCallback((focus: () => void) => {
+    queryFocus.current = focus
+  }, [])
+  const focusQuery = useCallback(() => queryFocus.current(), [])
+  useLogsShortcuts({ focusQuery, openHelp: () => {} })
+
+  function run(raw?: string, asked?: string) {
+    const text = (raw ?? draft).trim()
+    if (text === "") return
+    if (text === q) {
+      void queryClient.invalidateQueries({
+        queryKey: exploreKeys.all,
+        predicate: (query) => query.queryKey[1] === uid,
+      })
+    }
+    if (text !== q || (asked !== undefined && asked !== search.ask)) {
+      update(asked === undefined ? { q: text } : { q: text, ask: asked })
+    }
+  }
+
+  const workspace: MetricsWorkspace = {
+    datasource,
+    search,
+    mode,
+    effectiveQuery: q,
+    update,
+    draft,
+    setDraft,
+    run,
+    range,
+    focusQuery,
+    registerQueryFocus,
+  }
+
+  return (
+    <MetricsWorkspaceContext value={workspace}>
+      <MetricsPageActions range={range} onRangeChange={update} />
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <h1 className="sr-only">Metrics in {datasource.name}</h1>
+        <SourceTitle kind="metrics" source={datasource} />
+        <section
+          aria-label="Query"
+          className="flex flex-col rounded-card border bg-card"
+        >
+          <QueryBar />
+        </section>
+        <div className="flex min-h-[34rem] min-w-0 flex-1 overflow-hidden rounded-card border bg-card narrow:min-h-[48rem]">
+          <ResultsSection
+            uid={uid}
+            query={q}
+            range={range}
+            mode={mode}
+            onMode={(next) =>
+              update({ mode: next === "table" ? "table" : undefined })
+            }
+            onSelectRange={(fromMs, toMs) =>
+              update({
+                from: String(Math.round(fromMs)),
+                to: String(Math.round(toMs)),
+              })
+            }
+            actions={null}
+          />
+        </div>
+      </div>
+    </MetricsWorkspaceContext>
+  )
+}

@@ -48,7 +48,7 @@ function renderList(
 }
 
 function setRecentAtLoad(logs: string[]) {
-  const loaded = { logs, traces: [] }
+  const loaded = { logs, traces: [], metrics: [] }
   useSourceMemory.setState({ ...loaded, atLoad: loaded })
 }
 

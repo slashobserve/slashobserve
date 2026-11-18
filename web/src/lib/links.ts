@@ -1,4 +1,5 @@
 import type { LogsSearch } from "@/logs/search"
+import type { MetricsSearch } from "@/metrics/search"
 import type { TraceSearch } from "@/traces/search"
 
 import { stringifySearch } from "./search"
@@ -88,6 +89,18 @@ export function tracesLink(uid: string, search: TraceSearch = {}) {
     params: { datasourceUid: uid },
     search,
   } as const
+}
+
+export function metricsLink(uid: string, search: MetricsSearch = {}) {
+  return {
+    to: "/metrics/$datasourceUid",
+    params: { datasourceUid: uid },
+    search,
+  } as const
+}
+
+export function metricsPath(uid: string): string {
+  return path("metrics", uid)
 }
 
 export function logsPath(uid: string): string {

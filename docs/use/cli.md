@@ -514,6 +514,22 @@ It prints `ATTRIBUTE`, `VALUE`, `SELECTED` and `BASELINE` columns: the attribute
 A note on standard error says when some traces were not found in the range or more differences exist than `--limit` allows, and `--json` prints the response body.
 `--compare` takes no trace id argument and cannot be combined with `--ask`, and `--baseline` and `--limit` need `--compare`; each mistake exits 2.
 
+## Metrics
+
+`bin/observe metrics query <promql> --datasource <uid>` runs a PromQL query on a Prometheus datasource and prints one line per series:
+
+```sh
+bin/observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datasource prom --from now-6h
+bin/observe metrics query 'up == 0' --datasource prom --instant
+```
+
+`--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard.
+Each line shows the series name with its labels, then the number of points and the last, minimum, maximum and mean value.
+`--instant` evaluates the query once at the end of the range and prints the value of each series.
+`--json` prints the response body.
+An invalid query exits 1 with the datasource's message, and so does a query that hits the server's limit of 15 seconds, 200 series or 100,000 points; the message names the limit.
+The [Metrics](metrics.md) page runs the same queries in the web app.
+
 ## Grafana connections
 
 ### Connect to a Grafana

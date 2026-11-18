@@ -25,7 +25,7 @@ An alert list panel shows the firing and pending alerts that a Prometheus `ALERT
 
 The [logs page and the trace search](../use/logs-and-traces.md) have gaps.
 The logs page reads Loki, ClickHouse, Elasticsearch and OpenSearch, and the trace search reads Tempo and ClickHouse.
-Metrics have no explore page of their own; try a PromQL or SQL query in the panel editor's live preview (see [Edit a panel](../use/edit-panel.md)), or ask the agent.
+The [metrics page](../use/metrics.md) reads Prometheus; a SQL query on ClickHouse metrics runs in the panel editor's live preview (see [Edit a panel](../use/edit-panel.md)).
 
 ## Sign-in needs an OIDC provider
 

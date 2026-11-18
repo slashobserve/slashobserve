@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { useParams, useRouterState, useSearch } from "@tanstack/react-router"
 
 import type { LogsSearch } from "@/logs/search"
+import type { MetricsSearch } from "@/metrics/search"
 import type { TraceSearch } from "@/traces/search"
 
 import { useSourceMemory } from "./datasource-memory"
@@ -9,6 +10,7 @@ import { useDatasources, type DatasourceStatus } from "./queries"
 import {
   listedSources,
   logsSwitchSearch,
+  metricsSwitchSearch,
   orderSources,
   sourcesOf,
   tracesSwitchSearch,
@@ -44,13 +46,15 @@ export function useRouteSource(kind: ExploreKind): {
 export function useSourceSwitchSearch(
   kind: ExploreKind,
   targetType: string
-): LogsSearch | TraceSearch {
+): LogsSearch | TraceSearch | MetricsSearch {
   const { current } = useRouteSource(kind)
   const search = useSearch({ strict: false })
   if (current === undefined) return {}
-  return kind === "logs"
-    ? logsSwitchSearch(search as LogsSearch, current.type, targetType)
-    : tracesSwitchSearch(search as TraceSearch)
+  if (kind === "logs") {
+    return logsSwitchSearch(search as LogsSearch, current.type, targetType)
+  }
+  if (kind === "traces") return tracesSwitchSearch(search as TraceSearch)
+  return metricsSwitchSearch(search as MetricsSearch)
 }
 
 export function useListedSources(kind: ExploreKind) {

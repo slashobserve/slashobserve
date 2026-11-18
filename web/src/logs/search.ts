@@ -111,7 +111,7 @@ function validLine(value: unknown): string | undefined {
   return line !== undefined && linePattern.test(line) ? line : undefined
 }
 
-function validObservation(value: unknown): string | undefined {
+export function validObservation(value: unknown): string | undefined {
   const id = firstString(value)
   return id !== undefined && uuidPattern.test(id) ? id : undefined
 }

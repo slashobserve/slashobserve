@@ -61,6 +61,15 @@ The logs page answers keys of its own, described in [Logs and traces](logs-and-t
 | `Esc` | Close the open line and return to it. |
 | `?` | Show this list. |
 
+## Metrics page keys
+
+The metrics page answers two keys, described in [Metrics](metrics.md).
+
+| Keys | What they do |
+| --- | --- |
+| `/` | Focus the query. |
+| `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+
 ## Trace search keys
 
 The trace search answers keys of its own too, described in [Logs and traces](logs-and-traces.md).

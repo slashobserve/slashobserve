@@ -21,7 +21,7 @@ export function typeLabel(type: string): string {
   }
 }
 
-export type ExploreTarget = "logs" | "traces"
+export type ExploreTarget = "logs" | "traces" | "metrics"
 
 export function exploreTargets(type: string): ExploreTarget[] {
   switch (type) {
@@ -33,6 +33,8 @@ export function exploreTargets(type: string): ExploreTarget[] {
       return ["logs"]
     case "tempo":
       return ["traces"]
+    case "prometheus":
+      return ["metrics"]
     default:
       return []
   }

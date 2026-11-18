@@ -38,6 +38,8 @@ import { Route as AuthedShellImportIndexRouteImport } from './routes/_authed/_sh
 import { Route as AuthedShellImportRepairRouteImport } from './routes/_authed/_shell/import/repair'
 import { Route as AuthedShellLogsIndexRouteImport } from './routes/_authed/_shell/logs/index'
 import { Route as AuthedShellLogsDatasourceUidRouteImport } from './routes/_authed/_shell/logs/$datasourceUid'
+import { Route as AuthedShellMetricsIndexRouteImport } from './routes/_authed/_shell/metrics/index'
+import { Route as AuthedShellMetricsDatasourceUidRouteImport } from './routes/_authed/_shell/metrics/$datasourceUid'
 import { Route as AuthedShellOObservationIdRouteImport } from './routes/_authed/_shell/o/$observationId'
 import { Route as AuthedShellObservationsIndexRouteImport } from './routes/_authed/_shell/observations/index'
 import { Route as AuthedShellProposalsProposalIdRouteImport } from './routes/_authed/_shell/proposals/$proposalId'
@@ -199,6 +201,17 @@ const AuthedShellLogsDatasourceUidRoute =
     path: '/logs/$datasourceUid',
     getParentRoute: () => AuthedShellRoute,
   } as any)
+const AuthedShellMetricsIndexRoute = AuthedShellMetricsIndexRouteImport.update({
+  id: '/metrics/',
+  path: '/metrics/',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellMetricsDatasourceUidRoute =
+  AuthedShellMetricsDatasourceUidRouteImport.update({
+    id: '/metrics/$datasourceUid',
+    path: '/metrics/$datasourceUid',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellOObservationIdRoute =
   AuthedShellOObservationIdRouteImport.update({
     id: '/o/$observationId',
@@ -304,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
   '/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -317,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/import/': typeof AuthedShellImportIndexRoute
   '/logs/': typeof AuthedShellLogsIndexRoute
+  '/metrics/': typeof AuthedShellMetricsIndexRoute
   '/observations/': typeof AuthedShellObservationsIndexRoute
   '/settings/': typeof AuthedShellSettingsIndexRoute
   '/traces/': typeof AuthedShellTracesIndexRoute
@@ -346,6 +361,7 @@ export interface FileRoutesByTo {
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
   '/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -359,6 +375,7 @@ export interface FileRoutesByTo {
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
   '/import': typeof AuthedShellImportIndexRoute
   '/logs': typeof AuthedShellLogsIndexRoute
+  '/metrics': typeof AuthedShellMetricsIndexRoute
   '/observations': typeof AuthedShellObservationsIndexRoute
   '/settings': typeof AuthedShellSettingsIndexRoute
   '/traces': typeof AuthedShellTracesIndexRoute
@@ -391,6 +408,7 @@ export interface FileRoutesById {
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
   '/_authed/_shell/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/_authed/_shell/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/_authed/_shell/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/_authed/_shell/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/_authed/_shell/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -405,6 +423,7 @@ export interface FileRoutesById {
   '/_authed/_shell/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/_authed/_shell/import/': typeof AuthedShellImportIndexRoute
   '/_authed/_shell/logs/': typeof AuthedShellLogsIndexRoute
+  '/_authed/_shell/metrics/': typeof AuthedShellMetricsIndexRoute
   '/_authed/_shell/observations/': typeof AuthedShellObservationsIndexRoute
   '/_authed/_shell/settings/': typeof AuthedShellSettingsIndexRoute
   '/_authed/_shell/traces/': typeof AuthedShellTracesIndexRoute
@@ -436,6 +455,7 @@ export interface FileRouteTypes {
     | '/findings/$findingId'
     | '/import/repair'
     | '/logs/$datasourceUid'
+    | '/metrics/$datasourceUid'
     | '/o/$observationId'
     | '/proposals/$proposalId'
     | '/settings/grafana'
@@ -449,6 +469,7 @@ export interface FileRouteTypes {
     | '/dashboards/'
     | '/import/'
     | '/logs/'
+    | '/metrics/'
     | '/observations/'
     | '/settings/'
     | '/traces/'
@@ -478,6 +499,7 @@ export interface FileRouteTypes {
     | '/findings/$findingId'
     | '/import/repair'
     | '/logs/$datasourceUid'
+    | '/metrics/$datasourceUid'
     | '/o/$observationId'
     | '/proposals/$proposalId'
     | '/settings/grafana'
@@ -491,6 +513,7 @@ export interface FileRouteTypes {
     | '/dashboards'
     | '/import'
     | '/logs'
+    | '/metrics'
     | '/observations'
     | '/settings'
     | '/traces'
@@ -522,6 +545,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
     | '/_authed/_shell/logs/$datasourceUid'
+    | '/_authed/_shell/metrics/$datasourceUid'
     | '/_authed/_shell/o/$observationId'
     | '/_authed/_shell/proposals/$proposalId'
     | '/_authed/_shell/settings/grafana'
@@ -536,6 +560,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/dashboards/'
     | '/_authed/_shell/import/'
     | '/_authed/_shell/logs/'
+    | '/_authed/_shell/metrics/'
     | '/_authed/_shell/observations/'
     | '/_authed/_shell/settings/'
     | '/_authed/_shell/traces/'
@@ -755,6 +780,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellLogsDatasourceUidRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/metrics/': {
+      id: '/_authed/_shell/metrics/'
+      path: '/metrics'
+      fullPath: '/metrics/'
+      preLoaderRoute: typeof AuthedShellMetricsIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/metrics/$datasourceUid': {
+      id: '/_authed/_shell/metrics/$datasourceUid'
+      path: '/metrics/$datasourceUid'
+      fullPath: '/metrics/$datasourceUid'
+      preLoaderRoute: typeof AuthedShellMetricsDatasourceUidRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/o/$observationId': {
       id: '/_authed/_shell/o/$observationId'
       path: '/o/$observationId'
@@ -885,6 +924,7 @@ interface AuthedShellRouteChildren {
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
   AuthedShellLogsDatasourceUidRoute: typeof AuthedShellLogsDatasourceUidRoute
+  AuthedShellMetricsDatasourceUidRoute: typeof AuthedShellMetricsDatasourceUidRoute
   AuthedShellOObservationIdRoute: typeof AuthedShellOObservationIdRoute
   AuthedShellProposalsProposalIdRoute: typeof AuthedShellProposalsProposalIdRoute
   AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
@@ -895,6 +935,7 @@ interface AuthedShellRouteChildren {
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellImportIndexRoute: typeof AuthedShellImportIndexRoute
   AuthedShellLogsIndexRoute: typeof AuthedShellLogsIndexRoute
+  AuthedShellMetricsIndexRoute: typeof AuthedShellMetricsIndexRoute
   AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
   AuthedShellTracesIndexRoute: typeof AuthedShellTracesIndexRoute
@@ -913,6 +954,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,
   AuthedShellLogsDatasourceUidRoute: AuthedShellLogsDatasourceUidRoute,
+  AuthedShellMetricsDatasourceUidRoute: AuthedShellMetricsDatasourceUidRoute,
   AuthedShellOObservationIdRoute: AuthedShellOObservationIdRoute,
   AuthedShellProposalsProposalIdRoute: AuthedShellProposalsProposalIdRoute,
   AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
@@ -923,6 +965,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellImportIndexRoute: AuthedShellImportIndexRoute,
   AuthedShellLogsIndexRoute: AuthedShellLogsIndexRoute,
+  AuthedShellMetricsIndexRoute: AuthedShellMetricsIndexRoute,
   AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
   AuthedShellTracesIndexRoute: AuthedShellTracesIndexRoute,

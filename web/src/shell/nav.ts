@@ -7,6 +7,7 @@ export type NavPath =
   | "/dashboards"
   | "/logs"
   | "/traces"
+  | "/metrics"
   | "/agents"
   | "/datasources"
   | "/people"
@@ -31,6 +32,7 @@ const navItems: readonly NavItem[] = [
   { to: "/dashboards", label: "Dashboards", group: "main", minRole: "viewer" },
   { to: "/logs", label: "Logs", group: "main", minRole: "viewer" },
   { to: "/traces", label: "Traces", group: "main", minRole: "viewer" },
+  { to: "/metrics", label: "Metrics", group: "main", minRole: "viewer" },
   { to: "/agents", label: "Agents", group: "main", minRole: "viewer" },
   {
     to: "/datasources",
