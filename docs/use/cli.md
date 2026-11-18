@@ -154,11 +154,11 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 
 ## Lists and paging
 
-Every command that lists rows takes `--limit` (50 rows by default, and a maximum that its help gives), `--cursor` and `--all`.
+Every command that lists rows takes `--limit` (a default and a maximum that its help gives, 50 rows by default for most lists and 20 for `activity` and `webhooks deliveries`), `--cursor` and `--all`.
 When more rows exist, the table is followed on standard error by `Showing 5 of 23. More: --cursor <cursor>, or --all for every page.`; the total is printed where the server counts it, as `dashboards list` does, and otherwise the line says that more exist.
 `--cursor` continues from the `next_cursor` a page ended with, which `--json` shows too, and a cursor the server does not recognise is refused with `invalid_request` and a hint to pass it exactly as printed.
 `--all` follows the cursor to the last page and prints one list; with `--json` it is one object whose list holds every row, with `next_cursor` null and any `total_count` kept.
-`--all` cannot be combined with `--cursor`, and `--limit` outside its range exits 2 before anything is sent.
+`--all` cannot be combined with `--cursor`, `activity --follow` cannot be combined with either, and `--limit` outside its range exits 2 before anything is sent.
 The MCP list tools take their own, smaller page sizes and the same `next_cursor`.
 
 ## Dashboards

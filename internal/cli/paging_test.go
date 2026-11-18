@@ -104,3 +104,52 @@ func TestPagingFlagsAreCheckedBeforeAnyRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestActivityAndDeliveriesPageLikeEveryList(t *testing.T) {
+	event := func(seq int) string {
+		return activityJSON(seq, "dashboard.created", "Sam", "2026-01-01T00:00:00Z", `{}`)
+	}
+	delivery := func(id string) string {
+		return `{"id":"` + id + `","delivery_id":"d` + id + `","event_type":"run.failed","activity_seq":1,"attempted_at":"2026-11-11T09:30:00Z","duration_ms":42,"status_code":500,"outcome":"failed","error_code":"status"}`
+	}
+	cases := []struct {
+		name  string
+		args  []string
+		pages map[string]string
+		want  []string
+	}{
+		{"activity", []string{"activity"}, map[string]string{
+			"":   `{"activity":[` + event(2) + `],"next_cursor":"p2"}`,
+			"p2": `{"activity":[` + event(1) + `],"next_cursor":null}`,
+		}, []string{"created a dashboard"}},
+		{"deliveries", []string{"webhooks", "deliveries", testWebhook}, map[string]string{
+			"":   `{"deliveries":[` + delivery("2") + `],"next_cursor":"p2"}`,
+			"p2": `{"deliveries":[` + delivery("1") + `],"next_cursor":null}`,
+		}, []string{"run.failed"}},
+	}
+	for _, tc := range cases {
+		var seen []string
+		server := dashboardPageServer(t, tc.pages, &seen)
+		_, stderr, code := runWith(server, tc.args...)
+		if code != 0 || !strings.Contains(stderr, "Showing 1, and more exist. More: --cursor p2, or --all") {
+			t.Fatalf("%s: exit %d, stderr %q", tc.name, code, stderr)
+		}
+		stdout, stderr, code := runWith(server, append(tc.args, "--all")...)
+		if code != 0 || stderr != "" || strings.Count(stdout, tc.want[0]) != 2 {
+			t.Fatalf("%s --all: exit %d, stdout %q, stderr %q", tc.name, code, stdout, stderr)
+		}
+		stdout, _, code = runWith(server, append(tc.args, "--cursor", "p2")...)
+		if code != 0 || strings.Count(stdout, tc.want[0]) != 1 {
+			t.Fatalf("%s --cursor: exit %d, stdout %q", tc.name, code, stdout)
+		}
+	}
+}
+
+func TestActivityFollowCannotStartFromACursorOrAllPages(t *testing.T) {
+	for _, flag := range [][]string{{"--all"}, {"--cursor", "p2"}} {
+		_, _, stderr, code := runAgainst(t, 200, `{"activity":[],"next_cursor":null}`, append([]string{"activity", "--follow"}, flag...)...)
+		if code != 2 || !strings.Contains(stderr, "--follow") {
+			t.Fatalf("%v: exit %d, stderr %q", flag, code, stderr)
+		}
+	}
+}
