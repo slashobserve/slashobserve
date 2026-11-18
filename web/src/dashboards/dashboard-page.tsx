@@ -321,7 +321,7 @@ function DashboardView({
     [search.from, search.to]
   )
   const rangeTooLong = useMemo(
-    () => isRangeTooLong(effectiveFrom, effectiveTo, Date.now(), timeOptions),
+    () => isRangeTooLong(effectiveFrom, effectiveTo, undefined, timeOptions),
     [effectiveFrom, effectiveTo, timeOptions]
   )
   const refreshValue = effectiveRefresh(search.refresh, spec)
