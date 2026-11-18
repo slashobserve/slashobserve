@@ -130,6 +130,14 @@ export function PanelMenu({
         commentOnPanel(setSearch, panel.id)
       },
     })
+  } else {
+    items.push({
+      id: "comment",
+      label: "Comment (needs Comment access on this folder)",
+      icon: <MessageSquarePlusIcon aria-hidden="true" />,
+      disabled: true,
+      onSelect: () => {},
+    })
   }
   const data = isDataPanel(panel)
   if (canInvestigate && data && agentAvailable) {

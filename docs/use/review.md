@@ -53,7 +53,7 @@ A comment is attached to the latest version when you write it.
 A comment that mentions no agent never asks an agent to do anything.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
-Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
+Without it you see "You can view dashboards in `<folder>`. Ask an Admin of this folder, or of this server, to give you Comment access."
 With Comment but not Edit you see "You can view and comment in `<folder>`. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 

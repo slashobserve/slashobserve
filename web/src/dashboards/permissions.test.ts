@@ -45,7 +45,7 @@ describe("readerNote", () => {
 
   it("names the folder in the read-only note", () => {
     expect(readerNote("read-only", "Payments")).toBe(
-      "You can view dashboards in Payments. Ask an Admin if you need to comment."
+      "You can view dashboards in Payments. Ask an Admin of this folder, or of this server, to give you Comment access."
     )
   })
 })

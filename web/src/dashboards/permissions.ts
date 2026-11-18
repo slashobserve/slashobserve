@@ -38,7 +38,7 @@ export function readerNote(
     case "comment-only":
       return `You can view and comment in ${folderTitle}. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges.`
     case "read-only":
-      return `You can view dashboards in ${folderTitle}. Ask an Admin if you need to comment.`
+      return `You can view dashboards in ${folderTitle}. Ask an Admin of this folder, or of this server, to give you Comment access.`
   }
 }
 
