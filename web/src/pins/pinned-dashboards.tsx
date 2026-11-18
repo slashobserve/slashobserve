@@ -25,7 +25,7 @@ export function useVisiblePins() {
   const pins = usePins().data ?? []
   return {
     pins: expanded ? pins : pins.slice(0, shown),
-    total: pins.length,
+    more: pins.length > shown,
     expanded,
     onToggle: () => setExpanded((open) => !open),
   }
@@ -53,14 +53,14 @@ export function pinRows(pins: readonly Pin[]): SubNavRow[] {
 
 export function PinnedDashboards({
   pins,
-  total,
+  more,
   expanded,
   onToggle,
   currentId,
   onNavigate,
 }: {
   pins: readonly Pin[]
-  total: number
+  more: boolean
   expanded: boolean
   onToggle: () => void
   currentId: string | null
@@ -88,7 +88,7 @@ export function PinnedDashboards({
           </li>
         )
       })}
-      {total > shown ? (
+      {more ? (
         <li>
           <button
             type="button"
@@ -96,7 +96,7 @@ export function PinnedDashboards({
             onClick={onToggle}
             className={cn(subNavMoreClass, "w-full")}
           >
-            {expanded ? "Show fewer pins" : `Show all ${total} pins`}
+            {expanded ? "Show fewer pins" : "Show all pins"}
           </button>
         </li>
       ) : null}

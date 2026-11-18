@@ -100,7 +100,7 @@ describe("PinnedDashboards", () => {
     )
     const { user } = renderWithProviders(<PinnedList />, { route })
 
-    const more = await screen.findByRole("button", { name: "Show all 12 pins" })
+    const more = await screen.findByRole("button", { name: "Show all pins" })
     expect(more).toHaveAttribute("aria-expanded", "false")
     const list = screen.getByRole("list", { name: "Pinned dashboards" })
     expect(within(list).getAllByRole("link")).toHaveLength(10)
