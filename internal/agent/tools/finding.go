@@ -89,6 +89,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil || !ok {
 		return res, err
 	}
+	save.Markdown = withReadsCaveat(save.Markdown, ReadsRefused(ctx))
 	save.AgentRequestID, save.DashboardID = requestID, dashboardID
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
@@ -125,13 +126,22 @@ func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, i
 	return save, Result{}, true, nil
 }
 
+func withReadsCaveat(markdown string, refused int) string {
+	if refused == 0 {
+		return markdown
+	}
+	return fmt.Sprintf("%s\n\n_Reading stopped early: %s refused after the run reached its limit of model calls, so the counts above may be partial. Ask again about the part that matters to read it fully._", markdown, plural(refused, "read was", "reads were"))
+}
+
 func findingMarkdown(raw string) (string, Result, bool) {
 	markdown := strings.TrimSpace(raw)
 	if markdown == "" {
 		return "", invalid("markdown is required"), false
 	}
 	if n := findings.Words(markdown); n > findings.MaxWords {
-		return "", toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, findings.MaxWords)), false
+		res := toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, findings.MaxWords))
+		res.Step = fmt.Sprintf("Finding was %d words, over the %d word limit; the agent must shorten it", n, findings.MaxWords)
+		return "", res, false
 	}
 	switch _, clean := revisions.CleanPrompt(markdown); {
 	case utf8.RuneCountInString(markdown) > findings.MaxMarkdownRunes:

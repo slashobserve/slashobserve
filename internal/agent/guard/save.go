@@ -39,6 +39,8 @@ type Outcome struct {
 	NotFound   bool
 	Rejected   bool
 	IssueCodes []string
+
+	FailingPanels []string
 }
 
 type Settled struct {
@@ -59,6 +61,7 @@ type saveBody struct {
 	ProposalID    string          `json:"proposal_id"`
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
+	FailingPanels []string        `json:"failing_panels"`
 	Issues        []struct {
 		Code string `json:"code"`
 	} `json:"issues"`
@@ -114,7 +117,7 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{Outcome: Outcome{NotFound: true}}, nil
 	}
 	s.Rejections++
-	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes()}}, nil
+	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes(), FailingPanels: body.failingPanels()}}, nil
 }
 
 func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settled, error) {
@@ -160,6 +163,16 @@ func (s *State) classifyBuildSave(res tools.Result) Settled {
 		}}
 	}
 	return Settled{Outcome: Outcome{Built: true}, Note: note}
+}
+
+func (b saveBody) failingPanels() []string {
+	var ids []string
+	for _, id := range b.FailingPanels {
+		if plainCode.MatchString(id) && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func (b saveBody) issueCodes() []string {

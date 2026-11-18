@@ -401,3 +401,23 @@ func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
 	}
 }
+
+func TestAFindingSavedAfterRefusedReadsSaysReadingStoppedEarly(t *testing.T) {
+	if got := withReadsCaveat("checkout is slow", 0); got != "checkout is slow" {
+		t.Fatalf("no refused read changed the text: %q", got)
+	}
+	one := withReadsCaveat("checkout is slow", 1)
+	if !strings.HasPrefix(one, "checkout is slow\n\n_Reading stopped early: 1 read was refused") || !strings.Contains(one, "counts above may be partial") {
+		t.Fatalf("one refused read: %q", one)
+	}
+	if many := withReadsCaveat("checkout is slow", 3); !strings.Contains(many, "3 reads were refused") {
+		t.Fatalf("three refused reads: %q", many)
+	}
+}
+
+func TestATooLongFindingStepSaysWhatToDoInWords(t *testing.T) {
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 401))
+	if ok || res.Step != "Finding was 401 words, over the 400 word limit; the agent must shorten it" {
+		t.Fatalf("ok %v, step %q", ok, res.Step)
+	}
+}

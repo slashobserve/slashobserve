@@ -154,6 +154,10 @@ type dashboardOut struct {
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
+	SavedBy                  string          `json:"saved_by"`
+	Origin                   string          `json:"origin"`
+	SavedAt                  string          `json:"saved_at"`
+	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -237,7 +241,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}

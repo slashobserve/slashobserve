@@ -141,7 +141,7 @@ func TestNudgeFor(t *testing.T) {
 }
 
 func TestTheSaveNowMessageNamesTheSixthCall(t *testing.T) {
-	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question; reads in the same call as a save still run."
+	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."
 	if got := rules[guardSaveNow].message; got != want {
 		t.Fatalf("message = %q", got)
 	}
@@ -243,6 +243,31 @@ func TestAdmitCountsReadsRefusedByTheWindow(t *testing.T) {
 	}
 }
 
+func TestAFindingSavedAfterRefusedReadsCarriesTheirCount(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Window.Calls = maxCallsBeforeSave - 1
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
+	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))
+	if _, stop := s.EndTurn(); stop != nil {
+		t.Fatalf("stop = %+v", stop)
+	}
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`))
+	if adm.Verdict != Dispatch || adm.ReadsRefused != 2 {
+		t.Fatalf("admission = %+v", adm)
+	}
+}
+
+func TestAnotherSaveCarriesNoRefusedReadCount(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Counts.SaveNowRefusals = 3
+	s.BeginTurn(true)
+	if adm := s.Admit(0, jsonCall("update_panels", `{"n": 1}`)); adm.ReadsRefused != 0 {
+		t.Fatalf("admission = %+v", adm)
+	}
+}
+
 func TestSettleClassifiesASave(t *testing.T) {
 	ok := func(body string) (tools.Result, []byte) { return tools.Result{}, []byte(body) }
 	fail := func(body string) (tools.Result, []byte) { return tools.Result{IsError: true}, []byte(body) }
@@ -314,6 +339,13 @@ func TestSettleClassifiesASave(t *testing.T) {
 			return fail(`{"code":"proposal_required","message":"m","removed":[{"kind":"panel","id":"a"}]}`)
 		}, func(t *testing.T, got Settled, err error, s *State) {
 			if err != nil || !got.Outcome.Rejected || s.Rejections != 1 || !reflect.DeepEqual(got.Outcome.IssueCodes, []string{"proposal_required"}) {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		}},
+		{"a rejection names its failing panels", tools.ModeCreate, "update_panels", 0, func() (tools.Result, []byte) {
+			return fail(`{"code":"invalid_spec","failing_panels":["a","a","b c","b"],"issues":[{"code":"query_empty"}]}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"a", "b"}) {
 				t.Fatalf("got %+v, %v", got, err)
 			}
 		}},

@@ -201,6 +201,17 @@ type Run struct {
 
 type runKey struct{}
 
+type readsRefusedKey struct{}
+
+func WithReadsRefused(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, readsRefusedKey{}, n)
+}
+
+func ReadsRefused(ctx context.Context) int {
+	n, _ := ctx.Value(readsRefusedKey{}).(int)
+	return n
+}
+
 func WithRun(ctx context.Context, run Run) context.Context {
 	return context.WithValue(ctx, runKey{}, run)
 }

@@ -27,6 +27,7 @@ type State struct {
 	Build      *tools.BuildProgress `json:"build,omitempty"`
 	Suggestion json.RawMessage      `json:"suggestion,omitempty"`
 	IssueCodes []string             `json:"issue_codes,omitempty"`
+	Failing    []string             `json:"failing_panels,omitempty"`
 	Settled    Settled              `json:"settled"`
 	Usage      revisions.Usage      `json:"usage"`
 	Turn       OpenTurn             `json:"turn"`
