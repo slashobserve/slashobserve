@@ -132,7 +132,8 @@ func TestAGlobalAnnotationLandsInGeneralAndIsVisibleToAViewer(t *testing.T) {
 
 func TestDeletingAnAnnotationAppendsOneRowWithItsDashboard(t *testing.T) {
 	r := newRig(t)
-	onDashboard := r.create(t, admin, CreateInput{DashboardID: r.hidden, From: at(0), Text: "one"})
+	to := at(20)
+	onDashboard := r.create(t, admin, CreateInput{DashboardID: r.hidden, PanelID: "p1", From: at(0), To: &to, Tags: []string{"deploy"}, Text: "one"})
 	global := r.create(t, editor, CreateInput{From: at(1), Text: "two"})
 	if err := r.service.Delete(t.Context(), admin, mustParse(t, onDashboard.ID)); err != nil {
 		t.Fatal(err)
@@ -150,8 +151,9 @@ func TestDeletingAnAnnotationAppendsOneRowWithItsDashboard(t *testing.T) {
 	if deleted.TargetID != onDashboard.ID || deleted.DashboardID != r.hidden.String() || deleted.FolderID != r.folderOf(t, r.hidden) {
 		t.Errorf("dashboard annotation delete = %+v", deleted)
 	}
-	if string(deleted.Data) != "{}" || deleted.Actor.ID != admin.ID {
-		t.Errorf("delete data %s actor %+v", deleted.Data, deleted.Actor)
+	sameJSON(t, deleted.Data, `{"panel_id":"p1","tags":["deploy"],"time_from":"2026-11-01T10:00:00Z","time_to":"2026-11-01T10:20:00Z"}`)
+	if deleted.Actor.ID != admin.ID {
+		t.Errorf("delete actor %+v", deleted.Actor)
 	}
 	deletedGlobal := got[3]
 	if deletedGlobal.TargetID != global.ID || deletedGlobal.FolderID != r.general(t) {

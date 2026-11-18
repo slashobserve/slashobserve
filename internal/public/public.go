@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -193,16 +194,24 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	row, err := s.db.Queries().CreatePublicLink(ctx, dbsqlc.CreatePublicLinkParams{
-		DashboardID:   dashboardID,
-		TokenHash:     hash,
-		DisplayPrefix: displayPrefix(token),
-		Variables:     string(in.Mode),
-		Selections:    stored,
-		ExpiresAt:     timestamp(in.ExpiresAt),
-		CreatedByKind: string(by.Kind),
-		CreatedByID:   creatorID,
-		CreatedByName: creatorName(by),
+	var row dbsqlc.CreatePublicLinkRow
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = q.CreatePublicLink(ctx, dbsqlc.CreatePublicLinkParams{
+			DashboardID:   dashboardID,
+			TokenHash:     hash,
+			DisplayPrefix: displayPrefix(token),
+			Variables:     string(in.Mode),
+			Selections:    stored,
+			ExpiresAt:     timestamp(in.ExpiresAt),
+			CreatedByKind: string(by.Kind),
+			CreatedByID:   creatorID,
+			CreatedByName: creatorName(by),
+		})
+		if err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
 	})
 	if db.IsForeignKeyViolation(err) {
 		return Created{}, folders.ErrNotFound
@@ -250,14 +259,21 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, dashboardID, li
 	if err := s.manage(ctx, by, dashboardID); err != nil {
 		return err
 	}
-	n, err := s.db.Queries().DeletePublicLink(ctx, dbsqlc.DeletePublicLinkParams{ID: linkID, DashboardID: dashboardID})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := recordLink(ctx, q, activity.TypePublicLinkRevoked, by, linkID); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		n, err := q.DeletePublicLink(ctx, dbsqlc.DeletePublicLinkParams{ID: linkID, DashboardID: dashboardID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *Service) Resolve(ctx context.Context, token string) (Resolved, error) {
