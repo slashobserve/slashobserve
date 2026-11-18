@@ -173,7 +173,7 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 		{"canceled", false, func(_ *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			run = ended(run, revisions.StateCanceled)
 			run.FailureCode = pgtype.Text{String: string(revisions.FailureCanceled), Valid: true}
-			return run, "The run was canceled."
+			return run, "The run was stopped before it finished."
 		}},
 		{"proposal", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			proposal := r.createProposal(t, run.DashboardID)
