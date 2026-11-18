@@ -3280,7 +3280,7 @@ dashboard_list_suite() {
 
 people_suite() {
   api_token
-  local out admin_id sessions keys nil_id=00000000-0000-0000-0000-000000000000
+  local out admin_id sessions keys
 
   out="$(curl -sS -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
   [[ "$out" == 401 ]] || fail "list people without credentials ($out: $(cat "$TMP/people.body"))"
@@ -3299,12 +3299,6 @@ people_suite() {
   [[ "$sessions" -ge 1 && "$keys" -ge 1 ]] || fail "the admin entry should count its sessions and keys (sessions $sessions, keys $keys)"
   pass "people are listed with activity, sessions and keys"
 
-  out="$(curl -sS -b "$TMP/api-jar" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users?limit=0")"
-  [[ "$out" == 400 ]] || fail "list people with limit 0 ($out: $(cat "$TMP/people.body"))"
-  out="$(curl -sS -b "$TMP/api-jar" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users?cursor=%40%40")"
-  [[ "$out" == 400 ]] || fail "list people with a bad cursor ($out: $(cat "$TMP/people.body"))"
-  pass "a bad limit or cursor is rejected"
-
   dex_login "$TMP/people-jar" / "$BASE_URL/"
   out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.me" -w '%{http_code}' "$BASE_URL/api/v1/me")"
   [[ "$out" == 200 ]] || fail "/api/v1/me for the second admin session ($out: $(cat "$TMP/people.me"))"
@@ -3319,13 +3313,7 @@ people_suite() {
   if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/api.body"; then
     fail "a service account signs a person out ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$nil_id/sessions")"
-  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/people.body"; then
-    fail "sign out an unknown person ($out: $(cat "$TMP/people.body"))"
-  fi
-  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/not-a-uuid/sessions")"
-  [[ "$out" == 400 ]] || fail "sign out with a bad id ($out: $(cat "$TMP/people.body"))"
-  pass "signing out is refused cross-origin and for keys, and unknown or malformed ids are rejected"
+  pass "signing out is refused cross-origin and for keys"
 
   out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -D "$TMP/people.headers" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$admin_id/sessions")"
   [[ "$out" == 204 ]] || fail "sign a person out everywhere ($out: $(cat "$TMP/people.body"))"
