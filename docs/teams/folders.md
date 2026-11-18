@@ -31,7 +31,7 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
 Every person has one personal folder, My Dashboards, that only they see; Admins cannot see it either.
 A dashboard there is private: nobody else can open it, find it in a list or search, or reach it through the agent.
 Every new dashboard you make starts there unless you choose a folder: dashboards from the chat, including a stopped build kept with **Save what was built**, and imports whose export names no folder.
-To share one, publish it: open its **Share** pane, choose a folder where you have Edit and choose **Publish**, or use **Publish to folder** in its row menu on the Dashboards page.
+To share one, publish it: open its **Share** pane, choose a folder where you have Edit and choose **Publish**, which names who will be able to open the dashboard and asks you to confirm, or use **Publish to folder** in its row menu on the Dashboards page.
 Publishing moves the dashboard with its versions, comments and link, and saves no version.
 Nothing moves into My Dashboards; to keep a private copy of a dashboard, duplicate it into My Dashboards.
 A move into My Dashboards answers `409 personal_folder`.

@@ -140,7 +140,11 @@ export function SharePane({
         </section>
       )}
       {folder.personal ? (
-        <PublishSection dashboardId={dashboardId} headingId={whoId} />
+        <PublishSection
+          dashboardId={dashboardId}
+          title={spec.title}
+          headingId={whoId}
+        />
       ) : (
         <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
       )}

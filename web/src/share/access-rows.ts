@@ -100,3 +100,12 @@ export function canManageAccess(
 ): boolean {
   return canManage && !folder.general
 }
+
+export function manageNote(folder: {
+  title: string
+  general: boolean
+}): string {
+  return folder.general
+    ? "General is open to everyone, so it has no access list to change and no public links."
+    : `Only people who manage ${folder.title} can add people to it or create public links.`
+}

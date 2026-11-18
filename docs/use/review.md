@@ -112,7 +112,7 @@ It carries the time range and the variable values you are looking at, and each h
 "Link to one panel" picks a data or text panel by title and copies a link that opens the dashboard with that panel focused, expanding its row if the row is collapsed.
 A link grants nothing: the person who opens it signs in, and sees "Dashboard not found" when the dashboard's folder is not open to them, the same page as for a link with a wrong id.
 "Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
-People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
+People who can manage a folder other than General also get a **Manage folder access** button; everyone else sees who can add people and create public links, namely the people who manage that folder; see [Folders](../teams/folders.md).
 
 ## Resolve and reopen
 
