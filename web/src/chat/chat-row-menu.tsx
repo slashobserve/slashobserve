@@ -37,6 +37,8 @@ import {
   type RequestSummary,
 } from "@/observe/queries"
 
+import { deleteChatText } from "./chat-state"
+
 const maxTitleLength = 120
 
 function failureText(error: unknown): string {
@@ -141,7 +143,7 @@ export function ChatRowMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
-              It leaves your chat lists. The dashboard it made stays.
+              {deleteChatText(request)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {problem !== null ? (

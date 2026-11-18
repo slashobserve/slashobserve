@@ -70,6 +70,25 @@ function succeededOutcome(request: RequestSummary): string {
   }
 }
 
+export function deleteChatText(request: RequestSummary): string {
+  const left = "It leaves your chat lists and cannot be added back."
+  switch (request.result_kind) {
+    case "version":
+    case "partial_version":
+      return `${left} The dashboard it made stays.`
+    case "observation":
+      return request.observation_title === null
+        ? `${left} The answer stays in its observation, which is not deleted.`
+        : `${left} The answer stays in the observation "${request.observation_title}", which is not deleted.`
+    case "suggestion":
+      return `${left} The panel suggestion stays.`
+    case "proposal":
+      return `${left} The proposal stays.`
+    case "none":
+      return `${left} Nothing else is removed.`
+  }
+}
+
 export function chatOutcome(request: RequestSummary): string {
   switch (request.state) {
     case "queued":

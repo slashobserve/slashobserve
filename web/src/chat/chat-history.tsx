@@ -3,24 +3,19 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { BookmarkPlusIcon, HistoryIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
-import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { buildStatusText } from "@/observe/build"
-import {
-  requestStatusView,
-  useMyRequests,
-  type RequestSummary,
-} from "@/observe/queries"
+import { useMyRequests, type RequestSummary } from "@/observe/queries"
 import { canSavePrompts } from "@/prompts/access"
 import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
 
 import { groupChats } from "./chat-list"
+import { ChatStatus } from "./chat-status"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
 import { useHistoryPanel, type HistoryTab } from "./history-store"
 import { ImportHistory } from "./import-history"
@@ -375,29 +370,9 @@ function HistoryRow({
 }
 
 function HistoryMeta({ request }: { request: RequestSummary }) {
-  const view = requestStatusView(request)
-  const statusText =
-    request.status === "failed" &&
-    (request.build !== null || request.continued_by !== null)
-      ? buildStatusText({
-          status: request.status,
-          build: request.build,
-          failureCode: request.failure_code,
-          continued: request.continued_by !== null,
-        })
-      : view.text
-
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-      <StatusLabel tone={view.tone}>
-        {request.status === "failed" ? (
-          <span className="max-w-[260px] truncate" title={statusText}>
-            {statusText}
-          </span>
-        ) : (
-          statusText
-        )}
-      </StatusLabel>
+      <ChatStatus request={request} truncate />
       {request.dashboard_title !== null ? (
         <span className="max-w-[200px] truncate">
           {request.dashboard_title}

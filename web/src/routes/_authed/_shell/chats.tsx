@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { ChatsPage } from "@/chat/chats-page"
 import { parseChatsSearch } from "@/chat/chats-search"
 import { useDocumentTitle } from "@/lib/document-title"
+import { PromptPanelHost } from "@/prompts/prompt-panel-host"
 
 export const Route = createFileRoute("/_authed/_shell/chats")({
   staticData: { crumbs: [{ label: "Chats" }] },
@@ -15,9 +16,12 @@ function ChatsRoute() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   return (
-    <ChatsPage
-      search={search}
-      onSearch={(next) => void navigate({ search: next, replace: true })}
-    />
+    <>
+      <ChatsPage
+        search={search}
+        onSearch={(next) => void navigate({ search: next, replace: true })}
+      />
+      <PromptPanelHost />
+    </>
   )
 }

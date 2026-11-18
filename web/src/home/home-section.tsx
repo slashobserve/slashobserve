@@ -127,10 +127,20 @@ export function SectionList<T>({
   )
 }
 
-export function RowText({ title, meta }: { title: string; meta: ReactNode }) {
+export function RowText({
+  title,
+  titleId,
+  meta,
+}: {
+  title: string
+  titleId?: string
+  meta: ReactNode
+}) {
   return (
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[13px] font-medium">{title}</span>
+      <span id={titleId} className="block truncate text-[13px] font-medium">
+        {title}
+      </span>
       <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
         {meta}
       </span>

@@ -165,7 +165,7 @@ A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
 If its worker is gone, the request ends canceled at once instead.
 The request ends as failed with the code `canceled` and keeps what was built, so you can save or continue it.
-The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and History shows "You stopped this run" instead of a red error.
+The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and the chat lists, History included, say "Stopped" with "Canceled before anything was built" or how far it got, instead of a red error.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
 Other people's follow-ups on the same dashboard wait behind a run until it ends, so a run that goes nowhere holds them back until its owner cancels it or one of its limits stops it.
@@ -287,9 +287,12 @@ Search finds chats whose title or prompt contains the text, ignoring case, **Sta
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
 
+Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
 An answer is written into an observation, because a finding always lives in one; it goes in your My Dashboards, where only you see it, under the short title described above.
+On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
+Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.
@@ -298,7 +301,7 @@ Each chat has a menu with these actions:
 
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
-- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists. The dashboard it made stays, and the chat page still opens from its link.
+- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
 
 Only the person who started a chat can rename, pin or delete it.
 
