@@ -26,6 +26,13 @@ SlashObserve imports Prometheus, ClickHouse, Loki, Tempo, Elasticsearch (the `el
 A Grafana datasource whose type has no configured datasource here does not block the import: its panels import as placeholders that say so, such as "No Loki datasource is configured.".
 A datasource of another type, such as InfluxDB, imports its panels as placeholders that say "Influxdb is not supported yet.".
 
+## Import a Spec you exported
+
+A dashboard exported with **Export spec JSON** is an ObserveSpec, not a Grafana dashboard.
+Drop or paste it on the import page and the page recognises it by its `specVersion`, skips the Grafana conversion and datasource matching, and creates the dashboard from the Spec as it is, in the folder you pick, as version 1.
+The server validates it and runs every query as it does for [`observe dashboards apply`](cli.md), and a Spec it refuses is reported with the first problem.
+No import report is made, because nothing was converted.
+
 ## Choose the folder
 
 The dashboard goes into a folder, chosen in this order:
@@ -44,6 +51,7 @@ When no folder has the title, an Editor or Admin creates it.
 When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error, even with `-q`).
 
 The **Folder** card on the web page lists the folders where you may create dashboards, except General, because a title of `General` means your default folder, which **Automatic** already gives you.
+The page starts on the shared folder you last imported or created a dashboard into in this browser, as long as you can still create in it; pick **Automatic** to use the export's folder or your My Dashboards instead.
 After an import the page says "In folder `<title>`" and shows the `folder_note` when the dashboard did not go where the request or the export asked.
 The folder is chosen before the dashboard is saved, so an import that then fails can leave a new, empty folder behind; delete it from its settings page.
 
@@ -53,6 +61,7 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
+The preview before that runs no query, so its **Needs a look** count covers only what the importer already knows, and the page says so; panels whose queries fail show up as unverified after the import.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
 The **Imported, not verified** problem filter on the [dashboards list](dashboard-health.md#in-the-dashboards-list) lists every dashboard that still has unverified panels or variables and sends them to the agent.
 
@@ -78,6 +87,10 @@ When any panel carried Grafana alert rules (an alert list of Grafana-managed ale
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 The import record's `grafana_uid` holds the dashboard's Grafana uid, so `GET /api/v1/grafana/resolve/{uid}` finds the dashboard from an old Grafana link.
 Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; importing the same uid again makes a separate dashboard whose record has an empty `grafana_uid`, until the dashboard holding it is deleted.
+
+The preview's `existing` field names that dashboard when you can see it, and the import page then says "Already imported as `<title>` (version `<n>`)" and, when you can edit it, offers **Update `<title>`**.
+Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history; **Import as new dashboard** still makes a second copy.
+The API takes the same choice as `update_dashboard` on `POST /api/v1/imports`, which answers 200 instead of 201.
 
 ## Dashboard settings
 

@@ -12,17 +12,20 @@ import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
 
 import { DatasourcesCard } from "./datasources-card"
-import { importFailure, previewFailure } from "./errors"
+import { importFailure, previewFailure, specFailure } from "./errors"
 import { FolderCard } from "./folder-card"
 import {
   automaticFolder,
+  defaultFolder,
   folderChoices,
+  readRememberedFolder,
   requestedFolder,
 } from "./folder-choice"
 import type { HandedImport } from "./handoff"
 import {
   newSource,
   previewQuery,
+  useCreateDashboardFromSpec,
   useImportDashboard,
   type Mapping,
   type Source,
@@ -38,6 +41,7 @@ import {
 import { ReportCard } from "./report-card"
 import { blockingReason } from "./report"
 import { SourceCard } from "./source-card"
+import { readSpecSource, specSummaryLine } from "./spec-source"
 
 const noMapping: Mapping = {}
 
@@ -64,12 +68,26 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
   const handedFolder = folders.data?.find(
     (candidate) => candidate.id === initial?.folder
   )?.title
-  const folder = pickedFolder ?? handedFolder ?? automaticFolder
+  const [remembered] = useState(readRememberedFolder)
+  const folder =
+    pickedFolder ?? handedFolder ?? defaultFolder(remembered, choices)
   const importDashboard = useImportDashboard()
-  const resetImport = importDashboard.reset
+  const createFromSpec = useCreateDashboardFromSpec()
+  const resetImportMutation = importDashboard.reset
+  const resetSpecMutation = createFromSpec.reset
+  const resetImport = useCallback(() => {
+    resetImportMutation()
+    resetSpecMutation()
+  }, [resetImportMutation, resetSpecMutation])
   const result = importDashboard.data ?? null
+  const created = result ?? createFromSpec.data ?? null
+  const specSource = useMemo(
+    () => (source ? readSpecSource(source.text) : null),
+    [source]
+  )
+  const saving = importDashboard.isPending || createFromSpec.isPending
 
-  const preview = useQuery(previewQuery(source, mapping))
+  const preview = useQuery(previewQuery(specSource ? null : source, mapping))
   const previewError = preview.isError ? previewFailure(preview.error) : null
   const previewData = preview.data
   const stale = preview.isPlaceholderData
@@ -176,18 +194,30 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
     setMapping(next)
   }
 
-  const runImport = () => {
+  const runImport = (update?: string) => {
     if (!source) return
+    const title = requestedFolder(folder, choices)
+    if (specSource) {
+      createFromSpec.mutate({
+        spec: specSource.spec,
+        folderId: folders.data?.find((candidate) => candidate.title === title)
+          ?.id,
+      })
+      return
+    }
     importDashboard.mutate({
       source,
       mapping,
       folder: requestedFolder(folder, choices),
+      update,
     })
   }
 
   const importError = importDashboard.isError
     ? importFailure(importDashboard.error)
-    : null
+    : createFromSpec.isError
+      ? specFailure(createFromSpec.error)
+      : null
   const datasources =
     result?.import.datasources ??
     importError?.datasources ??
@@ -202,14 +232,13 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
       ? (blockingReason(previewData.datasources) ??
         "Some datasources are not configured.")
       : null
-  const importDisabled =
-    !previewData ||
-    notReadyReason !== null ||
-    stale ||
-    importDashboard.isPending
+  const existing = specSource ? null : (previewData?.existing ?? null)
+  const importDisabled = specSource
+    ? created !== null || saving
+    : !previewData || notReadyReason !== null || stale || saving
 
   let status
-  if (result) {
+  if (created) {
     status = (
       <div
         id={statusId}
@@ -218,12 +247,12 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
       >
         <p>
           <StatusLabel tone="ok">
-            Imported as {result.dashboard.title}, version{" "}
-            {result.version.version}
+            {specSource ? "Created" : "Imported"} as {created.dashboard.title},
+            version {created.version.version}
           </StatusLabel>
         </p>
-        <p>In folder {result.dashboard.folder.title}.</p>
-        {result.folder_note ? <p>{result.folder_note}</p> : null}
+        <p>In folder {created.dashboard.folder.title}.</p>
+        {result?.folder_note ? <p>{result.folder_note}</p> : null}
       </div>
     )
   } else if (importError) {
@@ -246,15 +275,31 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
         {notReadyReason}
       </p>
     )
+  } else if (existing) {
+    status = (
+      <p id={statusId} className="text-[13px]">
+        Already imported as{" "}
+        <Link
+          {...dashboardLink(existing.dashboard_id, existing.title)}
+          className="font-medium underline"
+        >
+          {existing.title}
+        </Link>{" "}
+        (version {existing.version}).{" "}
+        {existing.can_update
+          ? "Import as new makes a second copy; update it to save this file as its next version."
+          : "You cannot edit it, so this import makes a second copy."}
+      </p>
+    )
   }
 
-  const actions = result ? (
+  const actions = created ? (
     <>
       <Button variant="outline" className="font-normal" onClick={startOver}>
         Import another
       </Button>
       <Link
-        {...dashboardLink(result.dashboard.id, result.dashboard.title)}
+        {...dashboardLink(created.dashboard.id, created.dashboard.title)}
         className={cn(buttonVariants())}
       >
         Open dashboard
@@ -269,13 +314,29 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
       >
         Cancel
       </Link>
+      {existing?.can_update ? (
+        <Button
+          variant="outline"
+          className="font-normal"
+          disabled={importDisabled}
+          onClick={() => runImport(existing.dashboard_id)}
+        >
+          Update {existing.title}
+        </Button>
+      ) : null}
       <Button
         disabled={importDisabled}
-        aria-busy={importDashboard.isPending || undefined}
+        aria-busy={saving || undefined}
         aria-describedby={notReadyReason ? statusId : undefined}
-        onClick={runImport}
+        onClick={() => runImport()}
       >
-        {importDashboard.isPending ? "Importing..." : "Import as new dashboard"}
+        {saving
+          ? specSource
+            ? "Creating..."
+            : "Importing..."
+          : specSource
+            ? "Create dashboard"
+            : "Import as new dashboard"}
       </Button>
     </>
   )
@@ -283,17 +344,23 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
   return (
     <div className="flex w-full flex-col gap-4">
       <PageHeader
-        title="Import from Grafana"
-        description="Every panel is kept; what cannot render yet becomes a placeholder listed in the report."
+        title={specSource ? "Import a dashboard" : "Import from Grafana"}
+        description={
+          specSource
+            ? "A dashboard exported from SlashObserve is created from its Spec as it is."
+            : "Every panel is kept; what cannot render yet becomes a placeholder listed in the report."
+        }
       />
       <SourceCard
         source={source}
         hint={
-          previewData
-            ? summaryLine(previewData.summary)
-            : previewError
-              ? ""
-              : "Reading the dashboard..."
+          specSource
+            ? specSummaryLine(specSource)
+            : previewData
+              ? summaryLine(previewData.summary)
+              : previewError
+                ? ""
+                : "Reading the dashboard..."
         }
         dragging={dragging}
         error={sourceError}
@@ -307,7 +374,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
             choices={choices}
             value={requestedFolder(folder, choices) ?? automaticFolder}
             failed={folders.isError}
-            disabled={result !== null || importDashboard.isPending}
+            disabled={created !== null || saving}
             onChange={setPickedFolder}
           />
           {datasources ? (
@@ -315,7 +382,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
               datasources={datasources}
               mapping={mapping}
               onPick={pick}
-              disabled={stale || result !== null || importDashboard.isPending}
+              disabled={stale || created !== null || saving}
               busy={stale}
             />
           ) : null}
