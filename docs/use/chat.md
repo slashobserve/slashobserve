@@ -113,6 +113,7 @@ The agent builds it panel by panel.
 Every message opens its chat page at `/c/<request id>` first, because the agent decides only while it works whether the message is a question or a dashboard.
 The moment it saves the first panel of a new dashboard, the page moves to the build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved; a question never shows it.
 Until then the status line reads "Working on your request" and the steps list what the agent is doing.
+
 Opening `/b/<request id>` of a request that has not saved a panel yet, from a bookmark or a reload, takes you to its chat page instead of an empty canvas.
 While the agent keeps the message box disabled, the note under it says to wait for the answer or cancel the run.
 Between two messages of the agent's live text there is a blank line.
