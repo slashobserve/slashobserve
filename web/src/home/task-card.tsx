@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 
 import { ChatComposer, useOpenSent, useSendExample } from "@/chat/chat-composer"
-import { examplePrompts } from "@/chat/examples"
+import { examplePrompts, noDashboards } from "@/chat/examples"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDatasources } from "@/datasources/queries"
@@ -25,8 +25,6 @@ type Props = {
   onTabChange: (tab: HomeTab) => void
   autoFocusTab: HomeTab | null
 }
-
-const noDashboards: readonly { id: string; title: string }[] = []
 
 const triggerClass =
   "h-7 flex-none gap-1.5 rounded-control px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground data-active:bg-muted data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-muted narrow:h-11"

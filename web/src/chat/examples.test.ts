@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest"
 
-import { examplePrompts } from "./examples"
+import { examplePrompts, type ExampleDashboard } from "./examples"
 
-function labels(
-  types: string[],
-  dashboards: { id: string; title: string }[] = []
-) {
+const errorsQuestion = "Which services had the most errors in the last hour?"
+const slowestQuestion = "Which routes are slowest right now?"
+
+function labels(types: string[], dashboards: ExampleDashboard[] = []) {
   return examplePrompts({ types, dashboards }).map((example) => example.label)
 }
 
@@ -14,7 +14,12 @@ describe("examplePrompts", () => {
     [
       "prometheus alone",
       ["prometheus"],
-      ["Service health by pod, last 6h", "p95 latency by route"],
+      [
+        "Service health by pod, last 6h",
+        "p95 latency by route",
+        errorsQuestion,
+        slowestQuestion,
+      ],
     ],
     [
       "prometheus and loki",
@@ -23,6 +28,8 @@ describe("examplePrompts", () => {
         "Service health by pod, last 6h",
         "Error logs by service, last hour",
         "p95 latency by route",
+        errorsQuestion,
+        slowestQuestion,
       ],
     ],
     [
@@ -31,6 +38,7 @@ describe("examplePrompts", () => {
       [
         "Error logs by service, last hour",
         "Slowest traces by service, last hour",
+        errorsQuestion,
       ],
     ],
     [
@@ -40,9 +48,15 @@ describe("examplePrompts", () => {
         "Service health by pod, last 6h",
         "Error logs by service, last hour",
         "p95 latency by route",
+        errorsQuestion,
+        slowestQuestion,
       ],
     ],
-    ["tempo alone", ["tempo"], ["Slowest traces by service, last hour"]],
+    [
+      "tempo alone",
+      ["tempo"],
+      ["Slowest traces by service, last hour", slowestQuestion],
+    ],
     ["no datasources", [], []],
   ])("offers examples for %s", (_name, types, expected) => {
     expect(labels(types)).toEqual(expected)
@@ -52,8 +66,8 @@ describe("examplePrompts", () => {
     const [first] = examplePrompts({
       types: ["prometheus"],
       dashboards: [
-        { id: "d1", title: "Checkout" },
-        { id: "d2", title: "Payments" },
+        { id: "d1", title: "Checkout", canEdit: true },
+        { id: "d2", title: "Payments", canEdit: true },
       ],
     })
     expect(first).toEqual({
@@ -64,29 +78,46 @@ describe("examplePrompts", () => {
   })
 
   test("offers no dashboard example without prometheus", () => {
-    expect(labels(["loki"], [{ id: "d1", title: "Checkout" }])).toEqual([
-      "Error logs by service, last hour",
-    ])
+    expect(
+      labels(["loki"], [{ id: "d1", title: "Checkout", canEdit: true }])
+    ).toEqual(["Error logs by service, last hour", errorsQuestion])
+  })
+
+  test("names only a dashboard the person can edit", () => {
+    const dashboards = [
+      { id: "d1", title: "Not mine", canEdit: false },
+      { id: "d2", title: "Mine", canEdit: true },
+    ]
+    expect(labels(["prometheus"], dashboards)[0]).toBe(
+      "Add a latency row to Mine"
+    )
+    expect(labels(["prometheus"], dashboards.slice(0, 1))[0]).toBe(
+      "Service health by pod, last 6h"
+    )
   })
 
   test("clips a dashboard title over 40 characters", () => {
-    const title = "A".repeat(41)
-    expect(labels(["prometheus"], [{ id: "d1", title }])[0]).toBe(
+    const long = (title: string) => [{ id: "d1", title, canEdit: true }]
+    expect(labels(["prometheus"], long("A".repeat(41)))[0]).toBe(
       `Add a latency row to ${"A".repeat(40)}...`
     )
-    expect(
-      labels(["prometheus"], [{ id: "d1", title: "B".repeat(40) }])[0]
-    ).toBe(`Add a latency row to ${"B".repeat(40)}`)
+    expect(labels(["prometheus"], long("B".repeat(40)))[0]).toBe(
+      `Add a latency row to ${"B".repeat(40)}`
+    )
   })
 
-  test("keeps at most 4 examples", () => {
+  test("keeps at most 3 builds and 2 questions", () => {
     expect(
-      labels(["prometheus", "loki", "tempo"], [{ id: "d1", title: "Checkout" }])
+      labels(
+        ["prometheus", "loki", "tempo"],
+        [{ id: "d1", title: "Checkout", canEdit: true }]
+      )
     ).toEqual([
       "Add a latency row to Checkout",
       "Service health by pod, last 6h",
       "Error logs by service, last hour",
-      "Slowest traces by service, last hour",
+      errorsQuestion,
+      slowestQuestion,
     ])
   })
 })

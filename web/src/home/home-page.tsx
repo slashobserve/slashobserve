@@ -10,6 +10,7 @@ import {
   RecentChatsList,
   RecentImportsList,
 } from "./tab-lists"
+import { StartHere } from "./start-here"
 import { ExampleChips, TaskCard } from "./task-card"
 
 type Props = {
@@ -50,6 +51,7 @@ export function HomePage({ tab, onTabChange }: Props) {
       <NeedsYouList />
       <WorkingNowList />
       <PickUpList />
+      <StartHere />
     </div>
   )
 }
