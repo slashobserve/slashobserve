@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -6,10 +7,13 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react"
+import { createPortal } from "react-dom"
 import { ArrowUpRightIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { zonedDateTime } from "@/lib/time"
 
+import { useAnnotationActions } from "./actions"
 import {
   cardLeft,
   clusterFlags,
@@ -18,9 +22,11 @@ import {
   type MarkerFlag,
 } from "./markers"
 import type { Annotation } from "./queries"
+import { timeWithZone } from "./time"
 
 const flagWidth = 10
 const flagHeight = 8
+const viewportMargin = 8
 const cardWidth = 280
 const labelTextLength = 80
 const maxCardEntries = 5
@@ -61,9 +67,7 @@ export function AnnotationLayer({
         <Flag
           key={`${flag.annotations[0]?.id ?? ""}:${flag.x}`}
           flag={flag}
-          width={width}
           height={height}
-          spaceAbove={height - flagHeight + top}
           zone={zone}
         />
       ))}
@@ -72,10 +76,10 @@ export function AnnotationLayer({
 }
 
 function timeText(annotation: Annotation, zone: string | undefined): string {
-  const from = zonedDateTime(annotation.time_from, zone)
+  const from = timeWithZone(annotation.time_from, zone)
   return annotation.time_to === null
     ? from
-    : `${from} to ${zonedDateTime(annotation.time_to, zone)}`
+    : `${from} to ${timeWithZone(annotation.time_to, zone)}`
 }
 
 function flagLabel(flag: MarkerFlag, zone: string | undefined): string {
@@ -87,21 +91,40 @@ function flagLabel(flag: MarkerFlag, zone: string | undefined): string {
   return more > 0 ? `${label} and ${more} more` : label
 }
 
+type Anchor = { x: number; top: number }
+
 function Flag({
   flag,
-  width,
   height,
-  spaceAbove,
   zone,
 }: {
   flag: MarkerFlag
-  width: number
   height: number
-  spaceAbove: number
   zone: string | undefined
 }) {
-  const [open, setOpen] = useState(false)
+  const [anchor, setAnchor] = useState<Anchor | null>(null)
+  const open = anchor !== null
   const flagRef = useRef<HTMLButtonElement>(null)
+  const setOpen = (next: boolean | ((current: boolean) => boolean)) => {
+    const wanted = typeof next === "function" ? next(open) : next
+    if (!wanted) {
+      setAnchor(null)
+      return
+    }
+    const rect = flagRef.current?.getBoundingClientRect()
+    if (rect) setAnchor({ x: rect.left + rect.width / 2, top: rect.top })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const close = () => setAnchor(null)
+    window.addEventListener("scroll", close, true)
+    window.addEventListener("resize", close)
+    return () => {
+      window.removeEventListener("scroll", close, true)
+      window.removeEventListener("resize", close)
+    }
+  }, [open])
 
   const enter = (event: PointerEvent) => {
     if (event.pointerType !== "touch") setOpen(true)
@@ -143,31 +166,31 @@ function Flag({
         onFocus={() => setOpen(true)}
         onClick={() => setOpen((value) => !value)}
       />
-      {open ? (
-        <Card
-          annotations={flag.annotations}
-          left={cardLeft(flag.x, cardWidth, width)}
-          bottom={height - flagHeight}
-          maxHeight={Math.max(0, spaceAbove)}
-          zone={zone}
-        />
-      ) : null}
+      {anchor
+        ? createPortal(
+            <Card
+              annotations={flag.annotations}
+              anchor={anchor}
+              zone={zone}
+              onAct={() => setOpen(false)}
+            />,
+            document.body
+          )
+        : null}
     </div>
   )
 }
 
 function Card({
   annotations,
-  left,
-  bottom,
-  maxHeight,
+  anchor,
   zone,
+  onAct,
 }: {
   annotations: readonly Annotation[]
-  left: number
-  bottom: number
-  maxHeight: number
+  anchor: Anchor
   zone: string | undefined
+  onAct: () => void
 }) {
   const shown = annotations.slice(0, maxCardEntries)
   const more = annotations.length - shown.length
@@ -175,11 +198,26 @@ function Card({
     <div
       role="group"
       aria-label="Annotation"
-      className="pointer-events-auto absolute z-20 flex -translate-y-full flex-col gap-2 overflow-auto rounded-card border border-border bg-popover p-2 text-xs text-popover-foreground"
-      style={{ left, top: bottom, width: cardWidth, maxHeight }}
+      className="pointer-events-auto fixed z-50 flex flex-col gap-2 overflow-auto rounded-card border border-border bg-popover p-2 text-xs text-popover-foreground"
+      style={{
+        left:
+          cardLeft(
+            anchor.x - viewportMargin,
+            cardWidth,
+            window.innerWidth - 2 * viewportMargin
+          ) + viewportMargin,
+        bottom: window.innerHeight - anchor.top,
+        width: cardWidth,
+        maxHeight: Math.max(0, anchor.top - viewportMargin),
+      }}
     >
       {shown.map((annotation) => (
-        <Entry key={annotation.id} annotation={annotation} zone={zone} />
+        <Entry
+          key={annotation.id}
+          annotation={annotation}
+          zone={zone}
+          onAct={onAct}
+        />
       ))}
       {more > 0 ? (
         <div className="text-muted-foreground">{more} more</div>
@@ -191,10 +229,13 @@ function Card({
 function Entry({
   annotation,
   zone,
+  onAct,
 }: {
   annotation: Annotation
   zone: string | undefined
+  onAct: () => void
 }) {
+  const actions = useAnnotationActions()
   const parts = linkParts(annotation.text, window.location.origin)
   return (
     <div className="flex flex-col gap-1">
@@ -240,6 +281,30 @@ function Entry({
               {tag}
             </span>
           ))}
+        </div>
+      ) : null}
+      {actions?.canChange(annotation) ? (
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              onAct()
+              actions.edit(annotation)
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              onAct()
+              actions.remove(annotation)
+            }}
+          >
+            Delete
+          </Button>
         </div>
       ) : null}
     </div>

@@ -1,11 +1,11 @@
 ---
 title: Annotations
-description: Mark deploys, incidents and maintenance on a moment or a range of time, see them as markers on charts, and add them from the CLI or the API.
+description: Mark deploys, incidents and maintenance on a moment or a range of time, see them as markers on charts, and add, edit and delete them from the dashboard, the CLI or the API.
 ---
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts draw them as markers, you add them with the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, you edit their text and tags with the CLI, the HTTP API or an MCP client, and you delete them through the HTTP API or the CLI.
+Charts draw them as markers, you add them from the dashboard, the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, you edit their text and tags from the dashboard, the CLI, the HTTP API or an MCP client, and you delete them from the dashboard, the HTTP API or the CLI.
 
 ## Global and dashboard annotations
 
@@ -28,6 +28,8 @@ Time series, candlestick and state timeline panels draw every annotation in thei
 A moment is a vertical line in the info colour, and a range is a light band between two lines.
 A small flag at the bottom of each line opens a card when you hover, focus or tap it.
 The card shows the text, the tags, who added it and when, and says `Every dashboard` for a global one.
+Times carry the zone they are shown in, such as `2026-11-18 14:22:00 UTC`.
+The card opens above the flag and is never cut off by the panel's edge; it closes when you scroll or resize.
 Markers closer than a few pixels share one flag, and its card lists them newest first.
 
 An annotation with a `panel_id` appears only on that panel, and one without appears on every panel of its dashboard.
@@ -36,9 +38,25 @@ Global annotations appear on every dashboard.
 A link in the text becomes a link in the card: an `http` or `https` address, or a path on this server such as `/d/<id>`.
 Other text, `javascript:` and `mailto:` addresses included, stays plain text.
 
+## Add, edit and delete on the dashboard
+
+Anyone with Edit on the dashboard's folder sees an `Add annotation` button in the top row.
+It opens a form with what happened, a start time, an optional end time and tags, and puts the annotation on this dashboard.
+Times are typed as `2026-11-18 14:22` in the dashboard's time zone, or as `now-15m`; a time before 1970 or after 2099 is refused.
+Editors and Admins can also choose `Every dashboard` for a global annotation.
+
+On a time series panel, hold Cmd (Ctrl on Windows and Linux) and click to add an annotation at that moment, or drag to cover a range.
+The form opens with the time filled in and the panel as the scope, so the marker appears on that panel only; choose `This dashboard` to show it on all of them.
+A state timeline has no chart gesture, so use the button there.
+
+The card of an annotation you added, or any annotation if you are an Admin, has `Edit` and `Delete`.
+Edit changes the text and tags; the time, dashboard and author stay.
+Delete asks first and cannot be undone.
+The `Add annotation` button and the Cmd-click gesture are hidden in kiosk mode and for viewers.
+
 ## Filter markers by tag
 
-When the dashboard's annotations have tags, the top row shows an `Annotations` menu.
+When the dashboard's annotations have tags, the top row shows an `Annotations` menu on a dashboard that exists; a missing or unreadable dashboard shows none.
 Pick one or more tags to keep only the markers that have any of them, or `All annotations` to show every marker again.
 The choice is kept in the address as `ann=deploy,incident`, so a shared link shows the same markers.
 
