@@ -52,7 +52,9 @@ Each query row can use another datasource through its own menu.
 A row is "Query A", "Query B" and so on, up to 26.
 Type the query in the editor; a query is at most 20000 characters.
 The server lints the query, and the problems show under the line with "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
-A clean query shows "Query is valid.", and "Lint is unavailable right now." means the check did not run, not that the query is wrong.
+A clean query shows "Syntax is valid.": the lint checks only how the query is written, and the preview is what runs it.
+"Lint is unavailable right now." means the check did not run, not that the query is wrong.
+
 A Prometheus range query also has an **Exemplars** checkbox; when it is on, a time series or a heatmap marks the exemplars Prometheus stored for the query as diamonds on the chart, and hovering one lists its labels (a trace id first) in the tooltip.
 **Legend** sets the name of each series (up to 200 characters), and **Add query** adds a row.
 **Remove query A** appears when the panel has more than one query.
@@ -78,13 +80,15 @@ It draws the panel in the type you chose, and reports its state:
 - "The draft is not valid yet." while a query has an error;
 - "Waiting for variables." until the variables the queries use have values;
 - "Running the draft.";
-- "Draft ran `<time>`, 3 series" when it finished.
+- "Draft ran `<time>`, 3 series" when it finished;
+- "The draft did not run." with the reason, such as "Query A failed: invalid query: ...", in place of the chart.
 
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
 A preview is limited like the agent's draft queries: 15 seconds, 200 series, 100,000 points and 1,000 rows, and it is never cached.
 It runs for the signed-in person only, not for service-account keys.
 If the datasource is slow or busy, the preview says so ("The datasource is not answering.", "Too many requests right now. The preview runs again in a moment.", or "Query A failed: it took too long to run.") and the draft stays as it is.
+When the draft itself is at fault, such as a query that does not parse, the footer reads "Fix the query to save." and the save button is disabled until the preview runs again; a slow or unreachable datasource does not disable it.
 
 ### Ask the agent for a query
 
@@ -112,7 +116,7 @@ The settings column has:
   A series hidden from the legend is still drawn.
 - Time series, Trend and Candlestick panels also have **Tooltip sort** (Series order, Ascending or Descending, which is the default), **Hide zero values in the tooltip**, **Show stacked totals in the tooltip** and **Tooltip max width** and **Tooltip max height** (pixels, 100 to 2000); the sort, zero and total options apply to a tooltip that lists all series.
 - For Stat, Gauge, Bar gauge and Pie chart panels, **Calculation** picks how each field is reduced to one value.
-  **Calculation**, **Legend values**, **Sort legend by** and a table's **Footer** list the common reducers, and a **More** search box below each one finds any other reducer by name or id.
+  **Calculation**, **Legend values**, **Sort legend by** and a table's **Footer** list the common reducers, and a **More** search box below each one finds any other reducer by name or id; **Legend values** and **Footer** call the last non-empty value "Last (not null)" and the last value, empty or not, "Last".
   **Show every value** shows one value per row instead, **Row limit** (1 to 5000) caps the rows shown per field, and **Fields** shows a field by name or by a pattern such as `/^cpu/` instead of every number field.
 - A Stat panel also has **Color mode** (Value, Background or None), **Show graph** with its **Graph style** (Area or Line), **Text** (Auto, Value, Name, Value and name or None), **Alignment** (Auto or Center), **Title size** and **Value size** (pixels from 1 to 200, empty for the default), **Show percent change** with its **Percent change size** (pixels from 1 to 200) and **Percent change color** (Standard, Inverted or Same as value, applied to the arrow only), and **Wide layout**, which puts the name beside the value on wide tiles.
 - Pie chart panels add **Pie type**, **Slice order** (Largest first, Smallest first or Data order), **Slice labels** (Name, Value and Percent, written on the slices that are big enough), **Label name size** and **Label value size** (pixels, empty for 12), and the legend and tooltip options: **Legend** (bottom, right or hidden), **Legend values** (Value and Percent, both until you choose), **Legend mode** (List or Table), **Sort legend by** (Name or Value, "Series order" until you choose), **Sort descending** and **Legend width**.
@@ -184,11 +188,13 @@ Some edits are refused whatever the JSON says:
 
 - The `id` must stay the same ("The panel id must stay "`<id>`"").
 - A panel cannot become a row or a placeholder, or move between data, text, dashboard list and news kinds.
+- An unknown type reports only that ("`"timeseriesx"` is not a panel type."), not the fields another kind of panel would need.
   Use the **Panel type** picker to change a data panel's type.
 
 ## Save as a new version
 
-The footer states what you changed: "No changes", "2 changes: query, title", or "Fix the JSON to save.".
+The footer states what you changed: "No changes", "2 changes: query, title", "Fix the JSON to save." or "Fix the query to save.".
+While you type a title, the editor heading and the panel on the dashboard show it; the dashboard goes back to the saved title when you close the editor without saving.
 **Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`.
 **Discard** drops the draft.
 
@@ -197,6 +203,7 @@ It saves the whole dashboard with your panel replaced, as the next version after
 The save runs only your panel's queries, as the agent's `update_panels` saves do, and a panel that fails or returns no data is refused.
 A panel that was already unverified and still fails is kept, marked "Unverified" with the reason it failed when it was saved.
 On success the toast reads "Saved version 4" and you return to the timeline.
+When the check cannot finish, the editor says "The panel could not be checked right now." and names each query and datasource that did not answer, for example "Query B on tempo: query timed out after 15s", with **Try again**.
 
 If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
 It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".

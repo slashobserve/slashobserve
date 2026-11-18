@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button"
 import { guardLoad } from "@/panels/renderer-load"
 import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
 import { isEditablePanel } from "@/panel-editor/draft"
+import { useDraftTitle } from "@/panel-editor/draft-title"
 import { useNewPanels, withNewPanel } from "@/panel-editor/new-panel"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
@@ -165,6 +166,7 @@ export function EditPane({
   )
 
   const pending = useNewPanels((state) => state.panels[dashboardId])
+  const draftTitle = useDraftTitle(panelId)
   const adding =
     pending?.id === panelId && findPanel(spec, panelId) === undefined
   const editorSpec = useMemo(
@@ -315,7 +317,7 @@ export function EditPane({
           adding
             ? "Add a panel"
             : panel
-              ? `Edit ${panelTitle(panel)}`
+              ? `Edit ${draftTitle ?? panelTitle(panel)}`
               : "Panel not found"
         }
         description={

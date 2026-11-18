@@ -967,7 +967,7 @@ function DashboardView({
             />
           ) : null}
           <UnsavedBar dashboardId={dashboardId} />
-          {kiosk ? null : (
+          {kiosk || editingPanel ? null : (
             <CanvasTools
               permissions={permissions}
               idle={!editing}

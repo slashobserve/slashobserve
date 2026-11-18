@@ -62,6 +62,7 @@ import {
   startDraft,
   type EditablePanel,
 } from "./draft"
+import { useDraftTitles } from "./draft-title"
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
@@ -75,6 +76,8 @@ import {
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
+  querySources,
+  transientLines,
   withoutQuery,
   type Problem,
 } from "./save-problem"
@@ -239,6 +242,17 @@ export default function PanelEditor({
       ?.scrollIntoView({ block: "nearest" })
   }, [issuesByQuery])
 
+  const [runBlocked, setRunBlocked] = useState(false)
+  const showDraftTitle = useDraftTitles((state) => state.show)
+  const draftPanelId = draft.panel.id
+  const draftTitle = draft.panel.title
+  useEffect(() => {
+    showDraftTitle(draftPanelId, draftTitle)
+  }, [showDraftTitle, draftPanelId, draftTitle])
+  useEffect(
+    () => () => showDraftTitle(draftPanelId, undefined),
+    [showDraftTitle, draftPanelId]
+  )
   const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
@@ -257,6 +271,7 @@ export default function PanelEditor({
     dirty &&
     !locked &&
     !jsonBlocked &&
+    !runBlocked &&
     queriesOk &&
     titleOk
 
@@ -325,7 +340,17 @@ export default function PanelEditor({
             }
             if (error.status === 422) {
               if (error.issues.length > 0 && error.issues.every(isTransient)) {
-                setProblem({ kind: "transient" })
+                setProblem({
+                  kind: "transient",
+                  lines: transientLines(
+                    error.issues,
+                    entry.pointer,
+                    querySources(
+                      normalised,
+                      (ref) => resolveDatasource(ref).uid
+                    )
+                  ),
+                })
                 return
               }
               setProblem({
@@ -423,9 +448,11 @@ export default function PanelEditor({
 
   const footerSummary = jsonBlocked
     ? "Fix the JSON to save."
-    : propose
-      ? `${changeSummary(changes)}. An editor merges your change`
-      : changeSummary(changes)
+    : runBlocked
+      ? "Fix the query to save."
+      : propose
+        ? `${changeSummary(changes)}. An editor merges your change`
+        : changeSummary(changes)
   let saveLabel = `Save as version ${latestVersion + 1}`
   if (propose) saveLabel = "Propose change"
   else if (newer > 0) saveLabel = `Apply my changes to version ${newer}`
@@ -454,6 +481,7 @@ export default function PanelEditor({
           draft={draft.panel}
           timeRange={timeRange}
           selections={selections}
+          onSaveBlockedChange={setRunBlocked}
         />
         <div className={view === "editor" ? "contents" : "hidden"}>
           <AskAgent

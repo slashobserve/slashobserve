@@ -1,5 +1,7 @@
 import type { ApiIssue } from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
+import { lowerFirst } from "@/lib/text"
+import { isDataPanel, isPanelQuery, queryRef, type Panel } from "@/spec"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { MergeConflict } from "@/proposals/queries"
@@ -19,7 +21,7 @@ export type Problem =
       pointer: string
       refs: (string | null)[]
     }
-  | { kind: "transient" }
+  | { kind: "transient"; lines: string[] }
   | { kind: "invalid"; issues: JsonIssue[] }
   | { kind: "clash"; version: number; issues: JsonIssue[] }
   | { kind: "failed"; message: string }
@@ -77,6 +79,43 @@ export function withoutQuery(
     issues,
     refs: problem.refs.map((item) => (item === ref ? null : item)),
   }
+}
+
+type QuerySource = { ref: string; datasource: string | undefined }
+
+export function querySources(
+  panel: Panel,
+  resolve: (ref: string) => string
+): QuerySource[] {
+  if (!isDataPanel(panel)) return []
+  return panel.queries.map((query, index) => {
+    const ref =
+      (isPanelQuery(query) ? query.datasource : undefined) ?? panel.datasource
+    return {
+      ref: queryRef(query, index),
+      datasource: ref === undefined ? undefined : resolve(ref),
+    }
+  })
+}
+
+export function transientLines(
+  issues: readonly ApiIssue[],
+  pointer: string,
+  queries: readonly QuerySource[]
+): string[] {
+  const prefix = `${pointer}/queries/`
+  const lines = issues.filter(isTransient).map((issue) => {
+    const message = issue.message
+    if (!issue.path.startsWith(prefix)) return message
+    const query = queries[Number(issue.path.slice(prefix.length).split("/")[0])]
+    if (query === undefined) return message
+    const where =
+      query.datasource === undefined
+        ? `Query ${query.ref}`
+        : `Query ${query.ref} on ${query.datasource}`
+    return `${where}: ${lowerFirst(message)}`
+  })
+  return [...new Set(lines)]
 }
 
 export function rejectedQueryLines(
@@ -178,6 +217,9 @@ export function SaveProblem({
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-pretty">
           <span className="min-w-[min(100%,16rem)] flex-1">
             {transientText}
+            {problem.lines.length > 0 ? (
+              <IssueList lines={problem.lines} />
+            ) : null}
           </span>
           <RetryButton onRetry={onRetry} />
         </AlertDescription>

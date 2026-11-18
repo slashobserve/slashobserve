@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useDraftTitle } from "@/panel-editor/draft-title"
 import type { ResolvedLink } from "@/panels/field-config"
 import { errorMessage, PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
@@ -100,7 +101,8 @@ export function PanelChrome({
   children,
 }: Props) {
   const titleId = useId()
-  const title = panelTitle(panel)
+  const draftTitle = useDraftTitle(editing ? panel.id : null)
+  const title = draftTitle ?? panelTitle(panel)
   const emphasized = editing || highlighted
   const timeOverride = isDataPanel(panel) ? timeOverrideLabel(panel) : null
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
