@@ -46,6 +46,7 @@ type Message struct {
 	EditedAt    *time.Time
 	Mentions    []Mention
 	CanEdit     bool
+	CanDelete   bool
 	BlockID     string
 	ReplyTo     *ReplyTo
 }

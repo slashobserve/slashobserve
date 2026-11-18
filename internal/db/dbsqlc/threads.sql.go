@@ -171,6 +171,24 @@ func (q *Queries) DeleteMentions(ctx context.Context, messageID pgtype.UUID) err
 	return err
 }
 
+const deleteMessage = `-- name: DeleteMessage :exec
+DELETE FROM thread_messages WHERE id = $1
+`
+
+func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteMessage, id)
+	return err
+}
+
+const deleteThread = `-- name: DeleteThread :exec
+DELETE FROM threads WHERE id = $1
+`
+
+func (q *Queries) DeleteThread(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteThread, id)
+	return err
+}
+
 const editMessage = `-- name: EditMessage :one
 UPDATE thread_messages
 SET body = $1::text, edited_at = clock_timestamp(), updated_at = clock_timestamp()
@@ -702,6 +720,54 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	return id_2, err
 }
 
+const mentionCandidates = `-- name: MentionCandidates :many
+SELECT id, name, email, role, groups FROM users
+WHERE id <> $1::uuid
+  AND (name ILIKE $2::text ESCAPE '\' OR email ILIKE $2::text ESCAPE '\')
+ORDER BY lower(coalesce(nullif(name, ''), email)), id
+LIMIT $3
+`
+
+type MentionCandidatesParams struct {
+	Self     pgtype.UUID
+	Pattern  string
+	RowLimit int32
+}
+
+type MentionCandidatesRow struct {
+	ID     pgtype.UUID
+	Name   string
+	Email  string
+	Role   string
+	Groups []string
+}
+
+func (q *Queries) MentionCandidates(ctx context.Context, arg MentionCandidatesParams) ([]MentionCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, mentionCandidates, arg.Self, arg.Pattern, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MentionCandidatesRow
+	for rows.Next() {
+		var i MentionCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Role,
+			&i.Groups,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const mentionableGrant = `-- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
 FROM oauth_grants g
@@ -914,14 +980,48 @@ func (q *Queries) ThreadTranscript(ctx context.Context, arg ThreadTranscriptPara
 	return items, nil
 }
 
+const threadsWithOtherAuthors = `-- name: ThreadsWithOtherAuthors :many
+SELECT DISTINCT thread_id FROM thread_messages
+WHERE thread_id = ANY($1::uuid[])
+  AND NOT (author_kind = $2::text AND author_id = $3::uuid)
+`
+
+type ThreadsWithOtherAuthorsParams struct {
+	ThreadIds  []pgtype.UUID
+	AuthorKind string
+	AuthorID   pgtype.UUID
+}
+
+func (q *Queries) ThreadsWithOtherAuthors(ctx context.Context, arg ThreadsWithOtherAuthorsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, threadsWithOtherAuthors, arg.ThreadIds, arg.AuthorKind, arg.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var thread_id pgtype.UUID
+		if err := rows.Scan(&thread_id); err != nil {
+			return nil, err
+		}
+		items = append(items, thread_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const userMentionNames = `-- name: UserMentionNames :many
-SELECT id, name, email FROM users WHERE id = ANY($1::uuid[])
+SELECT id, name, email, role, groups FROM users WHERE id = ANY($1::uuid[])
 `
 
 type UserMentionNamesRow struct {
-	ID    pgtype.UUID
-	Name  string
-	Email string
+	ID     pgtype.UUID
+	Name   string
+	Email  string
+	Role   string
+	Groups []string
 }
 
 func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]UserMentionNamesRow, error) {
@@ -933,7 +1033,13 @@ func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]Us
 	var items []UserMentionNamesRow
 	for rows.Next() {
 		var i UserMentionNamesRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.Email); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Role,
+			&i.Groups,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

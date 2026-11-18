@@ -98,6 +98,8 @@ paths:
     $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
   /threads:
     $ref: "./paths/threads.yaml#/threads"
+  /threads/mentionable:
+    $ref: "./paths/threads.yaml#/threads-mentionable"
   /threads/{thread_id}/messages:
     $ref: "./paths/threads.yaml#/threads-threadid-messages"
   /threads/{thread_id}/resolve:
@@ -1443,7 +1445,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -2280,6 +2282,7 @@ components:
         - panel_present
         - mentions
         - can_edit
+        - can_delete
         - revision
       properties:
         id:
@@ -2357,6 +2360,9 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this comment; see `can_delete` on a thread message.
         revision:
           type: object
           nullable: true
@@ -2488,7 +2494,7 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, block_id, reply_to]
+      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, can_delete, block_id, reply_to]
       properties:
         id:
           type: string
@@ -2517,7 +2523,10 @@ components:
             $ref: "#/components/schemas/Mention"
         can_edit:
           type: boolean
-          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment; false for a reply an agent run wrote.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this message. Its author may, while they can still comment, unless an agent run wrote it; the first message of a thread also needs that nobody else wrote in the thread. Anyone who manages the target's folder may delete any message.
         block_id:
           type: string
           format: uuid
@@ -2587,6 +2596,26 @@ components:
         can_comment:
           type: boolean
           description: Whether the caller may start threads and write messages on the target.
+    MentionablePeople:
+      type: object
+      additionalProperties: false
+      required: [people]
+      properties:
+        people:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, email]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have none.
+              email:
+                type: string
     ThreadEnvelope:
       type: object
       additionalProperties: false
@@ -4979,7 +5008,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 43
+          maxItems: 44
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5049,7 +5078,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 43
+          maxItems: 44
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5068,7 +5097,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 43
+          maxItems: 44
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

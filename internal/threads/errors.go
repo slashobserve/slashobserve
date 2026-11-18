@@ -10,6 +10,7 @@ var (
 	ErrNotFound       = errors.New("comment not found")
 	ErrTargetNotFound = errors.New("target not found")
 	ErrNotAuthor      = errors.New("only a person can edit their own comment; an agent's reply cannot be edited")
+	ErrCannotDelete   = errors.New("only the author of a comment, or someone who manages its folder, can delete it; an agent's reply can be deleted only by someone who manages the folder")
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )

@@ -137,7 +137,14 @@ VALUES (@message_id::uuid, sqlc.narg('user_id')::uuid, sqlc.narg('agent')::text,
 SELECT * FROM thread_mentions WHERE message_id = ANY(@message_ids::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id, agent_grant_id, agent_service_account_id;
 
 -- name: UserMentionNames :many
-SELECT id, name, email FROM users WHERE id = ANY(@ids::uuid[]);
+SELECT id, name, email, role, groups FROM users WHERE id = ANY(@ids::uuid[]);
+
+-- name: MentionCandidates :many
+SELECT id, name, email, role, groups FROM users
+WHERE id <> @self::uuid
+  AND (name ILIKE @pattern::text ESCAPE '\' OR email ILIKE @pattern::text ESCAPE '\')
+ORDER BY lower(coalesce(nullif(name, ''), email)), id
+LIMIT @row_limit;
 
 -- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
@@ -162,3 +169,14 @@ FROM threads t
 JOIN thread_messages m ON m.thread_id = t.id
 WHERE t.observation_id = ANY(@observation_ids::uuid[])
 GROUP BY t.observation_id;
+
+-- name: DeleteMessage :exec
+DELETE FROM thread_messages WHERE id = @id;
+
+-- name: DeleteThread :exec
+DELETE FROM threads WHERE id = @id;
+
+-- name: ThreadsWithOtherAuthors :many
+SELECT DISTINCT thread_id FROM thread_messages
+WHERE thread_id = ANY(@thread_ids::uuid[])
+  AND NOT (author_kind = @author_kind::text AND author_id = @author_id::uuid);

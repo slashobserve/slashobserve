@@ -149,6 +149,7 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsAddCommand(),
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
+		a.commentsDeleteCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
 	)
@@ -529,6 +530,25 @@ func (a *app) runCommentsEdit(cmd *cobra.Command, args []string) error {
 	}
 	out.confirm("Edited comment %s", text(edited.Message.ID))
 	return nil
+}
+
+func (a *app) commentsDeleteCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <comment-id>",
+		Short: "Delete one comment",
+		Long:  "Deleting the first comment of a thread deletes the whole thread.\nThe author can delete their own comment while they can still comment on its target, unless an agent run wrote it, and anyone who manages the target's folder can delete any comment.",
+		Args:  exactArgs(1, "one comment id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodDelete, "messages/"+id, nil, func(out *output, _ []byte) error {
+				out.confirm("Deleted comment %s", text(id))
+				return nil
+			})
+		},
+	}
 }
 
 type resolution struct {

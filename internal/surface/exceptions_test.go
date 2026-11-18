@@ -26,6 +26,7 @@ var exceptions = map[string]exception{
 	"runAction": {MCP: panelActions, CLI: panelActions},
 
 	"deleteAnnotation": {MCP: noMCPDeletes},
+	"deleteMessage":    {MCP: noMCPDeletes},
 
 	"getAssetImage":   {MCP: personOnly, CLI: personOnly},
 	"getAssetGeojson": {MCP: personOnly, CLI: personOnly},
@@ -92,6 +93,8 @@ var exceptions = map[string]exception{
 	"listAgents":        {MCP: connectedAgents, CLI: personOnly},
 	"listAgentRuns":     {MCP: connectedAgents, CLI: personOnly},
 	"listWorkingRuns":   {MCP: connectedAgents, CLI: personOnly},
+
+	"listMentionablePeople": {MCP: notBuilt, CLI: notBuilt},
 
 	"listInbox":     {CLI: personOnly},
 	"markInboxRead": {MCP: personOnly, CLI: personOnly},

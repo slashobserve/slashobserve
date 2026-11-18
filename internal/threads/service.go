@@ -185,12 +185,13 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions)
 		if err != nil {
 			return err
 		}
 		thread = threadOf(threadRow, at.latestPanels, sc.abilities.Comment)
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(messageRow, by, sc, false)
 		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
 			return err
 		}
@@ -247,7 +248,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions)
 		if err != nil {
 			return err
 		}
@@ -256,6 +257,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 			return err
 		}
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(messageRow, by, sc, false)
 		message.ReplyTo = quotes[messageRow.ID]
 		if err := (emitter{scope: sc, thread: current, actor: author}).replied(ctx, q, messageRow, recorded); err != nil {
 			return err
@@ -313,7 +315,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 		if err := q.DeleteMentions(ctx, messageRow.ID); err != nil {
 			return fmt.Errorf("delete mentions: %w", err)
 		}
-		if recorded, err = s.recordMentions(ctx, q, by, messageRow.ID, mentions); err != nil {
+		if recorded, err = s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions); err != nil {
 			return err
 		}
 		return emitter{scope: sc, thread: row, actor: author}.edited(ctx, q, messageRow)
@@ -321,7 +323,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, threadGone(err)
 	}
-	message, err := s.presentMessage(ctx, messageRow, recorded, by, sc.abilities.Comment)
+	message, err := s.presentMessage(ctx, messageRow, recorded, by, sc)
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
@@ -459,6 +461,10 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	others, err := s.otherAuthorsOnPage(ctx, by, sc, rows)
+	if err != nil {
+		return Page{}, err
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
@@ -466,6 +472,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.abilities.Comment))
 		}
 		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && others[r.Thread.ID])
 		message.ReplyTo = quotes[r.ThreadMessage.ID]
 		page.Messages = append(page.Messages, message)
 	}
@@ -508,7 +515,7 @@ func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.
 	if err != nil {
 		return Message{}, err
 	}
-	return s.presentMessage(ctx, row, mentions, by, sc.abilities.Comment)
+	return s.presentMessage(ctx, row, mentions, by, sc)
 }
 
 func (s *Service) writableThread(ctx context.Context, by auth.Principal, id pgtype.UUID) (dbsqlc.Thread, scope, error) {
@@ -618,13 +625,16 @@ func (r messageRefs) lock(ctx context.Context, q *dbsqlc.Queries, target Target,
 	return nil
 }
 
-func (s *Service) presentMessage(ctx context.Context, row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Principal, canComment bool) (Message, error) {
+func (s *Service) presentMessage(ctx context.Context, row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Principal, sc scope) (Message, error) {
 	quotes, err := quotesOf(ctx, s.db.Queries(), []dbsqlc.ThreadMessage{row})
 	if err != nil {
 		return Message{}, err
 	}
-	message := messageOf(row, mentions, reader, canComment)
+	message := messageOf(row, mentions, reader, sc.abilities.Comment)
 	message.ReplyTo = quotes[row.ID]
+	if message.CanDelete, err = s.canDeleteOne(ctx, s.db.Queries(), row, reader, sc); err != nil {
+		return Message{}, err
+	}
 	return message, nil
 }
 
@@ -769,7 +779,7 @@ func checkBody(body string) (string, []Mention, error) {
 	return cleaned, mentions, nil
 }
 
-func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
+func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, on Target, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
 	var userIDs []pgtype.UUID
 	for _, m := range parsed {
 		if m.Kind() == mentionUser {
@@ -783,7 +793,13 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 			return nil, fmt.Errorf("read mentioned users: %w", err)
 		}
 		for _, u := range users {
-			names[u.ID] = capName(cmp.Or(u.Name, u.Email))
+			visible, err := s.canView(ctx, userPrincipal(u.ID, u.Name, u.Email, u.Role, u.Groups), on)
+			if err != nil {
+				return nil, err
+			}
+			if visible {
+				names[u.ID] = capName(cmp.Or(u.Name, u.Email))
+			}
 		}
 	}
 	recorded := make([]Mention, 0, len(parsed))

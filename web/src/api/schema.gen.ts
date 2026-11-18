@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -969,6 +969,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/threads/mentionable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the people who can be mentioned on a target.
+         * @description Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them. Seeing follows the target's folder, so a person without access to it is never listed and a mention of one is not recorded. A person you mention appears in their Inbox as a `mention`. The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.
+         */
+        get: operations["listMentionablePeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/threads/{thread_id}/messages": {
         parameters: {
             query?: never;
@@ -1050,7 +1070,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a message from a thread.
+         * @description The message's author may delete it while they can still comment on the thread's target, and anyone who manages the target's folder may delete any message, including a reply an agent run wrote. A reply an agent run wrote is never deletable by the person who requested the run unless they manage the folder. Deleting the first message of a thread deletes the whole thread with its replies and mentions, so its author may do that only while nobody else has written in the thread. Everyone else who can see the thread gets 403 `not_author`. The deletion is recorded as a `thread.deleted` activity event naming the message, and on a dashboard thread it sends `comment.updated` naming the thread to the dashboard's event stream. A reply that quoted the message keeps its text and shows no quote. An agent run that was started from the message still finishes, and its reply is dropped when the thread is gone. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["deleteMessage"];
         options?: never;
         head?: never;
         /**
@@ -3962,7 +3986,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.deleted" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -4437,6 +4461,8 @@ export interface components {
             mentions: components["schemas"]["Mention"][];
             /** @description Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment. */
             can_edit: boolean;
+            /** @description Whether the caller may delete this comment; see `can_delete` on a thread message. */
+            can_delete: boolean;
             /** @description The latest revision requested for this comment, or null when none was requested. */
             revision: {
                 /** Format: uuid */
@@ -4518,8 +4544,10 @@ export interface components {
              */
             edited_at: string | null;
             mentions: components["schemas"]["Mention"][];
-            /** @description Whether the caller may edit this message, which only its author may do and only while the caller can still comment. */
+            /** @description Whether the caller may edit this message, which only its author may do and only while the caller can still comment; false for a reply an agent run wrote. */
             can_edit: boolean;
+            /** @description Whether the caller may delete this message. Its author may, while they can still comment, unless an agent run wrote it; the first message of a thread also needs that nobody else wrote in the thread. Anyone who manages the target's folder may delete any message. */
+            can_delete: boolean;
             /**
              * Format: uuid
              * @description The block of the observation this message is about; null for the whole observation, on every other target, and after the block was deleted.
@@ -4561,6 +4589,15 @@ export interface components {
             next_cursor: string | null;
             /** @description Whether the caller may start threads and write messages on the target. */
             can_comment: boolean;
+        };
+        MentionablePeople: {
+            people: {
+                /** Format: uuid */
+                id: string;
+                /** @description The person's name, or their email address when they have none. */
+                name: string;
+                email: string;
+            }[];
         };
         ThreadEnvelope: {
             thread: components["schemas"]["Thread"];
@@ -9010,6 +9047,46 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    listMentionablePeople: {
+        parameters: {
+            query: {
+                /** @description The object the comment is on, as `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`. */
+                target: string;
+                /** @description Text to look for in the name or the email, ignoring case. Empty lists the first people by name. */
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The people, possibly none. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentionablePeople"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `target` is not `<kind>:<id>` (`invalid_target`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     replyToThread: {
         parameters: {
             query?: never;
@@ -9121,6 +9198,39 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The message, or the whole thread when it was the first message, is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller may not delete this message (`not_author`), or can no longer comment on the target (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };

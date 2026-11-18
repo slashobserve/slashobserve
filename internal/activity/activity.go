@@ -48,6 +48,7 @@ const (
 	TypeThreadOpened    = "thread.opened"
 	TypeThreadReplied   = "thread.replied"
 	TypeThreadEdited    = "thread.edited"
+	TypeThreadDeleted   = "thread.deleted"
 	TypeThreadResolved  = "thread.resolved"
 	TypeThreadReopened  = "thread.reopened"
 	TypeThreadMentioned = "thread.mentioned"
@@ -96,6 +97,7 @@ var knownTypes = []string{
 	TypeThreadOpened,
 	TypeThreadReplied,
 	TypeThreadEdited,
+	TypeThreadDeleted,
 	TypeThreadResolved,
 	TypeThreadReopened,
 	TypeThreadMentioned,

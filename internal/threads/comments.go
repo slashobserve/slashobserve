@@ -49,6 +49,7 @@ type Comment struct {
 	PanelPresent      bool
 	Mentions          []Mention
 	CanEdit           bool
+	CanDelete         bool
 	Revision          *CommentRevision
 }
 
@@ -250,6 +251,7 @@ func commentOf(thread Thread, message Message) Comment {
 		PanelPresent: thread.PanelPresent,
 		Mentions:     message.Mentions,
 		CanEdit:      message.CanEdit,
+		CanDelete:    message.CanDelete,
 	}
 	if message.ID != thread.ID {
 		comment.ParentID = thread.ID

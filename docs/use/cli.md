@@ -278,6 +278,9 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   Without `--json` it always prints the thread and the new reply id, even with `-q`.
 - `bin/observe comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
+- `bin/observe comments delete <comment-id>` deletes one comment: its author may while they can still comment, and anyone who manages the target's folder may delete any comment, including an agent's reply.
+  Deleting the first comment of a thread deletes the whole thread, which its author may do only while nobody else has written in it; everyone else gets 403 `not_author`.
+  `-q` hides its confirmation.
 - `bin/observe comments resolve <comment-id>` resolves a thread, and `bin/observe comments resolve <dashboard-id> <comment-id>` does the same through the dashboard endpoint.
   `--version N` records the version that fixed a dashboard thread.
   `-q` hides its confirmation.

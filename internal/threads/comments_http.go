@@ -67,6 +67,7 @@ type commentJSON struct {
 	PanelPresent      bool                 `json:"panel_present"`
 	Mentions          []mentionJSON        `json:"mentions"`
 	CanEdit           bool                 `json:"can_edit"`
+	CanDelete         bool                 `json:"can_delete"`
 	Revision          *commentRevisionJSON `json:"revision"`
 }
 
@@ -233,6 +234,7 @@ func newCommentJSON(c Comment, canComment bool) commentJSON {
 		PanelPresent:      c.PanelPresent,
 		Mentions:          newMentionsJSON(c.Mentions),
 		CanEdit:           c.CanEdit,
+		CanDelete:         c.CanDelete,
 	}
 	if c.EditedAt != nil {
 		at := httpapi.FormatTime(*c.EditedAt)

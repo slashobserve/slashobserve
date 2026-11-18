@@ -545,6 +545,19 @@ func TestCommentsCommands(t *testing.T) {
 			wantOut:    []string{`"message"`},
 		},
 		{
+			name:       "delete sends the message route",
+			args:       []string{"comments", "delete", testReply},
+			wantMethod: http.MethodDelete,
+			wantPath:   "/api/v1/messages/" + testReply,
+			wantOut:    []string{"Deleted comment " + testReply},
+		},
+		{
+			name:     "delete needs an id",
+			args:     []string{"comments", "delete"},
+			wantCode: 2,
+			wantErr:  "observe comments delete takes one comment id",
+		},
+		{
 			name:     "edit needs text",
 			args:     []string{"comments", "edit", testReply},
 			wantCode: 2,

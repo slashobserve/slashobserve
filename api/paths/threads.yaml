@@ -329,6 +329,58 @@ threads-threadid-reopen:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+threads-mentionable:
+  get:
+    operationId: listMentionablePeople
+    summary: List the people who can be mentioned on a target.
+    description: >-
+      Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them.
+      Seeing follows the target's folder, so a person without access to it is never listed and a mention of one is not recorded.
+      A person you mention appears in their Inbox as a `mention`.
+      The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.
+    parameters:
+      - name: target
+        in: query
+        required: true
+        description: "The object the comment is on, as `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`."
+        schema:
+          type: string
+      - name: q
+        in: query
+        description: Text to look for in the name or the email, ignoring case. Empty lists the first people by name.
+        schema:
+          type: string
+          maxLength: 100
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 20
+    responses:
+      "200":
+        description: The people, possibly none.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/MentionablePeople"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        description: "`target` is not `<kind>:<id>` (`invalid_target`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 messages-messageid:
   parameters:
     - name: message_id
@@ -384,5 +436,36 @@ messages-messageid:
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
         $ref: "../openapi.yaml#/components/responses/ThreadRefused"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteMessage
+    x-surfaces:
+      cli: [observe comments delete]
+    summary: Delete a message from a thread.
+    description: >-
+      The message's author may delete it while they can still comment on the thread's target, and anyone who manages the target's folder may delete any message, including a reply an agent run wrote.
+      A reply an agent run wrote is never deletable by the person who requested the run unless they manage the folder.
+      Deleting the first message of a thread deletes the whole thread with its replies and mentions, so its author may do that only while nobody else has written in the thread.
+      Everyone else who can see the thread gets 403 `not_author`.
+      The deletion is recorded as a `thread.deleted` activity event naming the message, and on a dashboard thread it sends `comment.updated` naming the thread to the dashboard's event stream.
+      A reply that quoted the message keeps its text and shows no quote.
+      An agent run that was started from the message still finishes, and its reply is dropped when the thread is gone.
+      No MCP tool deletes anything, so an agent cannot call this.
+    responses:
+      "204":
+        description: The message, or the whole thread when it was the first message, is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller may not delete this message (`not_author`), or can no longer comment on the target (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
