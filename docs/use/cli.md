@@ -97,7 +97,7 @@ The CLI exits with these codes:
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
 | `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, an `observe grafana import` had a dashboard fail, or `observe health repair` queued no repair. |
-| `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
+| `2` | The command line is wrong: an unknown command or flag, a missing argument, an invalid id, or a file or directory named on the command line that cannot be read. |
 
 An error is one line on standard error, with the server's code in parentheses and any failing paths of an invalid Spec or panel below it.
 With `--json` it is one JSON object, `{"error": "<message>", "code": "<code>"}`, so a script can branch on the code.
@@ -145,7 +145,7 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
 | `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
-| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)). |
+| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when the directory cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.

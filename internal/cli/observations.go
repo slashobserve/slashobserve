@@ -340,7 +340,7 @@ func (a *app) observationResolveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resolve <observation-id> --summary <line>",
 		Short: "Close an observation with a one-line summary",
-		Args:  exactArgs(1, "one observation id"),
+		Args:  exactArgs(1, "one observation id; a summary of several words goes in quotes after --summary"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {

@@ -170,7 +170,7 @@ func (a *app) commentsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [<dashboard-id>] [--on <kind>:<id>]",
 		Short: "List the comments of a dashboard, observation, annotation or proposal, oldest first",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  rangeArgs(0, 1, "a dashboard id, or none with --on"),
 		RunE:  a.runCommentsList,
 	}
 	addPageFlags(cmd, &a.commentList.pageOptions, maxThreadPage)
@@ -183,6 +183,9 @@ func (a *app) commentsListCommand() *cobra.Command {
 func (a *app) commentListRequest(args []string) (string, url.Values, error) {
 	if err := a.commentList.check(); err != nil {
 		return "", nil, err
+	}
+	if len(args) == 1 && a.commentList.on == "" && strings.Contains(args[0], ":") {
+		a.commentList.on, args = args[0], nil
 	}
 	if (len(args) == 1) == (a.commentList.on != "") {
 		return "", nil, usagef("comments list takes a dashboard id or --on <kind>:<id>, one of them")

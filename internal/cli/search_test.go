@@ -78,7 +78,7 @@ func TestSearchCommand(t *testing.T) {
 			wantQuery: "limit=20&q=checkout",
 			wantOut:   []string{`"results"`, `"next_cursor":"more"`},
 		},
-		{name: "no words", args: []string{"search"}, wantCode: 1, wantErr: "requires at least 1 arg"},
+		{name: "no words", args: []string{"search"}, wantCode: 2, wantErr: "observe search takes at least one word"},
 		{name: "limit 0", args: []string{"search", "a", "--limit", "0"}, wantCode: 2, wantErr: "--limit must be 1 to 50"},
 		{name: "limit 51", args: []string{"search", "a", "--limit", "51"}, wantCode: 2, wantErr: "--limit must be 1 to 50"},
 		{name: "unknown kind", args: []string{"search", "a", "--kind", "folder"}, wantCode: 2, wantErr: `--kind must be one of dashboard, annotation, observation, comment, saved_search, not "folder"`},

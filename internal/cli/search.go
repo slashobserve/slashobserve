@@ -49,7 +49,7 @@ func (a *app) searchCommand() *cobra.Command {
 		Long:  "search finds what you can read in the workspace by words, ranked by relevance.\nEvery word must match; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix.\nPut words that start with - after --.\n--kind narrows it to dashboard, annotation, observation, comment or saved_search and may be repeated; finding is a deprecated alias of observation.",
 		Example: "  observe search checkout latency\n" +
 			"  observe search \"connection reset\" --kind comment --kind observation -- -staging",
-		Args: cobra.MinimumNArgs(1),
+		Args: minimumArgs(1, "at least one word to search for"),
 		RunE: a.runSearch,
 	}
 	flags := cmd.Flags()
