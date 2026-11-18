@@ -63,3 +63,7 @@ Without a `groups` claim a person has no groups.
 A role is recomputed every time the person signs in, and for everyone when the server starts.
 Changing `SLASHOBSERVE_ADMIN_EMAILS` or `SLASHOBSERVE_OIDC_GROUP_ROLES` therefore applies at the next restart, and a group change reaches a person at their next sign-in.
 Existing people become Editors when you upgrade, and the rules above are applied at the first start.
+
+A change an Admin makes on the People page applies to the person's next request, not at their next sign-in.
+An open web app learns of it when its tab becomes visible again, or when an action it tried is refused with `forbidden_role`, and then reloads what the person may see and do.
+A client that uses a key sees it on the next call, and `GET /api/v1/auth/session` returns the current role.
