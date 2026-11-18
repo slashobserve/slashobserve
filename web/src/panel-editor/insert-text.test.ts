@@ -85,3 +85,32 @@ describe("matcherInsert", () => {
     )
   })
 })
+
+describe("Prometheus inserts", () => {
+  const matchers: [string, string, string, string][] = [
+    ["plain", "route", "/cart", 'route="/cart"'],
+    ["dotted label", "service.name", "checkout", '"service.name"="checkout"'],
+    ["dashed label", "k8s-app", "x", '"k8s-app"="x"'],
+    ["leading digit label", "1st", "x", '"1st"="x"'],
+    ["empty label", "", "x", '""="x"'],
+    ["quote in value", "path", 'a"b', 'path="a\\"b"'],
+    ["backslash in value", "path", "a\\b", 'path="a\\\\b"'],
+    ["newline in value", "msg", "a\nb", 'msg="a\\nb"'],
+    ["quote in label", 'we"ird', "x", '"we\\"ird"="x"'],
+    ["unicode value", "city", "Zürich", 'city="Zürich"'],
+  ]
+  it.each(matchers)("matcher: %s", (_, label, value, want) => {
+    expect(matcherInsert("prometheus", label, value)).toBe(want)
+  })
+
+  const metrics: [string, string, string][] = [
+    ["plain", "http_requests_total", "http_requests_total"],
+    ["recording rule", "job:rate:5m", "job:rate:5m"],
+    ["dotted", "http.server.duration", '{"http.server.duration"}'],
+    ["leading digit", "2xx", '{"2xx"}'],
+    ["quote", 'a"b', '{"a\\"b"}'],
+  ]
+  it.each(metrics)("metric: %s", (_, name, want) => {
+    expect(metricInsert("prometheus", name)).toBe(want)
+  })
+})
