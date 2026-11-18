@@ -403,6 +403,12 @@ func (a *app) traceStatsCommand() *cobra.Command {
 				return err
 			}
 			query := strings.Join(args[1:], " ")
+			if query == "" {
+				var err error
+				if query, err = a.matchEverySpan(cmd.Context(), args[0]); err != nil {
+					return err
+				}
+			}
 			data, err := a.postRange(cmd.Context(), args[0], "trace-stats", opts, query)
 			if err != nil {
 				return err
@@ -430,6 +436,21 @@ func (a *app) traceStatsCommand() *cobra.Command {
 	}
 	opts.addFlags(cmd)
 	return cmd
+}
+
+func (a *app) matchEverySpan(ctx context.Context, uid string) (string, error) {
+	c, err := a.newClient()
+	if err != nil {
+		return "", err
+	}
+	kind, err := datasourceType(ctx, c, uid)
+	if err != nil {
+		return "", err
+	}
+	if kind == "tempo" {
+		return "{}", nil
+	}
+	return "", nil
 }
 
 func millisText(ms *float64) string {

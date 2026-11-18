@@ -97,8 +97,8 @@ func TestLogVolumeAndTraceStatsPostTheRange(t *testing.T) {
 	}
 
 	stats, seenStats := recordingServer(t, `{"step_ms":1000,"partial":true,"spans":9,"errors":1,"buckets":[{"start":"2026-01-01T00:00:00Z","spans":9,"errors":1,"p50_ms":12.5,"p95_ms":40,"p99_ms":null}],"histogram":[]}`)
-	stdout, stderr, code := runWith(stats, "datasources", "trace-stats", "tempo")
-	if code != 0 || seenStats.path != "/api/v1/datasources/tempo/trace-stats" || !strings.Contains(seenStats.body, `"query":""`) || !strings.Contains(stdout, "12.5ms") || !strings.Contains(stdout, "Spans 9, errors 1") || !strings.Contains(stderr, "lower bound") {
+	stdout, stderr, code := runWith(stats, "datasources", "trace-stats", "tempo", "{}")
+	if code != 0 || seenStats.path != "/api/v1/datasources/tempo/trace-stats" || !strings.Contains(seenStats.body, `"query":"{}"`) || !strings.Contains(stdout, "12.5ms") || !strings.Contains(stdout, "Spans 9, errors 1") || !strings.Contains(stderr, "lower bound") {
 		t.Fatalf("exit %d, call %+v, stdout %q, stderr %q", code, seenStats, stdout, stderr)
 	}
 	if _, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, "datasources", "log-volume", "lk", "x", "--buckets", "201"); code != 2 || stderr == "" {
@@ -120,5 +120,32 @@ func TestTraceLogsPrintsTheLinesOfATrace(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "payment failed") {
 		t.Fatalf("stdout %q", stdout)
+	}
+}
+
+func TestTraceStatsWithoutAFilterSendsAnEmptySpansetToTempo(t *testing.T) {
+	cases := []struct {
+		kind  string
+		query string
+	}{
+		{"tempo", `"query":"{}"`},
+		{"clickhouse", `"query":""`},
+	}
+	for _, tc := range cases {
+		var stats string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path == "/api/v1/datasources" {
+				_, _ = w.Write([]byte(`{"datasources":[{"uid":"ds1","type":"` + tc.kind + `","name":"T","healthy":true,"message":null,"dashboard_count":0}]}`))
+				return
+			}
+			body, _ := io.ReadAll(r.Body)
+			stats = string(body)
+			_, _ = w.Write([]byte(`{"step_ms":1000,"partial":false,"spans":0,"errors":0,"buckets":[],"histogram":[]}`))
+		}))
+		t.Cleanup(server.Close)
+		if _, stderr, code := runWith(server, "datasources", "trace-stats", "ds1"); code != 0 || !strings.Contains(stats, tc.query) {
+			t.Fatalf("%s: exit %d, body %q, stderr %q", tc.kind, code, stats, stderr)
+		}
 	}
 }
