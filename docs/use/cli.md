@@ -166,6 +166,8 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
+| `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
+| `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
@@ -278,7 +280,10 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-Changing or removing a live block is done in the web app or through the HTTP API.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
+Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
+A snapshot block's body cannot change, and a requested block is kept or discarded instead.
 
 ## Saved searches
 

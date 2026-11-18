@@ -38,7 +38,7 @@ var exceptions = map[string]exception{
 	"getInstance":  {MCP: notBuilt},
 
 	"createDashboard":        {CLI: notBuilt},
-	"listDashboardTags":      {MCP: notBuilt, CLI: notBuilt},
+	"listDashboardTags":      {MCP: notBuilt},
 	"deleteDashboard":        {MCP: noMCPDeletes},
 	"createDashboardVersion": {CLI: notBuilt},
 	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
@@ -53,8 +53,7 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
-	"updateObservationBlock": {CLI: notBuilt},
-	"removeObservationBlock": {MCP: noMCPDeletes, CLI: notBuilt},
+	"removeObservationBlock": {MCP: noMCPDeletes},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
 	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
 	"listRcaPublicLinks":     {MCP: publicLink, CLI: publicLink},
@@ -152,8 +151,8 @@ var exceptions = map[string]exception{
 	"requestRepairs": {MCP: builtInAgentQueue, CLI: notBuilt},
 
 	"createDashboardRevision": {MCP: builtInAgentQueue},
-	"listDashboardRevisions":  {MCP: builtInRuns, CLI: notBuilt},
-	"getDashboardRevision":    {MCP: builtInRuns, CLI: notBuilt},
+	"listDashboardRevisions":  {MCP: builtInRuns},
+	"getDashboardRevision":    {MCP: builtInRuns},
 
 	"updateSavedSearch": {MCP: savedSearchCuration},
 	"deleteSavedSearch": {MCP: savedSearchCuration},
