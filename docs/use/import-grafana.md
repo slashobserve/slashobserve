@@ -13,6 +13,7 @@ On Home, an Admin pastes the link in the **Grafana dashboard** field and chooses
 `POST /api/v1/grafana/link` takes the link as `url`, fetches the dashboard with the connection's token and returns it as `json`, which `POST /api/v1/imports/preview` and `POST /api/v1/imports` take as they are.
 It is only for Admins, because the token is an Admin's credential and could read every dashboard it is allowed to; everyone else pastes the JSON.
 The link must be a `/d/<uid>` or `/d-solo/<uid>` link under the connection's address, and the server fetches only from the hosts of stored connections.
+The fetch never adds the connection's domain to the [outbound allowlist](../operate/outbound-access.md); when an Admin has removed it, the link answers `403 outbound_domain_not_allowed` until it is allowed again.
 A link with no matching connection answers `404 no_connection`, a Grafana page that is not a dashboard `422 not_a_dashboard_link`, a dashboard the token cannot read `404 dashboard_not_found`, and a Grafana that fails or refuses the token `502 grafana_unavailable`.
 
 To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).

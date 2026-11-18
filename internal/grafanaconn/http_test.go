@@ -363,6 +363,22 @@ func TestHTTPFetchLinkAnswersEachFailureWithItsCode(t *testing.T) {
 	}
 }
 
+func TestHTTPFetchLinkDoesNotAllowAnOutboundDomainAnAdminRemoved(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	h.connect(t)
+	if _, err := h.db.SQLDB(t).ExecContext(t.Context(), "DELETE FROM outbound_domains"); err != nil {
+		t.Fatal(err)
+	}
+
+	expect(t, h.call(t, http.MethodPost, "/api/v1/grafana/link", linkBody(grafanaURL+"/d/checkout")), http.StatusForbidden, "outbound_domain_not_allowed")
+
+	list, err := h.domains.Allowed(t.Context())
+	if err != nil || list.Allows(grafanaHost) {
+		t.Fatalf("the link fetch put %s back on the allowlist: %v, err %v", grafanaHost, list, err)
+	}
+}
+
 func TestHTTPFetchLinkNamesAGrafanaThatRefusesTheToken(t *testing.T) {
 	h := newHTTPRig(t, newRig(t))
 	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})

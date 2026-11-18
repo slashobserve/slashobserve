@@ -411,7 +411,7 @@ func (h *Handler) fetchLink(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "url is required and at most 2048 characters")
 		return
 	}
-	linked, err := h.svc.FetchLink(c.Request.Context(), httpapi.Caller(c), *body.URL)
+	linked, err := h.svc.FetchLink(c.Request.Context(), *body.URL)
 	if err != nil {
 		h.fail(c, "fetch grafana dashboard from a link", err)
 		return
