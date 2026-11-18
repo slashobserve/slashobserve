@@ -403,21 +403,50 @@ func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
 }
 
 func TestAFindingSavedAfterRefusedReadsSaysReadingStoppedEarly(t *testing.T) {
-	if got := withReadsCaveat("checkout is slow", 0); got != "checkout is slow" {
+	if got, _, ok := findingMarkdown("checkout is slow", 0); !ok || got != "checkout is slow" {
 		t.Fatalf("no refused read changed the text: %q", got)
 	}
-	one := withReadsCaveat("checkout is slow", 1)
+	one, _, _ := findingMarkdown("checkout is slow", 1)
 	if !strings.HasPrefix(one, "checkout is slow\n\n_Reading stopped early: 1 read was refused") || !strings.Contains(one, "counts above may be partial") {
 		t.Fatalf("one refused read: %q", one)
 	}
-	if many := withReadsCaveat("checkout is slow", 3); !strings.Contains(many, "3 reads were refused") {
+	if many, _, _ := findingMarkdown("checkout is slow", 3); !strings.Contains(many, "3 reads were refused") {
 		t.Fatalf("three refused reads: %q", many)
 	}
 }
 
 func TestATooLongFindingStepSaysWhatToDoInWords(t *testing.T) {
-	_, res, ok := findingMarkdown(strings.Repeat("word ", 401))
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 401), 0)
 	if ok || res.Step != "Finding was 401 words, over the 400 word limit; the agent must shorten it" {
 		t.Fatalf("ok %v, step %q", ok, res.Step)
+	}
+}
+
+func TestAFindingThatFitsOnlyWithoutTheReadsNoteIsSentBackNotLost(t *testing.T) {
+	r := newFindingRig(t)
+	run := investigateRun(findingWindowTo.Add(-time.Hour), findingWindowTo)
+	ctx := WithReadsRefused(WithRun(auth.WithPrincipal(t.Context(), editorCaller), run), 2)
+	nearTheLimit := "Checkout errors rose after the deploy. " + strings.Repeat("checkout-payments-0 ", 200)[:3840]
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(findingBody(nearTheLimit)))
+	if err != nil {
+		t.Fatalf("a finding near the limit with refused reads ended the run with %v", err)
+	}
+	if !res.IsError || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("res = %#v, want the model told to shorten it", res.Content)
+	}
+	short := "Checkout errors rose after the deploy. " + strings.Repeat("checkout-payments-0 ", 40)
+	res, err = r.registry.Call(ctx, nameSaveFinding, []byte(findingBody(short)))
+	if err != nil || res.IsError {
+		t.Fatalf("a short finding with refused reads: %#v, %v", res.Content, err)
+	}
+}
+
+func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 390), 2)
+	if ok || errorCode(t, res) != codeTooLong {
+		t.Fatalf("390 words with a 34 word note: ok %v, res %#v", ok, res.Content)
+	}
+	if got, _, ok := findingMarkdown(strings.Repeat("word ", 300), 2); !ok || !strings.Contains(got, "Reading stopped early") {
+		t.Fatalf("300 words with the note: ok %v, got %q", ok, got)
 	}
 }

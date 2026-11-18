@@ -89,7 +89,6 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil || !ok {
 		return res, err
 	}
-	save.Markdown = withReadsCaveat(save.Markdown, ReadsRefused(ctx))
 	save.AgentRequestID, save.DashboardID = requestID, dashboardID
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
@@ -102,7 +101,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {
-	markdown, res, ok := findingMarkdown(in.Markdown)
+	markdown, res, ok := findingMarkdown(in.Markdown, ReadsRefused(ctx))
 	if !ok {
 		return findings.SaveInput{}, res, false, nil
 	}
@@ -126,32 +125,35 @@ func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, i
 	return save, Result{}, true, nil
 }
 
-func withReadsCaveat(markdown string, refused int) string {
+func readsCaveat(refused int) string {
 	if refused == 0 {
-		return markdown
+		return ""
 	}
-	return fmt.Sprintf("%s\n\n_Reading stopped early: %s refused after the run reached its limit of model calls, so the counts above may be partial. Ask again about the part that matters to read it fully._", markdown, plural(refused, "read was", "reads were"))
+	return fmt.Sprintf("\n\n_Reading stopped early: %s refused after the run reached its limit of model calls, so the counts above may be partial. Ask again about the part that matters to read it fully._", plural(refused, "read was", "reads were"))
 }
 
-func findingMarkdown(raw string) (string, Result, bool) {
+func findingMarkdown(raw string, refused int) (string, Result, bool) {
 	markdown := strings.TrimSpace(raw)
 	if markdown == "" {
 		return "", invalid("markdown is required"), false
 	}
-	if n := findings.Words(markdown); n > findings.MaxWords {
-		res := toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, findings.MaxWords))
-		res.Step = fmt.Sprintf("Finding was %d words, over the %d word limit; the agent must shorten it", n, findings.MaxWords)
+	caveat := readsCaveat(refused)
+	maxWords := findings.MaxWords - findings.Words(caveat)
+	maxRunes := findings.MaxMarkdownRunes - utf8.RuneCountInString(caveat)
+	if n := findings.Words(markdown); n > maxWords {
+		res := toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, maxWords))
+		res.Step = fmt.Sprintf("Finding was %d words, over the %d word limit; the agent must shorten it", n, maxWords)
 		return "", res, false
 	}
 	switch _, clean := revisions.CleanPrompt(markdown); {
-	case utf8.RuneCountInString(markdown) > findings.MaxMarkdownRunes:
-		return "", invalid("markdown must be at most %d characters", findings.MaxMarkdownRunes), false
+	case utf8.RuneCountInString(markdown) > maxRunes:
+		return "", invalid("markdown must be at most %d characters", maxRunes), false
 	case !clean:
 		return "", invalid("markdown must not contain control or bidirectional override characters"), false
 	case containsHTML(markdown):
 		return "", invalid("markdown must be plain Markdown without HTML"), false
 	}
-	return markdown, Result{}, true
+	return markdown + caveat, Result{}, true
 }
 
 func findingWindow(in findingInput, defaultFrom, defaultTo, now time.Time) (time.Time, time.Time, Result, bool) {
