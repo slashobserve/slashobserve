@@ -70,7 +70,7 @@ TV mode lives in the address, so a TV can open a bookmark straight into it:
 | `kiosk=1` | TV mode; `kiosk` alone or `kiosk=true` work too. |
 | `cycle=rows` | Bring each expanded row to the top of the screen in turn. |
 | `cycle=folder` | Open each dashboard of the same folder in turn, ordered by title. |
-| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600; the default is 60. |
+| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600, the default is 60, and a value outside that range is moved to the nearest limit and shown so in the address (`interval=5` becomes `interval=10`). |
 
 **TV mode for this folder** in the **More** menu starts `cycle=folder`, and is not offered for a personal folder.
 A folder cycle keeps the time range and the auto-refresh, and opens each dashboard with its default variable values.
