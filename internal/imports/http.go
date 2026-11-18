@@ -44,6 +44,8 @@ type importRequest struct {
 	JSON    *string           `json:"json"`
 	Mapping map[string]string `json:"mapping"`
 	Folder  *string           `json:"folder"`
+
+	UpdateDashboard *string `json:"update_dashboard"`
 }
 
 type authorJSON struct {
@@ -65,6 +67,14 @@ type previewJSON struct {
 	Ready       bool                       `json:"ready"`
 	Report      grafana.Report             `json:"report"`
 	Spec        *spec.Dashboard            `json:"spec"`
+	Existing    *existingJSON              `json:"existing"`
+}
+
+type existingJSON struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+	Version     int    `json:"version"`
+	CanUpdate   bool   `json:"can_update"`
 }
 
 type importJSON struct {
@@ -176,6 +186,14 @@ func decodeImportBody(c *gin.Context) (Request, bool) {
 		}
 	}
 	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping}
+	if body.UpdateDashboard != nil {
+		id, err := db.ParseUUID(*body.UpdateDashboard)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "update_dashboard must be a dashboard id")
+			return Request{}, false
+		}
+		req.Update = id
+	}
 	if body.Folder != nil {
 		title, err := folders.CleanTitle(*body.Folder)
 		if err != nil {
@@ -196,13 +214,26 @@ func (h *Handler) preview(c *gin.Context) {
 		h.fail(c, "preview import", err)
 		return
 	}
+	existing, err := h.svc.ExistingFor(c.Request.Context(), httpapi.Caller(c), result.Summary.UID)
+	if err != nil {
+		h.fail(c, "find existing import", err)
+		return
+	}
 	c.JSON(http.StatusOK, previewJSON{
 		Summary:     result.Summary,
 		Datasources: result.Datasources,
 		Ready:       result.Ready(),
 		Report:      result.Report,
 		Spec:        result.Spec,
+		Existing:    newExistingJSON(existing),
 	})
+}
+
+func newExistingJSON(e *Existing) *existingJSON {
+	if e == nil {
+		return nil
+	}
+	return &existingJSON{DashboardID: e.DashboardID, Title: e.Title, Version: e.Version, CanUpdate: e.CanUpdate}
 }
 
 func (h *Handler) create(c *gin.Context) {
@@ -223,8 +254,13 @@ func respondImported(c *gin.Context, imported Imported) {
 		c.JSON(http.StatusOK, saved)
 		return
 	}
+	body := importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)}
+	if imported.Updated {
+		c.JSON(http.StatusOK, body)
+		return
+	}
 	c.Header("Location", "/api/v1/dashboards/"+imported.Dashboard.ID)
-	c.JSON(http.StatusCreated, importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)})
+	c.JSON(http.StatusCreated, body)
 }
 
 func (h *Handler) list(c *gin.Context) {

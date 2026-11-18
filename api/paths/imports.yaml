@@ -7,6 +7,7 @@ imports-preview:
     description: >-
       Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`.
       `ready` is false while a source datasource has no match; `spec` is then null.
+      `existing` names the dashboard that already holds the file's Grafana uid when the caller can see it, so a client can offer to update it instead of making a duplicate.
       `report.verified` is always false because no query runs.
       A body above 8 MiB answers 413 `too_large`.
       A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`.
@@ -65,6 +66,8 @@ imports:
       Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so.
       Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
       The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
+      With `update_dashboard`, the converted Spec is saved as the next version of that earlier import's dashboard instead, and the answer is 200 with the same body as a new import;
+      it needs Edit on the dashboard (404 `not_found` when the caller cannot see it, 403 when they cannot edit it, 404 `not_imported` when no import made it).
     requestBody:
       required: true
       content:
@@ -73,11 +76,13 @@ imports:
             $ref: "../openapi.yaml#/components/schemas/ImportRequest"
     responses:
       "200":
-        description: The dashboard the request already created, when no import made it.
+        description: The dashboard the request already created, when no import made it, or the updated dashboard with its import record when `update_dashboard` was given.
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+                - $ref: "../openapi.yaml#/components/schemas/ImportedDashboard"
       "201":
         description: The new dashboard, its first version and the import record.
         headers:

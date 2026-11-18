@@ -65,6 +65,14 @@ type Request struct {
 	FolderID       pgtype.UUID
 	GrafanaVersion int
 	RequestID      pgtype.UUID
+	Update         pgtype.UUID
+}
+
+type Existing struct {
+	DashboardID string
+	Title       string
+	Version     int
+	CanUpdate   bool
 }
 
 type GrafanaImport struct {
@@ -104,6 +112,7 @@ type Imported struct {
 	Dashboard  dashboards.Dashboard
 	Version    dashboards.Version
 	Replayed   bool
+	Updated    bool
 	FolderNote string
 }
 
@@ -127,6 +136,14 @@ func New(database *db.DB, dash *dashboards.Service, access *folders.Access, regi
 }
 
 type LoadFunc func() (Request, error)
+
+func loadChecked(load LoadFunc) (Request, error) {
+	req, err := load()
+	if err != nil {
+		return Request{}, err
+	}
+	return req, checkLimits(req)
+}
 
 func fixed(req Request) LoadFunc {
 	return func() (Request, error) { return req, nil }
@@ -152,6 +169,31 @@ func (s *Service) PreviewFrom(_ context.Context, by auth.Principal, load LoadFun
 	return grafana.Convert(req.JSON, s.options(req))
 }
 
+func (s *Service) ExistingFor(ctx context.Context, by auth.Principal, uid string) (*Existing, error) {
+	if uid == "" {
+		return nil, nil
+	}
+	held, found, err := s.DashboardByGrafanaUID(ctx, uid)
+	if err != nil || !found {
+		return nil, err
+	}
+	access, err := s.access.Dashboard(ctx, by, held.DashboardID)
+	if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	dash, ver, err := s.dashboard.Get(ctx, held.DashboardID)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &Existing{DashboardID: dash.ID, Title: dash.Title, Version: ver.Number, CanUpdate: access.Abilities.Has(folders.NeedEdit)}, nil
+}
+
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
 	if req.RequestID.Valid {
 		dash, ver, found, err := s.dashboard.CreatedByRequest(ctx, req.RequestID)
@@ -171,12 +213,12 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		return Imported{}, ErrBusy
 	}
 	defer release()
-	req, err := load()
+	req, err := loadChecked(load)
 	if err != nil {
 		return Imported{}, err
 	}
-	if err := checkLimits(req); err != nil {
-		return Imported{}, err
+	if req.Update.Valid {
+		return s.update(ctx, by, req.Update, req)
 	}
 
 	result, err := grafana.Convert(req.JSON, s.options(req))
@@ -271,6 +313,26 @@ func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err := checkLimits(req); err != nil {
 		return Imported{}, err
 	}
+	return s.reimport(ctx, by, dashboardID, req)
+}
+
+func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		return Imported{}, dashboards.ErrNotFound
+	case err != nil:
+		return Imported{}, err
+	case !access.Abilities.Has(folders.NeedEdit):
+		return Imported{}, folders.ErrForbidden
+	}
+	if _, err := s.ForDashboard(ctx, dashboardID); err != nil {
+		return Imported{}, err
+	}
+	return s.reimport(ctx, by, dashboardID, req)
+}
+
+func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
 	result, err := grafana.Convert(req.JSON, s.options(req))
 	if err != nil {
 		return Imported{}, err
@@ -321,7 +383,7 @@ func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err != nil {
 		return Imported{}, err
 	}
-	imported := Imported{Record: record, Dashboard: dash, Version: ver}
+	imported := Imported{Record: record, Dashboard: dash, Version: ver, Updated: true}
 	s.logImported(ctx, imported)
 	return imported, nil
 }
