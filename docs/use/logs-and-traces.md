@@ -59,6 +59,7 @@ In the language segment you write the query yourself.
 On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs GROUP BY ServiceName`, runs too: the rows show as a plain table and the volume chart is hidden.
+Ctrl+Space in the editor completes names: the columns of `otel_logs` on ClickHouse, the stream labels on Loki and the mapped fields on Elasticsearch and OpenSearch, and on ClickHouse also the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows one page of lines at a time, newest first, 50 by default.
 

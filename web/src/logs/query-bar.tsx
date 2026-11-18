@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { AskField } from "@/ask/ask-field"
@@ -34,6 +34,7 @@ import {
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { languageReference } from "@/datasources/sources"
 import { matcherInsert } from "@/panel-editor/insert-text"
+import { labelNamesQuery } from "@/panel-editor/queries"
 import { formatDateTime } from "@/lib/time"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
@@ -284,6 +285,15 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const [discoverNote, setDiscoverNote] = useState<string | null>(null)
   const emptyDraft = draft.trim() === ""
   const form = formOf(draft)
+  const names = useQuery(
+    labelNamesQuery(
+      uid,
+      type === "clickhouse"
+        ? { table: "otel_logs" }
+        : { from: range.from, to: range.to }
+    )
+  )
+  const completionNames = names.data?.labels
 
   function switchMode(next: InputMode, remember = true) {
     if (next === shown) return
@@ -532,6 +542,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                 ariaLabel={`${modeLabel} query`}
                 onLint={setLint}
                 editorRef={editorRef}
+                completionNames={completionNames}
               />
             </div>
             {problem !== null ? (
@@ -692,7 +703,7 @@ function helpText(type: string, index: string | undefined): string {
     return `Ctrl Space completes field names from the ${index === undefined ? "" : index + " "}mapping.`
   }
   if (type === "loki") {
-    return "Ctrl Space completes stream labels and, after a parser stage, parsed fields."
+    return "Ctrl Space completes stream labels."
   }
   return "Ctrl Space completes keywords and columns."
 }
