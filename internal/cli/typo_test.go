@@ -49,3 +49,12 @@ func TestTheObservationsCommandAnswersToItsLongName(t *testing.T) {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
 	}
 }
+
+func TestAFollowUpOfOneWordIsSentWhenADashboardIsGiven(t *testing.T) {
+	for _, word := range []string{"faster", "again", "dashbords"} {
+		call, _, stderr, code := runAgainst(t, 202, `{"request":{"id":"`+stoppedID+`","status":"queued","steps":[]}}`, "--dashboard", testDashboard, word, "--no-wait")
+		if code != 0 || call.method != "POST" || !strings.Contains(call.body, `"prompt":"`+word+`"`) || !strings.Contains(call.body, testDashboard) {
+			t.Fatalf("%s: exit %d, call %+v, stderr %q", word, code, call, stderr)
+		}
+	}
+}

@@ -89,8 +89,10 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintf(a.std.Err, "a prompt is required\n\n%s", cmd.UsageString())
 		return usageError{}
 	}
-	if err := probableTypo(cmd, args); err != nil {
-		return err
+	if a.prompt.dashboard == "" {
+		if err := probableTypo(cmd, args); err != nil {
+			return err
+		}
 	}
 	prompt := strings.TrimSpace(strings.Join(args, " "))
 	if prompt == "" {
