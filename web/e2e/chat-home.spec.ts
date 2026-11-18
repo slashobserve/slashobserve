@@ -47,7 +47,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto("/ask")
       await page.getByRole("button", { name: "Send" }).click()
       await expect(page.getByRole("alert")).toHaveText(
-        "Describe the dashboard you want first."
+        "Ask a question or describe a dashboard first."
       )
       await expect(page).toHaveURL(/\/ask$/)
     })

@@ -58,6 +58,10 @@ export function observationPath(observationId: string): string {
   return path("o", observationId)
 }
 
+export function askLink(prompt: string) {
+  return { to: "/ask", search: { prompt } } as const
+}
+
 export function observationLink(observationId: string) {
   return { to: "/o/$observationId", params: { observationId } } as const
 }

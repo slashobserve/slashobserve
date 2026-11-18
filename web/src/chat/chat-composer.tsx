@@ -32,6 +32,7 @@ import {
   usePromptHistory,
   type HistoryCursor,
 } from "./prompt-history"
+import { emptyPromptText, promptCounter } from "./prompt-length"
 import { planSend, type Opens } from "./send-plan"
 import {
   availableCommands,
@@ -44,7 +45,7 @@ import {
 } from "./slash-commands"
 
 const keyboardHint =
-  "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
+  "Enter sends, Shift+Enter adds a line, up arrow recalls an earlier prompt, / opens commands."
 
 const openFailedMessage = "Request created, but it could not be opened."
 
@@ -56,6 +57,7 @@ type Props = {
   dashboardTitle?: string
   runningRequestId?: string
   placeholder: string
+  initialPrompt?: string
   rows: number
   autoFocus?: boolean
   disabled?: boolean
@@ -110,6 +112,7 @@ export function ChatComposer({
   dashboardTitle,
   runningRequestId,
   placeholder,
+  initialPrompt = "",
   rows,
   autoFocus = false,
   disabled = false,
@@ -125,7 +128,7 @@ export function ChatComposer({
   const creating = useCreatePending()
   const coarse = useCoarsePointer()
   const history = usePromptHistory()
-  const [prompt, setPrompt] = useState("")
+  const [prompt, setPrompt] = useState(initialPrompt)
   const [command, setCommand] = useState<SlashCommand | null>(null)
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
   const [announcement, setAnnouncement] = useState("")
@@ -135,6 +138,7 @@ export function ChatComposer({
   const inputId = useId()
   const messageId = useId()
   const hintId = useId()
+  const counterId = useId()
   const commandHintId = useId()
 
   function placeCaret(at: "start" | "end") {
@@ -171,7 +175,11 @@ export function ChatComposer({
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
 
   useEffect(() => {
-    if (autoFocus) field.current?.focus()
+    if (!autoFocus) return
+    const element = field.current
+    if (element === null) return
+    element.focus()
+    element.setSelectionRange(element.value.length, element.value.length)
   }, [autoFocus, agentOff])
 
   useEffect(() => {
@@ -198,9 +206,12 @@ export function ChatComposer({
 
   if (agentOff) return <NoAgentNote />
 
+  const counter = promptCounter(prompt)
+  const showHint = !coarse && matches.length === 0
   const describedBy =
     [
-      coarse ? null : hintId,
+      showHint ? hintId : null,
+      counter !== null ? counterId : null,
       matches.length > 0 ? commandHintId : null,
       notice !== null ? messageId : null,
     ]
@@ -251,10 +262,7 @@ export function ChatComposer({
     const trimmed = prompt.trim()
     if (trimmed === "") {
       reject({
-        text:
-          dashboardId === undefined
-            ? "Describe the dashboard you want first."
-            : "Describe the change you want first.",
+        text: emptyPromptText({ dashboardId }),
         invalid: true,
       })
       return
@@ -375,11 +383,6 @@ export function ChatComposer({
           <label htmlFor={inputId} className="sr-only">
             Message the agent
           </label>
-          {coarse ? null : (
-            <p id={hintId} className="sr-only">
-              {keyboardHint}
-            </p>
-          )}
           {chips.length > 0 ? (
             <div className="px-4 pt-3">
               <ContextChips chips={chips} />
@@ -393,7 +396,7 @@ export function ChatComposer({
             placeholder={placeholder}
             readOnly={submitting || creating}
             disabled={disabled}
-            aria-invalid={notice?.invalid === true}
+            aria-invalid={notice?.invalid === true || counter?.over === true}
             aria-describedby={describedBy}
             {...picker.textareaAttributes}
             enterKeyHint={coarse ? "enter" : "send"}
@@ -410,6 +413,18 @@ export function ChatComposer({
           />
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 pr-2 pb-2 pl-4">
             <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted-foreground">
+              {counter === null ? null : (
+                <span
+                  id={counterId}
+                  className={cn(
+                    "tabular-nums",
+                    counter.over && "font-medium text-destructive"
+                  )}
+                >
+                  {counter.text}
+                  {counter.over ? ", too long" : null}
+                </span>
+              )}
               {healthy.map((datasource) => (
                 <span
                   key={datasource.uid}
@@ -460,6 +475,11 @@ export function ChatComposer({
             </span>
           ))}
           <span>Type a space after the command to use it.</span>
+        </p>
+      ) : null}
+      {showHint ? (
+        <p id={hintId} className="pt-1.5 text-xs text-muted-foreground">
+          {keyboardHint}
         </p>
       ) : null}
       <div className="text-[13px]">

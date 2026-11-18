@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  askLink,
   buildPath,
   chatPath,
   dashboardLink,
@@ -176,6 +177,15 @@ describe("proposal addresses", () => {
     expect(proposalLink(id)).toEqual({
       to: "/proposals/$proposalId",
       params: { proposalId: id },
+    })
+  })
+})
+
+describe("askLink", () => {
+  it("opens the Ask page with the prompt filled in", () => {
+    expect(askLink("why is checkout slow")).toEqual({
+      to: "/ask",
+      search: { prompt: "why is checkout slow" },
     })
   })
 })

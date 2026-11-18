@@ -51,7 +51,11 @@ const running: Partial<ObserveRequest> = {
 }
 
 function renderComposer(
-  props: { dashboardId?: string; runningRequestId?: string } = {}
+  props: {
+    dashboardId?: string
+    runningRequestId?: string
+    initialPrompt?: string
+  } = {}
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -157,6 +161,52 @@ describe("ChatComposer", () => {
     expect(
       await screen.findByText("claude-haiku-5-5, medium effort")
     ).toBeInTheDocument()
+  })
+
+  it("shows the send shortcut where a sighted keyboard user can read it", async () => {
+    renderComposer()
+    const hint = await screen.findByText(
+      /Enter sends, Shift\+Enter adds a line/
+    )
+    expect(hint).toBeVisible()
+    expect(hint).not.toHaveClass("sr-only")
+    expect(await box()).toHaveAccessibleDescription(
+      /Enter sends, Shift\+Enter adds a line/
+    )
+  })
+
+  it("asks for a question or a dashboard when empty, and for a change on a dashboard", async () => {
+    stubCreate()
+    const { user, unmount } = renderComposer()
+    await user.click(await screen.findByRole("button", { name: "Send" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ask a question or describe a dashboard first."
+    )
+    unmount()
+    const next = renderComposer({ dashboardId })
+    await next.user.click(await screen.findByRole("button", { name: "Send" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Describe the change you want first."
+    )
+  })
+
+  it("counts characters near the limit and marks an over-long prompt", async () => {
+    const { user } = renderComposer()
+    const field = await box()
+    expect(screen.queryByText(/of 4000/)).not.toBeInTheDocument()
+    await user.click(field)
+    await user.paste("a".repeat(3600))
+    expect(screen.getByText("3600 of 4000")).toBeInTheDocument()
+    await user.paste("a".repeat(401))
+    expect(screen.getByText("4001 of 4000, too long")).toBeInTheDocument()
+    expect(field).toHaveAttribute("aria-invalid", "true")
+  })
+
+  it("opens with a prefilled prompt and sends nothing until the person does", async () => {
+    const fetch = stubCreate()
+    renderComposer({ initialPrompt: "Why is GET /api/products slow?" })
+    expect(await box()).toHaveValue("Why is GET /api/products slow?")
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it("offers Stop for the running request", async () => {

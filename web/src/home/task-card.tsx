@@ -9,6 +9,7 @@ import {
 
 import { ChatComposer, useOpenSent, useSendExample } from "@/chat/chat-composer"
 import { examplePrompts } from "@/chat/examples"
+import { composerPlaceholder } from "@/chat/prompt-length"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDatasources } from "@/datasources/queries"
@@ -102,7 +103,7 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
             framed={false}
             importLink={false}
             rows={3}
-            placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
+            placeholder={composerPlaceholder}
             autoFocus={autoFocusTab === "ask"}
             promptPicker
             onSent={openSent}

@@ -18,9 +18,15 @@ A chat is titled the same way, from your message.
 
 Type into the box labelled "Message the agent" and press Enter.
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
+Under the box a line says so ("Enter sends, Shift+Enter adds a line, up arrow recalls an earlier prompt, / opens commands"); on a touch device it is not shown.
 Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
-The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
+The box shows "Ask a question or describe a dashboard first." when it is empty and "Use at most 4000 characters." when it is too long.
+From 3600 characters a counter such as "3650 of 4000" appears in the box's footer, and turns red with "too long" past 4000.
+A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
+
+An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
+Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.
 The last 20 prompts are kept in this browser only, never on the server.

@@ -8,12 +8,13 @@ import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
+import { composerPlaceholder } from "./prompt-length"
 import { examplePrompts } from "./examples"
 import { RecentChats } from "./recent-chats"
 
 const noDashboards: readonly { id: string; title: string }[] = []
 
-export function ChatHome() {
+export function ChatHome({ initialPrompt }: { initialPrompt?: string }) {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
@@ -35,8 +36,10 @@ export function ChatHome() {
       {agentOff ? <DashboardsSection /> : null}
       <div className="w-full max-w-[720px]">
         <ChatComposer
+          key={initialPrompt ?? ""}
           rows={3}
-          placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
+          placeholder={composerPlaceholder}
+          initialPrompt={initialPrompt}
           autoFocus
           promptPicker
           onSent={openSent}

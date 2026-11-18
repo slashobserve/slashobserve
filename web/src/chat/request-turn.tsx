@@ -23,6 +23,7 @@ import { useSettledRefresh } from "@/observe/use-settled-refresh"
 import { FindingCard } from "@/findings/finding-card"
 
 import { BuildCard } from "./build-card"
+import { PromptBubble } from "./prompt-bubble"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
 import { StepTimeline } from "./step-timeline"
@@ -212,9 +213,7 @@ export function RequestTurn({
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
         <ContinuedFrom summary={request} />
-        <div className="max-w-[80%] self-end rounded-xl border px-3.5 py-2.5 text-sm wrap-anywhere whitespace-pre-wrap">
-          {request.prompt}
-        </div>
+        <PromptBubble prompt={request.prompt} />
       </div>
       <div className="flex gap-3">
         <AgentMark variant="tile" />
