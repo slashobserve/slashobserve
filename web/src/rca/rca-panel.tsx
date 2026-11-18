@@ -5,15 +5,15 @@ import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Observation } from "@/observations/queries"
+import type { Block, Observation } from "@/observations/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
-import { publishProblem } from "./publish-problem"
+import { publishProblem, type PublishProblem } from "./publish-problem"
 import { RcaLinks } from "./rca-links"
 import { rcasQuery, usePublishRca, type RcaSummary } from "./queries"
 
@@ -22,6 +22,8 @@ type Props = {
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
   privateFolder?: () => void
+  blocks?: readonly Block[]
+  onShowBlock?: (blockId: string) => void
 }
 
 export function RcaPanel({
@@ -29,12 +31,15 @@ export function RcaPanel({
   onClose,
   trigger,
   privateFolder,
+  blocks = [],
+  onShowBlock,
 }: Props) {
   const headingId = useId()
   const revisions = useQuery(rcasQuery(observation.id))
   const publish = usePublishRca(observation.id)
   const [selected, setSelected] = useState<number | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  const [problem, setProblem] = useState<PublishProblem | null>(null)
+  const failedBlockId = problem?.blockId
   const canPublish = observation.allowed_actions.includes("publish")
   const list = revisions.data
   const next = (list?.[0]?.revision ?? 0) + 1
@@ -47,7 +52,7 @@ export function RcaPanel({
         toast.success(`Published revision ${rca.revision}`)
         setSelected(rca.revision)
       },
-      onError: (error) => setProblem(publishProblem(error)),
+      onError: (error) => setProblem(publishProblem(error, blocks)),
     })
   }
 
@@ -80,7 +85,22 @@ export function RcaPanel({
             </div>
             {problem === null ? null : (
               <Alert variant="destructive">
-                <AlertDescription>{problem}</AlertDescription>
+                <AlertDescription>{problem.text}</AlertDescription>
+                {failedBlockId === undefined ||
+                onShowBlock === undefined ? null : (
+                  <AlertAction>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onShowBlock(failedBlockId)
+                        onClose()
+                      }}
+                    >
+                      Show block
+                    </Button>
+                  </AlertAction>
+                )}
               </Alert>
             )}
           </div>

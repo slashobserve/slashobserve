@@ -188,6 +188,8 @@ function LoadedObservation({
         <RcaPanel
           observation={observation}
           trigger={rcaButton}
+          blocks={blocks}
+          onShowBlock={onShowBlock}
           onClose={() => rca.onOpenChange(false)}
           privateFolder={
             mustMoveToPublish

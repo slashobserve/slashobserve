@@ -219,6 +219,7 @@ Neither shares the result with anyone outside the folder.
 **Revisions** lists each revision with who published it and when.
 A person who cannot edit sees **RCA revisions** instead, and only when a revision exists, with the note "You can view revisions. Editors publish them."
 The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a panel with too much data, and an observation in My Dashboards.
+When a panel could not be frozen, the message names the panel and why, and **Show block** closes the panel and scrolls to that block so you can fix or remove it.
 Choosing a revision shows its public links.
 The app does not render a revision itself; a revision is read at the address of one of its links.
 

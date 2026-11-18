@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { observationKeys } from "@/api/keys"
-import type { Observation } from "@/observations/queries"
+import type { Block, Observation } from "@/observations/queries"
 import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -40,7 +40,9 @@ function observation(actions: string[]): Observation {
 function renderPanel(
   actions: string[],
   revisions: number[],
-  privateFolder?: () => void
+  privateFolder?: () => void,
+  blocks: Block[] = [],
+  onShowBlock?: (blockId: string) => void
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observationKeys.rcas(observationId), {
@@ -55,6 +57,8 @@ function renderPanel(
         trigger={createRef()}
         onClose={() => {}}
         privateFolder={privateFolder}
+        blocks={blocks}
+        onShowBlock={onShowBlock}
       />
     </PanelHostContext.Provider>,
     { queryClient }
@@ -126,5 +130,49 @@ describe("RcaPanel", () => {
         )
       ).toBeTruthy()
     )
+  })
+
+  it("names the block that could not be frozen and shows it on request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "a panel failed",
+              code: "panel_failed",
+              issues: [
+                {
+                  path: "/blocks/1",
+                  code: "query_timeout",
+                  message: "ran out of time",
+                },
+              ],
+            }),
+            { status: 422, headers: { "Content-Type": "application/json" } }
+          )
+        )
+      )
+    )
+    const blocks = [
+      {
+        id: "b1",
+        position: 1,
+        kind: "panel",
+        body: { panel: { title: "Checkout latency" } },
+      },
+    ] as unknown as Block[]
+    const show = vi.fn()
+    const { user } = renderPanel(["publish"], [], undefined, blocks, show)
+    await user.click(
+      await screen.findByRole("button", { name: "Publish revision 1" })
+    )
+    expect(
+      await screen.findByText(
+        'The panel "Checkout latency" could not be frozen: ran out of time'
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Show block" }))
+    expect(show).toHaveBeenCalledWith("b1")
   })
 })
