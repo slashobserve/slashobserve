@@ -5,7 +5,6 @@ import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -21,6 +20,7 @@ import {
 import { revisionsQuery } from "@/revisions/queries"
 
 import { ChatComposer, useOpenSent } from "./chat-composer"
+import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { RetryButton } from "./turn-failure"
 
@@ -120,22 +120,6 @@ function ConversationSkeleton() {
   return (
     <div className="mx-auto w-full max-w-[760px] pt-2">
       <TurnSkeleton />
-    </div>
-  )
-}
-
-function RequestNotFound({ removed }: { removed: boolean }) {
-  return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
-      <h1 className="text-2xl font-semibold">Request not found</h1>
-      <p className="text-sm text-muted-foreground">
-        {removed
-          ? "This request no longer exists."
-          : "This request does not exist."}
-      </p>
-      <Link to="/ask" className={cn(buttonVariants({ variant: "outline" }))}>
-        Back to Observe
-      </Link>
     </div>
   )
 }
@@ -415,7 +399,12 @@ export function Conversation({
     (root.error.status === 404 ||
       (root.data === undefined && root.error.status === 400))
   ) {
-    return <RequestNotFound removed={root.data !== undefined} />
+    return (
+      <RequestNotFound
+        removed={root.data !== undefined}
+        pane={layout === "pane"}
+      />
+    )
   }
 
   if (root.data === undefined) {

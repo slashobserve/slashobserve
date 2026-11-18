@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   formatRunDuration,
   mayHaveFinding,
+  noFindingText,
   resultFinishedAt,
   showsWorkingRow,
   tookText,
@@ -33,6 +34,37 @@ describe("resultFinishedAt", () => {
       ).toBe(expected)
     }
   )
+})
+
+describe("noFindingText", () => {
+  it.each([
+    [
+      "an answer in a folder the reader cannot see",
+      "observe",
+      "observation",
+      "The answer is saved in an observation in a folder you cannot see.",
+    ],
+    [
+      "an investigation whose finding is hidden",
+      "investigate",
+      "observation",
+      "The answer is saved in an observation in a folder you cannot see.",
+    ],
+    [
+      "an investigation with no finding",
+      "investigate",
+      "none",
+      "The run finished without a finding.",
+    ],
+    [
+      "a request that saved nothing",
+      "observe",
+      "none",
+      "The request finished without a dashboard.",
+    ],
+  ] as const)("%s", (_name, source, result_kind, expected) => {
+    expect(noFindingText({ source, result_kind })).toBe(expected)
+  })
 })
 
 describe("showsWorkingRow", () => {

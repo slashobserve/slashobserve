@@ -36,6 +36,7 @@ import {
 } from "./turn-failure"
 import {
   mayHaveFinding,
+  noFindingText,
   resultFinishedAt,
   showsWorkingRow,
   tookText,
@@ -327,9 +328,7 @@ export function RequestTurn({
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
-                {investigates
-                  ? "The run finished without a finding."
-                  : "The request finished without a dashboard."}
+                {noFindingText(request)}
               </p>
             ) : null
           ) : null}

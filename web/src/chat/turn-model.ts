@@ -19,6 +19,17 @@ export function mayHaveFinding(
   )
 }
 
+export function noFindingText(
+  request: Pick<ObserveRequest, "source" | "result_kind">
+): string {
+  if (request.result_kind === "observation") {
+    return "The answer is saved in an observation in a folder you cannot see."
+  }
+  return request.source === "investigate"
+    ? "The run finished without a finding."
+    : "The request finished without a dashboard."
+}
+
 export function showsWorkingRow(
   request: Pick<ObserveRequest, "status">,
   stalled: boolean
