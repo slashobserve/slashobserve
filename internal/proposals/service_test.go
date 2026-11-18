@@ -526,6 +526,20 @@ func TestADiscardKeepsItsTrimmedReason(t *testing.T) {
 	}
 }
 
+func TestTheDiscardedEventCarriesNoReasonText(t *testing.T) {
+	r := newRig(t)
+	id := r.createDashboard(t, steady)
+	ref := r.propose(t, commenter, id, 1, changed)
+
+	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "Paged @ola, creds are in the runbook"); err != nil {
+		t.Fatal(err)
+	}
+	data := r.activityData(t, "proposal.discarded")
+	if _, has := data["reason"]; has {
+		t.Fatalf("discarded event data = %v, want no free text", data)
+	}
+}
+
 func TestADiscardWithoutAReasonHasNone(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)

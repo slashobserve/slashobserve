@@ -51,7 +51,8 @@ When the result equals the latest version, nothing is saved, and the proposal cl
 
 `POST /api/v1/proposals/{id}/discard` closes the proposal without saving it.
 Its author, and anyone who may merge it, can discard it.
-The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason` and the `proposal.discarded` activity event carries it as `reason`.
+The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason`.
+The reason is not copied into the activity log, which never carries free text: read it from the proposal.
 A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
 
 ## States

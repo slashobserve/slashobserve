@@ -153,7 +153,7 @@ proposals-id-discard:
     summary: Close a proposal without saving it.
     description: >-
       The author of the proposal, or anyone who may merge it, may discard it.
-      The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason` and the `proposal.discarded` activity event carries.
+      The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason`; the activity event does not carry it.
     requestBody:
       required: false
       content:

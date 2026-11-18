@@ -463,7 +463,7 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 		if err := closeProposal(ctx, q, h, StateDiscarded, cols, reason); err != nil {
 			return err
 		}
-		return appendEvent(ctx, q, activity.TypeProposalDiscarded, who, h.row.ID, h.row.DashboardID, eventData{Title: h.row.Title, Revision: int(h.row.Revision), Reason: reason})
+		return appendEvent(ctx, q, activity.TypeProposalDiscarded, who, h.row.ID, h.row.DashboardID, eventData{Title: h.row.Title, Revision: int(h.row.Revision)})
 	})
 	if errors.Is(err, errLostClose) {
 		return Proposal{}, s.lost(ctx, id, f.can, ActionDiscard)

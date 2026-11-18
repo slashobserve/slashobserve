@@ -121,7 +121,6 @@ type eventData struct {
 	Title       string `json:"title"`
 	Revision    int    `json:"revision"`
 	BaseVersion *int   `json:"base_version,omitempty"`
-	Reason      string `json:"reason,omitempty"`
 }
 
 type mergedEventData struct {
