@@ -128,7 +128,8 @@ Once it is pinned the item reads **Pinned to dashboard**, and pinning again over
 
 **Make a dashboard**, in **More actions** and in the actions of a live panel block, saves the live panel blocks, or that one block, as a new dashboard in My Dashboards and opens it.
 The dashboard keeps the variables each block carries and uses the observation's range, or the first panel's when it has none, and every query is run again first.
-Making it again from the same observation or block opens the one you made first, and over the API `new: true` makes another.
+Making it again from the same observation or block opens the one you made first, unless you can no longer see that dashboard, and then a new one is made.
+Over the API `new: true` makes another.
 Suggested blocks, text blocks and snapshots are left out.
 
 ### Discuss beside the blocks

@@ -101,10 +101,9 @@ func (q *Queries) GetObservationRunDashboard(ctx context.Context, id pgtype.UUID
 	return dashboard_id, err
 }
 
-const insertObservationDashboard = `-- name: InsertObservationDashboard :execrows
+const insertObservationDashboard = `-- name: InsertObservationDashboard :exec
 INSERT INTO observation_dashboards (observation_id, block_id, dashboard_id, created_by_kind, created_by_id)
 VALUES ($1, $2::uuid, $3, $4, $5)
-ON CONFLICT DO NOTHING
 `
 
 type InsertObservationDashboardParams struct {
@@ -115,24 +114,20 @@ type InsertObservationDashboardParams struct {
 	CreatedByID   pgtype.UUID
 }
 
-func (q *Queries) InsertObservationDashboard(ctx context.Context, arg InsertObservationDashboardParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertObservationDashboard,
+func (q *Queries) InsertObservationDashboard(ctx context.Context, arg InsertObservationDashboardParams) error {
+	_, err := q.db.Exec(ctx, insertObservationDashboard,
 		arg.ObservationID,
 		arg.BlockID,
 		arg.DashboardID,
 		arg.CreatedByKind,
 		arg.CreatedByID,
 	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	return err
 }
 
-const insertObservationPin = `-- name: InsertObservationPin :execrows
+const insertObservationPin = `-- name: InsertObservationPin :exec
 INSERT INTO observation_pins (observation_id, dashboard_id, annotation_id)
 VALUES ($1, $2, $3)
-ON CONFLICT (observation_id, dashboard_id) DO NOTHING
 `
 
 type InsertObservationPinParams struct {
@@ -141,10 +136,16 @@ type InsertObservationPinParams struct {
 	AnnotationID  pgtype.UUID
 }
 
-func (q *Queries) InsertObservationPin(ctx context.Context, arg InsertObservationPinParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertObservationPin, arg.ObservationID, arg.DashboardID, arg.AnnotationID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) InsertObservationPin(ctx context.Context, arg InsertObservationPinParams) error {
+	_, err := q.db.Exec(ctx, insertObservationPin, arg.ObservationID, arg.DashboardID, arg.AnnotationID)
+	return err
+}
+
+const lockObservationOutput = `-- name: LockObservationOutput :exec
+SELECT pg_advisory_xact_lock(hashtextextended('observation-output:' || $1::text, 0))
+`
+
+func (q *Queries) LockObservationOutput(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, lockObservationOutput, name)
+	return err
 }

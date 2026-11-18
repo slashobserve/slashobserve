@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -20,6 +21,7 @@ import (
 
 type fakeDashboards struct {
 	t     *testing.T
+	mu    sync.Mutex
 	db    *dbtest.Database
 	specs []spec.Dashboard
 }
@@ -29,7 +31,9 @@ func (f *fakeDashboards) Create(ctx context.Context, _ auth.Principal, _ pgtype.
 	if err := json.Unmarshal(raw, &d); err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
+	f.mu.Lock()
 	f.specs = append(f.specs, d)
+	f.mu.Unlock()
 	var id string
 	err := f.db.SQLDB(f.t).QueryRowContext(ctx, `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ($1, 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`, d.Title).Scan(&id)
 	return f.shown(id, &d), f.version(&d), err
@@ -50,11 +54,6 @@ func (f *fakeDashboards) version(d *spec.Dashboard) dashboards.Version {
 func (f *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error) {
 	d := f.specs[0]
 	return f.shown(id.String(), &d), f.version(&d), nil
-}
-
-func (f *fakeDashboards) Delete(ctx context.Context, _ auth.Principal, id pgtype.UUID) error {
-	_, err := f.db.SQLDB(f.t).ExecContext(ctx, `DELETE FROM dashboards WHERE id = $1`, id)
-	return err
 }
 
 func (r rig) dashboard(t *testing.T) pgtype.UUID {
@@ -248,5 +247,82 @@ func TestPinAndMakeDashboardRoutesMatchTheDocument(t *testing.T) {
 	read := decode[envelope](t, d.call(t, editor, http.MethodGet, "/api/v1/observations/"+o.ID, http.StatusOK))
 	if read.Observation.DashboardID != nil || read.Observation.Pinned {
 		t.Errorf("an observation with no run says dashboard %v pinned %v", read.Observation.DashboardID, read.Observation.Pinned)
+	}
+}
+
+func TestMakingADashboardAgainReplacesOneThatIsNoLongerVisible(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addPanel(t, editor, o)
+	first, _, _, err := r.service.MakeDashboard(t.Context(), editor, id, pgtype.UUID{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2::uuid WHERE id = $1::uuid`, first.ID, r.hiddenFolder(t).String())
+
+	second, version, created, err := r.service.MakeDashboard(t.Context(), editor, id, pgtype.UUID{}, false)
+	if err != nil || !created || second.ID == "" || second.ID == first.ID || version.Spec == nil {
+		t.Fatalf("make after the first moved away: %q created %v: %v", second.ID, created, err)
+	}
+	third, _, created, err := r.service.MakeDashboard(t.Context(), editor, id, pgtype.UUID{}, false)
+	if err != nil || created || third.ID != second.ID {
+		t.Fatalf("make once more: %q created %v: %v", third.ID, created, err)
+	}
+}
+
+func TestSimultaneousMakesAndPinsGiveOneAnswerAndDeleteNothing(t *testing.T) {
+	r := newRig(t)
+	about := r.dashboard(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addPanel(t, editor, o)
+	r.runOn(t, o, about)
+	const callers = 8
+	var wg sync.WaitGroup
+	dashboardIDs := make([]string, callers)
+	annotationIDs := make([]string, callers)
+	createdDashboards, createdPins := make([]bool, callers), make([]bool, callers)
+	errs := make([]error, 2*callers)
+	for i := range callers {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			d, _, created, err := r.service.MakeDashboard(t.Context(), editor, id, pgtype.UUID{}, false)
+			dashboardIDs[i], createdDashboards[i], errs[i] = d.ID, created, err
+		}()
+		go func() {
+			defer wg.Done()
+			p, created, err := r.service.Pin(t.Context(), editor, id, pgtype.UUID{})
+			annotationIDs[i], createdPins[i], errs[callers+i] = p.AnnotationID, created, err
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(r.made.specs) != 1 {
+		t.Errorf("%d dashboards were made for one request", len(r.made.specs))
+	}
+	var made, pinned int
+	for i := range callers {
+		if createdDashboards[i] {
+			made++
+		}
+		if createdPins[i] {
+			pinned++
+		}
+		if dashboardIDs[i] != dashboardIDs[0] || annotationIDs[i] != annotationIDs[0] || dashboardIDs[i] == "" || annotationIDs[i] == "" {
+			t.Errorf("caller %d got dashboard %q and annotation %q, caller 0 got %q and %q", i, dashboardIDs[i], annotationIDs[i], dashboardIDs[0], annotationIDs[0])
+		}
+	}
+	if made != 1 || pinned != 1 {
+		t.Errorf("%d callers made a dashboard and %d made a pin", made, pinned)
+	}
+	var left int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM annotations`).Scan(&left); err != nil || left != 1 {
+		t.Errorf("%d annotations, %v", left, err)
 	}
 }

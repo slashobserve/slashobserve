@@ -200,7 +200,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 	}
 	if about.Valid {
 		o.DashboardID = about.String()
-		_, o.Pinned, err = s.pin(ctx, id, about)
+		o.Pinned, err = s.pinned(ctx, id, about)
 		if err != nil {
 			return Observation{}, err
 		}
