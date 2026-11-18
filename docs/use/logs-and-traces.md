@@ -121,7 +121,8 @@ Pick a pill to change it:
 
 The pills are not part of the text in the query box.
 The results, the log volume, the fields and the patterns all read the query with the active pills added, and the address keeps the pills as `f` beside `q`, so a shared link carries both.
-When you run a different query, the pills that are not pinned are cleared and the page says how many.
+When you run a different query, the pills that are not pinned are cleared and a message says how many, with **Undo** to bring them back and run the query again.
+A long pill shortens with an ellipsis, and hovering it shows the whole text.
 A saved search stores the query with its pills folded in as text.
 
 On Elasticsearch and OpenSearch a pill needs a KQL query, so the row asks you to switch the query to KQL while the text starts with `lucene:` or `{`.

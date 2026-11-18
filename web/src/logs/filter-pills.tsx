@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PinIcon, PlusIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
@@ -41,7 +42,7 @@ function filtersClearedText(count: number): string {
 }
 
 function usePillStore() {
-  const { search, update, run, announce } = useLogsWorkspace()
+  const { search, update, run } = useLogsWorkspace()
   const pills = useMemo(() => decodePills(search.f), [search.f])
   const q = search.q
   const filters = search.f
@@ -59,6 +60,10 @@ function usePillStore() {
     else setNotice(next.blocked)
   }
 
+  const latestQuery = useRef(q)
+  useEffect(() => {
+    latestQuery.current = q
+  })
   const previousQuery = useRef(q)
   const previousFilters = useRef(filters)
   useEffect(() => {
@@ -72,8 +77,16 @@ function usePillStore() {
     const kept = unpinnedCleared(pills)
     if (kept.length === pills.length) return
     update({ f: encodePills(kept) }, { replace: true })
-    announce(filtersClearedText(pills.length - kept.length))
-  }, [q, filters, pills, update, announce])
+    toast(filtersClearedText(pills.length - kept.length), {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          update({ f: filters })
+          if (latestQuery.current !== undefined) run(latestQuery.current)
+        },
+      },
+    })
+  }, [q, filters, pills, update, run])
 
   return { pills, write, change, notice }
 }
@@ -126,7 +139,7 @@ function PillChip({
   }
 
   return (
-    <li className="flex items-center gap-1.5">
+    <li className="flex max-w-full min-w-0 items-center gap-1.5">
       <Popover
         open={open}
         onOpenChange={(next) => {
@@ -142,14 +155,15 @@ function PillChip({
               data-negate={pill.negate}
               data-paused={pill.paused}
               data-pinned={pill.pinned}
-              className={cn(pillClass, "font-mono")}
+              title={label}
+              className={cn(pillClass, "max-w-full min-w-0 font-mono")}
             />
           }
         >
           {pill.pinned ? (
             <PinIcon aria-hidden="true" className="size-3" />
           ) : null}
-          {label}
+          <span className="truncate">{label}</span>
         </PopoverTrigger>
         <PopoverContent align="start" className={editing ? "w-80" : "w-40"}>
           {editing ? (
