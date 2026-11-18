@@ -113,6 +113,9 @@ The agent builds it panel by panel.
 Every message opens its chat page at `/c/<request id>` first, because the agent decides only while it works whether the message is a question or a dashboard.
 The moment it saves the first panel of a new dashboard, the page moves to the build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved; a question never shows it.
 Until then the status line reads "Working on your request" and the steps list what the agent is doing.
+Opening `/b/<request id>` of a request that has not saved a panel yet, from a bookmark or a reload, takes you to its chat page instead of an empty canvas.
+While the agent keeps the message box disabled, the note under it says to wait for the answer or cancel the run.
+Between two messages of the agent's live text there is a blank line.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 
@@ -226,7 +229,7 @@ The run itself goes on server-side either way.
 
 Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
-While the latest turn still runs the box is disabled with "Wait for the answer, then ask a follow-up."
+While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
 
 A follow-up is a continuation of the chat.

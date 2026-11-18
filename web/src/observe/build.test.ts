@@ -16,6 +16,7 @@ import {
   saveBuildErrorText,
   savedDashboardId,
   answeredRequestId,
+  awaitsFirstPanel,
   type BuildProgress,
 } from "./build"
 import type { ObserveRequest } from "./queries"
@@ -312,6 +313,31 @@ describe("answeredRequestId", () => {
     ["a failed request", { id: "r1", status: "failed", finding: null }, null],
   ])("%s", (_name, request, expected) => {
     expect(answeredRequestId(request)).toBe(expected)
+  })
+})
+
+describe("awaitsFirstPanel", () => {
+  type Waiting = Pick<
+    ObserveRequest,
+    "status" | "build" | "source" | "dashboard_id"
+  >
+  const waiting: Waiting = {
+    status: "running",
+    source: "observe",
+    dashboard_id: null,
+    build: null,
+  }
+  it("is true until the run has saved a first panel", () => {
+    expect(awaitsFirstPanel(waiting)).toBe(true)
+    expect(awaitsFirstPanel({ ...waiting, status: "queued" })).toBe(true)
+  })
+  it.each<[string, Partial<Waiting>]>([
+    ["a build exists", { build: progress() }],
+    ["the run ended", { status: "failed" }],
+    ["it revises a dashboard", { dashboard_id: "d1" }],
+    ["it is not a new-dashboard request", { source: "investigate" }],
+  ])("is false when %s", (_name, overrides) => {
+    expect(awaitsFirstPanel({ ...waiting, ...overrides })).toBe(false)
   })
 })
 

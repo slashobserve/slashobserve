@@ -350,7 +350,7 @@ function ConversationView({
               {hasDashboard
                 ? "Each change is saved as a new version of the dashboard."
                 : waitingForAnswer
-                  ? "Wait for the answer, then ask a follow-up."
+                  ? "Wait for the answer, or cancel the run, then ask a follow-up."
                   : "The agent sees the earlier messages of this chat."}
             </p>
           ) : null}

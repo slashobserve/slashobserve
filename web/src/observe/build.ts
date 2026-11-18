@@ -37,6 +37,17 @@ export function answeredRequestId(
     : null
 }
 
+export function awaitsFirstPanel(
+  request: Pick<ObserveRequest, "status" | "build" | "source" | "dashboard_id">
+): boolean {
+  return (
+    (request.status === "queued" || request.status === "running") &&
+    request.source === "observe" &&
+    request.dashboard_id === null &&
+    request.build === null
+  )
+}
+
 export function buildGone(error: unknown): boolean {
   return (
     error instanceof ApiError &&
