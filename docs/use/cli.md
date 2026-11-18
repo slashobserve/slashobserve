@@ -77,7 +77,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
@@ -88,6 +88,19 @@ While a request waits for a worker, `observe status` prints `Queued, position N`
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 `observe status` also shows the request's trigger, what started it; in this release that is always `person`, the requester.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
+
+### Your requests
+
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
+`--state` (repeatable, or comma-separated), `--source` (`observe`, `prompt`, `comment` or `investigate`), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--scope all` lists every principal's requests and needs the Admin role.
+It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
+Archived requests are left out.
+A request that failed before it had a dashboard shows only here, and `observe status <request-id>` reads it.
+
+`requests pin <id>`, `requests unpin <id>`, `requests rename <id> <title>` (`--clear` takes the title back to the start of the prompt) and `requests archive <id>` change one of your own requests.
+Each can be repeated without effect, so a retry after a dropped connection is safe.
+An archived request stays readable with `observe status`.
 
 ### Exit codes
 

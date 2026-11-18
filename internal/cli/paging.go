@@ -19,6 +19,7 @@ const (
 	maxObservationPage = 100
 	maxSavedSearchPage = 100
 	maxProposalPage    = 100
+	maxRequestPage     = 100
 	maxThreadPage      = 500
 	maxAnnotationPage  = 500
 )

@@ -114,10 +114,10 @@ var exceptions = map[string]exception{
 	"denyConnectionRequest":    {MCP: consentScreen, CLI: consentScreen},
 
 	"getAgent":                {MCP: notBuilt},
-	"listObserveRequests":     {MCP: builtInRuns, CLI: notBuilt},
+	"listObserveRequests":     {MCP: builtInRuns},
 	"createObserveRequest":    {MCP: builtInAgentQueue},
-	"updateObserveRequest":    {MCP: builtInAgentQueue, CLI: notBuilt},
-	"archiveObserveRequest":   {MCP: builtInAgentQueue, CLI: notBuilt},
+	"updateObserveRequest":    {MCP: builtInAgentQueue},
+	"archiveObserveRequest":   {MCP: builtInAgentQueue},
 	"getObserveRequestBuild":  {MCP: builtInRuns},
 	"saveObserveRequestBuild": {MCP: builtInAgentQueue, CLI: notBuilt},
 	"cancelObserveRequest":    {MCP: builtInAgentQueue},
