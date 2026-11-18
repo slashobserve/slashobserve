@@ -627,9 +627,9 @@ func execErr(r *rig, query string, args ...any) error {
 }
 
 type lockProbe struct {
-	db       *sql.DB
-	runID    string
-	lockErr  error
+	db      *sql.DB
+	runID   string
+	lockErr error
 }
 
 func (p *lockProbe) Health(ctx context.Context) []datasource.Status {
