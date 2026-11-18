@@ -126,6 +126,7 @@ func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 		"write every time as UTC with the word UTC",
 		"When several pods or services tie, lead with the one with the most errors, then the first by name",
 		"Call `list_annotations`",
+		"read it with `get_observation`, and cite it by its title and `/o/<id>`",
 		"Before you say a signal does not exist, list its metrics with a filter for the service",
 		"say in the finding what you did not read",
 		"Write the first sentence in plain words",
