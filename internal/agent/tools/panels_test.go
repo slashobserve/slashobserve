@@ -904,3 +904,30 @@ func mustPrincipal(ctx context.Context, t *testing.T) auth.Principal {
 	}
 	return p
 }
+
+func TestAMissingVersionIsNotMistakenForAMissingDashboard(t *testing.T) {
+	rig := newPanelsRig(t)
+	id := rig.seedStats(t)
+	change := `"summary":"Change","upsert":[` + suggestStat("p1", "Renamed", "count(up)", 0) + `]`
+
+	for name, call := range map[string]struct{ tool, input string }{
+		nameUpdatePanels:            {nameUpdatePanels, `{"dashboard_id":"` + id + `","parent_version":99,` + change + `}`},
+		nameGetPanels:               {nameGetPanels, `{"dashboard_id":"` + id + `","version":99,"ids":["p1"]}`},
+		nameGetDashboard:            {nameGetDashboard, `{"dashboard_id":"` + id + `","version":99}`},
+		nameDiffDashboardVersions:   {nameDiffDashboardVersions, `{"dashboard_id":"` + id + `","from":1,"to":99}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, _ := rig.as(rig.ctx).run(t, call.tool, call.input)
+			out, ok := res.Content.(versionNotFoundOut)
+			if !res.IsError || !ok || out.Code != codeVersionNotFound || out.LatestVersion != 1 || out.Message == "" {
+				t.Fatalf("res = %#v", res.Content)
+			}
+		})
+	}
+
+	gone := "00000000-0000-4000-8000-000000000000"
+	res, _ := rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+gone+`","parent_version":1,`+change+`}`)
+	if eb, ok := res.Content.(errorBody); !ok || eb.Code != codeNotFound || eb.Message == "" {
+		t.Fatalf("missing dashboard: %#v", res.Content)
+	}
+}

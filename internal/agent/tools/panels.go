@@ -185,6 +185,9 @@ func (r *Registry) panelsSource(ctx context.Context, run Run, scoped bool, id pg
 		_, ver, err = r.deps.Dashboards.GetVersion(ctx, id, version)
 	}
 	if errors.Is(err, dashboards.ErrNotFound) {
+		if res, ok := r.versionNotFound(ctx, id); ok {
+			return 0, nil, res, false, nil
+		}
 		return 0, nil, toolError(codeNotFound, "dashboard or version not found"), false, nil
 	}
 	if err != nil {
@@ -254,7 +257,7 @@ func (r *Registry) updatePanels(ctx context.Context, input json.RawMessage) (Res
 func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, target saveTarget, requestID pgtype.UUID, in updatePanelsInput) (Result, error) {
 	_, parent, err := r.deps.Dashboards.GetVersion(ctx, target.id, target.parent)
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
 	if parent.Spec == nil {
 		return Result{}, errors.New("parent version has no spec")
@@ -289,7 +292,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 		return patchRejected(invalidSpec.Issues, panelIDsOf(merged)), nil
 	}
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
 	return r.saveSucceeded(ctx, res), nil
 }

@@ -32,11 +32,12 @@ It works only for a person's connection, never for a key.
 ## Change a dashboard
 
 Read it with get_dashboard, or only the panels you need with get_panels, and send just the change with update_panels.
-Pass the version you read as parent_version.
+Pass the version you read as parent_version and a one-line summary of the change; both are required, and so are parent_version and dashboard_id for restore_dashboard_version.
 A save on an older version merges when it changed other panels; when it changed the same ones it answers version_conflict with the conflicts, so read the latest version and apply your change again.
 A save you may not make directly becomes a proposal for an Editor, and so does every save while your connection is in propose mode, which only your person can set: the result says proposed and is a success, not an error.
 Tell the person the proposal waits for review.
-A save that removes panels or variables is refused and names them: ask the person to remove them.
+While your connection is in propose mode, a save that removes panels or variables is refused as proposal_required and names them: ask the person to remove them.
+In direct mode update_panels with delete, or a spec without a panel, removes it as a new version, so delete only what the person asked you to, and restore_dashboard_version brings the old version back.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
 
@@ -72,7 +73,7 @@ save_search keeps a logs or traces search the team will reuse, after you check i
 ## Answer comments
 
 list_comments reads the threads on a dashboard, an observation, an annotation or a proposal.
-Fix what a comment asks, then reply_to_comment and resolve_comment with the version you saved.
+Fix what a comment asks, then reply_to_comment with your answer and resolve_comment with the version you saved; only resolve_comment takes a version.
 create_comment opens a thread on any of them, edit_comment changes a comment you wrote and reopen_comment reopens a resolved thread.
 A comment that mentions @observe addresses SlashObserve's own agent, and the mention is recorded in the activity log and by default starts no run.
 Set start_runs on create_comment or reply_to_comment, with exactly one agent mentioned, to start a run for it: @observe, one of your own connected agents or a service account that takes runs, written as the token the person gave you.

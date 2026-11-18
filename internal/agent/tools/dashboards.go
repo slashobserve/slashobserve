@@ -33,6 +33,7 @@ const (
 
 	codeInvalidSpec     = "invalid_spec"
 	codeVersionConflict = "version_conflict"
+	codeVersionNotFound = "version_not_found"
 	codeNotFound        = "not_found"
 	codeProposed        = "proposed"
 
@@ -232,6 +233,9 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		dash, ver, err = r.deps.Dashboards.GetVersion(ctx, id, version)
 	}
 	if errors.Is(err, dashboards.ErrNotFound) {
+		if res, ok := r.versionNotFound(ctx, id); ok {
+			return res, nil
+		}
 		return toolError(codeNotFound, "dashboard or version not found"), nil
 	}
 	if err != nil {
@@ -469,7 +473,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 		ProposeIfNeeded: true,
 	})
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
 	return r.saveSucceeded(ctx, saved), nil
 }
@@ -640,6 +644,37 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 	}
 }
 
+type versionNotFoundOut struct {
+	Code          string `json:"code"`
+	Message       string `json:"message"`
+	LatestVersion int    `json:"latest_version"`
+}
+
+func (r *Registry) saveFailureOn(ctx context.Context, id pgtype.UUID, err error) (Result, error) {
+	if !errors.Is(err, dashboards.ErrNotFound) {
+		return saveFailure(err)
+	}
+	if res, ok := r.versionNotFound(ctx, id); ok {
+		return res, nil
+	}
+	return saveFailure(err)
+}
+
+func (r *Registry) versionNotFound(ctx context.Context, id pgtype.UUID) (Result, bool) {
+	if r.deps.Folders == nil || r.deps.Dashboards == nil {
+		return Result{}, false
+	}
+	if _, viewable, err := r.viewableDashboard(ctx, id, ""); err != nil || !viewable {
+		return Result{}, false
+	}
+	_, latest, err := r.deps.Dashboards.Get(ctx, id)
+	if err != nil {
+		return Result{}, false
+	}
+	message := fmt.Sprintf("a version you named does not exist on this dashboard; its latest version is %d", latest.Number)
+	return failure("Version not found", versionNotFoundOut{Code: codeVersionNotFound, Message: message, LatestVersion: latest.Number}), true
+}
+
 func saveFailure(err error) (Result, error) {
 	var invalidSpec *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
@@ -656,7 +691,7 @@ func saveFailure(err error) (Result, error) {
 		kept, truncated := fit(slices.Clone(conflict.Conflicts), listBudget)
 		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
-		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound}), nil
+		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound, Message: "dashboard not found, or you cannot see it"}), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return failure("Save rejected: "+codeForbiddenRole, errorBody{Code: codeForbiddenRole, Message: roleDeniedMessage}), nil
 	}
