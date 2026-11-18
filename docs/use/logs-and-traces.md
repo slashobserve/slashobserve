@@ -508,6 +508,7 @@ The query may span lines but holds no NUL character, and a column name holds no 
 A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
+The title starts as the query with all of it selected, so typing a name replaces it.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
