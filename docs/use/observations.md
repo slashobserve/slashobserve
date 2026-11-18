@@ -157,11 +157,12 @@ The line is not the model's text, and it never resolves the discussion.
 ### Add to an observation from a panel or from Logs
 
 **Add to observation** in a dashboard panel's menu copies that panel into an observation.
-The item shows for every data panel while you have no unsaved layout changes, and it is greyed with "(uses dashboard variables)" after it when the panel cannot be copied.
-A panel cannot be copied when a query, or the panel's datasource, holds `$name` or `${name`, where the name starts with a letter or a single underscore.
-The built-in names, which start with two underscores, such as `$__rate_interval`, `$__interval` and `${__user.name}`, do not count, because a block runs them as it runs any query.
+The item shows for every data panel while you have no unsaved layout changes.
+A panel that uses dashboard variables, a `$name` or `${name}` in a query or in the panel's datasource, is copied with the variables it uses and the values selected at that moment, so the block shows what you saw.
+The built-in names, which start with two underscores, such as `$__rate_interval`, `$__interval` and `${__user.name}`, are not variables, because a block runs them as it runs any query.
 A `$` before a digit or on its own does not count, and a variable in the panel's title does not either.
-A block runs with no dashboard variables, so a panel that needs one is not offered.
+A multi-value selection and **All** expand in the query as they do on the dashboard, because the block keeps the variable's definition.
+The block says "with `service=checkout`" under its title, and changing the dashboard's selection later does not change the block.
 
 The side panel asks **Where**: **An open observation**, chosen from the open ones you can see, or **A new observation**, which asks for a title that starts as the panel's title and a folder as above.
 With no open observation, only the new one is offered.

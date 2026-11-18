@@ -95,6 +95,36 @@ describe("PanelBlock", () => {
     expect(screen.getByText("Added by Priya")).toBeTruthy()
   })
 
+  it("says which values the panel runs with when the block carries variables", async () => {
+    stubData(() => json({ frames: [], meta: {} }, 200))
+    renderBlock(
+      panelBlock({
+        panel: {
+          type: "timeseries",
+          title: "Errors",
+          datasource: "prom-prod",
+          queries: [{ query: 'up{service=~"$service"}' }],
+        },
+        variables: [
+          {
+            name: "service",
+            type: "custom",
+            multi: true,
+            options: [],
+            default: ["checkout", "cart"],
+          },
+          { name: "env", type: "custom", options: [], default: "$__all" },
+        ],
+      })
+    )
+
+    expect(
+      await screen.findByText(
+        "Prometheus production, live, with service=checkout,cart, env=All"
+      )
+    ).toBeTruthy()
+  })
+
   it("shows the server's sentence when the data route refuses the caller", async () => {
     const fetch = stubData(() =>
       json(

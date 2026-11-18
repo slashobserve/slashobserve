@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest"
 
-import type { DataPanel } from "@/spec"
+import { ALL } from "@/dashboards/search"
+import type { DataPanel, Variable } from "@/spec"
 
-import { blockPanelFrom, blockRange, panelUsesVariables } from "./panel-input"
+import {
+  bakedSelections,
+  blockPanelFrom,
+  blockRange,
+  blockVariables,
+  variableCaption,
+} from "./panel-input"
 
 function panel(overrides: Record<string, unknown> = {}): DataPanel {
   return {
@@ -16,28 +23,45 @@ function panel(overrides: Record<string, unknown> = {}): DataPanel {
   } as DataPanel
 }
 
-describe("panelUsesVariables", () => {
+const service = {
+  name: "service",
+  type: "custom",
+  multi: true,
+  includeAll: true,
+  options: [
+    { text: "checkout", value: "checkout" },
+    { text: "cart", value: "cart" },
+  ],
+} as unknown as Variable
+
+describe("blockVariables", () => {
+  const used = panel({ queries: [{ query: 'up{service=~"$service"}' }] })
+
   it.each([
     ["a $name reference", 'up{service="$service"}'],
     ["a ${name} reference", 'up{service="${service}"}'],
     ["a ${name:format} reference", 'up{service="${service:regex}"}'],
-    ["an underscored name", "up{job=~$_job}"],
-  ])("is true for %s in a query", (_, query) => {
-    expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(true)
+  ])("keeps the variable of %s", (_, query) => {
+    const got = blockVariables(panel({ queries: [{ query }] }), [service], {})
+    expect(got.map((variable) => variable.name)).toEqual(["service"])
   })
 
-  it("is true for a variable beside a built-in", () => {
-    const query = 'rate(up{job="$job"}[$__rate_interval])'
-    expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(true)
+  it("keeps a variable beside a built-in and finds one in a later query", () => {
+    const queries = [
+      { query: "up" },
+      { query: "rate(up{service=$service}[$__rate_interval])" },
+    ]
+    expect(blockVariables(panel({ queries }), [service], {})).toHaveLength(1)
   })
 
-  it("is true when a later query of the panel references a variable", () => {
-    const queries = [{ query: "up" }, { query: "up{job=$job}" }]
-    expect(panelUsesVariables(panel({ queries }))).toBe(true)
-  })
-
-  it("is true when the panel's datasource names a variable", () => {
-    expect(panelUsesVariables(panel({ datasource: "${ds}" }))).toBe(true)
+  it("keeps a datasource variable named by the panel", () => {
+    const ds = { name: "ds", type: "datasource" } as unknown as Variable
+    const got = blockVariables(
+      panel({ datasource: "${ds}" }),
+      [ds, service],
+      {}
+    )
+    expect(got.map((variable) => variable.name)).toEqual(["ds"])
   })
 
   it.each([
@@ -47,12 +71,62 @@ describe("panelUsesVariables", () => {
     ["a built-in interval", "rate(up[$__rate_interval])"],
     ["a braced built-in", "rate(up[${__interval}])"],
     ["a built-in user name", "up{owner='${__user.name}'}"],
-  ])("is false for %s", (_, query) => {
-    expect(panelUsesVariables(panel({ queries: [{ query }] }))).toBe(false)
+  ])("keeps no variable for %s", (_, query) => {
+    expect(
+      blockVariables(panel({ queries: [{ query }] }), [service], {})
+    ).toEqual([])
   })
 
-  it("ignores variable references outside the queries and the datasource", () => {
-    expect(panelUsesVariables(panel({ title: "$service latency" }))).toBe(false)
+  it("ignores references outside the queries and the datasource", () => {
+    expect(
+      blockVariables(panel({ title: "$service latency" }), [service], {})
+    ).toEqual([])
+  })
+
+  it("keeps the variables a kept variable's own query needs, in order", () => {
+    const env = { name: "env", type: "custom" } as unknown as Variable
+    const dependent = {
+      name: "service",
+      type: "query",
+      query: 'label_values(up{env="$env"}, service)',
+    } as unknown as Variable
+    const unused = { name: "zone", type: "custom" } as unknown as Variable
+    const got = blockVariables(used, [env, dependent, unused], {})
+    expect(got.map((variable) => variable.name)).toEqual(["env", "service"])
+  })
+
+  it("records the selected value as the variable's default", () => {
+    const [multi] = blockVariables(used, [service], {
+      service: ["checkout", "cart"],
+    })
+    expect(multi).toMatchObject({ default: ["checkout", "cart"] })
+    const [all] = blockVariables(used, [service], { service: [ALL] })
+    expect(all).toMatchObject({ default: [ALL] })
+    const single = { ...service, multi: false } as unknown as Variable
+    const [one] = blockVariables(used, [single], { service: ["cart"] })
+    expect(one).toMatchObject({ default: "cart" })
+  })
+
+  it("leaves the variable as defined when nothing is selected", () => {
+    const [kept] = blockVariables(used, [service], {})
+    expect("default" in kept).toBe(false)
+  })
+})
+
+describe("bakedSelections and variableCaption", () => {
+  it("reads back the values a block runs with", () => {
+    const baked = blockVariables(
+      panel({ queries: [{ query: "up{a=$a,b=$b}" }] }),
+      [
+        { ...service, name: "a" },
+        { ...service, name: "b" },
+      ],
+      { a: ["checkout", "cart"], b: [ALL] }
+    )
+    const selections = bakedSelections(baked)
+    expect(selections).toEqual({ a: ["checkout", "cart"], b: [ALL] })
+    expect(variableCaption(selections)).toBe("with a=checkout,cart, b=All")
+    expect(variableCaption({})).toBe("")
   })
 })
 

@@ -7,11 +7,17 @@ import {
   validateLogsSearch,
   type LogsSearch,
 } from "@/logs/search"
-import { findPanel, isDataPanel, type Dashboard, type DataPanel } from "@/spec"
+import {
+  findPanel,
+  isDataPanel,
+  type Dashboard,
+  type DataPanel,
+  type Variable,
+} from "@/spec"
 import { normaliseTraceId, validateTraceViewSearch } from "@/traces/search"
 
 import { newPanelBody } from "./block-rows"
-import { blockPanelFrom, blockRange, panelUsesVariables } from "./panel-input"
+import { blockPanelFrom, blockRange, blockVariables } from "./panel-input"
 
 export type NoteLink =
   | { kind: "logs"; uid: string; query: string; search: LogsSearch }
@@ -22,6 +28,7 @@ export type NoteLink =
       panelId: string
       from?: string
       to?: string
+      vars?: Record<string, string[]>
     }
 
 export type PanelBlockBody = ReturnType<typeof newPanelBody>
@@ -81,6 +88,7 @@ function classify(url: URL): NoteLink | null {
       panelId,
       from: search.from,
       to: search.to,
+      ...(Object.keys(search.vars).length > 0 ? { vars: search.vars } : {}),
     }
   }
   return null
@@ -112,9 +120,14 @@ function bodyOf(
   panel: DataPanel,
   from: string | undefined,
   to: string | undefined,
-  now: number
+  now: number,
+  variables: readonly Variable[] = []
 ): PanelBlockBody {
-  return newPanelBody(blockPanelFrom(panel), blockRange(from, to, now))
+  return newPanelBody(
+    blockPanelFrom(panel),
+    blockRange(from, to, now),
+    variables
+  )
 }
 
 export function logsLinkBody(
@@ -168,11 +181,10 @@ export function dashboardPanelBody(
   if (!isDataPanel(entry.panel)) {
     return { reason: "That panel holds no data to copy." }
   }
-  if (panelUsesVariables(entry.panel)) {
-    return {
-      reason:
-        "That panel uses dashboard variables, and a block runs without them.",
-    }
-  }
-  return { body: bodyOf(entry.panel, link.from, link.to, now) }
+  const variables = blockVariables(
+    entry.panel,
+    spec.variables ?? [],
+    link.vars ?? {}
+  )
+  return { body: bodyOf(entry.panel, link.from, link.to, now, variables) }
 }

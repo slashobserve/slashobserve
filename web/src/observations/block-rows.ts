@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/errors"
-import type { DataPanel } from "@/spec"
+import type { DataPanel, Variable } from "@/spec"
 
 import { blockWriteProblem } from "./errors"
 import type { Block, Observation } from "./queries"
@@ -91,15 +91,24 @@ export function nextBlockId(
 
 export function newPanelBody(
   panel: DataPanel,
-  range: Pick<Observation, "from" | "to">
-): { panel: Record<string, unknown>; from?: string; to?: string } {
+  range: Pick<Observation, "from" | "to">,
+  variables: readonly Variable[] = []
+): {
+  panel: Record<string, unknown>
+  variables?: Variable[]
+  from?: string
+  to?: string
+} {
   const copy: Record<string, unknown> = { ...panel }
   delete copy.id
   delete copy.gridPos
+  const body: ReturnType<typeof newPanelBody> = { panel: copy }
+  if (variables.length > 0) body.variables = [...variables]
   if (range.from !== null && range.to !== null) {
-    return { panel: copy, from: range.from, to: range.to }
+    body.from = range.from
+    body.to = range.to
   }
-  return { panel: copy }
+  return body
 }
 
 export function addProblemText(error: unknown): string {

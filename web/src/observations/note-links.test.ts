@@ -179,7 +179,7 @@ describe("link blocks", () => {
     expect(outcome.body.panel).not.toHaveProperty("gridPos")
   })
 
-  it("says why a missing panel, a text panel or a panel with variables makes no block", () => {
+  it("says why a missing panel or a text panel makes no block", () => {
     const missing = noteLinks(
       `${origin}/d/${dashboardId}?panel=gone`,
       origin
@@ -194,23 +194,44 @@ describe("link blocks", () => {
     expect(dashboardPanelBody(text, spec, now)).toEqual({
       reason: "That panel holds no data to copy.",
     })
+  })
+
+  it("keeps the variables a linked panel uses, with the values in the link", () => {
     const withVariable = {
       ...spec,
+      variables: [
+        {
+          name: "instance",
+          type: "custom",
+          multi: true,
+          options: [
+            { text: "a", value: "a" },
+            { text: "b", value: "b" },
+          ],
+        },
+        { name: "unused", type: "custom", options: [] },
+      ],
       panels: [
         {
           id: "cpu",
           type: "timeseries",
           datasource: "prom",
           gridPos: { x: 0, y: 0, w: 12, h: 8 },
-          queries: [{ query: 'up{instance="$instance"}' }],
+          queries: [{ query: 'up{instance=~"$instance"}' }],
         },
       ],
     } as unknown as Dashboard
-    const link = noteLinks(`${origin}/d/${dashboardId}?panel=cpu`, origin)[0]
+    const link = noteLinks(
+      `${origin}/d/${dashboardId}?panel=cpu&var-instance=a&var-instance=b`,
+      origin
+    )[0]
     if (link?.kind !== "panel") throw new Error("expected a panel link")
-    expect(dashboardPanelBody(link, withVariable, now)).toEqual({
-      reason:
-        "That panel uses dashboard variables, and a block runs without them.",
+    const outcome = dashboardPanelBody(link, withVariable, now)
+    if (!("body" in outcome)) throw new Error("expected a body")
+    expect(outcome.body.variables).toHaveLength(1)
+    expect(outcome.body.variables?.[0]).toMatchObject({
+      name: "instance",
+      default: ["a", "b"],
     })
   })
 
