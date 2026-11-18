@@ -103,10 +103,6 @@ var exceptions = map[string]exception{
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
 	"getDashboardImport": {MCP: notBuilt, CLI: notBuilt},
 
-	"listDatasourceMetrics":     {CLI: notBuilt},
-	"listDatasourceLabels":      {CLI: notBuilt},
-	"listDatasourceLabelValues": {CLI: notBuilt},
-
 	"getNewsFeed": {MCP: personOnly, CLI: personOnly},
 
 	"getConnectionRequest":     {MCP: consentScreen, CLI: consentScreen},

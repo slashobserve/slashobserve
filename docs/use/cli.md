@@ -530,6 +530,12 @@ Each line shows the series name with its labels, then the number of points and t
 An invalid query exits 1 with the datasource's message, and so does a query that hits the server's limit of 15 seconds, 200 series or 100,000 points; the message names the limit.
 The [Metrics](metrics.md) page runs the same queries in the web app.
 
+`bin/observe metrics names --datasource <uid>` lists the metric names with their type and help text.
+`bin/observe metrics labels --datasource <uid>` lists the label names, and `bin/observe metrics values <label> --datasource <uid>` lists the values of one label.
+`labels` and `values` take `--metric <name>` to keep only what was seen on that metric.
+All three take `--search <text>`, which keeps the names that contain the text, ignoring case, and `--limit`, 1 to 500 and 100 by default; when more exist they say so on stderr.
+`--json` prints the response body.
+
 ## Grafana connections
 
 ### Connect to a Grafana

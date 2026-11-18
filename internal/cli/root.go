@@ -47,6 +47,7 @@ type app struct {
 	annotating      annotateOptions
 	logs            logsOptions
 	metricsQuery    metricsQueryOptions
+	metricsNames    metricsNamesOptions
 	traces          tracesOptions
 	grafanaConnect  grafanaConnectOptions
 	grafanaImport   grafanaImportOptions

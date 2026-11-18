@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { languageReference } from "@/datasources/sources"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
+import { MetricsBrowser } from "@/panel-editor/metrics-browser"
 import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import type { LintResult } from "@/query-editor/server-lint"
 
@@ -17,6 +18,7 @@ export function QueryBar() {
   const editorRef = useRef<CodeEditorHandle>(null)
   const [lint, setLint] = useState<LintResult | null>(null)
   const [blocked, setBlocked] = useState<string | null>(null)
+  const [browsing, setBrowsing] = useState(false)
   const empty = draft.trim() === ""
   const reference = languageReference("metrics", datasource.type)
   const problem = blocked === draft ? syntaxProblem(lint, draft) : null
@@ -47,6 +49,13 @@ export function QueryBar() {
   return (
     <>
       <div className="flex flex-col gap-2.5 px-4 pt-3 pb-4">
+        {browsing ? (
+          <MetricsBrowser
+            datasourceUid={datasource.uid}
+            datasourceType={datasource.type}
+            onInsert={(text) => editorRef.current?.insertAtCursor(text)}
+          />
+        ) : null}
         <div onKeyDownCapture={onKeyDown} className="[&>div]:bg-background">
           <CodeEditor
             value={draft}
@@ -88,6 +97,16 @@ export function QueryBar() {
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t px-4 py-2.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-expanded={browsing}
+          className="mr-auto narrow:h-11"
+          onClick={() => setBrowsing((open) => !open)}
+        >
+          {browsing ? "Hide metrics" : "Browse metrics"}
+        </Button>
         <span className="text-xs text-muted-foreground">
           or press {modChordLabel(navigator.userAgent, "")}Enter
         </span>

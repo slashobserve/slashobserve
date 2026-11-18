@@ -30,6 +30,16 @@ A query the server finds invalid does not run.
 The page shows the message with its line and column and a caret under the position.
 A query that fails on the datasource shows the datasource's message and a **Retry** button.
 
+## Browse metrics
+
+**Browse metrics** opens a browser above the query box with the metrics of the datasource and a search box.
+Type to filter the list; the list shows the first 100 matches, and each metric's help text appears as its tooltip.
+Choose a metric to see the labels it carries, choose a label to see its values, and choose a value to insert a matcher such as `service="checkout"` at the cursor.
+**Insert metric** puts the metric's name at the cursor.
+**Back to labels** returns from the values to the label list.
+The names come from the server, which asks the datasource, so the browser never reaches the datasource itself.
+**Hide metrics** closes the browser.
+
 ## Graph and table
 
 **Graph** runs a range query and draws each series as a line, with a legend table under the chart that lists the mean, maximum and last value of each series.
@@ -47,4 +57,5 @@ The query runs as given, so a Prometheus datasource shows what its credentials c
 
 ## With the CLI
 
-`observe metrics query` runs the same query from a terminal; see [Metrics](cli.md#metrics).
+`observe metrics query` runs the same query from a terminal, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
+The MCP tools `query_range`, `query_instant`, `list_metrics`, `list_labels` and `list_label_values` do the same for an agent; see [MCP](mcp.md).

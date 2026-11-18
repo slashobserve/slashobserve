@@ -139,3 +139,79 @@ func TestMetricsQueryRefusesAMissingDatasourceBeforeAnyRequest(t *testing.T) {
 		t.Fatalf("exit %d, stderr %q, requests %d", code, stderr, len(f.requests))
 	}
 }
+
+func newNamesFake(t *testing.T, answer string) (*httptest.Server, *[]string) {
+	t.Helper()
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.RequestURI())
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, answer)
+	}))
+	t.Cleanup(server.Close)
+	return server, &requests
+}
+
+func runNames(server *httptest.Server, args ...string) (string, string, int) {
+	return runCLI(append([]string{"--server", server.URL, "--token", "k", "metrics"}, args...)...)
+}
+
+func TestMetricsNamesPrintsTypeAndHelpAndSaysWhenTruncated(t *testing.T) {
+	server, requests := newNamesFake(t, `{"datasource":"prom","metrics":[{"name":"up","type":"gauge","help":"Target is up"},{"name":"http_requests_total","type":"counter"}],"truncated":true}`)
+	stdout, stderr, code := runNames(server, "names", "--datasource", "prom", "--search", "http", "--limit", "2")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if want := "/api/v1/datasources/prom/metrics?limit=2&search=http"; (*requests)[0] != want {
+		t.Fatalf("request %q, want %q", (*requests)[0], want)
+	}
+	if !strings.Contains(stdout, "NAME") || !strings.Contains(stdout, "Target is up") || !strings.Contains(stdout, "counter") {
+		t.Fatalf("stdout %q", stdout)
+	}
+	if !strings.Contains(stderr, "There are more") {
+		t.Fatalf("stderr %q", stderr)
+	}
+}
+
+func TestMetricsLabelsScopesToAMetric(t *testing.T) {
+	server, requests := newNamesFake(t, `{"datasource":"prom","labels":["code","service"],"truncated":false}`)
+	stdout, stderr, code := runNames(server, "labels", "--datasource", "prom", "--metric", "up")
+	if code != 0 || stdout != "code\nservice\n" || stderr != "" {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if want := "/api/v1/datasources/prom/labels?limit=100&metric=up"; (*requests)[0] != want {
+		t.Fatalf("request %q, want %q", (*requests)[0], want)
+	}
+}
+
+func TestMetricsValuesEscapesTheLabelInThePath(t *testing.T) {
+	server, requests := newNamesFake(t, `{"datasource":"prom","label":"a/b","values":["x"],"truncated":false}`)
+	stdout, _, code := runNames(server, "values", "a/b", "--datasource", "prom")
+	if code != 0 || stdout != "x\n" {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+	if want := "/api/v1/datasources/prom/labels/a%2Fb/values?limit=100"; (*requests)[0] != want {
+		t.Fatalf("request %q, want %q", (*requests)[0], want)
+	}
+}
+
+func TestMetricsNamesJSONPrintsTheResponse(t *testing.T) {
+	const body = `{"datasource":"prom","labels":[],"truncated":false}`
+	server, _ := newNamesFake(t, body)
+	stdout, _, code := runNames(server, "labels", "--datasource", "prom", "--json")
+	if code != 0 || strings.TrimSpace(stdout) != body {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestMetricsNamesRefusesBadFlagsBeforeAnyRequest(t *testing.T) {
+	server, requests := newNamesFake(t, `{}`)
+	for _, args := range [][]string{{"names"}, {"names", "--datasource", "prom", "--limit", "0"}, {"labels", "--datasource", "prom", "--limit", "501"}} {
+		if _, _, code := runNames(server, args...); code != 2 {
+			t.Errorf("%v exit %d", args, code)
+		}
+	}
+	if len(*requests) != 0 {
+		t.Fatalf("requests %v", *requests)
+	}
+}
