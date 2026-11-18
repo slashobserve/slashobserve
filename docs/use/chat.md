@@ -276,7 +276,9 @@ Only the person who started a chat can rename, pin or delete it.
 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
-- **Change an existing dashboard from Home.** A request on Home builds a new dashboard; to change one, open it and ask in its activity pane.
+- **Change an existing dashboard from Home.** A request on Home builds a new dashboard and cannot change one that exists.
+  When the agent finds exactly one dashboard you meant, it answers that the change is asked for there and offers **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt.
+  When it finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.
 

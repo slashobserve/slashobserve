@@ -39,6 +39,7 @@ Tell the person the proposal waits for review.
 A save that removes panels or variables is refused and names them: ask the person to remove them.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with observe --dashboard <id>.
 
 ## Review proposals
 

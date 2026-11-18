@@ -1478,7 +1478,7 @@ func TestAProposeModeFinishThatRemovedAPanelAnswersProposalRequiredAndKeepsTheBu
 }
 
 func TestTheNoBuildMessageSaysHowToChangeAnExistingDashboard(t *testing.T) {
-	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "that dashboard's own page"} {
+	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "ask_on_dashboard_id", "exactly one"} {
 		if !strings.Contains(noBuildYet, want) {
 			t.Errorf("message lacks %q: %s", want, noBuildYet)
 		}

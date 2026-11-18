@@ -212,7 +212,7 @@ func TestANewDashboardBriefStatesWhatHomeCannotDo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"My Dashboards", "list_folders", "folder_id", "can_create true", "cannot change an existing dashboard or create alerts", "that dashboard's own page"} {
+	for _, want := range []string{"My Dashboards", "list_folders", "folder_id", "can_create true", "cannot create alerts", "cannot change a dashboard that already exists", "list_dashboards", "exactly one", "ask_on_dashboard_id", "candidate titles"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("brief lacks %q: %s", want, got)
 		}

@@ -280,6 +280,12 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
 A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key, unless the request names a folder the requester can create in: the agent reads the folders with `list_folders` and passes one as `folder_id`, and a folder it cannot create in is refused and never replaced by another.
+
+A request on Home that asks to change a dashboard that already exists is answered with a finding, because a Home run only builds new dashboards.
+The agent finds the dashboard with `list_dashboards` by the id or exact title in the request; when exactly one matches, it passes that dashboard's id as `ask_on_dashboard_id` on `save_finding`, and the server stores it only if the requester can view the dashboard.
+The finding then carries `ask_on`, the dashboard's `dashboard_id` and `title`, so the web app can start a revision there with the same prompt; when none or several match, the finding lists the candidates and carries no `ask_on`.
+A run never changes its own mode, and only a run on Home takes `ask_on_dashboard_id`.
+
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.

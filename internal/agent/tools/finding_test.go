@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -456,6 +457,93 @@ func TestTheFindingToolNamesNoCallLimitThatIsOnlyRightForSomeRuns(t *testing.T) 
 	for _, word := range []string{"six", "twelve", "6 ", "12 "} {
 		if strings.Contains(tool.Description, word) {
 			t.Errorf("save_finding names a call limit %q, but a build run has six and an investigation twelve: %s", word, tool.Description)
+		}
+	}
+}
+
+func (r *findingRig) homeRun(t *testing.T, by auth.Principal) (Run, dbsqlc.AgentRequest) {
+	t.Helper()
+	byID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := r.db.Queries().EnqueueObserveRequest(t.Context(), dbsqlc.EnqueueObserveRequestParams{
+		Prompt: "change the checkout dashboard", RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
+	})
+	if err != nil {
+		t.Fatalf("enqueue home run: %v", err)
+	}
+	return Run{Mode: ModeCreate, Prompt: row.Prompt, RequestID: row.ID.String(), Build: true}, row
+}
+
+func (r *findingRig) boardOf(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec(title)), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(board.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func askOnBody(markdown, dashboardID string) string {
+	return `{"markdown":` + strconv.Quote(markdown) + `,"ask_on_dashboard_id":` + strconv.Quote(dashboardID) + `}`
+}
+
+func TestAHomeRunsFindingCarriesTheDashboardItResolved(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Checkout")
+	run, row := r.homeRun(t, adminCaller)
+	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Checkout is the dashboard you mean; changing it is asked for there.", board.String()))
+	if saved, ok := res.Content.(findingSavedOut); res.IsError || !ok || saved.Code != "saved" {
+		t.Fatalf("save: %#v", res)
+	}
+	f, found, err := r.findings.ForRequest(t.Context(), adminCaller, row.ID)
+	if err != nil || !found {
+		t.Fatalf("finding: found %v, %v", found, err)
+	}
+	if f.AskOnID != board.String() || f.AskOnTitle != "Checkout" {
+		t.Errorf("ask on = %q %q, want %s Checkout", f.AskOnID, f.AskOnTitle, board.String())
+	}
+}
+
+func TestAnAskTargetTheCallerCannotViewIsNotFoundAndSavesNothing(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Payroll")
+	foldertest.Move(t, r.db, board, foldertest.Restricted(t, r.db, "Payroll", "payroll-team"))
+	run, _ := r.homeRun(t, editorCaller)
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, askOnBody("Payroll is the dashboard.", board.String()))
+	if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "dashboard not found") {
+		t.Fatalf("save: %#v", res)
+	}
+	var rows int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM findings`).Scan(&rows); err != nil || rows != 0 {
+		t.Errorf("findings left behind: %d, %v", rows, err)
+	}
+}
+
+func TestAnAskTargetThatIsNotAnIDIsRefused(t *testing.T) {
+	r := newFindingRig(t)
+	run, _ := r.homeRun(t, adminCaller)
+	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("The checkout dashboard.", "Checkout"))
+	if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "ask_on_dashboard_id") {
+		t.Fatalf("save: %#v", res)
+	}
+}
+
+func TestAnAskTargetOnlyBelongsToARunWithoutADashboard(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Checkout")
+	other := r.boardOf(t, "Search")
+	revise, _ := r.answerRun(t, adminCaller, board)
+	investigate := investigateRun(findingWindowTo.Add(-time.Hour), findingWindowTo)
+	for name, run := range map[string]Run{"a revision": revise, "an investigation": investigate} {
+		res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Search is the dashboard.", other.String()))
+		if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "ask_on_dashboard_id") {
+			t.Errorf("%s: save: %#v", name, res)
 		}
 	}
 }
