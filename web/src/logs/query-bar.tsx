@@ -43,7 +43,12 @@ import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import type { LintResult } from "@/query-editor/server-lint"
 
 import { BuilderBar } from "./builder-bar"
-import { canBuild, withoutField } from "./builder"
+import {
+  canBuild,
+  equivalentField,
+  withRenamedField,
+  withoutField,
+} from "./builder"
 import { typeName } from "./datasource-picker"
 import {
   DiscoverUrlError,
@@ -65,7 +70,7 @@ const askPlaceholder =
   "Ask in plain language, like: errors from checkout in the last hour with a trace id"
 const noModelText = "Add a model key to ask in plain language"
 const builderBlockedText = "The builder cannot show this query. Edit it as KQL."
-const unknownFieldMessage = /^unknown field "(.*)"$/
+const unknownFieldMessage = /^unknown field "([^"]*)"/
 const segmentClass =
   "inline-flex h-full items-center rounded-chip border px-2.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
 const formItems = (["kql", "lucene", "dsl"] as const).map((value) => ({
@@ -585,6 +590,15 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                   if (next !== null) setDraft(next)
                 }}
                 removable={withoutField(draft, field) !== null}
+                replacement={
+                  withoutField(draft, field) === null
+                    ? null
+                    : equivalentField(field, completionNames ?? [])
+                }
+                onReplace={(name) => {
+                  const next = withRenamedField(draft, field, name)
+                  if (next !== null) setDraft(next)
+                }}
               />
             ))}
             {shown === "ask" ? null : (
@@ -716,17 +730,31 @@ function UnknownField({
   index,
   removable,
   onRemove,
+  replacement,
+  onReplace,
 }: {
   field: string
   index: string | undefined
   removable: boolean
   onRemove: () => void
+  replacement: string | null
+  onReplace: (name: string) => void
 }) {
   return (
     <p className="flex flex-wrap items-center gap-2 text-xs">
       <StatusLabel tone="warning">
         {field} is not in the {index ?? "data view"} mapping
       </StatusLabel>
+      {replacement === null ? null : (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          onClick={() => onReplace(replacement)}
+        >
+          Use {replacement}
+        </Button>
+      )}
       {removable ? (
         <Tooltip>
           <TooltipTrigger
