@@ -502,6 +502,7 @@ Without a model configured on the server, Ask is off.
 A saved search keeps what the logs page or the trace view shows so that anyone with access can open it again: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written, such as `now-1h`.
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
+The query may span lines but holds no NUL character, and a column name holds no control characters; the server answers 422 `invalid_saved_search` with the rule in `error`.
 A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
