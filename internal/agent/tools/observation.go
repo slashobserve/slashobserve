@@ -45,7 +45,7 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary, range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id). Send a block's version when you update or keep it."
+	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id). Send a block's version when you update or keep it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. A stale version answers version_conflict."

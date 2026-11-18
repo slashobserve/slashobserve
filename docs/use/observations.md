@@ -113,6 +113,7 @@ An agent reorders blocks with `update_block` and its `position`.
 A person who can edit changes the title by choosing it, typing, and pressing `Enter`, or `Esc` to leave it as it was.
 **Resolve** asks for a one-line summary of at most 500 characters, which then shows under the title and in the list.
 **Reopen** turns a resolved observation back into an open one.
+The summary stays stored, so the next **Resolve** starts from it, and the page and a published RCA show it only while the observation is resolved: `observe o show` prints it as `Last summary`, and over the API and MCP it is still in `summary` beside `state: open`.
 **More actions**, then **Move to folder**, opens a panel that searches the shared folders you can edit; My Dashboards is not a choice.
 Resolving, reopening and moving need edit access, and moving needs it on the target folder too.
 The state line also shows who started the observation and when, and links to its folder.

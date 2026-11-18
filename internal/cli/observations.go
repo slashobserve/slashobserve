@@ -173,11 +173,14 @@ func (a *app) observationShowCommand() *cobra.Command {
 }
 
 func printObservation(out *output, o observationRow) {
-	summary := "-"
+	summary, summaryLabel := "-", "Summary"
 	if o.Summary != nil {
 		summary = text(*o.Summary)
+		if o.State == "open" {
+			summaryLabel = "Last summary"
+		}
 	}
-	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {"Summary", summary}, {"URL", text(o.URL)}})
+	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {summaryLabel, summary}, {"URL", text(o.URL)}})
 	rows := make([][]string, 0, len(o.Blocks))
 	for _, b := range o.Blocks {
 		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), blockContent(b)})

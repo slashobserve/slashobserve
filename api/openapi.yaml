@@ -5822,7 +5822,7 @@ components:
           type: string
           nullable: true
           maxLength: 500
-          description: The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve.
+          description: The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve.
         from:
           type: string
           format: date-time

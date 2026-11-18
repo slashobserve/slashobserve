@@ -143,6 +143,14 @@ func TestObservationCommands(t *testing.T) {
 			},
 		},
 		{
+			name:       "show labels the summary of a reopened observation as the last one",
+			args:       []string{"o", "show", testObservation},
+			response:   strings.Replace(shown, `"summary":null`, `"summary":"Steady."`, 1),
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/observations/" + testObservation,
+			wantOut:    []string{"State open", "Last summary Steady."},
+		},
+		{
 			name:       "show with --json prints the body",
 			args:       []string{"o", "show", "--json", testObservation},
 			response:   shown,

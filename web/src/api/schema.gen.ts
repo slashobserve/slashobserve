@@ -6247,7 +6247,7 @@ export interface components {
             folder_id: string;
             title: string;
             state: components["schemas"]["ObservationState"];
-            /** @description The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve. */
+            /** @description The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve. */
             summary: string | null;
             /**
              * Format: date-time

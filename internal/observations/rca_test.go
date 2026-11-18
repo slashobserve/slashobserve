@@ -181,6 +181,26 @@ func TestAnEditedPageDoesNotChangeAPublishedRevision(t *testing.T) {
 	}
 }
 
+func TestAReopenedObservationIsPublishedWithoutItsOldSummary(t *testing.T) {
+	r, _ := newPublishRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "note")
+	if _, err := r.service.Resolve(t.Context(), editor, id, "Steady"); err != nil {
+		t.Fatal(err)
+	}
+	if first := r.publish(t, editor, o); first.Summary != "Steady" || first.State != observations.StateResolved {
+		t.Fatalf("resolved revision %+v", first)
+	}
+	reopened, err := r.service.Reopen(t.Context(), editor, id)
+	if err != nil || reopened.Summary != "Steady" {
+		t.Fatalf("reopened %+v, %v", reopened, err)
+	}
+	if second := r.publish(t, editor, o); second.Summary != "" || second.State != observations.StateOpen {
+		t.Errorf("open revision %+v, want no summary", second)
+	}
+}
+
 func TestPublishingLeavesOutRequestedBlocksAndAcceptsAnEmptyPage(t *testing.T) {
 	r, _ := newPublishRig(t)
 	empty := r.publish(t, editor, r.create(t, editor, r.shared))

@@ -98,7 +98,7 @@ func (s *Service) insertRCA(ctx context.Context, q *dbsqlc.Queries, parent dbsql
 		ObservationID:    parent.ID,
 		Revision:         next.Revision,
 		Title:            parent.Title,
-		Summary:          parent.Summary,
+		Summary:          publishedSummary(parent),
 		ObservationState: parent.State,
 		TimeFrom:         parent.TimeFrom,
 		TimeTo:           parent.TimeTo,
@@ -151,7 +151,7 @@ func (s *Service) refuseUnchanged(ctx context.Context, q *dbsqlc.Queries, parent
 	case err != nil:
 		return fmt.Errorf("read the latest RCA revision: %w", err)
 	}
-	if latest.Title == parent.Title && latest.Summary == parent.Summary && latest.ObservationState == parent.State &&
+	if latest.Title == parent.Title && latest.Summary == publishedSummary(parent) && latest.ObservationState == parent.State &&
 		sameTime(latest.TimeFrom, parent.TimeFrom) && sameTime(latest.TimeTo, parent.TimeTo) && sameJSON(latest.Content, content) {
 		return &RCAUnchangedError{Revision: int(latest.Revision)}
 	}
@@ -165,4 +165,11 @@ func sameTime(a, b pgtype.Timestamptz) bool {
 func sameJSON(a, b []byte) bool {
 	var x, y any
 	return json.Unmarshal(a, &x) == nil && json.Unmarshal(b, &y) == nil && reflect.DeepEqual(x, y)
+}
+
+func publishedSummary(o dbsqlc.Observation) pgtype.Text {
+	if State(o.State) != StateResolved {
+		return pgtype.Text{}
+	}
+	return o.Summary
 }
