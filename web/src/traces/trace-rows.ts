@@ -8,6 +8,7 @@ export type TraceRow = {
   durationMs: number | null
   spans: number | null
   errors: number | null
+  matching?: number | null
 }
 
 function column(frame: WireFrame, name: string) {
@@ -41,6 +42,7 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
     const duration = column(frame, "Duration")?.values
     const spans = column(frame, "Spans")?.values
     const errors = column(frame, "Errors")?.values
+    const matching = column(frame, "Matching")?.values
     for (let row = 0; row < ids.values.length; row++) {
       const traceId = textAt(ids.values, row)
       if (traceId === "") continue
@@ -53,6 +55,7 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
         durationMs: ns === null ? null : ns / 1e6,
         spans: numberAt(spans, row),
         errors: numberAt(errors, row),
+        matching: numberAt(matching, row),
       })
     }
   }

@@ -209,13 +209,28 @@ function clickhouseConditions(form: TraceForm, column: string): string[] {
   ].filter((condition) => condition !== "")
 }
 
+const traceSpans = {
+  parent: "otel_traces.ParentSpanId",
+  time: "otel_traces.Timestamp",
+}
+
+function rootOf(column: string): string {
+  const root = `${traceSpans.parent} = ''`
+  return `if(countIf(${root}) > 0, argMinIf(otel_traces.${column}, ${traceSpans.time}, ${root}), argMin(otel_traces.${column}, ${traceSpans.time}))`
+}
+
 export function clickhouseTraceSearch(form: TraceForm): string {
   const conditions = clickhouseConditions(form, "otel_traces.")
-    .map((condition) => ` AND ${condition}`)
-    .join("")
-  return `SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
+  const joined = conditions.join(" AND ")
+  const matching =
+    conditions.length > 0 ? `, countIf(${joined}) AS Matching` : ""
+  const scope =
+    conditions.length > 0
+      ? ` AND TraceId IN (SELECT TraceId FROM otel_traces WHERE $__timeFilter(otel_traces.Timestamp) AND ${joined})`
+      : ""
+  return `SELECT TraceId, min(${traceSpans.time}) AS StartTime, min(${traceSpans.time}) AS Timestamp, ${rootOf("ServiceName")} AS ServiceName, ${rootOf("SpanName")} AS SpanName, toUInt64(max(toUnixTimestamp64Nano(${traceSpans.time}) + toInt64(otel_traces.Duration)) - min(toUnixTimestamp64Nano(${traceSpans.time}))) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors${matching}
 FROM otel_traces
-WHERE $__timeFilter(otel_traces.Timestamp)${conditions}
+WHERE $__timeFilter(otel_traces.Timestamp)${scope}
 GROUP BY TraceId`
 }
 

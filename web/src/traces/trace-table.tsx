@@ -193,6 +193,11 @@ function TraceCell({
       return (
         <Cell className="py-1 text-right tabular-nums">
           {row.spans === null ? "-" : row.spans.toLocaleString("en")}
+          {row.matching == null || row.matching === row.spans ? null : (
+            <span className="block text-xs text-muted-foreground">
+              {row.matching.toLocaleString("en")} matching
+            </span>
+          )}
         </Cell>
       )
     case "errors":

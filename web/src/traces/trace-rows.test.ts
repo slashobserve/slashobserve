@@ -43,6 +43,7 @@ describe("traceRows", () => {
         durationMs: 12.5,
         spans: null,
         errors: null,
+        matching: null,
       },
     ])
   })
@@ -81,6 +82,7 @@ describe("traceRows", () => {
         durationMs: null,
         spans: null,
         errors: null,
+        matching: null,
       },
     ])
   })
