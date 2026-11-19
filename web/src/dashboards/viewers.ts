@@ -6,7 +6,7 @@ import { dashboardKeys } from "@/api/keys"
 
 const heartbeatMs = 20_000
 
-export function dashboardViewersQuery(dashboardId: string) {
+function dashboardViewersQuery(dashboardId: string) {
   return queryOptions({
     queryKey: dashboardKeys.viewers(dashboardId),
     queryFn: ({ signal }) =>
