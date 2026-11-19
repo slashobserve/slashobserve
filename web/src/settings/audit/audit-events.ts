@@ -28,6 +28,9 @@ export const auditKinds = [
   { value: "grafana_connection.created", label: "Grafana connected" },
   { value: "grafana_connection.updated", label: "Grafana connection changed" },
   { value: "grafana_connection.deleted", label: "Grafana connection removed" },
+  { value: "datasource.created", label: "Datasource added" },
+  { value: "datasource.updated", label: "Datasource changed" },
+  { value: "datasource.deleted", label: "Datasource deleted" },
   { value: "public_link.created", label: "Public link created" },
   { value: "public_link.revoked", label: "Public link revoked" },
 ] as const satisfies readonly { value: ActivityType; label: string }[]
@@ -151,6 +154,19 @@ export function describeAuditEvent(event: ActivityEvent): string {
     }
     case "grafana_connection.deleted":
       return `Removed ${quoted("Grafana connection", name)}`
+    case "datasource.created":
+      return `Added ${quoted("datasource", name)} at ${str(data, "host")}`
+    case "datasource.updated": {
+      const parts = [
+        changes(data, ["name", "host"]),
+        data.address_changed === true ? "address changed" : "",
+        data.settings_changed === true ? "settings changed" : "",
+        data.credentials_changed === true ? "credentials replaced" : "",
+      ].filter((part) => part !== "")
+      return `Changed ${quoted("datasource", name)}: ${parts.join(", ")}`
+    }
+    case "datasource.deleted":
+      return `Deleted ${quoted("datasource", name)}`
     case "public_link.created":
       return `Created a public link to ${linkTarget(data)}`
     case "public_link.revoked":
