@@ -165,8 +165,8 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
-| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
+| `bin/observe dashboards list [--order updated\|views]` | Lists dashboards, newest update first or, with `--order views`, most viewed in the last 30 days first, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page. |
+| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`, and how many views the dashboard had in the last 30 days; the folder is in the details, and a version that does not exist says what the latest one is; `--json` adds `view_count` and `window_days`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
 | `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
@@ -191,6 +191,8 @@ The lists and the panel table print as columns aligned with spaces.
 
 `bin/observe import dashboard.json` (or `-` for standard input) imports a Grafana dashboard of up to 8 MiB and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](import-grafana.md)) and `--preview` shows the report without saving.
 The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
+A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the command exits 1, names that dashboard and its version, and says which flag to pass.
+`--update <dashboard id>` saves the file as the next version of that dashboard (it needs Edit and keeps the folder) and `--as-new` makes another dashboard on purpose; `--preview` shows the same dashboard in an `Already imported as` line.
 `-q` hides the report and the `Folder:` line, but the folder note always prints, because it says the folder you asked for was not used.
 
 To import a directory of exports into one folder:
@@ -198,6 +200,8 @@ To import a directory of exports into one folder:
 ```sh
 for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
 ```
+
+Running the loop again reports each file an earlier import already made as failed, instead of making a second copy.
 
 ## Folders
 
@@ -258,10 +262,17 @@ A block that someone who can only comment added shows the state `requested`.
 `bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.
 Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
 `--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
+A panel whose queries use variables needs `--var name=value` for each, repeated for more values of the same name, and without one the block is refused with `variable_missing` and the name of the variable.
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
 
 `bin/observe o reopen <observation-id>` reopens a resolved observation and prints `Reopened <title>`.
+
+`bin/observe o pin <observation-id>` pins an observation to a dashboard as an annotation, to `--dashboard <id>` or by default the dashboard its run was about, and prints `Pinned to dashboard <id> as annotation <id>`.
+Pinning it again to the same dashboard prints the same annotation, and an observation with no dashboard to pin to exits 1 with `observation_has_no_dashboard`.
+
+`bin/observe o dashboard <observation-id>` makes a dashboard in My Dashboards from its live panel blocks, or from one block with `--block <block-id>`, and prints `Dashboard <id>: <title>`.
+Running it again prints the dashboard you made first; `--new` makes another.
 
 `bin/observe o edit <observation-id>` changes the title with `--title <title>`, the range its panels show with `--from <time> --to <time>`, RFC 3339 times that go together, or removes the range with `--clear-range`, and prints `Updated <title>`.
 Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range` exits 2.
@@ -269,13 +280,21 @@ Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range
 `bin/observe o move <observation-id> --folder <folder-id>` files the observation in another folder and prints `Moved <title> to folder <id>`.
 It needs Edit on the observation and on the folder, and My Dashboards takes no moves.
 
+`bin/observe o delete <observation-id> --yes` deletes the observation for everyone, with its blocks, snapshots, RCA revisions, the public links of those revisions and its discussion, and prints `Deleted observation <id>`.
+It needs Manage on the observation's folder, or Edit on it when you started the observation, and it cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
+
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
+
+`bin/observe o withdraw <observation-id> <revision> --yes` deletes one published revision and prints `Withdrew revision <n> of <observation-id>`, as in [Observations](observations.md#withdraw-a-revision).
+It needs Edit on the observation's folder, answers `rca_shared` while the revision has a live public link, and cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
 
 `bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
 `bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 
-`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
+`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>`, `--state open|resolved` and `--title <text>` (a title that contains the text, ignoring case) narrow it, and `--limit` and `--cursor` page through the result.
 
 `bin/observe o keep <block-id> --version <n>` makes a requested block live and needs the block's version from `o show`, and `bin/observe o discard <block-id>` deletes a requested block.
 Keeping needs Edit on the observation's folder, and discarding is open to an editor and to whoever asked for the block.
@@ -297,6 +316,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
+`--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of the other kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
@@ -373,7 +393,7 @@ For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `o
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
 Merging needs Edit on the dashboard and a connection that is not in propose mode, and it runs the queries of the panels it changes like any save.
 
-`bin/observe proposals discard <proposal-id>` closes the proposal without saving it and prints `Discarded`.
+`bin/observe proposals discard <proposal-id> [--reason <text>]` closes the proposal without saving it and prints `Discarded`; `--reason` (up to 500 characters) is shown on the proposal, and printed by `proposals show`.
 Its author may discard it, and so may anyone who may merge it.
 
 `-q` hides the confirmation of `merge` and `discard`, and `--json` prints the API response unchanged.
@@ -546,16 +566,19 @@ A trace with no spans in the range exits 1, and `--json` prints the response bod
 
 ### Ask for traces in plain language
 
-`--ask` takes a question instead of the trace id and prints the newest 100 matching traces:
+`--ask` takes a question instead of the trace id and prints 100 matching traces, the newest unless `--sort` says otherwise:
 
 ```sh
 bin/observe traces --ask "checkout requests slower than 2s with errors" --datasource tempo
 bin/observe traces --ask "slow checkout requests" --datasource clickhouse --dry-run
+bin/observe traces --ask "checkout requests with errors" --datasource clickhouse --sort -duration
 ```
 
 It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
-Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
+Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
+`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
+When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
 ### Compare traces
@@ -631,6 +654,7 @@ You find only what the key can read.
 bin/observe activity
 bin/observe activity --dashboard <dashboard-id> --since 24h
 bin/observe activity --follow --type run.failed --type run.canceled
+bin/observe activity --admin --actor <person-id> --since 7d
 ```
 
 ```text
@@ -639,7 +663,8 @@ bin/observe activity --follow --type run.failed --type run.canceled
 ```
 
 Observation events read as sentences too, such as `started the observation "Slow checkout"` and `requested a panel block on the observation "Slow checkout"`.
-`--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
+`--dashboard`, `--folder`, `--observation` and `--actor` take ids, `--type` takes an event type and repeats, and `--since` and `--until` take a duration such as `24h` or an RFC 3339 time.
+`--admin` lists only the [admin changes](activity.md#admin-changes), who changed a role, a key, a webhook or a connection, and needs an Admin key; the other keys get a 403 that says so.
 `--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
 You see only the events of the folders the key can see, and an empty log prints `No activity yet`.
 
@@ -660,19 +685,24 @@ bin/observe webhooks test <webhook id>
 ```
 
 - `list` prints each webhook's id, name, address, number of event types and status, which is `sending`, `retrying` or `disabled (<reason>)`.
+  A retrying webhook also shows how many events wait behind the failing one and when the next attempt is due, such as `retrying (3 waiting, next 2026-11-11T09:15Z)`; `100+` means more than 100.
 - `add --name <name> --url <https address> --event <type>` creates a webhook, and `--event` repeats for several types.
   It prints the webhook and its signing secret once, and a notice on standard error says the secret is not shown again, so copy it then; `-q` hides the notice but not the secret.
   An address whose domain is not on the [outbound allowlist](../operate/outbound-access.md) fails with `outbound_domain_not_allowed`.
-- `update <id>` changes the `--name`, `--url` or `--event` list you pass and leaves the rest; with none of them it exits 2.
+  `--format slack` or `--format teams` sends one line of text for a Slack or Teams address instead of the signed JSON envelope (`generic`, the default).
+- `update <id>` changes the `--name`, `--url`, `--format` or `--event` list you pass and leaves the rest; with none of them it exits 2.
 - `enable <id>` and `disable <id>` turn a webhook on, clearing its failures, or off.
 - `test <id>` sends a `webhook.test` event now and prints its outcome, the receiver's status, the duration and the error code.
   It exits 1 when the event was not delivered.
+- `skip <id>` passes a retrying webhook over the oldest event it is stuck on, so the events behind it go out; the skipped event is never sent to that receiver and shows in `deliveries` as `skipped`.
+  It exits 1 with `nothing_to_skip` when the webhook is not retrying, and with `webhook_busy` while a server is delivering for it.
 - `rotate-secret <id>` makes a new signing secret and prints it once; the old one stops working at once.
 - `delete <id>` deletes the webhook and its recorded attempts.
 - `deliveries <id>` prints the newest attempts first as a table of time, event, outcome, status, duration and error code, up to `--limit` of them (1 to 100, 20 by default).
 
 `--json` prints the response body of each request unchanged.
-`update`, `enable`, `disable` and `rotate-secret` make the caller the webhook's owner, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+`update`, `enable`, `disable` and `rotate-secret` keep the webhook's owner.
+`update --take-ownership` makes the caller the owner, and `enable` does the same for a webhook disabled with the reason `owner`, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
 
 ## People
 
@@ -751,9 +781,7 @@ Add `--json` to any command to get the API response as it is.
 
 ## Permission errors
 
-A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
-When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+A refusal with the code `forbidden_role` and the message "your role does not allow this" gets a hint that an Admin can change the key's role on the API keys page.
 
-When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
-The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
-Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
+A dashboard the key cannot see answers `not_found`, like a dashboard that does not exist.
+A key matches no access list entry, because entries name people and groups, so it sees a restricted folder only as an Admin service account or as the service account that created the folder, as described in [Folders](../teams/folders.md).

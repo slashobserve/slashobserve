@@ -102,6 +102,24 @@ describe("new lines in the log view", () => {
   })
 })
 
+describe("row tab stop", () => {
+  it("makes one row the tab stop and follows the focused row", async () => {
+    const user = userEvent.setup()
+    view({})
+    const buttons = screen.getAllByRole("button")
+    expect(buttons.map((button) => button.getAttribute("tabindex"))).toEqual([
+      "0",
+      ...buttons.slice(1).map(() => "-1"),
+    ])
+    buttons[1].focus()
+    await user.keyboard("j")
+    const stops = screen
+      .getAllByRole("button")
+      .filter((button) => button.getAttribute("tabindex") === "0")
+    expect(stops).toEqual([buttons[2]])
+  })
+})
+
 describe("columnTemplate", () => {
   it.each([
     [

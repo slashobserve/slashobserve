@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	maxRejectionsInRow = 3
+	maxRejectionsInRow    = 3
+	maxFailingPanelsShown = 5
 
 	messageNoDashboard  = "the model finished without saving a dashboard"
 	messageNoProposal   = "the model finished without proposing a panel"
@@ -53,6 +54,24 @@ func FailureMessage(code FailureCode, source Source) string {
 		return fmt.Sprintf("the dashboard still failed validation after %d rejected saves in a row", maxRejectionsInRow)
 	}
 	return failureMessages[code]
+}
+
+func FailingPanelsSuffix(ids []string, other int) string {
+	total := len(ids) + other
+	if total == 0 {
+		return ""
+	}
+	shown := ids[:min(len(ids), maxFailingPanelsShown)]
+	suffix := "; still failing: " + strings.Join(shown, ", ")
+	if more := total - len(shown); more > 0 && len(shown) > 0 {
+		suffix += fmt.Sprintf(" and %d more", more)
+	} else if more > 0 {
+		suffix += fmt.Sprintf("%d more", more)
+	}
+	if total > 1 {
+		suffix += "; ask the agent to fix them one panel at a time"
+	}
+	return suffix
 }
 
 func IssuesSuffix(codes []string) string {

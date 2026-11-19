@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -37,7 +38,14 @@ const (
 	provisionedMessage = "this service account comes from the service-accounts file; change its role, takesRuns or key in the file and restart the server"
 )
 
+var (
+	errProvisioned = errors.New("service account is provisioned")
+	errKeyNotFound = errors.New("key not found")
+)
+
 var serviceAccountName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+
+const serviceAccountNameMessage = "name must be lowercase letters, digits and hyphens, start with a letter or digit, and be at most 63 characters"
 
 type serviceAccountJSON struct {
 	ID          string  `json:"id"`
@@ -103,18 +111,28 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		role = parsed
 	}
 	if !serviceAccountName.MatchString(req.Name) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "name must match ^[a-z0-9][a-z0-9-]{0,62}$")
+		abortError(c, http.StatusBadRequest, "invalid_request", serviceAccountNameMessage)
 		return
 	}
 	if utf8.RuneCountInString(req.Description) > maxDescriptionLength || hasControlChars(req.Description) {
 		abortError(c, http.StatusBadRequest, "invalid_request", "description must be at most 256 characters without control characters")
 		return
 	}
-	account, err := s.queries.CreateServiceAccount(c.Request.Context(), dbsqlc.CreateServiceAccountParams{
-		Name:        req.Name,
-		Description: req.Description,
-		CreatedBy:   callerID(c),
-		Role:        string(role),
+	ctx := c.Request.Context()
+	caller, _ := FromContext(ctx)
+	var account dbsqlc.ServiceAccount
+	err := s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		account, err = q.CreateServiceAccount(ctx, dbsqlc.CreateServiceAccountParams{
+			Name:        req.Name,
+			Description: req.Description,
+			CreatedBy:   callerID(c),
+			Role:        string(role),
+		})
+		if err != nil {
+			return err
+		}
+		return s.changes.ServiceAccountCreated(ctx, q, caller, account)
 	})
 	if isUniqueViolation(err) {
 		abortError(c, http.StatusConflict, "conflict", "a service account with this name already exists")
@@ -125,6 +143,30 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, newServiceAccountJSON(account, dbsqlc.ListServiceAccountPresenceRow{}))
+}
+
+func (s *Service) applyServiceAccountUpdate(ctx context.Context, caller Principal, id pgtype.UUID, role *Role, takesRuns *bool) (account dbsqlc.ServiceAccount, err error) {
+	err = s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		before, err := q.GetServiceAccount(ctx, id)
+		if err != nil {
+			return err
+		}
+		if before.Provisioned {
+			return errProvisioned
+		}
+		params := dbsqlc.UpdateServiceAccountParams{ID: id}
+		if role != nil {
+			params.Role = pgtype.Text{String: string(*role), Valid: true}
+		}
+		if takesRuns != nil {
+			params.TakesRuns = pgtype.Bool{Bool: *takesRuns, Valid: true}
+		}
+		if account, err = q.UpdateServiceAccount(ctx, params); err != nil {
+			return err
+		}
+		return s.changes.ServiceAccountUpdated(ctx, q, caller, before, account)
+	})
+	return account, err
 }
 
 func (s *Service) updateServiceAccount(c *gin.Context) {
@@ -152,11 +194,13 @@ func (s *Service) updateServiceAccount(c *gin.Context) {
 		}
 		role = &parsed
 	}
-	if !s.changeableServiceAccount(c, id) {
+	ctx := c.Request.Context()
+	caller, _ := FromContext(ctx)
+	account, err := s.applyServiceAccountUpdate(ctx, caller, id, role, req.TakesRuns)
+	if errors.Is(err, errProvisioned) {
+		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
 		return
 	}
-	ctx := c.Request.Context()
-	account, err := s.UpdateServiceAccount(ctx, id, role, req.TakesRuns)
 	if errors.Is(err, pgx.ErrNoRows) {
 		abortError(c, http.StatusNotFound, "not_found", "service account not found")
 		return
@@ -165,7 +209,6 @@ func (s *Service) updateServiceAccount(c *gin.Context) {
 		s.internalError(c, "update service account", err)
 		return
 	}
-	caller, _ := FromContext(ctx)
 	target := []any{slog.String("actor_id", caller.ID), slog.String("target_kind", string(KindServiceAccount)), slog.String("target_id", account.ID.String())}
 	if role != nil {
 		s.logger.InfoContext(ctx, "role changed", append(target, slog.String("role", account.Role))...)
@@ -227,22 +270,35 @@ func (s *Service) createKey(c *gin.Context) {
 		}
 		expiresAt = pgtype.Timestamptz{Time: *req.ExpiresAt, Valid: true}
 	}
-	if !s.serviceAccountExists(c, accountID) {
-		return
-	}
 	token, hash, err := opaquetoken.New(keyPrefix)
 	if err != nil {
 		s.internalError(c, "generate key", err)
 		return
 	}
-	row, err := s.queries.CreateServiceAccountKey(c.Request.Context(), dbsqlc.CreateServiceAccountKeyParams{
-		ServiceAccountID: accountID,
-		Name:             req.Name,
-		DisplayPrefix:    token[:displayPrefixLength],
-		TokenHash:        hash,
-		CreatedBy:        callerID(c),
-		ExpiresAt:        expiresAt,
+	ctx := c.Request.Context()
+	caller, _ := FromContext(ctx)
+	var row dbsqlc.CreateServiceAccountKeyRow
+	err = s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		account, err := q.GetServiceAccount(ctx, accountID)
+		if err != nil {
+			return err
+		}
+		if row, err = q.CreateServiceAccountKey(ctx, dbsqlc.CreateServiceAccountKeyParams{
+			ServiceAccountID: accountID,
+			Name:             req.Name,
+			DisplayPrefix:    token[:displayPrefixLength],
+			TokenHash:        hash,
+			CreatedBy:        callerID(c),
+			ExpiresAt:        expiresAt,
+		}); err != nil {
+			return err
+		}
+		return s.changes.KeyCreated(ctx, q, caller, account, row)
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		abortError(c, http.StatusNotFound, "not_found", "service account not found")
+		return
+	}
 	if err != nil {
 		s.internalError(c, "create key", err)
 		return
@@ -280,22 +336,37 @@ func (s *Service) revokeKey(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !s.changeableServiceAccount(c, accountID) {
-		return
-	}
-	n, err := s.queries.RevokeServiceAccountKey(c.Request.Context(), dbsqlc.RevokeServiceAccountKeyParams{
-		ID:               keyID,
-		ServiceAccountID: accountID,
+	ctx := c.Request.Context()
+	caller, _ := FromContext(ctx)
+	err := s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		account, err := q.GetServiceAccount(ctx, accountID)
+		if err != nil {
+			return err
+		}
+		if account.Provisioned {
+			return errProvisioned
+		}
+		revoked, err := q.RevokeServiceAccountKey(ctx, dbsqlc.RevokeServiceAccountKeyParams{ID: keyID, ServiceAccountID: accountID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errKeyNotFound
+		}
+		if err != nil || !revoked.NewlyRevoked {
+			return err
+		}
+		return s.changes.KeyRevoked(ctx, q, caller, account, keyID, revoked.Name)
 	})
-	if err != nil {
-		s.internalError(c, "revoke key", err)
-		return
-	}
-	if n == 0 {
+	switch {
+	case errors.Is(err, errProvisioned):
+		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
+	case errors.Is(err, errKeyNotFound):
 		abortError(c, http.StatusNotFound, "not_found", "key not found")
-		return
+	case errors.Is(err, pgx.ErrNoRows):
+		abortError(c, http.StatusNotFound, "not_found", "service account not found")
+	case err != nil:
+		s.internalError(c, "revoke key", err)
+	default:
+		c.Status(http.StatusNoContent)
 	}
-	c.Status(http.StatusNoContent)
 }
 
 func (s *Service) serviceAccountExists(c *gin.Context, id pgtype.UUID) bool {
@@ -306,23 +377,6 @@ func (s *Service) serviceAccountExists(c *gin.Context, id pgtype.UUID) bool {
 	}
 	if err != nil {
 		s.internalError(c, "get service account", err)
-		return false
-	}
-	return true
-}
-
-func (s *Service) changeableServiceAccount(c *gin.Context, id pgtype.UUID) bool {
-	account, err := s.queries.GetServiceAccount(c.Request.Context(), id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		abortError(c, http.StatusNotFound, "not_found", "service account not found")
-		return false
-	}
-	if err != nil {
-		s.internalError(c, "get service account", err)
-		return false
-	}
-	if account.Provisioned {
-		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
 		return false
 	}
 	return true

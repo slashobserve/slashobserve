@@ -65,7 +65,14 @@
         ]
       }
     ],
-    "notes": []
+    "notes": [
+      {
+        "subject": "alert rules",
+        "status": "partial",
+        "reason": "Alert rules, contact points and silences are not imported, so the Grafana alerts behind \"$timeSeriesMs and $timeFIlterMs\" are lost. Keep alerting on Prometheus rules and Alertmanager.",
+        "paths": []
+      }
+    ]
   },
   "blocks": [
     "dashboard mapped=3 bookkeeping=6",

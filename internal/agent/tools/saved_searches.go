@@ -30,8 +30,8 @@ const (
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: the shortest duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: the longest duration, such as 2s."},` +
+		`"min":{"type":"string","description":"Traces: the shortest span duration, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: the longest span duration, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."}},` +
 		`"additionalProperties":false,"description":"A logs search takes only columns, a traces search the other keys."},` +
 		`"from":{"type":"string","description":"Start of the saved range, such as now-1h or an RFC 3339 time. Default now-1h."},` +

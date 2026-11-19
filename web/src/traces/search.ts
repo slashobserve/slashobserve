@@ -1,4 +1,5 @@
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
+import { resolveTime } from "@/lib/time"
 import {
   firstString,
   validAsk,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/paging"
 
 import { parseDuration } from "./search-query"
+import { encodeSort, decodeSort, isSortText } from "./trace-rows"
 
 export type TraceSearch = {
   service?: string
@@ -28,6 +30,7 @@ export type TraceSearch = {
   to?: string
   page?: number
   size?: PageSize
+  sort?: string
 }
 
 export type TraceFormSearch = Pick<
@@ -70,6 +73,12 @@ function validDuration(value: unknown): string | undefined {
   return text !== undefined && parseDuration(text) !== null ? text : undefined
 }
 
+function validSort(value: unknown): string | undefined {
+  const text = firstString(value)
+  if (text === undefined || !isSortText(text)) return undefined
+  return encodeSort(decodeSort(text)) === text ? text : undefined
+}
+
 function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
   return value === standard ? undefined : value
 }
@@ -86,7 +95,23 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     ...validRange(raw),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
+    sort: validSort(raw.sort),
   }
+}
+
+const formKeys = ["service", "span", "min", "max", "errors", "q"] as const
+
+export function askAfterSubmit(
+  search: TraceSearch,
+  next: TraceFormSearch
+): string | undefined {
+  return formKeys.every((key) => next[key] === search[key])
+    ? search.ask
+    : undefined
+}
+
+export function changesQuery(next: Partial<TraceSearch>): boolean {
+  return formKeys.some((key) => key in next)
 }
 
 export type TraceEntrySearch = TraceSearch & { ds?: string }
@@ -109,6 +134,24 @@ export function validateTraceViewSearch(
 
 export function tracesTimeRange(search: TraceSearch): TimeRangeValue {
   return { from: search.from ?? "now-1h", to: search.to ?? "now" }
+}
+
+export function rangeInFuture(range: TimeRangeValue, now: number): boolean {
+  return resolveTime(range.from, now, false) > now
+}
+
+export function linkWithoutPage(href: string): string {
+  const url = new URL(href)
+  url.searchParams.delete("page")
+  return url.toString()
+}
+
+export function traceViewDatasource<Source extends { uid: string }>(
+  eligible: readonly Source[],
+  ds: string | undefined
+): Source | undefined {
+  if (ds !== undefined) return eligible.find((source) => source.uid === ds)
+  return eligible.length === 1 ? eligible[0] : undefined
 }
 
 export function traceViewRange(search: TraceViewSearch): TimeRangeValue {

@@ -40,7 +40,7 @@ func TestTraceSearchPageSendsLimitPlusOne(t *testing.T) {
 		t.Fatal(err)
 	}
 	params := fake.last(t).params
-	if params.Get("q") != searchQuery || params.Get("limit") != "51" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
+	if params.Get("q") != searchQuery+newestHint || params.Get("limit") != "51" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
 		t.Fatalf("params = %v, want limit 51 over the whole range", params)
 	}
 	if info.Page != 1 || info.PageSize != 50 || info.HasNext || info.Next != nil || info.Total != 2 || info.TotalRelation != datasource.TotalExact {

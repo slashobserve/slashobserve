@@ -235,3 +235,10 @@ WHERE id IN (
     AND NOT EXISTS (SELECT 1 FROM oauth_requests r WHERE r.client_id = old.id)
   LIMIT 10000
 );
+
+-- name: GetOAuthGrantSubject :one
+SELECT c.name AS client_name, g.user_id, COALESCE(NULLIF(u.name, ''), u.email)::text AS user_name, g.mode
+FROM oauth_grants g
+JOIN oauth_clients c ON c.id = g.client_id
+JOIN users u ON u.id = g.user_id
+WHERE g.id = @id;

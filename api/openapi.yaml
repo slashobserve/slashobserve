@@ -208,6 +208,12 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
   /blocks/{id}:
     $ref: "./paths/observations.yaml#/blocks-id"
+  /observations/{id}/pin:
+    $ref: "./paths/observations.yaml#/observations-id-pin"
+  /observations/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/observations-id-dashboard"
+  /blocks/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/blocks-id-dashboard"
   /blocks/{id}/keep:
     $ref: "./paths/observations.yaml#/blocks-id-keep"
   /blocks/{id}/discard:
@@ -274,6 +280,8 @@ paths:
     $ref: "./paths/webhooks.yaml#/webhooks-id-secret"
   /webhooks/{id}/test:
     $ref: "./paths/webhooks.yaml#/webhooks-id-test"
+  /webhooks/{id}/skip:
+    $ref: "./paths/webhooks.yaml#/webhooks-id-skip"
   /webhooks/{id}/deliveries:
     $ref: "./paths/webhooks.yaml#/webhooks-id-deliveries"
   /repairs:
@@ -282,6 +290,8 @@ paths:
     $ref: "./paths/stars.yaml#/dashboards-id-star"
   /stars:
     $ref: "./paths/stars.yaml#/stars"
+  /me/home-dashboard:
+    $ref: "./paths/home-dashboard.yaml#/me-home-dashboard"
   /dashboards/{id}/public-links:
     $ref: "./paths/public.yaml#/dashboards-id-public-links"
   /dashboards/{id}/public-links/{link_id}:
@@ -347,6 +357,17 @@ components:
           type: string
         code:
           type: string
+        needed_role:
+          type: string
+          enum: [viewer, commenter, editor, admin]
+          description: On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+        needed_access:
+          type: string
+          enum: [view, comment, edit, manage]
+          description: On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+        folder_title:
+          type: string
+          description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
     Issue:
       type: object
       additionalProperties: false
@@ -1172,11 +1193,27 @@ components:
     OutboundDomain:
       type: object
       additionalProperties: false
-      required: [domain, added_at, added_by]
+      required: [domain, added_at, added_by, from_connection, used_by]
       properties:
         domain:
           type: string
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
+        from_connection:
+          type: boolean
+          description: True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host.
+        used_by:
+          type: array
+          description: The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, name]
+            properties:
+              kind:
+                type: string
+                enum: [webhook, grafana_connection]
+              name:
+                type: string
         added_at:
           type: string
           format: date-time
@@ -1586,7 +1623,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, service_account.created, service_account.updated, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1607,7 +1644,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, public_link]
             id:
               type: string
               format: uuid
@@ -1662,7 +1699,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, public_link]
             id:
               type: string
               format: uuid
@@ -1865,10 +1902,41 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+    HomeDashboard:
+      type: object
+      additionalProperties: false
+      required: [status, dashboard, set_at]
+      properties:
+        status:
+          type: string
+          enum: [none, ok, gone, unreadable]
+          description: "`none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it."
+        dashboard:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, title, folder_id, folder_title]
+          description: Set only when `status` is `ok`.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            folder_id:
+              type: string
+              format: uuid
+            folder_title:
+              type: string
+        set_at:
+          type: string
+          nullable: true
+          format: date-time
+          description: When the person chose it; null when `status` is `none`.
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, folder, permissions]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions]
       properties:
         id:
           type: string
@@ -1905,6 +1973,10 @@ components:
           type: integer
           minimum: 0
           description: Open comment threads on the dashboard; replies are not counted.
+        view_count:
+          type: integer
+          minimum: 0
+          description: Person-days on which someone opened the dashboard in the last 30 UTC days, today included.
         folder:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
@@ -2133,7 +2205,7 @@ components:
     ProposalSummary:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions]
       description: A proposed change to a dashboard, without its document.
       properties:
         id:
@@ -2149,7 +2221,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: The summary of the first revision, cut to 200 characters.
+          description: The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary.
         revision:
           type: integer
           minimum: 1
@@ -2193,6 +2265,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2217,7 +2295,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -2277,6 +2355,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2307,6 +2391,11 @@ components:
           items:
             $ref: "#/components/schemas/ProposalChange"
           description: What the head revision adds, changes, removes or moves compared with `base_version`.
+        diff:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpecChange"
+          description: The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions.
         conflicts:
           type: array
           items:
@@ -2846,6 +2935,12 @@ components:
         partial:
           type: boolean
           description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+        note:
+          type: string
+          description: >-
+            One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page:
+            read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter.
+            Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing.
         rows:
           type: integer
           minimum: 0
@@ -2929,6 +3024,9 @@ components:
           type: integer
           minimum: 1
           description: The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused.
+        plain:
+          type: boolean
+          description: True when the rows are a plain table, not log lines, such as a ClickHouse result with no `Timestamp` column; a client shows them as a table and has no volume to draw.
     PanelDataError:
       type: object
       additionalProperties: false
@@ -4246,6 +4344,17 @@ components:
           format: uuid
         name:
           type: string
+    FindingAskOn:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: The dashboard's title, for a button such as "Ask this on Checkout".
     Finding:
       type: object
       additionalProperties: false
@@ -4255,6 +4364,7 @@ components:
         - agent_request_id
         - dashboard_id
         - folder_id
+        - ask_on
         - title
         - markdown
         - evidence
@@ -4288,6 +4398,14 @@ components:
           format: uuid
           nullable: true
           description: The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
+        ask_on:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/FindingAskOn"
+          description: >-
+            The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do.
+            Start an ordinary revision with the same prompt and this `dashboard_id` to make the change.
+            Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null.
         title:
           type: string
           minLength: 1
@@ -4362,10 +4480,10 @@ components:
           maxLength: 200
         min:
           type: string
-          description: The shortest duration, such as `250ms` or `2s`.
+          description: The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long.
         max:
           type: string
-          description: The longest duration, such as `250ms` or `2s`.
+          description: The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer.
         errors:
           type: boolean
           description: Only traces with an error.
@@ -4508,6 +4626,47 @@ components:
           description: >-
             The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise.
             Only the import uses it; the preview checks it and ignores it.
+        update_dashboard:
+          type: string
+          format: uuid
+          description: >-
+            The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard.
+            Needs Edit on the dashboard; the folder is not changed.
+            Only the import uses it; the preview ignores it.
+        refuse_existing:
+          type: boolean
+          description: >-
+            Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid.
+            Ignored with `update_dashboard`, and by the preview.
+    ImportExisting:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title, version, can_update]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          description: The dashboard's latest version.
+        can_update:
+          type: boolean
+          description: True when the caller has Edit on the dashboard, so `update_dashboard` is accepted.
+    AlreadyImported:
+      type: object
+      additionalProperties: false
+      required: [error, code, existing]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [already_imported]
+        existing:
+          $ref: "#/components/schemas/ImportExisting"
     ImportSummary:
       type: object
       additionalProperties: false
@@ -4758,7 +4917,7 @@ components:
     ImportPreview:
       type: object
       additionalProperties: false
-      required: [summary, datasources, ready, report, spec]
+      required: [summary, datasources, ready, report, spec, existing]
       properties:
         summary:
           $ref: "#/components/schemas/ImportSummary"
@@ -4766,6 +4925,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
+        existing:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ImportExisting"
+          description: The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise.
         ready:
           type: boolean
           description: True when every source datasource has a match, so the import can be saved.
@@ -5106,7 +5270,7 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, name, url, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      required: [id, name, url, format, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, waiting_events, created_at, updated_at]
       properties:
         id:
           type: string
@@ -5119,10 +5283,12 @@ components:
           type: string
           maxLength: 2048
           description: The https address events are posted to.
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 65
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5149,12 +5315,31 @@ components:
           type: string
           format: date-time
           description: The earliest time of the next attempt; in the past while the webhook has nothing to send.
+        waiting_events:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [count, more]
+          description: How many events the webhook still has to send, while `consecutive_failures` is above 0 and the owner can be read; null otherwise.
+          properties:
+            count:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: The events waiting, counted up to 100, the failing one included.
+            more:
+              type: boolean
+              description: True when more than 100 events are waiting.
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+    WebhookFormat:
+      type: string
+      enum: [generic, slack, teams]
+      description: "`generic` is the signed JSON envelope of the webhooks guide; `slack` posts `{\"text\": ...}` and `teams` an Adaptive Card message, each with one line that names the actor, the event type and its title."
     WebhookList:
       type: object
       additionalProperties: false
@@ -5189,10 +5374,12 @@ components:
           minLength: 1
           maxLength: 2048
           description: An https address on port 443 with a domain name, no user info and no fragment.
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 65
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5208,15 +5395,21 @@ components:
           type: string
           minLength: 1
           maxLength: 2048
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 65
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
         enabled:
           type: boolean
+        owner:
+          type: string
+          enum: [me]
+          description: "`me` makes the caller the webhook's owner; any other value is refused."
     WebhookDelivery:
       type: object
       additionalProperties: false
@@ -5252,8 +5445,17 @@ components:
         error_code:
           type: string
           nullable: true
-          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large]
-          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+    WebhookSkipResult:
+      type: object
+      additionalProperties: false
+      required: [webhook, skipped]
+      properties:
+        webhook:
+          $ref: "#/components/schemas/Webhook"
+        skipped:
+          $ref: "#/components/schemas/WebhookDelivery"
     WebhookTestResult:
       type: object
       additionalProperties: false
@@ -5538,7 +5740,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -5546,6 +5748,10 @@ components:
         prefix:
           type: string
           description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        label:
+          type: string
+          maxLength: 80
+          description: What the link is for, set when it was created; empty when none was given.
         variables:
           type: string
           enum: [frozen, free]
@@ -5590,6 +5796,10 @@ components:
       additionalProperties: false
       required: [variables]
       properties:
+        label:
+          type: string
+          maxLength: 80
+          description: Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for.
         variables:
           type: string
           enum: [frozen, free]
@@ -5928,7 +6138,7 @@ components:
       description: See `docs/reference/states.md`.
     ObservationAction:
       type: string
-      enum: [update, move, resolve, reopen, publish]
+      enum: [update, move, resolve, reopen, publish, delete]
       description: An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
     ObservationBlockKind:
       type: string
@@ -5947,7 +6157,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, can_pin, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
       properties:
         id:
           type: string
@@ -5965,7 +6175,7 @@ components:
           type: string
           nullable: true
           maxLength: 500
-          description: The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve.
+          description: The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve.
         from:
           type: string
           format: date-time
@@ -5985,6 +6195,17 @@ components:
           format: uuid
           nullable: true
           description: The agent request that made the observation, when one did.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+        pinned:
+          type: boolean
+          description: Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id.
+        can_pin:
+          type: boolean
+          description: Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id.
         message_count:
           type: integer
           minimum: 0
@@ -6043,7 +6264,8 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`;
+            A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`
+            and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added;
             a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`.
         snapshot_id:
           type: string
@@ -6080,7 +6302,7 @@ components:
     ObservationList:
       type: object
       additionalProperties: false
-      required: [observations, next_cursor]
+      required: [observations, next_cursor, total]
       properties:
         observations:
           type: array
@@ -6089,6 +6311,10 @@ components:
         next_cursor:
           type: string
           nullable: true
+        total:
+          type: integer
+          nullable: true
+          description: The number of observations that match the filters, present only when the request has `offset`.
     BlockEnvelope:
       type: object
       additionalProperties: false
@@ -6184,7 +6410,9 @@ components:
         body:
           type: object
           additionalProperties: true
-          description: Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+          description: >-
+            Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+            A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`.
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
         position:
@@ -6213,6 +6441,32 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+    PinObservationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+          description: The dashboard to pin to; the one the observation's run was about when absent.
+    MakeDashboardRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        new:
+          type: boolean
+          description: Make another dashboard even when the caller already made one from this observation or block.
+    ObservationPin:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, annotation_id]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        annotation_id:
+          type: string
+          format: uuid
     KeepObservationBlockRequest:
       type: object
       additionalProperties: false
@@ -6410,7 +6664,7 @@ components:
     PublicRCA:
       type: object
       additionalProperties: false
-      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at]
+      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at, superseded_by]
       description: A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids.
       properties:
         revision:
@@ -6441,6 +6695,11 @@ components:
         created_at:
           type: string
           format: date-time
+        superseded_by:
+          type: integer
+          minimum: 2
+          nullable: true
+          description: The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation.
   headers:
     Deprecation:
       description: >-
@@ -6454,14 +6713,14 @@ components:
       description: >-
         The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`):
         `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation),
-        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
+        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
         `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB).
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ValidationError"
     ObservationConflict:
-      description: The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`).
+      description: The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
       content:
         application/json:
           schema:
@@ -6500,7 +6759,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     NotFound:
-      description: The resource does not exist.
+      description: The resource does not exist, or the caller cannot see it; the two are never told apart.
       content:
         application/json:
           schema:

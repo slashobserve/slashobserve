@@ -118,12 +118,13 @@ func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPerson
 }
 
 const getUserForRole = `-- name: GetUserForRole :one
-SELECT id, email, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = $1 FOR UPDATE
+SELECT id, email, name, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = $1 FOR UPDATE
 `
 
 type GetUserForRoleRow struct {
 	ID            pgtype.UUID
 	Email         string
+	Name          string
 	Groups        []string
 	ManualRole    pgtype.Text
 	Role          string
@@ -137,6 +138,7 @@ func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserFo
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Name,
 		&i.Groups,
 		&i.ManualRole,
 		&i.Role,

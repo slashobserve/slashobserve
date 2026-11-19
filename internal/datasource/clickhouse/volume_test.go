@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
@@ -19,7 +20,7 @@ const volumeFold = "multiIf(" +
 
 func wrapped(inner string, seconds string) string {
 	return "SELECT toStartOfInterval(`Timestamp`, INTERVAL " + seconds + " SECOND) AS Time, " + volumeFold +
-		" AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nGROUP BY Time, Level\nORDER BY Time"
+		" AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nWHERE $__timeFilter(Timestamp)\nGROUP BY Time, Level\nORDER BY Time"
 }
 
 func TestVolumeQueryWrapsTheWebLogsTemplate(t *testing.T) {
@@ -72,7 +73,7 @@ func TestVolumeQueryKeepsATrailingCommentOffTheClosingParen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, "-- note\n)\nGROUP BY") {
+	if !strings.Contains(got, "-- note\n)\nWHERE") {
 		t.Fatalf("query = %q", got)
 	}
 }
@@ -126,5 +127,20 @@ func TestGuardAcceptsTheVolumeQuery(t *testing.T) {
 	}
 	if _, err := guard(q); err != nil {
 		t.Fatalf("guard refused the volume query: %v", err)
+	}
+}
+
+func TestVolumeQueryBoundsTheRangeThroughTimestampWhateverTheTextSays(t *testing.T) {
+	got, err := VolumeQuery("SELECT Timestamp, SeverityText FROM otel_logs", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	end := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	exp, err := macros.Expand(macros.ClickHouse, got, macros.Env{Range: datasource.TimeRange{From: end.Add(-time.Hour), To: end}, Interval: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "WHERE (Timestamp >= fromUnixTimestamp64Milli(toInt64(1793962800000), 'UTC') AND Timestamp <= fromUnixTimestamp64Milli(toInt64(1793966400000), 'UTC'))"; !strings.Contains(exp.Text, want) {
+		t.Fatalf("expanded volume query = %s, want it to hold %s", exp.Text, want)
 	}
 }

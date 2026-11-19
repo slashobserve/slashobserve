@@ -62,7 +62,7 @@ func (q *Queries) DeleteStoppedAgentRequestBuild(ctx context.Context, agentReque
 }
 
 const getAgentRequestBuild = `-- name: GetAgentRequestBuild :one
-SELECT agent_request_id, dashboard_id, base_version, spec, unverified, summary, saves, panels, created_at, updated_at, planned_panels FROM agent_request_builds WHERE agent_request_id = $1
+SELECT agent_request_id, dashboard_id, base_version, spec, unverified, summary, saves, panels, created_at, updated_at, planned_panels, folder_id FROM agent_request_builds WHERE agent_request_id = $1
 `
 
 func (q *Queries) GetAgentRequestBuild(ctx context.Context, agentRequestID pgtype.UUID) (AgentRequestBuild, error) {
@@ -80,6 +80,7 @@ func (q *Queries) GetAgentRequestBuild(ctx context.Context, agentRequestID pgtyp
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PlannedPanels,
+		&i.FolderID,
 	)
 	return i, err
 }
@@ -318,13 +319,13 @@ func (q *Queries) RebaseAgentRequestBuild(ctx context.Context, arg RebaseAgentRe
 
 const upsertAgentRequestBuild = `-- name: UpsertAgentRequestBuild :one
 INSERT INTO agent_request_builds (
-  agent_request_id, dashboard_id, base_version, spec, unverified, planned_panels, summary, panels
+  agent_request_id, dashboard_id, base_version, folder_id, spec, unverified, planned_panels, summary, panels
 )
-SELECT $1::uuid, $2::uuid, $3::integer, $4::jsonb,
-  $5::jsonb, $6::integer, $7::text, $8::integer
+SELECT $1::uuid, $2::uuid, $3::integer, $4::uuid, $5::jsonb,
+  $6::jsonb, $7::integer, $8::text, $9::integer
 WHERE EXISTS (
   SELECT 1 FROM agent_requests r
-  WHERE r.id = $1::uuid AND r.status = 'running' AND r.attempts = $9::integer
+  WHERE r.id = $1::uuid AND r.status = 'running' AND r.attempts = $10::integer
 )
 ON CONFLICT (agent_request_id) DO UPDATE
 SET spec = EXCLUDED.spec,
@@ -334,13 +335,14 @@ SET spec = EXCLUDED.spec,
   panels = EXCLUDED.panels,
   saves = agent_request_builds.saves + 1,
   updated_at = clock_timestamp()
-RETURNING agent_request_id, dashboard_id, base_version, spec, unverified, summary, saves, panels, created_at, updated_at, planned_panels
+RETURNING agent_request_id, dashboard_id, base_version, spec, unverified, summary, saves, panels, created_at, updated_at, planned_panels, folder_id
 `
 
 type UpsertAgentRequestBuildParams struct {
 	AgentRequestID pgtype.UUID
 	DashboardID    pgtype.UUID
 	BaseVersion    pgtype.Int4
+	FolderID       pgtype.UUID
 	Spec           []byte
 	Unverified     []byte
 	PlannedPanels  int32
@@ -354,6 +356,7 @@ func (q *Queries) UpsertAgentRequestBuild(ctx context.Context, arg UpsertAgentRe
 		arg.AgentRequestID,
 		arg.DashboardID,
 		arg.BaseVersion,
+		arg.FolderID,
 		arg.Spec,
 		arg.Unverified,
 		arg.PlannedPanels,
@@ -374,6 +377,7 @@ func (q *Queries) UpsertAgentRequestBuild(ctx context.Context, arg UpsertAgentRe
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PlannedPanels,
+		&i.FolderID,
 	)
 	return i, err
 }

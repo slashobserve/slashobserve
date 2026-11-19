@@ -13,6 +13,7 @@ import {
   ResolvedState,
   SentToAgent,
 } from "./entry-frame"
+import { RunProposalState } from "./proposal-state"
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
@@ -66,15 +67,20 @@ export function RequestEntry({
       state = <SentToAgent />
       break
     case "succeeded":
-      state =
-        request.result_version === null ? (
-          <MetaState>Finished, nothing changed</MetaState>
-        ) : (
+      if (request.result_version !== null) {
+        state = (
           <SavedVersionLink
             dashboardId={dashboardId}
             version={request.result_version}
           />
         )
+      } else if (request.result_kind === "proposal") {
+        state = (
+          <RunProposalState dashboardId={dashboardId} requestId={request.id} />
+        )
+      } else {
+        state = <MetaState>Finished, nothing changed</MetaState>
+      }
       break
     case "failed":
       state = <RequestFailure error={request.error} />

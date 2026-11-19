@@ -5,14 +5,13 @@ import { useEffect, useState } from "react"
 import type { NameListParams } from "@/api/keys"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { matcherInsert } from "@/panel-editor/insert-text"
 import { labelNamesQuery, labelValuesQuery } from "@/panel-editor/queries"
 import { cn } from "@/lib/utils"
 
 type Props = {
   datasourceUid: string
   datasourceType: string
-  onInsert: (text: string) => void
+  onPick: (label: string, value: string) => void
 }
 
 const searchDelayMs = 250
@@ -100,7 +99,7 @@ function SearchBox({
   )
 }
 
-function BrowserBody({ datasourceUid, datasourceType, onInsert }: Props) {
+function BrowserBody({ datasourceUid, datasourceType, onPick }: Props) {
   const [labelText, setLabelText] = useState("")
   const [valueText, setValueText] = useState("")
   const [label, setLabel] = useState<string | null>(null)
@@ -184,9 +183,7 @@ function BrowserBody({ datasourceUid, datasourceType, onInsert }: Props) {
                     <button
                       type="button"
                       className={rowClass}
-                      onClick={() =>
-                        onInsert(matcherInsert(datasourceType, label, value))
-                      }
+                      onClick={() => onPick(label, value)}
                     >
                       {value}
                     </button>

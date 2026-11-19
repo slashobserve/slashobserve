@@ -172,6 +172,35 @@ func (a *app) observationRCAsCommand() *cobra.Command {
 	}
 }
 
+func (a *app) observationWithdrawCommand() *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "withdraw <observation-id> <revision> --yes",
+		Short: "Withdraw a published RCA revision",
+		Long:  "withdraw deletes one published RCA revision, for example one published with a mistake, so a corrected revision can be published.\nYou need Edit on the observation's folder.\nA revision with public links is refused with rca_shared until a person revokes the links in the web app.\nIt cannot be undone, so --yes is required.",
+		Args:  exactArgs(2, "one observation id and a revision number"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			revision, err := strconv.Atoi(args[1])
+			if err != nil || revision < 1 {
+				return usagef("%q is not a revision; a revision is a positive number", text(args[1]))
+			}
+			if !yes {
+				return usagef("withdrawing revision %d deletes it for everyone and cannot be undone; rerun with --yes", revision)
+			}
+			return a.observationCall(cmd, http.MethodDelete, "observations/"+id+"/rcas/"+strconv.Itoa(revision), nil, func(out *output, _ []byte) error {
+				out.confirm("Withdrew revision %d of %s", revision, text(id))
+				return nil
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm that the revision is deleted for everyone")
+	return cmd
+}
+
 func printRCAList(out *output, data []byte) error {
 	listed, err := decode[rcaListBody](data)
 	if err != nil {

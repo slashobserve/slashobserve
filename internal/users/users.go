@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -261,6 +262,12 @@ func (h *Handler) fail(c *gin.Context, action string, err error, ids ...any) {
 	httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 }
 
+type signedOutData struct {
+	Name     string `json:"name"`
+	Sessions int64  `json:"sessions"`
+	Grants   int64  `json:"grants"`
+}
+
 func (h *Handler) signOut(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -275,13 +282,13 @@ func (h *Handler) signOut(c *gin.Context) {
 		h.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, slog.String("actor_id", caller.ID), slog.String("user_id", id.String()))...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
-	exists, err := h.db.Queries().UserExists(ctx, id)
-	if err != nil {
-		fail("check user exists", err)
+	person, err := h.db.Queries().GetUserPrincipal(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
 		return
 	}
-	if !exists {
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
+	if err != nil {
+		fail("read person", err)
 		return
 	}
 	by, err := db.ParseUUID(caller.ID)
@@ -295,8 +302,10 @@ func (h *Handler) signOut(c *gin.Context) {
 		if sessions, err = q.DeleteUserSessions(ctx, id); err != nil {
 			return err
 		}
-		grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: by, UserID: id})
-		return err
+		if grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: by, UserID: id}); err != nil {
+			return err
+		}
+		return activity.AppendAdmin(ctx, q, activity.By(ctx, caller), activity.TypeUserSignedOutEverywhere, id, signedOutData{Name: person.Name, Sessions: sessions, Grants: grants})
 	})
 	if err != nil {
 		fail("sign a person out everywhere", err)

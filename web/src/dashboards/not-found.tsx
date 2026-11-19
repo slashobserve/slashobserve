@@ -9,7 +9,7 @@ import { useSignOut } from "@/shell/use-sign-out"
 
 import { DashboardTopRow } from "./dashboard-top-row"
 
-export function DashboardNotice({
+function DashboardNotice({
   title,
   heading,
   text,
@@ -76,7 +76,7 @@ export function DashboardNotFound() {
     <DashboardNotice
       title="Not found"
       heading="Dashboard not found"
-      text="It may have been removed, or the link is wrong."
+      text="It does not exist, or you cannot see it."
       backTo="/"
     />
   )

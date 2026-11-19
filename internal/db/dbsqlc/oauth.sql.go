@@ -308,6 +308,33 @@ func (q *Queries) GetOAuthCode(ctx context.Context, codeHash []byte) (GetOAuthCo
 	return i, err
 }
 
+const getOAuthGrantSubject = `-- name: GetOAuthGrantSubject :one
+SELECT c.name AS client_name, g.user_id, COALESCE(NULLIF(u.name, ''), u.email)::text AS user_name, g.mode
+FROM oauth_grants g
+JOIN oauth_clients c ON c.id = g.client_id
+JOIN users u ON u.id = g.user_id
+WHERE g.id = $1
+`
+
+type GetOAuthGrantSubjectRow struct {
+	ClientName pgtype.Text
+	UserID     pgtype.UUID
+	UserName   string
+	Mode       string
+}
+
+func (q *Queries) GetOAuthGrantSubject(ctx context.Context, id pgtype.UUID) (GetOAuthGrantSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getOAuthGrantSubject, id)
+	var i GetOAuthGrantSubjectRow
+	err := row.Scan(
+		&i.ClientName,
+		&i.UserID,
+		&i.UserName,
+		&i.Mode,
+	)
+	return i, err
+}
+
 const getOAuthRefresh = `-- name: GetOAuthRefresh :one
 SELECT t.grant_id, t.expires_at, t.rotated_at, g.client_id, g.user_id, g.resource, g.created_at, g.revoked_at, now()::timestamptz AS db_now
 FROM oauth_tokens t

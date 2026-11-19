@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router"
 
 import { buttonVariants } from "@/components/ui/button"
+import { forgetHomeChecked } from "@/home/home-dashboard"
 import { getSession, loginHref } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/login")({
       if (session.authenticated) {
         throw redirect({ href: localPath(search.return_to) })
       }
+      forgetHomeChecked()
     } catch (error) {
       if (isRedirect(error)) throw error
       return { sessionUnavailable: true }

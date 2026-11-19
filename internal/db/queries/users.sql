@@ -80,7 +80,7 @@ WHERE id = @id;
 SELECT id FROM users WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE;
 
 -- name: GetUserForRole :one
-SELECT id, email, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = @id FOR UPDATE;
+SELECT id, email, name, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = @id FOR UPDATE;
 
 -- name: DeactivateUser :exec
 UPDATE users SET deactivated_at = now(), deactivated_by_id = sqlc.narg('by_id'), deactivated_by_name = sqlc.narg('by_name')

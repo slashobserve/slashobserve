@@ -11,6 +11,7 @@ import {
   filterLines,
   initialFilter,
   reportFilters,
+  reportHint,
   statusLabel,
   type ImportReport,
   type ReportFilter,
@@ -21,11 +22,6 @@ type Props = {
   imported: boolean
   busy: boolean
 }
-
-const queriesRunHint =
-  "Queries run when you import. A panel whose queries fail is kept and marked unverified, and you can ask the agent to fix it from the dashboard."
-const fixUnverifiedHint =
-  "Ask the agent to fix the unverified panels from the dashboard's activity panel."
 
 export function ReportCard({ report, imported, busy }: Props) {
   const [filter, setFilter] = useState<ReportFilter>(() =>
@@ -39,10 +35,7 @@ export function ReportCard({ report, imported, busy }: Props) {
   const lines = filterLines(report, filter)
   const waitsInRepairQueue =
     imported && (report.counts.placeholder > 0 || report.counts.unverified > 0)
-  const closingHint =
-    imported && report.counts.unverified > 0
-      ? fixUnverifiedHint
-      : queriesRunHint
+  const hint = reportHint(report, imported)
 
   const move = (event: KeyboardEvent, index: number) => {
     const last = reportFilters.length - 1
@@ -108,6 +101,11 @@ export function ReportCard({ report, imported, busy }: Props) {
           })}
         </div>
       </div>
+      {imported ? null : (
+        <p className="border-b px-3.5 py-2.5 text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
       <div
         id={`${id}-list`}
         role="tabpanel"
@@ -175,7 +173,9 @@ export function ReportCard({ report, imported, busy }: Props) {
           ) : null}
         </div>
       ) : null}
-      <p className="px-3.5 py-3 text-xs text-muted-foreground">{closingHint}</p>
+      {imported && hint ? (
+        <p className="px-3.5 py-3 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
       {waitsInRepairQueue ? (
         <p className="flex flex-wrap items-baseline gap-x-2 border-t px-3.5 py-3 text-xs text-muted-foreground">
           Placeholders and unverified panels wait in the repair queue on

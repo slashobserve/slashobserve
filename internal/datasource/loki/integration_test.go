@@ -163,6 +163,10 @@ func TestLokiReadsBackPushedLines(t *testing.T) {
 	if got := fieldValues(t, frames[1], "level"); got[0] != "warn" {
 		t.Fatalf("detected level = %v, want Loki's detected_level", got)
 	}
+	levels, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: "detected_level", Range: aroundPush()})
+	if err != nil || !slices.Contains(levels.Values, "warn") {
+		t.Fatalf("detected_level values = %+v, %v; want the levels Loki detected", levels, err)
+	}
 
 	limited, err := ds.QueryInstant(ctx, datasource.Query{Text: `{service_name="checkout"}`, Limits: datasource.Limits{MaxRows: 1}}, aroundPush())
 	if err != nil || len(limited) != 1 || !slices.Equal(fieldValues(t, limited[0], "Body"), []any{"retrying payment"}) {

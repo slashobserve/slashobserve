@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -73,5 +74,46 @@ func TestVerifyMarksPanelsAndSkipsPlaceholders(t *testing.T) {
 func TestQueryEmptyCodeMatchesTheQueryProxy(t *testing.T) {
 	if codeQueryEmpty != queryproxy.CodeQueryEmpty {
 		t.Fatalf("codeQueryEmpty = %q, queryproxy.CodeQueryEmpty = %q", codeQueryEmpty, queryproxy.CodeQueryEmpty)
+	}
+}
+
+func TestAlertRulePanelsGetOneDashboardNote(t *testing.T) {
+	res := convertDoc(t, panelDoc("alertlist", `"title":"Firing","options":{"show":"current"}`))
+	var notes []Note
+	for _, n := range res.Report.Notes {
+		if n.Subject == "alert rules" {
+			notes = append(notes, n)
+		}
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0].Reason, `"Firing"`) || !strings.Contains(notes[0].Reason, "Alertmanager") {
+		t.Fatalf("alert rule notes = %+v, want one naming the panel and Alertmanager", notes)
+	}
+	plain := convertDoc(t, panelDoc("stat", `"title":"Plain"`))
+	for _, n := range plain.Report.Notes {
+		if n.Subject == "alert rules" {
+			t.Fatalf("a dashboard without alert rules got %+v", n)
+		}
+	}
+}
+
+func TestAnnotationQueriesAreReportedAsNotImported(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"annotations":{"list":[{"name":"Deploys","datasource":{"type":"prometheus","uid":"prom"},"expr":"deploys"}]},"panels":[{"id":1,"title":"T","type":"text","gridPos":{"x":0,"y":0,"w":12,"h":4},"options":{"content":"x"}}]}`
+	res := convertDoc(t, doc)
+	for _, n := range res.Report.Notes {
+		if n.Subject == "annotations" {
+			if !strings.Contains(n.Reason, "Annotation queries are not imported") {
+				t.Fatalf("reason = %q", n.Reason)
+			}
+			return
+		}
+	}
+	t.Fatalf("notes = %+v, want an annotations note", res.Report.Notes)
+}
+
+func TestALibraryPanelWithoutADefinitionSaysItIsNotSupported(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"lib","type":"timeseries","gridPos":{"x":0,"y":0,"w":12,"h":8},"libraryPanel":{"uid":"abc","name":"My lib"}}]}`
+	line := panelLine(t, convertDoc(t, doc), "p1")
+	if line.Status != statusPlaceholder || len(line.Reasons) != 1 || !strings.Contains(line.Reasons[0], "Library panels are not supported") || !strings.Contains(line.Reasons[0], "My lib") {
+		t.Fatalf("line = %+v, want a placeholder that says library panels are not supported and names the panel", line)
 	}
 }

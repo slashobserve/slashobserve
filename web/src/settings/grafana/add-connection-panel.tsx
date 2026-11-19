@@ -1,12 +1,12 @@
 import { useId, useRef, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { SidePanel } from "@/shell/side-panel"
 
 import { ConnectionForm } from "./connection-form"
 import { grafanaProblemText, type ConnectionInput } from "./connection-problems"
+import { testOutcome } from "./connection-test"
 import { useCreateConnection } from "./queries"
 
 export const connectionsHint =
@@ -26,8 +26,8 @@ export function AddConnectionPanel({
   function add(input: ConnectionInput) {
     if (create.isPending) return
     create.mutate(input, {
-      onSuccess: () => {
-        toast.success(`Added ${input.name}`)
+      onSuccess: (created) => {
+        testOutcome(created, "Added")
         onClose()
       },
     })
@@ -36,7 +36,7 @@ export function AddConnectionPanel({
   return (
     <SidePanel
       title="Add a connection"
-      description={connectionsHint}
+      description="Connect a Grafana to import its dashboards."
       onClose={onClose}
       closeDisabled={create.isPending}
       initialFocus={nameInput}
@@ -74,7 +74,8 @@ export function AddConnectionPanel({
         firstInputRef={nameInput}
       />
       <p className="text-xs text-muted-foreground">
-        The token is stored encrypted and is never shown again.
+        The token needs the Viewer role on the folders to import. It is stored
+        encrypted and is never shown again.
       </p>
     </SidePanel>
   )

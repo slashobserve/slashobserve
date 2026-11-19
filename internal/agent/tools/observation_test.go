@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -60,8 +62,9 @@ func newObservationRig(t *testing.T) *observationRig {
 		database.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
 	}
 	access := folders.NewAccess(database.DB)
-	service := observations.New(database.DB, access, snapshotFreezer{}, nil, logger)
-	registry := New(Deps{Datasources: datasources, Runner: queryproxy.NewRunner(datasources, logger), Folders: access, Observations: service, Logger: logger})
+	runner := queryproxy.NewRunner(datasources, logger)
+	service := observations.New(database.DB, access, snapshotFreezer{}, nil, logger, observations.WithOutputs(dashboards.New(database.DB, runner, access, logger), annotations.New(database.DB, access)))
+	registry := New(Deps{Datasources: datasources, Runner: runner, Folders: access, Observations: service, Logger: logger})
 	r := &observationRig{registry: registry, service: service, db: database}
 	if err := database.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&r.folder); err != nil {
 		t.Fatal(err)
@@ -146,6 +149,13 @@ func TestObservationToolsBuildAPageFromCreateToResolve(t *testing.T) {
 	list := r.call(t, viewerCaller, nameListObservations, `{"state":"open"}`).Content.(observationListOut)
 	if len(list.Observations) != 1 || list.Observations[0].ID != created.ObservationID || list.Observations[0].Blocks != nil {
 		t.Fatalf("open list = %#v", list)
+	}
+
+	if list := r.call(t, viewerCaller, nameListObservations, `{"title":"nothing like it"}`).Content.(observationListOut); len(list.Observations) != 0 {
+		t.Errorf("a title that matches nothing lists %#v", list)
+	}
+	if list := r.call(t, viewerCaller, nameListObservations, `{"title":"CHECKOUT"}`).Content.(observationListOut); len(list.Observations) != 1 {
+		t.Errorf("a title that matches lists %#v", list)
 	}
 
 	resolved := r.written(t, editorCaller, nameResolveObservation, fmt.Sprintf(`{"observation_id":%q,"summary":"A bad deploy of checkout"}`, created.ObservationID))
@@ -444,7 +454,7 @@ func TestGetObservationClipsMarkdownAndFitsTheResult(t *testing.T) {
 func TestObservationToolsNeedOnlyTheViewerRole(t *testing.T) {
 	names := []string{nameCreateObservation, nameGetObservation, nameListObservations, nameAddBlock, nameUpdateBlock, nameResolveObservation, nameKeepBlock, nameDiscardBlock}
 	readOnly := map[string]bool{nameGetObservation: true, nameListObservations: true}
-	builtIn := map[string]bool{nameListObservations: true}
+	builtIn := map[string]bool{nameGetObservation: true, nameListObservations: true}
 	byName := toolsByName(t)
 	for _, name := range names {
 		tool, ok := byName[name]
@@ -457,5 +467,124 @@ func TestObservationToolsNeedOnlyTheViewerRole(t *testing.T) {
 		if tool.OfferedIn(ModeCreate) != builtIn[name] || tool.OfferedIn(ModeInvestigate) != builtIn[name] {
 			t.Errorf("%s offered to the built-in agent = %v, want %v", name, tool.OfferedIn(ModeCreate), builtIn[name])
 		}
+	}
+}
+
+func TestAPanelBlockTakesVariableValuesAndNamesAMissingOne(t *testing.T) {
+	r := newObservationRig(t)
+	id := r.start(t, editorCaller)
+	panel := evidencePanel("Errors by service", `sum(rate(errors{service=~"$service"}[5m]))`)
+
+	missing := r.call(t, editorCaller, nameAddBlock, panelBlockInput(id, panel))
+	if got := errorCodeOf(t, missing); got != observations.CodeVariableMissing || !strings.Contains(fmt.Sprint(missing.Content), `"service"`) {
+		t.Fatalf("a panel without its value: code %q, %#v", got, missing.Content)
+	}
+
+	added := r.written(t, editorCaller, nameAddBlock, fmt.Sprintf(`{"observation_id":%q,"kind":"panel","panel":%s,"variables":{"service":["checkout","cart"]}}`, id, panel))
+	if added.BlockID == "" {
+		t.Fatalf("added = %#v", added)
+	}
+	page := r.view(t, viewerCaller, id)
+	if got := page.Blocks[0].Variables["service"]; strings.Join(got, ",") != "checkout,cart" {
+		t.Errorf("shown variables %#v", page.Blocks[0].Variables)
+	}
+
+	for name, input := range map[string]string{
+		"values on a text block": fmt.Sprintf(`{"observation_id":%q,"kind":"text","markdown":"x","variables":{"a":["b"]}}`, id),
+		"an empty value list":    fmt.Sprintf(`{"observation_id":%q,"kind":"panel","panel":%s,"variables":{"service":[]}}`, id, panel),
+	} {
+		if res := r.call(t, editorCaller, nameAddBlock, input); !res.IsError {
+			t.Errorf("%s was accepted: %#v", name, res)
+		}
+	}
+}
+
+func TestPinAndMakeDashboardAreIdempotentAndNameTheirRefusals(t *testing.T) {
+	r := newObservationRig(t)
+	id := r.start(t, editorCaller)
+	if got := errorCodeOf(t, r.call(t, editorCaller, namePinObservation, fmt.Sprintf(`{"observation_id":%q}`, id))); got != codeObservationHasNoDashboard {
+		t.Errorf("pin without a dashboard: %q", got)
+	}
+	if got := errorCodeOf(t, r.call(t, editorCaller, nameMakeDashboard, fmt.Sprintf(`{"observation_id":%q}`, id))); got != codeObservationHasNoPanels {
+		t.Errorf("make without panels: %q", got)
+	}
+	panel := r.written(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Errors", "up")))
+
+	made := func(input string) savedOut {
+		t.Helper()
+		res := r.call(t, editorCaller, nameMakeDashboard, input)
+		out, ok := res.Content.(savedOut)
+		if res.IsError || !ok {
+			t.Fatalf("make_dashboard %s: %#v", input, res.Content)
+		}
+		return out
+	}
+	first := made(fmt.Sprintf(`{"observation_id":%q}`, id))
+	if first.DashboardID == "" || first.Replayed == nil || *first.Replayed {
+		t.Fatalf("first = %#v", first)
+	}
+	again := made(fmt.Sprintf(`{"observation_id":%q}`, id))
+	if again.DashboardID != first.DashboardID || again.Replayed == nil || !*again.Replayed {
+		t.Errorf("again = %#v", again)
+	}
+	fresh := made(fmt.Sprintf(`{"observation_id":%q,"new":true}`, id))
+	if fresh.DashboardID == first.DashboardID {
+		t.Errorf("new = %#v", fresh)
+	}
+	block := made(fmt.Sprintf(`{"observation_id":%q,"block_id":%q}`, id, panel.BlockID))
+	if block.DashboardID == fresh.DashboardID {
+		t.Errorf("block = %#v", block)
+	}
+
+	pinInput := fmt.Sprintf(`{"observation_id":%q,"dashboard_id":%q}`, id, first.DashboardID)
+	pinned := func(by auth.Principal) pinObservationOut {
+		t.Helper()
+		res := r.call(t, by, namePinObservation, pinInput)
+		out, ok := res.Content.(pinObservationOut)
+		if res.IsError || !ok {
+			t.Fatalf("pin_observation: %#v", res.Content)
+		}
+		return out
+	}
+	one := pinned(editorCaller)
+	if !one.Created || one.AnnotationID == "" {
+		t.Fatalf("pin = %#v", one)
+	}
+	if two := pinned(editorCaller); two.Created || two.AnnotationID != one.AnnotationID {
+		t.Errorf("second pin = %#v", two)
+	}
+	if got := errorCodeOf(t, r.call(t, viewerCaller, namePinObservation, fmt.Sprintf(`{"observation_id":%q,"dashboard_id":%q}`, id, fresh.DashboardID))); got != codeNotFound {
+		t.Errorf("pin to a dashboard the caller cannot see: %q", got)
+	}
+}
+
+func TestAnInvestigationReadsObservationsAsTheRequesterAndCannotChangeThem(t *testing.T) {
+	r := newObservationRig(t)
+	hidden := foldertest.Restricted(t, r.db, hiddenFolder, privateGroup).String()
+	open := r.written(t, editorCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Checkout 5xx","folder_id":%q,"blocks":[{"kind":"text","markdown":"errors rose at 10:05 UTC"}]}`, r.folder)).ObservationID
+	secret := r.written(t, adminCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Payroll is late","folder_id":%q}`, hidden)).ObservationID
+
+	ctx := WithRun(auth.WithPrincipal(t.Context(), editorCaller), Run{Mode: ModeInvestigate, RequestID: "run"})
+	read := func(tool, input string) Result {
+		t.Helper()
+		res, err := r.registry.Call(ctx, tool, []byte(input))
+		if err != nil {
+			t.Fatalf("%s: %v", tool, err)
+		}
+		return res
+	}
+	res := read(nameGetObservation, fmt.Sprintf(`{"observation_id":%q}`, open))
+	out, ok := res.Content.(observationViewOut)
+	if res.IsError || !ok || out.Title != "Checkout 5xx" || !strings.HasSuffix(out.URL, "/o/"+open) || len(out.Blocks) != 1 || out.Blocks[0].Markdown != "errors rose at 10:05 UTC" {
+		t.Fatalf("an investigation's read = %#v", res.Content)
+	}
+	if res := read(nameGetObservation, fmt.Sprintf(`{"observation_id":%q}`, secret)); errorCode(t, res) != codeNotFound {
+		t.Errorf("an investigation read an observation its requester cannot open: %#v", res.Content)
+	}
+	if list := read(nameListObservations, `{}`).Content.(observationListOut); len(list.Observations) != 1 {
+		t.Errorf("an investigation's list shows %#v", list)
+	}
+	if res := read(nameAddBlock, textBlockInput(open, "x")); !res.IsError {
+		t.Errorf("an investigation added a block: %#v", res.Content)
 	}
 }

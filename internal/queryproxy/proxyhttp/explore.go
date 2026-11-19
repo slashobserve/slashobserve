@@ -36,6 +36,7 @@ type exploreRequest struct {
 	PageSize      *int    `json:"page_size"`
 	Page          *int    `json:"page"`
 	Cursor        *string `json:"cursor"`
+	Sort          *string `json:"sort"`
 }
 
 func init() {
@@ -100,6 +101,8 @@ func (h *Handler) explore(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
+	_, entry.canPage = inst.Datasource.(datasource.PageSource)
+	entry.canPage = entry.canPage && kind == queryproxy.KindInstant
 	writeData(c, entry, false, entry.executedAt, "")
 }
 
@@ -152,6 +155,8 @@ func (r exploreRequest) pagingRule() string {
 	switch {
 	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
 		return queryproxy.PageNeedsSize
+	case r.PageSize == nil && r.Sort != nil:
+		return queryproxy.SortNeedsSize
 	case r.PageSize == nil:
 		return ""
 	case r.Kind == string(queryproxy.KindRange):
@@ -181,6 +186,9 @@ func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user da
 	}
 	if r.Cursor != nil {
 		p.Cursor = *r.Cursor
+	}
+	if r.Sort != nil {
+		p.Sort = *r.Sort
 	}
 	return p
 }
@@ -222,6 +230,7 @@ func pageMetaOf(res queryproxy.PageResult) *pageMeta {
 		Next:          res.Next,
 		Prev:          res.Prev,
 		Window:        res.Info.Window,
+		Plain:         res.Info.Plain,
 	}
 	if res.Info.TotalRelation != datasource.TotalUnknown {
 		total := res.Info.Total

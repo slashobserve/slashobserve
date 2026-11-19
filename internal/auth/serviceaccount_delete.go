@@ -1,10 +1,14 @@
 package auth
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
 func (s *Service) deleteServiceAccount(c *gin.Context) {
@@ -12,18 +16,30 @@ func (s *Service) deleteServiceAccount(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !s.changeableServiceAccount(c, id) {
-		return
-	}
-	n, err := s.queries.DeleteServiceAccount(c.Request.Context(), id)
-	if err != nil {
-		s.internalError(c, "delete service account", err)
-		return
-	}
-	if n == 0 {
+	ctx := c.Request.Context()
+	err := s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		account, err := q.GetServiceAccount(ctx, id)
+		if err != nil {
+			return err
+		}
+		if account.Provisioned {
+			return errProvisioned
+		}
+		n, err := q.DeleteServiceAccount(ctx, id)
+		if err == nil && n == 0 {
+			return pgx.ErrNoRows
+		}
+		return err
+	})
+	switch {
+	case errors.Is(err, errProvisioned):
+		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
+	case errors.Is(err, pgx.ErrNoRows):
 		abortError(c, http.StatusNotFound, "not_found", "service account not found")
-		return
+	case err != nil:
+		s.internalError(c, "delete service account", err)
+	default:
+		s.logger.InfoContext(ctx, "deleted a service account", slog.String("actor_id", callerID(c).String()), slog.String("service_account_id", id.String()))
+		c.Status(http.StatusNoContent)
 	}
-	s.logger.InfoContext(c.Request.Context(), "deleted a service account", slog.String("actor_id", callerID(c).String()), slog.String("service_account_id", id.String()))
-	c.Status(http.StatusNoContent)
 }

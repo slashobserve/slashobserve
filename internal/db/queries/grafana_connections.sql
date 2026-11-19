@@ -6,6 +6,9 @@ RETURNING *;
 -- name: GetGrafanaConnection :one
 SELECT * FROM grafana_connections WHERE id = @id;
 
+-- name: GetGrafanaConnectionForUpdate :one
+SELECT * FROM grafana_connections WHERE id = @id FOR UPDATE;
+
 -- name: ListGrafanaConnections :many
 SELECT * FROM grafana_connections ORDER BY created_at, id;
 

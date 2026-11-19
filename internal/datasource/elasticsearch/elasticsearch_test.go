@@ -326,6 +326,8 @@ func TestStatusError(t *testing.T) {
 		{"reason naming an address is replaced", 400, esError("illegal_argument_exception", "node 10.0.0.1:9200 refused"), datasource.ErrInvalidQuery, "query rejected by the datasource"},
 		{"plain 400", 400, `{"error":{"type":"action_request_validation_exception","reason":"Validation Failed: 1: index is missing;"}}`, datasource.ErrInvalidQuery, "Validation Failed: 1: index is missing;"},
 		{"string error", 405, `{"error":"Incorrect HTTP method for uri [/] and method [PUT]"}`, datasource.ErrUnavailable, "Incorrect HTTP method for uri [/] and method [PUT]"},
+		{"index name and exception class are left out", 400, esError("query_shard_exception", "[.ds-logs-demo-shop-2026.11.18-000001][0] org.apache.lucene.queryparser.classic.ParseException: Cannot parse 'a:(': Encountered EOF"), datasource.ErrInvalidQuery, "Cannot parse 'a:(': Encountered EOF"},
+		{"a bare exception name is left out", 400, esError("parsing_exception", "QueryShardException: failed to create query"), datasource.ErrInvalidQuery, "failed to create query"},
 		{"long reason is capped", 400, esError("parsing_exception", strings.Repeat("x", 600)), datasource.ErrInvalidQuery, strings.Repeat("x", 512)},
 	}
 	for _, tt := range tests {

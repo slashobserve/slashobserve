@@ -267,6 +267,30 @@ func (s *Service) RecordView(ctx context.Context, by auth.Principal, dashboardID
 	return err
 }
 
+type Views struct {
+	Count      int
+	WindowDays int
+}
+
+func (s *Service) Views(ctx context.Context, dashboardID pgtype.UUID) (Views, error) {
+	n, err := s.db.Queries().CountDashboardViews(ctx, dbsqlc.CountDashboardViewsParams{
+		DashboardID: dashboardID,
+		ViewsSince:  pgtype.Date{Time: healthrule.ViewsSince(time.Now()), Valid: true},
+	})
+	if err != nil {
+		return Views{}, fmt.Errorf("count dashboard views: %w", err)
+	}
+	return Views{Count: int(n), WindowDays: healthrule.ViewWindowDays}, nil
+}
+
+func (s *Service) pruneViews(ctx context.Context) error {
+	_, err := s.db.Queries().PruneDashboardViewDays(ctx, pgtype.Date{Time: healthrule.ViewsKeptSince(time.Now()), Valid: true})
+	if err != nil {
+		return fmt.Errorf("prune dashboard view days: %w", err)
+	}
+	return nil
+}
+
 func decodeProblems(raw []byte) ([]Problem, error) {
 	var problems []Problem
 	if len(raw) == 0 {
