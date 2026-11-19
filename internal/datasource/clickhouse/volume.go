@@ -25,7 +25,7 @@ func VolumeQuery(query string, step time.Duration) (string, error) {
 	}
 	seconds := max(int64(step/time.Second), 1)
 	return "SELECT toStartOfInterval(" + quoteIdent(volumeTimeColumn) + ", INTERVAL " + strconv.FormatInt(seconds, 10) + " SECOND) AS Time, " +
-		volumeLevelFold() + " AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nGROUP BY Time, Level\nORDER BY Time", nil
+		volumeLevelFold() + " AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nWHERE " + timestampInRange + "\nGROUP BY Time, Level\nORDER BY Time", nil
 }
 
 func volumeInner(query string) (string, error) {

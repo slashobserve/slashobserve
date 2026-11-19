@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -11,12 +10,10 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
-	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	linesNeedTimestamp  = "the query must select Timestamp"
-	plainNeedsRange     = "a query without Timestamp must read the time range, for example WHERE $__timeFilter(EventTime)"
 	parameterTimeFormat = "2006-01-02 15:04:05.000000000"
 )
 
@@ -74,8 +71,8 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
 	}
 	if !timed {
-		if !readsRange(q.Text) {
-			return datasource.Errorf(datasource.ErrInvalidQuery, "%s", plainNeedsRange)
+		if err := requireRange(q.Text, false); err != nil {
+			return err
 		}
 		inner = plainSource(text, ordered)
 	}
@@ -113,21 +110,6 @@ func plainSource(text string, ordered bool) string {
 		return text
 	}
 	return "SELECT * FROM (\n" + text + "\n)\nORDER BY ALL"
-}
-
-var rangeMacros = map[string]bool{
-	"__timeFilter": true, "__timeFilter_ms": true, "__dateFilter": true, "__dateTimeFilter": true, "__dt": true,
-	"__fromTime": true, "__toTime": true, "__fromTime_ms": true, "__toTime_ms": true, "__from": true, "__to": true,
-}
-
-func readsRange(text string) bool {
-	refs, err := spec.ScanQuery(text)
-	if err != nil {
-		return false
-	}
-	return slices.ContainsFunc(spec.FlattenReferences(refs), func(r spec.Reference) bool {
-		return r.Kind == spec.MacroRef && rangeMacros[r.Name]
-	})
 }
 
 func plainQuery(inner string) string {

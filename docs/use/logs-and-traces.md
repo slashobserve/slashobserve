@@ -60,7 +60,9 @@ On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
 
-Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not, so a query never reads a table beyond the range at the top of the page.
+Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not.
+The field counts follow the same rule, except that a query selecting `Timestamp` is counted over the time range even without the macro.
+So no ClickHouse request reads a table beyond the range at the top of the page.
 Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.
 Ctrl+Space in the editor completes names: the columns of `otel_logs` on ClickHouse, the stream labels on Loki and the mapped fields on Elasticsearch and OpenSearch, and on ClickHouse also the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
@@ -152,7 +154,7 @@ On a touch screen the strip shows counts but does not select, because a drag the
 When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
-- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both, and the failure names the column to add.
+- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp` within the time range whatever the query says, so the volume request fails when the query does not select both, and the failure names the column to add.
 A datasource's error text reaches the page without the expanded query, the index names behind a data stream and the exception class names, so a typo reads as the problem and its position.
 - On Elasticsearch and OpenSearch one aggregation request counts the matching documents per time bucket and per value of the level field, the field the datasource's level role names; with no level field every document counts as other, and a query body with its own `aggs` is refused.
 
