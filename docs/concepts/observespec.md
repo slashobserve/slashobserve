@@ -27,6 +27,10 @@ The importer converts it into this format and keeps a `placeholder` panel for ea
 
 **Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing.
 **Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
+**Edit Spec JSON** in the same menu opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
+It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`, and **Save as version N** saves it with the note you give, or "Edit the dashboard JSON", running every panel query as any whole-document save does.
+A version saved by someone else meanwhile is merged when it changed other things; when it changed the same things the pane lists them with **Reload version N**.
+Closing the pane with unsaved edits asks "Discard your JSON edits?".
 
 ## An example
 

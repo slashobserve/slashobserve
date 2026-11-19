@@ -20,12 +20,9 @@ import (
 )
 
 const (
-	maxGetPanelIDs  = 20
-	maxUpsertPanels = 50
-	maxDeletePanels = 50
-	maxLayoutMoves  = 200
-	panelsBudget    = 60 << 10
-	panelsHeadroom  = 2 << 10
+	maxGetPanelIDs = 20
+	panelsBudget   = 60 << 10
+	panelsHeadroom = 2 << 10
 
 	repairLead   = "Fix only the panels in failing_panels and save again."
 	repairLayout = "In this run the server sets positions: resend the panel with only the w and h it needs."
@@ -258,37 +255,18 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return saveFailure(err)
 	}
-	if parent.Spec == nil {
-		return Result{}, errors.New("parent version has no spec")
-	}
-	merged, err := spec.ApplyPanelPatch(parent.Spec, in.PanelPatch)
+	res, err := r.deps.Dashboards.SavePatch(ctx, principal, dashboards.PatchInput{
+		DashboardID:     target.id,
+		Parent:          target.parent,
+		Patch:           in.PanelPatch,
+		Summary:         in.Summary,
+		RequestID:       requestID,
+		ProposeIfNeeded: true,
+		Check:           importOnlyIssues,
+	})
 	var patchErr *spec.PatchError
 	if errors.As(err, &patchErr) {
 		return patchRejected(patchErr.Issues, patchErr.PanelIDs), nil
-	}
-	if err != nil {
-		return Result{}, err
-	}
-	if issues := importOnlyIssues(merged, parent.Spec); len(issues) > 0 {
-		return patchRejected(issues, panelIDsOf(merged)), nil
-	}
-	raw, err := json.Marshal(merged)
-	if err != nil {
-		return Result{}, err
-	}
-	res, err := r.deps.Dashboards.Save(ctx, principal, dashboards.SaveInput{
-		DashboardID:     target.id,
-		Parent:          target.parent,
-		Spec:            raw,
-		Summary:         in.Summary,
-		RequestID:       requestID,
-		Partial:         true,
-		Merge:           true,
-		ProposeIfNeeded: true,
-	})
-	var invalidSpec *dashboards.InvalidSpecError
-	if errors.As(err, &invalidSpec) {
-		return patchRejected(invalidSpec.Issues, panelIDsOf(merged)), nil
 	}
 	if err != nil {
 		return saveFailure(err)
@@ -297,17 +275,8 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 }
 
 func patchSizeWithinLimits(p spec.PanelPatch) (Result, bool) {
-	for _, limit := range []struct {
-		field    string
-		n, limit int
-	}{
-		{"upsert", len(p.Upsert), maxUpsertPanels},
-		{"delete", len(p.Delete), maxDeletePanels},
-		{"layout", len(p.Layout), maxLayoutMoves},
-	} {
-		if limit.n > limit.limit {
-			return invalid("%s holds %d items; send at most %d per call", limit.field, limit.n, limit.limit), false
-		}
+	if err := dashboards.PatchSizeError(p); err != nil {
+		return invalid("%s", err.Message), false
 	}
 	return Result{}, true
 }
@@ -425,15 +394,6 @@ func rawPanelIDs(raw json.RawMessage) map[string]string {
 	}
 	if json.Unmarshal(raw, &doc) == nil {
 		collect("", doc.Panels)
-	}
-	return ids
-}
-
-func panelIDsOf(d *spec.Dashboard) map[string]string {
-	entries := d.AllPanels()
-	ids := make(map[string]string, len(entries))
-	for _, e := range entries {
-		ids[e.Pointer] = e.Panel.ID
 	}
 	return ids
 }

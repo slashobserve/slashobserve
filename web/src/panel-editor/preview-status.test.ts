@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ApiError, NetworkError } from "@/api/errors"
 
 import {
+  previewBlocksSave,
   previewErrorText,
   previewStatusText,
   seriesCount,
@@ -35,6 +36,27 @@ describe("seriesCount", () => {
 
   it("counts nothing for no frames", () => {
     expect(seriesCount([])).toBe(0)
+  })
+})
+
+describe("previewBlocksSave", () => {
+  it("blocks a save only for a fault in the draft itself", () => {
+    expect(previewBlocksSave(new ApiError(422, "query_invalid", "bad"))).toBe(
+      true
+    )
+    expect(previewBlocksSave(new ApiError(422, "invalid_spec", "bad"))).toBe(
+      true
+    )
+    for (const code of [
+      "query_empty",
+      "query_timeout",
+      "datasource_unavailable",
+      "too_many_requests",
+      "internal",
+    ]) {
+      expect(previewBlocksSave(new ApiError(504, code, "slow"))).toBe(false)
+    }
+    expect(previewBlocksSave(new NetworkError("offline"))).toBe(false)
   })
 })
 
@@ -139,7 +161,7 @@ describe("previewStatusText", () => {
       "Running the draft."
     )
     expect(previewStatusText({ kind: "error", text: "Nope." }, now)).toBe(
-      "Nope."
+      "The draft did not run."
     )
   })
 })

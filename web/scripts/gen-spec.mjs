@@ -93,8 +93,86 @@ const displayKeyUnion = [...new Set(Object.values(displayKeysByType).flat())]
   .join("\n")
 const displayKeysModule = `${banner}\nexport type DisplayKey =\n${displayKeyUnion}\n\nexport const displayKeysByType: Record<string, readonly string[]> = ${JSON.stringify(displayKeysByType, null, 2)}\n`
 
+const refKinds = {
+  "#/$defs/color": { kind: "color", pattern: schema.$defs.color.pattern },
+  "#/$defs/unit": { kind: "unit" },
+  "#/$defs/thresholds": { kind: "thresholds" },
+}
+
+function optionSchema(property) {
+  if (property.$ref in refKinds) return refKinds[property.$ref]
+  const resolved = property.$ref
+    ? schema.$defs[property.$ref.replace("#/$defs/", "")]
+    : property
+  if (resolved.enum) return { kind: "enum", values: resolved.enum }
+  if (resolved.type === "boolean") return { kind: "toggle" }
+  if (resolved.type === "integer" || resolved.type === "number") {
+    return {
+      kind: "number",
+      integer: resolved.type === "integer",
+      ...(resolved.minimum === undefined ? {} : { min: resolved.minimum }),
+      ...(resolved.maximum === undefined ? {} : { max: resolved.maximum }),
+      ...(resolved.exclusiveMinimum === undefined
+        ? {}
+        : { min: resolved.exclusiveMinimum, minExclusive: true }),
+    }
+  }
+  if (resolved.type === "string") {
+    return {
+      kind: "text",
+      ...(resolved.maxLength === undefined
+        ? {}
+        : { maxLength: resolved.maxLength }),
+      ...(resolved.pattern === undefined ? {} : { pattern: resolved.pattern }),
+    }
+  }
+  return { kind: "json" }
+}
+
+function optionSchemas(properties, keys) {
+  return Object.fromEntries(
+    keys.map((key) => {
+      const property = properties[key]
+      const description =
+        property.description ??
+        (property.$ref
+          ? schema.$defs[property.$ref.replace("#/$defs/", "")].description
+          : undefined)
+      return [
+        key,
+        {
+          ...optionSchema(property),
+          ...(description ? { description } : {}),
+        },
+      ]
+    })
+  )
+}
+
+const panelOptionKeys = [
+  "description",
+  "timeFrom",
+  "timeShift",
+  "hideTimeOverride",
+  "interval",
+  "maxDataPoints",
+  "transparent",
+  "titleHidden",
+  "timezone",
+  "repeat",
+  "repeatDirection",
+  "maxPerRow",
+]
+const fieldProps = schema.$defs.fieldProps.properties
+const fieldOptionsModule = `${banner}
+export const fieldOptionSchemas = ${JSON.stringify(optionSchemas(fieldProps, Object.keys(fieldProps)), null, 2)} as const
+
+export const panelOptionSchemas = ${JSON.stringify(optionSchemas(schema.$defs.dataPanel.properties, panelOptionKeys), null, 2)} as const
+`
+
 const outputs = {
   "observespec.gen.ts": types,
+  "field-options.gen.ts": fieldOptionsModule,
   "validate.gen.ts": validator,
   "defaults.gen.ts": defaultsModule,
   "display-keys.gen.ts": displayKeysModule,

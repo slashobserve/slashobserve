@@ -29,9 +29,9 @@ export function DockHeader({
   return (
     <div
       data-slot="dock-header"
-      className="visible flex flex-none items-start justify-between gap-2 border-b pt-3.5 pr-3 pb-3 pl-4 group-data-[peek]/dock:items-center group-data-[peek]/dock:border-b-0 group-data-[peek]/dock:pb-2 group-data-[sheet]/dock:pt-0"
+      className="visible flex flex-none items-start justify-between gap-2 border-b pt-3.5 pr-3 pb-3 pl-4 group-data-[peek]/dock:items-center group-data-[peek]/dock:border-b-0 group-data-[peek]/dock:pb-2 group-data-[sheet]/dock:pt-0 max-sm:flex-wrap"
     >
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-0.5 max-sm:basis-full group-data-[peek]/dock:max-sm:basis-auto">
         <h2
           id={headingId}
           ref={headingRef}
@@ -49,7 +49,7 @@ export function DockHeader({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-none items-center gap-1.5">
+      <div className="flex flex-none items-center gap-1.5 max-sm:ml-auto">
         {back ? (
           <Button
             variant="ghost"

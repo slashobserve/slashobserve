@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { anyReducerIds, reducerIds } from "@/panels/reducers"
 
+import { legendValues } from "./display-options/shared"
+import { table } from "./display-options/table"
 import { reducerChoices, reducerMatches, reducerPools } from "./reducer-choices"
 
 const legend = [
@@ -73,5 +75,25 @@ describe("reducerMatches", () => {
     ["max", "min", false],
   ] as const)("matches %s against %j: %s", (id, query, want) => {
     expect(reducerMatches(id, query)).toBe(want)
+  })
+})
+
+describe("curated reducer labels", () => {
+  it("tell Last from Last (not null) in the legend and the table footer", () => {
+    const footer = table.find(
+      (option) => option.kind === "reducers" && option.key === "footer"
+    )
+    for (const option of [legendValues, footer]) {
+      if (option?.kind !== "reducers") throw new Error("no reducers option")
+      const { shown } = reducerChoices(
+        option.options,
+        ["last", "lastNotNull"],
+        anyReducerIds
+      )
+      const labels = shown.map((choice) => choice.label)
+      expect(labels).toContain("Last")
+      expect(labels).toContain("Last (not null)")
+      expect(new Set(labels).size).toBe(labels.length)
+    }
   })
 })
