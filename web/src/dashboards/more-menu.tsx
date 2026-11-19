@@ -28,6 +28,7 @@ import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 
+import { useCloseControls } from "./controls-sheet"
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 import { HomeDashboardItem } from "./home-dashboard-item"
 import { ExportItems } from "./print/export-items"
@@ -95,6 +96,7 @@ export function MoreMenu({
   cursorSync,
   onCursorSyncChange,
 }: Props) {
+  const closeControls = useCloseControls()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -135,7 +137,10 @@ export function MoreMenu({
         {mayEdit && onAddPanel !== null ? (
           <DropdownMenuItem
             disabled={detailsBlockedBy !== null}
-            onClick={onAddPanel}
+            onClick={() => {
+              closeControls()
+              onAddPanel()
+            }}
           >
             <PlusIcon aria-hidden="true" />
             {detailsBlockedBy === null
@@ -146,7 +151,10 @@ export function MoreMenu({
         {mayEdit ? (
           <DropdownMenuItem
             disabled={detailsBlockedBy !== null}
-            onClick={onEditJson}
+            onClick={() => {
+              closeControls()
+              onEditJson()
+            }}
           >
             <BracesIcon aria-hidden="true" />
             {detailsBlockedBy === null
