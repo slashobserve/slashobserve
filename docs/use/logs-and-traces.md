@@ -485,6 +485,9 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
+On a long range the server searches Tempo newest first in growing windows, the last hour, then the two hours before it, then four, and so on, and stops once the page is full, so a broad search costs about as much as the newest window that fills it.
+When the 15 second query limit comes before the range is covered, the server returns the traces it found as a partial result instead of a timeout: the note says these are the newest matches it found and **Next** searches further back, and when it found none the page says Tempo stopped at its time limit before it found a trace, rather than that nothing matched.
+The explore query and `query_instant` return the same result with `meta.partial` set and the note that some matches may be missing, which `observe traces --ask` prints under the table.
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 

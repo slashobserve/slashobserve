@@ -40,7 +40,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	}
 	fetched := len(rows)
 	rows = slices.DeleteFunc(rows, shown)
-	hasNext := len(rows) > req.PageSize || fetched >= limit
+	hasNext := len(rows) > req.PageSize || fetched >= limit || metrics.cut && len(rows) > 0
 	rows = rows[:min(len(rows), req.PageSize)]
 	info := datasource.PageInfo{Page: page, PageSize: req.PageSize, HasNext: hasNext, TotalRelation: datasource.TotalUnknown}
 	if !metrics.partial() {
@@ -50,6 +50,9 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		if info.Next, err = nextCursor(rows, page, req.PageSize); err != nil {
 			return nil, datasource.PageInfo{}, err
 		}
+	}
+	if len(rows) == 0 && metrics.partial() {
+		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}, info, nil
 	}
 	if len(rows) == 0 {
 		return []datasource.Frame{}, info, nil

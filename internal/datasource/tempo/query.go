@@ -59,10 +59,20 @@ type searchMetrics struct {
 	CompletedJobs  int64       `json:"completedJobs"`
 	TotalJobs      int64       `json:"totalJobs"`
 	InspectedBytes json.Number `json:"inspectedBytes"`
+	cut            bool
 }
 
 func (m searchMetrics) partial() bool {
-	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+	return m.cut || m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
+func (m searchMetrics) plus(o searchMetrics) searchMetrics {
+	return searchMetrics{
+		CompletedJobs:  m.CompletedJobs + o.CompletedJobs,
+		TotalJobs:      m.TotalJobs + o.TotalJobs,
+		InspectedBytes: json.Number(strconv.FormatInt(m.inspectedBytes()+o.inspectedBytes(), 10)),
+		cut:            m.cut || o.cut,
+	}
 }
 
 func (m searchMetrics) inspectedBytes() int64 {
@@ -193,6 +203,87 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 	if err := rangeStartsInFuture(r); err != nil {
 		return nil, searchMetrics{}, err
 	}
+	var (
+		rows    []spanRow
+		metrics searchMetrics
+		seen    = map[string]bool{}
+		took    time.Duration
+		span    time.Duration
+	)
+	for i, w := range searchWindows(r) {
+		budget, bounded := windowBudget(ctx)
+		if i > 0 && bounded && projected(took, span, w.To.Sub(w.From)) > budget {
+			metrics.cut = true
+			break
+		}
+		windowCtx, cancel := ctx, context.CancelFunc(func() {})
+		if bounded {
+			windowCtx, cancel = context.WithTimeout(ctx, budget)
+		}
+		started := time.Now()
+		got, m, err := d.searchWindow(windowCtx, text, w, limit-len(rows))
+		ranOut := errors.Is(windowCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
+		cancel()
+		if err != nil {
+			if !ranOut {
+				return nil, searchMetrics{}, err
+			}
+			metrics.cut = true
+			break
+		}
+		took, span = time.Since(started), w.To.Sub(w.From)
+		metrics = metrics.plus(m)
+		for _, row := range got {
+			if !seen[row.traceID] {
+				seen[row.traceID] = true
+				rows = append(rows, row)
+			}
+		}
+		if len(rows) >= limit {
+			break
+		}
+	}
+	slices.SortStableFunc(rows, func(a, b spanRow) int {
+		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
+	})
+	return rows, metrics, nil
+}
+
+const (
+	firstSearchWindow = time.Hour
+	searchReserve     = time.Second
+)
+
+func searchWindows(r datasource.TimeRange) []datasource.TimeRange {
+	var out []datasource.TimeRange
+	to, span := r.To, firstSearchWindow
+	for to.After(r.From) {
+		from := to.Add(-span)
+		if from.Before(r.From) {
+			from = r.From
+		}
+		out = append(out, datasource.TimeRange{From: from, To: to})
+		to, span = from, span*2
+	}
+	return out
+}
+
+func windowBudget(ctx context.Context) (time.Duration, bool) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return 0, false
+	}
+	return time.Until(deadline) - searchReserve, true
+}
+
+func projected(took, span, next time.Duration) time.Duration {
+	if span <= 0 {
+		return 0
+	}
+	return time.Duration(float64(took) * float64(next) / float64(span))
+}
+
+func (d *Datasource) searchWindow(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	sent := newestFirst(text)
 	params := url.Values{
 		"q":     {sent},
@@ -228,9 +319,6 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 		}
 		rows = append(rows, row)
 	}
-	slices.SortStableFunc(rows, func(a, b spanRow) int {
-		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
-	})
 	return rows, resp.Metrics, nil
 }
 

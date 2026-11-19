@@ -105,6 +105,7 @@ import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
   histogramPercentile,
   p95Label,
+  noTracesText,
   partialNote,
   partialReason,
   traceStatsQuery,
@@ -835,8 +836,14 @@ function TraceResults({
     return (
       <div className="flex flex-col gap-3">
         {failure}
-        <p className="text-[13px] text-muted-foreground">
-          No traces match in {lowerFirst(describeRange(range.from, range.to))}.
+        <p
+          role={meta.partial ? "status" : undefined}
+          className="text-[13px] text-muted-foreground"
+        >
+          {noTracesText(
+            meta.partial,
+            lowerFirst(describeRange(range.from, range.to))
+          )}
         </p>
         {state.hasPrev ? pageBar : null}
       </div>
@@ -871,7 +878,7 @@ function TraceResults({
         >
           <StatusLabel tone="warning">Partial</StatusLabel>
           <p className="min-w-0 flex-1">
-            {partialReason(rows.length, pageSize)}
+            {partialReason(rows.length, pageSize, state.hasNext)}
             {covered !== null ? ` ${covered.text}` : null}
           </p>
           {covered !== null ? (
