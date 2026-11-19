@@ -77,6 +77,13 @@ describe("facet counts", () => {
       "Counted over the newest 1,000 lines.",
     ],
     [
+      "index label counted over the sample",
+      facets({ sampled: true, lines_sampled: 1000 }),
+      field({ kind: "label", exact: false }),
+      "sampled",
+      "Counted over the newest 1,000 lines.",
+    ],
+    [
       "approximate",
       facets(),
       field({ exact: false }),
