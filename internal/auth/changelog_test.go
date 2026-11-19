@@ -33,6 +33,11 @@ func (r *recordedChanges) ServiceAccountUpdated(context.Context, *dbsqlc.Queries
 	return nil
 }
 
+func (r *recordedChanges) ServiceAccountDeleted(context.Context, *dbsqlc.Queries, Principal, dbsqlc.ServiceAccount) error {
+	r.calls = append(r.calls, "deleted")
+	return nil
+}
+
 func (r *recordedChanges) KeyCreated(context.Context, *dbsqlc.Queries, Principal, dbsqlc.ServiceAccount, dbsqlc.CreateServiceAccountKeyRow) error {
 	r.calls = append(r.calls, "key_created")
 	return nil
@@ -75,7 +80,14 @@ func TestServiceAccountChangesAreRecordedOncePerChange(t *testing.T) {
 		}
 	}
 
-	want := []string{"created", "updated", "updated", "key_created", "key_revoked"}
+	if rec := r.request(http.MethodDelete, "/api/v1/service-accounts/"+id, "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d %s", rec.Code, rec.Body)
+	}
+	if rec := r.request(http.MethodDelete, "/api/v1/service-accounts/"+id, "", nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("second delete = %d %s", rec.Code, rec.Body)
+	}
+
+	want := []string{"created", "updated", "updated", "key_created", "key_revoked", "deleted"}
 	if !slices.Equal(log.calls, want) {
 		t.Fatalf("recorded %v, want %v", log.calls, want)
 	}
