@@ -686,6 +686,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/panels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a new version that adds, replaces, removes or moves panels, running only the queries of what changed.
+         * @description The patch is applied to `parent_version` with the same merge as the `update_panels` tool, then saved like `createDashboardVersion` with `merge: auto`. Only the changed panels and variables run their queries, or every query when `dashboard.time` changes. A retried request with the same parent and body answers 200 with `Idempotent-Replay: true`.
+         */
+        post: operations["patchDashboardPanels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/duplicate": {
         parameters: {
             query?: never;
@@ -1154,7 +1176,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, or is added to it as a new top-level panel when the version has none with that id, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -1354,7 +1376,7 @@ export interface paths {
         put?: never;
         /**
          * Group the lines a logs query matches over a range into patterns with counts.
-         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`, or that the server clustering read only its first 5,000 lines or folded lines into the nearest of its 500 clusters. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logPatterns"];
         delete?: never;
@@ -1374,7 +1396,7 @@ export interface paths {
         };
         /**
          * Stream new log lines of a logs query as Server-Sent Events.
-         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. The next poll starts one nanosecond after `newest`, so a line is sent once. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
+         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. `partial` and `warning` are present only when the datasource said the poll did not cover everything, such as a failed shard; the lines found are still sent. The next poll starts one nanosecond after `newest`, so a line is sent once, except that a partial poll leaves the start where it was for up to three polls, so the lines it missed are fetched and the ones already sent are not sent again. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
          */
         get: operations["tailLogs"];
         put?: never;
@@ -1398,7 +1420,7 @@ export interface paths {
         put?: never;
         /**
          * Turn a question into a checked log query, PromQL query, TraceQL query or trace filters for one datasource.
-         * @description The server reads the datasource's metric names, labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, Prometheus answers PromQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki, `metrics` on Prometheus and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         * @description The server reads the datasource's metric names, labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10, and each caller may start 60 drafts per clock hour across all servers; the count is kept in the database. Loki answers LogQL, Prometheus answers PromQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki, `metrics` on Prometheus and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
          */
         post: operations["draftQuery"];
         delete?: never;
@@ -2536,7 +2558,7 @@ export interface paths {
         put?: never;
         /**
          * Save one dashboard file from a dashboards-as-code directory.
-         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), and 409 `version_conflict` when another save landed during the apply.
          */
         post: operations["applyDashboardFile"];
         delete?: never;
@@ -3229,7 +3251,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -4818,6 +4840,8 @@ export interface components {
             truncated: boolean;
             /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
             partial: boolean;
+            /** @description The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one. */
+            warning?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
             note?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
@@ -7283,6 +7307,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -8702,6 +8735,104 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    patchDashboardPanels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Complete panels matched by id; an existing id replaces that panel and keeps its position without `gridPos`, a new id adds one. */
+                    upsert?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Ids of panels to remove; a row only with all of its children. */
+                    delete?: string[];
+                    /** @description Moves of existing panels. */
+                    layout?: {
+                        id: string;
+                        gridPos?: {
+                            [key: string]: unknown;
+                        };
+                        /** @description Id of the row to move the panel into; an empty string moves it to the top level. */
+                        row?: string;
+                    }[];
+                    /** @description The complete variable list; replaces the existing one. */
+                    variables?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Dashboard-level values to replace; a key left out is kept. */
+                    dashboard?: {
+                        time?: {
+                            [key: string]: unknown;
+                        };
+                        title?: string;
+                        tags?: string[];
+                        links?: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                    summary: string;
+                    parent_version: number;
+                    /**
+                     * @description Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+                     * @default false
+                     */
+                    propose_if_needed?: boolean;
+                    /**
+                     * @description Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
+                     * @default false
+                     */
+                    accept_empty?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The request repeats the latest version, so that version is returned. */
+            200: {
+                headers: {
+                    "Idempotent-Replay": "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The new version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The change became a proposal, or a revision of the caller's open one; no version was saved. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
     duplicateDashboard: {
         parameters: {
             query?: never;
@@ -9808,7 +9939,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The datasource, dashboard or version does not exist (`not_found`), or the version has no panel `panel_id` (`panel_not_found`). */
+            /** @description The datasource, dashboard or version does not exist (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -10886,7 +11017,7 @@ export interface operations {
                     "application/json": components["schemas"]["CannotTranslate"];
                 };
             };
-            /** @description Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process). */
+            /** @description The caller has 3 drafts in flight or has used the 60 drafts of this clock hour (`too_many_requests`, and the message says which and how long to wait), or the server process has 10 in flight (`agent_busy`). */
             429: {
                 headers: {
                     [name: string]: unknown;

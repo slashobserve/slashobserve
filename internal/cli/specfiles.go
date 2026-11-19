@@ -184,17 +184,27 @@ func (a *app) runExport(cmd *cobra.Command, arg, dir string) error {
 	}
 	names := exportNames(items, boundNames(bindings))
 	folderDir := specfiles.DirName(folder.Title)
+	if !filepath.IsLocal(folderDir) {
+		return fmt.Errorf("the folder title %q cannot be used as a directory name", folder.Title)
+	}
 	if err := os.MkdirAll(filepath.Join(dir, folderDir), 0o750); err != nil {
 		return fmt.Errorf("create the folder directory: %w", err)
 	}
 	written := make([]exported, 0, len(items))
 	for _, it := range items {
 		rel := folderDir + "/" + names[it.ID]
+		if !filepath.IsLocal(filepath.FromSlash(rel)) {
+			return fmt.Errorf("the file name %q would leave %s", names[it.ID], dir)
+		}
 		if err := exportOne(cmd, c, it.ID, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
 			return err
 		}
 		written = append(written, exported{Path: rel, DashboardID: it.ID, Title: it.Title})
 	}
+	return a.printExported(written)
+}
+
+func (a *app) printExported(written []exported) error {
 	out := a.output()
 	if a.json {
 		raw, err := json.Marshal(written)

@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/origin"
@@ -622,4 +624,34 @@ func TestAGrantOrServiceAccountClaimerNeverReceivesASuggestRun(t *testing.T) {
 func execErr(r *rig, query string, args ...any) error {
 	_, err := r.d.SQLDB(r.t).Exec(query, args...)
 	return err
+}
+
+type lockProbe struct {
+	db      *sql.DB
+	runID   string
+	lockErr error
+}
+
+func (p *lockProbe) Health(ctx context.Context) []datasource.Status {
+	var held int
+	p.lockErr = p.db.QueryRowContext(ctx, "SELECT 1 FROM run_sessions WHERE agent_request_id = $1 FOR UPDATE NOWAIT", p.runID).Scan(&held)
+	return nil
+}
+
+func TestBriefChecksDatasourceHealthOutsideTheSessionLock(t *testing.T) {
+	probe := &lockProbe{}
+	r := newRig(t, func(c *Config) { c.Statuses = probe })
+	req := r.revise()
+	probe.db, probe.runID = r.d.SQLDB(t), req.ID
+	if _, err := r.svc.Scope(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.svc.Brief(context.Background(), req, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if probe.lockErr != nil {
+		t.Fatalf("locking the session row during the health check = %v, want it free", probe.lockErr)
+	}
 }

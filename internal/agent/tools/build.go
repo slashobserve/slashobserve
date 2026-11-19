@@ -531,7 +531,7 @@ func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, ru
 	}
 	if parsed, err := spec.Parse(raw); err == nil {
 		save.changes = changesOf(nil, parsed)
-		save.panelIDs = panelIDsOf(parsed)
+		save.panelIDs = dashboards.PanelIDs(parsed)
 		if res, ok := onePanelPerSave(save.changes); !ok {
 			return res, nil
 		}
@@ -612,7 +612,7 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 			return importOnlyFailure(issues), nil
 		}
 		save.changes = changesOf(base, parsed)
-		save.panelIDs = panelIDsOf(parsed)
+		save.panelIDs = dashboards.PanelIDs(parsed)
 		if res, ok := onePanelPerSave(save.changes); !ok {
 			return res, nil
 		}
@@ -767,7 +767,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 		return res, err
 	}
 	if issues := importOnlyIssues(merged, base); len(issues) > 0 {
-		return buildRejected(issues, panelIDsOf(merged)), nil
+		return buildRejected(issues, dashboards.PanelIDs(merged)), nil
 	}
 	changes := changesOf(base, merged)
 	changes.moved = moved
@@ -781,7 +781,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 	return r.saveToBuild(ctx, buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id,
 		raw: raw, summary: in.Summary, planned: in.PlannedPanels, plannedBefore: plannedBefore, finish: in.Finish,
-		changes: changes, panelIDs: panelIDsOf(merged), before: base,
+		changes: changes, panelIDs: dashboards.PanelIDs(merged), before: base,
 	})
 }
 

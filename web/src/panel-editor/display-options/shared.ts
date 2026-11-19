@@ -59,7 +59,7 @@ export const legend: DisplayOption = {
 }
 
 const legendReducerOptions = [
-  { value: "lastNotNull", label: "Last" },
+  { value: "lastNotNull", label: "Last (not null)" },
   { value: "mean", label: "Mean" },
   { value: "max", label: "Max" },
   { value: "min", label: "Min" },

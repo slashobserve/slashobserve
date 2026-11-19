@@ -101,6 +101,8 @@ The editor highlights JSON as soon as the text starts with `{`.
 | Escaped whitespace in a bare word | `message:a\ b`          | "quote a value that contains spaces"         | One escaping rule, quotes, keeps the explorer's filter buttons and the query builder simple.     |
 | A `kql:` prefix inside a query   | `kql:a`                  | "kql: is a form prefix, not a query"         | The prefix is read before the parser runs.                                                       |
 
+Inside a quoted value, `\n`, `\t` and `\r` stand for a newline, a tab and a carriage return, `\"` for a quote and `\\` for a backslash.
+A query may hold 200 terms, and the values of one `field:(a or b or ...)` list count separately, up to 5,000, so a large multi-value selection still parses.
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
@@ -262,7 +264,8 @@ Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, wi
 
 **Live tail** opens one stream to the server, which watches the query and sends new lines as they arrive, so the browser runs no query of its own.
 You may hold 5 tails at a time, and a tail reconnects by itself after a dropped connection or at the server's 30 minute limit, from the newest line it already holds, so no line is lost or repeated.
-On Elasticsearch and OpenSearch the server waits a few seconds before it sends a line, so late-indexed documents are not missed.
+On every datasource the server reads the last 5 seconds again at each poll and drops the lines it already sent, so a line that arrives out of order or is indexed late still appears, and a line stamped in the future does not hide the lines that follow it.
+When the store says a poll did not cover everything, such as a failed shard, the stream flags that poll as partial with the store's text, and the next polls ask again from the same point for up to three polls, so the missing lines arrive without repeating the ones already shown.
 The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top, and the note under the list says so.
 
 The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
@@ -307,7 +310,7 @@ Patterns group the lines a query matches into line templates with counts, the va
 - Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest 2,000 lines by default, up to 5,000, masks numbers, identifiers, addresses and timestamps, clusters lines that share at least 60% of their tokens, and answers `source: server` with each pattern's newest line as its sample.
 - On Elasticsearch the cluster's `categorize_text` aggregation answers over the whole range with `source: elasticsearch`, each pattern being the words its lines share; OpenSearch has no such aggregation, and a cluster without it or without the licence for it falls back to the `source: server` clustering above.
 
-Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist.
+Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist, or when the server clustering folded lines into the nearest of its 500 clusters or dropped lines past its 5,000.
 Every pattern carries a `trend` of 30 equal buckets over the range, empty ones included with a count of 0, and a `level` (`error`, `warning`, `info`, `other` or empty): for `source: loki` it is the first level word in the pattern, for `source: server` the level most of the pattern's lines carry.
 
 ## Add to dashboard
@@ -533,7 +536,8 @@ When that check fails, it asks the model once more to fix the query, so a questi
 The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches or, on Prometheus, no series.
 When the model cannot write a query for the question, or the fixed query still fails its check, the answer says it could not turn that into a query and why.
 
-Each person can have 3 questions in flight, and each question stops after 60 seconds.
+Each person can have 3 questions in flight and ask 60 questions per clock hour, and each question stops after 60 seconds.
+After the 60th question the answer says to wait, with the minutes left in the hour, and a service-account key counts the same way.
 Without a model configured on the server, Ask is off.
 
 ## Save a search

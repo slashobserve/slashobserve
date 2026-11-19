@@ -867,3 +867,14 @@ func TestRegexApplyToTextWithoutARegexIsSilent(t *testing.T) {
 		t.Fatalf("notes = %+v, want none", got)
 	}
 }
+
+func TestSavedSelectionsBeyondTheFirstOfASingleValueVariableAreReported(t *testing.T) {
+	res := convertVariables(t, `{"name":"env","type":"custom","query":"a,b,c","current":{"value":["b","c"]}}`)
+
+	if got := variableNamed(t, res, "env").Default; got == nil || !slices.Equal(got.Values, []string{"b"}) {
+		t.Fatalf("env default = %+v, want only the first saved value", got)
+	}
+	if !hasPath(notesFor(res, "variable env"), "templating.list[0].current") {
+		t.Fatalf("the dropped selection is not reported: %+v", res.Report.Notes)
+	}
+}

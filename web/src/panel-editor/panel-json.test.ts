@@ -163,6 +163,23 @@ describe("parsePanelJson", () => {
     }
   })
 
+  it("reports only the type when it is unknown or missing", () => {
+    expect(
+      failure(JSON.stringify({ ...top, type: "timeseriesx" }), "top")
+    ).toEqual([
+      {
+        path: "/type",
+        message: '"timeseriesx" is not a panel type.',
+        scope: "panel",
+      },
+    ])
+    const untyped: Partial<DataPanel> = { ...top }
+    delete untyped.type
+    expect(failure(JSON.stringify(untyped), "top")).toEqual([
+      { path: "/type", message: "The panel needs a type.", scope: "panel" },
+    ])
+  })
+
   it("refuses to cross between text and data panels", () => {
     const message =
       "Use the panel type picker in the editor to change a data panel's type."

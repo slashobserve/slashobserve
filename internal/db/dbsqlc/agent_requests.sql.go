@@ -1761,6 +1761,91 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 	return items, nil
 }
 
+const listRunsAwaitingReply = `-- name: ListRunsAwaitingReply :many
+SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context FROM agent_requests r
+WHERE r.state = ANY($1::text[])
+  AND r.thread_message_id IS NOT NULL
+  AND r.finished_at > clock_timestamp() - make_interval(secs => $2::float8)
+  AND NOT EXISTS (SELECT 1 FROM thread_messages m WHERE m.run_id = r.id)
+ORDER BY r.finished_at DESC, r.id
+LIMIT $3::int
+`
+
+type ListRunsAwaitingReplyParams struct {
+	Terminal      []string
+	WithinSeconds float64
+	MaxRows       int32
+}
+
+func (q *Queries) ListRunsAwaitingReply(ctx context.Context, arg ListRunsAwaitingReplyParams) ([]AgentRequest, error) {
+	rows, err := q.db.Query(ctx, listRunsAwaitingReply, arg.Terminal, arg.WithinSeconds, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AgentRequest
+	for rows.Next() {
+		var i AgentRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.DashboardID,
+			&i.Source,
+			&i.CommentID,
+			&i.Prompt,
+			&i.PanelID,
+			&i.BaseVersion,
+			&i.Status,
+			&i.Attempts,
+			&i.CheckFailures,
+			&i.LeaseUntil,
+			&i.ResultVersion,
+			&i.Error,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.RequestedByName,
+			&i.RequestedByEmail,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Steps,
+			&i.RunUsage,
+			&i.Origin,
+			&i.OriginClient,
+			&i.Draft,
+			&i.Suggestion,
+			&i.FailureCode,
+			&i.BuildSavedAt,
+			&i.CancelRequestedAt,
+			&i.CanceledByKind,
+			&i.CanceledByID,
+			&i.CanceledByName,
+			&i.ContinuesID,
+			&i.ContinueNote,
+			&i.ContextFrom,
+			&i.ContextTo,
+			&i.Title,
+			&i.PinnedAt,
+			&i.ArchivedAt,
+			&i.Trigger,
+			&i.State,
+			&i.ResultKind,
+			&i.AssignedKind,
+			&i.AssignedID,
+			&i.ClaimedBy,
+			&i.ObservationID,
+			&i.ThreadMessageID,
+			&i.ThreadContext,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockAgentRequestClaims = `-- name: LockAgentRequestClaims :exec
 SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:claim', 0))
 `

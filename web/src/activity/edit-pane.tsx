@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -23,6 +24,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  deletedText,
+  useDeletedBy,
+  useDeletedDashboards,
+} from "@/dashboards/live/deleted-store"
 import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
@@ -30,9 +37,12 @@ import { Button } from "@/components/ui/button"
 import { guardLoad } from "@/panels/renderer-load"
 import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
 import { isEditablePanel } from "@/panel-editor/draft"
+import { useDraftTitle } from "@/panel-editor/draft-title"
+import { useNewPanels, withNewPanel } from "@/panel-editor/new-panel"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
 import { EditorBoundary } from "./editor-boundary"
+import { useEditorEntryInDocument } from "./editor-entry"
 import { EditorViewSwitch } from "./editor-view-switch"
 import { leavesDraft } from "./leaves-draft"
 
@@ -95,13 +105,19 @@ export function EditPane({
   guardRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  useEditorEntryInDocument()
   const unsaved = useRef(false)
   const [dirty, setDirty] = useState(false)
   const onDirtyChange = useCallback((next: boolean) => {
     unsaved.current = next
     setDirty(next)
   }, [])
-  const [draftTitle, setDraftTitle] = useState<string | null>(null)
+  const holdDraft = useDeletedDashboards((state) => state.holdDraft)
+  useEffect(() => {
+    holdDraft(dashboardId, dirty)
+  }, [dashboardId, dirty, holdDraft])
+  useEffect(() => () => holdDraft(dashboardId, false), [dashboardId, holdDraft])
+  const deletedBy = useDeletedBy(dashboardId)
   const [confirm, setConfirm] = useState<Leave | null>(null)
   const focusAfter = useRef<"default" | "trigger" | "editor" | "none">(
     "default"
@@ -149,7 +165,15 @@ export function EditPane({
     [panelId]
   )
 
-  const current = findPanel(spec, panelId)?.panel
+  const pending = useNewPanels((state) => state.panels[dashboardId])
+  const draftTitle = useDraftTitle(panelId)
+  const adding =
+    pending?.id === panelId && findPanel(spec, panelId) === undefined
+  const editorSpec = useMemo(
+    () => (adding ? withNewPanel(spec, pending) : spec),
+    [adding, spec, pending]
+  )
+  const current = findPanel(editorSpec, panelId)?.panel
   const [retained, setRetained] = useState<Panel | undefined>()
   if (current && current !== retained) setRetained(current)
   const panel = current ?? (dirty ? retained : undefined)
@@ -256,8 +280,9 @@ export function EditPane({
         >
           <PanelEditor
             dashboardId={dashboardId}
-            spec={spec}
+            spec={editorSpec}
             panel={panel}
+            adding={adding}
             version={version}
             latestVersion={latestVersion}
             readOnly={readOnly}
@@ -268,7 +293,6 @@ export function EditPane({
             timeRange={timeRange}
             selections={selections}
             onDirtyChange={onDirtyChange}
-            onBaseTitleChange={setDraftTitle}
             onSaved={() => run("saved")}
             onOpenLatest={() =>
               setSearch((state) => ({ ...state, version: undefined }))
@@ -290,14 +314,18 @@ export function EditPane({
         headingId={headingId}
         headingRef={headingRef}
         title={
-          panel
-            ? `Edit ${dirty && draftTitle !== null ? draftTitle : panelTitle(panel)}`
-            : "Panel not found"
+          adding
+            ? "Add a panel"
+            : panel
+              ? `Edit ${draftTitle ?? panelTitle(panel)}`
+              : "Panel not found"
         }
         description={
-          panel
-            ? "A draft. Nothing changes until you save."
-            : `This panel is not in version ${version}.`
+          adding
+            ? "A new panel. Nothing changes until you save."
+            : panel
+              ? "A draft. Nothing changes until you save."
+              : `This panel is not in version ${version}.`
         }
         back={() => leave("back")}
         controls={
@@ -315,6 +343,15 @@ export function EditPane({
         onClose={() => leave("close")}
         closeLabel="Close panel"
       />
+      {deletedBy === undefined ? null : (
+        <Alert variant="destructive" className="mx-4 mt-3 w-auto">
+          <AlertDescription>
+            {deletedText(deletedBy)} Your draft stays here until you close the
+            editor, but it cannot be saved. Copy what you need from the JSON
+            view.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       <AlertDialog
         open={discardOpen}

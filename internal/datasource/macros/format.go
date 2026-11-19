@@ -104,7 +104,7 @@ func searchDefault(ref spec.Reference, c ctx, v datasource.Variable) (string, er
 	if len(quoted) == 1 {
 		return quoted[0], nil
 	}
-	return "(" + strings.Join(quoted, " or ") + ")", nil
+	return "(" + strings.Join(quoted, " OR ") + ")", nil
 }
 
 func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (string, error) {

@@ -81,13 +81,16 @@ func instantInterval(r datasource.TimeRange, minimum time.Duration) time.Duratio
 }
 
 func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration, instant bool) ([]datasource.Frame, error) {
-	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
-	defer cancel()
 	text, err := expand(q, r, step)
 	if err != nil {
 		return nil, err
 	}
+	return d.queryText(ctx, text, d.opts.Limits.Tighten(q.Limits), r, step, instant)
+}
+
+func (d *Datasource) queryText(ctx context.Context, text string, lim datasource.Limits, r datasource.TimeRange, step time.Duration, instant bool) ([]datasource.Frame, error) {
+	ctx, cancel := bound(ctx, lim.Timeout)
+	defer cancel()
 	params := url.Values{"query": {text}}
 	switch {
 	case spec.LogQLReturnsLines(text):

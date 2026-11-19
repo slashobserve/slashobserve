@@ -45,7 +45,7 @@ const (
 
 	descDraftQuery = "Write a logs query, a PromQL query, or trace filters for the trace list, for one Loki, ClickHouse, Elastic, OpenSearch, Prometheus or Tempo datasource from a plain-language question. " +
 		"The server first reads the datasource's metric names, labels or columns, then checks the answer with the lint check and one run over the last 15 minutes of the range; it never runs the full query. " +
-		"It spends at most two of this server's model calls per question, the second only to fix a query that failed its check, and stops after 60 seconds; a key may have 3 questions in flight. " +
+		"It spends at most two of this server's model calls per question, the second only to fix a query that failed its check, and stops after 60 seconds; a key may have 3 questions in flight and 60 questions an hour, counted across every server. " +
 		"Returns query and language (logql on Loki, clickhouse_sql on ClickHouse logs, kql on Elastic and OpenSearch, promql on Prometheus, traceql on Tempo), or trace_filters with language filters (ClickHouse traces always, Tempo when the filters are enough), with a one-sentence explanation and warnings. " +
 		"The code cannot_translate means the datasource cannot answer the question, with the reason as the message. Run a returned query with query_instant."
 
@@ -79,6 +79,18 @@ var draftCodes = []struct {
 	{ErrDraftProvider, "provider_error"},
 	{ErrDraftTimeout, "draft_timeout"},
 }
+
+type DraftBudget interface {
+	Spend(ctx context.Context, principalKey string) (allowed bool, resetsIn time.Duration, err error)
+}
+
+type draftBudgetError struct{ resetsIn time.Duration }
+
+func (e *draftBudgetError) Error() string {
+	return fmt.Sprintf("you have used all the questions this hour allows; try again in %d minutes", int(e.resetsIn.Minutes())+1)
+}
+
+func (e *draftBudgetError) Is(target error) bool { return target == ErrDraftTooMany }
 
 type DraftInput struct {
 	DatasourceUID string
@@ -188,6 +200,15 @@ func (r *Registry) DraftQuery(ctx context.Context, in DraftInput) (Draft, error)
 		return Draft{}, err
 	}
 	defer release()
+	if r.deps.DraftBudget != nil {
+		allowed, resetsIn, err := r.deps.DraftBudget.Spend(ctx, principalKey(principal))
+		if err != nil {
+			return Draft{}, err
+		}
+		if !allowed {
+			return Draft{}, &draftBudgetError{resetsIn: resetsIn}
+		}
+	}
 	draftCtx, cancel := context.WithTimeout(ctx, draftDeadline)
 	defer cancel()
 	started := time.Now()

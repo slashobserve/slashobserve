@@ -77,6 +77,7 @@ type Query struct {
 	Limits    Limits
 	Dashboard string
 	User      QueryUser
+	TimeZone  string
 
 	MinInterval time.Duration
 }

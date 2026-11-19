@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import {
   asDashboardSpec,
   latestDashboardQuery,
-  useAddVersion,
+  usePatchPanels,
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
 import { useLatestPermissions } from "@/dashboards/permissions"
@@ -64,19 +64,25 @@ import {
   type EditablePanel,
 } from "./draft"
 import { restoreBackup, useDraftBackup } from "./draft-backup"
+import { useDraftTitles } from "./draft-title"
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
 import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
-import { parsePanelJson, withPanel } from "./panel-json"
+import { withNewPanel } from "./new-panel"
+import { parsePanelJson } from "./panel-json"
 import { PreviewSection } from "./preview-section"
 import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
 import {
+  onlyEmptyResult,
+  onlyGridOverlap,
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
+  querySources,
+  transientLines,
   withoutQuery,
   type Problem,
 } from "./save-problem"
@@ -93,6 +99,7 @@ type Props = {
   dashboardId: string
   spec: Dashboard
   panel: EditablePanel
+  adding?: boolean
   version: number
   latestVersion: number
   readOnly: boolean
@@ -103,13 +110,12 @@ type Props = {
   timeRange: { from?: string; to?: string }
   selections: Selections | null
   onDirtyChange: (dirty: boolean) => void
-  onBaseTitleChange: (title: string | null) => void
   onSaved: () => void
   onOpenLatest: () => void
   onDiscard: () => void
 }
 
-const savingText = "Saving and running every panel query."
+const savingText = "Saving and running this panel's queries."
 const readOnlyAskReason = "Open the latest version to ask the agent."
 
 function focusIsFree() {
@@ -123,6 +129,7 @@ export default function PanelEditor({
   dashboardId,
   spec,
   panel,
+  adding = false,
   version,
   latestVersion,
   readOnly,
@@ -133,14 +140,13 @@ export default function PanelEditor({
   timeRange,
   selections,
   onDirtyChange,
-  onBaseTitleChange,
   onSaved,
   onOpenLatest,
   onDiscard,
 }: Props) {
   const datasourceId = useId()
   const queryClient = useQueryClient()
-  const save = useAddVersion(dashboardId)
+  const save = usePatchPanels(dashboardId)
   const navigate = useNavigate()
   const permissions = useLatestPermissions(dashboardId)
   const propose = !permissions.edit && permissions.comment
@@ -199,11 +205,6 @@ export default function PanelEditor({
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange(false), [onDirtyChange])
-  const baseTitle = panelTitle(draft.base)
-  useEffect(() => {
-    onBaseTitleChange(baseTitle)
-    return () => onBaseTitleChange(null)
-  }, [baseTitle, onBaseTitleChange])
   useEffect(() => {
     if (view !== "json") jsonGuard.current = leaveNow
   }, [view])
@@ -264,6 +265,17 @@ export default function PanelEditor({
       ?.scrollIntoView({ block: "nearest" })
   }, [issuesByQuery])
 
+  const [runBlocked, setRunBlocked] = useState(false)
+  const showDraftTitle = useDraftTitles((state) => state.show)
+  const draftPanelId = draft.panel.id
+  const draftTitle = draft.panel.title
+  useEffect(() => {
+    showDraftTitle(draftPanelId, draftTitle)
+  }, [showDraftTitle, draftPanelId, draftTitle])
+  useEffect(
+    () => () => showDraftTitle(draftPanelId, undefined),
+    [showDraftTitle, draftPanelId]
+  )
   const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
@@ -282,13 +294,16 @@ export default function PanelEditor({
     dirty &&
     !locked &&
     !jsonBlocked &&
+    !runBlocked &&
     queriesOk &&
     titleOk
 
   function submit(
     source: Dashboard,
     parent: number,
-    panelToSave: EditablePanel
+    panelToSave: EditablePanel,
+    acceptEmpty = false,
+    replaced = false
   ) {
     if (!validate) return
     const entry = findPanel(source, panelToSave.id)
@@ -311,20 +326,19 @@ export default function PanelEditor({
       )
       return
     }
-    const placed = withPanel(source, parsed.panel.id, parsed.panel)
-    if (!placed) {
-      setProblem({ kind: "gone" })
-      return
-    }
     setProblem(null)
+    const title = normalised.title || normalised.id
     save.mutate(
       {
-        spec: placed,
+        patch: { upsert: [{ ...parsed.panel }] },
         summary:
           note.trim() ||
-          defaultSaveSummary(changes, entry.panel.title || entry.panel.id),
+          (adding
+            ? `Add "${title}"`
+            : defaultSaveSummary(changes, entry.panel.title || entry.panel.id)),
         parent_version: parent,
         propose,
+        acceptEmpty,
       },
       {
         onSuccess: (outcome) => {
@@ -352,9 +366,32 @@ export default function PanelEditor({
               })
               return
             }
+            if (
+              error.status === 422 &&
+              adding &&
+              !replaced &&
+              onlyGridOverlap(error.issues)
+            ) {
+              void applyToLatest(acceptEmpty, true)
+              return
+            }
             if (error.status === 422) {
               if (error.issues.length > 0 && error.issues.every(isTransient)) {
-                setProblem({ kind: "transient" })
+                setProblem({
+                  kind: "transient",
+                  lines: transientLines(
+                    error.issues,
+                    entry.pointer,
+                    querySources(
+                      normalised,
+                      (ref) => resolveDatasource(ref).uid
+                    )
+                  ),
+                })
+                return
+              }
+              if (onlyEmptyResult(error.issues)) {
+                setProblem({ kind: "empty", message: error.issues[0].message })
                 return
               }
               setProblem({
@@ -392,7 +429,13 @@ export default function PanelEditor({
         ...latestDashboardQuery(queryClient, dashboardId),
         staleTime: 0,
       })
-      const latestSpec = asDashboardSpec(latest.version.spec)
+      const savedSpec = asDashboardSpec(latest.version.spec)
+      const latestSpec =
+        adding &&
+        isDataPanel(draft.base) &&
+        findPanel(savedSpec, draft.base.id) === undefined
+          ? withNewPanel(savedSpec, draft.base)
+          : savedSpec
       const entry = findPanel(latestSpec, draft.panel.id)
       if (!entry) {
         setProblem({ kind: "gone" })
@@ -423,9 +466,15 @@ export default function PanelEditor({
     }
   }
 
-  function applyToLatest() {
+  function applyToLatest(acceptEmpty = false, replaced = false) {
     return withLatestPanel(({ spec: latestSpec, version: latestOf, panel }) =>
-      submit(latestSpec, latestOf, rebasePanel(draft.base, draft.panel, panel))
+      submit(
+        latestSpec,
+        latestOf,
+        rebasePanel(draft.base, draft.panel, panel),
+        acceptEmpty,
+        replaced
+      )
     )
   }
 
@@ -440,15 +489,22 @@ export default function PanelEditor({
     else submit(spec, draft.baseVersion, draft.panel)
   }
 
+  function saveAnyway() {
+    if (newer > 0) void applyToLatest(true)
+    else submit(spec, draft.baseVersion, draft.panel, true)
+  }
+
   const registerJsonGuard = useCallback((guard: LeaveGuard) => {
     jsonGuard.current = guard
   }, [])
 
   const footerSummary = jsonBlocked
     ? "Fix the JSON to save."
-    : propose
-      ? `${changeSummary(changes)}. An editor merges your change`
-      : changeSummary(changes)
+    : runBlocked
+      ? "Fix the query to save."
+      : propose
+        ? `${changeSummary(changes)}. An editor merges your change`
+        : changeSummary(changes)
   let saveLabel = `Save as version ${latestVersion + 1}`
   if (propose) saveLabel = "Propose change"
   else if (newer > 0) saveLabel = `Save my changes as version ${newer + 1}`
@@ -505,6 +561,7 @@ export default function PanelEditor({
           draft={draft.panel}
           timeRange={timeRange}
           selections={selections}
+          onSaveBlockedChange={setRunBlocked}
         />
         <div className={view === "editor" ? "contents" : "hidden"}>
           <AskAgent
@@ -585,6 +642,7 @@ export default function PanelEditor({
                 draft={draft.panel}
                 dispatch={dispatch}
                 readOnly={locked}
+                onOpenJson={() => onViewChange("json")}
               />
             </div>
           </>
@@ -628,6 +686,7 @@ export default function PanelEditor({
               problem={problem}
               panelId={current.id}
               onRetry={saveDraft}
+              onSaveAnyway={saveAnyway}
             />
           ) : null}
         </div>

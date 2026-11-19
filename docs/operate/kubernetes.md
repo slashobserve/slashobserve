@@ -138,11 +138,14 @@ A changed ConfigMap reaches the pod within about a minute, and the provisioner s
 The server serves `/metrics` without sign-in; see [Metrics](metrics.md).
 The pod carries `prometheus.io/scrape`, `prometheus.io/port` and `prometheus.io/path` annotations for a Prometheus that discovers pods by annotation; `metrics.podAnnotations: false` removes them.
 With the Prometheus Operator, set `metrics.serviceMonitor.enabled: true` and add the label your Prometheus selects ServiceMonitors by under `metrics.serviceMonitor.labels`.
-The Ingress below routes every path to the server, `/metrics` included, so block `/metrics` at the controller or load balancer when the Ingress is public.
+The Ingress below does not route `/metrics`: that path goes to a Service with no endpoints, so the controller answers with an error and Prometheus reaches the pod or Service inside the cluster.
+The server answers `404` to a percent-encoded spelling of the path such as `/%6Detrics`, so a controller that matches the raw path cannot route around that rule.
+Set `ingress.exposeMetrics: true` to route `/metrics` through the Ingress as well, and then block it at the controller or load balancer when the Ingress is public.
 
 ## Ingress
 
 `ingress.enabled: true` creates an Ingress for the host of `publicURL`, with a TLS block when `ingress.tlsSecretName` is set.
+The Ingress adds a second Service, `<release>-no-metrics`, which only holds the `/metrics` path back; it selects no pods.
 The controller must follow the proxy rules in [Run in production](production.md#put-tls-in-front): no response buffering and no short read timeout on `GET /api/v1/dashboards/{id}/events`, which is a Server-Sent Events stream, and request bodies of at least 8 MiB.
 For ingress-nginx, for example:
 

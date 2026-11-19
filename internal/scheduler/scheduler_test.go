@@ -365,3 +365,28 @@ func TestRegisterRefusesBadJobs(t *testing.T) {
 		})
 	}
 }
+
+func TestADueJobDoesNotWaitForASlowerOne(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	fastRan := make(chan struct{})
+	s.Register("a-slow", time.Hour, func(context.Context) error {
+		select {
+		case <-fastRan:
+			return nil
+		case <-time.After(10 * time.Second):
+			return errors.New("the fast job never ran")
+		}
+	})
+	fast, fastDone := signal()
+	s.Register("z-fast", time.Hour, func(ctx context.Context) error {
+		close(fastRan)
+		return fast(ctx)
+	})
+
+	runUntil(t, s, fastDone)
+
+	if j := row(t, d, "a-slow"); j.LastOutcome != OutcomeSucceeded {
+		t.Fatalf("the slow job ended %q, want it to finish once the fast job ran", j.LastOutcome)
+	}
+}

@@ -73,6 +73,7 @@ ingress:
   className: ""
   annotations: {}
   tlsSecretName: ""
+  exposeMetrics: false
 
 serviceAccount:
   create: true

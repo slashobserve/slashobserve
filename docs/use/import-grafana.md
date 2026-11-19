@@ -5,6 +5,7 @@ description: Import a Grafana dashboard from the web page, the CLI or MCP, and h
 
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
 The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
+The tool, and the built-in agent that uses it, refuse JSON that converts to an HTML text panel, a placeholder panel or a panel action with the code `import_content_not_allowed`, because the agent and MCP clients never write those; the web page and `observe import` keep them.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
 Home's **Import a dashboard** tab starts the web page: paste the JSON or choose a file there and Home opens the page with it; see [Home](home.md).
 
@@ -13,6 +14,7 @@ On Home, an Admin pastes the link in the **Grafana dashboard** field and chooses
 `POST /api/v1/grafana/link` takes the link as `url`, fetches the dashboard with the connection's token and returns it as `json`, which `POST /api/v1/imports/preview` and `POST /api/v1/imports` take as they are.
 It is only for Admins, because the token is an Admin's credential and could read every dashboard it is allowed to; everyone else pastes the JSON.
 The link must be a `/d/<uid>` or `/d-solo/<uid>` link under the connection's address, and the server fetches only from the hosts of stored connections.
+The fetch never adds the connection's domain to the [outbound allowlist](../operate/outbound-access.md); when an Admin has removed it, the link answers `403 outbound_domain_not_allowed` until it is allowed again.
 A link with no matching connection answers `404 no_connection`, a Grafana page that is not a dashboard `422 not_a_dashboard_link`, a dashboard the token cannot read `404 dashboard_not_found`, and a Grafana that fails or refuses the token `502 grafana_unavailable`.
 
 To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
@@ -307,6 +309,7 @@ A time series, state timeline or status history panel's single time zone (`optio
 ### Layout and panels that reuse another panel
 
 Panels in a collapsed row keep their layout relative to the topmost one, whatever order they were saved in.
+An entry of a panel list that is not an object, and a row inside a collapsed row, are not kept, and the report lists each one by its path under "panels".
 
 Grafana's `-- Dashboard --` query, which shows another panel's results, imports as a query that reuses that panel (see [Reusing another panel's results](../concepts/observespec.md#reusing-another-panels-results)), and panels that reuse another are converted after all the others.
 Its `withTransforms` setting is kept, and `adHocFiltersEnabled` imports as `adHocFilters`, which filters the reused rows by the dashboard's ad hoc filters.

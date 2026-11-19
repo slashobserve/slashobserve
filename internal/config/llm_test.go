@@ -34,7 +34,7 @@ func TestLLMAPIKeyFileIsReadOnlyForKeyedProviders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load: %v", err)
 			}
-			if cfg.LLM.APIKey != "" {
+			if !cfg.LLM.APIKey.IsZero() {
 				t.Fatal("the key file must not be read")
 			}
 		})
@@ -61,7 +61,7 @@ func TestLLMAPIKeyFileLoadsForAnthropic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.LLM.APIKey != "sk-secret" {
+	if cfg.LLM.APIKey.Reveal() != "sk-secret" {
 		t.Fatal("the key file was not loaded")
 	}
 }
