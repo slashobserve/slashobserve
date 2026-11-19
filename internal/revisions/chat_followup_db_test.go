@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -190,5 +191,38 @@ func TestRetryKeepsTheChat(t *testing.T) {
 	}
 	if retried.ChatID != first.ID || !strings.Contains(retried.ThreadContext.String, "answer one") {
 		t.Fatalf("retry = chat %v, context %q; want the chat and its context kept", retried.ChatID, retried.ThreadContext.String)
+	}
+}
+
+func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 1)
+	first, err := svc.SubmitFollowUp(ctx, dash, nil, "", "payments p95", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerWith(t, d, first.ID, "Payments p95 is 420ms")
+	second, err := svc.SubmitFollowUp(ctx, dash, nil, "", "add a panel for that latency", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, found := claimOne(t, svc)
+	if !found || claimed.ID != second.ID {
+		t.Fatalf("claim = %+v, found %v; want the second turn", claimed, found)
+	}
+	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: second.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 2, Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, "UPDATE agent_requests SET state = 'canceled', status = 'failed', failure_code = 'canceled', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", second.ID)
+
+	next, err := svc.Continue(ctx, second.ID, user, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := next.ThreadContext.String; !strings.Contains(got, "Payments p95 is 420ms") {
+		t.Fatalf("continued run context = %q, want the earlier turn on the dashboard", got)
 	}
 }

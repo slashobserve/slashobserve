@@ -271,7 +271,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 			return err
 		}
 		var err error
-		threadMessage, threadContext := threadOf(row)
+		threadMessage, threadContext := continuedContext(row)
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
@@ -410,6 +410,13 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			RetriesID:       retries,
 		}, nil)
 	}
+}
+
+func continuedContext(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
+	if row.ThreadMessageID.Valid || Source(row.Source) != SourcePrompt {
+		return threadOf(row)
+	}
+	return pgtype.UUID{}, row.ThreadContext.String
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
