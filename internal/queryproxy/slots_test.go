@@ -194,3 +194,12 @@ func TestSlotsUsageListsEveryDatasourceSortedByUID(t *testing.T) {
 		t.Errorf("Usage() = %v, want %v", got, want)
 	}
 }
+
+func TestRunnerUpstreamWaitDefaultsToFiveSecondsAndTakesTheOption(t *testing.T) {
+	if got := NewRunner(nil, nil).UpstreamWait(); got != 5*time.Second {
+		t.Fatalf("default upstream wait = %s, want 5s", got)
+	}
+	if got := NewRunner(nil, nil, WithUpstreamWait(slotWait)).UpstreamWait(); got != slotWait {
+		t.Fatalf("upstream wait = %s, want %s", got, slotWait)
+	}
+}

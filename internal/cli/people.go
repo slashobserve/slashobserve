@@ -68,7 +68,7 @@ func (a *app) peopleListCommand() *cobra.Command {
 		Args:  noArgs,
 		RunE:  a.runPeopleList,
 	}
-	addPageFlags(cmd, &a.people.page)
+	addPageFlags(cmd, &a.people.page, maxPeoplePage)
 	return cmd
 }
 
@@ -92,7 +92,7 @@ func (a *app) peopleInvitesCommand() *cobra.Command {
 		Args:  noArgs,
 		RunE:  a.runPeopleInvites,
 	}
-	addPageFlags(cmd, &a.people.page)
+	addPageFlags(cmd, &a.people.page, maxPeoplePage)
 	return cmd
 }
 
@@ -136,11 +136,14 @@ func (a *app) runPeopleInvite(cmd *cobra.Command, args []string) error {
 }
 
 func (a *app) runPeopleList(cmd *cobra.Command, _ []string) error {
+	if err := a.people.page.check(); err != nil {
+		return err
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "users", a.people.page.query())
+	data, err := c.getPages(cmd.Context(), "users", a.people.page.query(), a.people.page.all)
 	if err != nil {
 		return err
 	}
@@ -162,16 +165,19 @@ func (a *app) runPeopleList(cmd *cobra.Command, _ []string) error {
 		rows = append(rows, []string{text(p.ID), text(p.Name), text(p.Email), text(p.Role), p.status(), when(p.LastSeenAt)})
 	}
 	out.table([]string{"ID", "NAME", "EMAIL", "ROLE", "STATUS", "LAST ACTIVE"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Users), nil, page.NextCursor)
 	return nil
 }
 
 func (a *app) runPeopleInvites(cmd *cobra.Command, _ []string) error {
+	if err := a.people.page.check(); err != nil {
+		return err
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "invites", a.people.page.query())
+	data, err := c.getPages(cmd.Context(), "invites", a.people.page.query(), a.people.page.all)
 	if err != nil {
 		return err
 	}
@@ -193,7 +199,7 @@ func (a *app) runPeopleInvites(cmd *cobra.Command, _ []string) error {
 		rows = append(rows, []string{text(i.ID), text(i.Email), text(i.Role), text(i.InvitedBy), when(i.CreatedAt)})
 	}
 	out.table([]string{"ID", "EMAIL", "ROLE", "INVITED BY", "INVITED"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Invites), nil, page.NextCursor)
 	return nil
 }
 

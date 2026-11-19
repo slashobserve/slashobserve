@@ -87,7 +87,7 @@ func TestPeopleInvitesPrintsATableAndTheNextPage(t *testing.T) {
 	if !strings.HasPrefix(got, "ID EMAIL ROLE INVITED BY INVITED\n"+testInvite+" new@example.com viewer Ada ") {
 		t.Fatalf("stdout %q", got)
 	}
-	if !strings.Contains(stderr, "more results: --cursor next") || f.requests[0].query != "limit=1" {
+	if !strings.Contains(stderr, "Showing 1, and more exist. More: --cursor next, or --all for every page.") || f.requests[0].query != "limit=1" {
 		t.Fatalf("stderr %q, query %q", stderr, f.requests[0].query)
 	}
 }
