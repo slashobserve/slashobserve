@@ -28,6 +28,7 @@ const (
 
 type Annotations interface {
 	Create(ctx context.Context, by auth.Principal, in CreateInput) (Annotation, error)
+	Update(ctx context.Context, by auth.Principal, id pgtype.UUID, in UpdateInput) (Annotation, error)
 	Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error
 	List(ctx context.Context, by auth.Principal, q ListQuery) (Page, error)
 }
@@ -64,6 +65,7 @@ func (h *Handler) Register(api auth.Routes) {
 	g := api.Group("/annotations")
 	g.GET("", auth.RoleViewer, h.list)
 	g.POST("", auth.RoleViewer, h.create)
+	g.PATCH("/:id", auth.RoleViewer, h.update)
 	g.DELETE("/:id", auth.RoleViewer, h.remove)
 }
 
@@ -190,6 +192,29 @@ func (h *Handler) create(c *gin.Context) {
 	h.logger.InfoContext(ctx, "created an annotation", slog.String("actor_id", caller.ID), slog.String("annotation_id", a.ID), slog.String("dashboard_id", a.DashboardID))
 	c.Header("Location", "/api/v1/annotations/"+a.ID)
 	c.JSON(http.StatusCreated, JSONOf(a))
+}
+
+func (h *Handler) update(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req UpdateInput
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	caller := httpapi.Caller(c)
+	ctx := c.Request.Context()
+	a, err := h.annotations.Update(ctx, caller, id, req)
+	if h.refuse(c, err, "annotation not found") {
+		return
+	}
+	if err != nil {
+		h.fail(c, "update annotation", err)
+		return
+	}
+	h.logger.InfoContext(ctx, "updated an annotation", slog.String("actor_id", caller.ID), slog.String("annotation_id", a.ID))
+	c.JSON(http.StatusOK, JSONOf(a))
 }
 
 func (h *Handler) remove(c *gin.Context) {

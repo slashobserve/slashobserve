@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
@@ -19,6 +21,9 @@ import (
 
 const (
 	synthSeriesFile  = "series.json"
+	synthHistoryFile = "history-minutes"
+	synthScrape      = 15 * time.Second
+	historySlack     = 30 * time.Second
 	synthKindCounter = "counter"
 	synthKindGauge   = "gauge"
 
@@ -281,6 +286,11 @@ func (m *metricBook) labelSets() []map[string]string {
 	return []map[string]string{first, second}
 }
 
+func synthHistoryMinutes() int {
+	need := retimeMaxStep + 2*synthScrape + historySlack
+	return int((need + time.Minute - 1) / time.Minute)
+}
+
 func generateSynth(out string) error {
 	summary, err := writeSynth(out)
 	if err != nil {
@@ -326,6 +336,9 @@ func writeSynth(out string) (synthSummary, error) {
 		return synthSummary{}, err
 	}
 	if err := writeShared(filepath.Join(out, synthSeriesFile), body); err != nil {
+		return synthSummary{}, err
+	}
+	if err := writeShared(filepath.Join(out, synthHistoryFile), []byte(strconv.Itoa(synthHistoryMinutes())+"\n")); err != nil {
 		return synthSummary{}, err
 	}
 	return summary, nil

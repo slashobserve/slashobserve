@@ -171,6 +171,8 @@ dashboards:
 dashboards-tags:
   get:
     operationId: listDashboardTags
+    x-surfaces:
+      cli: [observe dashboards tags]
     summary: List every dashboard tag with its dashboard count, by tag name.
     responses:
       "200":

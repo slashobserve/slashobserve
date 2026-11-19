@@ -49,6 +49,52 @@ func (q *Queries) GetAnnotation(ctx context.Context, id pgtype.UUID) (Annotation
 	return i, err
 }
 
+const getAnnotationNamed = `-- name: GetAnnotationNamed :one
+SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at, a.created_by_kind, a.origin, a.origin_client,
+  COALESCE(NULLIF(u.name, ''), u.email, sa.name, '')::text AS created_by_name
+FROM annotations a
+LEFT JOIN users u ON u.id = a.created_by
+LEFT JOIN service_accounts sa ON sa.id = a.created_by
+WHERE a.id = $1
+`
+
+type GetAnnotationNamedRow struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	PanelID       string
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	Text          string
+	Tags          []string
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	CreatedByKind pgtype.Text
+	Origin        pgtype.Text
+	OriginClient  pgtype.Text
+	CreatedByName string
+}
+
+func (q *Queries) GetAnnotationNamed(ctx context.Context, id pgtype.UUID) (GetAnnotationNamedRow, error) {
+	row := q.db.QueryRow(ctx, getAnnotationNamed, id)
+	var i GetAnnotationNamedRow
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.PanelID,
+		&i.TimeFrom,
+		&i.TimeTo,
+		&i.Text,
+		&i.Tags,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.CreatedByKind,
+		&i.Origin,
+		&i.OriginClient,
+		&i.CreatedByName,
+	)
+	return i, err
+}
+
 const insertAnnotation = `-- name: InsertAnnotation :one
 INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client)
 VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, $6::text[], $7,
@@ -182,4 +228,22 @@ func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAnnotation = `-- name: UpdateAnnotation :execrows
+UPDATE annotations SET text = $1, tags = $2::text[] WHERE id = $3
+`
+
+type UpdateAnnotationParams struct {
+	Text string
+	Tags []string
+	ID   pgtype.UUID
+}
+
+func (q *Queries) UpdateAnnotation(ctx context.Context, arg UpdateAnnotationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateAnnotation, arg.Text, arg.Tags, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

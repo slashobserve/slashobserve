@@ -77,7 +77,8 @@ annotations:
       Adds an annotation to one dashboard, or a global one shown on every dashboard when `dashboard_id` is absent or null.
       A dashboard annotation needs Edit on the dashboard's folder, and a global one needs the Editor role or higher; otherwise 403 `forbidden_role`.
       A dashboard that is missing or in a folder the caller cannot see is 404 `not_found`.
-      `time_from` defaults to the server's current time.
+      `panel_id` must be a panel of the dashboard's latest version, otherwise 422 `unknown_panel`.
+      `time_from` defaults to the server's current time when it is absent; a given time must be an RFC 3339 time from 1970-01-01 to 2099-12-31, never replaced by the current time.
     requestBody:
       required: true
       content:
@@ -143,8 +144,9 @@ annotations:
         description: >-
           The text is empty, longer than 2000 characters or holds control characters (`invalid_text`),
           a tag is not valid or there are more than 10 (`invalid_tags`),
-          a time is not RFC 3339, is before 1970 or `time_to` is before `time_from` (`invalid_time`),
-          or `panel_id` is too long or has no `dashboard_id` (`invalid_panel_id`).
+          a time is not RFC 3339, is before 1970, is after 2099 or `time_to` is before `time_from` (`invalid_time`),
+          `panel_id` is too long or has no `dashboard_id` (`invalid_panel_id`),
+          or `panel_id` is not a panel of the dashboard's latest version (`unknown_panel`).
         content:
           application/json:
             schema:
@@ -159,6 +161,67 @@ annotations-id:
       schema:
         type: string
         format: uuid
+  patch:
+    operationId: updateAnnotation
+    x-surfaces:
+      mcp: [update_annotation]
+      cli: [observe annotations update]
+    summary: Change the text or tags of an annotation.
+    description: >-
+      Changes the `text`, the `tags` or both of an annotation the caller created, or of any annotation for an Admin; anyone else gets 403 `not_creator`.
+      A field that is absent stays as it was, and a given `tags` list replaces the old tags, so an empty list removes them.
+      The time, the dashboard, the panel and the author never change.
+      A body that gives neither field is 422 `invalid_request`, and a change that leaves both values as they were answers 200 and records nothing.
+      An annotation that is missing, or on a dashboard the caller cannot see, is 404 `not_found`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              text:
+                type: string
+                description: 1 to 2000 characters once trimmed, without control or bidirectional override characters.
+              tags:
+                type: array
+                maxItems: 10
+                items:
+                  type: string
+                  pattern: "^[a-z0-9][a-z0-9_.-]{0,39}$"
+    responses:
+      "200":
+        description: The annotation as it is now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Annotation"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller did not create the annotation and is not an Admin (`not_creator`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          Neither `text` nor `tags` is given (`invalid_request`),
+          the text is empty, longer than 2000 characters or holds control characters (`invalid_text`),
+          or a tag is not valid or there are more than 10 (`invalid_tags`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteAnnotation
     x-surfaces:

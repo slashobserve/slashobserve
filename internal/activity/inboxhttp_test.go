@@ -18,7 +18,7 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/gin-gonic/gin"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
@@ -53,10 +53,7 @@ func errorCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 func (r rig) validated(t *testing.T, rec *httptest.ResponseRecorder, method, path string) {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
 	if err != nil {
 		t.Fatal(err)
@@ -176,10 +173,7 @@ func TestInboxListAndReadMatchTheDocumentAndEachOther(t *testing.T) {
 }
 
 func TestInboxItemSchemaCarriesEveryActivityEventProperty(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	event := slices.Sorted(maps.Keys(doc.Components.Schemas["ActivityEvent"].Value.Properties))
 	item := doc.Components.Schemas["InboxItem"].Value
 	for _, name := range event {

@@ -2,6 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 
+import { renderWithProviders } from "@/test/render"
+
+import { AnnotationActionsProvider } from "./actions"
 import { AnnotationLayer } from "./annotation-layer"
 import type { Annotation } from "./queries"
 
@@ -174,7 +177,7 @@ describe("AnnotationLayer", () => {
     expect(flag).toHaveFocus()
   })
 
-  it("lists at most five annotations of a cluster and counts the rest", async () => {
+  it("lists every annotation of a cluster so the card can scroll", async () => {
     const user = userEvent.setup()
     layer(
       Array.from({ length: 7 }, (_, i) =>
@@ -187,9 +190,9 @@ describe("AnnotationLayer", () => {
     )
     await user.hover(screen.getByRole("button"))
     const card = screen.getByRole("group")
-    expect(card).toHaveTextContent("note 6")
-    expect(card).not.toHaveTextContent("note 1")
-    expect(card).toHaveTextContent("2 more")
+    for (let i = 0; i < 7; i++) expect(card).toHaveTextContent(`note ${i}`)
+    expect(card).not.toHaveTextContent("more")
+    expect(card).toHaveClass("overflow-auto")
   })
 
   it("stops a press on the flag from reaching the chart", () => {
@@ -214,10 +217,121 @@ describe("AnnotationLayer", () => {
 
   it("uses no animation class in the card", async () => {
     const user = userEvent.setup()
-    const { container } = layer([annotation()])
+    layer([annotation()])
     await user.hover(screen.getByRole("button"))
-    for (const element of container.querySelectorAll("*")) {
+    for (const element of document.body.querySelectorAll("*")) {
       expect(element.getAttribute("class") ?? "").not.toMatch(/animate/)
     }
+  })
+
+  it("names the time zone beside every time", async () => {
+    const user = userEvent.setup()
+    layer([annotation({ time_to: new Date(t0 + 20 * minute).toISOString() })])
+    await user.hover(screen.getByRole("button"))
+    expect(screen.getByRole("group")).toHaveTextContent(
+      "2026-11-01 10:10:00 UTC to 2026-11-01 10:20:00 UTC"
+    )
+  })
+
+  it("draws the card in the document body so a panel edge cannot clip it", async () => {
+    const user = userEvent.setup()
+    const { container } = layer([annotation()])
+    await user.hover(screen.getByRole("button"))
+    const card = screen.getByRole("group")
+    expect(container.contains(card)).toBe(false)
+    expect(card.parentElement).toBe(document.body)
+    expect(card).toHaveClass("fixed")
+  })
+
+  describe("with annotation actions", () => {
+    function withActions(creator: string, role: "viewer" | "admin") {
+      renderWithProviders(
+        <AnnotationActionsProvider
+          dashboardId="d1"
+          zone="UTC"
+          panelTitle={(id) => id}
+          canEdit
+          principal={{ id: "u1", role }}
+        >
+          <AnnotationLayer
+            annotations={[annotation({ created_by: creator })]}
+            fromMs={t0}
+            toMs={t0 + 100 * minute}
+            left={0}
+            top={0}
+            width={1000}
+            height={200}
+            zone="UTC"
+          />
+        </AnnotationActionsProvider>
+      )
+    }
+
+    it("offers Edit and Delete on the creator's own annotation", async () => {
+      const user = userEvent.setup()
+      withActions("u1", "viewer")
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      expect(screen.getByRole("button", { name: "Edit" })).toBeVisible()
+      expect(screen.getByRole("button", { name: "Delete" })).toBeVisible()
+    })
+
+    it("offers them to an admin on anyone's annotation", async () => {
+      const user = userEvent.setup()
+      withActions("someone-else", "admin")
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      expect(screen.getByRole("button", { name: "Edit" })).toBeVisible()
+    })
+
+    it("hides them from a person who did not write it", async () => {
+      const user = userEvent.setup()
+      withActions("someone-else", "viewer")
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
+      expect(screen.queryByRole("button", { name: "Delete" })).toBeNull()
+    })
+
+    it("keeps Edit and Delete on every annotation of a crowded flag", async () => {
+      const user = userEvent.setup()
+      renderWithProviders(
+        <AnnotationActionsProvider
+          dashboardId="d1"
+          zone="UTC"
+          panelTitle={(id) => id}
+          canEdit
+          principal={{ id: "u1", role: "viewer" }}
+        >
+          <AnnotationLayer
+            annotations={Array.from({ length: 7 }, (_, i) =>
+              annotation({
+                id: `a${i}`,
+                created_by: "u1",
+                time_from: new Date(t0 + 10 * minute + i * 1000).toISOString(),
+              })
+            )}
+            fromMs={t0}
+            toMs={t0 + 100 * minute}
+            left={0}
+            top={0}
+            width={1000}
+            height={200}
+            zone="UTC"
+          />
+        </AnnotationActionsProvider>
+      )
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(7)
+      expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(7)
+    })
+
+    it("opens the edit dialog and closes the card", async () => {
+      const user = userEvent.setup()
+      withActions("u1", "viewer")
+      await user.hover(screen.getByRole("button", { name: /^Annotation:/ }))
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }))
+      expect(
+        await screen.findByRole("dialog", { name: /edit annotation/i })
+      ).toBeVisible()
+      expect(screen.queryByRole("group", { name: "Annotation" })).toBeNull()
+    })
   })
 })
