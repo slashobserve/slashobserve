@@ -45,7 +45,7 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id). Send a block's version when you update or keep it."
+	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id)."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. A stale version answers version_conflict."
@@ -71,7 +71,7 @@ const (
 	propObservationBlock = `"blocks":{"type":"array","maxItems":10,"items":{"type":"object","properties":{` + blockProps + `},"required":["kind"],"additionalProperties":false},"description":"Blocks to add in order, shaped as in add_block."}`
 
 	schemaCreateObservation  = `{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200,"description":"A short title."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file it in, from list_folders. Default your My Dashboards, else General."},` + propObservationFrom + `,` + propObservationTo + `,` + propObservationBlock + `},"required":["title"],"additionalProperties":false}`
-	schemaGetObservation     = `{"type":"object","properties":{` + propObservationID + `},"required":["observation_id"],"additionalProperties":false}`
+	schemaGetObservation     = `{"type":"object","properties":{"observation_id":{"type":"string","format":"uuid","description":"The observation, from list_observations."}},"required":["observation_id"],"additionalProperties":false}`
 	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `},"required":["observation_id","kind"],"additionalProperties":false}`
 	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propBlockPosition + `},"required":["block_id","version"],"additionalProperties":false}`
@@ -87,7 +87,7 @@ func init() { registerEntries((*Registry).observationEntries) }
 func (r *Registry) observationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameCreateObservation, Description: descCreateObservation, InputSchema: json.RawMessage(schemaCreateObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createObservation},
-		{Tool{Name: nameGetObservation, Description: descGetObservation, InputSchema: json.RawMessage(schemaGetObservation), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.getObservation},
+		{Tool{Name: nameGetObservation, Description: descGetObservation, InputSchema: json.RawMessage(schemaGetObservation), ReadOnly: true, MinRole: auth.RoleViewer}, r.getObservation},
 		{Tool{Name: nameListObservations, Description: descListObservations, InputSchema: json.RawMessage(schemaListObservations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listObservations},
 		{Tool{Name: nameAddBlock, Description: descAddBlock, InputSchema: json.RawMessage(schemaAddBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.addBlock},
 		{Tool{Name: nameUpdateBlock, Description: descUpdateBlock, InputSchema: json.RawMessage(schemaUpdateBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateBlock},

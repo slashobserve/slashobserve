@@ -81,7 +81,7 @@ func TestBuildContextOmitsTheBuildSectionWithoutABuildOrReason(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "Configured datasources:\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question." {
+	if got != "Configured datasources:\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question."+newDashboardLimits {
 		t.Fatalf("context = %q", got)
 	}
 }
@@ -204,5 +204,24 @@ func TestBuildContextPutsTheContinueNoteInTheBuildSection(t *testing.T) {
 	}
 	if strings.Count(got, "The person's note for this run: only the CPU rows\n") != 1 || !strings.Contains(got, seedSentences[Continue]) {
 		t.Fatalf("context:\n%s", got)
+	}
+}
+
+func TestANewDashboardBriefStatesWhatHomeCannotDo(t *testing.T) {
+	got, err := buildContext(nil, tools.ModeCreate, revisions.SourcePrompt, "", "p", nil, seed{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"My Dashboards", "list_folders", "folder_id", "can_create true", "cannot create alerts", "cannot change a dashboard that already exists", "list_dashboards", "exactly one", "ask_on_dashboard_id", "candidate titles"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("brief lacks %q: %s", want, got)
+		}
+	}
+	revise, err := buildContext(nil, tools.ModeRevise, revisions.SourcePrompt, "", "p", &Revision{DashboardID: "d", Number: 1, Spec: &spec.Dashboard{}}, seed{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(revise, "My Dashboards") {
+		t.Errorf("a revision brief carries the new dashboard limits: %s", revise)
 	}
 }

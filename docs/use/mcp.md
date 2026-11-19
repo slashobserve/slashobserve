@@ -110,7 +110,7 @@ If both changed the same panel, variable or setting, it returns the tool error `
 `update_dashboard` and `update_panels` save a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
 The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
 A Viewer still gets `forbidden_role`.
-`get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
+`get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -140,11 +140,11 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 `list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
-`get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, and the `allowed_actions` of the caller, and answers `too_large` for a result over 128 KiB.
+`get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, the `allowed_actions` of the caller and the field-by-field `diff`, which is left out, with the step saying so, when it would take the result over 128 KiB; a result over 128 KiB without it answers `too_large`.
 `merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.
 It answers `proposal_changed` with the newest `revision` when the author added one, `version_conflict` with `conflicts` when a conflict has no choice, and `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
 
-`discard_proposal` takes the `proposal_id`, and its author or someone who may merge it can discard it.
+`discard_proposal` takes the `proposal_id` and an optional `reason` of up to 500 characters that the proposal shows, and its author or someone who may merge it can discard it.
 A caller without the access gets `forbidden_role`, and an unknown proposal or one on a dashboard the caller cannot see gets `not_found`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.
@@ -171,7 +171,7 @@ Runtime families left out of the inventory are never in `uncovered`.
 A histogram, summary or counter counts as covered when a query names any of its series, such as `<name>_bucket` or `<name>_total`.
 Save results also carry `notes`, up to 20 hints that never reject a save: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
 
-`list_folders` is available over MCP only.
+`list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
@@ -237,6 +237,9 @@ It never creates a public link: a person does that, and no tool lists or revokes
 No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
+
+`get_observation` and `list_observations` are also offered to the built-in agent, which only reads with them.
+
 A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
@@ -283,6 +286,8 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
+No MCP tool starts a run: make the change with `update_panels` on that dashboard, or ask the built-in agent there with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

@@ -803,7 +803,7 @@ export interface paths {
         put?: never;
         /**
          * Close a proposal without saving it.
-         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an empty object.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason`; the activity event does not carry it.
          */
         post: operations["discardProposal"];
         delete?: never;
@@ -889,7 +889,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1147,7 +1147,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -1169,7 +1169,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -1257,7 +1257,7 @@ export interface paths {
         };
         /**
          * Read one trace whole from a Tempo or ClickHouse datasource.
-         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
         put?: never;
@@ -4343,7 +4343,7 @@ export interface components {
             dashboard_id: string;
             /** @enum {string} */
             state: "open" | "merged" | "discarded";
-            /** @description The summary of the first revision, cut to 200 characters. */
+            /** @description The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary. */
             title: string;
             /** @description The head revision; every save by the author while the proposal is open adds one. */
             revision: number;
@@ -4369,6 +4369,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4411,6 +4413,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4424,6 +4428,8 @@ export interface components {
             };
             /** @description What the head revision adds, changes, removes or moves compared with `base_version`. */
             changes: components["schemas"]["ProposalChange"][];
+            /** @description The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions. */
+            diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
         };
@@ -4708,6 +4714,8 @@ export interface components {
             truncated: boolean;
             /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
             partial: boolean;
+            /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
+            note?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
@@ -5428,6 +5436,12 @@ export interface components {
             id: string;
             name: string;
         };
+        FindingAskOn: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The dashboard's title, for a button such as "Ask this on Checkout". */
+            title: string;
+        };
         Finding: {
             /** Format: uuid */
             id: string;
@@ -5451,6 +5465,8 @@ export interface components {
              * @description The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
              */
             folder_id: string | null;
+            /** @description The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do. Start an ordinary revision with the same prompt and this `dashboard_id` to make the change. Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null. */
+            ask_on: components["schemas"]["FindingAskOn"] | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;
@@ -5490,9 +5506,9 @@ export interface components {
             columns?: string[];
             service?: string;
             span?: string;
-            /** @description The shortest duration, such as `250ms` or `2s`. */
+            /** @description The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long. */
             min?: string;
-            /** @description The longest duration, such as `250ms` or `2s`. */
+            /** @description The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer. */
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
@@ -8578,6 +8594,8 @@ export interface operations {
         parameters: {
             query?: {
                 state?: "open" | "merged" | "discarded" | "all";
+                /** @description Only the proposal that the agent request with this id opened, which is how a run finds its proposal however many others the dashboard has; a value that is not a UUID is 400. */
+                run_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -8678,7 +8696,10 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** @description Why the proposal is discarded. */
+                    reason?: string;
+                };
             };
         };
         responses: {
@@ -9649,8 +9670,10 @@ export interface operations {
                      * @default 1
                      */
                     page?: number;
-                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused. */
+                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused, and so is one whose `sort` differs from the one sent with it. */
                     cursor?: string;
+                    /** @description A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first. */
+                    sort?: string;
                 };
             };
         };
@@ -9684,7 +9707,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

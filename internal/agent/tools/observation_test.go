@@ -454,7 +454,7 @@ func TestGetObservationClipsMarkdownAndFitsTheResult(t *testing.T) {
 func TestObservationToolsNeedOnlyTheViewerRole(t *testing.T) {
 	names := []string{nameCreateObservation, nameGetObservation, nameListObservations, nameAddBlock, nameUpdateBlock, nameResolveObservation, nameKeepBlock, nameDiscardBlock}
 	readOnly := map[string]bool{nameGetObservation: true, nameListObservations: true}
-	builtIn := map[string]bool{nameListObservations: true}
+	builtIn := map[string]bool{nameGetObservation: true, nameListObservations: true}
 	byName := toolsByName(t)
 	for _, name := range names {
 		tool, ok := byName[name]
@@ -555,5 +555,36 @@ func TestPinAndMakeDashboardAreIdempotentAndNameTheirRefusals(t *testing.T) {
 	}
 	if got := errorCodeOf(t, r.call(t, viewerCaller, namePinObservation, fmt.Sprintf(`{"observation_id":%q,"dashboard_id":%q}`, id, fresh.DashboardID))); got != codeNotFound {
 		t.Errorf("pin to a dashboard the caller cannot see: %q", got)
+	}
+}
+
+func TestAnInvestigationReadsObservationsAsTheRequesterAndCannotChangeThem(t *testing.T) {
+	r := newObservationRig(t)
+	hidden := foldertest.Restricted(t, r.db, hiddenFolder, privateGroup).String()
+	open := r.written(t, editorCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Checkout 5xx","folder_id":%q,"blocks":[{"kind":"text","markdown":"errors rose at 10:05 UTC"}]}`, r.folder)).ObservationID
+	secret := r.written(t, adminCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Payroll is late","folder_id":%q}`, hidden)).ObservationID
+
+	ctx := WithRun(auth.WithPrincipal(t.Context(), editorCaller), Run{Mode: ModeInvestigate, RequestID: "run"})
+	read := func(tool, input string) Result {
+		t.Helper()
+		res, err := r.registry.Call(ctx, tool, []byte(input))
+		if err != nil {
+			t.Fatalf("%s: %v", tool, err)
+		}
+		return res
+	}
+	res := read(nameGetObservation, fmt.Sprintf(`{"observation_id":%q}`, open))
+	out, ok := res.Content.(observationViewOut)
+	if res.IsError || !ok || out.Title != "Checkout 5xx" || !strings.HasSuffix(out.URL, "/o/"+open) || len(out.Blocks) != 1 || out.Blocks[0].Markdown != "errors rose at 10:05 UTC" {
+		t.Fatalf("an investigation's read = %#v", res.Content)
+	}
+	if res := read(nameGetObservation, fmt.Sprintf(`{"observation_id":%q}`, secret)); errorCode(t, res) != codeNotFound {
+		t.Errorf("an investigation read an observation its requester cannot open: %#v", res.Content)
+	}
+	if list := read(nameListObservations, `{}`).Content.(observationListOut); len(list.Observations) != 1 {
+		t.Errorf("an investigation's list shows %#v", list)
+	}
+	if res := read(nameAddBlock, textBlockInput(open, "x")); !res.IsError {
+		t.Errorf("an investigation added a block: %#v", res.Content)
 	}
 }

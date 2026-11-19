@@ -1,0 +1,4 @@
+SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, if(countIf(otel_traces.ParentSpanId = '') > 0, argMinIf(otel_traces.ServiceName, otel_traces.Timestamp, otel_traces.ParentSpanId = ''), argMin(otel_traces.ServiceName, otel_traces.Timestamp)) AS ServiceName, if(countIf(otel_traces.ParentSpanId = '') > 0, argMinIf(otel_traces.SpanName, otel_traces.Timestamp, otel_traces.ParentSpanId = ''), argMin(otel_traces.SpanName, otel_traces.Timestamp)) AS SpanName, toUInt64(max(toUnixTimestamp64Nano(otel_traces.Timestamp) + toInt64(otel_traces.Duration)) - min(toUnixTimestamp64Nano(otel_traces.Timestamp))) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
+FROM otel_traces
+WHERE $__timeFilter(otel_traces.Timestamp)
+GROUP BY TraceId
