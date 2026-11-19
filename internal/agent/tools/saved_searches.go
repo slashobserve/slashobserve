@@ -23,7 +23,7 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder, by default your My Dashboards, so people can open it from its page. A query with a lint_query error is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
+	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder (default your My Dashboards) so people can open it from its page. A query with a lint_query error is not saved; draft_query writes one. A repeat returns the saved search with replayed true. Returns its url."
 	descListSavedSearches = "List the saved logs, trace and metrics searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
@@ -33,14 +33,14 @@ const (
 		`"datasource":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
-		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
-		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
-		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
+		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: columns to show."},` +
+		`"service":{"type":"string","maxLength":200,"description":"Traces: this service."},` +
+		`"span":{"type":"string","maxLength":200,"description":"Traces: spans with this name."},` +
 		`"min":{"type":"string","description":"Traces: shortest span duration, such as 250ms."},` +
 		`"max":{"type":"string","description":"Traces: longest span duration, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
 		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
-		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
+		`"additionalProperties":false},` +
 		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the range, such as now or RFC 3339. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"The folder, from list_folders. Default your My Dashboards, else General."}},` +
