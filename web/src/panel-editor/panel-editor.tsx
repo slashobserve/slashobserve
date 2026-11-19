@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import type { Selections } from "@/api/keys"
 import { ApiError } from "@/api/errors"
 import { isTransient } from "@/api/issues"
-import { Alert } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
