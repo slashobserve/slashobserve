@@ -279,7 +279,7 @@ The list ends with how many chats match the search and state, and on Everyone ho
 
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
-An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it.
+An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 The **History** button beside a chat still lists older chats and Grafana imports.
 

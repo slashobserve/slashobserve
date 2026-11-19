@@ -123,3 +123,30 @@ func TestAnUnsavedAnswerCannotBePinnedButCanBecomeADashboard(t *testing.T) {
 		t.Fatalf("pin after saving: created %v, %v", created, err)
 	}
 }
+
+func TestAnUnsavedAnswerOnADashboardFollowsWhoCanStillSeeThatDashboard(t *testing.T) {
+	r := newRig(t)
+	private := r.dashboard(t, "Mine")
+	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, private, r.personalFolder(t, editor))
+	onPrivate := r.request(t, editor, private)
+	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: onPrivate, DashboardID: private})
+
+	if _, err := r.service.Get(t.Context(), admin, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotFound) {
+		t.Errorf("an Admin reads an answer on a dashboard in someone's My Dashboards: %v, want ErrNotFound", err)
+	}
+	if _, found, err := r.service.ForRequest(t.Context(), admin, onPrivate); err != nil || found {
+		t.Errorf("an Admin finds the answer of the run: found %v, %v", found, err)
+	}
+	if _, err := r.service.Get(t.Context(), editor, mustUUID(t, answer.ID)); err != nil {
+		t.Errorf("the requester: %v", err)
+	}
+
+	shared := r.request(t, editor, r.open)
+	onShared := r.save(t, editor, findings.SaveInput{AgentRequestID: shared, DashboardID: r.open})
+	restricted := r.folder(t, "Restricted")
+	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'sre', 'view')`, restricted)
+	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, r.open, restricted)
+	if _, err := r.service.Get(t.Context(), editor, mustUUID(t, onShared.ID)); !errors.Is(err, findings.ErrNotFound) {
+		t.Errorf("the requester who lost the dashboard reads its answer: %v, want ErrNotFound", err)
+	}
+}

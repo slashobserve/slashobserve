@@ -358,8 +358,8 @@ func isRequester(by auth.Principal, f Finding) bool {
 
 func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (folders.Folder, folders.Abilities, error) {
 	if !f.Saved() {
-		if !isRequester(by, f) && !by.Role.AtLeast(auth.RoleAdmin) {
-			return folders.Folder{}, folders.Abilities{}, ErrNotFound
+		if err := s.readableUnsaved(ctx, by, f); err != nil {
+			return folders.Folder{}, folders.Abilities{}, err
 		}
 		return folders.Folder{}, folders.Abilities{View: true}, nil
 	}
@@ -368,6 +368,20 @@ func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (fold
 		return folders.Folder{}, folders.Abilities{}, err
 	}
 	return s.observations.Placement(ctx, by, observationID)
+}
+
+func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Finding) error {
+	if !isRequester(by, f) && !by.Role.AtLeast(auth.RoleAdmin) {
+		return ErrNotFound
+	}
+	if f.DashboardID == "" {
+		return nil
+	}
+	dashboardID, err := db.ParseUUID(f.DashboardID)
+	if err != nil {
+		return err
+	}
+	return s.viewable(ctx, by, dashboardID)
 }
 
 func (s *Service) viewable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {

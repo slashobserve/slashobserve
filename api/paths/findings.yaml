@@ -66,7 +66,7 @@ findings-id:
       A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not.
       `folder` is that folder and `permissions` what the caller may do with the finding.
       A finding the caller cannot read gives 404, never 403.
-      The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, `folder` is null and `permissions` allow viewing only.
+      The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only.
       The `Link` header names the observation as the `successor-version`, and is absent while there is none.
       Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:
