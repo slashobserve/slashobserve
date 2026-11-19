@@ -85,6 +85,11 @@ It resolves only for a signed-in caller who can see the dashboard: a signed-out 
 **New folder**, offered to an Editor or an Admin, asks for a name and creates a folder you own; it appears in the list as soon as it is created.
 Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
 The box above the list filters by title, and the folder and tag menus narrow it further.
+Where you may edit dashboards and there is a shared folder you can move into, every row you may move has a checkbox, and the checkbox in the header selects all of them on the page.
+A bar above the list then shows how many are selected, a **Move to folder** menu of the shared folders you can edit, **Move** and **Clear selection**.
+**Move** moves each selected dashboard with one request, as a row's **Move to folder** does, skips the ones already in that folder and says how many moved and which failed and why; the ones that failed stay selected.
+The selection is kept for the page and filters you are on and cleared when you change either.
+An agent does the same with one `move_dashboard` call for each dashboard.
 
 ## The More menu of a dashboard
 

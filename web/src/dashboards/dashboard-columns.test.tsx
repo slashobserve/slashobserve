@@ -124,8 +124,9 @@ describe("the open in a new tab link", () => {
 
 describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
-    expect(dashboardColumns.map((c) => c.header)).toEqual([
-      "Title",
+    const [title, ...others] = dashboardColumns
+    expect(typeof title.header).toBe("function")
+    expect(others.map((c) => c.header)).toEqual([
       "Health",
       "Made by",
       "Datasources",

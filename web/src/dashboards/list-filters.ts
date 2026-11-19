@@ -9,7 +9,7 @@ import { maxListPage } from "./list-pages"
 
 export const listSorts = ["updated", "name", "views"] as const
 
-export type ListSort = (typeof listSorts)[number]
+type ListSort = (typeof listSorts)[number]
 
 export type ListSearch = {
   q?: string

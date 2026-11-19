@@ -15,6 +15,7 @@ import { madeByChannel, madeByDetail } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
 
+import { RowSelectBox, TitleHeader } from "./list-selection"
 import { DashboardRowMenu } from "./row-menu"
 
 declare module "@tanstack/react-table" {
@@ -59,9 +60,10 @@ const column = createColumnHelper<typeof listFeatures, DashboardSummary>()
 export const dashboardColumns = column.columns([
   column.display({
     id: "title",
-    header: "Title",
+    header: () => <TitleHeader />,
     cell: ({ row }) => (
       <>
+        <RowSelectBox dashboard={row.original} />
         <Link
           {...dashboardLink(row.original.id, row.original.title)}
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -94,7 +96,7 @@ export const dashboardColumns = column.columns([
     ),
     meta: {
       headerClassName: titleMinWidth,
-      cellClassName: cn("pl-11", titleMinWidth),
+      cellClassName: cn("relative pl-11", titleMinWidth),
       skeletonClassName: "h-5 w-48 max-w-full",
     },
   }),
