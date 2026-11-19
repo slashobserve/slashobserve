@@ -97,9 +97,11 @@ Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
+
 **Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
 The new run is yours, whoever started the one you retry.
-A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
+You can try your own failed or stopped run again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
+Someone else who retries your run starts a request of their own, which leaves your turn and your retry as they were.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.

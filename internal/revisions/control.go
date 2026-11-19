@@ -344,7 +344,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 		return dbsqlc.AgentRequest{}, err
 	}
 	retries := pgtype.UUID{}
-	if state := State(row.State); state == StateFailed || state == StateCanceled {
+	if state := State(row.State); (state == StateFailed || state == StateCanceled) && sameActor(requesterOf(row), by) {
 		retries = row.ID
 	}
 	next, err := s.resubmit(ctx, row, by, assignee, retries)
