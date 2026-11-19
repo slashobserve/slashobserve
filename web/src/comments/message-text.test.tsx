@@ -18,7 +18,12 @@ const person: Message["actor"] = {
   label: "Ada",
 }
 
-function show(body: string, patch: Partial<Message> = {}, folded = false) {
+function show(
+  body: string,
+  patch: Partial<Message> = {},
+  folded = false,
+  routed = false
+) {
   const message: Message = {
     id: "m1",
     body,
@@ -35,7 +40,8 @@ function show(body: string, patch: Partial<Message> = {}, folded = false) {
       target={null}
       queryKey={["comments"]}
       folded={folded}
-    />
+    />,
+    routed ? { route: { path: "/", url: "/" } } : undefined
   )
 }
 
@@ -98,6 +104,28 @@ describe("MessageText", () => {
     expect(container.querySelector("strong")).toBeNull()
     expect(container.querySelector("a")).toBeNull()
     expect(screen.getByText("**bold** [x](https://example.com)")).toBeVisible()
+  })
+
+  it("shows the closing chat link of the agent's own run as a real link", async () => {
+    const runId = "33333333-3333-4333-8333-333333333333"
+    const run = { ...person, run_id: runId }
+    const { container } = show(
+      `Answered in the chat.\n\nFull answer (only Admins can open it): [the chat](/c/${runId})`,
+      { actor: run },
+      false,
+      true
+    )
+    const link = await screen.findByRole("link", { name: "the chat" })
+    expect(link.getAttribute("href")).toBe(`/c/${runId}`)
+    expect(container.textContent).not.toContain("](")
+  })
+
+  it("leaves a chat link to someone else's run as plain text", () => {
+    const run = { ...person, run_id: "33333333-3333-4333-8333-333333333333" }
+    const other = "44444444-4444-4444-8444-444444444444"
+    const { container } = show(`See [the chat](/c/${other})`, { actor: run })
+    expect(container.querySelector("a")).toBeNull()
+    expect(container.textContent).toContain(`[the chat](/c/${other})`)
   })
 
   it("never renders an outside agent's text as Markdown", () => {

@@ -714,3 +714,18 @@ func TestListMentionablePeopleNeedsTheCommentAbilityAndPagesWithMore(t *testing.
 		t.Fatalf("a bad target = %s", textOf(t, res))
 	}
 }
+
+func TestCommentItemNamesTheRunThatWroteTheReply(t *testing.T) {
+	const run = "33333333-3333-4333-8333-333333333333"
+	version := 1
+	thread := threads.Thread{ID: dashA, Version: &version}
+	reply := commentItem(commentRef{thread, threads.Message{ID: dashA, Body: "x", Author: actor.Actor{Name: "Observe Agent", RunID: run}}})
+	person := commentItem(commentRef{thread, threads.Message{ID: dashA, Body: "x", Author: actor.Actor{Name: "Ada"}}})
+	if reply.RunID != run || person.RunID != "" {
+		t.Fatalf("reply run %q, person run %q", reply.RunID, person.RunID)
+	}
+	raw, err := json.Marshal(person)
+	if err != nil || strings.Contains(string(raw), "run_id") {
+		t.Fatalf("a person's comment carries a run: %s %v", raw, err)
+	}
+}
