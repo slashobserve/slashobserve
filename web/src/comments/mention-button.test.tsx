@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { MentionButton } from "./mention-button"
+import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
@@ -52,6 +53,49 @@ function Harness({
       />
     </>
   )
+}
+
+function TypedHarness() {
+  const picks = useMentionPicks()
+  const mention = useInlineMention()
+  const [value, setValue] = useState("")
+  const field = useRef<HTMLTextAreaElement>(null)
+  return (
+    <>
+      <textarea
+        ref={field}
+        aria-label="Body"
+        value={value}
+        onChange={(event) => {
+          mention.typed(value, event.target.value, event.target.selectionStart)
+          setValue(event.target.value)
+        }}
+      />
+      <output aria-label="Sent">{picks.wire(value)}</output>
+      <MentionButton
+        agents={[]}
+        people={people}
+        target={null}
+        onPick={picks.pick}
+        field={field}
+        value={value}
+        onChange={setValue}
+        open={mention.open}
+        onOpenChange={mention.onOpenChange}
+        replaceFrom={mention.replaceFrom}
+      />
+    </>
+  )
+}
+
+async function typing() {
+  const user = userEvent.setup()
+  renderWithProviders(<TypedHarness />)
+  const body = screen.getByRole<HTMLTextAreaElement>("textbox", {
+    name: "Body",
+  })
+  await user.click(body)
+  return { user, body }
 }
 
 async function setup(initial: string, caret: number, target?: string) {
@@ -183,5 +227,78 @@ describe("MentionButton", () => {
     await waitFor(() => expect(screen.queryByRole("option")).toBeNull())
     expect(body).toHaveValue("hi @")
     await waitFor(() => expect(body).toHaveFocus())
+  })
+
+  it("keeps every typed character in the field when @observe and a sentence are typed straight through", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@observe add a stat panel for request rate")
+    expect(body).toHaveValue("@observe add a stat panel for request rate")
+    expect(screen.queryByRole("option")).toBeNull()
+    expect(screen.queryByText("No one found")).toBeNull()
+    expect(screen.getByLabelText("Sent")).toHaveTextContent(
+      "@observe add a stat panel for request rate"
+    )
+    expect(body).toHaveFocus()
+  })
+
+  it("filters on the typed word while the field keeps the focus", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@gra")
+    const options = await screen.findAllByRole("option")
+    expect(options.map((option) => option.textContent)).toEqual(["Grace"])
+    expect(body).toHaveValue("@gra")
+    expect(body).toHaveFocus()
+  })
+
+  it("closes at once when nobody matches and keeps the text", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@zzz and more")
+    expect(body).toHaveValue("@zzz and more")
+    expect(screen.queryByRole("option")).toBeNull()
+    expect(screen.queryByText("No one found")).toBeNull()
+  })
+
+  it("closes at the space after an unknown handle and keeps the text", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@gr")
+    await screen.findByRole("option", { name: "Grace" })
+    await user.keyboard("x add")
+    expect(body).toHaveValue("@grx add")
+    expect(screen.queryByRole("option")).toBeNull()
+  })
+
+  it("does not open for an email address typed mid-sentence", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("write to a@b.com now")
+    expect(body).toHaveValue("write to a@b.com now")
+    expect(screen.queryByRole("option")).toBeNull()
+  })
+
+  it("picks the highlighted match on Enter and keeps typing after it", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("hi @gra{Enter}")
+    await waitFor(() => expect(body).toHaveValue("hi @Grace "))
+    await user.keyboard("now")
+    expect(body).toHaveValue("hi @Grace now")
+    expect(screen.queryByRole("option")).toBeNull()
+  })
+
+  it("moves the highlight with the arrow keys before Enter", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@")
+    await screen.findAllByRole("option")
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}")
+    await waitFor(() => expect(body).toHaveValue("@Ada "))
+  })
+
+  it("closes on Escape and keeps the text typed so far", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@gra")
+    await screen.findAllByRole("option")
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("option")).toBeNull())
+    expect(body).toHaveValue("@gra")
+    await user.keyboard("c")
+    expect(body).toHaveValue("@grac")
   })
 })

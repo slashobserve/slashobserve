@@ -1,4 +1,10 @@
-import { useEffect, useState, type KeyboardEvent, type RefObject } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react"
 import { AtSignIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +20,8 @@ import {
 import { cn } from "@/lib/utils"
 
 import {
+  inlineKeyStep,
+  inlineMentionStep,
   insertMention,
   matchingOptions,
   mentionOptions,
@@ -72,12 +80,44 @@ export function MentionButton({
 }: MentionButtonProps) {
   const [query, setQuery] = useState("")
   const [term, setTerm] = useState("")
+  const [moved, setMoved] = useState<{ query: string; index: number } | null>(
+    null
+  )
+  const inline = open && replaceFrom !== null
+  const caret = field.current?.selectionStart ?? value.length
+  const typed =
+    inline && value[replaceFrom] === "@"
+      ? value.slice(replaceFrom + 1, Math.max(caret, replaceFrom + 1))
+      : ""
+  const search = inline ? typed : query
   useEffect(() => {
-    const timer = setTimeout(() => setTerm(query.trim()), searchDelayMs)
+    const timer = setTimeout(() => setTerm(search.trim()), searchDelayMs)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [search])
   const found = useMentionablePeople(target, term, open)
-  const options = offered(agents, people, found, query)
+  const options = offered(agents, people, found.people, search)
+  const searching = found.searching || term !== search.trim()
+  const step = inline
+    ? inlineMentionStep({
+        value,
+        trigger: replaceFrom,
+        caret,
+        matching: options.length,
+        searching: target !== null && searching,
+      })
+    : null
+  const active =
+    moved !== null && moved.query === typed
+      ? moved.index
+      : typed === "" || options.length === 0
+        ? -1
+        : 0
+
+  function close() {
+    setQuery("")
+    setMoved(null)
+    onOpenChange(false)
+  }
 
   function insert(option: MentionOption) {
     const element = field.current
@@ -96,6 +136,37 @@ export function MentionButton({
     })
   }
 
+  const stale = step !== null && !step.open
+  const keys = useRef({ options, active, insert, close, typed })
+  useEffect(() => {
+    keys.current = { options, active, insert, close, typed }
+  })
+  useEffect(() => {
+    if (stale) keys.current.close()
+  }, [stale])
+  useEffect(() => {
+    const element = field.current
+    if (!inline || element === null) return
+    function onFieldKey(event: globalThis.KeyboardEvent) {
+      if (event.isComposing) return
+      const now = keys.current
+      const result = inlineKeyStep({
+        key: event.key,
+        active: now.active,
+        count: now.options.length,
+      })
+      if (result.kind === "pass") return
+      event.preventDefault()
+      event.stopPropagation()
+      if (result.kind === "close") now.close()
+      else if (result.kind === "move")
+        setMoved({ query: now.typed, index: result.index })
+      else now.insert(now.options[result.index])
+    }
+    element.addEventListener("keydown", onFieldKey)
+    return () => element.removeEventListener("keydown", onFieldKey)
+  }, [inline, field])
+
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape" && open) event.stopPropagation()
   }
@@ -106,7 +177,8 @@ export function MentionButton({
       filter={null}
       value={null}
       open={open}
-      inputValue={query}
+      highlightItemOnHover={!inline}
+      inputValue={search}
       disabled={disabled}
       itemToStringLabel={(option) => option.label}
       onOpenChange={(next) => {
@@ -132,17 +204,25 @@ export function MentionButton({
       <ComboboxContent
         className="min-w-56"
         finalFocus={field}
+        initialFocus={!inline}
         onKeyDown={onKeyDown}
       >
-        <ComboboxInput
-          aria-label="Search people and agents"
-          placeholder="Search people and agents"
-          showTrigger={false}
-        />
+        {inline ? null : (
+          <ComboboxInput
+            aria-label="Search people and agents"
+            placeholder="Search people and agents"
+            showTrigger={false}
+          />
+        )}
         <ComboboxEmpty>No one found</ComboboxEmpty>
         <ComboboxList>
-          {(option: MentionOption) => (
-            <ComboboxItem key={option.value} value={option}>
+          {(option: MentionOption, index: number) => (
+            <ComboboxItem
+              key={option.value}
+              value={option}
+              data-active={inline && index === active ? "" : undefined}
+              className="data-active:bg-accent data-active:text-accent-foreground"
+            >
               <span className="truncate">{option.label}</span>
               {option.hint === null ? null : (
                 <span className="ml-auto text-xs text-muted-foreground">
