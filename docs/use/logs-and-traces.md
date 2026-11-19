@@ -186,6 +186,7 @@ On Loki the page adds a `| field="value"` stage to a log query.
 On ClickHouse the page adds a condition to the `WHERE` clause, and a query without one keeps its buttons disabled.
 
 **Hide fields** folds the column to a strip with **Show fields**, and the page remembers the choice.
+Drag the edge of the column, or focus it and press the left and right arrow keys, to make it wider when long field names are cut off; double-click the edge to reset it, and the page remembers the width.
 On a window narrower than 1,000 pixels the column does not fit, so a **Fields** button in the results header opens the same list in a drawer, and choosing a value closes the drawer and runs the query.
 Below 1,000 pixels wide the column is hidden.
 
