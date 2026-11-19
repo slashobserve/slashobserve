@@ -117,12 +117,18 @@ export function DashboardTopRow({
           {title}
         </h1>
         {madeBy && !narrow ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span
+            title={madeBy}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
             {madeBy}
           </span>
         ) : null}
         {views ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span
+            title={views}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
             {views}
           </span>
         ) : null}
