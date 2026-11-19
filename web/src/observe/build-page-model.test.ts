@@ -97,7 +97,13 @@ describe("runStateText", () => {
     ["succeeded", "succeeded", null, 3, "Saved version 3"],
     ["canceled", "failed", "canceled", null, "Stopped"],
     ["failed otherwise", "failed", "model_error", null, "Failed"],
-    ["failed after its build was saved", "failed", "timeout", 2, "Failed"],
+    [
+      "stopped, then its build was saved",
+      "failed",
+      "timeout",
+      2,
+      "Saved version 2",
+    ],
   ] as const)("%s", (_name, status, failure_code, result_version, expected) => {
     expect(runStateText({ status, failure_code, result_version })).toBe(
       expected

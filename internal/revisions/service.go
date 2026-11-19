@@ -68,6 +68,7 @@ type EnqueueParams struct {
 
 	ContinuesID  pgtype.UUID
 	ContinueNote string
+	RetriesID    pgtype.UUID
 
 	Assignee        Assignee
 	Trigger         string
@@ -140,6 +141,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		OriginClient:     originClient,
 		ContinuesID:      p.ContinuesID,
 		ContinueNote:     pgtype.Text{String: p.ContinueNote, Valid: p.ContinueNote != ""},
+		RetriesID:        p.RetriesID,
 		AssignedKind:     p.Assignee.kindText(),
 		AssignedID:       p.Assignee.ID,
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
@@ -194,6 +196,11 @@ func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersi
 		}
 	}
 	p.Source, p.BaseVersion = SourcePrompt, base
+	if p.ThreadContext == "" {
+		if p.ThreadContext, err = s.chatTranscript(ctx, p.By, pgtype.UUID{}, p.DashboardID); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
+	}
 	return s.submit(ctx, p)
 }
 
@@ -221,6 +228,29 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 }
 
 func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt string) (dbsqlc.AgentRequest, error) {
+	return s.submitObserve(ctx, by, prompt, observeChat{})
+}
+
+func (s *Service) SubmitObserveFollowUp(ctx context.Context, by auth.Principal, prompt string, followsID pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	parent, err := s.GetObserve(ctx, followsID, by)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if parent.DashboardID.Valid {
+		return dbsqlc.AgentRequest{}, ErrFollowsDashboard
+	}
+	chatID := parent.ChatID
+	if !chatID.Valid {
+		chatID = parent.ID
+	}
+	transcript, err := s.chatTranscript(ctx, by, chatID, pgtype.UUID{})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	return s.submitObserve(ctx, by, prompt, observeChat{id: chatID, context: transcript})
+}
+
+func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt string, chat observeChat) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
@@ -230,13 +260,13 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	var row dbsqlc.AgentRequest
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "")
+		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "", chat)
 		return err
 	})
 	return row, err
 }
 
-func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string) (dbsqlc.AgentRequest, error) {
+func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string, chat observeChat) (dbsqlc.AgentRequest, error) {
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
@@ -269,6 +299,9 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		OriginClient:     originClient,
 		ContinuesID:      continuesID,
 		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
+		RetriesID:        chat.retries,
+		ChatID:           chat.id,
+		ThreadContext:    pgtype.Text{String: chat.context, Valid: chat.context != ""},
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
@@ -291,6 +324,7 @@ type InvestigateParams struct {
 
 	ObservationID    pgtype.UUID
 	ReuseObservation bool
+	RetriesID        pgtype.UUID
 
 	Assignee        Assignee
 	Trigger         string
@@ -356,6 +390,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 		Origin:           originKind,
 		OriginClient:     originClient,
+		RetriesID:        p.RetriesID,
 		AssignedKind:     p.Assignee.kindText(),
 		AssignedID:       p.Assignee.ID,
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
@@ -526,6 +561,7 @@ type ListFilter struct {
 	Scope       ListScope
 	Source      string
 	DashboardID pgtype.UUID
+	ChatID      pgtype.UUID
 	Pinned      *bool
 	Query       string
 	States      []State
@@ -579,6 +615,7 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
 			Source:      match.source,
 			DashboardID: filter.DashboardID,
+			ChatID:      filter.ChatID,
 			Pinned:      match.pinned,
 			Pattern:     match.pattern,
 			States:      match.states,
@@ -593,6 +630,7 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByID:   requesterID,
 		Source:          match.source,
 		DashboardID:     filter.DashboardID,
+		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
 		Pattern:         match.pattern,
 		States:          match.states,
@@ -634,6 +672,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			Folders:         levels.Visible(),
 			Source:          match.source,
 			DashboardID:     filter.DashboardID,
+			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
 			States:          match.states,
@@ -655,6 +694,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			Folders:         levels.Visible(),
 			Source:          match.source,
 			DashboardID:     filter.DashboardID,
+			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
 			States:          match.states,

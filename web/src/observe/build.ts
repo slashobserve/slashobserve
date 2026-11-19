@@ -37,6 +37,17 @@ export function answeredRequestId(
     : null
 }
 
+export function awaitsFirstPanel(
+  request: Pick<ObserveRequest, "status" | "build" | "source" | "dashboard_id">
+): boolean {
+  return (
+    (request.status === "queued" || request.status === "running") &&
+    request.source === "observe" &&
+    request.dashboard_id === null &&
+    request.build === null
+  )
+}
+
 export function buildGone(error: unknown): boolean {
   return (
     error instanceof ApiError &&
@@ -101,6 +112,25 @@ export function buildQuery(requestId: string, saves: number) {
     staleTime: Infinity,
     retry: (count, error) => count < 3 && isRetryable(error),
   })
+}
+
+const loweredPlan = /\(planned (\d+) -> (\d+)\)$/
+
+export function planChangeText(
+  steps: readonly { message: string }[]
+): string | null {
+  const changes = steps.flatMap((step) => {
+    const match = loweredPlan.exec(step.message)
+    return match === null
+      ? []
+      : [{ from: Number(match[1]), to: Number(match[2]) }]
+  })
+  const first = changes.at(0)
+  const last = changes.at(-1)
+  if (first === undefined || last === undefined || last.to >= first.from) {
+    return null
+  }
+  return `Planned ${plural(first.from, "panel")}, built ${last.to}.`
 }
 
 function plural(count: number, noun: string): string {

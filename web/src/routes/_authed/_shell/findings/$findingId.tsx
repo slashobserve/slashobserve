@@ -20,9 +20,16 @@ export const Route = createFileRoute("/_authed/_shell/findings/$findingId")({
     const { finding } = await context.queryClient.fetchQuery(
       findingQuery(params.findingId)
     )
+    if (finding.observation_id !== null) {
+      throw redirect({
+        to: "/o/$observationId",
+        params: { observationId: finding.observation_id },
+        replace: true,
+      })
+    }
     throw redirect({
-      to: "/o/$observationId",
-      params: { observationId: finding.observation_id },
+      to: "/c/$requestId",
+      params: { requestId: finding.agent_request_id ?? params.findingId },
       replace: true,
     })
   },

@@ -12,7 +12,12 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { type ChatListFilters, dashboardKeys, observeKeys } from "@/api/keys"
+import {
+  type ChatListFilters,
+  dashboardKeys,
+  observationKeys,
+  observeKeys,
+} from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
 
@@ -84,10 +89,31 @@ export function isTerminal(request: ObserveRequest | undefined): boolean {
   return request?.status === "succeeded" || request?.status === "failed"
 }
 
+function succeededView(
+  r: Pick<RequestSummary, "result_version" | "result_kind">
+): { tone: StatusTone; text: string } {
+  if (r.result_version !== null) {
+    return { tone: "ok", text: `Saved version ${r.result_version}` }
+  }
+  switch (r.result_kind) {
+    case "observation":
+      return { tone: "ok", text: "Answered" }
+    case "none":
+      return { tone: "warning", text: "Nothing saved" }
+    default:
+      return { tone: "ok", text: "Saved" }
+  }
+}
+
 export function requestStatusView(
   r: Pick<
     RequestSummary,
-    "status" | "dashboard_title" | "error" | "result_version"
+    | "status"
+    | "dashboard_title"
+    | "error"
+    | "result_version"
+    | "result_kind"
+    | "failure_code"
   >
 ): { tone: StatusTone; text: string } {
   switch (r.status) {
@@ -95,14 +121,20 @@ export function requestStatusView(
     case "running":
       return { tone: "running", text: "Working" }
     case "succeeded":
-      return {
-        tone: "ok",
-        text:
-          r.result_version === null
-            ? "Saved"
-            : `Saved version ${r.result_version}`,
-      }
+      return succeededView(r)
     case "failed":
+      if (r.result_kind === "partial_version") {
+        return {
+          tone: "warning",
+          text:
+            r.result_version === null
+              ? "Saved part of the dashboard"
+              : `Saved part of the dashboard, version ${r.result_version}`,
+        }
+      }
+      if (r.failure_code === "canceled") {
+        return { tone: "warning", text: "You stopped this run" }
+      }
       return {
         tone: "critical",
         text: sentence(r.error ?? "The request failed"),
@@ -122,6 +154,7 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
+              chat_id: filters.chatId,
               scope: filters.scope,
               state: filters.states,
               limit,
@@ -146,8 +179,15 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
   })
 }
 
-export function useMyRequests(filters: ChatListFilters, limit = 20) {
-  const query = useInfiniteQuery(myRequestsQuery(filters, limit))
+export function useMyRequests(
+  filters: ChatListFilters,
+  limit = 20,
+  enabled = true
+) {
+  const query = useInfiniteQuery({
+    ...myRequestsQuery(filters, limit),
+    enabled,
+  })
   const requests = useMemo(() => {
     const seen = new Set<string>()
     const unique: RequestSummary[] = []
@@ -184,6 +224,7 @@ export function observeRequestQuery(id: string) {
         .then(unwrap)
         .then((body) => body.request),
     staleTime: 2_000,
+    refetchIntervalInBackground: true,
     refetchInterval: (query) => {
       if (isTerminal(query.state.data)) return false
       const { error } = query.state
@@ -207,6 +248,7 @@ export function usePollFailures(id: string): number {
 export type ObserveInput = {
   prompt: string
   dashboardId?: string
+  followsId?: string
   kind?: "build" | "investigate"
   panelId?: string
   from?: string
@@ -232,6 +274,7 @@ export function useCreateObserveRequest() {
     mutationFn: ({
       prompt,
       dashboardId,
+      followsId,
       kind,
       panelId,
       from,
@@ -243,6 +286,7 @@ export function useCreateObserveRequest() {
           body: {
             prompt,
             dashboard_id: dashboardId,
+            ...(followsId === undefined ? {} : { follows_id: followsId }),
             ...(kind === undefined ? {} : { kind }),
             ...(panelId === undefined ? {} : { panel_id: panelId }),
             ...(from === undefined ? {} : { from }),
@@ -313,6 +357,21 @@ export function useCancelRequest(id: string) {
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),
+  })
+}
+
+export function useSaveAnswer(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observe/{id}/observation", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+      void queryClient.invalidateQueries({ queryKey: observationKeys.lists() })
+    },
   })
 }
 

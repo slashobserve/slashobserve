@@ -1878,13 +1878,13 @@ export interface paths {
         };
         /**
          * List agent requests, newest first: the caller's own, or everyone's for an Admin.
-         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
          */
         get: operations["listObserveRequests"];
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. With `follows_id`, the id of an earlier request of yours that has no dashboard, the request continues that chat: it gets the same `chat_id`, and the agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters). A request with `dashboard_id` is given the earlier turns on that dashboard the same way. `follows_id` and `dashboard_id` exclude each other, and `follows_id` needs `kind` `build`. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2002,7 +2002,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retry is not idempotent: each call queues a new request. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -2027,6 +2027,28 @@ export interface paths {
          * @description Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
          */
         post: operations["saveObserveRequestBuild"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/observation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the answer of an agent request as an observation.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         */
+        post: operations["saveObserveRequestAnswer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2112,7 +2134,7 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The `Link` header names the observation as the `successor-version`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFinding"];
         put?: never;
@@ -4103,7 +4125,7 @@ export interface components {
             id: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
-            /** @description The requester's title, else the first line of the prompt cut to 120 characters, else the source word. */
+            /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word. */
             title: string;
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
@@ -5567,7 +5589,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5597,6 +5619,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
             requested_by: components["schemas"]["Author"];
@@ -5759,6 +5786,14 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        AnswerSaved: {
+            /** Format: uuid */
+            observation_id: string;
+            /** @description The address of the observation, empty when the server has no public URL configured. */
+            url: string;
+            /** @description True when the answer was already an observation, so this call changed nothing. */
+            replayed: boolean;
+        };
         AgentBuildSaved: {
             /** Format: uuid */
             dashboard_id: string;
@@ -5776,7 +5811,7 @@ export interface components {
              * @enum {string}
              */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
@@ -5804,7 +5839,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5815,7 +5850,7 @@ export interface components {
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** @description The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
-            /** @description The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`. */
+            /** @description The address of the dashboard, or of the observation for an investigation or for a question whose answer was saved as an observation, set when the status is `succeeded`; null while an answer is only on the request. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
@@ -5858,6 +5893,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             requested_by: components["schemas"]["Author"];
             /** @description The outside agent this run waits for or runs on; null when the server's own agent runs it. */
             assigned_to: {
@@ -5903,10 +5943,15 @@ export interface components {
             to: string | null;
             /**
              * Format: uuid
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat.
+             */
+            chat_id: string;
+            /**
+             * Format: uuid
              * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
              */
             observation_id: string | null;
-            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
+            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it. */
             finding: components["schemas"]["Finding"] | null;
         };
         RequestSummary: {
@@ -5929,7 +5974,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5954,7 +5999,7 @@ export interface components {
             build_saved_at: string | null;
             /** @enum {string} */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
             /**
              * Format: date-time
@@ -5971,6 +6016,11 @@ export interface components {
              * @description The request that continues this one; its build moved there.
              */
             continued_by: string | null;
+            /**
+             * Format: uuid
+             * @description The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
+             */
+            retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
             /**
@@ -5980,6 +6030,11 @@ export interface components {
             observation_id: string | null;
             /** @description The observation's current title; null when the request has no observation or the observation is in a folder you cannot see. */
             observation_title: string | null;
+            /**
+             * Format: uuid
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
+             */
+            chat_id: string;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -6025,9 +6080,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description The observation this finding lives in
+             * @description The observation this finding lives in; null for the answer to a plain question, which stays on its run until its requester saves it as an observation with `POST /observe/{id}/observation`.
              */
-            observation_id: string;
+            observation_id: string | null;
             /**
              * Format: uuid
              * @description The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
@@ -6069,12 +6124,12 @@ export interface components {
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
-            /** @description Opens the finding's observation; empty when the server has no public URL configured. */
-            url: string;
+            /** @description Opens the finding's observation; null while the finding has no observation, or when the server has no public URL configured. */
+            url: string | null;
         };
         FindingEnvelope: {
             finding: components["schemas"]["Finding"];
-            /** @description The folder of the finding's observation, whose access rule decides who reads the finding. */
+            /** @description The folder of the finding's observation, whose access rule decides who reads the finding; null for an answer that is not an observation yet, which only its requester and an Admin read. */
             folder: components["schemas"]["DashboardFolder"] | null;
             permissions: components["schemas"]["Permissions"];
         };
@@ -12560,6 +12615,7 @@ export interface operations {
                 q?: string;
                 pinned?: boolean;
                 dashboard_id?: string;
+                chat_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -12622,6 +12678,11 @@ export interface operations {
                     from?: string;
                     /** @description The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds. */
                     to?: string;
+                    /**
+                     * Format: uuid
+                     * @description The earlier request of yours, without a dashboard, that this one continues; only with `kind` `build`.
+                     */
+                    follows_id?: string;
                     /**
                      * Format: uuid
                      * @description Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
@@ -12991,6 +13052,51 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    saveObserveRequestAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The answer was already an observation; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerSaved"];
+                };
+            };
+            /** @description The answer became an observation. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerSaved"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request has no answer to save (`no_answer`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     getBuildPanelData: {
         parameters: {
             query?: {
@@ -13206,8 +13312,8 @@ export interface operations {
             200: {
                 headers: {
                     Deprecation: components["headers"]["Deprecation"];
-                    /** @description `</api/v1/observations/{observation_id}>; rel="successor-version"` */
-                    Link: string;
+                    /** @description `</api/v1/observations/{observation_id}>; rel="successor-version"`, absent while the finding has no observation */
+                    Link?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -13256,7 +13362,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`). */
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -12,9 +12,10 @@ import (
 )
 
 const getFinding = `-- name: GetFinding :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, o.folder_id AS observation_folder_id, r.context_to AS request_to, ask.title AS ask_dashboard_title
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, o.folder_id AS observation_folder_id, r.context_to AS request_to,
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
 FROM findings f
-JOIN observations o ON o.id = f.observation_id
+LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
 LEFT JOIN dashboards ask ON ask.id = f.ask_dashboard_id
 WHERE f.id = $1
@@ -24,6 +25,8 @@ type GetFindingRow struct {
 	Finding             Finding
 	ObservationFolderID pgtype.UUID
 	RequestTo           pgtype.Timestamptz
+	RequestedByKind     pgtype.Text
+	RequestedByID       pgtype.UUID
 	AskDashboardTitle   pgtype.Text
 }
 
@@ -51,15 +54,19 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 		&i.Finding.AskDashboardID,
 		&i.ObservationFolderID,
 		&i.RequestTo,
+		&i.RequestedByKind,
+		&i.RequestedByID,
 		&i.AskDashboardTitle,
 	)
 	return i, err
 }
 
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, o.folder_id AS observation_folder_id, ask.title AS ask_dashboard_title
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, o.folder_id AS observation_folder_id,
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
 FROM findings f
-JOIN observations o ON o.id = f.observation_id
+LEFT JOIN observations o ON o.id = f.observation_id
+JOIN agent_requests r ON r.id = f.agent_request_id
 LEFT JOIN dashboards ask ON ask.id = f.ask_dashboard_id
 WHERE f.agent_request_id = $1
 `
@@ -67,6 +74,8 @@ WHERE f.agent_request_id = $1
 type GetFindingByAgentRequestRow struct {
 	Finding             Finding
 	ObservationFolderID pgtype.UUID
+	RequestedByKind     string
+	RequestedByID       pgtype.UUID
 	AskDashboardTitle   pgtype.Text
 }
 
@@ -93,6 +102,8 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 		&i.Finding.ObservationID,
 		&i.Finding.AskDashboardID,
 		&i.ObservationFolderID,
+		&i.RequestedByKind,
+		&i.RequestedByID,
 		&i.AskDashboardTitle,
 	)
 	return i, err
@@ -383,6 +394,17 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 	return items, nil
 }
 
+const lockFinding = `-- name: LockFinding :one
+SELECT observation_id FROM findings WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockFinding(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockFinding, id)
+	var observation_id pgtype.UUID
+	err := row.Scan(&observation_id)
+	return observation_id, err
+}
+
 const setFindingAnnotation = `-- name: SetFindingAnnotation :execrows
 UPDATE findings SET annotation_id = $1 WHERE id = $2 AND annotation_id IS NULL
 `
@@ -394,6 +416,23 @@ type SetFindingAnnotationParams struct {
 
 func (q *Queries) SetFindingAnnotation(ctx context.Context, arg SetFindingAnnotationParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setFindingAnnotation, arg.AnnotationID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setFindingObservation = `-- name: SetFindingObservation :execrows
+UPDATE findings SET observation_id = $1 WHERE id = $2 AND observation_id IS NULL
+`
+
+type SetFindingObservationParams struct {
+	ObservationID pgtype.UUID
+	ID            pgtype.UUID
+}
+
+func (q *Queries) SetFindingObservation(ctx context.Context, arg SetFindingObservationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setFindingObservation, arg.ObservationID, arg.ID)
 	if err != nil {
 		return 0, err
 	}

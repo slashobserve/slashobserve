@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -24,7 +25,6 @@ const (
 	MaxEvidence       = 4
 	MaxWords          = 400
 	MaxMarkdownRunes  = 4000
-	MaxTitleRunes     = 80
 	maxFirstLineRunes = 200
 	evidenceWidth     = 12
 	evidenceHeight    = 8
@@ -41,6 +41,8 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
+	ErrRequesterOnly  = errors.New("only the one who asked can use the answer of a run that is not an observation")
+	ErrNotSaved       = errors.New("the answer is not an observation yet; save it as an observation first")
 	ErrAskPlacement   = errors.New("a finding about a dashboard has no other dashboard to ask on")
 )
 
@@ -67,17 +69,28 @@ type Finding struct {
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
 	CreatedBy                                     Author
+	RequestedBy                                   Author
 	Actor                                         actor.Actor
 	Folder                                        *folders.Folder
 	Abilities                                     folders.Abilities
 }
 
+func (f Finding) Saved() bool {
+	return f.ObservationID != ""
+}
+
 func Title(text string) string {
-	line := firstNonBlankLine(text)
-	if line == "" {
-		return defaultTitle
+	if title := revisions.ShortTitle(text); title != "" {
+		return title
 	}
-	return cutRunes(line, MaxTitleRunes)
+	return defaultTitle
+}
+
+func TitleFrom(given, prompt string) string {
+	if title := Title(given); title != defaultTitle {
+		return title
+	}
+	return Title(prompt)
 }
 
 func FirstLine(markdown string) string {
