@@ -66,7 +66,7 @@ import {
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
-import { NewerVersionNotice } from "./newer-version-notice"
+import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
 import { parsePanelJson, withPanel } from "./panel-json"
 import { PreviewSection } from "./preview-section"
 import { maxQueryLength } from "./query-row"
@@ -235,7 +235,7 @@ export default function PanelEditor({
       ? findPanel(asDashboardSpec(newestBody.version.spec), draft.panel.id)
           ?.panel
       : undefined
-  const newerAuthor = newestPanel ? newestBody?.version.author.name : null
+  const newerAuthor = newerVersionAuthor(newestBody, newer)
   const overlaps = useMemo(
     () =>
       newestPanel && isEditablePanel(newestPanel)
@@ -587,7 +587,7 @@ export default function PanelEditor({
               ) : (
                 <NewerVersionNotice
                   version={newestBody?.version.version ?? newer}
-                  author={newerAuthor ?? null}
+                  author={newerAuthor}
                   overlaps={overlaps}
                 />
               )}

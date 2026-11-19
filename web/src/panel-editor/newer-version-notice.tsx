@@ -14,6 +14,16 @@ export function newerVersionTitle(version: number, author: string | null) {
     : `Version ${version} was saved while you were editing.`
 }
 
+export function newerVersionAuthor(
+  newest:
+    { version: { version: number; author: { name: string } } } | undefined,
+  newer: number
+): string | null {
+  return newest && newest.version.version >= newer
+    ? newest.version.author.name
+    : null
+}
+
 function quoted(value: string) {
   return `"${value}"`
 }

@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest"
 
 import { Alert } from "@/components/ui/alert"
 
-import { NewerVersionNotice, newerVersionTitle } from "./newer-version-notice"
+import {
+  NewerVersionNotice,
+  newerVersionAuthor,
+  newerVersionTitle,
+} from "./newer-version-notice"
 
 describe("newerVersionTitle", () => {
   it("names who saved", () => {
@@ -16,6 +20,21 @@ describe("newerVersionTitle", () => {
     expect(newerVersionTitle(7, null)).toBe(
       "Version 7 was saved while you were editing."
     )
+  })
+})
+
+describe("newerVersionAuthor", () => {
+  const newest = (version: number) => ({
+    version: { version, author: { name: "Ada" } },
+  })
+
+  it("names the author of the newest version", () => {
+    expect(newerVersionAuthor(newest(2), 2)).toBe("Ada")
+  })
+
+  it("names nobody before the newest version has loaded", () => {
+    expect(newerVersionAuthor(undefined, 2)).toBeNull()
+    expect(newerVersionAuthor(newest(1), 2)).toBeNull()
   })
 })
 
