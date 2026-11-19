@@ -118,6 +118,7 @@ type dataMeta struct {
 	Truncated      bool            `json:"truncated"`
 	Partial        bool            `json:"partial"`
 	Warning        string          `json:"warning,omitempty"`
+	Hint           string          `json:"hint,omitempty"`
 	Note           string          `json:"note,omitempty"`
 	Rows           int             `json:"rows"`
 	RowsTotal      int             `json:"rows_total,omitempty"`
@@ -149,6 +150,7 @@ type resultMeta struct {
 	truncated      bool
 	partial        bool
 	warning        string
+	hint           string
 	rows           int
 	rowsTotal      int
 	oldest         time.Time
@@ -166,6 +168,7 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 		truncated:      merged.Truncated,
 		partial:        merged.Partial,
 		warning:        merged.Warning,
+		hint:           merged.Hint,
 		rowsTotal:      merged.RowsTotal,
 		jobsDone:       merged.JobsDone,
 		jobsTotal:      merged.JobsTotal,
@@ -469,6 +472,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			Truncated:      e.meta.truncated,
 			Partial:        e.meta.partial,
 			Warning:        e.meta.warning,
+			Hint:           e.meta.hint,
 			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext, e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,

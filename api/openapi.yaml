@@ -3197,6 +3197,11 @@ components:
         warning:
           type: string
           description: The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one.
+        hint:
+          type: string
+          description: >-
+            One plain sentence that says why a search returned no rows when the datasource can tell, present only on an empty Elasticsearch or OpenSearch result whose KQL query asks for a keyword value that no document has in the range:
+            it names the value and the values the field does have, and says when one differs only by letter case, because keyword values are case sensitive.
         note:
           type: string
           description: >-

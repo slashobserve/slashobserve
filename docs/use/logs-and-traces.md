@@ -108,6 +108,7 @@ Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cl
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
 KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines and a field in any of its clauses holds `ERROR` where the query says `error`, the empty result says no document has that value and lists the values the field does hold in the range.
+The server writes that sentence, as `meta.hint` of the query response, so the HTTP API and the MCP tool `query_instant` give the same words: an agent reads it in the step text and in the result's `hint`.
 
 ### Share a search
 
