@@ -38,6 +38,7 @@ type InvalidSpecBody struct {
 	Error  string       `json:"error"`
 	Code   string       `json:"code"`
 	Issues []spec.Issue `json:"issues"`
+	Reason string       `json:"reason,omitempty"`
 }
 
 func AbortInvalidSpec(c *gin.Context, message string, issues []spec.Issue) {

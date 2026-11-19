@@ -761,7 +761,7 @@ func checkPanelID(panelID string) error {
 func checkBody(body string) (string, []Mention, error) {
 	cleaned, err := usertext.Clean("body", body, usertext.Text(maxBodyRunes))
 	if err != nil {
-		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: err.Error()}
+		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: err.Error(), Cause: err}
 	}
 	mentions, err := ParseMentions(cleaned)
 	if err != nil {

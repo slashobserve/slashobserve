@@ -46,7 +46,7 @@ type PanelBody struct {
 func validateTitle(title string) (string, error) {
 	cleaned, err := usertext.Clean("title", title, usertext.Line(MaxTitleRunes))
 	if err != nil {
-		return "", invalid(CodeInvalidTitle, err.Error())
+		return "", invalidText(CodeInvalidTitle, err)
 	}
 	return cleaned, nil
 }
@@ -54,7 +54,7 @@ func validateTitle(title string) (string, error) {
 func validateSummary(summary string) (string, error) {
 	cleaned, err := usertext.Clean("summary", summary, usertext.Line(MaxSummaryRunes))
 	if err != nil {
-		return "", invalid(CodeInvalidSummary, err.Error())
+		return "", invalidText(CodeInvalidSummary, err)
 	}
 	return cleaned, nil
 }
@@ -94,7 +94,7 @@ func textBody(raw json.RawMessage) (TextBody, error) {
 	}
 	markdown := *body.Markdown
 	if err := usertext.Check("markdown", markdown, usertext.Text(MaxTextRunes)); err != nil {
-		return TextBody{}, invalid(CodeInvalidBlock, err.Error())
+		return TextBody{}, invalidText(CodeInvalidBlock, err)
 	}
 	return TextBody{Markdown: markdown}, nil
 }

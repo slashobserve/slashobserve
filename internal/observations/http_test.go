@@ -277,6 +277,18 @@ func TestObservationRoutesAnswerEveryDocumentedError(t *testing.T) {
 		})
 	}
 
+	for _, c := range []struct{ name, path, body, reason string }{
+		{"an invisible title", "/api/v1/observations", fmt.Sprintf(`{"title":"\u200b","folder_id":%q}`, shared), "text_invisible_only"},
+		{"an invisible text block", base + "/blocks", `{"kind":"text","body":{"markdown":"\u200b"}}`, "text_invisible_only"},
+	} {
+		rec := d.send(t, editor, http.MethodPost, c.path, c.body, http.StatusUnprocessableEntity)
+		if got := decode[struct {
+			Reason string `json:"reason"`
+		}](t, rec).Reason; got != c.reason {
+			t.Errorf("%s: reason %q, want %q: %s", c.name, got, c.reason, rec.Body)
+		}
+	}
+
 	conflict := d.send(t, editor, http.MethodPatch, d.blockPath(text.ID), `{"version":99,"width":"half"}`, http.StatusConflict)
 	if current := decode[struct {
 		Current observations.BlockJSON `json:"current"`

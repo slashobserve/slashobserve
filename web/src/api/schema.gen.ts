@@ -3404,6 +3404,8 @@ export interface components {
             error: string;
             code: string;
             issues: components["schemas"]["Issue"][];
+            /** @description Present when an observation title, summary or text block failed the shared text rule (`docs/reference/text-rules.md`); the same values as `reason` on `Error`. */
+            reason?: string;
         };
         /** @enum {string} */
         Role: "admin" | "editor" | "commenter" | "viewer";

@@ -33,7 +33,10 @@ type InvalidInputError struct {
 	Code    string
 	Message string
 	Issues  []spec.Issue
+	Cause   error
 }
+
+func (e *InvalidInputError) Unwrap() error { return e.Cause }
 
 func (e *InvalidInputError) Error() string {
 	return e.Message
@@ -54,4 +57,8 @@ func (e *ConflictError) Error() string {
 
 func invalid(code, message string) *InvalidInputError {
 	return &InvalidInputError{Code: code, Message: message}
+}
+
+func invalidText(code string, cause error) *InvalidInputError {
+	return &InvalidInputError{Code: code, Message: cause.Error(), Cause: cause}
 }

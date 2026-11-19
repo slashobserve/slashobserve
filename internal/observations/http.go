@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -621,7 +622,8 @@ func abortKnown(c *gin.Context, err error) bool {
 		if issues == nil {
 			issues = []spec.Issue{}
 		}
-		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: invalid.Message, Code: invalid.Code, Issues: issues})
+		reason, _ := usertext.ReasonOf(invalid)
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: invalid.Message, Code: invalid.Code, Issues: issues, Reason: string(reason)})
 	default:
 		return false
 	}
