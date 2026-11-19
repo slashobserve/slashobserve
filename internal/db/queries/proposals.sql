@@ -23,7 +23,7 @@ WHERE dashboard_id = @dashboard_id AND state = 'open' AND run_id = @run_id
 FOR UPDATE;
 
 -- name: AdvanceProposalRevision :one
-UPDATE proposals SET revision = revision + 1, updated_at = clock_timestamp()
+UPDATE proposals SET revision = revision + 1, title = @title, updated_at = clock_timestamp()
 WHERE id = @id AND state = 'open'
 RETURNING revision;
 
@@ -31,6 +31,7 @@ RETURNING revision;
 UPDATE proposals
 SET state = @state, closed_at = clock_timestamp(),
   closed_by_kind = @closed_by_kind, closed_by_id = @closed_by_id, closed_by_name = @closed_by_name,
+  close_reason = sqlc.narg('close_reason'),
   updated_at = clock_timestamp()
 WHERE id = @id AND state = 'open' AND revision = @revision;
 
@@ -48,6 +49,7 @@ JOIN proposal_revisions r ON r.proposal_id = p.id AND r.revision = p.revision
 LEFT JOIN dashboard_versions v ON v.merged_proposal_id = p.id
 WHERE p.dashboard_id = @dashboard_id
   AND (sqlc.narg('state')::text IS NULL OR p.state = sqlc.narg('state')::text)
+  AND (sqlc.narg('run_id')::uuid IS NULL OR p.run_id = sqlc.narg('run_id')::uuid)
   AND (sqlc.narg('before_at')::timestamptz IS NULL
     OR (p.created_at, p.id) < (sqlc.narg('before_at')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY p.created_at DESC, p.id DESC

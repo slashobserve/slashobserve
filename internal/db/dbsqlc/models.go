@@ -500,6 +500,7 @@ type Proposal struct {
 	ClosedByName pgtype.Text
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	CloseReason  pgtype.Text
 }
 
 type ProposalRevision struct {
@@ -540,6 +541,7 @@ type PublicLink struct {
 	CreatedAt     pgtype.Timestamptz
 	LastViewedAt  pgtype.Timestamptz
 	RcaID         pgtype.UUID
+	Label         string
 }
 
 type RunSession struct {

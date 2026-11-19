@@ -578,6 +578,34 @@ export function panelChanges(
   return changes
 }
 
+export type Overlap = Change & { theirs?: string; yours?: string }
+
+const shownValueKeys = ["title", "datasource", "type", "unit"]
+
+function shownValue(panel: EditablePanel, key: string): string | undefined {
+  if (!shownValueKeys.includes(key)) return undefined
+  const value = (panel as unknown as Fields)[key]
+  return typeof value === "string" ? value : ""
+}
+
+export function overlappingChanges(
+  base: EditablePanel,
+  draft: EditablePanel,
+  latest: EditablePanel
+): Overlap[] {
+  const theirs = new Set(panelChanges(base, latest).map((change) => change.key))
+  const stillDiffers = new Set(
+    panelChanges(latest, draft).map((change) => change.key)
+  )
+  return panelChanges(base, draft)
+    .filter((change) => theirs.has(change.key) && stillDiffers.has(change.key))
+    .map((change) => ({
+      ...change,
+      theirs: shownValue(latest, change.key),
+      yours: shownValue(draft, change.key),
+    }))
+}
+
 export function changeSummary(changes: readonly Change[]): string {
   const n = changes.length
   if (n === 0) return "No changes"

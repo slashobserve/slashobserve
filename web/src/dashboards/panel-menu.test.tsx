@@ -33,7 +33,7 @@ function holdMenuExit() {
   })
 }
 
-function renderMenu() {
+function renderMenu(canComment = true) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
     <>
@@ -43,8 +43,9 @@ function renderMenu() {
         onToggleTableView={() => {}}
         idle
         viewing={false}
-        canComment
+        canComment={canComment}
         canEdit={false}
+        canInvestigate={false}
         composerRef={composer}
       />
       <textarea ref={composer} aria-label="Comment or request" />
@@ -102,5 +103,19 @@ describe("PanelMenu", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument()
     )
     expect(elsewhere).toHaveFocus()
+  })
+
+  it("shows Comment greyed with its reason when the person cannot comment", async () => {
+    const { user } = renderMenu(false)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "Comment (needs Comment access on this folder)",
+      })
+    ).toHaveAttribute("aria-disabled", "true")
   })
 })

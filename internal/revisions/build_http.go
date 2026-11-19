@@ -139,7 +139,7 @@ func ReplyFor(err error) (Reply, bool) {
 	case errors.Is(err, ErrNotRequester):
 		return Reply{Status: http.StatusForbidden, Code: "forbidden", Message: ErrNotRequester.Error()}, true
 	case errors.Is(err, folders.ErrNoAccess):
-		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.AccessMessage}, true
+		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: ErrDashboardNotFound.Error()}, true
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, ErrForbidden):
 		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.RoleMessage}, true
 	}

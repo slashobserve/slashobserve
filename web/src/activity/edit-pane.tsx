@@ -101,6 +101,7 @@ export function EditPane({
     unsaved.current = next
     setDirty(next)
   }, [])
+  const [draftTitle, setDraftTitle] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<Leave | null>(null)
   const focusAfter = useRef<"default" | "trigger" | "editor" | "none">(
     "default"
@@ -267,6 +268,7 @@ export function EditPane({
             timeRange={timeRange}
             selections={selections}
             onDirtyChange={onDirtyChange}
+            onBaseTitleChange={setDraftTitle}
             onSaved={() => run("saved")}
             onOpenLatest={() =>
               setSearch((state) => ({ ...state, version: undefined }))
@@ -287,7 +289,11 @@ export function EditPane({
       <DockHeader
         headingId={headingId}
         headingRef={headingRef}
-        title={panel ? `Edit ${panelTitle(panel)}` : "Panel not found"}
+        title={
+          panel
+            ? `Edit ${dirty && draftTitle !== null ? draftTitle : panelTitle(panel)}`
+            : "Panel not found"
+        }
         description={
           panel
             ? "A draft. Nothing changes until you save."

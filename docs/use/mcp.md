@@ -150,11 +150,11 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 `list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
-`get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, and the `allowed_actions` of the caller, and answers `too_large` for a result over 128 KiB.
+`get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, the `allowed_actions` of the caller and the field-by-field `diff`, which is left out, with the step saying so, when it would take the result over 128 KiB; a result over 128 KiB without it answers `too_large`.
 `merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.
 It answers `proposal_changed` with the newest `revision` when the author added one, `version_conflict` with `conflicts` when a conflict has no choice, and `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
 
-`discard_proposal` takes the `proposal_id`, and its author or someone who may merge it can discard it.
+`discard_proposal` takes the `proposal_id` and an optional `reason` of up to 500 characters that the proposal shows, and its author or someone who may merge it can discard it.
 A caller without the access gets `forbidden_role`, and an unknown proposal or one on a dashboard the caller cannot see gets `not_found`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.

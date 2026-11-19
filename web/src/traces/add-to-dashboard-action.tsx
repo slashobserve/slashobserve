@@ -1,0 +1,45 @@
+import { useRef, useState } from "react"
+import { LayoutDashboardIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { AddPanelToDashboard } from "@/dashboards/add-panel-to-dashboard"
+import type { DataPanel } from "@/spec"
+
+import { placedPanel } from "./trace-panel"
+
+export function AddToDashboardAction({
+  panel,
+  size = "sm",
+}: {
+  panel: DataPanel
+  size?: "sm" | "default"
+}) {
+  const trigger = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button
+        ref={trigger}
+        type="button"
+        variant="outline"
+        size={size}
+        className="narrow:h-11"
+        onClick={() => setOpen(true)}
+      >
+        <LayoutDashboardIcon aria-hidden="true" />
+        Add to dashboard
+      </Button>
+      {open ? (
+        <AddPanelToDashboard
+          idBase={panel.id}
+          defaultTitle={panel.title ?? "Traces"}
+          description="Adds a full-width traces panel with this query under the dashboard's last row."
+          summary="Add a traces panel from the traces page"
+          panelFor={(slot) => placedPanel(panel, slot)}
+          onClose={() => setOpen(false)}
+          trigger={trigger}
+        />
+      ) : null}
+    </>
+  )
+}

@@ -52,6 +52,23 @@ export function dashboardProposalsQuery(
   })
 }
 
+export function runProposalQuery(dashboardId: string, runId: string) {
+  return queryOptions({
+    queryKey: proposalKeys.run(dashboardId, runId),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/dashboards/{id}/proposals", {
+          params: {
+            path: { id: dashboardId },
+            query: { state: "all", run_id: runId, limit: 1 },
+          },
+          signal,
+        })
+        .then(unwrap),
+    staleTime: 10_000,
+  })
+}
+
 export function useMergeProposal(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -84,11 +101,11 @@ export function useDiscardProposal(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: () =>
+    mutationFn: (reason: string) =>
       api
         .POST("/proposals/{id}/discard", {
           params: { path: { id } },
-          body: {},
+          body: reason === "" ? {} : { reason },
         })
         .then(unwrap),
     onSuccess: () =>

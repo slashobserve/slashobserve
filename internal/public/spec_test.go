@@ -60,7 +60,7 @@ func queryHolders(doc map[string]any) []map[string]any {
 	return holders
 }
 
-func TestPublicSpecDropsOnlyQueryText(t *testing.T) {
+func TestPublicSpecDropsOnlyQueryTextTagsAndLinks(t *testing.T) {
 	fixtures, err := fs.Glob(examples, "*.json")
 	if err != nil || len(fixtures) == 0 {
 		t.Fatalf("no fixtures: %v", err)
@@ -82,8 +82,16 @@ func TestPublicSpecDropsOnlyQueryText(t *testing.T) {
 			for _, holder := range queryHolders(before) {
 				delete(holder, "query")
 			}
+			delete(before, "tags")
+			delete(before, "links")
+			if _, ok := after["tags"]; ok {
+				t.Fatal("tags survived")
+			}
+			if _, ok := after["links"]; ok {
+				t.Fatal("links survived")
+			}
 			if !reflect.DeepEqual(before, after) {
-				t.Fatalf("public spec changed more than query text")
+				t.Fatalf("public spec changed more than query text, tags and links")
 			}
 		})
 	}

@@ -58,6 +58,7 @@ function searchText(span: Span): string {
     span.service,
     span.operation,
     span.id,
+    span.statusMessage,
     ...span.attributes.flatMap((attribute) => [attribute.key, attribute.text]),
   ]
     .join("\n")
@@ -82,18 +83,15 @@ function matches(span: Span, filters: SpanFilters, needle: string): boolean {
   )
 }
 
-function lastFinishing(
-  children: readonly Span[],
-  until: number
-): { span: Span; until: number }[] {
+function lastFinishing(children: readonly Span[]): Span[] {
   const ending = children
-    .map((span) => ({ span, end: Math.min(span.start + span.duration, until) }))
+    .map((span) => ({ span, end: span.start + span.duration }))
     .sort((a, b) => b.end - a.end || a.span.start - b.span.start)
-  const chosen: { span: Span; until: number }[] = []
-  let cursor = until
+  const chosen: Span[] = []
+  let cursor = Infinity
   for (const { span, end } of ending) {
-    if (end > cursor || span.start > end) continue
-    chosen.push({ span, until: end })
+    if (end > cursor) continue
+    chosen.push(span)
     cursor = span.start
   }
   return chosen
@@ -106,17 +104,12 @@ export function criticalPath(spans: readonly Span[]): Set<string> {
     siblings.push(span)
     children.set(span.parentId, siblings)
   }
-  const roots = children.get(null) ?? []
-  const traceEnd = Math.max(
-    ...roots.map((span) => span.start + span.duration),
-    -Infinity
-  )
   const path = new Set<string>()
-  const pending = lastFinishing(roots, traceEnd)
+  const pending = lastFinishing(children.get(null) ?? [])
   while (pending.length > 0) {
-    const { span, until } = pending.pop()!
+    const span = pending.pop()!
     path.add(span.id)
-    pending.push(...lastFinishing(children.get(span.id) ?? [], until))
+    pending.push(...lastFinishing(children.get(span.id) ?? []))
   }
   return path
 }

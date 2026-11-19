@@ -12,10 +12,10 @@ import (
 var spanAt = time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
 
 func spanResultSet(kinds []string, events bool, links ...spanLinkRow) *resultSet {
-	names := []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "EventTimes", "EventNames", "EventAttributes", "LinkTraceIds", "LinkSpanIds", "LinkAttributes"}
+	names := []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage", "SpanAttributes", "ResourceAttributes", "SpanKind", "EventTimes", "EventNames", "EventAttributes", "LinkTraceIds", "LinkSpanIds", "LinkAttributes"}
 	types := []datasource.FieldType{
 		datasource.FieldString, datasource.FieldString, datasource.FieldString, datasource.FieldString, datasource.FieldString,
-		datasource.FieldTime, datasource.FieldNumber, datasource.FieldString, datasource.FieldOther, datasource.FieldOther,
+		datasource.FieldTime, datasource.FieldNumber, datasource.FieldString, datasource.FieldString, datasource.FieldOther, datasource.FieldOther,
 		datasource.FieldString, datasource.FieldOther, datasource.FieldOther, datasource.FieldOther,
 		datasource.FieldOther, datasource.FieldOther, datasource.FieldOther,
 	}
@@ -43,7 +43,7 @@ func spanResultSet(kinds []string, events bool, links ...spanLinkRow) *resultSet
 		}
 		rs.rows = append(rs.rows, []any{
 			"0af7651916cd43dd8448eb211c80319c", "b7ad6b716920333" + string(rune('0'+i)), "", "POST /checkout", "checkout",
-			spanAt.Add(time.Duration(i) * time.Millisecond), uint64(50_000_000), "STATUS_CODE_ERROR",
+			spanAt.Add(time.Duration(i) * time.Millisecond), uint64(50_000_000), "STATUS_CODE_ERROR", "card declined",
 			map[string]string{"http.method": "POST"}, map[string]string{"service.name": "checkout"},
 			kind, times, eventNames, attrs, linkTraceIDs, linkSpanIDs, linkAttrs,
 		})
@@ -62,17 +62,18 @@ func TestSpanFrameFoldsKindAndEvents(t *testing.T) {
 	}
 	want := []string{
 		"string:TraceId", "string:SpanId", "string:ParentSpanId", "string:SpanName", "string:ServiceName",
-		"time:StartTime", "number:Duration", "string:StatusCode", "string:SpanAttributes", "string:ResourceAttributes",
+		"time:StartTime", "number:Duration", "string:StatusCode", "string:StatusMessage", "string:SpanAttributes", "string:ResourceAttributes",
 		"string:SpanKind", "string:SpanEvents", "string:SpanLinks",
 	}
 	if !slices.Equal(names, want) {
 		t.Fatalf("fields = %v, want %v", names, want)
 	}
 	checks := map[string][]any{
-		"SpanKind":   {"Server", "Client", "Server", "Unspecified", "Consumer"},
-		"StartTime":  {spanAt, spanAt.Add(time.Millisecond), spanAt.Add(2 * time.Millisecond), spanAt.Add(3 * time.Millisecond), spanAt.Add(4 * time.Millisecond)},
-		"Duration":   {float64(50_000_000), float64(50_000_000), float64(50_000_000), float64(50_000_000), float64(50_000_000)},
-		"StatusCode": {"STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR"},
+		"SpanKind":      {"Server", "Client", "Server", "Unspecified", "Consumer"},
+		"StartTime":     {spanAt, spanAt.Add(time.Millisecond), spanAt.Add(2 * time.Millisecond), spanAt.Add(3 * time.Millisecond), spanAt.Add(4 * time.Millisecond)},
+		"Duration":      {float64(50_000_000), float64(50_000_000), float64(50_000_000), float64(50_000_000), float64(50_000_000)},
+		"StatusCode":    {"STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR", "STATUS_CODE_ERROR"},
+		"StatusMessage": {"card declined", "card declined", "card declined", "card declined", "card declined"},
 		"SpanEvents": {
 			`[{"time_ms":1793966400500,"name":"exception","attributes":{"exception.type":"TimeoutError"}},{"time_ms":1793966401000,"name":"retry","attributes":{}}]`,
 			"[]", "[]", "[]", "[]",
@@ -100,7 +101,7 @@ func TestTraceQueriesPassTheGuard(t *testing.T) {
 			t.Errorf("guard refused %q: %v", q, err)
 		}
 	}
-	want := "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, SpanAttributes, ResourceAttributes, SpanKind, Events.Timestamp AS EventTimes, Events.Name AS EventNames, Events.Attributes AS EventAttributes, Links.TraceId AS LinkTraceIds, Links.SpanId AS LinkSpanIds, Links.Attributes AS LinkAttributes\n" +
+	want := "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, StatusMessage, SpanAttributes, ResourceAttributes, SpanKind, Events.Timestamp AS EventTimes, Events.Name AS EventNames, Events.Attributes AS EventAttributes, Links.TraceId AS LinkTraceIds, Links.SpanId AS LinkSpanIds, Links.Attributes AS LinkAttributes\n" +
 		"FROM otel_traces WHERE TraceId = {id:String} AND Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')}\n" +
 		"ORDER BY Timestamp, SpanId LIMIT {n:UInt64}"
 	if traceQuery != want {
