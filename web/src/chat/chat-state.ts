@@ -89,6 +89,11 @@ export function deleteChatText(request: RequestSummary): string {
   }
 }
 
+export function deleteTurnsText(turns: readonly RequestSummary[]): string {
+  if (turns.length === 1) return deleteChatText(turns[0])
+  return `All ${turns.length} messages in this chat leave your chat lists and cannot be added back. What they saved, such as dashboards, observations and proposals, stays.`
+}
+
 export function chatOutcome(request: RequestSummary): string {
   switch (request.state) {
     case "queued":

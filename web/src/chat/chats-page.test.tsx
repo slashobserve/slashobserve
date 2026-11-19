@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -67,6 +67,53 @@ function stubList(requests: unknown[]) {
         )
     )
   )
+}
+
+function stubRecordedList(requests: unknown[]) {
+  const calls: { method: string; url: string; body: string }[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: Request | string, init?: RequestInit) => {
+      const req = input instanceof Request ? input : new Request(input, init)
+      const method = req.method
+      if (method !== "GET") {
+        calls.push({
+          method,
+          url: new URL(req.url).pathname,
+          body: await req.text(),
+        })
+        return new Response(JSON.stringify({}), {
+          status: method === "DELETE" ? 204 : 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      return new Response(
+        JSON.stringify({
+          requests,
+          next_cursor: null,
+          summary: { total: requests.length, people: null },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    })
+  )
+  return calls
+}
+
+function twoTurnChat() {
+  return [
+    {
+      ...request("t2", "u1", "make it blue"),
+      source: "prompt",
+      dashboard_id: "d1",
+      chat_id: "t1",
+    },
+    {
+      ...request("t1", "u1", "Checkout health"),
+      dashboard_id: "d1",
+      chat_id: "t1",
+    },
+  ]
 }
 
 function render() {
@@ -143,6 +190,52 @@ describe("ChatsPage rows", () => {
     ).not.toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Chat actions: what does p99 mean" })
+    ).toBeInTheDocument()
+  })
+
+  it("renames the first ask of a chat, whose title the row shows", async () => {
+    const calls = stubRecordedList(twoTurnChat())
+    const { user } = render()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Chat actions: Checkout health",
+      })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    const field = await screen.findByRole("textbox", { name: "Chat title" })
+    await user.clear(field)
+    await user.type(field, "Checkout status{Enter}")
+    await waitFor(() => expect(calls).toHaveLength(1))
+    expect(calls[0].method).toBe("PATCH")
+    expect(calls[0].url).toBe("/api/v1/observe/t1")
+  })
+
+  it("deletes every turn of the chat the row stands for", async () => {
+    const calls = stubRecordedList(twoTurnChat())
+    const { user } = render()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Chat actions: Checkout health",
+      })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    expect(await screen.findByText(/All 2 messages/)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Delete chat" }))
+    await waitFor(() => expect(calls).toHaveLength(2))
+    expect(calls.map((call) => call.url).sort()).toEqual([
+      "/api/v1/observe/t1",
+      "/api/v1/observe/t2",
+    ])
+  })
+
+  it("saves the first prompt of the chat, not its latest message", async () => {
+    stubList(twoTurnChat())
+    render()
+    const link = await screen.findByRole("link", { name: /Checkout health/ })
+    expect(
+      within(link.parentElement as HTMLElement).getByRole("button", {
+        name: "Save prompt",
+      })
     ).toBeInTheDocument()
   })
 })

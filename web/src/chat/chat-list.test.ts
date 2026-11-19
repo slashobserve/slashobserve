@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { collapseChats, groupChats } from "./chat-list"
+import { chatRoot, chatTurns, collapseChats, groupChats } from "./chat-list"
 
 function summary(
   overrides: Partial<RequestSummary> & { id: string }
@@ -160,5 +160,29 @@ describe("collapseChats", () => {
       summary({ id: "o", source: "observe", dashboard_id: "a" }),
     ])
     expect(rows.map((row) => row.id)).toEqual(["p"])
+  })
+})
+
+describe("chatTurns and chatRoot", () => {
+  const list = [
+    summary({ id: "t2", source: "prompt", dashboard_id: "a" }),
+    summary({ id: "other", dashboard_id: "b" }),
+    summary({ id: "t1", source: "observe", dashboard_id: "a" }),
+  ]
+
+  test("gathers every turn of the conversation a row stands for", () => {
+    expect(chatTurns(list, list[0]).map((turn) => turn.id)).toEqual([
+      "t2",
+      "t1",
+    ])
+  })
+
+  test("takes a request outside any conversation as its own turn", () => {
+    const run = summary({ id: "i1", source: "investigate", dashboard_id: "a" })
+    expect(chatTurns([...list, run], run)).toEqual([run])
+  })
+
+  test("names the first ask as the root of a conversation", () => {
+    expect(chatRoot(chatTurns(list, list[0])).id).toBe("t1")
   })
 })

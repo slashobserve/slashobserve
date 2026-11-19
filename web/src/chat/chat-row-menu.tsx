@@ -31,13 +31,13 @@ import {
 import { Input } from "@/components/ui/input"
 import {
   sentence,
-  useDeleteChat,
+  useDeleteChatTurns,
   usePinChat,
   useRenameChat,
   type RequestSummary,
 } from "@/observe/queries"
 
-import { deleteChatText } from "./chat-state"
+import { deleteTurnsText } from "./chat-state"
 
 const maxTitleLength = 120
 
@@ -59,12 +59,14 @@ function focusRow(requestId: string) {
 
 export function ChatRowMenu({
   request,
+  turns = [request],
   current,
   onRename,
   afterDelete,
   className,
 }: {
   request: RequestSummary
+  turns?: readonly RequestSummary[]
   current: boolean
   onRename: () => void
   afterDelete: RefObject<HTMLElement | null>
@@ -72,7 +74,7 @@ export function ChatRowMenu({
 }) {
   const navigate = useNavigate()
   const pin = usePinChat(request.id)
-  const remove = useDeleteChat(request.id)
+  const remove = useDeleteChatTurns(turns.map((turn) => turn.id))
   const [confirming, setConfirming] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const pinned = request.pinned_at !== null
@@ -143,7 +145,7 @@ export function ChatRowMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteChatText(request)}
+              {deleteTurnsText(turns)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {problem !== null ? (
@@ -179,9 +181,11 @@ export function ChatRowMenu({
 
 export function ChatRenameForm({
   request,
+  rowId = request.id,
   onDone,
 }: {
   request: RequestSummary
+  rowId?: string
   onDone: () => void
 }) {
   const rename = useRenameChat(request.id)
@@ -189,7 +193,7 @@ export function ChatRenameForm({
 
   function finish() {
     onDone()
-    focusRow(request.id)
+    focusRow(rowId)
   }
 
   function onSubmit(event: FormEvent) {

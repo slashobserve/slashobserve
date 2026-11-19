@@ -36,7 +36,7 @@ import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { groupChatsByDay } from "./chat-days"
-import { collapseChats } from "./chat-list"
+import { chatRoot, chatTurns, collapseChats } from "./chat-list"
 import { chatFooterText } from "./chat-footer"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
 import { canSaveAsPrompt, savePromptButtonId } from "./save-prompt-target"
@@ -284,6 +284,7 @@ function ChatGroups({
               <li key={request.id} className="border-t">
                 <ChatRow
                   request={request}
+                  turns={chatTurns(requests, request)}
                   everyone={everyone}
                   afterDelete={list}
                 />
@@ -301,10 +302,12 @@ const rowActionClass =
 
 function ChatRow({
   request,
+  turns,
   everyone,
   afterDelete,
 }: {
   request: RequestSummary
+  turns: readonly RequestSummary[]
   everyone: boolean
   afterDelete: RefObject<HTMLElement | null>
 }) {
@@ -313,11 +316,17 @@ function ChatRow({
   const [renaming, setRenaming] = useState(false)
   const own = request.requested_by.id === principal.id
   const titleId = `chats-title-${request.id}`
-  const savable = own && canSavePrompts(principal) && canSaveAsPrompt(request)
+  const mine = turns.filter((turn) => turn.requested_by.id === principal.id)
+  const root = chatRoot(own ? mine : turns)
+  const savable = own && canSavePrompts(principal) && canSaveAsPrompt(root)
 
   if (renaming) {
     return (
-      <ChatRenameForm request={request} onDone={() => setRenaming(false)} />
+      <ChatRenameForm
+        request={root}
+        rowId={request.id}
+        onDone={() => setRenaming(false)}
+      />
     )
   }
 
@@ -371,7 +380,7 @@ function ChatRow({
               onClick={() =>
                 openPanel({
                   kind: "create",
-                  body: request.prompt,
+                  body: root.prompt,
                   returnFocusId: savePromptButtonId(request.id),
                 })
               }
@@ -381,6 +390,7 @@ function ChatRow({
           ) : null}
           <ChatRowMenu
             request={request}
+            turns={mine}
             current={false}
             onRename={() => setRenaming(true)}
             afterDelete={afterDelete}
