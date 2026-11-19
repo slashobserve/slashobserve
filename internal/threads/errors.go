@@ -10,6 +10,7 @@ var (
 	ErrNotFound       = errors.New("comment not found")
 	ErrTargetNotFound = errors.New("target not found")
 	ErrNotAuthor      = errors.New("only a person can edit their own comment; an agent's reply cannot be edited")
+	ErrNotStarter     = errors.New("a commenter can resolve only a thread they started; ask someone who can edit, or the person who started it")
 	ErrCannotDelete   = errors.New("only the author of a comment, or someone who manages its folder, can delete it; an agent's reply can be deleted only by someone who manages the folder")
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
@@ -49,6 +50,7 @@ const (
 	CodeInvalidStatus   = "invalid_status"
 	CodeTooManyMentions = "too_many_mentions"
 	CodeNotAuthor       = "not_author"
+	CodeNotStarter      = "not_starter"
 	CodeUnknownPanel    = "unknown_panel"
 	CodeUnknownVersion  = "unknown_version"
 	CodeInvalidMention  = "invalid_mention"

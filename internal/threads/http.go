@@ -358,6 +358,8 @@ func abortKnown(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrNotStarter):
+		httpapi.AbortError(c, http.StatusForbidden, CodeNotStarter, err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, CodeUnknownPanel, err.Error())
 	case errors.Is(err, ErrUnknownVersion):

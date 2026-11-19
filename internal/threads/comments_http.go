@@ -128,7 +128,7 @@ func (cm *Comments) createComment(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/dashboards/"+comment.DashboardID+"/comments/"+comment.ID)
-	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
+	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
 func (cm *Comments) listComments(c *gin.Context) {
@@ -154,9 +154,8 @@ func (cm *Comments) listComments(c *gin.Context) {
 		return
 	}
 	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
-	canComment := folders.DashboardFrom(c).Abilities.Comment
 	for _, item := range items {
-		body.Comments = append(body.Comments, newCommentJSON(item, canComment))
+		body.Comments = append(body.Comments, newCommentJSON(item))
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -183,7 +182,7 @@ func (cm *Comments) patchComment(c *gin.Context) {
 		cm.fail(c, "set comment status", err)
 		return
 	}
-	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
+	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
@@ -207,18 +206,18 @@ func newAuthorJSON(a Author) authorJSON {
 	return authorJSON(a)
 }
 
-func commentAllowedActions(c Comment, canComment bool) []string {
-	if c.ParentID != "" {
+func commentAllowedActions(c Comment) []string {
+	if c.ParentID != "" || len(c.AllowedActions) == 0 {
 		return []string{}
 	}
-	allowed := allowedActions(c.Status, canComment)
+	allowed := slices.Clone(c.AllowedActions)
 	if c.Revision == nil || (c.Revision.Status != "queued" && c.Revision.Status != "running") {
 		return allowed
 	}
 	return slices.DeleteFunc(allowed, func(a string) bool { return a == string(ActionResolve) })
 }
 
-func newCommentJSON(c Comment, canComment bool) commentJSON {
+func newCommentJSON(c Comment) commentJSON {
 	out := commentJSON{
 		ID:                c.ID,
 		DashboardID:       c.DashboardID,
@@ -227,7 +226,7 @@ func newCommentJSON(c Comment, canComment bool) commentJSON {
 		PanelID:           httpapi.OptionalString(c.PanelID),
 		Body:              c.Body,
 		Status:            c.Status,
-		AllowedActions:    commentAllowedActions(c, canComment),
+		AllowedActions:    commentAllowedActions(c),
 		Author:            newAuthorJSON(c.Author),
 		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),

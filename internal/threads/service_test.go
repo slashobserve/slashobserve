@@ -407,7 +407,7 @@ func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	thread, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), Body: "root"})
+	thread, first := r.open(t, commenter, OpenInput{Target: target(KindDashboard, dash), Version: new(1), Body: "root"})
 	id := mustParse(t, first.ID)
 
 	resolved, changed, err := r.service.SetStatus(t.Context(), commenter, id, StatusResolved, new(2))

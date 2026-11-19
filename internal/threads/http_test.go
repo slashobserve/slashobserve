@@ -283,7 +283,7 @@ func TestResolvingAndReopeningThroughTheRoutes(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "version": 1, "body": "fix"})
+	opened := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "version": 1, "body": "fix"})
 	threadID := opened.at(t, "thread", "id").(string)
 
 	resolved := r.call(t, commenter, http.MethodPost, "/threads/"+threadID+"/resolve", map[string]any{"version": 2})

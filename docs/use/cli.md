@@ -335,6 +335,7 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   `--search <text>` keeps those whose name or email contains the text, and a notice says when more people match.
   A person who cannot see the target is not listed, and mentioning one is refused with `invalid_mention`.
 - `bin/observe comments resolve <comment-id>` resolves a thread, and `bin/observe comments resolve <dashboard-id> <comment-id>` does the same through the dashboard endpoint.
+  A Commenter gets `not_starter` on a thread someone else started; an Editor resolves any.
   `--version N` records the version that fixed a dashboard thread.
   `-q` hides its confirmation.
   If the thread was already resolved, `--version` is not applied and the command exits 1.

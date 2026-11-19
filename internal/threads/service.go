@@ -189,7 +189,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		thread = threadOf(threadRow, at.latestPanels, sc.abilities.Comment)
+		thread = threadOf(threadRow, at.latestPanels, sc.rights(true))
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
 		message.CanDelete = mayDelete(messageRow, by, sc, false)
 		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
@@ -265,12 +265,12 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if hook == nil {
 			return nil
 		}
-		return hook(q, threadOf(current, nil, sc.abilities.Comment), message)
+		return hook(q, threadOf(current, nil, sc.rights(false)), message)
 	})
 	if err != nil {
 		return Thread{}, Message{}, threadGone(err)
 	}
-	thread, err := s.present(ctx, current, sc.abilities.Comment)
+	thread, err := s.present(ctx, current, by, sc)
 	return thread, message, err
 }
 
@@ -327,7 +327,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
-	thread, err := s.present(ctx, row, sc.abilities.Comment)
+	thread, err := s.present(ctx, row, by, sc)
 	return thread, message, changed, err
 }
 
@@ -342,6 +342,15 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	row, sc, err := s.writableThread(ctx, by, id)
 	if err != nil {
 		return Thread{}, false, err
+	}
+	if status == StatusResolved {
+		started, err := s.startedBy(ctx, s.db.Queries(), by, row.ID)
+		if err != nil {
+			return Thread{}, false, err
+		}
+		if !slices.Contains(allowedActions(StatusOpen, sc.rights(started)), string(ActionResolve)) {
+			return Thread{}, false, ErrNotStarter
+		}
 	}
 	params := dbsqlc.SetThreadStatusParams{ID: row.ID, Status: status}
 	if status == StatusResolved {
@@ -384,7 +393,7 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	if err != nil {
 		return Thread{}, false, threadGone(err)
 	}
-	thread, err := s.present(ctx, updated, sc.abilities.Comment)
+	thread, err := s.present(ctx, updated, by, sc)
 	return thread, changed, err
 }
 
@@ -473,11 +482,15 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	started, err := s.startedAmong(ctx, s.db.Queries(), by, rows)
+	if err != nil {
+		return Page{}, err
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
 			seen[r.Thread.ID] = true
-			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.abilities.Comment))
+			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.rights(started[r.Thread.ID])))
 		}
 		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
 		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && others[r.Thread.ID])
@@ -701,9 +714,38 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 	return params
 }
 
-func (s *Service) present(ctx context.Context, row dbsqlc.Thread, canComment bool) (Thread, error) {
+func (s *Service) startedBy(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadID pgtype.UUID) (bool, error) {
+	first, err := q.GetMessage(ctx, threadID)
+	if err != nil {
+		return false, threadLookup(err)
+	}
+	return ownMessage(first, by), nil
+}
+
+func (s *Service) startedAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]bool, error) {
+	ids := make([]pgtype.UUID, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.Thread.ID)
+	}
+	firsts, err := q.ListMessagesByID(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list the first messages of threads: %w", err)
+	}
+	started := make(map[pgtype.UUID]bool, len(firsts))
+	for _, first := range firsts {
+		started[first.ID] = ownMessage(first, by)
+	}
+	return started, nil
+}
+
+func (s *Service) present(ctx context.Context, row dbsqlc.Thread, by auth.Principal, sc scope) (Thread, error) {
+	started, err := s.startedBy(ctx, s.db.Queries(), by, row.ID)
+	if err != nil {
+		return Thread{}, err
+	}
+	r := sc.rights(started)
 	if !row.PanelID.Valid {
-		return threadOf(row, nil, canComment), nil
+		return threadOf(row, nil, r), nil
 	}
 	latest, err := s.dashboards.LatestVersion(ctx, row.DashboardID)
 	if err != nil {
@@ -713,7 +755,7 @@ func (s *Service) present(ctx context.Context, row dbsqlc.Thread, canComment boo
 	if err != nil {
 		return Thread{}, err
 	}
-	return threadOf(row, panels, canComment), nil
+	return threadOf(row, panels, r), nil
 }
 
 func (s *Service) latestPanels(ctx context.Context, sc scope) (map[string]struct{}, error) {

@@ -944,7 +944,7 @@ export interface paths {
         head?: never;
         /**
          * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. A caller with only Comment resolves only a thread they started, and anyone else answers 403 `not_starter`; a caller who can edit resolves any thread, and reopening is open to every commenter. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
          */
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
@@ -1030,7 +1030,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve a thread.
-         * @description The path takes the thread's id or the id of any of its messages. The body is optional. `version` names the dashboard version that fixed the thread; it must be at least the version the thread is on (422 `invalid_version`) and at most the dashboard's latest version (422 `unknown_version`), and it is refused on a finding or an annotation. Resolving a thread that is already resolved answers 200 with the thread unchanged and records nothing. A real change is recorded as a `thread.resolved` activity event, and on a dashboard thread it sends `comment.updated` to the dashboard's event stream. Needs Comment on the thread's target.
+         * @description The path takes the thread's id or the id of any of its messages. The body is optional. `version` names the dashboard version that fixed the thread; it must be at least the version the thread is on (422 `invalid_version`) and at most the dashboard's latest version (422 `unknown_version`), and it is refused on a finding or an annotation. Resolving a thread that is already resolved answers 200 with the thread unchanged and records nothing. A real change is recorded as a `thread.resolved` activity event, and on a dashboard thread it sends `comment.updated` to the dashboard's event stream. Needs Comment on the thread's target, and a caller with only Comment resolves only a thread they started: for anyone else it answers 403 `not_starter`, and a caller who can edit resolves any thread.
          */
         post: operations["resolveThread"];
         delete?: never;

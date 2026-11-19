@@ -471,6 +471,47 @@ func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([
 	return items, nil
 }
 
+const listMessagesByID = `-- name: ListMessagesByID :many
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id FROM thread_messages WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListMessagesByID(ctx context.Context, ids []pgtype.UUID) ([]ThreadMessage, error) {
+	rows, err := q.db.Query(ctx, listMessagesByID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ThreadMessage
+	for rows.Next() {
+		var i ThreadMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.ThreadID,
+			&i.Body,
+			&i.AuthorKind,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.Origin,
+			&i.OriginClient,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EditedAt,
+			&i.RunID,
+			&i.RunAssignedKind,
+			&i.ReplyToID,
+			&i.ObservationBlockID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReplyQuotes = `-- name: ListReplyQuotes :many
 SELECT m.id AS message_id, q.id AS quoted_id, q.author_kind, q.author_id, q.author_name, q.origin, q.origin_client,
   q.run_id, q.run_assigned_kind, left(q.body, 200)::text AS excerpt

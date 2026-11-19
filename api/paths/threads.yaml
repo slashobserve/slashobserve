@@ -257,7 +257,7 @@ threads-threadid-resolve:
       `version` names the dashboard version that fixed the thread; it must be at least the version the thread is on (422 `invalid_version`) and at most the dashboard's latest version (422 `unknown_version`), and it is refused on a finding or an annotation.
       Resolving a thread that is already resolved answers 200 with the thread unchanged and records nothing.
       A real change is recorded as a `thread.resolved` activity event, and on a dashboard thread it sends `comment.updated` to the dashboard's event stream.
-      Needs Comment on the thread's target.
+      Needs Comment on the thread's target, and a caller with only Comment resolves only a thread they started: for anyone else it answers 403 `not_starter`, and a caller who can edit resolves any thread.
     requestBody:
       required: false
       content:

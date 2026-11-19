@@ -59,6 +59,9 @@ RETURNING *;
 -- name: GetRunProposalTitle :one
 SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id LIMIT 1;
 
+-- name: ListMessagesByID :many
+SELECT * FROM thread_messages WHERE id = ANY(@ids::uuid[]);
+
 -- name: GetMessage :one
 SELECT * FROM thread_messages WHERE id = @id;
 

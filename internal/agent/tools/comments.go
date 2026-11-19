@@ -25,6 +25,7 @@ const (
 	codeUnknownVersion    = "unknown_version"
 	codeUnknownPanel      = "unknown_panel"
 	codeNotAuthor         = "not_author"
+	codeNotStarter        = "not_starter"
 	commentNotFoundNotice = "comment or target not found"
 )
 
@@ -214,6 +215,8 @@ func commentFailure(err error) (Result, error) {
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	case errors.Is(err, threads.ErrNotAuthor):
 		return toolError(codeNotAuthor, err.Error()), nil
+	case errors.Is(err, threads.ErrNotStarter):
+		return toolError(codeNotStarter, err.Error()), nil
 	case errors.Is(err, threads.ErrUnknownPanel):
 		return toolError(codeUnknownPanel, err.Error()), nil
 	case errors.Is(err, threads.ErrUnknownVersion):

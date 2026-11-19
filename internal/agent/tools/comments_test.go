@@ -277,6 +277,7 @@ func TestCommentFailure(t *testing.T) {
 		{name: "dashboard not found", err: dashboards.ErrNotFound, wantCode: codeNotFound},
 		{name: "no ability", err: folders.ErrForbidden, wantCode: codeForbiddenRole, wantMsg: roleDeniedMessage},
 		{name: "not the author", err: threads.ErrNotAuthor, wantCode: codeNotAuthor, wantMsg: threads.ErrNotAuthor.Error()},
+		{name: "not the starter", err: threads.ErrNotStarter, wantCode: codeNotStarter, wantMsg: threads.ErrNotStarter.Error()},
 		{name: "unknown panel", err: threads.ErrUnknownPanel, wantCode: codeUnknownPanel, wantMsg: threads.ErrUnknownPanel.Error()},
 		{name: "unknown version", err: threads.ErrUnknownVersion, wantCode: codeUnknownVersion, wantMsg: threads.ErrUnknownVersion.Error()},
 		{name: "internal", err: internal, wantErr: internal},

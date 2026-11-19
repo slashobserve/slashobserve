@@ -762,7 +762,7 @@ func TestCommentJSONAlwaysHasMentionsAndNullableEditAndResolver(t *testing.T) {
 	dash := r.createDashboard(t)
 	comment := r.createComment(t, dash, NewComment{Version: 1, Body: "plain"})
 
-	raw, err := json.Marshal(newCommentJSON(comment, true))
+	raw, err := json.Marshal(newCommentJSON(comment))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -787,28 +787,27 @@ func TestCommentJSONAlwaysHasMentionsAndNullableEditAndResolver(t *testing.T) {
 	}
 }
 
-func TestCommentJSONAllowedActionsFollowTheThreadMachineAndTheCaller(t *testing.T) {
+func TestCommentJSONAllowedActionsFollowTheThreadAndTheRevision(t *testing.T) {
 	running := &CommentRevision{ID: "r", Status: "running"}
 	queued := &CommentRevision{ID: "r", Status: "queued"}
 	finished := &CommentRevision{ID: "r", Status: "succeeded"}
+	both := []string{"reply", "resolve"}
 	cases := []struct {
-		name       string
-		comment    Comment
-		canComment bool
-		want       []string
+		name    string
+		comment Comment
+		want    []string
 	}{
-		{"a viewer sees nothing on an open thread", Comment{Status: StatusOpen}, false, []string{}},
-		{"a viewer sees nothing on a resolved thread", Comment{Status: StatusResolved}, false, []string{}},
-		{"a commenter may reply and resolve an open thread", Comment{Status: StatusOpen}, true, []string{"reply", "resolve"}},
-		{"a commenter may reply and reopen a resolved thread", Comment{Status: StatusResolved}, true, []string{"reply", "reopen"}},
-		{"a running revision holds back resolve", Comment{Status: StatusOpen, Revision: running}, true, []string{"reply"}},
-		{"a queued revision holds back resolve", Comment{Status: StatusOpen, Revision: queued}, true, []string{"reply"}},
-		{"a finished revision does not hold back resolve", Comment{Status: StatusOpen, Revision: finished}, true, []string{"reply", "resolve"}},
-		{"a reply carries no actions", Comment{Status: StatusOpen, ParentID: "root"}, true, []string{}},
+		{"a thread that allows nothing shows nothing", Comment{Status: StatusOpen}, []string{}},
+		{"an open thread shows what it allows", Comment{Status: StatusOpen, AllowedActions: both}, both},
+		{"a resolved thread shows reply and reopen", Comment{Status: StatusResolved, AllowedActions: []string{"reply", "reopen"}}, []string{"reply", "reopen"}},
+		{"a running revision holds back resolve", Comment{Status: StatusOpen, AllowedActions: both, Revision: running}, []string{"reply"}},
+		{"a queued revision holds back resolve", Comment{Status: StatusOpen, AllowedActions: both, Revision: queued}, []string{"reply"}},
+		{"a finished revision does not hold back resolve", Comment{Status: StatusOpen, AllowedActions: both, Revision: finished}, both},
+		{"a reply carries no actions", Comment{Status: StatusOpen, ParentID: "root", AllowedActions: both}, []string{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			raw, err := json.Marshal(newCommentJSON(tc.comment, tc.canComment))
+			raw, err := json.Marshal(newCommentJSON(tc.comment))
 			if err != nil {
 				t.Fatal(err)
 			}

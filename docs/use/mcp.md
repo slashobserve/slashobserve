@@ -190,6 +190,7 @@ A `proposal:<uuid>` target is read with View and written with Comment on the pro
 Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
+A caller with only Comment resolves only a thread they started and gets `not_starter` on any other; a caller who can edit resolves any.
 A comment id is the id of any message of the thread, and the first message's id is the thread's.
 
 On an observation, `create_comment` and `reply_to_comment` take `block_id`, the block the message is about from `get_observation`, and omit it for the whole observation; a block of another observation, or a `block_id` on any other target, answers `invalid_request`.

@@ -11,23 +11,26 @@ func TestThreadMachineIsConsistent(t *testing.T) {
 	}
 }
 
-func TestAllowedActionsFollowTheStatusAndTheCommentAbility(t *testing.T) {
+func TestAllowedActionsFollowTheStatusAndWhatTheCallerMayDo(t *testing.T) {
 	tests := []struct {
-		name       string
-		status     string
-		canComment bool
-		want       []string
+		name   string
+		status string
+		rights rights
+		want   []string
 	}{
-		{"open with comment", StatusOpen, true, []string{"reply", "resolve"}},
-		{"resolved with comment", StatusResolved, true, []string{"reply", "reopen"}},
-		{"open without comment", StatusOpen, false, []string{}},
-		{"resolved without comment", StatusResolved, false, []string{}},
+		{"the starter of an open thread", StatusOpen, rights{Comment: true, Started: true}, []string{"reply", "resolve"}},
+		{"a commenter who did not start an open thread", StatusOpen, rights{Comment: true}, []string{"reply"}},
+		{"an editor who did not start an open thread", StatusOpen, rights{Comment: true, Edit: true}, []string{"reply", "resolve"}},
+		{"a commenter on a resolved thread they did not start", StatusResolved, rights{Comment: true}, []string{"reply", "reopen"}},
+		{"a viewer who started an open thread", StatusOpen, rights{Started: true}, []string{}},
+		{"open without comment", StatusOpen, rights{}, []string{}},
+		{"resolved without comment", StatusResolved, rights{}, []string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := allowedActions(tt.status, tt.canComment)
+			got := allowedActions(tt.status, tt.rights)
 			if got == nil || !slices.Equal(got, tt.want) {
-				t.Errorf("allowedActions(%s, %v) = %#v, want %#v", tt.status, tt.canComment, got, tt.want)
+				t.Errorf("allowedActions(%s, %+v) = %#v, want %#v", tt.status, tt.rights, got, tt.want)
 			}
 		})
 	}
