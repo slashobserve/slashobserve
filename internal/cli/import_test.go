@@ -76,13 +76,14 @@ func TestReadImportSource(t *testing.T) {
 		stdin   string
 		wantLen int
 		wantErr string
+		usage   bool
 	}{
 		{name: "a file", arg: small, wantLen: 3},
 		{name: "a file at the limit", arg: exact, wantLen: maxImportBytes},
 		{name: "a file over the limit", arg: over, wantErr: over + " is larger than 8 MiB, the import limit"},
 		{name: "an empty file", arg: empty, wantErr: empty + " is empty"},
-		{name: "a missing file", arg: filepath.Join(dir, "missing.json"), wantErr: "read " + filepath.Join(dir, "missing.json") + ": "},
-		{name: "a directory", arg: dir, wantErr: "read " + dir + ": "},
+		{name: "a missing file", arg: filepath.Join(dir, "missing.json"), wantErr: "read " + filepath.Join(dir, "missing.json") + ": ", usage: true},
+		{name: "a directory", arg: dir, wantErr: "read " + dir + ": ", usage: true},
 		{name: "standard input", arg: "-", stdin: "{}", wantLen: 2},
 		{name: "empty standard input", arg: "-", wantErr: "standard input is empty"},
 		{name: "standard input over the limit", arg: "-", stdin: strings.Repeat("a", maxImportBytes+1), wantErr: "standard input is larger than 8 MiB, the import limit"},
@@ -95,8 +96,8 @@ func TestReadImportSource(t *testing.T) {
 					t.Fatalf("error %v, want prefix %q", err, tc.wantErr)
 				}
 				var usage usageError
-				if errors.As(err, &usage) {
-					t.Fatalf("a read problem is exit 1, got a usage error %v", err)
+				if errors.As(err, &usage) != tc.usage {
+					t.Fatalf("a file that cannot be read is exit 2 and a bad body exit 1, got %v", err)
 				}
 				return
 			}
