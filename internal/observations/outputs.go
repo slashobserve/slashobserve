@@ -283,13 +283,7 @@ func (s *Service) panelsToMake(ctx context.Context, by auth.Principal, id, block
 	if err != nil {
 		return dbsqlc.Observation{}, nil, err
 	}
-	viewer := actor.Of(by, origin.Origin{}, "")
-	var panels []dbsqlc.ObservationBlock
-	for _, b := range rows {
-		if Kind(b.Kind) == KindPanel && BlockState(b.State) == BlockLive && visibleTo(b, abilities, viewer) && (!blockID.Valid || b.ID == blockID) {
-			panels = append(panels, b)
-		}
-	}
+	panels := livePanels(rows, abilities, actor.Of(by, origin.Origin{}, ""), blockID)
 	switch {
 	case blockID.Valid && len(panels) == 0:
 		return dbsqlc.Observation{}, nil, ErrNotFound
@@ -297,6 +291,16 @@ func (s *Service) panelsToMake(ctx context.Context, by auth.Principal, id, block
 		return dbsqlc.Observation{}, nil, ErrNoPanels
 	}
 	return parent, panels, nil
+}
+
+func livePanels(rows []dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor, only pgtype.UUID) []dbsqlc.ObservationBlock {
+	var panels []dbsqlc.ObservationBlock
+	for _, b := range rows {
+		if Kind(b.Kind) == KindPanel && BlockState(b.State) == BlockLive && visibleTo(b, abilities, viewer) && (!only.Valid || b.ID == only) {
+			panels = append(panels, b)
+		}
+	}
+	return panels
 }
 
 func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, key outputKey, raw []byte, again bool) (dashboards.Dashboard, dashboards.Version, bool, error) {
