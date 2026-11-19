@@ -251,6 +251,10 @@ function ConversationView({
 
   const openSent = useOpenSent(appended)
 
+  function focusList() {
+    list.current?.focus({ preventScroll: true })
+  }
+
   const agentOff = agent.data?.available === false
   const hasDashboard = dashboardId !== null
   const latestTurn = turns.at(-1)
@@ -272,8 +276,11 @@ function ConversationView({
       )}
       <div
         ref={list}
+        role="region"
+        aria-label="Conversation"
+        tabIndex={-1}
         className={cn(
-          "flex w-full flex-1 flex-col gap-[18px] pt-2 pb-6",
+          "flex w-full flex-1 flex-col gap-[18px] pt-2 pb-6 outline-none",
           !pane && "max-w-[760px]"
         )}
       >
@@ -319,6 +326,7 @@ function ConversationView({
                                 prompt={turn.summary.prompt}
                                 disabled={active}
                                 onSent={openSent}
+                                afterSent={focusList}
                               />
                             )}
                             <AskAgainButton
@@ -327,6 +335,7 @@ function ConversationView({
                               followsId={hasDashboard ? undefined : turn.id}
                               disabled={active}
                               onSent={openSent}
+                              afterSent={focusList}
                             />
                           </>
                         )

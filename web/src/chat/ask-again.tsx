@@ -17,10 +17,11 @@ type SendProps = {
   followsId?: string
   disabled: boolean
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
+  afterSent?: () => void
 }
 
 function useAsk(
-  { prompt, dashboardId, followsId, onSent }: SendProps,
+  { prompt, dashboardId, followsId, onSent, afterSent }: SendProps,
   opensOverride?: Opens
 ) {
   const create = useCreateObserveRequest()
@@ -36,6 +37,7 @@ function useAsk(
     try {
       const request = await create.mutateAsync(plan.input)
       await onSent(request, opensOverride ?? plan.opens)
+      afterSent?.()
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     }
@@ -51,6 +53,7 @@ export function AskAgainButton(props: SendProps) {
       variant="ghost"
       size="sm"
       disabled={props.disabled || pending}
+      focusableWhenDisabled
       aria-busy={pending}
       onClick={() => void ask()}
     >
@@ -73,6 +76,7 @@ export function AskOnButton({
       variant="ghost"
       size="sm"
       disabled={props.disabled || pending}
+      focusableWhenDisabled
       aria-busy={pending}
       onClick={() => void ask()}
     >
