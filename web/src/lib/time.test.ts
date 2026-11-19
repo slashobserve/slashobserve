@@ -83,6 +83,20 @@ describe("parseUserTime", () => {
     )
   })
 
+  it("reads a date-time in the given zone", () => {
+    expect(parseUserTime("2026-10-17 09:00", "Asia/Tokyo")).toBe(
+      String(Date.UTC(2026, 9, 17, 0, 0, 0))
+    )
+    expect(parseUserTime("2026-10-17 09:00:30", "UTC")).toBe(
+      String(Date.UTC(2026, 9, 17, 9, 0, 30))
+    )
+  })
+
+  it("rejects a date-time that does not exist in the zone", () => {
+    expect(parseUserTime("2026-03-08 02:30", "America/New_York")).toBeNull()
+    expect(parseUserTime("2026-02-31 09:00", "Asia/Tokyo")).toBeNull()
+  })
+
   it("rejects invalid input", () => {
     expect(parseUserTime("yesterday")).toBeNull()
     expect(parseUserTime("2026-02-31 09:00")).toBeNull()
@@ -91,6 +105,14 @@ describe("parseUserTime", () => {
 })
 
 describe("formatting", () => {
+  it("formats an epoch value in the given zone", () => {
+    const ms = Date.UTC(2026, 9, 17, 0, 5, 7)
+    expect(formatTimeValue(String(ms), "Asia/Tokyo")).toBe(
+      "2026-10-17 09:05:07"
+    )
+    expect(formatTimeValue("now-6h", "Asia/Tokyo")).toBe("now-6h")
+  })
+
   it("formats epoch values in local time and leaves others alone", () => {
     const ms = new Date(2026, 9, 17, 9, 5, 7).getTime()
     expect(formatTimeValue(String(ms))).toBe("2026-10-17 09:05:07")
@@ -368,6 +390,23 @@ describe("resolveTime", () => {
         new Date(Date.parse(c.want)).toISOString()
       )
     }
+  })
+
+  it("starts the week on the person's day unless the dashboard sets one", () => {
+    const wednesday = Date.parse("2026-11-18T12:00:00Z")
+    const start = (settings: Parameters<typeof timeOptionsFor>[0]) =>
+      new Date(
+        resolveTime(
+          "now/w",
+          wednesday,
+          false,
+          timeOptionsFor(settings, "sunday")
+        )
+      ).toISOString()
+    expect(start({ timezone: "utc" })).toBe("2026-11-15T00:00:00.000Z")
+    expect(start({ timezone: "utc", weekStart: "monday" })).toBe(
+      "2026-11-16T00:00:00.000Z"
+    )
   })
 
   it("resolves in UTC with Monday weeks without options", () => {

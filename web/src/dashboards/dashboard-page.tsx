@@ -35,6 +35,7 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
+import { preferredZone, usePreferences } from "@/lib/preferences"
 import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
@@ -284,10 +285,13 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const viewZone = search.tz ?? spec.timezone
+  const preferences = usePreferences()
+  const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
+  const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
-    () => timeOptionsFor({ ...spec, timezone: viewZone }),
-    [spec, viewZone]
+    () =>
+      timeOptionsFor({ ...spec, timezone: viewZone }, preferences.weekStart),
+    [spec, viewZone, preferences.weekStart]
   )
 
   const source = useMemo<PanelSource>(
@@ -723,12 +727,10 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
+        zone={displayZone(undefined, viewZone) ?? null}
       />
       {spec.timePicker?.hidden ? null : (
-        <ZonePicker
-          value={viewZone ?? "browser"}
-          dashboardZone={spec.timezone}
-        />
+        <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
       )}
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker

@@ -32,7 +32,7 @@ export function isTimeValue(value: string): boolean {
   return timeExpression.test(value) || epochMillis.test(value)
 }
 
-export function parseUserTime(input: string): string | null {
+export function parseUserTime(input: string, zone?: string): string | null {
   const text = input.trim()
   if (isTimeValue(text)) return text
   const match = localDateTime.exec(text)
@@ -40,18 +40,34 @@ export function parseUserTime(input: string): string | null {
   const [year, month, day, hour, minute, second] = match
     .slice(1)
     .map((part) => (part === undefined ? 0 : Number(part)))
-  const date = new Date(year, month - 1, day, hour, minute, second)
+  const ms =
+    zone === undefined
+      ? new Date(year, month - 1, day, hour, minute, second).getTime()
+      : fromLocal(zone, year, month - 1, day, hour, minute, second)
+  const back = zone === undefined ? browserFields(ms) : localTime(ms, zone)
   if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute ||
-    date.getSeconds() !== second
+    back.year !== year ||
+    back.month !== month - 1 ||
+    back.day !== day ||
+    back.hour !== hour ||
+    back.minute !== minute ||
+    back.second !== second
   ) {
     return null
   }
-  return String(date.getTime())
+  return String(ms)
+}
+
+function browserFields(ms: number) {
+  const date = new Date(ms)
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+    second: date.getSeconds(),
+  }
 }
 
 function pad(value: number): string {
@@ -95,8 +111,8 @@ export function formatDateTimeMs(value: string | number | Date): string {
   return zonedDateTimeMs(value, undefined)
 }
 
-export function formatTimeValue(value: string): string {
-  return zonedTimeValue(value, undefined)
+export function formatTimeValue(value: string, zone?: string): string {
+  return zonedTimeValue(value, zone)
 }
 
 export function displayZone(
@@ -283,7 +299,10 @@ function nowDelayMs(value: string | undefined): number | undefined {
   return Number(match[1]) * absoluteUnitMs[match[2] as "s" | "m" | "h"]
 }
 
-export function timeOptionsFor(settings: TimeSettings): TimeOptions {
+export function timeOptionsFor(
+  settings: TimeSettings,
+  defaultWeekStart?: Dashboard["weekStart"]
+): TimeOptions {
   const { timezone } = settings
   const zone =
     timezone === "browser"
@@ -293,7 +312,7 @@ export function timeOptionsFor(settings: TimeSettings): TimeOptions {
         : timezone
   return {
     zone: knownZone(zone),
-    weekStart: settings.weekStart,
+    weekStart: settings.weekStart ?? defaultWeekStart,
     fiscalYearStartMonth: settings.fiscalYearStartMonth,
     nowDelayMs: nowDelayMs(settings.nowDelay),
   }
