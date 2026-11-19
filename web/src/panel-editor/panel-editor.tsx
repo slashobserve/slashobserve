@@ -74,6 +74,7 @@ import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
 import {
   onlyEmptyResult,
+  onlyGridOverlap,
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
@@ -280,7 +281,8 @@ export default function PanelEditor({
     source: Dashboard,
     parent: number,
     panelToSave: EditablePanel,
-    acceptEmpty = false
+    acceptEmpty = false,
+    replaced = false
   ) {
     if (!validate) return
     const entry = findPanel(source, panelToSave.id)
@@ -339,6 +341,15 @@ export default function PanelEditor({
                 latest: error.latestVersion,
                 conflicts: error.conflicts,
               })
+              return
+            }
+            if (
+              error.status === 422 &&
+              adding &&
+              !replaced &&
+              onlyGridOverlap(error.issues)
+            ) {
+              void applyToLatest(acceptEmpty, true)
               return
             }
             if (error.status === 422) {
@@ -432,13 +443,14 @@ export default function PanelEditor({
     }
   }
 
-  function applyToLatest(acceptEmpty = false) {
+  function applyToLatest(acceptEmpty = false, replaced = false) {
     return withLatestPanel(({ spec: latestSpec, version: latestOf, panel }) =>
       submit(
         latestSpec,
         latestOf,
         rebasePanel(draft.base, draft.panel, panel),
-        acceptEmpty
+        acceptEmpty,
+        replaced
       )
     )
   }

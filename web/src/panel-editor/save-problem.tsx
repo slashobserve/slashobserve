@@ -49,6 +49,12 @@ export function onlyEmptyResult(issues: readonly ApiIssue[]): boolean {
   )
 }
 
+export function onlyGridOverlap(issues: readonly ApiIssue[]): boolean {
+  return (
+    issues.length > 0 && issues.every((issue) => issue.code === "grid_overlap")
+  )
+}
+
 export function splitRejected(
   issues: ApiIssue[],
   pointer: string,

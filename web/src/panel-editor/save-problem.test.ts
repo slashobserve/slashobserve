@@ -4,6 +4,7 @@ import type { ApiIssue } from "@/api/errors"
 
 import {
   onlyEmptyResult,
+  onlyGridOverlap,
   rejectedQueryLines,
   showsProblem,
   splitRejected,
@@ -278,5 +279,20 @@ describe("onlyEmptyResult", () => {
 
   it("is false for no issues", () => {
     expect(onlyEmptyResult([])).toBe(false)
+  })
+})
+
+describe("onlyGridOverlap", () => {
+  it("is true only when every issue is an overlap", () => {
+    expect(onlyGridOverlap([issue("/panels/3/gridPos", "grid_overlap")])).toBe(
+      true
+    )
+    expect(
+      onlyGridOverlap([
+        issue("/panels/3/gridPos", "grid_overlap"),
+        issue("/panels/3/queries/0/query"),
+      ])
+    ).toBe(false)
+    expect(onlyGridOverlap([])).toBe(false)
   })
 })
