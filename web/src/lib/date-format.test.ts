@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { formatDate, parseDate } from "./date-format"
+import { formatDate, parseDate, zoneLabel } from "./date-format"
 
 const noon = Date.UTC(2026, 9, 7, 15, 4, 9, 7)
 
@@ -61,5 +61,12 @@ describe("parseDate", () => {
       Date.UTC(2026, 9, 7)
     )
     expect(parseDate("2026x10x07", "YYYY.MM.DD", true)).toBeNull()
+  })
+})
+
+describe("zoneLabel", () => {
+  it("names the zone the browser formats in", () => {
+    const label = zoneLabel(Date.UTC(2026, 10, 6, 12))
+    expect(label).toMatch(/^(UTC|GMT[+-]\d{1,2}(:\d{2})?|[A-Z]{2,5})$/)
   })
 })

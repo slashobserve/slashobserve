@@ -92,6 +92,7 @@ type AgentRequestBuild struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	PlannedPanels  int32
+	FolderID       pgtype.UUID
 }
 
 type AgentWorker struct {
@@ -223,6 +224,12 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DashboardViewDay struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	Day         pgtype.Date
+}
+
 type DraftQuerySpend struct {
 	PrincipalKey string
 	WindowStart  pgtype.Timestamptz
@@ -247,6 +254,7 @@ type Finding struct {
 	OriginClient   pgtype.Text
 	FolderID       pgtype.UUID
 	ObservationID  pgtype.UUID
+	AskDashboardID pgtype.UUID
 }
 
 type Folder struct {
@@ -315,6 +323,12 @@ type GrafanaSyncItem struct {
 	UnverifiedPanels  int32
 	PlaceholderPanels int32
 	Error             pgtype.Text
+}
+
+type HomeDashboard struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	SetAt       pgtype.Timestamptz
 }
 
 type Import struct {
@@ -452,6 +466,22 @@ type ObservationBlock struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type ObservationDashboard struct {
+	ObservationID pgtype.UUID
+	BlockID       pgtype.UUID
+	DashboardID   pgtype.UUID
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
+type ObservationPin struct {
+	ObservationID pgtype.UUID
+	DashboardID   pgtype.UUID
+	AnnotationID  pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
 type ObservationRca struct {
 	ID               pgtype.UUID
 	ObservationID    pgtype.UUID
@@ -484,6 +514,7 @@ type OutboundDomain struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+	ForConnection bool
 }
 
 type Proposal struct {
@@ -504,6 +535,7 @@ type Proposal struct {
 	ClosedByName pgtype.Text
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	CloseReason  pgtype.Text
 }
 
 type ProposalRevision struct {
@@ -544,6 +576,7 @@ type PublicLink struct {
 	CreatedAt     pgtype.Timestamptz
 	LastViewedAt  pgtype.Timestamptz
 	RcaID         pgtype.UUID
+	Label         string
 }
 
 type RunSession struct {
@@ -733,6 +766,7 @@ type Webhook struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 }
 
 type WebhookDelivery struct {

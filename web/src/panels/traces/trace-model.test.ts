@@ -113,6 +113,28 @@ describe("traceModel columns", () => {
       expect(result.formatDuration(100)).toBe("100 ms")
   })
 
+  it("reads the status message the span set with its status", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a", "b", "c"]),
+        field("ParentSpanId", "string", ["", "a", "a"]),
+        field("Timestamp", "time", [5000, 5010, 5020]),
+        field("StatusCode", "string", ["Error", "Unset", "Error"]),
+        field("StatusMessage", "string", ["card declined", "", null]),
+      ])
+    )
+    expect(spans.map((span) => span.statusMessage)).toEqual([
+      "card declined",
+      "",
+      "",
+    ])
+  })
+
+  it("has no status message when the frame has no such column", () => {
+    const spans = spansOf(model(flatFields(2)))
+    expect(spans.map((span) => span.statusMessage)).toEqual(["", ""])
+  })
+
   it("keeps a lower-case duration column in milliseconds", () => {
     const fields = grafana()
     const spans = spansOf(model(fields))
@@ -183,7 +205,7 @@ describe("traceModel tree", () => {
     expect(spans.map((span) => span.id)).toEqual(["a", "b"])
   })
 
-  it("shows the first trace and notes how many there are", () => {
+  it("shows the first trace and counts how many there are", () => {
     const result = model([
       field("traceID", "string", ["t1", "t2", "t3"]),
       field("spanID", "string", ["a", "b", "c"]),
@@ -194,8 +216,31 @@ describe("traceModel tree", () => {
     expect(spansOf(result).map((span) => span.id)).toEqual(["a"])
     if (result.reason === null) {
       expect(result.traceId).toBe("t1")
-      expect(result.notes).toEqual(["Showing trace 1 of 3."])
+      expect(result.traceCount).toBe(3)
+      expect(result.traceIndex).toBe(0)
+      expect(result.notes).toEqual([])
     }
+  })
+
+  it("shows the trace at the index asked for and clamps an index out of range", () => {
+    const fields = [
+      field("traceID", "string", ["t1", "t2", "t3"]),
+      field("spanID", "string", ["a", "b", "c"]),
+      field("parentSpanID", "string", ["", "", ""]),
+      field("startTime", "time", [1, 2, 3]),
+      field("duration", "number", [1, 1, 1]),
+    ]
+    const at = (traceIndex: number) =>
+      traceModel([{ ref: "A", fields }], createFieldResolver(panel), {
+        traceIndex,
+      })
+    const second = at(1)
+    expect(spansOf(second).map((span) => span.id)).toEqual(["b"])
+    if (second.reason === null) expect(second.traceIndex).toBe(1)
+    const past = at(9)
+    expect(spansOf(past).map((span) => span.id)).toEqual(["c"])
+    if (past.reason === null) expect(past.traceIndex).toBe(2)
+    expect(spansOf(at(-4)).map((span) => span.id)).toEqual(["a"])
   })
 
   it("caps the spans of a trace and says so", () => {

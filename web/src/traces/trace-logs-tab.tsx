@@ -22,6 +22,7 @@ import type { Span } from "@/panels/traces/trace-model"
 
 import {
   lineCountText,
+  logsBodyHeight,
   logsDatasourceCandidates,
   logsDatasourceFor,
   matchNote,
@@ -54,6 +55,7 @@ const panelDisplay = {
   details: true,
   detailsMode: "inline",
   controls: false,
+  wrap: true,
   order: "oldest",
 }
 
@@ -281,15 +283,15 @@ function TraceLogsBody({
         </ol>
       )
     }
-    return height > 0 ? (
+    return (
       <ExploreLogs
         frames={frames}
         datasourceUid={datasource.uid}
         title={title}
-        height={height}
+        height={logsBodyHeight(height)}
         display={panelDisplay}
       />
-    ) : null
+    )
   }
 
   return (

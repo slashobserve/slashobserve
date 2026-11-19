@@ -30,7 +30,16 @@ describe("validateListSearch", () => {
   it("names every filter so a dropped value overrides the raw URL", () => {
     expect(
       Object.keys(validateListSearch({ made_by: "bogus" })).sort()
-    ).toEqual(["datasource", "folder", "kind", "made_by", "page", "q", "tag"])
+    ).toEqual([
+      "datasource",
+      "folder",
+      "kind",
+      "made_by",
+      "page",
+      "q",
+      "sort",
+      "tag",
+    ])
   })
 
   it("keeps a folder id in lower case and drops anything else", () => {
@@ -52,6 +61,16 @@ describe("validateListSearch", () => {
     })
     for (const kind of ["", "healthy", "NO_DATA", 7, null]) {
       expect(validateListSearch({ kind })).toEqual({})
+    }
+  })
+
+  it("keeps the views sort and drops any other sort", () => {
+    expect(validateListSearch({ sort: "views" })).toEqual({ sort: "views" })
+    expect(validateListSearch({ sort: ["views", "x"] })).toEqual({
+      sort: "views",
+    })
+    for (const sort of ["", "folder", "VIEWS", 7, null]) {
+      expect(validateListSearch({ sort })).toEqual({})
     }
   })
 
@@ -318,6 +337,11 @@ describe("toFilters and hasFilters", () => {
     expect(toFilters({}).problem).toBeUndefined()
   })
 
+  it("asks the server for the views order only when the sort is views", () => {
+    expect(toFilters({ sort: "views" }).order).toBe("views")
+    expect(toFilters({}).order).toBeUndefined()
+  })
+
   it("reports whether any filter is set", () => {
     expect(hasFilters({})).toBe(false)
     expect(hasFilters({ q: "a" })).toBe(true)
@@ -329,6 +353,7 @@ describe("toFilters and hasFilters", () => {
     expect(hasFilters({ kind: "imported" })).toBe(true)
     expect(hasFilters({ tag: undefined })).toBe(false)
     expect(hasFilters({ page: 3 })).toBe(false)
+    expect(hasFilters({ sort: "views" })).toBe(false)
   })
 })
 

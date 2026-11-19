@@ -390,6 +390,7 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 	}
 	ctx, cancel := context.WithTimeout(ctx, checkPanelDeadline(skip))
 	defer cancel()
+	selections = r.firstRepeatCopy(ctx, d, e, rng, selections, user, st)
 	maxDataPoints := checkMaxDataPoints
 	if e.Panel.MaxDataPoints > 0 {
 		maxDataPoints = min(maxDataPoints, e.Panel.MaxDataPoints)
@@ -424,6 +425,49 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 		return []spec.Issue{issue(e.Pointer+"/queries", CodeQueryEmpty, "%s", emptyPanelMessage)}
 	}
 	return nil
+}
+
+func (r *Runner) firstRepeatCopy(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) map[string]Selection {
+	names := []string{e.Panel.Repeat}
+	if e.Row != nil {
+		names = append(names, e.Row.Repeat)
+	}
+	cloned := false
+	copied := selections
+	for _, name := range names {
+		sel, ok := selections[name]
+		if name == "" || !ok || (!sel.All && len(sel.Values) <= 1) {
+			continue
+		}
+		first, ok := r.firstValue(ctx, d, name, rng, selections, user, st, sel)
+		if !ok {
+			continue
+		}
+		if !cloned {
+			copied, cloned = maps.Clone(selections), true
+		}
+		copied[name] = Selection{Values: []string{first}}
+	}
+	return copied
+}
+
+func (r *Runner) firstValue(ctx context.Context, d *spec.Dashboard, name string, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) (string, bool) {
+	if !sel.All {
+		return sel.Values[0], true
+	}
+	idx := slices.IndexFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name })
+	if idx < 0 {
+		return "", false
+	}
+	values, err := r.resolveValues(ctx, d, idx, rng, selections, user, st)
+	if err != nil {
+		return "", false
+	}
+	values = slices.DeleteFunc(values, func(value string) bool { return value == "" })
+	if len(values) == 0 {
+		return "", false
+	}
+	return values[0], true
 }
 
 func emptyResultIsValid(p *spec.Panel) bool {

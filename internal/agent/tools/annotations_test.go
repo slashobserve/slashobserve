@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -265,6 +266,8 @@ func TestAnnotationFailureMapsServiceErrors(t *testing.T) {
 		{annotations.ErrNotFound, codeNotFound, "annotation or dashboard not found"},
 		{annotations.ErrNotCreator, codeNotCreator, annotations.ErrNotCreator.Error()},
 		{annotations.ErrForbidden, codeForbiddenRole, roleDeniedMessage},
+		{forbidden.Need(annotations.ErrForbidden, forbidden.NeedsAccess("edit", "Payments")), codeForbiddenRole, "your role does not allow this; it needs Edit on Payments"},
+		{forbidden.Need(annotations.ErrForbidden, forbidden.NeedsRole("editor")), codeForbiddenRole, "your role does not allow this; it needs the Editor role"},
 	}
 	for _, c := range cases {
 		res, err := annotationFailure(c.err)

@@ -155,3 +155,13 @@ describe("TextBlock", () => {
     expect(screen.getByRole("button", { name: "Edit" })).toHaveFocus()
   })
 })
+
+describe("TextBlock long tokens", () => {
+  it("lets an unbroken word wrap instead of widening the page", () => {
+    const { container } = renderWithProviders(
+      <TextBlock block={textBlock({ body: { markdown: "a".repeat(300) } })} />
+    )
+    const word = container.querySelector("p")
+    expect(word?.closest(".wrap-anywhere")).not.toBeNull()
+  })
+})

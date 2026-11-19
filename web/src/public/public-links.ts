@@ -80,3 +80,14 @@ export function frozenSelections(
   }
   return out
 }
+
+export function frozenValuesText(
+  link: Pick<PublicLink, "variables" | "selections">
+): string | null {
+  if (link.variables !== "frozen") return null
+  const entries = Object.entries(link.selections)
+  if (entries.length === 0) return "Uses the dashboard's default values"
+  return entries
+    .map(([name, values]) => `${name}: ${values.join(", ")}`)
+    .join("; ")
+}

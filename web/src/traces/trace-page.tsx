@@ -9,8 +9,8 @@ import {
   type ReactNode,
 } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { DownloadIcon, LogsIcon } from "lucide-react"
+import { Link, useNavigate, useRouter, useSearch } from "@tanstack/react-router"
+import { ArrowLeftIcon, DownloadIcon, LogsIcon } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
@@ -38,6 +38,7 @@ import {
 import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
+import { currentTraceOrigin } from "@/traces/trace-origin"
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
 import { TopRowTitle } from "@/shell/top-row-title"
@@ -63,16 +64,20 @@ import {
 } from "@/panels/traces/traces-panel"
 import type { DataPanel } from "@/spec"
 
+import { AddToDashboardAction } from "./add-to-dashboard-action"
+import { AddToObservationAction } from "./add-to-observation-action"
 import { wholeTrace, type Zoom } from "./minimap"
 import { TraceMinimap } from "./minimap.tsx"
 import {
   normaliseTraceId,
   traceDatasourceTypes,
+  traceViewDatasource,
   traceViewRange,
   type TraceViewSearch,
 } from "./search"
 import { traceQLAttribute } from "./search-query"
 import { TraceLogsSection } from "./trace-logs-tab"
+import { traceByIdQuery, tracesPanelFor } from "./trace-panel"
 import {
   criticalPathDisabledText,
   traceNotes,
@@ -150,7 +155,7 @@ function TraceForId({ id }: { id: string }) {
   const { search, update } = useTraceViewSearch()
   const datasources = useDatasources()
   const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
-  const datasource = eligible.find((candidate) => candidate.uid === search.ds)
+  const datasource = traceViewDatasource(eligible, search.ds)
   const range = traceViewRange(search)
   const actions: PageActions = {
     time: <TimeRangeControl value={range} onChange={update} />,
@@ -210,7 +215,11 @@ function TraceForId({ id }: { id: string }) {
 }
 
 type PageActions = { time: ReactNode; share: ReactNode }
-type TraceActions = { logs: ReactNode; download: ReactNode }
+type TraceActions = {
+  logs: ReactNode
+  keep: ReactNode
+  download: ReactNode
+}
 
 function TraceHeader({
   id,
@@ -225,6 +234,7 @@ function TraceHeader({
   traceActions?: TraceActions
   actions: PageActions
 }) {
+  const phone = usePhone()
   const title = model
     ? [model.rootService, model.rootOperation].filter(Boolean).join(" ")
     : ""
@@ -255,10 +265,18 @@ function TraceHeader({
       </TopRowTitle>
       <TopRowActions>
         {actions.time}
-        {traceActions?.logs}
+        {phone ? null : traceActions?.logs}
+        {phone ? null : traceActions?.keep}
         {actions.share}
         {traceActions?.download}
       </TopRowActions>
+      <BackToOrigin />
+      {phone ? (
+        <div className="flex flex-wrap gap-2">
+          {traceActions?.logs}
+          {traceActions?.keep}
+        </div>
+      ) : null}
       <h1 className="sr-only text-xl font-semibold tracking-[-0.01em] narrow:not-sr-only">
         {title || "Trace"}
       </h1>
@@ -275,6 +293,29 @@ function TraceHeader({
         </Stat>
       </div>
     </>
+  )
+}
+
+function BackToOrigin() {
+  const router = useRouter()
+  const origin = currentTraceOrigin()
+  if (origin === null) return null
+  return (
+    <a
+      href={origin.href}
+      onClick={(event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey) return
+        event.preventDefault()
+        router.history.push(origin.href)
+      }}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "sm" }),
+        "w-fit self-start no-underline"
+      )}
+    >
+      <ArrowLeftIcon aria-hidden="true" data-icon="inline-start" />
+      {origin.label}
+    </a>
   )
 }
 
@@ -700,6 +741,14 @@ function TraceExplorer({
     }
     onOpenIdChange(next)
   }
+  const keptPanel = tracesPanelFor({
+    id: "trace",
+    title: `Trace ${id.slice(0, 8)}`,
+    datasource: datasource.uid,
+    type: datasource.type,
+    query: traceByIdQuery(datasource.type, id),
+    y: 0,
+  })
   const openLogs = () => {
     onOpenIdChange(null)
     setLogsOpen(true)
@@ -741,7 +790,7 @@ function TraceExplorer({
 
   const status = [
     showPath
-      ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans add up to the ${model.formatDuration(model.duration)} total; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
+      ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans are the chain that decides when the trace ends; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
       : "",
     folded ? foldedToolbarHint : toolbarHint,
     folded ? foldedHint : "",
@@ -767,6 +816,16 @@ function TraceExplorer({
               <LogsIcon aria-hidden="true" data-icon="inline-start" />
               Logs for this trace
             </Button>
+          ),
+          keep: (
+            <>
+              <AddToDashboardAction size="default" panel={keptPanel} />
+              <AddToObservationAction
+                size="default"
+                range={range}
+                panel={keptPanel}
+              />
+            </>
           ),
           download: (
             <Button

@@ -64,6 +64,23 @@ func TestReadsRunUntilTheSixthTurnWithoutASaveAndThenAreRefused(t *testing.T) {
 	}
 }
 
+func TestAFindingSavedAfterARefusedReadLearnsHowManyWereRefused(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	for n := range 5 {
+		r.read(req, n)
+	}
+	r.read(req, 6)
+	var refused int
+	saved := r.call(req, "save_finding", `{"x":1}`, nil, func(ctx context.Context) (tools.Result, error) {
+		refused = tools.ReadsRefused(ctx)
+		return findingSaved(ctx)
+	})
+	if refused != 1 || settledOf(saved) != "finding" {
+		t.Fatalf("reads refused %d, meta %+v", refused, saved.Meta)
+	}
+}
+
 func TestAReadInATurnThatHoldsASaveRunsAfterTheSixthTurn(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
@@ -147,7 +164,7 @@ func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
 	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureValidationExhausted) {
 		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
 	}
-	want := "the dashboard still failed validation after 3 rejected saves in a row (last issues: unknown_field)"
+	want := "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1, p2; ask the agent to fix them one panel at a time (last issues: unknown_field)"
 	if row.Error.String != want {
 		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}

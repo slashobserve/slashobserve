@@ -3,12 +3,14 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 export type SettingsSectionId =
   | "appearance"
   | "connected-agents"
+  | "home-dashboard"
   | "server"
   | "sign-in"
   | "outbound-access"
   | "agent-access"
   | "grafana"
   | "webhooks"
+  | "audit-log"
 
 type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -26,6 +28,7 @@ const youGroup: SettingsGroup = {
   label: "You",
   sections: [
     { id: "appearance", label: "Appearance" },
+    { id: "home-dashboard", label: "Home dashboard" },
     { id: "connected-agents", label: "Connected agents" },
   ],
 }
@@ -33,12 +36,24 @@ const youGroup: SettingsGroup = {
 const memberWorkspaceSections: readonly SettingsSection[] = [
   { id: "server", label: "Server" },
   { id: "sign-in", label: "Sign-in" },
-  { id: "outbound-access", label: "Outbound access" },
 ]
+
+const outboundAccessSection: SettingsSection = {
+  id: "outbound-access",
+  label: "Outbound access",
+}
 
 const memberGroups: readonly SettingsGroup[] = [
   youGroup,
   { label: "Workspace", sections: memberWorkspaceSections },
+]
+
+const editorGroups: readonly SettingsGroup[] = [
+  youGroup,
+  {
+    label: "Workspace",
+    sections: [...memberWorkspaceSections, outboundAccessSection],
+  },
 ]
 
 const adminGroups: readonly SettingsGroup[] = [
@@ -47,7 +62,9 @@ const adminGroups: readonly SettingsGroup[] = [
     label: "Workspace",
     sections: [
       ...memberWorkspaceSections,
+      outboundAccessSection,
       { id: "agent-access", label: "Agent access" },
+      { id: "audit-log", label: "Audit log" },
     ],
   },
   {
@@ -60,7 +77,8 @@ const adminGroups: readonly SettingsGroup[] = [
 ]
 
 export function settingsGroups(role: Role): readonly SettingsGroup[] {
-  return roleAtLeast(role, "admin") ? adminGroups : memberGroups
+  if (roleAtLeast(role, "admin")) return adminGroups
+  return roleAtLeast(role, "editor") ? editorGroups : memberGroups
 }
 
 export function selectedSectionId(

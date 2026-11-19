@@ -1,10 +1,10 @@
-import { screen, within } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { screen, waitFor, within } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, exploreKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { FieldsAside } from "./fields-aside"
+import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import type { LogFacets } from "./facets"
 import type { LogsSearch } from "./search"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
@@ -78,7 +78,15 @@ function setup({
   facets = esFacets,
   effectiveQuery = search.q,
   openLine = false,
+  drawer = false,
+  linesLoading = false,
+  linesRerunning = false,
+  seedFacets = true,
 }: {
+  seedFacets?: boolean
+  linesLoading?: boolean
+  linesRerunning?: boolean
+  drawer?: boolean
   openLine?: boolean
   type?: string
   search?: LogsSearch
@@ -103,6 +111,11 @@ function setup({
     range,
     run,
     setDraft,
+    results: {
+      isLoading: linesLoading,
+      isFetching: linesLoading || linesRerunning,
+      isPlaceholderData: linesRerunning,
+    },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
@@ -110,7 +123,7 @@ function setup({
     labels: names,
     truncated: false,
   })
-  if (effectiveQuery !== undefined) {
+  if (effectiveQuery !== undefined && seedFacets) {
     queryClient.setQueryData(
       exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
       facets
@@ -119,14 +132,67 @@ function setup({
   const view = renderWithProviders(
     <LogsWorkspaceContext value={workspace}>
       <FieldsAside />
+      {drawer ? <FieldsDrawer /> : null}
     </LogsWorkspaceContext>,
     { queryClient }
   )
   return { ...view, run, setDraft }
 }
 
+function stubNarrow() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
 describe("FieldsAside", () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("moves the field list into a drawer when the page is too narrow for the side panel", async () => {
+    stubNarrow()
+    const { user, run } = setup({ drawer: true })
+    expect(screen.queryByRole("complementary")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Fields" }))
+    const drawer = await screen.findByRole("dialog", { name: "Fields" })
+    await user.click(within(drawer).getByRole("button", { name: /log\.level/ }))
+    await user.click(
+      within(drawer).getByRole("button", { name: "Include log.level error" })
+    )
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("dialog", { name: "Fields" })).toBeNull()
+  })
+
+  it("counts the values only once the lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesLoading: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts the values only once a rerun's lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesRerunning: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts the values as soon as the lines are in", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalled())
+  })
+
+  it("offers no drawer while the side panel fits", () => {
+    setup({ drawer: true })
+    expect(screen.queryByRole("button", { name: "Fields" })).toBeNull()
+  })
 
   it("lists every mapped field, counted or not, under the mapping note", () => {
     setup()

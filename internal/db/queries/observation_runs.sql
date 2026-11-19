@@ -1,6 +1,13 @@
 -- name: RunObservation :one
 SELECT observation_id FROM agent_requests WHERE id = @id;
 
+-- name: ObservationHasActiveRun :one
+SELECT EXISTS (
+  SELECT 1 FROM agent_requests r
+  WHERE r.status IN ('queued', 'running')
+    AND (r.observation_id = @observation_id OR r.id = (SELECT run_id FROM observations WHERE id = @observation_id))
+);
+
 -- name: RunHasTextBlock :one
 SELECT EXISTS (
   SELECT 1 FROM observation_blocks

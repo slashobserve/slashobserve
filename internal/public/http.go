@@ -46,6 +46,7 @@ type creatorJSON struct {
 type linkJSON struct {
 	ID           string              `json:"id"`
 	Prefix       string              `json:"prefix"`
+	Label        string              `json:"label"`
 	Variables    Mode                `json:"variables"`
 	Selections   map[string][]string `json:"selections"`
 	ExpiresAt    *string             `json:"expires_at"`
@@ -68,6 +69,7 @@ type createdJSON struct {
 }
 
 type createRequest struct {
+	Label      string              `json:"label"`
 	Variables  Mode                `json:"variables"`
 	Selections map[string][]string `json:"selections"`
 	ExpiresAt  *string             `json:"expires_at"`
@@ -128,7 +130,7 @@ func (h *Handler) create(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
-	in := CreateInput{Mode: req.Variables, Selections: req.Selections}
+	in := CreateInput{Label: req.Label, Mode: req.Variables, Selections: req.Selections}
 	if req.ExpiresAt != nil {
 		at, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
@@ -206,6 +208,7 @@ func linkJSONOf(link Link) linkJSON {
 	return linkJSON{
 		ID:           link.ID,
 		Prefix:       link.Prefix,
+		Label:        link.Label,
 		Variables:    link.Mode,
 		Selections:   selections,
 		ExpiresAt:    optionalTime(link.ExpiresAt),
@@ -230,16 +233,14 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 	switch {
 	case err == nil:
 		return false
-	case errors.Is(err, ErrInvalidMode):
+	case errors.Is(err, ErrInvalidMode), errors.Is(err, ErrInvalidLabel):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-	case errors.Is(err, folders.ErrNotFound), errors.Is(err, dashboards.ErrNotFound):
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "public link not found")
-	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrPersonalFolder):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, ErrUserScoped):
@@ -248,6 +249,11 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_expiry", err.Error())
 	case errors.Is(err, ErrUnknownVariable):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_variable", err.Error())
+	case errors.Is(err, ErrSelectionNotAllowed):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "selection_not_allowed", err.Error()+"; choose one of its options on the dashboard first, or make the link frozen")
+	case errors.Is(err, ErrOptionsUnavailable):
+		h.logger.WarnContext(c.Request.Context(), "read variable options for a public link", logattrs.Failure("internal", err)...)
+		httpapi.AbortError(c, http.StatusBadGateway, "variable_options_unavailable", "the options of a variable could not be read from its datasource, so the selections cannot be checked; try again, or create a frozen link")
 	case errors.Is(err, ErrTooManyLinks):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_links", err.Error())
 	default:
@@ -300,6 +306,7 @@ type publicRCAJSON struct {
 	Blocks           json.RawMessage `json:"blocks"`
 	PublishedBy      string          `json:"published_by"`
 	CreatedAt        string          `json:"created_at"`
+	SupersededBy     *int            `json:"superseded_by"`
 }
 
 func rcaLinkJSONOf(link RCALink) rcaLinkJSON {
@@ -420,6 +427,7 @@ func (h *Handler) viewRCA(c *gin.Context) {
 		Blocks:           v.Blocks,
 		PublishedBy:      v.PublishedBy,
 		CreatedAt:        httpapi.FormatTime(v.CreatedAt),
+		SupersededBy:     v.SupersededBy,
 	})
 }
 

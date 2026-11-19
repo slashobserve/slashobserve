@@ -84,10 +84,10 @@ webhooks-id:
     operationId: updateWebhook
     x-surfaces:
       cli: [observe webhooks update, observe webhooks enable, observe webhooks disable]
-    summary: Change a webhook's name, address, event types or state.
+    summary: Change a webhook's name, address, format, event types or state.
     description: >-
       Only Admins can call this endpoint.
-      The caller becomes the webhook's owner, so it delivers only what the caller can read from now on.
+      The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on.
       A new address is checked against the outbound allowlist and resets the failure count.
       `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
     requestBody:
@@ -154,7 +154,7 @@ webhooks-id-secret:
     description: >-
       Only Admins can call this endpoint.
       The old secret stops working at once and the new one is returned once.
-      The caller becomes the webhook's owner.
+      The owner stays as it is.
       A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
     responses:
       "200":
@@ -214,6 +214,48 @@ webhooks-id-test:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored secret cannot be read with it (`secret_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+webhooks-id-skip:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: skipWebhookEvent
+    x-surfaces:
+      cli: [observe webhooks skip]
+    summary: Pass over the oldest event a failing webhook is stuck on.
+    description: >-
+      Only Admins can call this endpoint.
+      A webhook delivers in order, so one event the receiver keeps refusing holds back every event behind it.
+      This moves the webhook's position past the oldest event it still has to send, records that event as a `skipped` attempt with the error `skipped_by_admin`, clears the failure count and makes the webhook send the next event at once.
+      The skipped event is never sent to this receiver.
+      It answers 409 `nothing_to_skip` when the webhook is not retrying or has no event left to send, and 409 `webhook_busy` while a server is delivering for it; try again after a few seconds.
+    responses:
+      "200":
+        description: The webhook after the skip and the attempt that records it.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/WebhookSkipResult"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The webhook has no failing event to skip (`nothing_to_skip`), or is delivering right now (`webhook_busy`).
         content:
           application/json:
             schema:

@@ -193,7 +193,7 @@ func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Ref
 	if ref.Kind == spec.MacroRef {
 		return expandMacro(d, dsType, query, ref, c, env)
 	}
-	return expandVariable(d, query, ref, c, env.Variables)
+	return expandVariable(d, dsType, query, ref, c, env.Variables)
 }
 
 func ExpandForLint(d Dialect, query string) (Expansion, error) {
@@ -284,7 +284,7 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 		return "", err
 	}
 	if value, ok := globalVariable(ref.Name, env); ok {
-		return expandVariable(d, query, ref, c, []datasource.Variable{{Name: ref.Name, Values: []string{value}}})
+		return expandVariable(d, dsType, query, ref, c, []datasource.Variable{{Name: ref.Name, Values: []string{value}}})
 	}
 	if out, ok, err := globalMacro(ref, env); ok || err != nil {
 		return out, err

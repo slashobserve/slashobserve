@@ -48,7 +48,7 @@ func expandRegexVariable(ref spec.Reference, v datasource.Variable) (string, err
 	case slices.ContainsFunc(v.Values, hasControlByte):
 		return "", refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
 	}
-	text, err := applyFormat(ref, "regex", v, false)
+	text, err := applyFormat(ref, "regex", v, false, ".*")
 	if err != nil {
 		return "", err
 	}

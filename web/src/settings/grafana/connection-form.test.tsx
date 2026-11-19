@@ -84,3 +84,34 @@ describe("ConnectionForm", () => {
     ).toBeInTheDocument()
   })
 })
+
+describe("ConnectionForm editing", () => {
+  it("starts from the stored values and lets the token stay empty", async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderWithProviders(
+      <>
+        <ConnectionForm
+          formId={formId}
+          serverError={null}
+          onSubmit={onSubmit}
+          firstInputRef={{ current: null }}
+          stored={{ name: "Production", url: "https://grafana.example.com" }}
+        />
+        <button type="submit" form={formId}>
+          Save
+        </button>
+      </>
+    )
+    expect(await screen.findByLabelText("Name")).toHaveValue("Production")
+    expect(screen.getByLabelText("Service account token")).toHaveAttribute(
+      "placeholder",
+      "Leave empty to keep the stored token"
+    )
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: "Production",
+      url: "https://grafana.example.com",
+      token: "",
+    })
+  })
+})

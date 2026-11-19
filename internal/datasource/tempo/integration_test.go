@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ const (
 
 var (
 	tempoURL string
+	otlpURL  string
 	sentAt   time.Time
 )
 
@@ -82,18 +84,51 @@ func run(m *testing.M) int {
 	}
 	tempoURL = "http://" + net.JoinHostPort(host, api.Port())
 	sentAt = time.Now().Add(-time.Minute).Truncate(time.Millisecond)
-	if err := send(ctx, "http://"+net.JoinHostPort(host, otlp.Port())); err != nil {
+	otlpURL = "http://" + net.JoinHostPort(host, otlp.Port())
+	if err := send(ctx, otlpURL); err != nil {
 		fmt.Fprintln(os.Stderr, "tempo send:", err)
 		return 1
 	}
 	return m.Run()
 }
 
+func str(key, value string) map[string]any {
+	return map[string]any{"key": key, "value": map[string]string{"stringValue": value}}
+}
+
+func sendRoot(ctx context.Context, traceID, service string, start time.Time) error {
+	body, err := json.Marshal(map[string]any{"resourceSpans": []map[string]any{{
+		"resource": map[string]any{"attributes": []any{str("service.name", service)}},
+		"scopeSpans": []map[string]any{{"scope": map[string]string{"name": "shop"}, "spans": []map[string]any{{
+			"traceId": traceID, "spanId": traceID[:16], "name": "GET /newest", "kind": 2,
+			"startTimeUnixNano": strconv.FormatInt(start.UnixNano(), 10), "endTimeUnixNano": strconv.FormatInt(start.Add(5*time.Millisecond).UnixNano(), 10),
+		}}}},
+	}}})
+	if err != nil {
+		return err
+	}
+	return postTraces(ctx, otlpURL, body)
+}
+
+func postTraces(ctx context.Context, otlpURL string, body []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, otlpURL+"/v1/traces", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("otlp answered HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func send(ctx context.Context, otlpURL string) error {
 	ns := func(offset time.Duration) string { return strconv.FormatInt(sentAt.Add(offset).UnixNano(), 10) }
-	str := func(key, value string) map[string]any {
-		return map[string]any{"key": key, "value": map[string]string{"stringValue": value}}
-	}
 	body, err := json.Marshal(map[string]any{"resourceSpans": []map[string]any{{
 		"resource": map[string]any{"attributes": []any{str("service.name", "checkout")}},
 		"scopeSpans": []map[string]any{{"scope": map[string]string{"name": "shop"}, "spans": []map[string]any{
@@ -111,20 +146,7 @@ func send(ctx context.Context, otlpURL string) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, otlpURL+"/v1/traces", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("otlp answered HTTP %d", resp.StatusCode)
-	}
-	return nil
+	return postTraces(ctx, otlpURL, body)
 }
 
 func integrationDS(t *testing.T) *tempo.Datasource {
@@ -227,4 +249,57 @@ func TestTempoRejectsBadQueries(t *testing.T) {
 	if !errors.Is(err, datasource.ErrInvalidQuery) {
 		t.Fatalf("err = %v, want an invalid query", err)
 	}
+}
+
+func TestTempoSearchPageHoldsTheNewestTraces(t *testing.T) {
+	ds := integrationDS(t)
+	ctx := context.Background()
+	base := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+	var newest []any
+	for i := range 12 {
+		id := fmt.Sprintf("%016x%016x", 0xabc0+i, 0xdef0+i)
+		if err := sendRoot(ctx, id, "newest-first", base.Add(time.Duration(i)*10*time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		if i >= 9 {
+			newest = append([]any{id}, newest...)
+		}
+	}
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		frames, _, err := ds.QueryPage(ctx, datasource.PageRequest{Query: datasource.Query{Text: `{ resource.service.name = "newest-first" }`}, Range: aroundSend(), Page: 1, PageSize: 3})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(frames) == 1 && frames[0].Rows() == 3 {
+			if got := fieldValues(t, frames[0], "TraceId"); !slices.Equal(got, newest) {
+				t.Fatalf("trace ids = %v, want the three newest %v", got, newest)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the search returned no page within a minute")
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func TestTempoSaysWhatIsWrongWithARangeOrAQuery(t *testing.T) {
+	ds := integrationDS(t)
+	ctx := context.Background()
+	now := time.Now()
+	ok := `{ resource.service.name = "x" }`
+	_, err := ds.QueryInstant(ctx, datasource.Query{Text: ok}, datasource.TimeRange{From: now.Add(time.Hour), To: now.Add(2 * time.Hour)})
+	if !errors.Is(err, datasource.ErrRangeInFuture) {
+		t.Errorf("future range: err = %v, want the future range kind", err)
+	}
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: ok}, datasource.TimeRange{From: now.Add(-30 * 24 * time.Hour), To: now})
+	if !errors.Is(err, datasource.ErrRangeTooLong) || !strings.Contains(err.Error(), "Tempo searches at most 7 days at a time") {
+		t.Errorf("long range: err = %v, want the range limit kind naming 7 days", err)
+	}
+	_, err = ds.QueryInstant(ctx, datasource.Query{Text: "{ name = "}, aroundSend())
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), `Invalid TraceQL at line 1, column 9 after "{ name =": unexpected end of the query.`) {
+		t.Errorf("parse error: err = %v, want a cleaned position message", err)
+	}
+	t.Logf("parse error reads: %v", err)
 }

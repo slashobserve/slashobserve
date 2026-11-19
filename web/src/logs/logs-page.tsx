@@ -29,17 +29,19 @@ import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
 import { DetailDrawer } from "./detail-drawer"
-import { FieldsAside } from "./fields-aside"
+import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
 import { LogsPageActions } from "./page-actions"
 import { applyPills, decodePills } from "./pills"
+import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
 import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
+import { isPlainResult } from "./plain-table"
 import { VolumeStrip } from "./volume-strip"
 import {
   LogsWorkspaceContext,
@@ -167,7 +169,7 @@ function LogsWorkspaceView({
   const filters = search.f
   const effectiveQuery = useMemo(
     () =>
-      q === undefined
+      q === undefined || unreadableKql(q, type) !== null
         ? undefined
         : (applyPills(q, type, decodePills(filters)) ?? q),
     [q, type, filters]
@@ -377,7 +379,9 @@ function LogsWorkspaceView({
           </div>
           <QueryBar filters={<FilterPills />} />
         </section>
-        {effectiveQuery !== undefined && !tailShown ? (
+        {effectiveQuery !== undefined &&
+        !tailShown &&
+        (results.data === undefined || !isPlainResult(results.data)) ? (
           <VolumeStrip
             uid={uid}
             query={effectiveQuery}
@@ -390,6 +394,7 @@ function LogsWorkspaceView({
           <ResultsSection
             actions={
               <>
+                <FieldsDrawer />
                 <Button
                   ref={addTrigger}
                   type="button"

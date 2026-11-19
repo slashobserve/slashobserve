@@ -22,6 +22,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { dashboardLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -41,6 +43,12 @@ type Props = {
   onMergingChange?: (merging: boolean) => void
 }
 
+const maxReasonLength = 500
+
+const whoMergesText =
+  "Only someone who can edit this dashboard can merge a proposal."
+const authorDiscardText = `${whoMergesText} You can discard this one because you opened it.`
+
 function DiscardButton({
   proposal,
   onStale,
@@ -50,6 +58,8 @@ function DiscardButton({
 }) {
   const [open, setOpen] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  const [reason, setReason] = useState("")
+  const reasonId = useId()
   const discard = useDiscardProposal(proposal.id)
 
   function changeOpen(next: boolean) {
@@ -63,10 +73,11 @@ function DiscardButton({
 
   function confirm() {
     setProblem(null)
-    discard.mutate(undefined, {
+    discard.mutate(reason.trim(), {
       onSuccess: () => {
         toast.success("Discarded")
         setOpen(false)
+        setReason("")
       },
       onError: (error) => {
         setProblem(loadProblemText(error))
@@ -88,6 +99,18 @@ function DiscardButton({
               Its change is not saved.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={reasonId}>Reason (optional)</Label>
+            <Textarea
+              id={reasonId}
+              rows={2}
+              maxLength={maxReasonLength}
+              value={reason}
+              placeholder="Shown on the proposal"
+              disabled={discard.isPending}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </div>
           {problem === null ? null : (
             <Alert variant="destructive">
               <AlertDescription>{problem}</AlertDescription>
@@ -189,7 +212,11 @@ export function ProposalActions({
     )
   }
 
-  if (!canMerge && !canDiscard) return null
+  if (proposal.state !== "open") return null
+
+  if (!canMerge && !canDiscard) {
+    return <p className="text-xs text-muted-foreground">{whoMergesText}</p>
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -219,6 +246,9 @@ export function ProposalActions({
           <DiscardButton proposal={proposal} onStale={refetch} />
         ) : null}
       </div>
+      {canMerge ? null : (
+        <p className="text-xs text-muted-foreground">{authorDiscardText}</p>
+      )}
       {hint === null ? null : (
         <p id={hintId} className="text-xs text-muted-foreground">
           {hint}

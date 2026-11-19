@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -118,8 +119,8 @@ func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 		message string
 	}{
 		{"save_finding outside a run", editor, nameSaveFinding, `{}`, true, "save_finding runs inside the agent; MCP clients use create_observation"},
-		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard"},
-		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels"},
+		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard, so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"},
+		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels, so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"},
 		{"query_range in an investigation", investigate, nameQueryRange, `{"datasource":"fake","query":"up"}`, false, ""},
 		{"save_finding in a create run", create, nameSaveFinding, `{}`, false, ""},
 		{"save_finding in a revise run", revise, nameSaveFinding, `{}`, false, ""},
@@ -399,5 +400,150 @@ func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
 	if err != nil || !after.ObservationID.Valid || saved.URL != "/o/"+after.ObservationID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
+	}
+}
+
+func TestAFindingSavedAfterRefusedReadsSaysReadingStoppedEarly(t *testing.T) {
+	if got, _, ok := findingMarkdown("checkout is slow", 0); !ok || got != "checkout is slow" {
+		t.Fatalf("no refused read changed the text: %q", got)
+	}
+	one, _, _ := findingMarkdown("checkout is slow", 1)
+	if !strings.HasPrefix(one, "checkout is slow\n\n_Reading stopped early: 1 read was refused") || !strings.Contains(one, "counts above may be partial") {
+		t.Fatalf("one refused read: %q", one)
+	}
+	if many, _, _ := findingMarkdown("checkout is slow", 3); !strings.Contains(many, "3 reads were refused") {
+		t.Fatalf("three refused reads: %q", many)
+	}
+}
+
+func TestATooLongFindingStepSaysWhatToDoInWords(t *testing.T) {
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 401), 0)
+	if ok || res.Step != "Finding was 401 words, over the 400 word limit; the agent must shorten it" {
+		t.Fatalf("ok %v, step %q", ok, res.Step)
+	}
+}
+
+func TestAFindingThatFitsOnlyWithoutTheReadsNoteIsSentBackNotLost(t *testing.T) {
+	r := newFindingRig(t)
+	run := investigateRun(findingWindowTo.Add(-time.Hour), findingWindowTo)
+	ctx := WithReadsRefused(WithRun(auth.WithPrincipal(t.Context(), editorCaller), run), 2)
+	nearTheLimit := "Checkout errors rose after the deploy. " + strings.Repeat("checkout-payments-0 ", 200)[:3840]
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(findingBody(nearTheLimit)))
+	if err != nil {
+		t.Fatalf("a finding near the limit with refused reads ended the run with %v", err)
+	}
+	if !res.IsError || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("res = %#v, want the model told to shorten it", res.Content)
+	}
+	short := "Checkout errors rose after the deploy. " + strings.Repeat("checkout-payments-0 ", 40)
+	res, err = r.registry.Call(ctx, nameSaveFinding, []byte(findingBody(short)))
+	if err != nil || res.IsError {
+		t.Fatalf("a short finding with refused reads: %#v, %v", res.Content, err)
+	}
+}
+
+func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 390), 2)
+	if ok || errorCode(t, res) != codeTooLong {
+		t.Fatalf("390 words with a 34 word note: ok %v, res %#v", ok, res.Content)
+	}
+	if got, _, ok := findingMarkdown(strings.Repeat("word ", 300), 2); !ok || !strings.Contains(got, "Reading stopped early") {
+		t.Fatalf("300 words with the note: ok %v, got %q", ok, got)
+	}
+}
+
+func TestTheFindingToolNamesNoCallLimitThatIsOnlyRightForSomeRuns(t *testing.T) {
+	tool := toolsByName(t)[nameSaveFinding]
+	for _, word := range []string{"six", "twelve", "6 ", "12 "} {
+		if strings.Contains(tool.Description, word) {
+			t.Errorf("save_finding names a call limit %q, but a build run has six and an investigation twelve: %s", word, tool.Description)
+		}
+	}
+}
+
+func (r *findingRig) homeRun(t *testing.T, by auth.Principal) (Run, dbsqlc.AgentRequest) {
+	t.Helper()
+	byID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := r.db.Queries().EnqueueObserveRequest(t.Context(), dbsqlc.EnqueueObserveRequestParams{
+		Prompt: "change the checkout dashboard", RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
+	})
+	if err != nil {
+		t.Fatalf("enqueue home run: %v", err)
+	}
+	return Run{Mode: ModeCreate, Prompt: row.Prompt, RequestID: row.ID.String(), Build: true}, row
+}
+
+func (r *findingRig) boardOf(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec(title)), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(board.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func askOnBody(markdown, dashboardID string) string {
+	return `{"markdown":` + strconv.Quote(markdown) + `,"ask_on_dashboard_id":` + strconv.Quote(dashboardID) + `}`
+}
+
+func TestAHomeRunsFindingCarriesTheDashboardItResolved(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Checkout")
+	run, row := r.homeRun(t, adminCaller)
+	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Checkout is the dashboard you mean; changing it is asked for there.", board.String()))
+	if saved, ok := res.Content.(findingSavedOut); res.IsError || !ok || saved.Code != "saved" {
+		t.Fatalf("save: %#v", res)
+	}
+	f, found, err := r.findings.ForRequest(t.Context(), adminCaller, row.ID)
+	if err != nil || !found {
+		t.Fatalf("finding: found %v, %v", found, err)
+	}
+	if f.AskOnID != board.String() || f.AskOnTitle != "Checkout" {
+		t.Errorf("ask on = %q %q, want %s Checkout", f.AskOnID, f.AskOnTitle, board.String())
+	}
+}
+
+func TestAnAskTargetTheCallerCannotViewIsNotFoundAndSavesNothing(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Payroll")
+	foldertest.Move(t, r.db, board, foldertest.Restricted(t, r.db, "Payroll", "payroll-team"))
+	run, _ := r.homeRun(t, editorCaller)
+	res := r.callIn(t, &run, editorCaller, nameSaveFinding, askOnBody("Payroll is the dashboard.", board.String()))
+	if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "dashboard not found") {
+		t.Fatalf("save: %#v", res)
+	}
+	var rows int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM findings`).Scan(&rows); err != nil || rows != 0 {
+		t.Errorf("findings left behind: %d, %v", rows, err)
+	}
+}
+
+func TestAnAskTargetThatIsNotAnIDIsRefused(t *testing.T) {
+	r := newFindingRig(t)
+	run, _ := r.homeRun(t, adminCaller)
+	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("The checkout dashboard.", "Checkout"))
+	if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "ask_on_dashboard_id") {
+		t.Fatalf("save: %#v", res)
+	}
+}
+
+func TestAnAskTargetOnlyBelongsToARunWithoutADashboard(t *testing.T) {
+	r := newFindingRig(t)
+	board := r.boardOf(t, "Checkout")
+	other := r.boardOf(t, "Search")
+	revise, _ := r.answerRun(t, adminCaller, board)
+	investigate := investigateRun(findingWindowTo.Add(-time.Hour), findingWindowTo)
+	for name, run := range map[string]Run{"a revision": revise, "an investigation": investigate} {
+		res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Search is the dashboard.", other.String()))
+		if !res.IsError || !strings.Contains(fmt.Sprint(res.Content), "ask_on_dashboard_id") {
+			t.Errorf("%s: save: %#v", name, res)
+		}
 	}
 }

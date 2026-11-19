@@ -169,6 +169,15 @@ func TestAbilitiesHas(t *testing.T) {
 	}
 }
 
+func TestNeedLevelNamesTheFolderLevelARefusalAsksFor(t *testing.T) {
+	cases := map[Need]string{NeedView: "view", NeedComment: "comment", NeedEdit: "edit", NeedManage: "manage", NeedCreate: "edit"}
+	for need, want := range cases {
+		if got := need.Level(); got != want {
+			t.Errorf("Need(%d).Level() = %q, want %q", need, got, want)
+		}
+	}
+}
+
 func TestParseLevel(t *testing.T) {
 	cases := []struct {
 		in   string
