@@ -130,17 +130,14 @@ func TestARoleChangeIsRecordedWithBeforeAndAfter(t *testing.T) {
 	set(&viewer)
 	set(nil)
 
-	if len(log.roles) != 3 {
-		t.Fatalf("recorded %+v, want three changes: set editor, set viewer, cleared", log.roles)
+	if len(log.roles) != 2 {
+		t.Fatalf("recorded %+v, want two changes: set viewer, cleared (pinning the current role changes nothing)", log.roles)
 	}
-	if got := log.roles[0]; got.From != RoleEditor || got.To != RoleEditor || !got.Manual || got.Name != "Bob" {
+	if got := log.roles[0]; got.From != RoleEditor || got.To != RoleViewer || !got.Manual || got.Name != "Bob" {
 		t.Errorf("first change = %+v", got)
 	}
-	if got := log.roles[1]; got.From != RoleEditor || got.To != RoleViewer || !got.Manual {
-		t.Errorf("second change = %+v", got)
-	}
-	if got := log.roles[2]; got.Manual {
-		t.Errorf("clearing the override = %+v, want Manual false", got)
+	if got := log.roles[1]; got.From != RoleViewer || got.To != RoleEditor || got.Manual {
+		t.Errorf("clearing the override = %+v, want viewer to editor with Manual false", got)
 	}
 }
 

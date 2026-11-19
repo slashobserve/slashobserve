@@ -54,17 +54,10 @@ func (s *Service) SetManualRole(ctx context.Context, q *dbsqlc.Queries, by Princ
 	if err := q.SetUserRole(ctx, setUserRoleParams(userID, decision)); err != nil {
 		return err
 	}
-	if Role(user.Role) == decision.Role && sameManual(user.ManualRole, role) {
+	if Role(user.Role) == decision.Role {
 		return nil
 	}
 	return s.changes.RoleChanged(ctx, q, by, RoleChange{UserID: userID, Name: user.Name, From: Role(user.Role), To: decision.Role, Manual: role != nil})
-}
-
-func sameManual(current pgtype.Text, next *Role) bool {
-	if next == nil {
-		return !current.Valid
-	}
-	return current.Valid && current.String == string(*next)
 }
 
 func leavesNoAdmin(admins []pgtype.UUID, target pgtype.UUID, next Role) bool {
