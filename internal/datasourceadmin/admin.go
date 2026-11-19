@@ -147,7 +147,7 @@ func checkSecrets(s Secrets) error {
 			return invalid("secrets.headers", fmt.Sprintf("header names must not be empty and values must be at most %d bytes without control characters", maxSecretBytes))
 		}
 	}
-	if encoded, err := json.Marshal(s); err != nil || len(encoded) > maxSecretsBytes {
+	if encoded, err := json.Marshal(s); err != nil || len(encoded) > maxSecretsBytes { //nolint:gosec // only its length is read
 		return invalid("secrets.headers", fmt.Sprintf("all credentials together must be at most %d bytes", maxSecretsBytes))
 	}
 	return nil
