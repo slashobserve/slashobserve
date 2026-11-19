@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -112,7 +113,22 @@ func insertLocked(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, pat
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbsqlc.InsertOutboundDomainRow{}, ErrExists
 	}
-	return row, err
+	if err != nil {
+		return dbsqlc.InsertOutboundDomainRow{}, err
+	}
+	return row, activity.DomainChange(ctx, q, by, activity.TypeOutboundDomainAdded, row.Domain)
+}
+
+func (s *Store) Remove(ctx context.Context, by auth.Principal, pattern domains.Pattern) (removed bool, err error) {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.DeleteOutboundDomain(ctx, pattern.String())
+		if err != nil || n == 0 {
+			return err
+		}
+		removed = true
+		return activity.DomainChange(ctx, q, by, activity.TypeOutboundDomainRemoved, pattern.String())
+	})
+	return removed, err
 }
 
 func (s *Store) SaveOnAllowedHost(ctx context.Context, by auth.Principal, host string, save func(*dbsqlc.Queries) error) (added string, err error) {
@@ -183,7 +199,7 @@ func usersOf(rows []dbsqlc.ListOutboundUsersRow, pattern domains.Pattern) []User
 	return users
 }
 
-func (s *Store) Release(ctx context.Context, host string) error {
+func (s *Store) Release(ctx context.Context, by auth.Principal, host string) error {
 	if s.lock.Locked {
 		return nil
 	}
@@ -199,8 +215,11 @@ func (s *Store) Release(ctx context.Context, host string) error {
 		if err != nil || len(users) > 0 {
 			return err
 		}
-		_, err = q.DeleteConnectionOutboundDomain(ctx, pattern.String())
-		return err
+		n, err := q.DeleteConnectionOutboundDomain(ctx, pattern.String())
+		if err != nil || n == 0 {
+			return err
+		}
+		return activity.DomainChange(ctx, q, by, activity.TypeOutboundDomainRemoved, pattern.String())
 	})
 	if err != nil {
 		return fmt.Errorf("release outbound domain: %w", err)

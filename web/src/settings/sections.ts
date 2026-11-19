@@ -3,12 +3,14 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 export type SettingsSectionId =
   | "appearance"
   | "connected-agents"
+  | "home-dashboard"
   | "server"
   | "sign-in"
   | "outbound-access"
   | "agent-access"
   | "grafana"
   | "webhooks"
+  | "audit-log"
 
 type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -26,6 +28,7 @@ const youGroup: SettingsGroup = {
   label: "You",
   sections: [
     { id: "appearance", label: "Appearance" },
+    { id: "home-dashboard", label: "Home dashboard" },
     { id: "connected-agents", label: "Connected agents" },
   ],
 }
@@ -61,6 +64,7 @@ const adminGroups: readonly SettingsGroup[] = [
       ...memberWorkspaceSections,
       outboundAccessSection,
       { id: "agent-access", label: "Agent access" },
+      { id: "audit-log", label: "Audit log" },
     ],
   },
   {

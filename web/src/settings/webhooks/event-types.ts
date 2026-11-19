@@ -49,6 +49,25 @@ export const eventTypeLabels = {
   "run.canceling": "Run canceling",
   "run.released": "Run released",
   "run.kept": "Build kept",
+  "public_link.created": "Public link created",
+  "public_link.revoked": "Public link revoked",
+  "user.role_changed": "Role changed",
+  "user.signed_out_everywhere": "Signed out everywhere",
+  "service_account.created": "Service account created",
+  "service_account.updated": "Service account updated",
+  "service_account.key_created": "Service account key created",
+  "service_account.key_revoked": "Service account key revoked",
+  "webhook.created": "Webhook created",
+  "webhook.updated": "Webhook updated",
+  "webhook.secret_rotated": "Webhook secret rotated",
+  "webhook.deleted": "Webhook deleted",
+  "mcp_client.connected": "Agent connected",
+  "mcp_client.disconnected": "Agent disconnected",
+  "outbound_domain.added": "Outbound domain added",
+  "outbound_domain.removed": "Outbound domain removed",
+  "grafana_connection.created": "Grafana connection created",
+  "grafana_connection.updated": "Grafana connection updated",
+  "grafana_connection.deleted": "Grafana connection deleted",
 } satisfies Record<ActivityType, string>
 
 const groupLabels: Record<string, string> = {
@@ -60,6 +79,13 @@ const groupLabels: Record<string, string> = {
   proposal: "Proposals",
   thread: "Comment threads",
   run: "Agent runs",
+  public_link: "Public links",
+  user: "People",
+  service_account: "Service accounts",
+  webhook: "Webhooks",
+  mcp_client: "Connected agents",
+  outbound_domain: "Outbound access",
+  grafana_connection: "Grafana connections",
 }
 
 export const allEventTypes = Object.keys(eventTypeLabels) as ActivityType[]

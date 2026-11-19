@@ -165,8 +165,8 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
-| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
+| `bin/observe dashboards list [--order updated\|views]` | Lists dashboards, newest update first or, with `--order views`, most viewed in the last 30 days first, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page. |
+| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`, and how many views the dashboard had in the last 30 days; the folder is in the details, and a version that does not exist says what the latest one is; `--json` adds `view_count` and `window_days`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
 | `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
@@ -654,6 +654,7 @@ You find only what the key can read.
 bin/observe activity
 bin/observe activity --dashboard <dashboard-id> --since 24h
 bin/observe activity --follow --type run.failed --type run.canceled
+bin/observe activity --admin --actor <person-id> --since 7d
 ```
 
 ```text
@@ -662,7 +663,8 @@ bin/observe activity --follow --type run.failed --type run.canceled
 ```
 
 Observation events read as sentences too, such as `started the observation "Slow checkout"` and `requested a panel block on the observation "Slow checkout"`.
-`--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
+`--dashboard`, `--folder`, `--observation` and `--actor` take ids, `--type` takes an event type and repeats, and `--since` and `--until` take a duration such as `24h` or an RFC 3339 time.
+`--admin` lists only the [admin changes](activity.md#admin-changes), who changed a role, a key, a webhook or a connection, and needs an Admin key; the other keys get a 403 that says so.
 `--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
 You see only the events of the folders the key can see, and an empty log prints `No activity yet`.
 

@@ -3,7 +3,7 @@ INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups)
 VALUES (@oidc_issuer, @oidc_subject, @email, @name, coalesce(@groups::text[], '{}'))
 ON CONFLICT (oidc_issuer, oidc_subject)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, groups = EXCLUDED.groups, last_login_at = now(), last_seen_at = now()
-RETURNING id, email, name, created_at, manual_role;
+RETURNING id, email, name, created_at, manual_role, (xmax = 0)::boolean AS inserted;
 
 -- name: CreateSession :exec
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3);

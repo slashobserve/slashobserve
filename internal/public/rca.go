@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -159,7 +160,10 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 			CreatedByID:   creatorID,
 			CreatedByName: creatorName(by),
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
 	})
 	if db.IsForeignKeyViolation(err) {
 		return CreatedRCA{}, observations.ErrRevisionNotFound
@@ -199,14 +203,21 @@ func (s *Service) DeleteRCALink(ctx context.Context, by auth.Principal, observat
 	if err := s.manageRCA(ctx, by, observationID); err != nil {
 		return err
 	}
-	n, err := s.db.Queries().DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := recordLink(ctx, q, activity.TypePublicLinkRevoked, by, linkID); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		n, err := q.DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *Service) ResolveRCA(ctx context.Context, token string) (ResolvedRCA, error) {

@@ -19,7 +19,7 @@ const (
 	defaultListActivity = 50
 	maxListActivity     = 100
 
-	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads (opened, replied, edited, resolved, reopened, mentioned) and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed by dashboard, folder, observation, types or time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor."
+	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed by dashboard, folder, observation, types or time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor. An Admin key also sees admin changes (roles, keys, webhooks, connected agents, outbound domains, Grafana) and public links; scope admin lists only those."
 )
 
 var schemaListActivity = `{"type":"object","properties":{` +
@@ -28,6 +28,9 @@ var schemaListActivity = `{"type":"object","properties":{` +
 	`"observation_id":{"type":"string","format":"uuid","description":"Only this observation's activity, from list_observations."},` +
 	`"types":{"type":"array","maxItems":` + strconv.Itoa(len(activity.Types())) + `,"items":{"type":"string","enum":["` + strings.Join(activity.Types(), `","`) + `"]},"description":"Only events of any of these types."},` +
 	`"since":{"type":"string","format":"date-time","description":"Only events at or after this RFC 3339 time."},` +
+	`"until":{"type":"string","format":"date-time","description":"Only events at or before this RFC 3339 time."},` +
+	`"actor_id":{"type":"string","format":"uuid","description":"Only events made by this person or service account."},` +
+	`"scope":{"type":"string","enum":["admin"],"description":"admin: only admin changes and public links; needs an Admin key."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Events per page. Default 50."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 
@@ -47,6 +50,9 @@ type listActivityInput struct {
 	ObservationID string   `json:"observation_id"`
 	Types         []string `json:"types"`
 	Since         string   `json:"since"`
+	Until         string   `json:"until"`
+	ActorID       string   `json:"actor_id"`
+	Scope         string   `json:"scope"`
 	Limit         *int     `json:"limit"`
 	Cursor        string   `json:"cursor"`
 }
@@ -102,7 +108,7 @@ func (r *Registry) listActivity(ctx context.Context, input json.RawMessage) (Res
 
 func activityValues(in listActivityInput) url.Values {
 	v := url.Values{}
-	for key, value := range map[string]string{"dashboard_id": in.DashboardID, "folder_id": in.FolderID, "observation_id": in.ObservationID, "since": in.Since} {
+	for key, value := range map[string]string{"dashboard_id": in.DashboardID, "folder_id": in.FolderID, "observation_id": in.ObservationID, "since": in.Since, "until": in.Until, "actor_id": in.ActorID, "scope": in.Scope} {
 		if value != "" {
 			v.Set(key, value)
 		}
@@ -115,6 +121,8 @@ func activityFailure(err error) (Result, error) {
 	switch {
 	case errors.Is(err, activity.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
+	case errors.Is(err, activity.ErrAdminScope):
+		return toolError(codeForbiddenRole, activity.AdminScopeMessage), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	}

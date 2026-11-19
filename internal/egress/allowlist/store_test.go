@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -106,7 +107,7 @@ func TestReleaseRemovesOnlyAnUnusedConnectionEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, host := range []string{"grafana.example.com", "manual.example.com"} {
-		if err := store.Release(t.Context(), host); err != nil {
+		if err := store.Release(t.Context(), by, host); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -148,7 +149,7 @@ func TestReleaseWaitsForTheLockAWebhookTakesWhileItIsSaved(t *testing.T) {
 	}
 	t.Cleanup(release)
 	done := make(chan error, 1)
-	go func() { done <- store.Release(t.Context(), "grafana.example.com") }()
+	go func() { done <- store.Release(t.Context(), by, "grafana.example.com") }()
 	select {
 	case err := <-done:
 		t.Fatalf("release finished (%v) while another writer held the lock", err)
@@ -232,7 +233,7 @@ func TestAnAdminAllowingAConnectionsHostByHandKeepsItWhenTheConnectionGoes(t *te
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"from_connection":false`) {
 		t.Fatalf("allowing by hand answered %d %s, want 200 with from_connection false", rec.Code, rec.Body)
 	}
-	if err := store.Release(t.Context(), "grafana.example.com"); err != nil {
+	if err := store.Release(t.Context(), admin, "grafana.example.com"); err != nil {
 		t.Fatal(err)
 	}
 	if list, err := store.Allowed(t.Context()); err != nil || !list.Allows("grafana.example.com") {
@@ -241,4 +242,73 @@ func TestAnAdminAllowingAConnectionsHostByHandKeepsItWhenTheConnectionGoes(t *te
 	if rec := serveWithDatabase(t, store, admin, http.MethodPost, "", `{"domain":"grafana.example.com"}`); rec.Code != http.StatusConflict {
 		t.Fatalf("allowing it again answered %d %s, want 409", rec.Code, rec.Body)
 	}
+}
+
+func TestAddAndRemoveRecordOneAdminEventEach(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	ada := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
+
+	if _, err := store.Add(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add(t.Context(), ada, pattern(t, "grafana.example.com")); !errors.Is(err, ErrExists) {
+		t.Fatalf("second add error = %v", err)
+	}
+	if removed, err := store.Remove(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil || !removed {
+		t.Fatalf("remove = %v, %v", removed, err)
+	}
+	if removed, err := store.Remove(t.Context(), ada, pattern(t, "grafana.example.com")); err != nil || removed {
+		t.Fatalf("second remove = %v, %v", removed, err)
+	}
+
+	got, ids := domainEvents(t, database)
+	want := []string{"outbound_domain.added outbound_domain grafana.example.com", "outbound_domain.removed outbound_domain grafana.example.com"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("events %v, want %v", got, want)
+	}
+	if ids[0] != ids[1] || ids[0] != activity.DomainID("grafana.example.com").String() {
+		t.Fatalf("target ids %v differ for one domain", ids)
+	}
+}
+
+func TestAnEntryAddedAndReleasedForAConnectionIsRecorded(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	ada := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
+
+	added, err := store.SaveOnAllowedHost(t.Context(), ada, "grafana.example.com", func(*dbsqlc.Queries) error { return nil })
+	if err != nil || added != "grafana.example.com" {
+		t.Fatalf("save = %q, %v", added, err)
+	}
+	if err := store.Release(t.Context(), ada, "grafana.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Release(t.Context(), ada, "grafana.example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := domainEvents(t, database)
+	want := []string{"outbound_domain.added outbound_domain grafana.example.com", "outbound_domain.removed outbound_domain grafana.example.com"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("events %v, want %v", got, want)
+	}
+}
+
+func domainEvents(t *testing.T, database *dbtest.Database) (events, ids []string) {
+	t.Helper()
+	rows, err := database.SQLDB(t).QueryContext(t.Context(), `SELECT type, target_kind, data->>'domain', target_id::text FROM activity ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var typ, kind, domain, id string
+		if err := rows.Scan(&typ, &kind, &domain, &id); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, typ+" "+kind+" "+domain)
+		ids = append(ids, id)
+	}
+	return events, ids
 }

@@ -84,6 +84,42 @@ Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
 Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.
 
+## How often a dashboard is opened
+
+The dashboards list has a **Views** column and the dashboard's header says how many views it had, such as **12 views in 30 days**.
+A view is one person opening the dashboard on one UTC day, so three people who each open it twice today make three views, and the count covers the last 30 UTC days including today.
+Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
+`GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
+`order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
+The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
+The daily records are kept for 90 days.
+`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+
+## Home dashboard
+
+Choose **Open on sign-in** in a dashboard's **More** menu and that dashboard opens in place of Home when you sign in or open SlashObserve in a new tab.
+Home opens as usual for a link that names a page, such as a shared dashboard link or `/?tab=observe`, and when you click **Home** in the sidebar.
+Choosing another dashboard replaces the first, and the same menu item, now **Stop opening on sign-in**, clears the choice; so does **Clear** under **Settings**, **Home dashboard**.
+If the dashboard was deleted or you can no longer view it, Home opens and says so with a **Clear it** button, and the choice comes back to work if you can view the dashboard again.
+The choice belongs to you and follows you to every browser.
+`GET`, `PUT` and `DELETE /api/v1/me/home-dashboard` read, set and clear it; `status` is `none`, `ok`, `gone` or `unreadable`, and setting a dashboard you cannot view answers `404 not_found`.
+Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` do the same; only people have one, so a service-account key gets `403 user_session_required` and the CLI has no command.
+
+## Print a dashboard or download it as an image
+
+**Print or save as PDF** in a dashboard's **More** menu lays the dashboard out for paper and opens the browser's print dialog, where **Save as PDF** is a destination.
+The page shows only the dashboard: no sidebar, toolbar or side panes, a header with the title, folder, version, time range, variables and the time of printing, and then the panels in one column in reading order.
+Every panel loads before the dialog opens, including the ones far down the page, and a panel is moved whole to the next page instead of being cut when it does not fit.
+Rows you collapsed are expanded on the sheet so that no panel is left out, and the variables and time range you chose are the ones printed.
+The sheet prints in the light theme whatever theme you use, so a dark theme does not print as a page of dark boxes; the image keeps your current theme.
+**Back to dashboard** at the top of the page, or closing the print dialog, returns to the dashboard.
+
+**Download as image** in the same menu opens the same sheet, draws it as one PNG named after the dashboard and its version, such as `checkout-service-health-v7.png`, and returns to the dashboard.
+The image is drawn in your browser from the rendered panels, with no server involved, at twice the size unless the dashboard is so tall that the browser's canvas limit needs a smaller scale.
+If the browser cannot draw it, a message says so and suggests **Print or save as PDF**.
+Both items are off while you are rearranging the layout, and a single panel is still saved from its own menu.
+Neither needs a server feature, so there is no API operation, CLI command or MCP tool for them; an agent that needs the data reads the dashboard and its panel queries instead.
+
 ## TV mode
 
 TV mode shows a dashboard on a wall screen with nothing but its panels, and can cycle through its rows or its folder's dashboards.

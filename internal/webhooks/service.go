@@ -186,10 +186,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	if err != nil {
 		return Created{}, err
 	}
-	head, err := source{store: s.activity}.head(ctx)
-	if err != nil {
-		return Created{}, err
-	}
 	secret, err := newSecret()
 	if err != nil {
 		return Created{}, err
@@ -214,10 +210,18 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 		if count >= maxWebhooks {
 			return ErrTooMany
 		}
+		seq, err := recordCreated(ctx, q, by, id, recordedWebhook{Name: clean.name, Host: clean.host, EventTypes: clean.types})
+		if err != nil {
+			return err
+		}
+		xid, err := q.ActivityXid(ctx, seq)
+		if err != nil {
+			return err
+		}
 		if _, err := q.InsertWebhook(ctx, dbsqlc.InsertWebhookParams{
 			ID: id, Name: clean.name, Url: clean.address, Format: clean.format, SecretCiphertext: ciphertext, EventTypes: clean.types,
 			OwnerKind: ownerKind, OwnerID: ownerID,
-			CursorXid: pgtype.Uint64{Uint64: head.xid, Valid: true}, CursorSeq: head.seq,
+			CursorXid: xid, CursorSeq: seq,
 		}); err != nil {
 			return err
 		}
@@ -427,11 +431,15 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		}
 		params := cleaned.apply(current, ownerKind, ownerID, time.Now())
 		params.ID = id
-		if _, err := q.UpdateWebhook(ctx, params); err != nil {
+		row, err := q.UpdateWebhook(ctx, params)
+		if err != nil {
 			return err
 		}
 		updated, err = view(ctx, q, id)
-		return err
+		if err != nil {
+			return err
+		}
+		return recordUpdate(ctx, q, by, current, row)
 	})
 	if err != nil {
 		return Webhook{}, wrapStore("update webhook", err)
@@ -441,12 +449,21 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
-	deleted, err := s.db.Queries().DeleteWebhook(ctx, id)
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		current, err := q.GetWebhookForUpdate(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := q.DeleteWebhook(ctx, id); err != nil {
+			return err
+		}
+		return record(ctx, q, by, activity.TypeWebhookDeleted, id, recordedWebhook{Name: current.Name, Host: hostOf(current.Url)})
+	})
 	if err != nil {
-		return fmt.Errorf("delete webhook: %w", err)
-	}
-	if deleted == 0 {
-		return ErrNotFound
+		return wrapStore("delete webhook", err)
 	}
 	s.logger.InfoContext(ctx, "webhook deleted", slog.String("webhook_id", id.String()), slog.String("actor_id", by.ID))
 	return nil
@@ -466,16 +483,21 @@ func (s *Service) RotateSecret(ctx context.Context, by auth.Principal, id pgtype
 	}
 	var rotated Webhook
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if _, err := q.GetWebhookForUpdate(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+		current, err := q.GetWebhookForUpdate(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
-		} else if err != nil {
+		}
+		if err != nil {
 			return err
 		}
 		if _, err := q.SetWebhookSecret(ctx, dbsqlc.SetWebhookSecretParams{ID: id, SecretCiphertext: ciphertext}); err != nil {
 			return err
 		}
 		rotated, err = view(ctx, q, id)
-		return err
+		if err != nil {
+			return err
+		}
+		return record(ctx, q, by, activity.TypeWebhookSecretRotated, id, recordedWebhook{Name: current.Name, Host: hostOf(current.Url)})
 	})
 	if err != nil {
 		return Created{}, wrapStore("rotate webhook secret", err)

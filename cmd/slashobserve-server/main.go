@@ -43,6 +43,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
@@ -228,9 +229,6 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		return nil, withheld("auth_setup_failed", err)
 	}
 	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
-	if err := service.ReconcileRoles(ctx); err != nil {
-		return nil, withheld("role_reconcile_failed", err)
-	}
 	if cfg.AllowAnyEmailDomain {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
@@ -304,6 +302,10 @@ func run() error {
 	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
 		return err
+	}
+	authService.RecordChanges(database, activity.AuthChanges{})
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
 	}
 	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
 		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
@@ -390,6 +392,7 @@ func run() error {
 		LiveText:      liveText,
 		Search:        searchService,
 		Stars:         stars.New(database, folderAccess),
+		Home:          homedash.New(database, folderAccess),
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,
@@ -500,6 +503,7 @@ func run() error {
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
 			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
+			homedash.NewHandler(homedash.New(database, folderAccess), logger),
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,

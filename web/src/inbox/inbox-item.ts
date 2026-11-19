@@ -27,6 +27,13 @@ const kindWords: Record<TargetKind, string> = {
   proposal: "a proposal",
   thread: "a thread",
   run: "a request",
+  user: "a person",
+  service_account: "a service account",
+  webhook: "a webhook",
+  mcp_client: "an agent connection",
+  outbound_domain: "an outbound domain",
+  grafana_connection: "a Grafana connection",
+  public_link: "a public link",
 }
 
 const reasonLabels: Record<InboxReason, string> = {

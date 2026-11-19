@@ -54,22 +54,28 @@ const media = window.matchMedia("(prefers-color-scheme: dark)")
 type ThemeState = {
   preference: ThemePreference
   systemDark: boolean
+  held: ResolvedTheme | null
   setPreference: (preference: ThemePreference) => void
+}
+
+function shown(state: ThemeState): ResolvedTheme {
+  return state.held ?? resolve(state.preference, state.systemDark)
 }
 
 const useThemeStore = create<ThemeState>((set, get) => ({
   preference: readPreference(),
   systemDark: media.matches,
+  held: null,
   setPreference: (preference) => {
     writePreference(preference)
     set({ preference })
-    apply(resolve(preference, get().systemDark))
+    apply(shown(get()))
   },
 }))
 
 function onMediaChange(event: MediaQueryListEvent) {
   useThemeStore.setState({ systemDark: event.matches })
-  apply(resolve(useThemeStore.getState().preference, event.matches))
+  apply(shown(useThemeStore.getState()))
 }
 
 media.addEventListener("change", onMediaChange)
@@ -79,7 +85,7 @@ function onStorage(event: StorageEvent) {
   if (event.key !== null && event.key !== storageKey) return
   const preference = readPreference()
   useThemeStore.setState({ preference })
-  apply(resolve(preference, useThemeStore.getState().systemDark))
+  apply(shown(useThemeStore.getState()))
 }
 
 window.addEventListener("storage", onStorage)
@@ -88,13 +94,23 @@ import.meta.hot?.dispose(() => {
   media.removeEventListener("change", onMediaChange)
 })
 
+export function holdLightTheme(): () => void {
+  useThemeStore.setState({ held: "light" })
+  apply("light")
+  return () => {
+    useThemeStore.setState({ held: null })
+    apply(shown(useThemeStore.getState()))
+  }
+}
+
 export function useTheme() {
   const preference = useThemeStore((state) => state.preference)
   const systemDark = useThemeStore((state) => state.systemDark)
+  const held = useThemeStore((state) => state.held)
   const setPreference = useThemeStore((state) => state.setPreference)
   return {
     preference,
-    resolved: resolve(preference, systemDark),
+    resolved: held ?? resolve(preference, systemDark),
     setPreference,
   }
 }
