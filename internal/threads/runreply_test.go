@@ -155,14 +155,14 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultProposal)
 			return run, "Opened a proposal: " + title + "."
 		}},
-		{"finding from a dashboard thread", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
-			r.saveFinding(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
+		{"chat-only answer from a dashboard thread never shows its title", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Saved a finding: Checkout is slow."
+			return run, "Answered in the chat of the person who asked."
 		}},
 		{"finding in an observation thread", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
-			r.saveFinding(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
+			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
 			return run, "Wrote the answer into this observation: Checkout is slow."
