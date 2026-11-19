@@ -1,6 +1,8 @@
 package specfiles
 
 import (
+	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -8,6 +10,8 @@ import (
 )
 
 const Ext = ".json"
+
+var errOutsideDirectory = errors.New("the file links outside the provisioning directory")
 
 type File struct {
 	Path   string
@@ -44,12 +48,32 @@ func FolderOf(path string) string {
 }
 
 func Read(dir, rel string) ([]byte, error) {
+	raw, err := readInRoot(dir, filepath.FromSlash(rel))
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return raw, err
+	}
+	realDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return nil, err
+	}
+	target, err := filepath.EvalSymlinks(filepath.Join(dir, filepath.FromSlash(rel)))
+	if err != nil {
+		return nil, err
+	}
+	inside, err := filepath.Rel(realDir, target)
+	if err != nil || !filepath.IsLocal(inside) {
+		return nil, fmt.Errorf("%s: %w", rel, errOutsideDirectory)
+	}
+	return readInRoot(realDir, inside)
+}
+
+func readInRoot(dir, rel string) ([]byte, error) {
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = root.Close() }()
-	return root.ReadFile(filepath.FromSlash(rel))
+	return root.ReadFile(rel)
 }
 
 func Scan(dir string) ([]File, error) {

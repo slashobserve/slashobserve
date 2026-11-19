@@ -110,6 +110,7 @@ func TestReadFollowsSymlinksInsideTheDirectoryAndRefusesOnesThatLeaveIt(t *testi
 	}
 	links := map[string]string{
 		"configmap.json": "data/real.json",
+		"absolute.json":  filepath.Join(dir, "data", "real.json"),
 		"escape.json":    filepath.Join(outside, "secret.json"),
 		"climb.json":     "../" + filepath.Base(outside) + "/secret.json",
 	}
@@ -137,6 +138,9 @@ func TestReadFollowsSymlinksInsideTheDirectoryAndRefusesOnesThatLeaveIt(t *testi
 
 	if got, err := specfiles.Read(dir, "configmap.json"); err != nil || string(got) != `{"inside":true}` {
 		t.Errorf("Read(configmap.json) = %q, %v; want the file the link points to inside the directory", got, err)
+	}
+	if got, err := specfiles.Read(dir, "absolute.json"); err != nil || string(got) != `{"inside":true}` {
+		t.Errorf("Read(absolute.json) = %q, %v; want the file an absolute link points to inside the directory", got, err)
 	}
 	for _, name := range []string{"escape.json", "climb.json"} {
 		if got, err := specfiles.Read(dir, name); err == nil {
