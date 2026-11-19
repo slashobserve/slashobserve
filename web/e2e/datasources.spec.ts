@@ -47,11 +47,9 @@ test("never shows connection details", async ({ page }) => {
   )
   await openDatasources(page)
   await expect(datasourceRow(page, "prom")).toBeVisible()
-  await expect(
-    page.getByText(
-      "Addresses and users are shown only to Admins, and passwords, tokens and header values never leave the server."
-    )
-  ).toBeVisible()
+  const notice =
+    "Addresses and users are shown only to Admins, and passwords, tokens and header values never leave the server."
+  await expect(page.getByText(notice)).toBeVisible()
 
   const body = await (await listed).text()
   await page.evaluate(() => {
@@ -62,8 +60,11 @@ test("never shows connection details", async ({ page }) => {
       element.removeAttribute("xmlns")
     }
   })
-  const html = await page.evaluate(() => document.body.outerHTML)
-  const text = await page.locator("body").innerText()
+  const html = (await page.evaluate(() => document.body.outerHTML)).replace(
+    notice,
+    ""
+  )
+  const text = (await page.locator("body").innerText()).replace(notice, "")
   for (const forbidden of [
     "http://",
     "https://",
