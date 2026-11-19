@@ -2445,7 +2445,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a Grafana dashboard without saving it or running any query.
-         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
+         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `existing` names the dashboard that already holds the file's Grafana uid when the caller can see it, so a client can offer to update it instead of making a duplicate. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
          */
         post: operations["previewImport"];
         delete?: never;
@@ -2469,7 +2469,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard. With `update_dashboard`, the converted Spec is saved as the next version of that earlier import's dashboard instead, and the answer is 200 with the same body as a new import; it needs Edit on the dashboard and a file with the Grafana uid the dashboard was imported from (409 `grafana_uid_mismatch` otherwise; a dashboard imported from a file without a uid takes any file) (404 `not_found` when the caller cannot see it, 403 when they cannot edit it, 404 `not_imported` when no import made it). With `refuse_existing`, a file whose Grafana uid an earlier import holds, in a dashboard the caller can see, answers 409 `already_imported` instead of making a second dashboard, so a client that retries or reruns an import cannot duplicate it; the MCP tool and the CLI send it unless told to import as new.
          */
         post: operations["createImport"];
         delete?: never;
@@ -5629,6 +5629,28 @@ export interface components {
             } | null;
             /** @description The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise. Only the import uses it; the preview checks it and ignores it. */
             folder?: string;
+            /**
+             * Format: uuid
+             * @description The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard. Needs Edit on the dashboard; the folder is not changed. Only the import uses it; the preview ignores it.
+             */
+            update_dashboard?: string;
+            /** @description Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid. Ignored with `update_dashboard`, and by the preview. */
+            refuse_existing?: boolean;
+        };
+        ImportExisting: {
+            /** Format: uuid */
+            dashboard_id: string;
+            title: string;
+            /** @description The dashboard's latest version. */
+            version: number;
+            /** @description True when the caller has Edit on the dashboard, so `update_dashboard` is accepted. */
+            can_update: boolean;
+        };
+        AlreadyImported: {
+            error: string;
+            /** @enum {string} */
+            code: "already_imported";
+            existing: components["schemas"]["ImportExisting"];
         };
         ImportSummary: {
             /** @enum {string} */
@@ -5743,6 +5765,8 @@ export interface components {
         ImportPreview: {
             summary: components["schemas"]["ImportSummary"];
             datasources: components["schemas"]["ImportSourceDatasource"][];
+            /** @description The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise. */
+            existing: components["schemas"]["ImportExisting"] | null;
             /** @description True when every source datasource has a match, so the import can be saved. */
             ready: boolean;
             report: components["schemas"]["ImportReport"];
@@ -13389,13 +13413,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The dashboard the request already created, when no import made it. */
+            /** @description The dashboard the request already created, when no import made it, or the updated dashboard with its import record when `update_dashboard` was given. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardWithVersion"] | components["schemas"]["ImportedDashboard"];
                 };
             };
             /** @description The new dashboard, its first version and the import record. */
@@ -13412,6 +13436,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlreadyImported"] | components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The importer's codes as for the preview (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`, `invalid_mapping`), `datasources_unresolved` while a source datasource has no match (`datasources` lists every one, `candidates` the choices), or `invalid_spec` when the converted Spec cannot be saved (for example a NUL character; `issues` lists the problems). */
             422: {

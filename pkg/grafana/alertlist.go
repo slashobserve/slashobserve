@@ -3,6 +3,7 @@ package grafana
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -16,6 +17,7 @@ const (
 	alertSortReason        = "This sort order is not supported."
 	alertStatReason        = "The colors of the stat view are not supported yet."
 	maxAlertItems          = 100
+	maxAlertTitles         = 5
 )
 
 var (
@@ -161,4 +163,33 @@ func (b *panelBuild) alertStatOptions() {
 	if v, ok := b.take("options.statThresholds"); ok && !sameJSON(v, alertStatThresholdsDefault) {
 		b.partial("options.statThresholds", alertStatReason)
 	}
+}
+
+func (c *converter) noteAlertRules() {
+	var titles []string
+	visit := func(bp *builtPanel) {
+		if slices.Contains(bp.line.Reasons, decisionAlertRules.reason) {
+			titles = append(titles, quotedTitle(bp.line))
+		}
+	}
+	for _, bp := range c.built {
+		visit(bp)
+		for _, child := range bp.children {
+			visit(child)
+		}
+	}
+	if len(titles) == 0 {
+		return
+	}
+	if len(titles) > maxAlertTitles {
+		titles = append(titles[:maxAlertTitles], fmt.Sprintf("%d more", len(titles)-maxAlertTitles))
+	}
+	c.note("alert rules", fmt.Sprintf("Alert rules, contact points and silences are not imported, so the Grafana alerts behind %s are lost. Keep alerting on Prometheus rules and Alertmanager.", strings.Join(titles, ", ")))
+}
+
+func quotedTitle(line PanelLine) string {
+	if strings.TrimSpace(line.Title) == "" {
+		return "an untitled panel"
+	}
+	return fmt.Sprintf("%q", line.Title)
 }

@@ -4446,6 +4446,47 @@ components:
           description: >-
             The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise.
             Only the import uses it; the preview checks it and ignores it.
+        update_dashboard:
+          type: string
+          format: uuid
+          description: >-
+            The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard.
+            Needs Edit on the dashboard; the folder is not changed.
+            Only the import uses it; the preview ignores it.
+        refuse_existing:
+          type: boolean
+          description: >-
+            Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid.
+            Ignored with `update_dashboard`, and by the preview.
+    ImportExisting:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title, version, can_update]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          description: The dashboard's latest version.
+        can_update:
+          type: boolean
+          description: True when the caller has Edit on the dashboard, so `update_dashboard` is accepted.
+    AlreadyImported:
+      type: object
+      additionalProperties: false
+      required: [error, code, existing]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [already_imported]
+        existing:
+          $ref: "#/components/schemas/ImportExisting"
     ImportSummary:
       type: object
       additionalProperties: false
@@ -4696,7 +4737,7 @@ components:
     ImportPreview:
       type: object
       additionalProperties: false
-      required: [summary, datasources, ready, report, spec]
+      required: [summary, datasources, ready, report, spec, existing]
       properties:
         summary:
           $ref: "#/components/schemas/ImportSummary"
@@ -4704,6 +4745,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
+        existing:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ImportExisting"
+          description: The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise.
         ready:
           type: boolean
           description: True when every source datasource has a match, so the import can be saved.
