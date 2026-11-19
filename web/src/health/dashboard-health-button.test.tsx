@@ -118,7 +118,9 @@ describe("DashboardHealthButton", () => {
   test("shows Queries OK for a dashboard whose only problem is unopened", async () => {
     serve([item({ problems: [unopened] })])
     renderButton()
-    expect(await screen.findByRole("button", { name: "Queries OK" })).toBeTruthy()
+    expect(
+      await screen.findByRole("button", { name: "Queries OK" })
+    ).toBeTruthy()
   })
 
   test("opens the healthy popover with when and on which version it was checked", async () => {

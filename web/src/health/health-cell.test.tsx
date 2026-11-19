@@ -91,7 +91,9 @@ describe("HealthCell", () => {
     provider.item = item({ problems: [] })
     const { user } = renderCell()
     await user.click(
-      await screen.findByRole("button", { name: "Health of Checkout: Queries OK" })
+      await screen.findByRole("button", {
+        name: "Health of Checkout: Queries OK",
+      })
     )
     const popover = await screen.findByRole("dialog")
     expect(popover.textContent).toContain("No problems found")
