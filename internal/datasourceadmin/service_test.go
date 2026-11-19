@@ -298,3 +298,25 @@ func addDashboard(t *testing.T, r *rig, title, datasourceUID string) {
 		t.Fatal(err)
 	}
 }
+
+func TestRemovingAShadowedRowKeepsTheFileDatasourcesConcurrencyLimit(t *testing.T) {
+	server := upstream(t, nil)
+	file := datasource.Instance{UID: "prom", Name: "From file", Datasource: datasource.NewUnavailable("prometheus", datasource.ErrUnavailable), Source: datasource.SourceFile}
+	r, svc := newRig(t, testKey, file)
+	r.slots.SetTotal("prom", 2)
+	r.insert(t, testKey, prometheus("prom", server.URL), Secrets{})
+	if err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.db.Queries().DeleteDatasource(t.Context(), "prom"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := r.slots.total("prom"); got != 2 {
+		t.Fatalf("slot total of the file datasource = %d, want 2", got)
+	}
+}

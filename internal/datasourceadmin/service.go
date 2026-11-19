@@ -128,8 +128,9 @@ func (s *Service) applyLocked(row dbsqlc.Datasource) {
 
 func (s *Service) forgetLocked(uid string) {
 	delete(s.applied, uid)
-	s.registry.Remove(uid)
-	s.slots.SetTotal(uid, 0)
+	if s.registry.Remove(uid) {
+		s.slots.SetTotal(uid, 0)
+	}
 }
 
 func (s *Service) instanceOf(row dbsqlc.Datasource) (datasource.Instance, int) {
