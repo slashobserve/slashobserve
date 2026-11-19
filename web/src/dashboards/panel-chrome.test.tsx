@@ -84,6 +84,17 @@ describe("PanelChrome", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("shows the panel description when the info button is hovered or focused", async () => {
+    const described = { ...panel, description: "Requests that took over 2s" }
+    const { user } = renderWithProviders(
+      <PanelChrome panel={described} state="ready" />
+    )
+    await user.hover(
+      screen.getByRole("button", { name: "About Checkout latency" })
+    )
+    expect(await screen.findByText("Requests that took over 2s")).toBeVisible()
+  })
+
   it("marks the selected panel with data-selected and aria-current", () => {
     const { rerender } = renderWithProviders(
       <PanelChrome panel={panel} state="ready" selected />

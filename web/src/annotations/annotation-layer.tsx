@@ -70,6 +70,23 @@ export function AnnotationLayer({
           zone={zone}
         />
       ))}
+      <MarkerKey plural={flags.length > 1} />
+    </div>
+  )
+}
+
+function MarkerKey({ plural }: { plural: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-annotation-key=""
+      className="absolute top-0 right-0 flex items-center gap-1 px-1 text-[11px] leading-4 text-muted-foreground"
+    >
+      <span
+        className="inline-block bg-threshold-info"
+        style={{ width: flagWidth, height: flagHeight }}
+      />
+      {plural ? "Annotations" : "Annotation"}
     </div>
   )
 }
