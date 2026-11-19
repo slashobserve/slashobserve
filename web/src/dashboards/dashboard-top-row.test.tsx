@@ -11,7 +11,7 @@ import { render, screen } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it } from "vitest"
 
 import { AnnotationControls } from "@/annotations/annotation-controls"
-import { annotationTagsQuery } from "@/annotations/queries"
+import { annotationKeys } from "@/api/keys"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { testQueryClient } from "@/test/render"
 
@@ -35,7 +35,9 @@ async function renderRow(
   folder: { id: string; title: string } | null = null
 ) {
   const queryClient = testQueryClient()
-  queryClient.setQueryData(annotationTagsQuery("d1").queryKey, ["deploy"])
+  queryClient.setQueryData(annotationKeys.range("d1", "now-1h", "now"), [
+    { tags: ["deploy"] },
+  ])
   const root = createRootRoute()
   const authed = createRoute({ getParentRoute: () => root, id: "_authed" })
   const dashboard = createRoute({

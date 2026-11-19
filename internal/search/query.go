@@ -23,7 +23,7 @@ type Query struct {
 }
 
 func ParseQuery(raw string) (Query, error) {
-	words := strings.TrimSpace(raw)
+	words := splitHyphenatedWords(strings.TrimSpace(raw))
 	if n := utf8.RuneCountInString(words); n == 0 || n > MaxQueryRunes {
 		return Query{}, &InvalidQueryError{Message: "q must be 1 to 200 characters"}
 	}
@@ -36,6 +36,54 @@ func ParseQuery(raw string) (Query, error) {
 		return Query{}, &InvalidQueryError{Message: "q needs a word to search for"}
 	}
 	return Query{Words: words, Prefix: trailingPrefix(raw, words)}, nil
+}
+
+func splitHyphenatedWords(words string) string {
+	var out strings.Builder
+	runes := []rune(words)
+	inQuote := false
+	for start := 0; start < len(runes); {
+		if unicode.IsSpace(runes[start]) {
+			out.WriteRune(runes[start])
+			start++
+			continue
+		}
+		end := start
+		for end < len(runes) && !unicode.IsSpace(runes[end]) {
+			end++
+		}
+		token := runes[start:end]
+		excluded := !inQuote && token[0] == '-'
+		split := splitToken(token)
+		if excluded && split.changed && !strings.ContainsRune(split.text, '"') {
+			out.WriteString("-\"")
+			out.WriteString(split.text[1:])
+			out.WriteString("\"")
+		} else {
+			out.WriteString(split.text)
+		}
+		inQuote = inQuote != (strings.Count(split.text, "\"")%2 == 1)
+		start = end
+	}
+	return out.String()
+}
+
+type splitResult struct {
+	text    string
+	changed bool
+}
+
+func splitToken(token []rune) splitResult {
+	parts := make([]rune, len(token))
+	copy(parts, token)
+	changed := false
+	for i, r := range parts {
+		if r == '-' && i > 0 && i+1 < len(parts) && isWordRune(parts[i-1]) && unicode.IsLetter(parts[i+1]) {
+			parts[i] = ' '
+			changed = true
+		}
+	}
+	return splitResult{text: string(parts), changed: changed}
 }
 
 func hasSearchableWord(words string) bool {

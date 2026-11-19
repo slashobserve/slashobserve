@@ -12,6 +12,7 @@ import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { isModEnter } from "@/lib/shortcuts"
+import { cleanText } from "@/lib/user-text"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
@@ -109,7 +110,7 @@ export function Composer({
   const [mentioning, setMentioning] = useState(false)
   const [replaceFrom, setReplaceFrom] = useState<number | null>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
-  const text = body.trim()
+  const text = cleanText(body)
   const unavailable = typeof disabledReason === "string"
   const sendBlock = agentSendBlock(body, agentsBlocked)
   const sendBlockId = useId()

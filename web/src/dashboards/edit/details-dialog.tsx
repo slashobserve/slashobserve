@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { cleanText } from "@/lib/user-text"
 import { dashboardKeys } from "@/api/keys"
 import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator, type Dashboard } from "@/spec"
@@ -91,7 +92,7 @@ export function DetailsDialog({
   const next: Details | null =
     titleProblem === null && descriptionProblem === null && !tagsProblem
       ? {
-          title: title.trim(),
+          title: cleanText(title),
           description: description.trim(),
           tags: "tags" in parsedTags ? parsedTags.tags : [],
         }
