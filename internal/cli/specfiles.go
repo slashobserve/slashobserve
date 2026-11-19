@@ -292,7 +292,10 @@ func (a *app) applyCommand() *cobra.Command {
 func (a *app) runApply(cmd *cobra.Command, dir string) error {
 	files, err := specfiles.Scan(dir)
 	if err != nil {
-		return fmt.Errorf("read %s: %w", dir, err)
+		return usagef("cannot read %s: %v", text(dir), err)
+	}
+	if len(files) == 0 {
+		a.output().warn("No .json file found under %s, so nothing was applied; observe dashboards export writes the files this reads.", text(dir))
 	}
 	c, err := a.newClient()
 	if err != nil {

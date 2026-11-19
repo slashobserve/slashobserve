@@ -2,8 +2,6 @@ package db_test
 
 import (
 	"testing"
-
-	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
 const (
@@ -13,10 +11,7 @@ const (
 
 func TestUpgradeFromV010BackfillsItsData(t *testing.T) {
 	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, v010Version); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, v010Version)
 	const (
 		named     = "00000000-0000-4000-8000-0000000000a1"
 		unnamed   = "00000000-0000-4000-8000-0000000000a2"
@@ -73,10 +68,7 @@ VALUES ($1::uuid, 'prompt', 'p', 1, 'user', $2::uuid, 'Ada')`, dashboard, named)
 
 func TestPostV010MigrationRollsBack(t *testing.T) {
 	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, postV010Version); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, postV010Version)
 	seedImport(t, d, "00000000-0000-4000-8000-000000000001", "shop", "2026-01-01T00:00:00Z")
 	d.Exec(t, `INSERT INTO grafana_connections (name, url, token_ciphertext) VALUES ('g', 'https://grafana.example.com', '\x01')`)
 	sqlDB := d.SQLDB(t)

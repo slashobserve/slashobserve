@@ -18,11 +18,7 @@ func inboxObjects(t *testing.T, d *dbtest.Database) string {
 }
 
 func TestInboxCursorsFollowTheirUser(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, inboxVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, inboxVersion)
 	sqlDB := d.SQLDB(t)
 	user := foScalar(t, sqlDB, `INSERT INTO users (oidc_issuer, oidc_subject, email, name) VALUES ('https://idp', gen_random_uuid()::text, 'ada@example.com', 'Ada') RETURNING id::text`)
 	d.Exec(t, `INSERT INTO inbox_cursors (user_id, read_xid, read_seq) VALUES ($1::uuid, pg_current_xact_id(), 7)`, user)
@@ -37,10 +33,7 @@ func TestInboxCursorsFollowTheirUser(t *testing.T) {
 
 func TestInboxRollsBackAndReapplies(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, inboxVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, inboxVersion)
 	if got := inboxObjects(t, d); got != "inbox_cursors,activity_inbox_idx,inbox_reason(activity,uuid,uuid[])" {
 		t.Fatalf("after up the objects are %q", got)
 	}

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -17,9 +18,13 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/opaquetoken"
+	"github.com/slashobserve/slashobserve/internal/users"
 )
 
 const (
@@ -84,7 +89,9 @@ type openStream struct {
 	done  chan struct{}
 }
 
-func openEventStream(t *testing.T, sessions Principals, access Access) *openStream {
+var eventViewer = auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}
+
+func newEventServer(t *testing.T, sessions Principals, access Access, caller auth.Principal, extra func(auth.Routes)) *httptest.Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
@@ -93,14 +100,29 @@ func openEventStream(t *testing.T, sessions Principals, access Access) *openStre
 	h.pingInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
 	})
-	h.Register(auth.NewRoutes(api))
+	routes := auth.NewRoutes(api)
+	h.Register(routes)
+	if extra != nil {
+		extra(routes)
+	}
 	srv := httptest.NewServer(engine)
 	t.Cleanup(srv.Close)
 	t.Cleanup(srv.CloseClientConnections)
+	return srv
+}
 
-	resp, err := http.Get(srv.URL + "/api/v1/dashboards/" + dashboardID + "/events")
+func followEvents(t *testing.T, srv *httptest.Server, cookie string) *openStream {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/dashboards/"+dashboardID+"/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +139,11 @@ func openEventStream(t *testing.T, sessions Principals, access Access) *openStre
 		}
 	}()
 	return s
+}
+
+func openEventStream(t *testing.T, sessions Principals, access Access) *openStream {
+	t.Helper()
+	return followEvents(t, newEventServer(t, sessions, access, eventViewer, nil), "")
 }
 
 func (s *openStream) waitFor(t *testing.T, prefix string) {
@@ -156,6 +183,50 @@ func TestStreamEndsWhenTheCredentialStopsBeingValid(t *testing.T) {
 	sessions.valid.Store(false)
 	if !s.closedWithin(waitTimeout) {
 		t.Fatal("the stream outlived its session")
+	}
+}
+
+func TestStreamEndsWhenItsPersonIsSignedOutEverywhere(t *testing.T) {
+	database := dbtest.New(t)
+	logger := slog.New(slog.DiscardHandler)
+	authService, err := auth.New(auth.Config{PublicURL: &url.URL{Scheme: "http", Host: "localhost:8080"}, IssuerURL: "http://issuer.example/dex"}, database.Queries(), logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	person, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "s", Email: "ada@example.com", Name: "Ada"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, hash, err := opaquetoken.New("sos_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = database.Queries().CreateSession(t.Context(), dbsqlc.CreateSessionParams{TokenHash: hash, UserID: person.ID, ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller := auth.Principal{Kind: auth.KindUser, ID: person.ID.String(), Role: auth.RoleAdmin}
+	srv := newEventServer(t, authService, newFakeAccess(), caller, func(routes auth.Routes) {
+		users.NewHandler(database.DB, authService, folders.NewAccess(database.DB), logger).Register(routes)
+	})
+	s := followEvents(t, srv, "so_session="+token)
+	s.waitFor(t, "event: ready")
+	s.waitFor(t, ": ping")
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/users/"+person.ID.String()+"/sessions", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("sign out everywhere = %d, want 204", resp.StatusCode)
+	}
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream outlived the sign out everywhere of its person")
 	}
 }
 

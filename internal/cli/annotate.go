@@ -28,6 +28,8 @@ type createdAnnotation struct {
 	TimeFrom    string  `json:"time_from"`
 }
 
+const futureTolerance = 24 * time.Hour
+
 var relativeAt = regexp.MustCompile(`^now-([1-9][0-9]{0,5})([smhd])$`)
 
 var atUnits = map[string]time.Duration{"s": time.Second, "m": time.Minute, "h": time.Hour, "d": 24 * time.Hour}
@@ -62,6 +64,9 @@ func (a *app) runAnnotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	body.TimeFrom = at
+	if warning := futureWarning(at, time.Now()); warning != "" {
+		a.output().warn("%s", warning)
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
@@ -85,6 +90,17 @@ func (a *app) runAnnotate(cmd *cobra.Command, args []string) error {
 	}
 	out.confirm("Added annotation %s at %s %s", text(created.ID), when(created.TimeFrom), where)
 	return nil
+}
+
+func futureWarning(at *string, now time.Time) string {
+	if at == nil {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339, *at)
+	if err != nil || !t.After(now.Add(futureTolerance)) {
+		return ""
+	}
+	return "--at " + text(*at) + " is more than a day in the future, so charts will not show the marker until then; check the year and the time zone"
 }
 
 func splitList(raw string) []string {

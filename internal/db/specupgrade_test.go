@@ -314,10 +314,7 @@ func TestEvolveMigrationIsRegistered(t *testing.T) {
 
 func TestEvolveMigrationThroughTheProvider(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, 9); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, 9)
 	seedLegacyDashboard(t, d, dashboardA, len(legacyNames))
 	for i, name := range legacyNames {
 		seedVersion(t, d, dashboardA, i+1, readUpgradeFile(t, "legacy/"+name))

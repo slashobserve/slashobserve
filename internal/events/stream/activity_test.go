@@ -66,11 +66,15 @@ func (n *notifier) wake(seq int64) {
 type fakePrincipals struct {
 	current atomic.Pointer[auth.Principal]
 	err     atomic.Pointer[error]
+	once    atomic.Pointer[error]
 	calls   atomic.Int32
 }
 
 func (f *fakePrincipals) RequestPrincipal(*http.Request) (auth.Principal, bool, error) {
 	f.calls.Add(1)
+	if err := f.once.Swap(nil); err != nil {
+		return auth.Principal{}, false, *err
+	}
 	if err := f.err.Load(); err != nil {
 		return auth.Principal{}, false, *err
 	}
@@ -82,6 +86,17 @@ func (f *fakePrincipals) RequestPrincipal(*http.Request) (auth.Principal, bool, 
 }
 
 func (f *fakePrincipals) becomes(p auth.Principal) { f.current.Store(&p) }
+
+func (f *fakePrincipals) waitUntilFailedOnce(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(waitTimeout)
+	for f.once.Load() != nil {
+		if time.Now().After(deadline) {
+			t.Fatal("the stream did not re-read its principal")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
 
 func (f *fakePrincipals) waitForChecks(t *testing.T, n int32) {
 	t.Helper()
@@ -513,9 +528,8 @@ func TestActivityStreamSurvivesASingleCheckFailure(t *testing.T) {
 	s.expectEvent(t, "ready")
 
 	err := errors.New("database unavailable")
-	r.principals.err.Store(&err)
-	r.principals.waitForChecks(t, 1)
-	r.principals.err.Store(nil)
+	r.principals.once.Store(&err)
+	r.principals.waitUntilFailedOnce(t)
 
 	if s.closedWithin(10 * quietPeriod / 3) {
 		t.Fatal("one failed check must not close the stream")
