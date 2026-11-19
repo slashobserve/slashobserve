@@ -9,7 +9,7 @@ import {
 
 const debounceMs = 1000
 
-export const listChangeTypes = [
+const listChangeTypes = [
   "dashboard.created",
   "dashboard.deleted",
   "dashboard.moved",
