@@ -15,7 +15,8 @@ type TargetKind = InboxItem["target"]["kind"]
 
 export type ItemText = { actor: string; verb: string; object: string }
 export type ItemGroup = {
-  label: "Needs you" | "Workspace activity"
+  key: string
+  label: string
   items: InboxItem[]
 }
 
@@ -261,10 +262,32 @@ export function groupItems(items: readonly InboxItem[]): ItemGroup[] {
   const needs = items.filter((item) => item.reason !== null)
   const rest = items.filter((item) => item.reason === null)
   const groups: ItemGroup[] = [
-    { label: "Needs you", items: needs },
-    { label: "Workspace activity", items: rest },
+    { key: "needs", label: "Needs you", items: needs },
+    { key: "activity", label: "Workspace activity", items: rest },
   ]
   return groups.filter((group) => group.items.length > 0)
+}
+
+export function groupByTarget(items: readonly InboxItem[]): ItemGroup[] {
+  const groups = new Map<string, ItemGroup>()
+  for (const item of items) {
+    const ref = objectRef(item) ?? item.target
+    const key = `${ref.kind}:${ref.id}`
+    const group = groups.get(key)
+    if (group === undefined) {
+      groups.set(key, {
+        key,
+        label: titleOf(item) ?? kindWords[ref.kind],
+        items: [item],
+      })
+    } else {
+      group.items.push(item)
+      if (group.label === kindWords[ref.kind]) {
+        group.label = titleOf(item) ?? group.label
+      }
+    }
+  }
+  return [...groups.values()]
 }
 
 function observationOf(item: InboxItem): string | null {

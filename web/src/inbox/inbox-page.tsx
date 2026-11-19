@@ -9,7 +9,7 @@ import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
-import type { InboxView } from "@/api/keys"
+import type { InboxFilter, InboxView } from "@/api/keys"
 import { EmptyState } from "@/components/empty-state"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
@@ -20,13 +20,24 @@ import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { InboxDetail } from "./inbox-detail"
-import { groupItems, itemLink, type InboxItem } from "./inbox-item"
+import {
+  groupByTarget,
+  groupItems,
+  itemLink,
+  type InboxItem,
+} from "./inbox-item"
 import { InboxRow } from "./inbox-row"
-import { inboxViews, isInboxView } from "./inbox-views"
+import {
+  inboxFilters,
+  inboxViews,
+  isInboxFilter,
+  isInboxView,
+} from "./inbox-views"
 import {
   inboxInfiniteQuery,
   useInboxLive,
   useMarkInboxRead,
+  useSetInboxItemDone,
   useSetInboxItemUnread,
 } from "./queries"
 
@@ -53,10 +64,16 @@ function useDetailPane(): boolean {
   )
 }
 
-type Props = {
+export type InboxState = {
   view: InboxView
+  filter: InboxFilter
+  grouped: boolean
+  item: string | undefined
+}
+
+type Props = Omit<InboxState, "item"> & {
   selected: string | undefined
-  onChange: (next: { view: InboxView; item: string | undefined }) => void
+  onChange: (next: InboxState) => void
 }
 
 function isSignedInOnly(error: unknown): boolean {
@@ -77,17 +94,29 @@ function ListSkeleton() {
   )
 }
 
-export function InboxPage({ view, selected, onChange }: Props) {
+const filterEmptyText: Record<Exclude<InboxFilter, "open">, string> = {
+  unread: "Nothing unread.",
+  done: "Nothing marked done.",
+}
+
+export function InboxPage({
+  view,
+  filter,
+  grouped,
+  selected,
+  onChange,
+}: Props) {
   useInboxLive()
   const router = useRouter()
   const wide = useDetailPane()
   const list = useRef<HTMLDivElement>(null)
-  const query = useInfiniteQuery(inboxInfiniteQuery(view))
+  const query = useInfiniteQuery(inboxInfiniteQuery(view, filter))
   const markRead = useMarkInboxRead()
   const setUnread = useSetInboxItemUnread()
+  const setDone = useSetInboxItemDone()
   const opened = useRef<number | null>(null)
   const items = query.data?.pages.flatMap((page) => page.items) ?? []
-  const groups = groupItems(items)
+  const groups = grouped ? groupByTarget(items) : groupItems(items)
   const ordered = groups.flatMap((group) => group.items)
   const unread = query.data?.pages[0]?.unread_count ?? 0
   const newest =
@@ -97,7 +126,31 @@ export function InboxPage({ view, selected, onChange }: Props) {
   const tabStop = selectedItem ?? ordered[0] ?? null
 
   function select(item: InboxItem) {
-    onChange({ view, item: String(item.seq) })
+    onChange({ view, filter, grouped, item: String(item.seq) })
+  }
+
+  function toggleDone(item: InboxItem) {
+    const done = filter !== "done"
+    setDone.mutate(
+      { seq: item.seq, done },
+      {
+        onSuccess: () => {
+          if (done) {
+            toast.success("Marked done", {
+              action: {
+                label: "Undo",
+                onClick: () =>
+                  setDone.mutate(
+                    { seq: item.seq, done: false },
+                    { onError: (error) => toast.error(loadProblemText(error)) }
+                  ),
+              },
+            })
+          }
+        },
+        onError: (error) => toast.error(loadProblemText(error)),
+      }
+    )
   }
 
   function markOpened(item: InboxItem) {
@@ -175,11 +228,17 @@ export function InboxPage({ view, selected, onChange }: Props) {
       )
     }
     if (query.data === undefined) return <ListSkeleton />
-    if (groups.length === 0) return <EmptyState title={emptyText[view]} />
+    if (groups.length === 0) {
+      return (
+        <EmptyState
+          title={filter === "open" ? emptyText[view] : filterEmptyText[filter]}
+        />
+      )
+    }
     return (
       <div ref={list} onKeyDown={onKeyDown} className="flex flex-col gap-1">
         {groups.map((group) => (
-          <section key={group.label} className="flex flex-col gap-1">
+          <section key={group.key} className="flex flex-col gap-1">
             <h2 className="px-3 pt-3 pb-1 text-xs text-muted-foreground">
               {group.label}
             </h2>
@@ -194,6 +253,8 @@ export function InboxPage({ view, selected, onChange }: Props) {
                     onSelect={select}
                     onOpen={markOpened}
                     onToggleUnread={toggleUnread}
+                    onToggleDone={toggleDone}
+                    done={filter === "done"}
                   />
                 </li>
               ))}
@@ -237,7 +298,9 @@ export function InboxPage({ view, selected, onChange }: Props) {
           <Tabs
             value={view}
             onValueChange={(next) => {
-              if (isInboxView(next)) onChange({ view: next, item: undefined })
+              if (isInboxView(next)) {
+                onChange({ view: next, filter, grouped, item: undefined })
+              }
             }}
           >
             <TabsList variant="line" aria-label="Filter the inbox">
@@ -248,6 +311,46 @@ export function InboxPage({ view, selected, onChange }: Props) {
               ))}
             </TabsList>
           </Tabs>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div
+              role="group"
+              aria-label="Show"
+              className="flex items-center gap-1"
+            >
+              {inboxFilters.map((entry) => (
+                <Button
+                  key={entry.value}
+                  type="button"
+                  size="sm"
+                  variant={filter === entry.value ? "secondary" : "ghost"}
+                  aria-pressed={filter === entry.value}
+                  onClick={() => {
+                    if (isInboxFilter(entry.value)) {
+                      onChange({
+                        view,
+                        filter: entry.value,
+                        grouped,
+                        item: undefined,
+                      })
+                    }
+                  }}
+                >
+                  {entry.label}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={grouped ? "secondary" : "ghost"}
+              aria-pressed={grouped}
+              onClick={() =>
+                onChange({ view, filter, grouped: !grouped, item: selected })
+              }
+            >
+              Group by dashboard or observation
+            </Button>
+          </div>
           <div className="mt-3">{body()}</div>
         </div>
         {wide ? (
@@ -255,7 +358,12 @@ export function InboxPage({ view, selected, onChange }: Props) {
             aria-label="Selected item"
             className="min-w-0 flex-1 border-l pl-6"
           >
-            <InboxDetail item={selectedItem} onToggleUnread={toggleUnread} />
+            <InboxDetail
+              item={selectedItem}
+              done={filter === "done"}
+              onToggleUnread={toggleUnread}
+              onToggleDone={toggleDone}
+            />
           </section>
         ) : null}
       </div>

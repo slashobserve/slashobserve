@@ -447,9 +447,12 @@ export const proposalKeys = {
 
 export type InboxView = "for_you" | "everything" | "proposals" | "mentions"
 
+export type InboxFilter = "open" | "unread" | "done"
+
 export const inboxKeys = {
   all: ["inbox"] as const,
-  list: (view: InboxView) => ["inbox", "list", view] as const,
+  list: (view: InboxView, filter: InboxFilter = "open") =>
+    ["inbox", "list", view, filter] as const,
 }
 
 export const agentKeys = {

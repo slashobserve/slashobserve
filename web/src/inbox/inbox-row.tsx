@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { MailIcon, MailOpenIcon } from "lucide-react"
+import { CheckIcon, MailIcon, MailOpenIcon, UndoIcon } from "lucide-react"
 
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
@@ -18,6 +18,8 @@ type Props = {
   onSelect: (item: InboxItem) => void
   onOpen?: (item: InboxItem) => void
   onToggleUnread?: (item: InboxItem) => void
+  onToggleDone?: (item: InboxItem) => void
+  done?: boolean
 }
 
 const rowClass =
@@ -75,14 +77,18 @@ export function InboxRow({
   onSelect,
   onOpen,
   onToggleUnread,
+  onToggleDone,
+  done = false,
 }: Props) {
   const className = cn(
     rowClass,
     onToggleUnread !== undefined && "pr-10",
+    onToggleUnread !== undefined && onToggleDone !== undefined && "pr-[4.5rem]",
     selected && "bg-selection"
   )
   const link = itemLink(item)
   const toggleLabel = item.unread ? "Mark as read" : "Mark as unread"
+  const doneLabel = done ? "Move back to the inbox" : "Mark done"
   return (
     <div className="group/row relative">
       {asLink && link !== null ? (
@@ -107,6 +113,23 @@ export function InboxRow({
         >
           <RowBody item={item} />
         </button>
+      )}
+      {onToggleDone === undefined ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={doneLabel}
+          title={doneLabel}
+          className="absolute top-2 right-9 text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100"
+          onClick={() => onToggleDone(item)}
+        >
+          {done ? (
+            <UndoIcon aria-hidden="true" />
+          ) : (
+            <CheckIcon aria-hidden="true" />
+          )}
+        </Button>
       )}
       {onToggleUnread === undefined ? null : (
         <Button
