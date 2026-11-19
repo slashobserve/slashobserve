@@ -311,10 +311,7 @@ function nowDelayMs(value: string | undefined): number | undefined {
   return Number(match[1]) * absoluteUnitMs[match[2] as "s" | "m" | "h"]
 }
 
-export function timeOptionsFor(
-  settings: TimeSettings,
-  defaultWeekStart?: Dashboard["weekStart"]
-): TimeOptions {
+export function timeOptionsFor(settings: TimeSettings): TimeOptions {
   const { timezone } = settings
   const zone =
     timezone === "browser"
@@ -324,7 +321,7 @@ export function timeOptionsFor(
         : timezone
   return {
     zone: knownZone(zone),
-    weekStart: settings.weekStart ?? defaultWeekStart,
+    weekStart: settings.weekStart,
     fiscalYearStartMonth: settings.fiscalYearStartMonth,
     nowDelayMs: nowDelayMs(settings.nowDelay),
   }

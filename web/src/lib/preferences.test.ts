@@ -2,17 +2,15 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import {
   parseStoredTimeZone,
-  parseStoredWeekStart,
   preferredDisplayZone,
   preferredZone,
   timeZoneKey,
   usePreferences,
-  weekStartKey,
 } from "./preferences"
 
 afterEach(() => {
   localStorage.clear()
-  usePreferences.setState({ timeZone: "browser", weekStart: "monday" })
+  usePreferences.setState({ timeZone: "browser" })
 })
 
 describe("stored preferences", () => {
@@ -21,22 +19,15 @@ describe("stored preferences", () => {
     expect(parseStoredTimeZone("Mars/Base")).toBe("browser")
     expect(parseStoredTimeZone("Asia/Tokyo")).toBe("Asia/Tokyo")
     expect(parseStoredTimeZone("utc")).toBe("utc")
-    expect(parseStoredWeekStart(null)).toBe("monday")
-    expect(parseStoredWeekStart("friday")).toBe("monday")
-    expect(parseStoredWeekStart("sunday")).toBe("sunday")
   })
 })
 
 describe("usePreferences", () => {
-  it("stores a chosen zone and week start and drops the default", () => {
+  it("stores a chosen zone and drops the default", () => {
     usePreferences.getState().setTimeZone("Asia/Tokyo")
-    usePreferences.getState().setWeekStart("sunday")
     expect(localStorage.getItem(timeZoneKey)).toBe("Asia/Tokyo")
-    expect(localStorage.getItem(weekStartKey)).toBe("sunday")
     usePreferences.getState().setTimeZone("browser")
-    usePreferences.getState().setWeekStart("monday")
     expect(localStorage.getItem(timeZoneKey)).toBeNull()
-    expect(localStorage.getItem(weekStartKey)).toBeNull()
   })
 
   it("ignores a zone that does not exist", () => {

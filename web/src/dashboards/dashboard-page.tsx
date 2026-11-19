@@ -296,9 +296,8 @@ function DashboardView({
   const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
   const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
-    () =>
-      timeOptionsFor({ ...spec, timezone: viewZone }, preferences.weekStart),
-    [spec, viewZone, preferences.weekStart]
+    () => timeOptionsFor({ ...spec, timezone: viewZone }),
+    [spec, viewZone]
   )
 
   const source = useMemo<PanelSource>(

@@ -430,23 +430,6 @@ describe("resolveTime", () => {
     }
   })
 
-  it("starts the week on the person's day unless the dashboard sets one", () => {
-    const wednesday = Date.parse("2026-11-18T12:00:00Z")
-    const start = (settings: Parameters<typeof timeOptionsFor>[0]) =>
-      new Date(
-        resolveTime(
-          "now/w",
-          wednesday,
-          false,
-          timeOptionsFor(settings, "sunday")
-        )
-      ).toISOString()
-    expect(start({ timezone: "utc" })).toBe("2026-11-15T00:00:00.000Z")
-    expect(start({ timezone: "utc", weekStart: "monday" })).toBe(
-      "2026-11-16T00:00:00.000Z"
-    )
-  })
-
   it("resolves in UTC with Monday weeks without options", () => {
     const now = Date.parse("2026-10-30T20:00:00.123Z")
     expect(new Date(resolveTime("now/w", now, false)).toISOString()).toBe(

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { usePreferences } from "@/lib/preferences"
@@ -10,14 +10,14 @@ const storageKey = "slashobserve-theme"
 
 describe("AppearanceSection", () => {
   afterEach(() => {
-    usePreferences.setState({ timeZone: "browser", weekStart: "monday" })
+    usePreferences.setState({ timeZone: "browser" })
     localStorage.clear()
   })
 
   it("offers the three theme choices under a Theme label", () => {
     renderWithProviders(<AppearanceSection />)
     const group = screen.getByRole("radiogroup", { name: "Theme" })
-    expect(within(group).getAllByRole("radio")).toHaveLength(3)
+    expect(screen.getAllByRole("radio")).toHaveLength(3)
     expect(group).toContainElement(screen.getByRole("radio", { name: "Light" }))
     expect(group).toContainElement(screen.getByRole("radio", { name: "Dark" }))
     expect(group).toContainElement(
@@ -39,18 +39,6 @@ describe("AppearanceSection", () => {
       expect(localStorage.getItem(storageKey)).toBe(stored)
     }
   )
-
-  it("stores the week start when a day is chosen", async () => {
-    const { user } = renderWithProviders(<AppearanceSection />)
-    const group = screen.getByRole("radiogroup", { name: "Week starts on" })
-    expect(group).toContainElement(
-      screen.getByRole("radio", { name: "Monday" })
-    )
-    expect(screen.getByRole("radio", { name: "Monday" })).toBeChecked()
-    await user.click(screen.getByRole("radio", { name: "Sunday" }))
-    expect(screen.getByRole("radio", { name: "Sunday" })).toBeChecked()
-    expect(localStorage.getItem("slashobserve-week-start")).toBe("sunday")
-  })
 
   it("stores the time zone when one is picked", async () => {
     const { user } = renderWithProviders(<AppearanceSection />)

@@ -340,12 +340,10 @@ Open Settings, choose **Appearance** in its section list, and pick **Light**, **
 The account menu offers the same three choices under **Theme**, and the toolbar's **Switch theme** button and the command palette's **Switch theme** command flip between light and dark.
 The choice stays in this browser's local storage and never reaches the server, so it does not follow you to another browser.
 
-## Time zone and week start
+## Time zone
 
-**Appearance** in Settings also has **Time zone** and **Week starts on**.
-**Time zone** is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
+**Appearance** in Settings also has **Time zone**.
+It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
 It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
 It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
-**Week starts on** (Monday, Sunday or Saturday) is the first day of the week when the page moves or zooms a dashboard's range, for a dashboard that sets no `weekStart` of its own.
-The server resolves a `now/w` range with the dashboard's `weekStart` and has no setting per person, so panels still follow the dashboard.
-Both choices stay in this browser's local storage and never reach the server, like the theme, so they do not follow you to another browser.
+The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

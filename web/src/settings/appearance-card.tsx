@@ -7,11 +7,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import {
-  isWeekStart,
-  usePreferences,
-  weekStartChoices,
-} from "@/lib/preferences"
+import { usePreferences } from "@/lib/preferences"
 import { isThemePreference, themeChoices, useTheme } from "@/lib/theme"
 import { zoneChoiceLabel, zoneChoices } from "@/lib/time"
 
@@ -23,7 +19,7 @@ const radioRowClass =
 
 export function AppearanceSection() {
   const { preference, setPreference } = useTheme()
-  const { timeZone, setTimeZone, weekStart, setWeekStart } = usePreferences()
+  const { timeZone, setTimeZone } = usePreferences()
   const zones = zoneChoices()
   return (
     <SettingsSection
@@ -80,26 +76,6 @@ export function AppearanceSection() {
             </ComboboxContent>
           </Combobox>
         </div>
-      </SettingsCard>
-      <SettingsCard
-        title="Week starts on"
-        hint="The first day of the week for ranges you move or zoom on a dashboard that does not set one. Kept in this browser only."
-      >
-        <RadioGroup
-          aria-label="Week starts on"
-          className="gap-0 divide-y"
-          value={weekStart}
-          onValueChange={(value) => {
-            if (isWeekStart(value)) setWeekStart(value)
-          }}
-        >
-          {weekStartChoices.map((choice) => (
-            <label key={choice.value} className={radioRowClass}>
-              <RadioGroupItem value={choice.value} />
-              {choice.label}
-            </label>
-          ))}
-        </RadioGroup>
       </SettingsCard>
     </SettingsSection>
   )
