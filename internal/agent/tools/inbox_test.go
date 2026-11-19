@@ -149,6 +149,7 @@ func (r activityRig) setDone(t *testing.T, by auth.Principal, input string) Resu
 
 func TestSetInboxItemDoneMovesAnItemOutOfTheDefaultListAndBack(t *testing.T) {
 	r := newActivityRig(t)
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $1, $1 || '@example.com', $2)`, viewerCaller.ID, viewerCaller.Name)
 	r.mentionOf(t, viewerCaller)
 	r.mentionOf(t, viewerCaller)
 	open, _ := r.inbox(t, viewerCaller, `{}`)

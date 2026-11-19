@@ -288,7 +288,7 @@ func toolNamesListedFor(t *testing.T, f *fixture, header string, params any) map
 
 func TestToolsThatNeedAPersonAreListedOnlyForPeople(t *testing.T) {
 	f := newFixture(t)
-	personOnly := []string{"pin_dashboard", "unpin_dashboard", "list_pinned_dashboards", "list_inbox"}
+	personOnly := []string{"pin_dashboard", "unpin_dashboard", "list_pinned_dashboards", "list_inbox", "set_inbox_item_done"}
 	forKey, forPerson := toolNamesListedFor(t, f, goodKey, nil), toolNamesListedFor(t, f, namedOAuth, nil)
 	for _, name := range personOnly {
 		if forKey[name] || !forPerson[name] {

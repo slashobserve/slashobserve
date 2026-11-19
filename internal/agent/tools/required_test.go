@@ -92,6 +92,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	samples := map[string]json.RawMessage{
 		"id":             json.RawMessage(`"` + runID + `"`),
+		"seq":            json.RawMessage(`1`),
 		"datasource":     json.RawMessage(`"` + fakeUID + `"`),
 		"datasource_uid": json.RawMessage(`"` + fakeUID + `"`),
 		"kind":           json.RawMessage(`"logs"`),
