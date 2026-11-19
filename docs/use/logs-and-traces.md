@@ -59,6 +59,7 @@ In the language segment you write the query yourself.
 On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
+
 Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not, so a query never reads a table beyond the range at the top of the page.
 Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.
 Ctrl+Space in the editor completes names: the columns of `otel_logs` on ClickHouse, the stream labels on Loki and the mapped fields on Elasticsearch and OpenSearch, and on ClickHouse also the SQL keywords.
