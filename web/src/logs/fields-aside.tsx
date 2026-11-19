@@ -1,4 +1,11 @@
-import { useId, useMemo, useState, useSyncExternalStore } from "react"
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   ChevronRightIcon,
@@ -20,6 +27,15 @@ import {
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
+import {
+  clampFieldsWidth,
+  fieldsDefaultWidth,
+  fieldsMaxWidth,
+  fieldsMinWidth,
+  keyboardFieldsWidth,
+  storedFieldsWidth,
+  storeFieldsWidth,
+} from "./fields-width"
 import {
   barPercent,
   basisNote,
@@ -438,9 +454,93 @@ function FieldsPanel({
   )
 }
 
+function FieldsResizeGrip({
+  width,
+  onWidth,
+}: {
+  width: number
+  onWidth: (width: number) => void
+}) {
+  const drag = useRef<{
+    pointerId: number
+    startX: number
+    startWidth: number
+    latest: number
+  } | null>(null)
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: width,
+      latest: width,
+    }
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const current = drag.current
+    if (!current) return
+    current.latest = clampFieldsWidth(
+      current.startWidth + event.clientX - current.startX
+    )
+    onWidth(current.latest)
+  }
+
+  function endDrag(event: PointerEvent<HTMLDivElement>) {
+    const current = drag.current
+    if (!current) return
+    drag.current = null
+    storeFieldsWidth(current.latest)
+    if (event.currentTarget.hasPointerCapture(current.pointerId)) {
+      event.currentTarget.releasePointerCapture(current.pointerId)
+    }
+    document.body.style.cursor = ""
+    document.body.style.userSelect = ""
+  }
+
+  function change(next: number) {
+    onWidth(next)
+    storeFieldsWidth(next)
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize fields"
+      aria-valuenow={width}
+      aria-valuemin={fieldsMinWidth}
+      aria-valuemax={fieldsMaxWidth}
+      aria-valuetext={`${width} pixels`}
+      tabIndex={0}
+      title="Drag to resize, double-click to reset"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onDoubleClick={() => change(fieldsDefaultWidth)}
+      onKeyDown={(event) => {
+        const next = keyboardFieldsWidth(width, event.key, event.shiftKey)
+        if (next === null) return
+        event.preventDefault()
+        change(next)
+      }}
+      className="group absolute top-0 right-0 bottom-0 z-10 grid w-2 cursor-col-resize touch-none place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="h-9 w-0.5 rounded-[2px] bg-border group-hover:bg-muted-foreground/50" />
+    </div>
+  )
+}
+
 export function FieldsAside() {
   const { detail } = useLogsWorkspace()
   const noRoom = useNoRoomForAside()
+  const [width, setWidth] = useState(storedFieldsWidth)
   const [shown, setShown] = useState(storedFacetsOpen)
   const lineOpen = detail.selection !== null
   const [lineWasOpen, setLineWasOpen] = useState(lineOpen)
@@ -480,9 +580,11 @@ export function FieldsAside() {
   return (
     <aside
       aria-label="Fields"
-      className="flex min-h-0 w-[248px] shrink-0 flex-col border-r border-border text-[13px]"
+      className="relative flex min-h-0 shrink-0 flex-col border-r border-border text-[13px]"
+      style={{ width }}
     >
       <FieldsPanel onHide={() => toggle(false)} />
+      <FieldsResizeGrip width={width} onWidth={setWidth} />
     </aside>
   )
 }

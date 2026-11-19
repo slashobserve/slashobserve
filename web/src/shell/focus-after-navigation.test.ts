@@ -53,6 +53,37 @@ describe("moveFocusToPage", () => {
     expect(document.activeElement?.tagName).toBe("INPUT")
   })
 
+  it("moves focus once the focused link leaves with the old page", async () => {
+    page()
+    const link = document.createElement("a")
+    link.href = "#open"
+    document.body.append(link)
+    link.focus()
+    const target = main(["h1", "Trace"])
+    moveFocusToPage(document)
+    expect(document.activeElement).toBe(link)
+    link.remove()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(document.activeElement).toBe(target.querySelector("h1"))
+  })
+
+  it("keeps waiting for the heading after the focused link left", async () => {
+    page()
+    const link = document.createElement("a")
+    link.href = "#open"
+    document.body.append(link)
+    link.focus()
+    const target = main()
+    moveFocusToPage(document)
+    link.remove()
+    await vi.advanceTimersByTimeAsync(0)
+    const heading = document.createElement("h1")
+    heading.textContent = "Trace"
+    target.append(heading)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(document.activeElement).toBe(heading)
+  })
+
   it("waits for a heading that renders later", async () => {
     page()
     const target = main()
