@@ -68,7 +68,7 @@ func TestCleanTitlesKeepsATitleThePreviousVersionAlreadyHeld(t *testing.T) {
 func TestAStoredPanelTitleThatBreaksTheRuleDoesNotBlockLaterSavesOrCopies(t *testing.T) {
 	r := newRig(t, false)
 	dash := r.createSpec(t, specDef{panels: []panelDef{{id: "a", query: "m1"}, {id: "b", query: "m2"}}})
-	r.db.Exec(t, `UPDATE dashboard_versions SET spec = jsonb_set(spec, '{panels,0,title}', to_jsonb($2::text)) WHERE dashboard_id = $1`, dash, "CPU\nusage­")
+	r.db.Exec(t, `UPDATE dashboard_versions SET spec = jsonb_set(spec, '{panels,0,title}', to_jsonb($2::text)) WHERE dashboard_id = $1`, dash, "CPU\nusage\u00ad")
 
 	ver, err := r.saveChanged(t, dash, 1, upsert(1, panelDef{id: "b", query: "m3"}))
 	if err != nil {
@@ -78,7 +78,7 @@ func TestAStoredPanelTitleThatBreaksTheRuleDoesNotBlockLaterSavesOrCopies(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Panels[0].Title != "CPU\nusage­" {
+	if saved.Panels[0].Title != "CPU\nusage\u00ad" {
 		t.Errorf("stored title became %q", saved.Panels[0].Title)
 	}
 	if _, _, err := r.service.Duplicate(t.Context(), testUser, dash, pgtype.UUID{}, "Copy"); err != nil {

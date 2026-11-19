@@ -156,6 +156,13 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 	return SaveResult{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
 }
 
+func (s *Service) existingParent(ctx context.Context, in SaveInput, latest int) (*spec.Dashboard, error) {
+	if in.Parent < 1 || in.Parent > latest {
+		return nil, nil
+	}
+	return s.VersionSpec(ctx, in.DashboardID, in.Parent)
+}
+
 func (s *Service) parentSpec(ctx context.Context, in SaveInput) *spec.Dashboard {
 	if in.Parent < 1 {
 		return nil
@@ -194,11 +201,9 @@ func (s *Service) persist(ctx context.Context, by auth.Principal, in SaveInput) 
 	if err != nil {
 		return SaveResult{}, err
 	}
-	var prev *spec.Dashboard
-	if in.Parent >= 1 && in.Parent <= latest {
-		if prev, err = s.VersionSpec(ctx, in.DashboardID, in.Parent); err != nil {
-			return SaveResult{}, err
-		}
+	prev, err := s.existingParent(ctx, in, latest)
+	if err != nil {
+		return SaveResult{}, err
 	}
 	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, "", prev)
 	if err != nil {

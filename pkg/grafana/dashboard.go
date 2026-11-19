@@ -118,7 +118,7 @@ func (c *converter) convertHead() {
 	d := &c.head
 	d.SpecVersion = spec.Version
 
-	title := strings.TrimSpace(asString(dash["title"]))
+	title := cleanTitle(asString(dash["title"]))
 	if title == "" {
 		title = defaultTitle
 	}
