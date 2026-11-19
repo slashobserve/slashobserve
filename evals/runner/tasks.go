@@ -18,6 +18,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -56,7 +58,7 @@ const (
 	rowEditSeconds     = 600
 	minRowChildren     = 3
 	maxRowChildren     = 8
-	retimeMaxStep      = 2 * time.Minute
+	retimeMaxStep      = 5 * time.Minute
 	retimeDataPoints   = 200
 	suggestPrompt      = "Suggest a clearer title for this panel."
 	rowEditDescription = "Checked by the eval"
@@ -840,19 +842,36 @@ var retimeRanges = []retimeRange{
 
 // The server rejects a save whose panel is empty at the new range, and the stack holds only minutes of history, so a query step above what it holds has no point with data.
 func pickRetimeRange(dash *spec.Dashboard) (retimeRange, bool) {
-	factor := 1
-	for _, entry := range dash.DataPanels() {
-		for _, q := range entry.Panel.Queries {
-			factor = max(factor, q.IntervalFactor)
-		}
-	}
 	i := slices.IndexFunc(retimeRanges, func(r retimeRange) bool {
-		return r.from != dash.Time.From && r.span/retimeDataPoints*time.Duration(factor) <= retimeMaxStep
+		return r.from != dash.Time.From && widestQueryStep(dash, r.span) <= retimeMaxStep
 	})
 	if i < 0 {
 		return retimeRange{}, false
 	}
 	return retimeRanges[i], true
+}
+
+func widestQueryStep(dash *spec.Dashboard, span time.Duration) time.Duration {
+	widest := time.Duration(0)
+	for _, entry := range dash.DataPanels() {
+		maxDataPoints := retimeDataPoints
+		if entry.Panel.MaxDataPoints > 0 {
+			maxDataPoints = min(maxDataPoints, entry.Panel.MaxDataPoints)
+		}
+		base := queryproxy.StepFor(datasource.TimeRange{To: time.Time{}.Add(span)}, maxDataPoints)
+		for _, q := range entry.Panel.Queries {
+			widest = max(widest, queryproxy.QueryStep(base, minimumStep(entry.Panel, q), q.IntervalFactor))
+		}
+	}
+	return widest
+}
+
+func minimumStep(p *spec.Panel, q spec.Query) time.Duration {
+	minimum, err := spec.ParseInterval(cmp.Or(q.Interval, p.Interval))
+	if err != nil {
+		return 0
+	}
+	return minimum
 }
 
 func (p *planner) retime(a analyzed) (*task, error) {

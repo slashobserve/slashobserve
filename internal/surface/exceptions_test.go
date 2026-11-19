@@ -19,6 +19,7 @@ const (
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
 	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one"
+	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -37,15 +38,15 @@ var exceptions = map[string]exception{
 	"getMe":        {MCP: notBuilt},
 	"getInstance":  {MCP: notBuilt},
 
-	"createDashboard":        {CLI: notBuilt},
-	"listDashboardTags":      {MCP: notBuilt, CLI: notBuilt},
+	"createDashboard":        {CLI: viaApply},
+	"listDashboardTags":      {MCP: notBuilt},
 	"deleteDashboard":        {MCP: noMCPDeletes},
-	"createDashboardVersion": {CLI: notBuilt},
+	"createDashboardVersion": {CLI: viaApply},
 	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 
-	"logVolume": {MCP: notBuilt, CLI: notBuilt},
+	"logVolume": {MCP: notBuilt},
 
 	"listFindings":           {MCP: notBuilt, CLI: notBuilt},
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},
@@ -53,8 +54,7 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
-	"updateObservationBlock": {CLI: notBuilt},
-	"removeObservationBlock": {MCP: noMCPDeletes, CLI: notBuilt},
+	"removeObservationBlock": {MCP: noMCPDeletes},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
 	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
 	"listRcaPublicLinks":     {MCP: publicLink, CLI: publicLink},
@@ -100,10 +100,6 @@ var exceptions = map[string]exception{
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
 	"getDashboardImport": {MCP: notBuilt, CLI: notBuilt},
 
-	"listDatasourceMetrics":     {CLI: notBuilt},
-	"listDatasourceLabels":      {CLI: notBuilt},
-	"listDatasourceLabelValues": {CLI: notBuilt},
-
 	"getNewsFeed": {MCP: personOnly, CLI: personOnly},
 
 	"getConnectionRequest":     {MCP: consentScreen, CLI: consentScreen},
@@ -111,9 +107,9 @@ var exceptions = map[string]exception{
 	"denyConnectionRequest":    {MCP: consentScreen, CLI: consentScreen},
 
 	"getAgent":                {MCP: notBuilt},
-	"listObserveRequests":     {MCP: builtInRuns, CLI: notBuilt},
-	"updateObserveRequest":    {MCP: notBuilt, CLI: notBuilt},
-	"archiveObserveRequest":   {MCP: notBuilt, CLI: notBuilt},
+	"listObserveRequests":     {MCP: builtInRuns},
+	"updateObserveRequest":    {MCP: notBuilt},
+	"archiveObserveRequest":   {MCP: notBuilt},
 	"saveObserveRequestBuild": {MCP: notBuilt, CLI: notBuilt},
 	"continueObserveRequest":  {MCP: notBuilt},
 	"getBuildPanelData":       {MCP: personOnly, CLI: personOnly},
@@ -142,16 +138,15 @@ var exceptions = map[string]exception{
 	"getPublicPanelData":      {MCP: publicView, CLI: publicView},
 	"getPublicVariableValues": {MCP: publicView, CLI: publicView},
 
-	"getPanelData":        {MCP: webRendering, CLI: webRendering},
-	"getVariableValues":   {MCP: webRendering, CLI: webRendering},
-	"lintDatasourceQuery": {CLI: notBuilt},
+	"getPanelData":      {MCP: webRendering, CLI: webRendering},
+	"getVariableValues": {MCP: webRendering, CLI: webRendering},
 
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
 	"requestRepairs": {MCP: notBuilt, CLI: notBuilt},
 
 	"createDashboardRevision": {MCP: notBuilt},
-	"listDashboardRevisions":  {MCP: builtInRuns, CLI: notBuilt},
-	"getDashboardRevision":    {MCP: builtInRuns, CLI: notBuilt},
+	"listDashboardRevisions":  {MCP: builtInRuns},
+	"getDashboardRevision":    {MCP: builtInRuns},
 
 	"updateSavedSearch": {MCP: savedSearchCuration},
 	"deleteSavedSearch": {MCP: savedSearchCuration},
@@ -171,10 +166,6 @@ var exceptions = map[string]exception{
 	"getPanelSuggestion":    {MCP: notBuilt, CLI: notBuilt},
 
 	"tailLogs": {MCP: liveWebPage},
-
-	"traceLogs": {CLI: notBuilt},
-
-	"traceStats": {CLI: notBuilt},
 
 	"listUsers":             {MCP: personOnly, CLI: personOnly},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},

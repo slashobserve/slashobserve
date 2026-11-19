@@ -8,18 +8,24 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
 const (
 	nameListAnnotations  = "list_annotations"
 	nameCreateAnnotation = "create_annotation"
+	nameUpdateAnnotation = "update_annotation"
+
+	codeNotCreator = "not_creator"
 
 	defaultListAnnotations = 50
 	maxListAnnotations     = 100
 
 	descListAnnotations  = "List annotations, such as deploy markers, newest first: those on every dashboard, plus with dashboard_id that dashboard's own, optionally only those within from and to or carrying any of tags. An investigation can read them to see a deploy or change beside a spike. Page with next_cursor."
 	descCreateAnnotation = "Add an annotation, such as a deploy marker: text and tags at a time or a range, on one dashboard (or one of its panels) or, without dashboard_id, on every dashboard. Returns the annotation with its id."
+
+	descUpdateAnnotation = "Change the text, the tags or both of an annotation you added, or any annotation as an Admin, by its id from list_annotations or create_annotation. A given tags list replaces the old tags, and an empty list removes them. The time, the dashboard and the author do not change. Giving neither text nor tags is an error."
 
 	propAnnotationTags = `"tags":{"type":"array","maxItems":10,"items":{"type":"string","pattern":"^[a-z0-9][a-z0-9_.-]{0,39}$"},"description":"Lowercase tags such as deploy or checkout."}`
 
@@ -30,6 +36,11 @@ const (
 		`"tags":{"type":"array","maxItems":10,"items":{"type":"string"},"description":"Only annotations with any of these tags."},` +
 		`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Annotations per page. Default 50."},` +
 		`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+
+	schemaUpdateAnnotation = `{"type":"object","properties":{` +
+		`"id":{"type":"string","format":"uuid","description":"The annotation to change, from list_annotations."},` +
+		`"text":{"type":"string","minLength":1,"maxLength":2000,"description":"The new text."},` +
+		propAnnotationTags + `},"required":["id"],"additionalProperties":false}`
 
 	schemaCreateAnnotation = `{"type":"object","properties":{` +
 		`"text":{"type":"string","minLength":1,"maxLength":2000,"description":"What happened, such as the version deployed."},` +
@@ -49,6 +60,7 @@ func (r *Registry) annotationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},
 		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createAnnotation},
+		{Tool{Name: nameUpdateAnnotation, Description: descUpdateAnnotation, InputSchema: json.RawMessage(schemaUpdateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateAnnotation},
 	}
 }
 
@@ -219,15 +231,46 @@ func (r *Registry) createAnnotation(ctx context.Context, input json.RawMessage) 
 	return success("Added annotation "+a.ID, annotationOf(a)), nil
 }
 
+type updateAnnotationInput struct {
+	ID   string    `json:"id"`
+	Text *string   `json:"text"`
+	Tags *[]string `json:"tags"`
+}
+
+func (r *Registry) updateAnnotation(ctx context.Context, input json.RawMessage) (Result, error) {
+	if _, scoped := RunFrom(ctx); scoped {
+		return invalid("%s is for MCP clients; a run saves only dashboards or a finding", nameUpdateAnnotation), nil
+	}
+	if r.deps.Annotations == nil {
+		return Result{}, errAnnotationsNotConfigured
+	}
+	var in updateAnnotationInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	id, err := db.ParseUUID(in.ID)
+	if err != nil {
+		return invalid("id must be an annotation id from list_annotations"), nil
+	}
+	principal, _ := auth.FromContext(ctx)
+	a, err := r.deps.Annotations.Update(ctx, principal, id, annotations.UpdateInput{Text: in.Text, Tags: in.Tags})
+	if err != nil {
+		return annotationFailure(err)
+	}
+	return success("Updated annotation "+a.ID, annotationOf(a)), nil
+}
+
 func annotationFailure(err error) (Result, error) {
 	var bad *annotations.InvalidError
 	switch {
 	case errors.As(err, &bad):
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, annotations.ErrNotFound):
-		return toolError(codeNotFound, "dashboard not found"), nil
+		return toolError(codeNotFound, "annotation or dashboard not found"), nil
 	case errors.Is(err, annotations.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
+	case errors.Is(err, annotations.ErrNotCreator):
+		return toolError(codeNotCreator, annotations.ErrNotCreator.Error()), nil
 	}
 	return Result{}, err
 }

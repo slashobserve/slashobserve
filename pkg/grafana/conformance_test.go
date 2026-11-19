@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -242,7 +244,21 @@ type conformanceObservation struct {
 	issues []conformanceIssue
 }
 
+type observedConversion struct {
+	once  sync.Once
+	value conformanceObservation
+}
+
+var observedConversions sync.Map
+
 func observeConversion(raw []byte) conformanceObservation {
+	entry, _ := observedConversions.LoadOrStore(sha256.Sum256(raw), &observedConversion{})
+	o := entry.(*observedConversion)
+	o.once.Do(func() { o.value = observeConversionFresh(raw) })
+	return o.value
+}
+
+func observeConversionFresh(raw []byte) conformanceObservation {
 	res, err := Convert(raw, conformanceOptions)
 	if err != nil {
 		var input *InputError
@@ -502,6 +518,7 @@ func loadConformanceArea(t *testing.T, root *os.Root, name string) *conformanceA
 }
 
 func TestOptionConformance(t *testing.T) {
+	t.Parallel()
 	root := conformanceRoot(t)
 	totalEntries, totalPass := 0, 0
 	for _, a := range loadConformanceAreas(t, root) {

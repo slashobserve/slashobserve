@@ -59,8 +59,8 @@ type logLineJSON struct {
 func (a *app) logsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs [<query>] --datasource <uid>",
-		Short: "Print log lines from a Loki or ClickHouse datasource",
-		Long:  "logs runs a log query on a datasource and prints the lines oldest first.\nWith --ask the server writes the query from a question and prints it first.\nWith --tail it keeps printing new lines every 2 seconds until Ctrl-C.",
+		Short: "Print log lines from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource",
+		Long:  "logs runs a log query on a datasource and prints the lines oldest first.\nThe query is in the language of the datasource: LogQL on Loki, SQL on ClickHouse, and KQL on Elasticsearch and OpenSearch, where a lucene: prefix or a {...} Query DSL body also work.\nWith --ask the server writes the query from a question and prints it first.\nWith --tail it keeps printing new lines every 2 seconds until Ctrl-C.",
 		Example: "  observe logs '{app=\"shop\"} |= \"error\"' --datasource loki --from now-15m\n" +
 			"  observe logs '{app=\"shop\"}' --datasource loki --tail\n" +
 			"  observe logs --ask \"checkout errors\" --datasource loki --dry-run\n" +
