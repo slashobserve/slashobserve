@@ -231,3 +231,18 @@ func TestSelectorOfStopsAtTheFirstPipe(t *testing.T) {
 		}
 	}
 }
+
+func TestLogFacetsAnswerNoFieldsWhenLokiHasNoLabelsForTheRange(t *testing.T) {
+	ds, _ := serveRoutes(t, map[string]string{
+		labelsPath:         `{"status":"success"}`,
+		detectedFieldsPath: `{}`,
+		rangePath:          success("streams", `[]`),
+	})
+	got, err := ds.LogFacets(context.Background(), facetRequest(`{service_name="nope"}`, nil, 5))
+	if err != nil {
+		t.Fatalf("LogFacets: %v", err)
+	}
+	if len(got.Fields) != 0 {
+		t.Fatalf("fields = %+v, want none", got.Fields)
+	}
+}

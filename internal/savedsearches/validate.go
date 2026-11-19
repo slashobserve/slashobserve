@@ -112,6 +112,8 @@ func checkQuery(kind Kind, query *string) error {
 		return invalid("query must not be blank")
 	case n > maxQueryRunes:
 		return invalid("query must be at most %d characters", maxQueryRunes)
+	case strings.ContainsRune(*query, 0) || !utf8.ValidString(*query):
+		return invalid("query must be valid text without the NUL character")
 	}
 	return nil
 }
@@ -154,8 +156,8 @@ func checkLogsFilters(f Filters) error {
 		return invalid("columns takes at most %d names", maxColumns)
 	}
 	for _, name := range f.Columns {
-		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") {
-			return invalid("a column name is 1 to %d characters without a comma", maxColumnRunes)
+		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") || hasControl(name) || !utf8.ValidString(name) {
+			return invalid("a column name is 1 to %d characters without a comma or control characters", maxColumnRunes)
 		}
 	}
 	return nil

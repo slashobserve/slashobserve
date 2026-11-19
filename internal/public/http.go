@@ -306,6 +306,7 @@ type publicRCAJSON struct {
 	Blocks           json.RawMessage `json:"blocks"`
 	PublishedBy      string          `json:"published_by"`
 	CreatedAt        string          `json:"created_at"`
+	SupersededBy     *int            `json:"superseded_by"`
 }
 
 func rcaLinkJSONOf(link RCALink) rcaLinkJSON {
@@ -426,6 +427,7 @@ func (h *Handler) viewRCA(c *gin.Context) {
 		Blocks:           v.Blocks,
 		PublishedBy:      v.PublishedBy,
 		CreatedAt:        httpapi.FormatTime(v.CreatedAt),
+		SupersededBy:     v.SupersededBy,
 	})
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -62,14 +63,15 @@ type CreatedRCA struct {
 }
 
 type PublicRCA struct {
-	Revision    int
-	Title       string
-	Summary     string
-	State       string
-	From, To    *time.Time
-	Blocks      json.RawMessage
-	PublishedBy string
-	CreatedAt   time.Time
+	Revision     int
+	Title        string
+	Summary      string
+	State        string
+	From, To     *time.Time
+	Blocks       json.RawMessage
+	PublishedBy  string
+	CreatedAt    time.Time
+	SupersededBy *int
 }
 
 type ResolvedRCA struct {
@@ -144,14 +146,22 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if err != nil {
 		return CreatedRCA{}, err
 	}
-	row, err := q.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
-		RcaID:         rcaID,
-		TokenHash:     hash,
-		DisplayPrefix: displayPrefix(token),
-		ExpiresAt:     timestamp(in.ExpiresAt),
-		CreatedByKind: string(by.Kind),
-		CreatedByID:   creatorID,
-		CreatedByName: creatorName(by),
+	var row dbsqlc.CreateRCAPublicLinkRow
+	err = s.db.InTx(ctx, func(tx *dbsqlc.Queries) error {
+		var err error
+		row, err = tx.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
+			RcaID:         rcaID,
+			TokenHash:     hash,
+			DisplayPrefix: displayPrefix(token),
+			ExpiresAt:     timestamp(in.ExpiresAt),
+			CreatedByKind: string(by.Kind),
+			CreatedByID:   creatorID,
+			CreatedByName: creatorName(by),
+		})
+		if err != nil {
+			return err
+		}
+		return recordLink(ctx, tx, activity.TypePublicLinkCreated, by, row.ID)
 	})
 	if db.IsForeignKeyViolation(err) {
 		return CreatedRCA{}, observations.ErrRevisionNotFound
@@ -191,14 +201,21 @@ func (s *Service) DeleteRCALink(ctx context.Context, by auth.Principal, observat
 	if err := s.manageRCA(ctx, by, observationID); err != nil {
 		return err
 	}
-	n, err := s.db.Queries().DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := recordLink(ctx, q, activity.TypePublicLinkRevoked, by, linkID); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		n, err := q.DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *Service) ResolveRCA(ctx context.Context, token string) (ResolvedRCA, error) {
@@ -234,16 +251,25 @@ func (s *Service) ViewRCA(ctx context.Context, token string) (PublicRCA, error) 
 	if err := s.db.Queries().TouchPublicLink(ctx, r.LinkID); err != nil {
 		s.logger.WarnContext(ctx, "record a public link view", logattrs.Failure("internal", err, slog.String("public_link_id", r.LinkID.String()))...)
 	}
+	next, err := s.db.Queries().NextRCARevision(ctx, r.ObservationID)
+	if err != nil {
+		return PublicRCA{}, fmt.Errorf("read the latest RCA revision: %w", err)
+	}
+	var supersededBy *int
+	if latest := int(next.Revision) - 1; latest > r.Revision {
+		supersededBy = &latest
+	}
 	return PublicRCA{
-		Revision:    r.Revision,
-		Title:       r.row.Title,
-		Summary:     r.row.Summary.String,
-		State:       r.row.ObservationState,
-		From:        timeOf(r.row.TimeFrom),
-		To:          timeOf(r.row.TimeTo),
-		Blocks:      content.Blocks,
-		PublishedBy: r.row.CreatedByName,
-		CreatedAt:   r.row.CreatedAt.Time,
+		SupersededBy: supersededBy,
+		Revision:     r.Revision,
+		Title:        r.row.Title,
+		Summary:      r.row.Summary.String,
+		State:        r.row.ObservationState,
+		From:         timeOf(r.row.TimeFrom),
+		To:           timeOf(r.row.TimeTo),
+		Blocks:       content.Blocks,
+		PublishedBy:  r.row.CreatedByName,
+		CreatedAt:    r.row.CreatedAt.Time,
 	}, nil
 }
 

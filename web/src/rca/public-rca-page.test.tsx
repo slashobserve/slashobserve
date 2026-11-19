@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { PublicRcaPage, publicRows } from "./public-rca-page"
+import { PublicRcaPage } from "./public-rca-page"
+import { publicRows } from "./rca-document"
 import type { RcaBlock } from "./queries"
 
 const token = `pub_${"a".repeat(43)}`
@@ -23,6 +24,7 @@ const view = {
   to,
   published_by: "Priya",
   created_at: to,
+  superseded_by: null as number | null,
   blocks: [
     {
       kind: "text",
@@ -59,7 +61,7 @@ function json(body: unknown): Response {
   })
 }
 
-function mockServer() {
+function mockServer(newest: number | null = null) {
   const paths: string[] = []
   vi.stubGlobal(
     "fetch",
@@ -67,7 +69,7 @@ function mockServer() {
       const path = new URL(request.url).pathname
       paths.push(path)
       if (path === `/api/v1/public/${token}/rca`) {
-        return Promise.resolve(json(view))
+        return Promise.resolve(json({ ...view, superseded_by: newest }))
       }
       if (path === `/api/v1/public/${token}/rca/snapshots/${snapshotId}`) {
         return Promise.resolve(json(frames))
@@ -102,7 +104,9 @@ describe("PublicRcaPage", () => {
     expect(screen.getByRole("heading", { name: "Cause" })).toBeTruthy()
     expect(screen.getByText("new build").tagName).toBe("STRONG")
     expect(
-      await screen.findByText("Frozen, 2026-11-06 10:00 to 2026-11-06 11:30")
+      await screen.findByText(
+        /^Frozen, 2026-11-06 10:00 to 2026-11-06 11:30 \S+$/
+      )
     ).toBeTruthy()
     expect(await screen.findByText("Error rate")).toBeTruthy()
     expect(await screen.findByText("No data")).toBeTruthy()
@@ -111,6 +115,33 @@ describe("PublicRcaPage", () => {
     for (const path of paths) {
       expect(path.startsWith("/api/v1/public/")).toBe(true)
     }
+  })
+})
+
+describe("PublicRcaPage superseded revisions", () => {
+  it("tells a reader of an old link that a newer revision exists", async () => {
+    mockServer(3)
+    renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    expect(
+      await screen.findByText(
+        /Revision 3 is newer, so this one may be out of date/
+      )
+    ).toBeTruthy()
+  })
+
+  it("says nothing on the newest revision", async () => {
+    mockServer()
+    renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await screen.findByRole("heading", { name: "Checkout outage", level: 1 })
+    expect(screen.queryByText(/is newer/)).toBeNull()
   })
 })
 

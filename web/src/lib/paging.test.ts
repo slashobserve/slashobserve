@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  lastReachablePage,
   pageCountOf,
   pageItems,
   pagesByOffset,
@@ -277,5 +278,17 @@ describe("pagesByOffset", () => {
     ["tempo", false],
   ])("%s is %s", (type, byOffset) => {
     expect(pagesByOffset(type)).toBe(byOffset)
+  })
+})
+
+describe("lastReachablePage", () => {
+  it("stops at the 10,000 result window on Elasticsearch and OpenSearch", () => {
+    expect(lastReachablePage("elasticsearch", 50)).toBe(200)
+    expect(lastReachablePage("opensearch", 500)).toBe(20)
+  })
+
+  it("has no limit on ClickHouse or Loki", () => {
+    expect(lastReachablePage("clickhouse", 50)).toBe(Number.POSITIVE_INFINITY)
+    expect(lastReachablePage("loki", 50)).toBe(Number.POSITIVE_INFINITY)
   })
 })

@@ -7,6 +7,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/stars"
 )
 
@@ -102,5 +103,61 @@ func TestPinToolsNeedTheStarsService(t *testing.T) {
 		if err != nil || errorCode(t, res) != FailureToolFailed {
 			t.Errorf("%s without the stars service: res = %#v, err = %v", tool, res.Content, err)
 		}
+	}
+}
+
+func (r *accessRig) homing() *accessRig {
+	access := folders.NewAccess(r.db.DB)
+	withHome := *r
+	withHome.registry = New(Deps{Dashboards: r.service, Folders: access, Home: homedash.New(r.db.DB, access), Logger: slog.New(slog.DiscardHandler)})
+	return &withHome
+}
+
+func (r *accessRig) home(t *testing.T, by auth.Principal, tool, input string) homeDashboardOut {
+	t.Helper()
+	res := r.call(t, by, tool, input)
+	out, ok := res.Content.(homeDashboardOut)
+	if res.IsError || !ok {
+		t.Fatalf("%s = %s", tool, textOf(t, res))
+	}
+	return out
+}
+
+func TestHomeDashboardToolsSetReadAndClearForAPerson(t *testing.T) {
+	r := newAccessRig(t).homing()
+	eve := r.person(t, "eve", auth.RoleViewer)
+	board := r.seed(t, "Board")
+
+	if out := r.home(t, eve, nameGetHomeDashboard, `{}`); out.Status != homedash.StatusNone || out.Dashboard != nil || out.SetAt != nil {
+		t.Fatalf("before = %#v, want none", out)
+	}
+	set := fmt.Sprintf(`{"dashboard_id":%q}`, board.String())
+	for range 2 {
+		out := r.home(t, eve, nameSetHomeDashboard, set)
+		if out.Status != homedash.StatusOK || out.Dashboard == nil || out.Dashboard.ID != board.String() || out.Dashboard.Title != "Board" || out.SetAt == nil {
+			t.Fatalf("after setting = %#v, want Board", out)
+		}
+	}
+	if out := r.home(t, eve, nameClearHomeDashboard, `{}`); out.Status != homedash.StatusNone {
+		t.Fatalf("after clearing = %#v, want none", out)
+	}
+}
+
+func TestHomeDashboardToolsRefuseAServiceAccountKeyAndWhatTheCallerCannotSee(t *testing.T) {
+	r := newAccessRig(t).homing()
+	b := r.seedHidden(t)
+	gia := r.person(t, "gia", auth.RoleViewer)
+	set := fmt.Sprintf(`{"dashboard_id":%q}`, b.hidden.String())
+
+	for tool, input := range map[string]string{nameGetHomeDashboard: `{}`, nameSetHomeDashboard: set, nameClearHomeDashboard: `{}`} {
+		if code := errorCode(t, r.call(t, keyCaller, tool, input)); code != codeUserSessionRequired {
+			t.Errorf("%s for a key answered %s, want user_session_required", tool, code)
+		}
+	}
+	if code := errorCode(t, r.call(t, gia, nameSetHomeDashboard, set)); code != codeNotFound {
+		t.Errorf("set_home_dashboard of a hidden dashboard answered %s, want not_found", code)
+	}
+	if out := r.home(t, gia, nameGetHomeDashboard, `{}`); out.Status != homedash.StatusNone {
+		t.Errorf("after the refusal = %#v, want none", out)
 	}
 }

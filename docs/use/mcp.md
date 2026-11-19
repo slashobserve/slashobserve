@@ -20,6 +20,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | ---- | ----------- |
 | `add_block` | Viewer |
 | `claim_run` | Viewer |
+| `clear_home_dashboard` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
@@ -33,6 +34,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
+| `get_home_dashboard` | Viewer |
 | `get_observation` | Viewer |
 | `get_panels` | Viewer |
 | `get_proposal` | Viewer |
@@ -66,10 +68,12 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
+| `make_dashboard` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
 | `move_observation` | Viewer |
 | `pin_dashboard` | Viewer |
+| `pin_observation` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
@@ -83,6 +87,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
+| `set_home_dashboard` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `update_annotation` | Viewer |
@@ -109,6 +114,9 @@ If both changed the same panel, variable or setting, it returns the tool error `
 The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
 A Viewer still gets `forbidden_role`.
 `get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
+
+`get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `window_days`.
+`list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default) or `views` for the most viewed first; pass a `next_cursor` back with the order that produced it.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -180,6 +188,11 @@ A connection in propose mode cannot restore or move a dashboard directly and get
 `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
 They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
 
+`get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` manage the dashboard that opens for the person after sign-in in place of Home; the HTTP API calls it `/me/home-dashboard`.
+`get_home_dashboard` returns `status` (`none`, `ok`, `gone` or `unreadable`) and, when it is `ok`, the dashboard.
+`set_home_dashboard` needs a dashboard the person can view and answers `not_found` otherwise; setting the same dashboard again changes nothing.
+They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
+
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
@@ -220,15 +233,19 @@ No tool renames, moves or deletes a saved search: people do that on the web or w
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
 `create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the blocks are added in order after the observation exists, and the first refused one stops the rest and answers `block_refused` with its `block_index` and the `observation_id` that was created.
 `get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel's `title`, `type` and datasources, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit.
-`list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id` or one `state` (`open` or `resolved`), and pages with `next_cursor`.
-`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel` and optionally its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+`list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id`, one `state` (`open` or `resolved`) or a `title` that contains the given text, and pages with `next_cursor`.
+
+`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel`, optionally `variables` (an object of variable name to a list of values, for each variable the panel's queries use) and its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
+`get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
 Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
 
-`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
+No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
 
@@ -238,6 +255,10 @@ A block's `version` is checked by `update_block` and `keep_block`: a stale one a
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
 `update_observation` changes the title or range, `move_observation` moves it to another folder and `reopen_observation` reopens a resolved one.
+
+`pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
+`make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.
+An observation with no dashboard to pin to answers `observation_has_no_dashboard`, and one with no live panel block answers `observation_has_no_panels`.
 No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
@@ -267,8 +288,8 @@ The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled`,
 The built-in agent has the same tool.
 
 `list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
-Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `types` and `since` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
-It lists only the events of folders the key may see, and it is over MCP only, so the built-in agent does not have it.
+Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since` and `until` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
+It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
 Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
@@ -295,6 +316,12 @@ No tool deletes an annotation; people do that in the web app or through the HTTP
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
+A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the call fails with `already_imported` and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
+Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version (it needs Edit, keeps the folder, and answers `updated: true`), or set `import_as_new` to make another dashboard on purpose.
+An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
+A retried call of the same agent request still answers with the dashboard it made.
+The built-in agent in a run that creates a dashboard imports as before and is not refused, because the person asked it to import that JSON; it may not use `update_dashboard` on this tool, because that run may not save a version of an existing dashboard.
+
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).
 

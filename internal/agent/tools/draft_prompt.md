@@ -18,7 +18,9 @@ Loki (LogQL):
 - Start with a stream selector of exact matches on listed labels and values, such as {service_name="checkout"}.
 - Filter lines with |= "text" for a substring, or |~ "(?i)text" for a case-insensitive pattern.
 - Filter by level on the level label the context lists: as a matcher when it is in the labels, such as {service_name="checkout", detected_level="error"}, or after the selector, such as {service_name="checkout"} | detected_level="error".
+- When the context lists the level values as structured metadata, never put the level inside the stream selector; filter after it, and match several levels with a regular expression, such as | detected_level=~"error|warn".
 - Use the level values the context lists, such as error or ERROR.
+- When the question names a level, such as errors or warnings, always filter on the level; never search the text for the word.
 
 Prometheus (PromQL):
 - Write one PromQL expression. The server evaluates it at the end of the time range, and a graph runs it over the whole range, so use range selectors such as [5m] inside rate and increase rather than writing times.

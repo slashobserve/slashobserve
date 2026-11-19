@@ -293,6 +293,7 @@ type ListParams struct {
 	SkipTotal  bool
 	Folder     pgtype.UUID
 	ByFolder   bool
+	ByViews    bool
 }
 
 type ListItem struct {
@@ -300,6 +301,7 @@ type ListItem struct {
 	Description    string
 	DatasourceUIDs []string
 	OpenComments   int
+	ViewCount      int
 	sortTitle      string
 }
 
@@ -351,9 +353,12 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 		return ListPage{}, err
 	}
 	var items []ListItem
-	if p.ByFolder {
+	switch {
+	case p.ByFolder:
 		items, err = s.listByFolder(ctx, p, filter)
-	} else {
+	case p.ByViews:
+		items, err = s.listByViews(ctx, p, filter)
+	default:
 		items, err = s.listByRecency(ctx, p, filter)
 	}
 	if err != nil {
@@ -370,7 +375,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	}
 	if len(items) > p.Limit {
 		page.Items = items[:p.Limit]
-		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p.ByFolder)
+		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p)
 	}
 	return page, nil
 }
@@ -395,11 +400,26 @@ func (s *Service) listByFolder(ctx context.Context, p ListParams, filter dbsqlc.
 	return s.store.listByFolder(ctx, after, p.Limit+1, p.Offset, filter)
 }
 
-func nextCursor(last ListItem, byFolder bool) string {
-	if !byFolder {
-		return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+func (s *Service) listByViews(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	var after *viewsCursor
+	if p.Cursor != "" {
+		decoded, err := decodeViewsCursor(p.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		after = &decoded
 	}
-	return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+	return s.store.listByViews(ctx, after, p.Limit+1, p.Offset, filter)
+}
+
+func nextCursor(last ListItem, p ListParams) string {
+	switch {
+	case p.ByFolder:
+		return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+	case p.ByViews:
+		return encodeViewsCursor(last.ViewCount, last.UpdatedAt, last.ID)
+	}
+	return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
 }
 
 func (s *Service) DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error) {

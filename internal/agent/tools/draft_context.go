@@ -47,6 +47,8 @@ var (
 	}
 )
 
+const lokiStructuredLevel = "detected_level"
+
 type fieldRoleSource interface {
 	Roles(ctx context.Context) (elasticsearch.FieldRoles, error)
 }
@@ -111,6 +113,16 @@ func (b *factsBuilder) loki() error {
 	if label := firstPresent(cat.Labels, lokiLevelLabels); label != "" {
 		return b.values("values of "+label, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: label, Limit: draftValuesLimit})
 	}
+	return b.structuredLevel()
+}
+
+func (b *factsBuilder) structuredLevel() error {
+	b.facts.Reads++
+	cat, _, ok, err := b.r.discover(b.ctx, b.uid, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: lokiStructuredLevel, Limit: draftValuesLimit}, "Could not read the structured level")
+	if err != nil || !ok || len(cat.Values) == 0 {
+		return err
+	}
+	b.list("values of "+lokiStructuredLevel+" (structured metadata, not an index label: filter after the selector with | "+lokiStructuredLevel+"=\"value\", never inside it)", quoted(cat.Values), cat.Truncated)
 	return nil
 }
 

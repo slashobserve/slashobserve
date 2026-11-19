@@ -23,7 +23,7 @@ import { observationLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
-import { panelTitle, type DataPanel } from "@/spec"
+import { panelTitle, type DataPanel, type Variable } from "@/spec"
 
 import { addProblemText, newPanelBody } from "./block-rows"
 import { FolderSelect } from "./folder-select"
@@ -38,6 +38,7 @@ import {
 
 type Props = {
   panel: DataPanel
+  variables?: readonly Variable[]
   from?: string
   to?: string
   onClose: () => void
@@ -81,6 +82,7 @@ function useOpenObservations(defaultObservationId: string | undefined) {
 
 export function AddToObservationPanel({
   panel,
+  variables,
   from,
   to,
   onClose,
@@ -110,7 +112,8 @@ export function AddToObservationPanel({
   function addTo(target: Observation) {
     const body = newPanelBody(
       blockPanelFrom(panel),
-      blockRange(from, to, Date.now())
+      blockRange(from, to, Date.now()),
+      variables
     )
     addBlock.mutate(
       { observationId: target.id, kind: "panel", body },

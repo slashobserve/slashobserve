@@ -1,0 +1,110 @@
+import { screen, waitFor } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { ApiError } from "@/api/errors"
+import { renderWithProviders } from "@/test/render"
+
+import { RevisionActions, withdrawProblemText } from "./revision-actions"
+
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+vi.mock("sonner", () => ({ toast: toasts }))
+
+const observationId = "0b8e4c55-6c55-4d6a-9d8a-2a8c5b5e9a01"
+
+function respond(status: number, body?: unknown) {
+  const requests: { method: string; path: string }[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((request: Request) => {
+      requests.push({
+        method: request.method,
+        path: new URL(request.url).pathname,
+      })
+      return Promise.resolve(
+        new Response(body === undefined ? null : JSON.stringify(body), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    })
+  )
+  return requests
+}
+
+function renderActions(canWithdraw: boolean, onWithdrawn = vi.fn()) {
+  return {
+    onWithdrawn,
+    ...renderWithProviders(
+      <RevisionActions
+        observationId={observationId}
+        revision={2}
+        canWithdraw={canWithdraw}
+        onWithdrawn={onWithdrawn}
+      />,
+      { route: { path: "/", url: "/" } }
+    ),
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
+
+describe("RevisionActions", () => {
+  it("links to the revision and hides Withdraw from someone who may not edit", async () => {
+    renderActions(false)
+    const open = await screen.findByRole("link", { name: "Open revision 2" })
+    expect(open.getAttribute("href")).toBe(`/o/${observationId}/rca/2`)
+    expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
+  })
+
+  it("deletes the revision only after the dialog is confirmed", async () => {
+    const requests = respond(204)
+    const { user, onWithdrawn } = renderActions(true)
+    await user.click(await screen.findByRole("button", { name: "Withdraw" }))
+    expect(requests).toEqual([])
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw revision" })
+    )
+    await waitFor(() => expect(onWithdrawn).toHaveBeenCalledOnce())
+    expect(requests).toEqual([
+      {
+        method: "DELETE",
+        path: `/api/v1/observations/${observationId}/rcas/2`,
+      },
+    ])
+    expect(toasts.success).toHaveBeenCalledWith("Withdrew revision 2")
+  })
+
+  it("keeps the revision and says to revoke its links when one is still public", async () => {
+    respond(409, {
+      error: "revision 2 still has public links",
+      code: "rca_shared",
+    })
+    const { user, onWithdrawn } = renderActions(true)
+    await user.click(await screen.findByRole("button", { name: "Withdraw" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw revision" })
+    )
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledOnce())
+    expect(onWithdrawn).not.toHaveBeenCalled()
+    expect(String(toasts.error.mock.calls[0][0])).toContain(
+      "Revoke its public links"
+    )
+  })
+})
+
+describe("withdrawProblemText", () => {
+  it("falls back to a retry line for an error that is not the server's", () => {
+    expect(withdrawProblemText(new Error("network"))).toBe(
+      "The revision could not be withdrawn. Try again."
+    )
+  })
+
+  it("passes another server refusal through as a sentence", () => {
+    expect(
+      withdrawProblemText(new ApiError(403, "forbidden_role", "needs edit"))
+    ).toBe("Needs edit.")
+  })
+})

@@ -138,3 +138,49 @@ func TestObservationRcas(t *testing.T) {
 		})
 	}
 }
+
+func TestObservationPin(t *testing.T) {
+	const reply = `{"dashboard_id":"` + manageFolder + `","annotation_id":"` + manageCopy + `"}`
+	f := newManageFake(t, manageReply{http.MethodPost, observationPrefix + "/pin", 201, reply})
+	stdout, stderr, code := f.run("o", "pin", testObservation, "--dashboard", manageFolder)
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t, recordedRequest{http.MethodPost, observationPrefix + "/pin", "", `{"dashboard_id":"` + manageFolder + `"}`})
+	if want := "Pinned to dashboard " + manageFolder + " as annotation " + manageCopy + "\n"; stdout != want {
+		t.Fatalf("stdout %q, want %q", stdout, want)
+	}
+
+	f = newManageFake(t, manageReply{http.MethodPost, observationPrefix + "/pin", 200, reply})
+	if _, _, code := f.run("o", "pin", testObservation); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	f.wantRequests(t, recordedRequest{http.MethodPost, observationPrefix + "/pin", "", `{}`})
+}
+
+func TestObservationDashboard(t *testing.T) {
+	const reply = `{"dashboard":{"id":"` + manageCopy + `","title":"Checkout 5xx","latest_version":1,"updated_at":"2026-01-01T00:00:00Z","updated_by":{"kind":"user","id":"x","name":"Eve"}},"version":{}}`
+	cases := []struct {
+		name string
+		args []string
+		path string
+		body string
+	}{
+		{"the whole observation", nil, observationPrefix + "/dashboard", `{"new":false}`},
+		{"one block", []string{"--block", manageFolder}, "/api/v1/blocks/" + manageFolder + "/dashboard", `{"new":false}`},
+		{"another one", []string{"--new"}, observationPrefix + "/dashboard", `{"new":true}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newManageFake(t, manageReply{http.MethodPost, tc.path, 201, reply})
+			stdout, stderr, code := f.run(append([]string{"o", "dashboard", testObservation}, tc.args...)...)
+			if code != 0 || stderr != "" {
+				t.Fatalf("exit %d, stderr %q", code, stderr)
+			}
+			f.wantRequests(t, recordedRequest{http.MethodPost, tc.path, "", tc.body})
+			if want := "Dashboard " + manageCopy + ": Checkout 5xx\n"; stdout != want {
+				t.Fatalf("stdout %q, want %q", stdout, want)
+			}
+		})
+	}
+}

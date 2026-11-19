@@ -430,7 +430,7 @@ func TestVariablesAreEscapedForLogQL(t *testing.T) {
 	}{
 		{"quote in an equality matcher", `{service_name="$svc"}`, []datasource.Variable{{Name: "svc", Values: []string{`a"b`}}}, `{service_name="a\"b"}`},
 		{"several values in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", Values: []string{"a.b", "c"}}}, `{service_name=~"(a\\.b|c)"}`},
-		{"all in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", All: true}}, `{service_name=~".*"}`},
+		{"all in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", All: true}}, `{service_name=~".+"}`},
 		{"line filter", `{a="b"} |= "${needle}"`, []datasource.Variable{{Name: "needle", Values: []string{`x\y`}}}, `{a="b"} |= "x\\y"`},
 		{"range and interval macros", `count_over_time({a="b"}[$__range]) or count_over_time({a="b"}[$__interval])`, nil, `count_over_time({a="b"}[3600s]) or count_over_time({a="b"}[3s])`},
 	}

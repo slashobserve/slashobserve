@@ -15,10 +15,33 @@ SELECT * FROM observations
 WHERE folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('folder_id')::uuid IS NULL OR folder_id = sqlc.narg('folder_id')::uuid)
   AND (sqlc.narg('state')::text IS NULL OR state = sqlc.narg('state')::text)
+  AND (sqlc.narg('title_query')::text IS NULL OR title ILIKE '%' || sqlc.narg('title_query')::text || '%')
+  AND (sqlc.narg('created_by_id')::uuid IS NULL
+    OR (created_by_kind = sqlc.narg('created_by_kind')::text AND created_by_id = sqlc.narg('created_by_id')::uuid))
   AND (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
     OR (updated_at, id) < (sqlc.narg('cursor_updated_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
-ORDER BY updated_at DESC, id DESC
-LIMIT @row_limit;
+ORDER BY
+  (CASE WHEN @sort::text = 'title' AND NOT @descending::boolean THEN lower(title) END) ASC,
+  (CASE WHEN @sort::text = 'title' AND @descending::boolean THEN lower(title) END) DESC,
+  (CASE WHEN @sort::text = 'created' AND NOT @descending::boolean THEN created_at END) ASC,
+  (CASE WHEN @sort::text = 'created' AND @descending::boolean THEN created_at END) DESC,
+  (CASE WHEN @sort::text = 'updated' AND NOT @descending::boolean THEN updated_at END) ASC,
+  (CASE WHEN @sort::text = 'updated' AND @descending::boolean THEN updated_at END) DESC,
+  (CASE WHEN NOT @descending::boolean THEN id END) ASC,
+  (CASE WHEN @descending::boolean THEN id END) DESC
+LIMIT @row_limit OFFSET @row_offset;
+
+-- name: CountObservations :one
+SELECT count(*)::integer FROM observations
+WHERE folder_id = ANY(@folders::uuid[])
+  AND (sqlc.narg('folder_id')::uuid IS NULL OR folder_id = sqlc.narg('folder_id')::uuid)
+  AND (sqlc.narg('state')::text IS NULL OR state = sqlc.narg('state')::text)
+  AND (sqlc.narg('title_query')::text IS NULL OR title ILIKE '%' || sqlc.narg('title_query')::text || '%')
+  AND (sqlc.narg('created_by_id')::uuid IS NULL
+    OR (created_by_kind = sqlc.narg('created_by_kind')::text AND created_by_id = sqlc.narg('created_by_id')::uuid));
+
+-- name: DeleteObservation :execrows
+DELETE FROM observations WHERE id = @id;
 
 -- name: UpdateObservation :one
 UPDATE observations

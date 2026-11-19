@@ -36,6 +36,7 @@ type app struct {
 	continuing      continueOptions
 	retrying        retryOptions
 	list            pageOptions
+	listOrder       string
 	versions        pageOptions
 	show            showOptions
 	remove          deleteOptions

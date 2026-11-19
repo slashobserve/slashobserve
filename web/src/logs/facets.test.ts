@@ -274,3 +274,17 @@ describe("facets open flag", () => {
     expect(storedFacetsOpen()).toBe(true)
   })
 })
+
+describe("fieldRows with keyword subfields", () => {
+  it("hides a .keyword row whose text field is listed and keeps a lone one", () => {
+    const rows = fieldRows(
+      ["message", "message.keyword", "host.keyword", "service"],
+      []
+    )
+    expect(rows.map((row) => row.name)).toEqual([
+      "host.keyword",
+      "message",
+      "service",
+    ])
+  })
+})
