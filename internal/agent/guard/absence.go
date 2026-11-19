@@ -53,10 +53,8 @@ func (s *State) unbackedAbsence(input json.RawMessage) string {
 	switch {
 	case !s.Absence.ScopedMetrics && noMetricsClaim.MatchString(in.Markdown):
 		return "the finding says a metric is missing, but no list_metrics call in this run set scope: a service, job or pod is a label value, so list metrics with scope set to its selector, such as {service=\"checkout\"}, before saying so, or drop the claim"
-	case !s.Absence.Annotations && noDeployClaim.MatchString(in.Markdown) && s.Mode == tools.ModeInvestigate:
-		return "the finding says there was no deploy, but this run never read list_annotations, where deploy markers live: read it with tag deploy before saying so, or drop the claim"
 	case !s.Absence.Annotations && noDeployClaim.MatchString(in.Markdown):
-		return "the finding says there was no deploy, but this run cannot read annotations, where deploy markers live: say deploys were not checked here and that an investigation reads them, instead of saying none exists"
+		return "the finding says there was no deploy, but this run never read list_annotations, where deploy markers live: read it with tag deploy before saying so, or drop the claim"
 	}
 	return ""
 }

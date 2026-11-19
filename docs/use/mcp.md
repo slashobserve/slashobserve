@@ -313,7 +313,7 @@ Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, th
 It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
-It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.
+It is the one annotation tool the built-in agent also has, in every run and as the person who asked, so it can see a deploy beside a spike.
 `create_annotation` is available over MCP only and adds one, with the fields of `POST /api/v1/annotations`: `text`, `tags`, `time_from` and `time_to`, and `dashboard_id` and `panel_id` to place it on one dashboard or panel.
 Without `dashboard_id` the annotation shows on every dashboard.
 It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id` needs the Editor role.
