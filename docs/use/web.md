@@ -317,6 +317,7 @@ The panel editor opens as a sheet at the bottom of the screen, and the panel men
 
 On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
 The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+On a dashboard, the title and the controls share one row while they fit, and the controls drop to a second row under the title when they do not, for example with the Activity pane open on a 1440 pixel screen.
 Browser zoom scales the whole app if the text is small on a large display.
 
 ## Connected agents
@@ -356,5 +357,5 @@ The time range button opens the quick ranges and the **From** and **To** boxes.
 The calendar fills **From** with the start of the first day and **To** with the end of the last, in the zone the boxes read, and **Apply** uses them.
 A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
 On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
-The button is hidden on an older version, while a layout or panel is being edited, and for a range that already is the default.
+The button is missing on an older version and while a layout or panel is being edited, and it is disabled for a range that already is the default.
 The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

@@ -94,6 +94,18 @@ describe("DashboardTopRow", () => {
     expect(screen.getByText("Web")).toBeVisible()
   })
 
+  it("wraps the controls under the title when they do not fit beside it", async () => {
+    await renderRow([<span key="c">Controls</span>], {
+      id: "f1",
+      title: "Shop",
+    })
+    const header = screen.getByRole("banner")
+    expect(header).toHaveClass("flex-wrap")
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveClass(
+      "flex-[1_1_22rem]"
+    )
+  })
+
   it("leaves the title alone with the version on a phone", async () => {
     setNarrow(true)
     await renderRow([], { id: "f1", title: "Shop" })
