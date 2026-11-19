@@ -3,8 +3,10 @@ package loki_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -22,11 +24,15 @@ type sampleCall struct {
 }
 
 type windowedFacetLoki struct {
-	mu        sync.Mutex
-	calls     []sampleCall
-	perWindow int
-	slowRange func(n int) bool
-	slowFound bool
+	mu         sync.Mutex
+	calls      []sampleCall
+	perWindow  int
+	slowRange  func(n int) bool
+	slowFound  bool
+	labels     []string
+	slowLabels bool
+	slowVolume bool
+	badSample  bool
 }
 
 func (f *windowedFacetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +51,17 @@ func (f *windowedFacetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 	switch r.URL.Path {
 	case "/loki/api/v1/labels":
-		_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": []string{}})
+		if f.slowLabels {
+			<-r.Context().Done()
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": append([]string{}, f.labels...)})
+	case "/loki/api/v1/index/volume":
+		if f.slowVolume {
+			<-r.Context().Done()
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": map[string]any{"resultType": "vector", "result": []any{}}})
 	case "/loki/api/v1/detected_fields":
 		if f.slowFound {
 			<-r.Context().Done()
@@ -53,6 +69,11 @@ func (f *windowedFacetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"fields": []map[string]any{{"label": "route", "cardinality": 1, "parsers": []string{"json"}}}})
 	case "/loki/api/v1/query_range":
+		if f.badSample {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"status":"error","errorType":"bad_data","error":"parse error"}`))
+			return
+		}
 		if f.slowRange != nil && f.slowRange(ranges) {
 			<-r.Context().Done()
 			return
@@ -104,7 +125,7 @@ func broadFacets(days int, timeout time.Duration) datasource.FacetRequest {
 	}
 }
 
-func TestFacetsOverAWeekReadTheNewestHourFirstWhenItFillsTheSample(t *testing.T) {
+func TestFacetsOverAWeekReadTheNewestFiveMinutesFirstWhenTheyFillTheSample(t *testing.T) {
 	fake := &windowedFacetLoki{perWindow: 500}
 	ds := serveWindowedFacets(t, fake)
 	got, err := ds.LogFacets(context.Background(), broadFacets(7, time.Minute))
@@ -114,12 +135,12 @@ func TestFacetsOverAWeekReadTheNewestHourFirstWhenItFillsTheSample(t *testing.T)
 	if got.LinesSampled != 100 {
 		t.Fatalf("lines_sampled = %d, want the sample of 100", got.LinesSampled)
 	}
-	hour := rangeEnd.Add(-time.Hour)
-	if calls := fake.to("/loki/api/v1/query_range"); len(calls) != 1 || !calls[0].start.Equal(hour) || calls[0].limit != 100 {
-		t.Fatalf("sample requests = %+v, want one over the newest hour", calls)
+	newest := rangeEnd.Add(-5 * time.Minute)
+	if calls := fake.to("/loki/api/v1/query_range"); len(calls) != 1 || !calls[0].start.Equal(newest) || !calls[0].end.Equal(rangeEnd) || calls[0].limit != 100 {
+		t.Fatalf("sample requests = %+v, want one over the newest five minutes", calls)
 	}
-	if calls := fake.to("/loki/api/v1/detected_fields"); len(calls) != 1 || !calls[0].start.Equal(hour) || !calls[0].end.Equal(rangeEnd) {
-		t.Fatalf("detected_fields requests = %+v, want one over the sampled hour", calls)
+	if calls := fake.to("/loki/api/v1/detected_fields"); len(calls) != 1 || !calls[0].start.Equal(newest) || !calls[0].end.Equal(rangeEnd) {
+		t.Fatalf("detected_fields requests = %+v, want one over the sampled five minutes", calls)
 	}
 	if route := fieldNamed(t, got, "route"); route.Values[0].Count != 100 {
 		t.Fatalf("route = %+v, want 100 sampled lines", route)
@@ -141,8 +162,8 @@ func TestFacetsWidenTheWindowUntilTheSampleIsFull(t *testing.T) {
 	if !slices.Equal(limits, []int{100, 70, 40, 10}) || got.LinesSampled != 100 {
 		t.Fatalf("limits = %v, lines_sampled = %d, want four windows that fill the sample of 100", limits, got.LinesSampled)
 	}
-	if found := fake.to("/loki/api/v1/detected_fields"); len(found) != 1 || !found[0].start.Equal(rangeEnd.Add(-15*time.Hour)) {
-		t.Fatalf("detected_fields requests = %+v, want one over the 15 sampled hours", found)
+	if found := fake.to("/loki/api/v1/detected_fields"); len(found) != 1 || !found[0].start.Equal(rangeEnd.Add(-75*time.Minute)) {
+		t.Fatalf("detected_fields requests = %+v, want one over the 75 sampled minutes", found)
 	}
 }
 
@@ -175,4 +196,63 @@ func TestFacetsCountTheSampleWhenDetectedFieldsRunsOutOfTime(t *testing.T) {
 	if route := fieldNamed(t, got, "route"); route.Kind != datasource.FacetKindField || route.Values[0].Count != 100 {
 		t.Fatalf("route = %+v, want the field read from the sample's labels", route)
 	}
+}
+
+func answersBefore(t *testing.T, started time.Time, limit time.Duration) {
+	t.Helper()
+	if took := time.Since(started); took > limit {
+		t.Fatalf("took %v, want an answer before %v", took, limit)
+	}
+}
+
+func TestFacetsAnswerTheNewestSampleWhenTheLabelCountsRunOutOfTime(t *testing.T) {
+	fake := &windowedFacetLoki{perWindow: 500, labels: []string{"service_name"}, slowVolume: true}
+	ds := serveWindowedFacets(t, fake)
+	started := time.Now()
+	got, err := ds.LogFacets(context.Background(), broadFacets(7, 2*time.Second))
+	if err != nil {
+		t.Fatalf("err = %v, want the sampled fields", err)
+	}
+	answersBefore(t, started, 1900*time.Millisecond)
+	if !got.Sampled || got.LinesSampled != 100 {
+		t.Fatalf("facets = %+v, want the newest 100 lines sampled", got)
+	}
+	service := fieldNamed(t, got, "service_name")
+	want := datasource.FacetField{Name: "service_name", Kind: datasource.FacetKindLabel, Cardinality: 1, Values: []datasource.FacetValue{{Value: "checkout", Count: 100}}}
+	if !reflect.DeepEqual(service, want) {
+		t.Fatalf("service_name = %+v, want %+v counted over the sample", service, want)
+	}
+	if route := fieldNamed(t, got, "route"); route.Values[0].Count != 100 {
+		t.Fatalf("route = %+v", route)
+	}
+}
+
+func TestFacetsSampleWithoutWaitingForTheLabelList(t *testing.T) {
+	fake := &windowedFacetLoki{perWindow: 500, slowLabels: true}
+	ds := serveWindowedFacets(t, fake)
+	started := time.Now()
+	got, err := ds.LogFacets(context.Background(), broadFacets(7, 2*time.Second))
+	if err != nil {
+		t.Fatalf("err = %v, want the sampled fields", err)
+	}
+	answersBefore(t, started, 1900*time.Millisecond)
+	if !got.Sampled || got.LinesSampled != 100 {
+		t.Fatalf("facets = %+v, want the newest 100 lines sampled while the label list was slow", got)
+	}
+	if route := fieldNamed(t, got, "route"); route.Values[0].Count != 100 {
+		t.Fatalf("route = %+v", route)
+	}
+	if n := len(fake.to("/loki/api/v1/index/volume")); n != 0 {
+		t.Fatalf("%d label counts without a label list", n)
+	}
+}
+
+func TestFacetsSayWhyTheSampleFailedWhileTheLabelListWasStillRunning(t *testing.T) {
+	ds := serveWindowedFacets(t, &windowedFacetLoki{badSample: true, slowLabels: true})
+	started := time.Now()
+	_, err := ds.LogFacets(context.Background(), broadFacets(7, 2*time.Second))
+	if !errors.Is(err, datasource.ErrInvalidQuery) {
+		t.Fatalf("err = %v, want the sample's invalid query", err)
+	}
+	answersBefore(t, started, time.Second)
 }
