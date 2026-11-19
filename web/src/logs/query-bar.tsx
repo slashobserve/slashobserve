@@ -37,6 +37,7 @@ import { matcherInsert } from "@/panel-editor/insert-text"
 import { labelNamesQuery } from "@/panel-editor/queries"
 import { formatDateTime } from "@/lib/time"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
 import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
@@ -290,14 +291,19 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const [discoverNote, setDiscoverNote] = useState<string | null>(null)
   const emptyDraft = draft.trim() === ""
   const form = formOf(draft)
-  const names = useQuery(
-    labelNamesQuery(
+  const { ready: linesAnswered } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, urlSearch.q, range.from, range.to])
+  )
+  const names = useQuery({
+    ...labelNamesQuery(
       uid,
       type === "clickhouse"
         ? { table: "otel_logs" }
         : { from: range.from, to: range.to }
-    )
-  )
+    ),
+    enabled: linesAnswered || urlSearch.q === undefined,
+  })
   const completionNames = names.data?.labels
 
   function switchMode(next: InputMode, remember = true) {

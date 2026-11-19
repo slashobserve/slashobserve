@@ -148,6 +148,15 @@ describe("field list", () => {
       true
     )
   })
+
+  it("says a timed out count may need a narrower range and offers a retry", () => {
+    expect(
+      facetsErrorText(new ApiError(504, "query_timeout", "timed out"))
+    ).toEqual({
+      text: "Counting the fields timed out on this range. Retry, or choose a shorter range.",
+      retry: true,
+    })
+  })
 })
 
 describe("filterQuery", () => {
