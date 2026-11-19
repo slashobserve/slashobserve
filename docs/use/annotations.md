@@ -56,7 +56,8 @@ The `Add annotation` button and the Cmd-click gesture are hidden in kiosk mode a
 
 ## Filter markers by tag
 
-When the dashboard's annotations have tags, the top row shows an `Annotations` menu on a dashboard that exists; a missing or unreadable dashboard shows none.
+When the markers in the time range you are looking at have tags, the top row shows an `Annotations` menu on a dashboard that exists; a missing or unreadable dashboard shows none.
+The menu lists the tags of the ranges you have opened in this session, so a tag whose markers all lie outside those ranges appears once you widen the range to include one of them.
 Pick one or more tags to keep only the markers that have any of them, or `All annotations` to show every marker again.
 The choice is kept in the address as `ann=deploy,incident`, so a shared link shows the same markers.
 

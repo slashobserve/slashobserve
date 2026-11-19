@@ -24,7 +24,7 @@ func newFolder(t *testing.T, d *dbtest.Database, title string) string {
 	return id
 }
 
-func deleteFolder(t *testing.T, d *dbtest.Database, folderID string) *httptest.ResponseRecorder {
+func adminEngine(t *testing.T, d *dbtest.Database) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
@@ -33,9 +33,43 @@ func deleteFolder(t *testing.T, d *dbtest.Database, folderID string) *httptest.R
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), admin))
 	})
 	NewHandler(d.DB, NewAccess(d.DB), slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
+	return engine
+}
+
+func deleteFolder(t *testing.T, d *dbtest.Database, folderID string) *httptest.ResponseRecorder {
+	t.Helper()
 	rec := httptest.NewRecorder()
-	engine.ServeHTTP(rec, httptest.NewRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil))
+	adminEngine(t, d).ServeHTTP(rec, httptest.NewRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil))
 	return rec
+}
+
+func TestListingFoldersCanBeRevalidatedButNeverSharedBetweenPeople(t *testing.T) {
+	d := dbtest.New(t)
+	newFolder(t, d, "Revalidated")
+	engine := adminEngine(t, d)
+	get := func(ifNoneMatch string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/folders", nil)
+		if ifNoneMatch != "" {
+			req.Header.Set("If-None-Match", ifNoneMatch)
+		}
+		rec := httptest.NewRecorder()
+		engine.ServeHTTP(rec, req)
+		return rec
+	}
+
+	first := get("")
+	if first.Code != http.StatusOK || first.Header().Get("Cache-Control") != "private, no-cache" || first.Header().Get("Vary") != "Authorization, Cookie" {
+		t.Fatalf("first = %d %v", first.Code, first.Header())
+	}
+	tag := first.Header().Get("ETag")
+	if again := get(tag); again.Code != http.StatusNotModified || again.Body.Len() != 0 {
+		t.Fatalf("revalidating = %d %q, want an empty 304", again.Code, again.Body)
+	}
+
+	newFolder(t, d, "Added after the first read")
+	if changed := get(tag); changed.Code != http.StatusOK || changed.Header().Get("ETag") == tag {
+		t.Fatalf("after a change = %d with tag %q, want 200 and a new tag", changed.Code, changed.Header().Get("ETag"))
+	}
 }
 
 func TestDeletingAFolderThatHoldsAFindingOrASavedSearchIsRefused(t *testing.T) {

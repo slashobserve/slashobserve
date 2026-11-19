@@ -25,6 +25,8 @@ import {
 import { dashboardLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 
+import { cleanText } from "@/lib/user-text"
+
 import { titleError } from "./edit/details"
 import { saveProblemFrom, type Problem } from "./edit/save-problem"
 import { duplicateTitle, type DuplicateTargets } from "./duplicate"
@@ -90,7 +92,7 @@ export function DuplicateDashboardDialog({
     setSubmitted(true)
     if (titleProblem !== null || folder === null || duplicate.isPending) return
     setProblem(null)
-    const trimmed = title.trim()
+    const trimmed = cleanText(title)
     const folderTitle = items.find((item) => item.value === folder)?.label
     duplicate.mutate(
       { title: trimmed, folderId: folder },

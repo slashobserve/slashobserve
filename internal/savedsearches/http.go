@@ -231,7 +231,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, folders.ErrNoAccess):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
 	case errors.As(err, &invalid):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, invalid.Code, invalid.Message)
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
 	default:
 		principal := httpapi.Caller(c)
 		attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}

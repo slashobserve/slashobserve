@@ -152,7 +152,7 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	if req.Body == nil {
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_body", messageInvalidBody)
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_body", "body is required")
 		return
 	}
 	patch := Patch{Name: req.Name, Body: req.Body}
@@ -299,9 +299,9 @@ func validate(c *gin.Context, patch *Patch) bool {
 		patch.Name = &name
 	}
 	if patch.Body != nil {
-		body, ok := CleanBody(*patch.Body)
-		if !ok {
-			httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_body", messageInvalidBody)
+		body, err := CleanBody(*patch.Body)
+		if err != nil {
+			httpapi.AbortText(c, http.StatusUnprocessableEntity, "invalid_body", err)
 			return false
 		}
 		patch.Body = &body
