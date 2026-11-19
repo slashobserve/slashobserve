@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import type { QueryKey } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { PencilIcon } from "lucide-react"
 
 import { EntryAction, EntryBody } from "@/activity/entry-frame"
 import type { components } from "@/api/schema.gen"
 import { cn } from "@/lib/utils"
 
+import { chatAnswerLink } from "./chat-answer-link"
 import { DeleteMessageButton } from "./delete-message-button"
 import { EditMessageForm } from "./edit-message-form"
 import { MessageBody } from "./message-body"
@@ -66,6 +68,9 @@ export function MessageText({
     )
   }
   const markdown = !folded && writtenByPerson(message.actor)
+  const chat = folded
+    ? null
+    : chatAnswerLink(message.body, message.actor.run_id)
   return (
     <>
       <EntryBody
@@ -75,10 +80,19 @@ export function MessageText({
         )}
       >
         <MessageBody
-          body={message.body}
+          body={chat === null ? message.body : chat.before}
           mentions={message.mentions}
           markdown={markdown}
         />
+        {chat === null ? null : (
+          <Link
+            to="/c/$requestId"
+            params={{ requestId: chat.runId }}
+            className="underline underline-offset-2"
+          >
+            {chat.label}
+          </Link>
+        )}
       </EntryBody>
       {(message.can_edit || message.can_delete) && !folded ? (
         <div className="flex items-center">
