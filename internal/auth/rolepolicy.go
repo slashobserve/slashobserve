@@ -30,7 +30,7 @@ type RoleDecision struct {
 }
 
 func ResolveRole(in RoleInputs, policy RolePolicy) RoleDecision {
-	if in.EmailTrusted && slices.ContainsFunc(policy.AdminEmails, func(e string) bool { return strings.EqualFold(e, in.Email) }) {
+	if in.EmailTrusted && policy.listsAdmin(in.Email) {
 		return RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails}
 	}
 	if len(policy.AdminEmails) == 0 && in.FirstUser {
@@ -43,6 +43,10 @@ func ResolveRole(in RoleInputs, policy RolePolicy) RoleDecision {
 		return RoleDecision{Role: *in.Manual, Source: SourceManual}
 	}
 	return RoleDecision{Role: RoleEditor, Source: SourceDefault}
+}
+
+func (p RolePolicy) listsAdmin(email string) bool {
+	return slices.ContainsFunc(p.AdminEmails, func(e string) bool { return strings.EqualFold(e, email) })
 }
 
 func groupDecision(groups []string, mapped []GroupRole) (RoleDecision, bool) {

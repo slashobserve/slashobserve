@@ -124,6 +124,9 @@ func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, gro
 	if err != nil {
 		return err
 	}
+	if !emailVerified && s.cfg.RolePolicy.listsAdmin(user.Email) {
+		s.logger.WarnContext(ctx, "admin email signed in unverified", slog.String("user_id", user.ID.String()))
+	}
 	decision := ResolveRole(RoleInputs{Email: user.Email, EmailTrusted: emailVerified, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
 	return s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision))
 }

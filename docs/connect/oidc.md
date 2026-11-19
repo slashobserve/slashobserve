@@ -27,7 +27,7 @@ Create a client in your provider and give SlashObserve its settings:
   A person may sign in when the provider says their email is verified and its domain is in the list; the match is exact, so `example.com` does not admit `sub.example.com`.
 - `*` allows every account the provider authenticates that has an email address, verified or not, and logs a warning at startup.
   Use it only when the provider itself is the access control, for example a private tenant.
-  An address the provider does not report as verified never makes a person an Admin through `SLASHOBSERVE_ADMIN_EMAILS`, even under `*`; see [Roles](../teams/roles.md#how-a-role-is-decided).
+  An address the provider does not report as verified never makes a person an Admin through `SLASHOBSERVE_ADMIN_EMAILS`, even under `*`, and such a sign-in logs the warning `admin email signed in unverified`; with a provider that does not send `email_verified`, give Admin through a group instead; see [Roles](../teams/roles.md#how-a-role-is-decided).
 - The setting is required, so a deployment can never be open by accident.
 
 ## Users and groups

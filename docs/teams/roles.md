@@ -33,6 +33,8 @@ A person's role is decided in this order, and the first rule that applies wins:
 1. **`SLASHOBSERVE_ADMIN_EMAILS`.**
    An email address in this list (compared without regard to case) is an Admin, when the person signed in with an address the provider reports as verified.
    An entry you add takes effect at that person's next verified sign-in, not at the next restart; the restart only keeps Admin for people who already got it from this list.
+   A provider that never sends `email_verified`, such as Microsoft Entra ID, makes no one an Admin through this list; the server logs `admin email signed in unverified` with the person's id at each such sign-in, so map an admin group with `SLASHOBSERVE_OIDC_GROUP_ROLES` instead.
+   Releases before the verified check granted Admin from this list to an unverified address too, and the restart keeps that Admin, so after upgrading check the People page for Admins whose role comes from the list and remove any address you do not trust from it.
 2. **The first user.**
    When `SLASHOBSERVE_ADMIN_EMAILS` is not set, the earliest person to have signed in is an Admin.
 3. **`SLASHOBSERVE_OIDC_GROUP_ROLES`.**

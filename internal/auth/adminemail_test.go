@@ -6,13 +6,19 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 func adminEmailRig(t *testing.T) (*Service, *dbtest.Database) {
 	t.Helper()
+	return adminEmailRigLogging(t, slog.New(slog.DiscardHandler))
+}
+
+func adminEmailRigLogging(t *testing.T, logger *slog.Logger) (*Service, *dbtest.Database) {
+	t.Helper()
 	database := dbtest.New(t)
 	policy := RolePolicy{AdminEmails: []string{"boss@example.com"}}
-	s, err := New(Config{PublicURL: mustURL(t, "http://localhost:8080"), IssuerURL: "http://issuer.example/dex", RolePolicy: policy}, database.Queries(), slog.New(slog.DiscardHandler))
+	s, err := New(Config{PublicURL: mustURL(t, "http://localhost:8080"), IssuerURL: "http://issuer.example/dex", RolePolicy: policy}, database.Queries(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,4 +95,17 @@ func TestAnUnverifiedSignInRemovesAdminThatCameFromTheAddress(t *testing.T) {
 	if role, source := roleOf(t, database, boss.ID); role == "admin" || source == "admin_emails" {
 		t.Fatalf("role = %s from %s after an unverified sign-in, want no Admin from the address", role, source)
 	}
+}
+
+func TestAnUnverifiedSignInWithAListedAddressWarnsWithoutTheAddress(t *testing.T) {
+	logger, logs := logtest.New()
+	s, database := adminEmailRigLogging(t, logger)
+	signIn(t, s, database, "other", "other@example.com", false)
+	claimant := signIn(t, s, database, "claimant", "boss@example.com", false)
+
+	record := logs.Find(t, "admin email signed in unverified")
+	if record["level"] != "WARN" || record["user_id"] != claimant.ID.String() {
+		t.Fatalf("warning = %v, want WARN with the user id", record)
+	}
+	logs.AssertAbsent(t, "boss@example.com")
 }
