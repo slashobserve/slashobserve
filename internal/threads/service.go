@@ -185,7 +185,7 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, nil)
 		if err != nil {
 			return err
 		}
@@ -251,7 +251,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err := markRead(ctx, q, by, current.ID); err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, nil)
 		if err != nil {
 			return err
 		}
@@ -315,10 +315,14 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 		if messageRow, err = q.EditMessage(ctx, dbsqlc.EditMessageParams{ID: messageID, Body: cleaned}); err != nil {
 			return fmt.Errorf("edit message: %w", err)
 		}
+		before, err := s.mentionsOf(ctx, q, messageRow.ID)
+		if err != nil {
+			return err
+		}
 		if err := q.DeleteMentions(ctx, messageRow.ID); err != nil {
 			return fmt.Errorf("delete mentions: %w", err)
 		}
-		if recorded, err = s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions); err != nil {
+		if recorded, err = s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, before); err != nil {
 			return err
 		}
 		return emitter{scope: sc, thread: row, actor: author}.edited(ctx, q, messageRow)
@@ -914,7 +918,7 @@ func checkBody(body string) (string, []Mention, error) {
 	return cleaned, mentions, nil
 }
 
-func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, on Target, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
+func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, on Target, messageID pgtype.UUID, parsed, already []Mention) ([]Mention, error) {
 	names, err := s.viewableUserNames(ctx, q, on, parsed)
 	if err != nil {
 		return nil, err
@@ -945,6 +949,9 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 		default:
 			name, ok := names[m.UserID]
 			if !ok {
+				name, ok = nameAmong(already, m.UserID)
+			}
+			if !ok {
 				return nil, errInvalidPerson
 			}
 			m.Name = name
@@ -957,6 +964,15 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 	}
 	sortMentions(recorded)
 	return recorded, nil
+}
+
+func nameAmong(mentions []Mention, user pgtype.UUID) (string, bool) {
+	for _, m := range mentions {
+		if m.Kind() == mentionUser && m.UserID == user {
+			return m.Name, true
+		}
+	}
+	return "", false
 }
 
 func (s *Service) viewableUserNames(ctx context.Context, q *dbsqlc.Queries, on Target, parsed []Mention) (map[pgtype.UUID]string, error) {

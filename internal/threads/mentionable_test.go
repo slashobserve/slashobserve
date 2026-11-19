@@ -124,3 +124,28 @@ func TestMentionablePeopleOfARestrictedTargetAreFoundBeyondTheFirstScannedPage(t
 		t.Fatalf("people = %s, more = %v, err %v, want the group member past the first page and no more", names(people), more, err)
 	}
 }
+
+func TestEditKeepsAMentionOfSomeoneWhoCanNoLongerSeeTheTarget(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t, "rps")
+	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
+	foldertest.Move(t, r.db, dash, restricted)
+	insider := r.createUser(t, "Insider", "insider@example.com")
+	r.db.Exec(t, `UPDATE users SET groups = ARRAY[$2] WHERE id = $1`, insider, payrollGroup)
+	outsider := r.createUserID(t, "Outsider", "outsider@example.com")
+	tg := target(KindDashboard, dash)
+	token := "@[x](user:" + insider.String() + ")"
+	_, first := r.open(t, admin, OpenInput{Target: tg, Body: "look " + token})
+
+	r.db.Exec(t, `UPDATE users SET groups = '{}' WHERE id = $1`, insider)
+
+	_, edited, changed, err := r.service.Edit(t.Context(), admin, mustParse(t, first.ID), "look again "+token)
+	if err != nil || !changed || len(edited.Mentions) != 1 || edited.Mentions[0].UserID != insider {
+		t.Fatalf("edit keeping the mention: mentions = %+v, changed = %v, err = %v", edited.Mentions, changed, err)
+	}
+	_, _, _, err = r.service.Edit(t.Context(), admin, mustParse(t, first.ID), "look "+token+" @[y](user:"+outsider+")")
+	var invalid *InvalidInputError
+	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention {
+		t.Fatalf("edit adding a person who cannot see it: err = %v, want invalid_mention", err)
+	}
+}
