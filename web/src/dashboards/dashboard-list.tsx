@@ -481,7 +481,7 @@ export function DashboardList({
 
   return (
     <ListHealthProvider ids={healthIds}>
-      <div className="max-w-[1500px]">
+      <>
         {noDashboards ? null : (
           <FilterRow
             key={resetKey}
@@ -629,7 +629,7 @@ export function DashboardList({
             ) : null}
           </>
         ) : null}
-      </div>
+      </>
     </ListHealthProvider>
   )
 }

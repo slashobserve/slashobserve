@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import {
   dashboardColumns,
+  folderColumn,
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
@@ -92,6 +93,23 @@ async function cellsOf(dashboard: DashboardSummary) {
   const cells = await screen.findAllByRole("cell")
   return { cells, unmount: view.unmount }
 }
+
+describe("column widths", () => {
+  const all = [...dashboardColumns, folderColumn]
+
+  it("gives Title a minimum width and no fixed width", () => {
+    const title = all.find((c) => c.id === "title")
+    expect(title?.meta?.cellClassName).toMatch(/(^| )min-w-60( |$)/)
+    expect(title?.meta?.cellClassName).not.toMatch(/(^| )w-\d/)
+  })
+
+  it("fixes the width of every other data column in header and cell alike", () => {
+    for (const c of all.filter((c) => c.id !== "title" && c.id !== "actions")) {
+      expect(c.meta?.headerClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
+      expect(c.meta?.cellClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
+    }
+  })
+})
 
 describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
