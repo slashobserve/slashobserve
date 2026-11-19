@@ -8,6 +8,7 @@ export type ThreadState =
   | { kind: "failed"; error: string | null }
   | { kind: "resolved"; text: string }
   | { kind: "note"; text: string }
+  | { kind: "proposal"; requestId: string }
 
 export function threadVerbText(
   askedAgent: boolean,
@@ -43,6 +44,9 @@ export function threadState(input: {
       kind: "resolved",
       text: `Resolved by ${root.resolved_actor?.label ?? "someone"}`,
     }
+  }
+  if (request?.status === "succeeded" && request.result_kind === "proposal") {
+    return { kind: "proposal", requestId: request.id }
   }
   if (request?.status === "succeeded" && request.result_version === null) {
     return { kind: "note", text: "Finished, nothing changed" }

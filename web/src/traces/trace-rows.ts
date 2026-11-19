@@ -8,6 +8,7 @@ export type TraceRow = {
   durationMs: number | null
   spans: number | null
   errors: number | null
+  matching?: number | null
 }
 
 function column(frame: WireFrame, name: string) {
@@ -41,6 +42,7 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
     const duration = column(frame, "Duration")?.values
     const spans = column(frame, "Spans")?.values
     const errors = column(frame, "Errors")?.values
+    const matching = column(frame, "Matching")?.values
     for (let row = 0; row < ids.values.length; row++) {
       const traceId = textAt(ids.values, row)
       if (traceId === "") continue
@@ -53,6 +55,7 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
         durationMs: ns === null ? null : ns / 1e6,
         spans: numberAt(spans, row),
         errors: numberAt(errors, row),
+        matching: numberAt(matching, row),
       })
     }
   }
@@ -129,6 +132,57 @@ export function sortTraceRows(
     if (right === null) return -1
     return compareValues(left, right) * sign
   })
+}
+
+const sortKeys: readonly TraceSortKey[] = [
+  "start",
+  "service",
+  "span",
+  "duration",
+  "spans",
+  "errors",
+]
+
+const clearedSortText = "none"
+
+const sortColumns: Record<TraceSortKey, string> = {
+  start: "StartTime",
+  service: "ServiceName",
+  span: "SpanName",
+  duration: "Duration",
+  spans: "Spans",
+  errors: "Errors",
+}
+
+function sameSort(a: TraceSort | null, b: TraceSort | null): boolean {
+  return a?.key === b?.key && a?.direction === b?.direction
+}
+
+export function decodeSort(text: string | undefined): TraceSort | null {
+  if (text === undefined) return defaultTraceSort
+  if (text === clearedSortText) return null
+  const descending = text.startsWith("-")
+  const key = sortKeys.find((candidate) => candidate === text.replace("-", ""))
+  if (key === undefined) return defaultTraceSort
+  return { key, direction: descending ? "descending" : "ascending" }
+}
+
+export function encodeSort(sort: TraceSort | null): string | undefined {
+  if (sameSort(sort, defaultTraceSort)) return undefined
+  if (sort === null) return clearedSortText
+  return `${sort.direction === "descending" ? "-" : ""}${sort.key}`
+}
+
+export function isSortText(text: string): boolean {
+  return (
+    text === clearedSortText ||
+    sortKeys.some((key) => text === key || text === `-${key}`)
+  )
+}
+
+export function pageSortParam(sort: TraceSort | null): string | undefined {
+  if (sort === null) return undefined
+  return `${sort.direction === "descending" ? "-" : ""}${sortColumns[sort.key]}`
 }
 
 function firstDirection(key: TraceSortKey): TraceSortDirection {

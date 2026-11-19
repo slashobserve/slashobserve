@@ -76,12 +76,12 @@ const panels = [
 async function renderComposer({
   gate = { kind: "allowed" },
   draft = "Raise the threshold",
-  canEdit = true,
+  canInvestigate = true,
   target = { kind: "dashboard" },
 }: {
   gate?: AgentGate
   draft?: string
-  canEdit?: boolean
+  canInvestigate?: boolean
   target?: Target
 } = {}) {
   const onTargetChange = vi.fn<(target: Target) => void>()
@@ -95,7 +95,7 @@ async function renderComposer({
       draft={draft}
       onDraftChange={vi.fn()}
       gate={gate}
-      canEdit={canEdit}
+      canInvestigate={canInvestigate}
       placeholder="Write a comment"
       range={{ from: "now-1h", to: "now" }}
     />,
@@ -278,8 +278,8 @@ describe("ActivityComposer", () => {
     [true, "Investigate"],
     [false, "Send"],
   ])(
-    "with Edit %s, typing /investigate makes the send button say %s",
-    async (canEdit, label) => {
+    "as someone who can investigate %s, typing /investigate makes the send button say %s",
+    async (canInvestigate, label) => {
       const user = userEvent.setup()
       function Harness() {
         const [draft, setDraft] = useState("")
@@ -294,7 +294,7 @@ describe("ActivityComposer", () => {
               draft={draft}
               onDraftChange={setDraft}
               gate={{ kind: "allowed" }}
-              canEdit={canEdit}
+              canInvestigate={canInvestigate}
               placeholder="Write a comment"
               range={{ from: "now-1h", to: "now" }}
             />
@@ -310,7 +310,7 @@ describe("ActivityComposer", () => {
       expect(
         screen.getByRole("textbox", { name: "Comment or request" })
       ).toHaveValue(
-        canEdit ? "why is latency up" : "/investigate why is latency up"
+        canInvestigate ? "why is latency up" : "/investigate why is latency up"
       )
     }
   )

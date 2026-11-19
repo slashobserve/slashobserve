@@ -4,6 +4,7 @@ import { matcherInsert } from "@/panel-editor/insert-text"
 
 import type { Selection } from "./scatter"
 import { tracesTimeRange, type TraceSearch } from "./search"
+import { decodeSort, pageSortParam } from "./trace-rows"
 
 const durationPattern = /^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$/
 
@@ -37,7 +38,7 @@ export type TraceForm = {
   errors: boolean
 }
 
-function traceFormOf(search: TraceSearch): TraceForm {
+export function traceForm(search: TraceSearch): TraceForm {
   return {
     service: search.service ?? "",
     span: search.span ?? "",
@@ -54,10 +55,12 @@ function quoted(text: string): string {
 const bareAttributeName = /^[\w.]+$/
 const numberPattern = /^-?\d+(?:\.\d+)?$/
 
-function traceQLValue(value: string): string {
-  if (value === "true" || value === "false") return value
-  if (numberPattern.test(value) && Number.isFinite(Number(value))) return value
-  return quoted(value)
+function traceQLValues(value: string): string[] {
+  if (value === "true" || value === "false") return [value]
+  if (numberPattern.test(value) && Number.isFinite(Number(value))) {
+    return [value, quoted(value)]
+  }
+  return [quoted(value)]
 }
 
 function traceQLCondition(
@@ -67,7 +70,11 @@ function traceQLCondition(
   negate: boolean
 ): string {
   const name = bareAttributeName.test(key) ? key : quoted(key)
-  return `${scope}.${name} ${negate ? "!=" : "="} ${traceQLValue(value)}`
+  const comparisons = traceQLValues(value).map(
+    (typed) => `${scope}.${name} ${negate ? "!=" : "="} ${typed}`
+  )
+  if (comparisons.length === 1) return comparisons[0]
+  return `(${comparisons.join(negate ? " && " : " || ")})`
 }
 
 export function traceQLAttribute(
@@ -128,7 +135,7 @@ export function attributeFilter(
   }
   const condition = compareCondition(attribute, value)
   if (condition === null) return null
-  const q = withSpansetConditions(search.q ?? traceQLFor(traceFormOf(search)), [
+  const q = withSpansetConditions(search.q ?? traceQLFor(traceForm(search)), [
     condition,
   ])
   return q === null ? null : { q }
@@ -209,18 +216,45 @@ function clickhouseConditions(form: TraceForm, column: string): string[] {
   ].filter((condition) => condition !== "")
 }
 
+const traceSpans = {
+  parent: "otel_traces.ParentSpanId",
+  time: "otel_traces.Timestamp",
+}
+
+function rootOf(column: string): string {
+  const root = `${traceSpans.parent} = ''`
+  return `if(countIf(${root}) > 0, argMinIf(otel_traces.${column}, ${traceSpans.time}, ${root}), argMin(otel_traces.${column}, ${traceSpans.time}))`
+}
+
 export function clickhouseTraceSearch(form: TraceForm): string {
   const conditions = clickhouseConditions(form, "otel_traces.")
-    .map((condition) => ` AND ${condition}`)
-    .join("")
-  return `SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
+  const joined = conditions.join(" AND ")
+  const matching =
+    conditions.length > 0 ? `, countIf(${joined}) AS Matching` : ""
+  const scope =
+    conditions.length > 0
+      ? ` AND TraceId IN (SELECT TraceId FROM otel_traces WHERE $__timeFilter(otel_traces.Timestamp) AND ${joined})`
+      : ""
+  return `SELECT TraceId, min(${traceSpans.time}) AS StartTime, min(${traceSpans.time}) AS Timestamp, ${rootOf("ServiceName")} AS ServiceName, ${rootOf("SpanName")} AS SpanName, toUInt64(max(toUnixTimestamp64Nano(${traceSpans.time}) + toInt64(otel_traces.Duration)) - min(toUnixTimestamp64Nano(${traceSpans.time}))) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors${matching}
 FROM otel_traces
-WHERE $__timeFilter(otel_traces.Timestamp)${conditions}
+WHERE $__timeFilter(otel_traces.Timestamp)${scope}
 GROUP BY TraceId`
 }
 
+const clickhouseSpanSelect =
+  "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces"
+
+export function clickhouseLatestTraceSpans(form: TraceForm): string {
+  const where = ["$__timeFilter(Timestamp)", ...clickhouseConditions(form, "")]
+  return `${clickhouseSpanSelect} WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE ${where.join(" AND ")} ORDER BY Timestamp DESC LIMIT 1) ORDER BY startTime LIMIT 1000`
+}
+
+export function clickhouseTraceSpans(traceId: string): string {
+  return `${clickhouseSpanSelect} WHERE TraceId = '${traceId}' AND $__timeFilter(Timestamp) ORDER BY startTime LIMIT 1000`
+}
+
 export function traceStatsFilter(type: string, search: TraceSearch): string {
-  const form = traceFormOf(search)
+  const form = traceForm(search)
   if (type === "tempo") return search.q ?? traceQLFor(form)
   return clickhouseConditions(form, "").join(" AND ")
 }
@@ -229,7 +263,7 @@ export function traceSearchParams(
   type: string,
   search: TraceSearch
 ): ExploreParams {
-  const form = traceFormOf(search)
+  const form = traceForm(search)
   return {
     query:
       type === "tempo"
@@ -239,7 +273,13 @@ export function traceSearchParams(
     ...tracesTimeRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
+    ...(type === "clickhouse" && sortFor(search)),
   }
+}
+
+function sortFor(search: TraceSearch): { sort?: string } {
+  const sort = pageSortParam(decodeSort(search.sort))
+  return sort === undefined ? {} : { sort }
 }
 
 export function traceSearchParamsWithCursor(

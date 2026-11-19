@@ -14,14 +14,14 @@ import (
 
 const (
 	traceWhere = "FROM otel_traces WHERE TraceId = {id:String} AND Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')}"
-	traceQuery = "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, SpanAttributes, ResourceAttributes, SpanKind, " +
+	traceQuery = "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, StatusMessage, SpanAttributes, ResourceAttributes, SpanKind, " +
 		"Events.Timestamp AS EventTimes, Events.Name AS EventNames, Events.Attributes AS EventAttributes, " +
 		"Links.TraceId AS LinkTraceIds, Links.SpanId AS LinkSpanIds, Links.Attributes AS LinkAttributes\n" + traceWhere + "\nORDER BY Timestamp, SpanId LIMIT {n:UInt64}"
 	traceCountQuery  = "SELECT count() " + traceWhere
 	parameterTimeFmt = "2006-01-02 15:04:05.000000000"
 )
 
-var spanColumns = []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents", "SpanLinks"}
+var spanColumns = []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents", "SpanLinks"}
 
 func (d *Datasource) Trace(ctx context.Context, id string, r datasource.TimeRange, maxSpans int) (datasource.Frame, error) {
 	lim := d.limits

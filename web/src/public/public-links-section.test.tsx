@@ -13,6 +13,7 @@ const url = `https://observe.example.com/p/${token}`
 const link = {
   id: "5d0c7a2e-2f43-4a4e-9a55-0d0b8f3c1a77",
   prefix: token.slice(0, 12),
+  label: "",
   variables: "frozen",
   selections: { env: ["dev"] },
   expires_at: null,
@@ -96,6 +97,28 @@ describe("PublicLinksSection", () => {
     )
     expect(cached).toContain(link.prefix)
     expect(cached).not.toContain(token)
+  })
+
+  it("sends a trimmed label and shows it in the list", async () => {
+    const posted = mockServer()
+    const { user } = renderWithProviders(
+      <PublicLinksSection
+        dashboardId={dashboardId}
+        variables={variables}
+        vars={{ env: ["dev"] }}
+      />
+    )
+    await user.type(await screen.findByLabelText("Label"), "  For the board ")
+    await user.click(screen.getByRole("button", { name: "Create public link" }))
+    await screen.findByLabelText("Public link")
+    expect(posted).toEqual([
+      {
+        label: "For the board",
+        variables: "frozen",
+        selections: { env: ["dev"] },
+        expires_at: null,
+      },
+    ])
   })
 
   it("sends no selections for a free link", async () => {

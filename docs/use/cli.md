@@ -297,6 +297,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
+`--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of the other kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
@@ -373,7 +374,7 @@ For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `o
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
 Merging needs Edit on the dashboard and a connection that is not in propose mode, and it runs the queries of the panels it changes like any save.
 
-`bin/observe proposals discard <proposal-id>` closes the proposal without saving it and prints `Discarded`.
+`bin/observe proposals discard <proposal-id> [--reason <text>]` closes the proposal without saving it and prints `Discarded`; `--reason` (up to 500 characters) is shown on the proposal, and printed by `proposals show`.
 Its author may discard it, and so may anyone who may merge it.
 
 `-q` hides the confirmation of `merge` and `discard`, and `--json` prints the API response unchanged.
@@ -546,16 +547,19 @@ A trace with no spans in the range exits 1, and `--json` prints the response bod
 
 ### Ask for traces in plain language
 
-`--ask` takes a question instead of the trace id and prints the newest 100 matching traces:
+`--ask` takes a question instead of the trace id and prints 100 matching traces, the newest unless `--sort` says otherwise:
 
 ```sh
 bin/observe traces --ask "checkout requests slower than 2s with errors" --datasource tempo
 bin/observe traces --ask "slow checkout requests" --datasource clickhouse --dry-run
+bin/observe traces --ask "checkout requests with errors" --datasource clickhouse --sort -duration
 ```
 
 It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
-Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
+Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
+`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
+When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
 ### Compare traces
@@ -715,9 +719,7 @@ Add `--json` to any command to get the API response as it is.
 
 ## Permission errors
 
-A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
-When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+A refusal with the code `forbidden_role` and the message "your role does not allow this" gets a hint that an Admin can change the key's role on the API keys page.
 
-When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
-The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
-Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
+A dashboard the key cannot see answers `not_found`, like a dashboard that does not exist.
+A key matches no access list entry, because entries name people and groups, so it sees a restricted folder only as an Admin service account or as the service account that created the folder, as described in [Folders](../teams/folders.md).

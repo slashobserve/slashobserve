@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -20,14 +22,19 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxLinksPerDashboard = 20
+const (
+	maxLinksPerDashboard = 20
+	maxLabelRunes        = 80
+)
 
 const (
 	reasonExpired    = "expired"
@@ -42,7 +49,18 @@ var (
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")
 	ErrTooManyLinks    = fmt.Errorf("a dashboard has at most %d public links; revoke one first", maxLinksPerDashboard)
 	ErrInvalidMode     = errors.New("variables must be frozen or free")
+	ErrInvalidLabel    = fmt.Errorf("label must be at most %d characters without control characters", maxLabelRunes)
+
+	ErrOptionsUnavailable = errors.New("the options of a variable could not be read")
 )
+
+type VariableOptions interface {
+	VariableOptions(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error)
+}
+
+func WithVariableOptions(o VariableOptions) Option {
+	return func(s *Service) { s.options = o }
+}
 
 type Creator struct {
 	Kind string
@@ -54,6 +72,7 @@ type Link struct {
 	ID           string
 	DashboardID  string
 	Prefix       string
+	Label        string
 	Mode         Mode
 	Selections   map[string][]string
 	ExpiresAt    *time.Time
@@ -65,6 +84,7 @@ type Link struct {
 }
 
 type CreateInput struct {
+	Label      string
 	Mode       Mode
 	Selections map[string][]string
 	ExpiresAt  *time.Time
@@ -101,6 +121,7 @@ type Service struct {
 	logger     *slog.Logger
 	now        func() time.Time
 	rcas       RCAs
+	options    VariableOptions
 }
 
 type Option func(*Service)
@@ -125,7 +146,7 @@ func (s *Service) manage(ctx context.Context, by auth.Principal, dashboardID pgt
 		return ErrPersonalFolder
 	}
 	if !access.Abilities.Manage {
-		return folders.ErrForbidden
+		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", access.Folder.Title))
 	}
 	return nil
 }
@@ -154,6 +175,21 @@ func (s *Service) checkInput(d *spec.Dashboard, in CreateInput) error {
 	return nil
 }
 
+func (s *Service) checkSelections(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, in CreateInput) error {
+	if in.Mode != ModeFree || s.options == nil || len(in.Selections) == 0 {
+		return nil
+	}
+	options := func(name string, earlier map[string][]string) ([]string, error) {
+		values, err := s.options.VariableOptions(ctx, dashboardID, version, d, name, earlier)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %q: %w", ErrOptionsUnavailable, name, err)
+		}
+		return values, nil
+	}
+	_, err := EffectiveSelections(ModeFree, d, in.Selections, in.Selections, options)
+	return err
+}
+
 func storedSelections(selections map[string][]string) ([]byte, error) {
 	if selections == nil {
 		selections = map[string][]string{}
@@ -165,22 +201,29 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
 	}
+	label, ok := cleanLabel(in.Label)
+	if !ok {
+		return Created{}, ErrInvalidLabel
+	}
 	if err := s.manage(ctx, by, dashboardID); err != nil {
 		return Created{}, err
 	}
-	_, d, err := s.latest(ctx, dashboardID)
+	version, d, err := s.latest(ctx, dashboardID)
 	if err != nil {
 		return Created{}, err
 	}
 	if err := s.checkInput(d, in); err != nil {
 		return Created{}, err
 	}
-	count, err := s.db.Queries().CountPublicLinks(ctx, dashboardID)
+	count, err := s.db.Queries().CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 	if err != nil {
 		return Created{}, err
 	}
 	if count >= maxLinksPerDashboard {
 		return Created{}, ErrTooManyLinks
+	}
+	if err := s.checkSelections(ctx, dashboardID, version, d, in); err != nil {
+		return Created{}, err
 	}
 	creatorID, err := db.ParseUUID(by.ID)
 	if err != nil {
@@ -201,6 +244,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 			DashboardID:   dashboardID,
 			TokenHash:     hash,
 			DisplayPrefix: displayPrefix(token),
+			Label:         label,
 			Variables:     string(in.Mode),
 			Selections:    stored,
 			ExpiresAt:     timestamp(in.ExpiresAt),
@@ -236,7 +280,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtyp
 		return nil, err
 	}
 	usesUser := queryproxy.DashboardUsesUser(d)
-	rows, err := s.db.Queries().ListPublicLinks(ctx, dashboardID)
+	rows, err := s.db.Queries().ListPublicLinks(ctx, dbsqlc.ListPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +389,7 @@ func linkOf(row dbsqlc.ListPublicLinksRow) (Link, error) {
 		ID:           row.ID.String(),
 		DashboardID:  row.DashboardID.String(),
 		Prefix:       row.DisplayPrefix,
+		Label:        row.Label,
 		Mode:         Mode(row.Variables),
 		ExpiresAt:    timeOf(row.ExpiresAt),
 		CreatedBy:    Creator{Kind: row.CreatedByKind, ID: row.CreatedByID.String(), Name: row.CreatedByName},
@@ -376,4 +421,15 @@ func timeOf(t pgtype.Timestamptz) *time.Time {
 		return nil
 	}
 	return &t.Time
+}
+
+func cleanLabel(raw string) (string, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return "", true
+	}
+	label, ok := revisions.CleanTitle(raw)
+	if !ok || utf8.RuneCountInString(label) > maxLabelRunes {
+		return "", false
+	}
+	return label, true
 }

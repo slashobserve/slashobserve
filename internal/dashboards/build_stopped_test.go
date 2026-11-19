@@ -33,6 +33,26 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 	return id
 }
 
+func (r *rig) runningRequestFor(t *testing.T, p person) pgtype.UUID {
+	t.Helper()
+	row, err := r.revisions.SubmitObserve(t.Context(), p.principal, "build it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	if err != nil || claimedRow.AgentRequest.ID != row.ID {
+		t.Fatalf("claimed %v, want %v, err %v", claimedRow.AgentRequest.ID, row.ID, err)
+	}
+	return row.ID
+}
+
+func (r *rig) saveBuildAs(t *testing.T, p person, id pgtype.UUID, panelIDs ...string) {
+	t.Helper()
+	if _, err := r.service.SaveBuild(t.Context(), p.principal, BuildSave{RequestID: id, Attempt: buildAttempt, Spec: panelsSpec("t", panelIDs...)}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func (r *rig) failRequest(t *testing.T, id pgtype.UUID) {
 	t.Helper()
 	_, err := r.db.Queries().FailAgentRequest(t.Context(), dbsqlc.FailAgentRequestParams{

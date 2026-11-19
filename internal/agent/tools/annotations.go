@@ -9,6 +9,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
@@ -268,9 +269,16 @@ func annotationFailure(err error) (Result, error) {
 	case errors.Is(err, annotations.ErrNotFound):
 		return toolError(codeNotFound, "annotation or dashboard not found"), nil
 	case errors.Is(err, annotations.ErrForbidden):
-		return toolError(codeForbiddenRole, roleDeniedMessage), nil
+		return toolError(codeForbiddenRole, roleDeniedText(err)), nil
 	case errors.Is(err, annotations.ErrNotCreator):
 		return toolError(codeNotCreator, annotations.ErrNotCreator.Error()), nil
 	}
 	return Result{}, err
+}
+
+func roleDeniedText(err error) string {
+	if body := forbidden.BodyOf(err); body.NeededAccess != "" || body.NeededRole != "" {
+		return body.Message()
+	}
+	return roleDeniedMessage
 }

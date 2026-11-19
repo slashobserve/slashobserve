@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import type { TraceRow } from "./trace-rows"
-import { histogramPercentile, p95Label, partialNote } from "./trace-stats"
+import {
+  histogramPercentile,
+  p95Label,
+  partialNote,
+  partialReason,
+} from "./trace-stats"
 
 const histogram = [
   { le_ms: 64, count: 10 },
@@ -69,5 +74,19 @@ describe("partialNote", () => {
     )
     expect(partialNote([row("a", null)], "UTC")).toBeNull()
     expect(partialNote([], "UTC")).toBeNull()
+  })
+})
+
+describe("partialReason", () => {
+  it("says the page holds the newest matches when it is full", () => {
+    expect(partialReason(50, 50)).toBe(
+      "Showing the newest 50 traces that match; older matches are on the next pages."
+    )
+  })
+
+  it("blames the time limit when the page is not full", () => {
+    expect(partialReason(12, 50)).toBe(
+      "Tempo stopped searching at its time limit, so some matching traces may be missing."
+    )
   })
 })
