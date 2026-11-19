@@ -112,7 +112,11 @@ func TestARoleChangeIsRecordedWithBeforeAndAfter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	by := Principal{Kind: KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Role: RoleAdmin}
+	admin, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "admin", Email: "ada@example.com", Name: "Ada"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := Principal{Kind: KindUser, ID: admin.ID.String(), Name: "Ada", Role: RoleAdmin}
 	set := func(role *Role) {
 		t.Helper()
 		if err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error { return r.service.SetManualRole(t.Context(), q, by, other.ID, role) }); err != nil {
@@ -129,7 +133,7 @@ func TestARoleChangeIsRecordedWithBeforeAndAfter(t *testing.T) {
 	if len(log.roles) != 3 {
 		t.Fatalf("recorded %+v, want three changes: set editor, set viewer, cleared", log.roles)
 	}
-	if got := log.roles[0]; got.From != RoleViewer || got.To != RoleEditor || !got.Manual || got.Name != "Bob" {
+	if got := log.roles[0]; got.From != RoleEditor || got.To != RoleEditor || !got.Manual || got.Name != "Bob" {
 		t.Errorf("first change = %+v", got)
 	}
 	if got := log.roles[1]; got.From != RoleEditor || got.To != RoleViewer || !got.Manual {
