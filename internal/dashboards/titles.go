@@ -9,13 +9,17 @@ import (
 
 const maxTitleRunes = 200
 
-func cleanTitles(d *spec.Dashboard) []spec.Issue {
+func cleanTitles(d, previous *spec.Dashboard) []spec.Issue {
 	var issues []spec.Issue
+	stored := storedTitles(previous)
 	clean := func(path string, title *string, optional bool) {
 		if optional && *title == "" {
 			return
 		}
 		cleaned, err := usertext.Clean("title", *title, usertext.Line(maxTitleRunes))
+		if _, ok := stored[*title]; err != nil && ok {
+			return
+		}
 		if err != nil {
 			code := spec.CodeSchema
 			if reason, ok := usertext.ReasonOf(err); ok {
@@ -37,4 +41,21 @@ func cleanTitles(d *spec.Dashboard) []spec.Issue {
 	clean("/title", &d.Title, false)
 	panels("/panels", d.Panels)
 	return issues
+}
+
+func storedTitles(d *spec.Dashboard) map[string]struct{} {
+	titles := map[string]struct{}{}
+	if d == nil {
+		return titles
+	}
+	titles[d.Title] = struct{}{}
+	var walk func(list []spec.Panel)
+	walk = func(list []spec.Panel) {
+		for _, p := range list {
+			titles[p.Title] = struct{}{}
+			walk(p.Panels)
+		}
+	}
+	walk(d.Panels)
+	return titles
 }

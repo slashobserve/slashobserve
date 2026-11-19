@@ -71,10 +71,6 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 	} else if _, err := s.creationTarget(ctx, by, pgtype.UUID{}); err != nil {
 		return Build{}, err
 	}
-	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, fallback)
-	if err != nil {
-		return Build{}, err
-	}
 	if in.PlannedPanels != nil {
 		if issues := validatePlannedPanels(*in.PlannedPanels); len(issues) > 0 {
 			return Build{}, &InvalidSpecError{Issues: issues}
@@ -89,6 +85,10 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 		planned = *in.PlannedPanels
 	}
 	prev, prevUnverified, err := s.buildParent(ctx, in, stored, found)
+	if err != nil {
+		return Build{}, err
+	}
+	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, fallback, prev)
 	if err != nil {
 		return Build{}, err
 	}
