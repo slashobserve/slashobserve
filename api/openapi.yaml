@@ -196,6 +196,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-retry"
   /observe/{id}/build/save:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
+  /observe/{id}/observation:
+    $ref: "./paths/observe.yaml#/observe-id-observation"
   /observe/{id}/build/panels/{panel_id}/data:
     $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
   /observe/{id}/build/variables/{name}/values:
@@ -959,7 +961,7 @@ components:
           enum: [comment, prompt, observe, investigate]
         title:
           type: string
-          description: The requester's title, else the first line of the prompt cut to 120 characters, else the source word.
+          description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word.
         state:
           type: string
           enum: [queued, running, canceling, succeeded, failed, canceled]
@@ -3755,6 +3757,7 @@ components:
         - build_saved_at
         - continues_id
         - continued_by
+        - retried_by
         - continue_note
         - requested_by
         - origin
@@ -3800,7 +3803,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -3846,6 +3849,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         continue_note:
           type: string
           nullable: true
@@ -4194,6 +4202,20 @@ components:
         updated_at:
           type: string
           format: date-time
+    AnswerSaved:
+      type: object
+      additionalProperties: false
+      required: [observation_id, url, replayed]
+      properties:
+        observation_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The address of the observation, empty when the server has no public URL configured.
+        replayed:
+          type: boolean
+          description: True when the answer was already an observation, so this call changed nothing.
     AgentBuildSaved:
       type: object
       additionalProperties: false
@@ -4248,6 +4270,7 @@ components:
         - continues_id
         - continue_note
         - continued_by
+        - retried_by
         - requested_by
         - assigned_to
         - origin
@@ -4260,6 +4283,7 @@ components:
         - from
         - to
         - observation_id
+        - chat_id
         - finding
       properties:
         id:
@@ -4271,7 +4295,7 @@ components:
           description: "`investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding."
         title:
           type: string
-          description: The title the requester gave the request, or the start of its prompt when they gave none.
+          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none.
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
@@ -4308,7 +4332,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -4332,7 +4356,7 @@ components:
         url:
           type: string
           nullable: true
-          description: The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`.
+          description: The address of the dashboard, or of the observation for an investigation or for a question whose answer was saved as an observation, set when the status is `succeeded`; null while an answer is only on the request.
         error:
           type: string
           nullable: true
@@ -4402,6 +4426,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         requested_by:
           $ref: "#/components/schemas/Author"
         assigned_to:
@@ -4462,6 +4491,10 @@ components:
           format: date-time
           nullable: true
           description: The end of the window an investigation was asked to look at; null when none was given.
+        chat_id:
+          type: string
+          format: uuid
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat.
         observation_id:
           type: string
           format: uuid
@@ -4471,7 +4504,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Finding"
-          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved."
+          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it."
     RequestSummary:
       type: object
       additionalProperties: false
@@ -4498,9 +4531,11 @@ components:
         - build_saved_at
         - continues_id
         - continued_by
+        - retried_by
         - continue_note
         - observation_id
         - observation_title
+        - chat_id
         - origin
         - origin_client
         - created_at
@@ -4532,7 +4567,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         allowed_actions:
           type: array
           uniqueItems: true
@@ -4581,7 +4616,7 @@ components:
           enum: [build, investigate]
         title:
           type: string
-          description: The title the requester gave the request, or the start of its prompt when they gave none.
+          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none.
         pinned_at:
           type: string
           format: date-time
@@ -4597,6 +4632,11 @@ components:
           format: uuid
           nullable: true
           description: The request that continues this one; its build moved there.
+        retried_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that retried this failed or stopped one. It cannot be retried again, so a second retry is refused instead of making a duplicate.
         continue_note:
           type: string
           nullable: true
@@ -4610,6 +4650,10 @@ components:
           type: string
           nullable: true
           description: The observation's current title; null when the request has no observation or the observation is in a folder you cannot see.
+        chat_id:
+          type: string
+          format: uuid
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
         origin:
           type: string
           enum: [web, cli, mcp, api]
@@ -4715,7 +4759,8 @@ components:
         observation_id:
           type: string
           format: uuid
-          description: The observation this finding lives in
+          nullable: true
+          description: The observation this finding lives in; null for the answer to a plain question, which stays on its run until its requester saves it as an observation with `POST /observe/{id}/observation`.
         agent_request_id:
           type: string
           format: uuid
@@ -4776,7 +4821,8 @@ components:
           format: date-time
         url:
           type: string
-          description: Opens the finding's observation; empty when the server has no public URL configured.
+          nullable: true
+          description: Opens the finding's observation; null while the finding has no observation, or when the server has no public URL configured.
     FindingEnvelope:
       type: object
       additionalProperties: false
@@ -4788,7 +4834,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/DashboardFolder"
-          description: The folder of the finding's observation, whose access rule decides who reads the finding.
+          description: The folder of the finding's observation, whose access rule decides who reads the finding; null for an answer that is not an observation yet, which only its requester and an Admin read.
         permissions:
           $ref: "#/components/schemas/Permissions"
     SavedSearchFilters:

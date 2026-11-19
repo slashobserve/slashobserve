@@ -138,6 +138,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		ContinuesID:       optionalUUID(row.ContinuesID),
 		ContinueNote:      httpapi.OptionalString(row.ContinueNote.String),
 		ContinuedBy:       state.continuedBy,
+		RetriedBy:         state.retriedBy,
 
 		PinnedAt:   formatOptionalTime(optionalTime(row.PinnedAt)),
 		ArchivedAt: formatOptionalTime(optionalTime(row.ArchivedAt)),
@@ -145,6 +146,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
+		ChatID:        chatOf(row.ID, row.ChatID),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}

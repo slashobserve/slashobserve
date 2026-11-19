@@ -15,7 +15,7 @@ A run is one agent request, started by `POST /observe`, a comment, a prompt, an 
 | `queued` | Waiting for a worker. | `cancel`, `pin`, `archive` |
 | `running` | A worker holds its lease and runs the agent. | `cancel`, `pin`, `archive` |
 | `canceling` | The requester canceled it and its worker is stopping. | `cancel`, `pin`, `archive` |
-| `succeeded` | It saved its result: a version, a suggestion or a finding saved into an observation. Final. | `retry`, `pin`, `archive` |
+| `succeeded` | It saved its result: a version, a suggestion, or a finding written into the investigation's observation or kept on the run until its requester saves it. Final. | `retry`, `pin`, `archive` |
 | `failed` | It stopped without a result; a build it left can be kept or continued. Final. | `keep_build`, `continue`, `retry`, `pin`, `archive` |
 | `canceled` | The requester canceled it; a build it left can be kept or continued. Final. | `keep_build`, `continue`, `retry`, `pin`, `archive` |
 

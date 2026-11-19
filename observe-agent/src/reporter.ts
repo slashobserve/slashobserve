@@ -47,6 +47,8 @@ export class Reporter {
   private flushTimer: ReturnType<typeof setTimeout> | undefined
   private beatTimer: ReturnType<typeof setInterval> | undefined
   private beating = false
+  private wroteText = false
+  private messageBreak = false
   private ended: RunEnded | undefined
 
   constructor(
@@ -77,7 +79,18 @@ export class Reporter {
     this.flushTimer = undefined
   }
 
+  startMessage(): void {
+    this.messageBreak = this.wroteText
+  }
+
   push(text: string): void {
+    if (text !== "") {
+      if (this.messageBreak) {
+        this.buffered += "\n\n"
+        this.messageBreak = false
+      }
+      this.wroteText = true
+    }
     this.buffered += text
     if (this.flushTimer === undefined && this.buffered !== "") {
       this.flushTimer = setTimeout(

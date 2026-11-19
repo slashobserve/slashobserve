@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -346,7 +347,7 @@ func run() error {
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}
-	findingURL := func(f findings.Finding) string { return links.Observation(cfg.PublicURL, f.ObservationID) }
+	findingURL := savedFindingURL(cfg.PublicURL)
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
@@ -359,6 +360,7 @@ func run() error {
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		ObservationURL: func(id string) string { return links.Observation(cfg.PublicURL, id) },
 		Finding:        findingOfRequest(findingsService, findingURL),
+		SaveAnswer:     saveAnswerOf(findingsService),
 		LiveText:       liveText.Text,
 	}
 	revisionOpts := []revisions.Option{
@@ -561,6 +563,15 @@ func run() error {
 	return nil
 }
 
+func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
+	return func(f findings.Finding) string {
+		if !f.Saved() {
+			return ""
+		}
+		return links.Observation(publicURL, f.ObservationID)
+	}
+}
+
 func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error) {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
 		f, found, err := service.ForRequest(ctx, by, requestID)
@@ -569,6 +580,21 @@ func findingOfRequest(service *findings.Service, findingURL func(f findings.Find
 		}
 		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f)))
 		return raw, err == nil, err
+	}
+}
+
+func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
+	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
+		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
+		switch {
+		case errors.Is(err, findings.ErrNotFound):
+			return revisions.SavedAnswer{}, revisions.ErrNoAnswer
+		case errors.Is(err, findings.ErrRequesterOnly):
+			return revisions.SavedAnswer{}, revisions.ErrNotRequester
+		case err != nil:
+			return revisions.SavedAnswer{}, err
+		}
+		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
 	}
 }
 

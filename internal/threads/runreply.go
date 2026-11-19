@@ -19,6 +19,7 @@ const (
 	replyUnclaimed       = "No agent picked this up within 10 minutes."
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
+	replyAnsweredInChat  = "Answered in the chat of the person who asked."
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
@@ -133,6 +134,9 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		}
 		if err != nil {
 			return "", fmt.Errorf("read finding of run: %w", err)
+		}
+		if !found.Finding.ObservationID.Valid {
+			return replyAnsweredInChat, nil
 		}
 		lead := "Saved a finding: "
 		if target == KindObservation {

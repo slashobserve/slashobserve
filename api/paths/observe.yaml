@@ -28,7 +28,7 @@ observe:
       With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own.
       `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403.
       `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`).
-      `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard.
+      `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included.
       `state` keeps the requests in any of the given states and may repeat.
       Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only.
       `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin.
@@ -66,6 +66,11 @@ observe:
         schema:
           type: boolean
       - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: chat_id
         in: query
         schema:
           type: string
@@ -129,9 +134,13 @@ observe:
     description: >-
       The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`.
       Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`.
-      When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`.
+      When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`.
+      That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`.
       With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version.
-      A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null.
+      A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
+      With `follows_id`, the id of an earlier request of yours that has no dashboard, the request continues that chat: it gets the same `chat_id`, and the agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters).
+      A request with `dashboard_id` is given the earlier turns on that dashboard the same way.
+      `follows_id` and `dashboard_id` exclude each other, and `follows_id` needs `kind` `build`.
       With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`).
       A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`).
       Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null.
@@ -176,6 +185,10 @@ observe:
               to:
                 type: string
                 description: The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds.
+              follows_id:
+                type: string
+                format: uuid
+                description: The earlier request of yours, without a dashboard, that this one continues; only with `kind` `build`.
               observation_id:
                 type: string
                 format: uuid
@@ -407,6 +420,56 @@ observe-id-build-save:
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-observation:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: saveObserveRequestAnswer
+    x-surfaces:
+      cli: [observe save-answer]
+      mcp: [save_run_answer]
+    summary: Save the answer of an agent request as an observation.
+    description: >-
+      A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own.
+      This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General).
+      Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes.
+      The request gains `observation_id` and `url`, and `finding.observation_id` is set.
+      A repeat call answers 200 with `replayed` true and the same observation.
+      A request without an answer answers 409 `no_answer`.
+    responses:
+      "200":
+        description: The answer was already an observation; nothing changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerSaved"
+      "201":
+        description: The answer became an observation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerSaved"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The request has no answer to save (`no_answer`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 observe-id-cancel:
   parameters:
     - name: id
@@ -547,11 +610,12 @@ observe-id-retry:
       The original request is left as it was.
       An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version.
       A comment or suggestion request cannot be retried, and neither can a request that something continues.
+      A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable.
       A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has.
       A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`.
       A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`.
       The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing.
-      Retry is not idempotent: each call queues a new request.
+      Retrying a request that succeeded queues a new request on every call.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
     responses:
       "202":
