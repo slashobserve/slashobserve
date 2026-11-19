@@ -266,6 +266,18 @@ export default function PanelEditor({
   }, [issuesByQuery])
 
   const [runBlocked, setRunBlocked] = useState(false)
+  const [inlineErrorRefs, setInlineErrorRefs] = useState<ReadonlySet<string>>(
+    () => new Set()
+  )
+  const setInlineError = useCallback((ref: string, shown: boolean) => {
+    setInlineErrorRefs((current) => {
+      if (current.has(ref) === shown) return current
+      const next = new Set(current)
+      if (shown) next.add(ref)
+      else next.delete(ref)
+      return next
+    })
+  }, [])
   const showDraftTitle = useDraftTitles((state) => state.show)
   const draftPanelId = draft.panel.id
   const draftTitle = draft.panel.title
@@ -562,6 +574,7 @@ export default function PanelEditor({
           timeRange={timeRange}
           selections={selections}
           onSaveBlockedChange={setRunBlocked}
+          inlineErrorRefs={inlineErrorRefs}
         />
         <div className={view === "editor" ? "contents" : "hidden"}>
           <AskAgent
@@ -619,6 +632,7 @@ export default function PanelEditor({
                   onRemoved={(ref) =>
                     setProblem((current) => withoutQuery(current, ref))
                   }
+                  onInlineErrorChange={setInlineError}
                   focusFirst={focusFirstQuery}
                   editorRefs={editorRefs}
                   beforeAdd={

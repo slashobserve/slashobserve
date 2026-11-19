@@ -158,12 +158,8 @@ test("shows a lint error inline", async ({ page, request, consoleErrors }) => {
   })
   await page.keyboard.press("Escape")
   await expect(page.locator(".cm-tooltip-autocomplete")).toHaveCount(0)
-  const item = sheet(page)
-    .getByRole("button", { name: /^Error:/ })
-    .first()
-  await expect(item).toBeVisible()
-  await item.click()
-  await expect(sheet(page).locator(".cm-content")).toBeFocused()
+  await expect(sheet(page).locator(".cm-lint-line").first()).toBeVisible()
+  await expect(sheet(page).getByText(/^Error:/)).toHaveCount(1)
   await draftPreviewRejectionLogged(consoleErrors)
 })
 
@@ -573,10 +569,8 @@ test("points a lint error at the right character after multi-byte text", async (
   await expect(mark).toBeVisible({ timeout: 5_000 })
   await expect(mark).toHaveText("*")
   await expect(
-    sheet(page).getByRole("button", {
-      name: /^Error:.*\(line 1, column 16\)$/,
-    })
-  ).toBeVisible()
+    sheet(page).getByText(/^Error:.*\(line 1, column 16\)$/)
+  ).toHaveCount(1)
   await draftPreviewRejectionLogged(consoleErrors)
 })
 

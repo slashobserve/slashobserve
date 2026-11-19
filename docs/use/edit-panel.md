@@ -53,7 +53,8 @@ Each query row can use another datasource through its own menu.
 
 A row is "Query A", "Query B" and so on, up to 26.
 Type the query in the editor; a query is at most 20000 characters.
-The server lints the query, and the problems show under the line with "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
+The server lints the query, and each problem shows once, under the line that has it, with a marker in the gutter.
+A screen reader hears it as "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
 A clean query shows "Syntax is valid.": the lint checks only how the query is written, and the preview is what runs it.
 "Lint is unavailable right now." means the check did not run, not that the query is wrong.
 
@@ -83,7 +84,7 @@ It draws the panel in the type you chose, and reports its state:
 - "Waiting for variables." until the variables the queries use have values;
 - "Running the draft.";
 - "Draft ran `<time>`, 3 series" when it finished;
-- "The draft did not run." with the reason, such as "Query A failed: invalid query: ...", in place of the chart.
+- "The draft did not run." in place of the chart, with the reason under it, such as "The datasource is not answering."; when the lint already shows a query's parse error under its line, the preview does not repeat it.
 
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
