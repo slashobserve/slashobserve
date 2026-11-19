@@ -692,6 +692,19 @@ type Snapshot struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type Team struct {
+	ID            pgtype.UUID
+	Name          string
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+}
+
+type TeamMember struct {
+	TeamID  pgtype.UUID
+	UserID  pgtype.UUID
+	AddedAt pgtype.Timestamptz
+}
+
 type Thread struct {
 	ID                   pgtype.UUID
 	DashboardID          pgtype.UUID
@@ -749,22 +762,37 @@ type ThreadRead struct {
 }
 
 type User struct {
-	ID               pgtype.UUID
-	OidcIssuer       string
-	OidcSubject      string
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRole       pgtype.Text
-	ManualRoleByID   pgtype.UUID
-	ManualRoleByName pgtype.Text
-	Groups           []string
-	ThreadsSeenSince pgtype.Timestamptz
+	ID                pgtype.UUID
+	OidcIssuer        string
+	OidcSubject       string
+	Email             string
+	Name              string
+	CreatedAt         pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+	LastSeenAt        pgtype.Timestamptz
+	Role              string
+	RoleSource        string
+	RoleGroup         pgtype.Text
+	ManualRole        pgtype.Text
+	ManualRoleByID    pgtype.UUID
+	ManualRoleByName  pgtype.Text
+	Groups            []string
+	ThreadsSeenSince  pgtype.Timestamptz
+	DeactivatedAt     pgtype.Timestamptz
+	DeactivatedByID   pgtype.UUID
+	DeactivatedByName pgtype.Text
+	FirstUser         bool
+}
+
+type UserInvite struct {
+	ID            pgtype.UUID
+	Email         string
+	Role          string
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type Webhook struct {

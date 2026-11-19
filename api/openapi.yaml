@@ -34,6 +34,20 @@ paths:
     $ref: "./paths/users.yaml#/users-id"
   /users/{id}/sessions:
     $ref: "./paths/users.yaml#/users-id-sessions"
+  /users/{id}/deactivate:
+    $ref: "./paths/users.yaml#/users-id-deactivate"
+  /users/{id}/reactivate:
+    $ref: "./paths/users.yaml#/users-id-reactivate"
+  /invites:
+    $ref: "./paths/invites.yaml#/invites"
+  /invites/{id}:
+    $ref: "./paths/invites.yaml#/invites-id"
+  /teams:
+    $ref: "./paths/teams.yaml#/teams"
+  /teams/{id}:
+    $ref: "./paths/teams.yaml#/teams-id"
+  /teams/{id}/members/{user_id}:
+    $ref: "./paths/teams.yaml#/teams-id-members-userid"
   /outbound-domains:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
@@ -412,6 +426,107 @@ components:
     Role:
       type: string
       enum: [admin, editor, commenter, viewer]
+    Invite:
+      type: object
+      additionalProperties: false
+      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        invited_by:
+          type: string
+          description: The name of the Admin or service account that sent the invite.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sign_in_url:
+          type: string
+          description: The address to share with the person; signing in there with the invited email uses the invite.
+    InviteList:
+      type: object
+      additionalProperties: false
+      required: [invites, next_cursor]
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invite"
+        next_cursor:
+          type: string
+          nullable: true
+    TeamMember:
+      type: object
+      additionalProperties: false
+      required: [id, name, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    Team:
+      type: object
+      additionalProperties: false
+      required: [id, name, created_by, created_at, members]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The group name a folder entry uses to share with the team's members.
+        created_by:
+          type: string
+          description: The name of the Admin or service account that created the team.
+        created_at:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+    TeamList:
+      type: object
+      additionalProperties: false
+      required: [teams]
+      properties:
+        teams:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/Team"
+    CreateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+    CreateInviteRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+        role:
+          $ref: "#/components/schemas/Role"
     RoleSource:
       type: string
       enum: [admin_emails, first_user, group, manual, default]
@@ -647,6 +762,9 @@ components:
         - role_group
         - role_set_by
         - role_locked
+        - deactivated_at
+        - deactivated_by
+        - personal_items
       properties:
         id:
           type: string
@@ -692,6 +810,31 @@ components:
         role_locked:
           type: boolean
           description: True when the role cannot be changed through the API.
+        deactivated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+        deactivated_by:
+          type: string
+          nullable: true
+          description: The name of the Admin who deactivated the person.
+        personal_items:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [dashboards, observations, saved_searches]
+          description: What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person.
+          properties:
+            dashboards:
+              type: integer
+              minimum: 0
+            observations:
+              type: integer
+              minimum: 0
+            saved_searches:
+              type: integer
+              minimum: 0
     ConnectedAgent:
       type: object
       additionalProperties: false
@@ -1500,7 +1643,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, service_account.created, service_account.updated, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -5233,7 +5376,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 66
+          maxItems: 73
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5324,7 +5467,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 66
+          maxItems: 73
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5345,7 +5488,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 66
+          maxItems: 73
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

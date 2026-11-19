@@ -104,6 +104,14 @@ const errorSearch = {
   updated_at: "2026-11-06T09:30:00Z",
 }
 
+class IdleEventSource {
+  static readonly CLOSED = 2
+  readyState = 1
+  onerror: (() => void) | null = null
+  addEventListener() {}
+  close() {}
+}
+
 type Extras = { observations?: unknown[]; searches?: unknown[] }
 
 function mockServer(
@@ -113,6 +121,7 @@ function mockServer(
 ) {
   const listed: URLSearchParams[] = []
   const requested: URL[] = []
+  vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {

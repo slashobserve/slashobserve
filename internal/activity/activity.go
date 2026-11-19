@@ -71,8 +71,15 @@ const (
 
 	TypeUserRoleChanged          = "user.role_changed"
 	TypeUserSignedOutEverywhere  = "user.signed_out_everywhere"
+	TypeUserInvited              = "user.invited"
+	TypeUserInviteUpdated        = "user.invite_updated"
+	TypeUserInviteWithdrawn      = "user.invite_withdrawn"
+	TypeUserDeactivated          = "user.deactivated"
+	TypeUserReactivated          = "user.reactivated"
+	TypeUserRemoved              = "user.removed"
 	TypeServiceAccountCreated    = "service_account.created"
 	TypeServiceAccountUpdated    = "service_account.updated"
+	TypeServiceAccountDeleted    = "service_account.deleted"
 	TypeServiceAccountKeyCreated = "service_account.key_created"
 	TypeServiceAccountKeyRevoked = "service_account.key_revoked"
 	TypeWebhookCreated           = "webhook.created"
@@ -96,8 +103,15 @@ var publicLinkTypes = []string{
 var adminTypes = []string{
 	TypeUserRoleChanged,
 	TypeUserSignedOutEverywhere,
+	TypeUserInvited,
+	TypeUserInviteUpdated,
+	TypeUserInviteWithdrawn,
+	TypeUserDeactivated,
+	TypeUserReactivated,
+	TypeUserRemoved,
 	TypeServiceAccountCreated,
 	TypeServiceAccountUpdated,
+	TypeServiceAccountDeleted,
 	TypeServiceAccountKeyCreated,
 	TypeServiceAccountKeyRevoked,
 	TypeWebhookCreated,

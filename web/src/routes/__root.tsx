@@ -36,7 +36,13 @@ function RootLayout() {
       <TooltipProvider>
         <Outlet />
       </TooltipProvider>
-      <Toaster position="bottom-right" />
+      <Toaster
+        position="bottom-left"
+        offset={{ left: 56, bottom: 16 }}
+        mobileOffset={16}
+        duration={5000}
+        closeButton
+      />
     </Shell>
   )
 }

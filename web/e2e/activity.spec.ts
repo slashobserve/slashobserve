@@ -545,7 +545,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       await expect(
-        card(page).getByText("Comments and saved versions.")
+        card(page).getByText(
+          "Comments, proposals, annotations and saved versions."
+        )
       ).toBeVisible()
       await expect(composerBox(page)).toHaveAttribute(
         "placeholder",
