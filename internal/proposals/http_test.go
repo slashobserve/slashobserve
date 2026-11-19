@@ -214,7 +214,7 @@ func TestProposalRoutesAnswerEveryDocumentedError(t *testing.T) {
 	d.send(t, outsider, http.MethodGet, proposal, "", http.StatusNotFound)
 	d.send(t, outsider, http.MethodPost, proposal+"/merge", `{"revision":1}`, http.StatusNotFound)
 	d.send(t, outsider, http.MethodPost, proposal+"/discard", "", http.StatusNotFound)
-	d.send(t, outsider, http.MethodGet, dashPath+"/proposals", "", http.StatusForbidden)
+	d.send(t, outsider, http.MethodGet, dashPath+"/proposals", "", http.StatusNotFound)
 	d.moveInto(t, id, d.generalFolder(t))
 
 	d.send(t, editor, http.MethodPost, proposal+"/merge", `{}`, http.StatusBadRequest)

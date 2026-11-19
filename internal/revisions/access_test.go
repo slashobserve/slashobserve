@@ -79,7 +79,7 @@ func TestRefusalNamesWhatWouldLetTheRequestThrough(t *testing.T) {
 			}
 		})
 	}
-	if err := refusal(SourceInvestigate, true, auth.RoleEditor, "Payments"); err != ErrForbidden {
+	if err := refusal(SourceInvestigate, true, auth.RoleEditor, "Payments"); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("an Editor refused an investigation gets the plain error, got %#v", err)
 	}
 }
