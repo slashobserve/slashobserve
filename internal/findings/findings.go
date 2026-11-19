@@ -41,6 +41,7 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
+	ErrAskPlacement   = errors.New("a finding about a dashboard has no other dashboard to ask on")
 )
 
 type Conclusion struct {
@@ -60,6 +61,7 @@ type Author struct{ Kind, ID, Name string }
 type Finding struct {
 	ID, AgentRequestID, DashboardID, AnnotationID string
 	ObservationID, FolderID                       string
+	AskOnID, AskOnTitle                           string
 	Title, Markdown                               string
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
