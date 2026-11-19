@@ -29,21 +29,21 @@ const (
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
-		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
-		`"datasource":{"type":"string","description":"The datasource, from list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse for logs, Tempo or ClickHouse for traces, Prometheus for metrics."},` +
+		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"Short title."},` +
+		`"datasource":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: the shortest span duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: the longest span duration, such as 2s."},` +
-		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."},` +
+		`"min":{"type":"string","description":"Traces: shortest span duration, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: longest span duration, such as 2s."},` +
+		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
 		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
 		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
-		`"from":{"type":"string","description":"Range start, such as now-1h or an RFC 3339 time. Default now-1h."},` +
-		`"to":{"type":"string","description":"Range end, such as now or an RFC 3339 time. Default now."},` +
-		`"folder_id":{"type":"string","format":"uuid","description":"A folder from list_folders. Default your My Dashboards, else General."}},` +
+		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +
+		`"to":{"type":"string","description":"End of the range, such as now or RFC 3339. Default now."},` +
+		`"folder_id":{"type":"string","format":"uuid","description":"The folder, from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
