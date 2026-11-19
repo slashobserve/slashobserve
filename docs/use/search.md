@@ -5,6 +5,7 @@ description: Find dashboards, observations, annotations, comments and saved sear
 
 Search finds past work by its words.
 One query covers dashboards, annotations, observations, comments and saved logs and trace searches, and ranks the matches together.
+The web app shows the matches in the command palette and, in full, on the Search page at `/search?q=<words>`; [Search in the web app](web.md#search) describes both.
 You call it with `GET /api/v1/search`, which needs the Viewer role or higher and works with a session or a service-account key.
 
 ## What each kind matches

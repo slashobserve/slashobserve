@@ -23,6 +23,8 @@ import {
   timeOptionsFor,
   zonedDateTime,
   zonedDateTimeMs,
+  zoneChoiceLabel,
+  zoneChoices,
   zonedTimeValue,
 } from "./time"
 
@@ -560,5 +562,21 @@ describe("isRangeTooLong", () => {
 
   it("leaves an unreadable time to the other checks", () => {
     expect(isRangeTooLong("nonsense", "now", now)).toBe(false)
+  })
+})
+
+describe("zoneChoices", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("lists UTC once when the runtime also reports it as an IANA zone", () => {
+    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue([
+      "Africa/Abidjan",
+      "UTC",
+    ])
+    const labels = zoneChoices().map(zoneChoiceLabel)
+    expect(labels.filter((label) => label === "UTC")).toHaveLength(1)
+    expect(labels).toContain("Africa/Abidjan")
   })
 })

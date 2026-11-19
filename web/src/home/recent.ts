@@ -52,7 +52,7 @@ export function recordRecent(
   ].slice(0, recentLimit)
 }
 
-function readRecent(kind: RecentKind): RecentEntry[] {
+export function readRecent(kind: RecentKind): RecentEntry[] {
   try {
     return parseRecent(localStorage.getItem(recentKeys[kind]))
   } catch {

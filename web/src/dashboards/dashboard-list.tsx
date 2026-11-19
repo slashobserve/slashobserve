@@ -26,6 +26,7 @@ import { importedFilter } from "@/health/health-labels"
 import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
 import { RepairQueue } from "@/import/repair/repair-page"
 import { roleAtLeast } from "@/lib/roles"
+import { docsPageUrl } from "@/lib/docs"
 import { cn } from "@/lib/utils"
 import { levelLabels } from "@/folders/grants"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -482,140 +483,155 @@ export function DashboardList({
 
   return (
     <ListHealthProvider ids={healthIds}>
-      {noDashboards ? null : (
-        <FilterRow
-          key={resetKey}
-          search={search}
-          onSearchChange={onFilterChange}
-          summary={summary}
-          folderLocked={folderLocked}
-          offerImported={offerImported}
-        />
-      )}
-      {failedQuery === null ? null : (
-        <div className="mb-4">
-          <LoadProblem
-            title={
-              failedQuery === query
-                ? "Could not load dashboards"
-                : "Could not load folders"
-            }
-            detail={loadProblemText(failedQuery.error)}
-            retrying={failedQuery.isFetching}
-            onRetry={() => void failedQuery.refetch()}
-            retryRef={retryRef}
+      <div className="max-w-[1500px]">
+        {noDashboards ? null : (
+          <FilterRow
+            key={resetKey}
+            search={search}
+            onSearchChange={onFilterChange}
+            summary={summary}
+            folderLocked={folderLocked}
+            offerImported={offerImported}
           />
-        </div>
-      )}
-      {empty ? (
-        <section className="flex flex-col items-center gap-2 py-16 text-center">
-          {noDashboards && readOnlyFolder !== undefined ? (
-            <>
-              <h2 className="text-lg font-semibold">No dashboards yet</h2>
-              <p className="text-sm text-muted-foreground">
-                {`Your access: ${levelLabels[readOnlyFolder.level]}. Someone with Edit on ${readOnlyFolder.title} adds dashboards here.`}
-              </p>
-            </>
-          ) : noDashboards ? (
-            <>
-              <h2 className="text-lg font-semibold">No dashboards yet</h2>
-              <p className="text-sm text-muted-foreground">
-                Ask for one in the chat and it shows up here.
-              </p>
-              <div className="flex gap-2">
-                <Link
-                  to="/ask"
-                  className={cn(buttonVariants({ variant: "outline" }))}
+        )}
+        {failedQuery === null ? null : (
+          <div className="mb-4">
+            <LoadProblem
+              title={
+                failedQuery === query
+                  ? "Could not load dashboards"
+                  : "Could not load folders"
+              }
+              detail={loadProblemText(failedQuery.error)}
+              retrying={failedQuery.isFetching}
+              onRetry={() => void failedQuery.refetch()}
+              retryRef={retryRef}
+            />
+          </div>
+        )}
+        {empty ? (
+          <section className="flex flex-col items-center gap-2 py-16 text-center">
+            {noDashboards && readOnlyFolder !== undefined ? (
+              <>
+                <h2 className="text-lg font-semibold">No dashboards yet</h2>
+                <p className="text-sm text-muted-foreground">
+                  {`Your access: ${levelLabels[readOnlyFolder.level]}. Someone with Edit on ${readOnlyFolder.title} adds dashboards here.`}
+                </p>
+              </>
+            ) : noDashboards ? (
+              <>
+                <h2 className="text-lg font-semibold">No dashboards yet</h2>
+                <p className="text-sm text-muted-foreground">
+                  Ask for one in the chat and it shows up here.
+                </p>
+                <div className="flex gap-2">
+                  <Link
+                    to="/ask"
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    Open the chat
+                  </Link>
+                  <Link
+                    to="/import"
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    Import from Grafana
+                  </Link>
+                </div>
+                <a
+                  href={docsPageUrl("get-started/first-dashboard")}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                 >
-                  Open the chat
-                </Link>
-                <Link
-                  to="/import"
-                  className={cn(buttonVariants({ variant: "outline" }))}
+                  Read about this in the docs
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-semibold">
+                  {kindOnly
+                    ? kind === "any"
+                      ? "Every dashboard passed its last check."
+                      : "No dashboard has this problem."
+                    : "No dashboards match these filters."}
+                </h2>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResetKey((key) => key + 1)
+                    onSearchChange({})
+                  }}
                 >
-                  Import from Grafana
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-lg font-semibold">
-                {kindOnly
-                  ? kind === "any"
-                    ? "Every dashboard passed its last check."
-                    : "No dashboard has this problem."
-                  : "No dashboards match these filters."}
-              </h2>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setResetKey((key) => key + 1)
-                  onSearchChange({})
-                }}
-              >
-                Clear filters
-              </Button>
-            </>
-          )}
-        </section>
-      ) : null}
-      {showTable ? (
-        <>
-          <TableCard
-            minWidth={960}
-            labelledBy={labelledBy}
-            ref={regionRef}
-            stackOnNarrow
-          >
-            <thead>
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id}>
-                  {group.headers.map((header) => (
-                    <HeaderCell
-                      key={header.id}
-                      className={header.column.columnDef.meta?.headerClassName}
-                    >
-                      <table.FlexRender header={header} />
-                    </HeaderCell>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody
-              aria-busy={pending || query.isPlaceholderData || clampTo !== null}
+                  Clear filters
+                </Button>
+              </>
+            )}
+          </section>
+        ) : null}
+        {showTable ? (
+          <>
+            <TableCard
+              minWidth={700}
+              labelledBy={labelledBy}
+              ref={regionRef}
+              stackOnNarrow
             >
-              {!ready ? (
-                <SkeletonRows table={table} />
-              ) : sections === null ? (
-                flatRows(table)
-              ) : (
-                sectionRows(
-                  sections,
-                  collapsed,
-                  toggleFolder,
-                  table,
-                  folderLocked
-                )
-              )}
-            </tbody>
-          </TableCard>
-          {loaded && pageCount > 1 && clampTo === null ? (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {query.isPlaceholderData
-                  ? null
-                  : `${range.first}-${range.last} of ${total}`}
-              </p>
-              <ListPagination
-                page={page}
-                pageCount={pageCount}
-                search={search}
-                onNavigate={onNavigate}
-              />
-            </div>
-          ) : null}
-        </>
-      ) : null}
+              <thead>
+                {table.getHeaderGroups().map((group) => (
+                  <tr key={group.id}>
+                    {group.headers.map((header) => (
+                      <HeaderCell
+                        key={header.id}
+                        className={
+                          header.column.columnDef.meta?.headerClassName
+                        }
+                      >
+                        <table.FlexRender header={header} />
+                      </HeaderCell>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody
+                aria-busy={
+                  pending || query.isPlaceholderData || clampTo !== null
+                }
+              >
+                {!ready ? (
+                  <SkeletonRows table={table} />
+                ) : sections === null ? (
+                  flatRows(table)
+                ) : (
+                  sectionRows(
+                    sections,
+                    collapsed,
+                    toggleFolder,
+                    table,
+                    folderLocked
+                  )
+                )}
+              </tbody>
+            </TableCard>
+            {loaded && pageCount > 1 && clampTo === null ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {query.isPlaceholderData
+                    ? null
+                    : `${range.first}-${range.last} of ${total}`}
+                </p>
+                <ListPagination
+                  page={page}
+                  pageCount={pageCount}
+                  search={search}
+                  onNavigate={onNavigate}
+                />
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </ListHealthProvider>
   )
 }

@@ -93,24 +93,33 @@ describe("PinnedDashboards", () => {
     )
   })
 
-  it("shows ten pins and a More link to the dashboards page when there are more", async () => {
+  it("shows ten pins and a button that lists every pin in place and folds them back", async () => {
     serve(
       Array.from({ length: 12 }, (_, index) =>
         pin(`d${index}`, `Dashboard ${index}`)
       )
     )
-    renderWithProviders(<PinnedList />, { route })
+    const { user } = renderWithProviders(<PinnedList />, { route })
 
-    const more = await screen.findByRole("link", {
-      name: "More pinned dashboards",
-    })
-    expect(more).toHaveAttribute("href", "/dashboards")
+    const more = await screen.findByRole("button", { name: "Show all pins" })
+    expect(more).toHaveAttribute("aria-expanded", "false")
     const list = screen.getByRole("list", { name: "Pinned dashboards" })
-    expect(within(list).getAllByRole("link")).toHaveLength(11)
+    expect(within(list).getAllByRole("link")).toHaveLength(10)
     expect(screen.queryByRole("link", { name: "Dashboard 10" })).toBeNull()
+
+    await user.click(more)
+    expect(within(list).getAllByRole("link")).toHaveLength(12)
+    expect(
+      screen.getByRole("link", { name: "Dashboard 11" })
+    ).toBeInTheDocument()
+    const fewer = screen.getByRole("button", { name: "Show fewer pins" })
+    expect(fewer).toHaveAttribute("aria-expanded", "true")
+
+    await user.click(fewer)
+    expect(within(list).getAllByRole("link")).toHaveLength(10)
   })
 
-  it("shows no More link at ten pins", async () => {
+  it("shows no expand button at ten pins", async () => {
     serve(
       Array.from({ length: 10 }, (_, index) =>
         pin(`d${index}`, `Dashboard ${index}`)
@@ -119,7 +128,7 @@ describe("PinnedDashboards", () => {
     renderWithProviders(<PinnedList />, { route })
 
     await screen.findByRole("link", { name: "Dashboard 9" })
-    expect(screen.queryByRole("link", { name: /^More/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /pins$/ })).toBeNull()
   })
 
   it("renders nothing without pins", async () => {

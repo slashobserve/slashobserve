@@ -35,6 +35,8 @@ declare module "@tanstack/react-table" {
 export type DashboardSummary =
   paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
 
+const hiddenWhenCramped = "@max-[1000px]:not-narrow:hidden"
+
 const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
 
 export const listFeatures = tableFeatures({})
@@ -128,7 +130,11 @@ export const dashboardColumns = column.columns([
           {row.original.datasource_uids.join(", ")}
         </span>
       ) : null,
-    meta: { skeletonClassName: "h-5 w-16" },
+    meta: {
+      headerClassName: hiddenWhenCramped,
+      cellClassName: hiddenWhenCramped,
+      skeletonClassName: "h-5 w-16",
+    },
   }),
   column.display({
     id: "openComments",
@@ -138,7 +144,8 @@ export const dashboardColumns = column.columns([
         ? row.original.open_comment_count
         : null,
     meta: {
-      cellClassName: "tabular-nums",
+      headerClassName: hiddenWhenCramped,
+      cellClassName: cn("tabular-nums", hiddenWhenCramped),
       stackedLabel: "Open comments",
       skeletonClassName: "h-5 w-10",
     },
