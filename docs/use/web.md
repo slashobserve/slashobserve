@@ -224,6 +224,13 @@ The problems come from the last health check; see [Dashboard health](dashboard-h
 The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Back to dashboard**, `Esc` or `v` again returns to the grid.
 
+## Panels with many series
+
+A time series or trend panel draws at most 50 series per query.
+The server keeps the 50 whose highest value is largest, in their original order, and the panel header says "Top 50 of 412 series" with the full sentence on hover.
+In the data response `meta.series_shown` and `meta.series_total` carry the two numbers, `meta.partial` is true and `meta.note` says which series were kept; they are absent when nothing was dropped.
+Narrow the query or add a filter to see the series that were left out.
+
 ## Inspect
 
 **Inspect** in a panel's menu, or `i` over a panel, opens a pane in the place of the activity card.

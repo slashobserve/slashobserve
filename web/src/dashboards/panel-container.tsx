@@ -53,6 +53,7 @@ import {
   stateScope,
   type PanelSource,
 } from "./panel-source"
+import { seriesCapLabel } from "./series-cap"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
 import { useSelectionStore } from "./selection-store"
 import { useInView } from "./use-in-view"
@@ -475,6 +476,7 @@ export const PanelContainer = memo(function PanelContainer({
             ? panelDatasourceUids(dataPanel ?? panel, selections).join(", ")
             : undefined
         }
+        seriesCap={seriesCapLabel(query.data?.meta)}
         links={links}
         badge={
           <>

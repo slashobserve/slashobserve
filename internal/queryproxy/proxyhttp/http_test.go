@@ -2142,3 +2142,57 @@ func TestBuildPanelThatDoesNotExistIsPanelNotFound(t *testing.T) {
 	hn.withBuild(testDashboard())
 	expectError(t, hn.buildGet("/panels/missing/data?"+window, auth.KindUser), http.StatusNotFound, "panel_not_found")
 }
+
+func TestTimeSeriesPanelDataKeepsTheHighestSeriesAndSaysSo(t *testing.T) {
+	hn := newHarness(t)
+	total := queryproxy.MaxPanelSeries + 30
+	hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		frames := make([]datasource.Frame, total)
+		for i := range frames {
+			frames[i] = datasource.Frame{Labels: map[string]string{"route": strconv.Itoa(i)}, Fields: []datasource.Field{
+				{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000000)}},
+				{Name: "Value", Type: datasource.FieldNumber, Values: []any{float64(i)}},
+			}}
+		}
+		return frames, nil
+	}
+	body := decodeData(t, hn.get(hn.dataPath("p_ts", window+"&var-job=api"), ""))
+	var frames []struct {
+		Labels map[string]string `json:"labels"`
+	}
+	if err := json.Unmarshal(body.Frames, &frames); err != nil {
+		t.Fatal(err)
+	}
+	if len(frames) != queryproxy.MaxPanelSeries || frames[0].Labels["route"] != "30" {
+		t.Fatalf("%d frames, first route %q", len(frames), frames[0].Labels["route"])
+	}
+	if body.Meta.SeriesShown != queryproxy.MaxPanelSeries || body.Meta.SeriesTotal != total || !body.Meta.Partial {
+		t.Fatalf("meta = %+v", body.Meta)
+	}
+	if body.Meta.Note != queryproxy.SeriesCapNote(queryproxy.MaxPanelSeries, total) {
+		t.Fatalf("note = %q", body.Meta.Note)
+	}
+}
+
+func TestTablePanelDataIsNotCappedBySeries(t *testing.T) {
+	hn := newHarness(t)
+	total := queryproxy.MaxPanelSeries + 30
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		frames := make([]datasource.Frame, total)
+		for i := range frames {
+			frames[i] = datasource.Frame{Fields: []datasource.Field{
+				{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000000)}},
+				{Name: "Value", Type: datasource.FieldNumber, Values: []any{float64(i)}},
+			}}
+		}
+		return frames, nil
+	}
+	body := decodeData(t, hn.get(hn.dataPath("p_tbl", window+"&var-job=api"), ""))
+	var frames []json.RawMessage
+	if err := json.Unmarshal(body.Frames, &frames); err != nil {
+		t.Fatal(err)
+	}
+	if len(frames) != total || body.Meta.SeriesTotal != 0 || body.Meta.Partial {
+		t.Fatalf("%d frames, meta %+v", len(frames), body.Meta)
+	}
+}

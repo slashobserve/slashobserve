@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -117,6 +118,8 @@ type dataMeta struct {
 	SourcePanel    string          `json:"source_panel,omitempty"`
 	Truncated      bool            `json:"truncated"`
 	Partial        bool            `json:"partial"`
+	SeriesShown    int             `json:"series_shown,omitempty"`
+	SeriesTotal    int             `json:"series_total,omitempty"`
 	Warning        string          `json:"warning,omitempty"`
 	Note           string          `json:"note,omitempty"`
 	Rows           int             `json:"rows"`
@@ -149,6 +152,8 @@ type resultMeta struct {
 	truncated      bool
 	partial        bool
 	warning        string
+	seriesShown    int
+	seriesTotal    int
 	rows           int
 	rowsTotal      int
 	oldest         time.Time
@@ -194,6 +199,16 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 		}
 	}
 	return m
+}
+
+func (m resultMeta) capped() bool { return m.seriesTotal > m.seriesShown }
+
+func (m resultMeta) note(canPage bool) string {
+	note := queryproxy.LimitNote(m.truncated, m.partial, m.page != nil && m.page.HasNext, canPage)
+	if !m.capped() {
+		return note
+	}
+	return strings.Join(slices.DeleteFunc([]string{note, queryproxy.SeriesCapNote(m.seriesShown, m.seriesTotal)}, func(n string) bool { return n == "" }), ". ")
 }
 
 func (m resultMeta) took(elapsed time.Duration) resultMeta {
@@ -396,10 +411,17 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	parts := make([][]byte, len(found.Panel.Queries))
 	exemplarParts := make([][]byte, len(found.Panel.Queries))
 	var (
-		mu    sync.Mutex
-		total int
+		mu          sync.Mutex
+		total       int
+		seriesShown int
+		seriesTotal int
 	)
+	capsSeries := queryproxy.CapsSeries(found.Panel.Type)
 	req.Admit = func(index int, q queryproxy.QueryResult) error {
+		var shown, all int
+		if capsSeries {
+			q.Frames, shown, all = queryproxy.CapSeries(q.Frames, queryproxy.MaxPanelSeries)
+		}
 		part, err := marshalFrames([]queryproxy.QueryResult{q})
 		if err != nil {
 			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", req.PanelID)}, failureAttrs(err)...)...)
@@ -415,6 +437,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		mu.Lock()
 		defer mu.Unlock()
 		parts[index], exemplarParts[index] = part, exemplars
+		seriesShown, seriesTotal = seriesShown+shown, seriesTotal+all
 		if total += len(part) + len(exemplars); total > maxResponseBytes {
 			return &queryproxy.AbortError{Err: errTooLarge}
 		}
@@ -436,7 +459,11 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if asked {
 		exemplars = joinFrames(exemplarParts)
 	}
-	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: resultMetaOf(res.Frames()).took(elapsed), executedAt: time.Now()}, nil
+	meta := resultMetaOf(res.Frames()).took(elapsed)
+	if seriesTotal > seriesShown {
+		meta.seriesShown, meta.seriesTotal = seriesShown, seriesTotal
+	}
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: meta, executedAt: time.Now()}, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
@@ -483,9 +510,11 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			ExecutedAt:     formatTime(executedAt),
 			SourcePanel:    sourcePanel,
 			Truncated:      e.meta.truncated,
-			Partial:        e.meta.partial,
+			Partial:        e.meta.partial || e.meta.capped(),
+			SeriesShown:    e.meta.seriesShown,
+			SeriesTotal:    e.meta.seriesTotal,
 			Warning:        e.meta.warning,
-			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext, e.canPage),
+			Note:           e.meta.note(e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,
 			Oldest:         formatEdge(e.meta.oldest),

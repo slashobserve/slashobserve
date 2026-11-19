@@ -3271,7 +3271,13 @@ components:
           description: True when a query stopped at its row limit, so more rows exist in the range.
         partial:
           type: boolean
-          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks, or when a time series or trend panel returned only its highest series (see series_total).
+        series_shown:
+          type: integer
+          description: How many series the panel's data holds after the cap; present only when the cap dropped some.
+        series_total:
+          type: integer
+          description: How many series the panel's queries returned before the cap of 50 per query kept the highest peaks; present only when the cap dropped some, and then note says so.
         warning:
           type: string
           description: The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one.

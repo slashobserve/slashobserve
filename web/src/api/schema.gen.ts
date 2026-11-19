@@ -5434,8 +5434,12 @@ export interface components {
             source_panel?: string;
             /** @description True when a query stopped at its row limit, so more rows exist in the range. */
             truncated: boolean;
-            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
+            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks, or when a time series or trend panel returned only its highest series (see series_total). */
             partial: boolean;
+            /** @description How many series the panel's data holds after the cap; present only when the cap dropped some. */
+            series_shown?: number;
+            /** @description How many series the panel's queries returned before the cap of 50 per query kept the highest peaks; present only when the cap dropped some, and then note says so. */
+            series_total?: number;
             /** @description The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one. */
             warning?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
