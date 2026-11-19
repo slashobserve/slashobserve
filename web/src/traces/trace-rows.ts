@@ -31,14 +31,6 @@ function textAt(values: unknown[] | undefined, row: number): string {
   return value === null || value === undefined ? "" : String(value)
 }
 
-export function lacksTraceIdColumn(frames: readonly WireFrame[]): boolean {
-  return frames.some(
-    (frame) =>
-      !column(frame, "TraceId") &&
-      frame.fields.some((field) => field.values.length > 0)
-  )
-}
-
 export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
   const rows: TraceRow[] = []
   for (const frame of frames) {

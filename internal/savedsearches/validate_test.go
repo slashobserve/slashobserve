@@ -106,29 +106,33 @@ func TestValidateDefaultsAndTrimsAndDecodesFilters(t *testing.T) {
 }
 
 func TestFitDatasourceMatchesTheTypeToTheKind(t *testing.T) {
+	query := ptr("x")
 	cases := []struct {
-		name string
-		kind Kind
-		typ  spec.DatasourceType
-		want string
+		name  string
+		kind  Kind
+		typ   spec.DatasourceType
+		query *string
+		want  string
 	}{
-		{"loki logs", KindLogs, spec.Loki, ""},
-		{"clickhouse logs", KindLogs, spec.ClickHouse, ""},
-		{"elasticsearch logs", KindLogs, spec.Elasticsearch, ""},
-		{"opensearch logs", KindLogs, spec.OpenSearch, ""},
-		{"prometheus logs", KindLogs, spec.Prometheus, CodeUnsupportedDatasource},
-		{"tempo logs", KindLogs, spec.Tempo, CodeUnsupportedDatasource},
-		{"tempo traces", KindTraces, spec.Tempo, ""},
-		{"clickhouse traces", KindTraces, spec.ClickHouse, ""},
-		{"loki traces", KindTraces, spec.Loki, CodeUnsupportedDatasource},
-		{"elasticsearch traces", KindTraces, spec.Elasticsearch, CodeUnsupportedDatasource},
-		{"prometheus metrics", KindMetrics, spec.Prometheus, ""},
-		{"loki metrics", KindMetrics, spec.Loki, CodeUnsupportedDatasource},
-		{"clickhouse metrics", KindMetrics, spec.ClickHouse, CodeUnsupportedDatasource},
+		{"loki logs", KindLogs, spec.Loki, query, ""},
+		{"clickhouse logs", KindLogs, spec.ClickHouse, query, ""},
+		{"elasticsearch logs", KindLogs, spec.Elasticsearch, query, ""},
+		{"opensearch logs", KindLogs, spec.OpenSearch, query, ""},
+		{"prometheus logs", KindLogs, spec.Prometheus, query, CodeUnsupportedDatasource},
+		{"tempo logs", KindLogs, spec.Tempo, query, CodeUnsupportedDatasource},
+		{"tempo traces with a query", KindTraces, spec.Tempo, query, ""},
+		{"tempo traces without one", KindTraces, spec.Tempo, nil, ""},
+		{"clickhouse traces without a query", KindTraces, spec.ClickHouse, nil, ""},
+		{"clickhouse traces with a query", KindTraces, spec.ClickHouse, query, CodeInvalid},
+		{"loki traces", KindTraces, spec.Loki, nil, CodeUnsupportedDatasource},
+		{"elasticsearch traces", KindTraces, spec.Elasticsearch, nil, CodeUnsupportedDatasource},
+		{"prometheus metrics", KindMetrics, spec.Prometheus, query, ""},
+		{"loki metrics", KindMetrics, spec.Loki, query, CodeUnsupportedDatasource},
+		{"clickhouse metrics", KindMetrics, spec.ClickHouse, query, CodeUnsupportedDatasource},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			err := fitDatasource(c.kind, c.typ)
+			err := fitDatasource(c.kind, c.typ, c.query)
 			if c.want == "" {
 				if err != nil {
 					t.Fatalf("fitDatasource = %v, want nil", err)

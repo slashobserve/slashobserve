@@ -5,7 +5,6 @@ import {
   attributeFilter,
   clickhouseTraceSearch,
   durationField,
-  clickhouseLatestTraceSpansOf,
   keepSelectionSearch,
   parseDuration,
   traceQLAttribute,
@@ -174,50 +173,6 @@ describe("traceSearchParams", () => {
   })
 })
 
-describe("written ClickHouse SQL", () => {
-  const sql =
-    "SELECT TraceId, min(Timestamp) AS StartTime FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY TraceId"
-
-  it("runs instead of the template and keeps paging and sorting", () => {
-    const params = traceSearchParams("clickhouse", {
-      q: sql,
-      service: "checkout",
-      size: 100,
-      sort: "-spans",
-    })
-    expect(params).toMatchObject({
-      query: sql,
-      kind: "instant",
-      pageSize: 100,
-      sort: "-Spans",
-    })
-  })
-
-  it("is not used on Tempo, where the query is TraceQL", () => {
-    expect(traceSearchParams("tempo", { q: "{ status = error }" }).query).toBe(
-      "{ status = error }"
-    )
-  })
-
-  it("reads the spans of the latest trace the SQL lists", () => {
-    const query = clickhouseLatestTraceSpansOf(`${sql};\n`)
-    expect(query).toContain(
-      `WHERE TraceId = (SELECT TraceId FROM (${sql}) ORDER BY StartTime DESC LIMIT 1)`
-    )
-    expect(query).toContain("$__timeFilter(Timestamp) ORDER BY startTime")
-    expect(query).not.toContain(";")
-  })
-
-  it("offers no attribute filter, because the fields are ignored", () => {
-    expect(
-      attributeFilter("clickhouse", { q: sql }, "name", "POST /pay")
-    ).toBeNull()
-    expect(attributeFilter("clickhouse", {}, "name", "POST /pay")).toEqual({
-      span: "POST /pay",
-    })
-  })
-})
-
 describe("traceStatsFilter", () => {
   it("filters Tempo spans with the TraceQL the search runs", () => {
     expect(
@@ -246,12 +201,6 @@ describe("traceStatsFilter", () => {
     ).toBe(
       "ServiceName = 'o\\'neil' AND SpanName = 'pay' AND Duration >= 250000000 AND Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')"
     )
-  })
-
-  it("has no span condition for written ClickHouse SQL", () => {
-    expect(
-      traceStatsFilter("clickhouse", { q: "SELECT TraceId FROM otel_traces" })
-    ).toBeNull()
   })
 
   it.each([
@@ -358,7 +307,6 @@ describe("keepSelectionSearch", () => {
   it("writes the selection's range and duration bounds into the fields", () => {
     expect(
       keepSelectionSearch(
-        "tempo",
         { service: "checkout" },
         { from, to, minMs: 812.34, maxMs: 1500 }
       )
@@ -374,7 +322,6 @@ describe("keepSelectionSearch", () => {
   it("keeps the search's own bound when it is tighter and keeps a ceiling the selection lacks", () => {
     expect(
       keepSelectionSearch(
-        "tempo",
         { min: "1s", max: "5s" },
         { from, to, minMs: 800, maxMs: null }
       )
@@ -387,7 +334,6 @@ describe("keepSelectionSearch", () => {
     })
     expect(
       keepSelectionSearch(
-        "tempo",
         { min: "100ms", max: "5s" },
         { from, to, minMs: 800, maxMs: 2000 }
       )
@@ -397,37 +343,15 @@ describe("keepSelectionSearch", () => {
   it("appends the bounds to a written TraceQL query", () => {
     expect(
       keepSelectionSearch(
-        "tempo",
         { q: "{ status = error }" },
         { from, to, minMs: 800, maxMs: null }
       )
     ).toMatchObject({ q: "{ status = error && duration >= 800ms }" })
   })
 
-  it("is null for written ClickHouse SQL, which has no spanset to bound", () => {
-    expect(
-      keepSelectionSearch(
-        "clickhouse",
-        { q: "SELECT TraceId FROM otel_traces" },
-        { from, to, minMs: 800, maxMs: null }
-      )
-    ).toBeNull()
-  })
-
-  it("writes the fields of a ClickHouse search as before", () => {
-    expect(
-      keepSelectionSearch(
-        "clickhouse",
-        { service: "checkout" },
-        { from, to, minMs: 800, maxMs: null }
-      )
-    ).toMatchObject({ min: "800ms" })
-  })
-
   it("is null when the written query cannot take duration bounds", () => {
     expect(
       keepSelectionSearch(
-        "tempo",
         { q: "status = error" },
         { from, to, minMs: 800, maxMs: null }
       )

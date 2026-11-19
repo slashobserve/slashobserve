@@ -23,17 +23,6 @@ describe("tracePanelQuery", () => {
     )
   })
 
-  it("selects the spans of the latest trace the written SQL lists on ClickHouse", () => {
-    const query = tracePanelQuery("clickhouse", {
-      q: "SELECT TraceId, min(Timestamp) AS StartTime FROM otel_traces GROUP BY TraceId;",
-      service: "ignored",
-    })
-    expect(query).toContain(
-      "TraceId = (SELECT TraceId FROM (SELECT TraceId, min(Timestamp) AS StartTime FROM otel_traces GROUP BY TraceId) ORDER BY StartTime DESC LIMIT 1)"
-    )
-    expect(query).not.toContain("ignored")
-  })
-
   it("selects the spans of the latest matching trace on ClickHouse", () => {
     const query = tracePanelQuery("clickhouse", {
       service: "checkout",

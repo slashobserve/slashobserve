@@ -79,7 +79,7 @@ export function tracesDraft(input: {
   return {
     kind: "traces",
     datasource_uid: input.uid,
-    query: search.q,
+    query: input.type === "tempo" ? search.q : undefined,
     filters: {
       service: search.service,
       span: search.span,

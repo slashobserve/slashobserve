@@ -423,17 +423,7 @@ The minimum and maximum are span durations: a trace matches when a span that als
 On Tempo you can also write TraceQL, which replaces the fields: while the TraceQL field has text the other fields are disabled, and only the TraceQL goes into the address.
 The link under the TraceQL field opens the TraceQL reference.
 On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
-
-On ClickHouse the **SQL** field works as the TraceQL field does on Tempo: while it has text it replaces the fields above it, and only the SQL goes into the address as `q`.
-**Write as SQL** fills it with the query the fields would run, to start from.
-The SQL runs as it is over `otel_traces` and must return a `TraceId` column, one row per trace; `StartTime` (the latest-trace panel below sorts by it), `ServiceName`, `SpanName`, `Duration` in nanoseconds, `Spans`, `Errors` and `Matching` fill the matching columns of the table, and a missing one leaves its column blank.
-When rows come back without `TraceId` the page says so and lists nothing.
-Keep `$__timeFilter(Timestamp)` in the `WHERE` clause; the server applies its usual guard against unsafe clauses and functions and its time and row limits, whatever the SQL says.
-
-The page numbers and the column sort still work, because the server orders and pages the whole result.
-With SQL written the scatter's p95 is of the listed traces, the span statistics are not asked for, **Filter** is not offered on a compared attribute, and **Keep only the selection** is disabled, because none of them can change SQL they did not write; the time range still applies.
-**Add to dashboard** and **Add to observation** add a traces panel that reads the spans of the latest trace your SQL lists, ordered by `StartTime`, so the SQL must return `StartTime` for them.
-
+The ClickHouse search has no SQL mode; to run your own SQL over `otel_traces`, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it; the API, the CLI and MCP return the same sentence, without the parser's own `$end` and doubled prefix.
 
@@ -526,11 +516,11 @@ Without a model configured on the server, Ask is off.
 A saved search keeps what the logs page or the trace view shows so that anyone with access can open it again: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written, such as `now-1h`.
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
-A trace search takes a Tempo or ClickHouse datasource and its query is optional: TraceQL on Tempo, SQL on ClickHouse; with a query the filters are ignored when the search reopens.
+A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
-A trace search on a ClickHouse datasource saves its SQL when the SQL field has text, with the filters beside it, and reopens it with the SQL.
+A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
 
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.

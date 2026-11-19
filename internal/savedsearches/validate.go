@@ -189,7 +189,7 @@ func durationNanos(text string) float64 {
 	return n * nanosecondsPer[match[2]]
 }
 
-func fitDatasource(kind Kind, dsType spec.DatasourceType) error {
+func fitDatasource(kind Kind, dsType spec.DatasourceType, query *string) error {
 	fits := tracesDatasources
 	switch kind {
 	case KindLogs:
@@ -203,6 +203,9 @@ func fitDatasource(kind Kind, dsType spec.DatasourceType) error {
 	}
 	if !supported {
 		return &InvalidInputError{Code: CodeUnsupportedDatasource, Message: fmt.Sprintf("a %s datasource cannot hold a %s search", dsType, kind)}
+	}
+	if kind == KindTraces && dsType == spec.ClickHouse && query != nil {
+		return invalid("a ClickHouse traces search takes no query")
 	}
 	return nil
 }

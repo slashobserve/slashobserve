@@ -190,23 +190,9 @@ describe("tracesDraft", () => {
     )
   })
 
-  it("keeps the SQL of a ClickHouse trace search", () => {
-    const draft = tracesDraft({
-      uid: "ch",
-      type: "clickhouse",
-      search: { ...search, q: "SELECT TraceId FROM otel_traces" },
-      range,
-    })
-    expect(draft.query).toBe("SELECT TraceId FROM otel_traces")
-  })
-
-  it("has no query on a ClickHouse trace search written with fields", () => {
-    const draft = tracesDraft({
-      uid: "ch",
-      type: "clickhouse",
-      search: { ...search, q: undefined },
-      range,
-    })
+  it("leaves the query out on ClickHouse, which ignores it", () => {
+    const draft = tracesDraft({ uid: "ch", type: "clickhouse", search, range })
+    expect(draft.query).toBeUndefined()
     expect(JSON.parse(JSON.stringify(draft))).not.toHaveProperty("query")
   })
 

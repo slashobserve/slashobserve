@@ -3,7 +3,6 @@ import type { DataPanel } from "@/spec"
 import type { TraceSearch } from "./search"
 import {
   clickhouseLatestTraceSpans,
-  clickhouseLatestTraceSpansOf,
   clickhouseTraceSpans,
   traceForm,
   traceQLFor,
@@ -37,10 +36,9 @@ export function tracesPanelFor({
 }
 
 export function tracePanelQuery(type: string, search: TraceSearch): string {
-  if (type === "tempo") return search.q ?? traceQLFor(traceForm(search))
-  return search.q === undefined
-    ? clickhouseLatestTraceSpans(traceForm(search))
-    : clickhouseLatestTraceSpansOf(search.q)
+  return type === "tempo"
+    ? (search.q ?? traceQLFor(traceForm(search)))
+    : clickhouseLatestTraceSpans(traceForm(search))
 }
 
 export function traceByIdQuery(type: string, traceId: string): string {

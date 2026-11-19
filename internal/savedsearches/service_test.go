@@ -183,22 +183,6 @@ func TestASavedSearchLandsInMyDashboardsOrGeneral(t *testing.T) {
 	}
 }
 
-func TestAClickHouseTraceSearchKeepsItsSQLAndReopensWithIt(t *testing.T) {
-	r := newRig(t)
-	query := "SELECT TraceId, min(Timestamp) AS StartTime FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY TraceId"
-	in := traceSearch("Slowest traces")
-	in.DatasourceUID, in.Query = "clickhouse", &query
-
-	got := r.save(t, editor, in)
-	if got.Query == nil || *got.Query != query {
-		t.Fatalf("stored query %v", got.Query)
-	}
-	reopened, err := url.Parse(got.URL)
-	if err != nil || reopened.Path != "/traces/clickhouse" || reopened.Query().Get("q") != query {
-		t.Fatalf("url %q: %v", got.URL, err)
-	}
-}
-
 func TestACreateIsRefusedWhereTheCallerMayNotCreate(t *testing.T) {
 	r := newRig(t)
 	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
@@ -240,6 +224,9 @@ func TestACreateChecksTheDatasourceAgainstTheKind(t *testing.T) {
 		{"a log datasource for traces", func(in *savedsearches.CreateInput) {
 			in.Kind, in.Query, in.DatasourceUID = savedsearches.KindTraces, nil, "loki"
 		}, savedsearches.CodeUnsupportedDatasource},
+		{"a ClickHouse traces search with a query", func(in *savedsearches.CreateInput) {
+			in.Kind, in.DatasourceUID = savedsearches.KindTraces, "clickhouse"
+		}, savedsearches.CodeInvalid},
 		{"a field that breaks a rule", func(in *savedsearches.CreateInput) { in.Title = "" }, savedsearches.CodeInvalid},
 	}
 	for _, c := range cases {
