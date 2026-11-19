@@ -852,6 +852,10 @@ api_token() {
   [[ "$API_TOKEN" == sok_* ]] || fail "the e2e-api key response has no token"
 }
 
+mcp_dashboard_args() {
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["spec"]["title"]=sys.argv[2]; print(json.dumps(d))' "$FIXTURES/dashboard-valid.json" "$1"
+}
+
 shared_dashboard_body() {
   local out
   out="$(api GET /folders)"
@@ -2382,7 +2386,7 @@ mcp_suite() {
   mcp_expect "query_range with format table on ClickHouse" '"name":"minute"'
   pass "MCP query_range with format table keeps ClickHouse rows as a table"
 
-  mcp_tool create_dashboard "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["spec"]["title"]="E2E dashboard over MCP"; print(json.dumps(d))' "$FIXTURES/dashboard-valid.json")"
+  mcp_tool create_dashboard "$(mcp_dashboard_args "E2E dashboard over MCP")"
   mcp_expect "create_dashboard" '"dashboard_id":"[0-9a-f-]\{36\}"'
   id="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/mcp.body" | head -1 | cut -d'"' -f4)"
   out="$(api GET "/dashboards/$id")"
@@ -3185,7 +3189,7 @@ dashboard_list_suite() {
   out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create the web dashboard for the list ($out: $(cat "$TMP/list-web.json"))"
   d_web="$(first_json_string "$TMP/list-web.json" id)"
-  out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(cat "$FIXTURES/dashboard-valid.json"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
+  out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(mcp_dashboard_args "E2E dashboard for the list over MCP"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
   if [[ "$out" != 200 ]] || grep -q '"isError":true' "$TMP/mcp.body"; then
     fail "create the MCP dashboard for the list ($out: $(head -c 1500 "$TMP/mcp.body"))"
   fi
