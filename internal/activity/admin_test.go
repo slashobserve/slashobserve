@@ -44,6 +44,32 @@ func TestAdminTypesAreKnownAndNotWorkspaceTypes(t *testing.T) {
 	}
 }
 
+func TestPeopleAndServiceAccountDeleteEventsAreAdministrative(t *testing.T) {
+	for _, typ := range []string{TypeUserInvited, TypeUserInviteUpdated, TypeUserInviteWithdrawn, TypeUserDeactivated, TypeUserReactivated, TypeUserRemoved, TypeServiceAccountDeleted} {
+		if !IsAdminType(typ) || !slices.Contains(auditTypes, typ) {
+			t.Errorf("%s is not an administrative audit type", typ)
+		}
+	}
+}
+
+func TestAServiceAccountDeleteRecordsOnlyItsName(t *testing.T) {
+	r := newRig(t)
+	account := dbsqlc.ServiceAccount{ID: newTarget(), Name: "ci", Role: "admin"}
+	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		return AuthChanges{}.ServiceAccountDeleted(t.Context(), q, plain, account)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var typ, target, data string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT type, target_id::text, data::text FROM activity`).Scan(&typ, &target, &data); err != nil {
+		t.Fatal(err)
+	}
+	if typ != TypeServiceAccountDeleted || target != account.ID.String() || data != `{"name": "ci"}` {
+		t.Fatalf("recorded %s %s %s", typ, target, data)
+	}
+}
+
 func TestAppendAdminRefusesAWorkspaceType(t *testing.T) {
 	err := AppendAdmin(t.Context(), nil, editorActor, TypeDashboardCreated, newTarget(), nil)
 	if err == nil {
