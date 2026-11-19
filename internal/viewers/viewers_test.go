@@ -186,11 +186,11 @@ func TestTheRoutesReportAndListAndHonourFolderAccess(t *testing.T) {
 
 	restricted := foldertest.Restricted(t, r.db, "Payroll", "payroll-team")
 	foldertest.Move(t, r.db, dash, restricted)
-	if rec := serve(t, r, nobody, http.MethodGet, path); rec.Code != http.StatusForbidden {
-		t.Fatalf("a person who cannot see the folder: status %d, want 403", rec.Code)
+	if rec := serve(t, r, nobody, http.MethodGet, path); rec.Code != http.StatusNotFound {
+		t.Fatalf("a person who cannot see the folder: status %d, want 404", rec.Code)
 	}
-	if rec := serve(t, r, nobody, http.MethodPost, path); rec.Code != http.StatusForbidden {
-		t.Fatalf("reporting without access: status %d, want 403", rec.Code)
+	if rec := serve(t, r, nobody, http.MethodPost, path); rec.Code != http.StatusNotFound {
+		t.Fatalf("reporting without access: status %d, want 404", rec.Code)
 	}
 	if rec := serve(t, r, ada, http.MethodGet, "/dashboards/00000000-0000-4000-8000-000000000000/viewers"); rec.Code != http.StatusNotFound {
 		t.Fatalf("a missing dashboard: status %d, want 404", rec.Code)
