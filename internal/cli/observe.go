@@ -305,6 +305,7 @@ func (a *app) reportFinding(out *output, req agentRequest) error {
 	}
 	if !a.json {
 		printFinding(out, *req.Finding, req.ID)
+		printAskOn(out, req.Finding.AskOn, req.Prompt)
 	}
 	if req.Finding.saved() {
 		a.openLink(out, text(req.Finding.URL))

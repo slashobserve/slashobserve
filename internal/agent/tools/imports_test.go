@@ -214,8 +214,8 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 				t.Fatalf("body = %#v", res.Content)
 			}
 			for _, want := range tt.want {
-				if !strings.Contains(body.Error, want) {
-					t.Errorf("error %q lacks %q", body.Error, want)
+				if !strings.Contains(body.Message, want) {
+					t.Errorf("error %q lacks %q", body.Message, want)
 				}
 			}
 		})
@@ -265,7 +265,7 @@ func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"})
 	body, ok := res.Content.(importErrorOut)
-	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Error, `"abc"`) || !strings.Contains(body.Error, `"zzz"`) || !strings.Contains(body.Error, "new dashboard") {
+	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Message, `"abc"`) || !strings.Contains(body.Message, `"zzz"`) || !strings.Contains(body.Message, "new dashboard") {
 		t.Fatalf("res = %#v, err = %v", res.Content, err)
 	}
 }
@@ -294,8 +294,8 @@ func TestImportContentRefusalRefusesWhatTheAgentCannotWrite(t *testing.T) {
 			if body, ok := res.Content.(importErrorOut); refused && (!res.IsError || !ok || body.Code != codeImportContent) {
 				t.Fatalf("res = %#v, want an error with code %q", res, codeImportContent)
 			}
-			if body, _ := res.Content.(importErrorOut); refused && (strings.Contains(body.Error, "observe import") || !strings.Contains(body.Error, "ask a person")) {
-				t.Fatalf("refusal = %q, want it to send the agent to a person, not to another import path", body.Error)
+			if body, _ := res.Content.(importErrorOut); refused && (strings.Contains(body.Message, "observe import") || !strings.Contains(body.Message, "ask a person")) {
+				t.Fatalf("refusal = %q, want it to send the agent to a person, not to another import path", body.Message)
 			}
 		})
 	}

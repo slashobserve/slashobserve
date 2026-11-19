@@ -20,6 +20,7 @@ import {
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
+import { agentZone } from "@/lib/time"
 
 export type ObserveRequest =
   paths["/observe/{id}"]["get"]["responses"][200]["content"]["application/json"]["request"]
@@ -254,6 +255,7 @@ export type ObserveInput = {
   from?: string
   to?: string
   observationId?: string
+  timeZone?: string
 }
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
@@ -280,6 +282,7 @@ export function useCreateObserveRequest() {
       from,
       to,
       observationId,
+      timeZone,
     }: ObserveInput) =>
       api
         .POST("/observe", {
@@ -294,6 +297,7 @@ export function useCreateObserveRequest() {
             ...(observationId === undefined
               ? {}
               : { observation_id: observationId }),
+            time_zone: timeZone ?? agentZone(undefined),
           },
         })
         .then(unwrap)

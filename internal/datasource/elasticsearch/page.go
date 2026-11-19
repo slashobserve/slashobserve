@@ -46,7 +46,11 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		return nil, datasource.PageInfo{}, err
 	}
 	frame.Meta = &datasource.FrameMeta{Partial: resp.partial()}
-	return []datasource.Frame{frame}, pageInfo(resp, page, req.PageSize, window), nil
+	frames := []datasource.Frame{frame}
+	if page == 1 {
+		frames = d.withValueHint(ctx, prep, req.Range, frames)
+	}
+	return frames, pageInfo(resp, page, req.PageSize, window), nil
 }
 
 func pageInfo(resp searchResponse, page, pageSize, window int) datasource.PageInfo {

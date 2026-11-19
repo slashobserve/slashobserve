@@ -66,6 +66,7 @@ type prepared struct {
 	adhoc   []any
 	lim     datasource.Limits
 	form    Form
+	body    string
 }
 
 func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
@@ -105,7 +106,11 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	if err != nil {
 		return nil, err
 	}
-	return d.resultFrames(raw, body, prep, p)
+	frames, err := d.resultFrames(raw, body, prep, p)
+	if err != nil || !instant {
+		return frames, err
+	}
+	return d.withValueHint(ctx, prep, r, frames), nil
 }
 
 func (d *Datasource) prepare(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration, lim datasource.Limits) (prepared, error) {
@@ -127,7 +132,7 @@ func (d *Datasource) prepare(ctx context.Context, q datasource.Query, r datasour
 	if err != nil {
 		return prepared{}, err
 	}
-	return prepared{user: user, mapping: m, adhoc: adhoc, lim: lim, form: form}, nil
+	return prepared{user: user, mapping: m, adhoc: adhoc, lim: lim, form: form, body: body}, nil
 }
 
 func histogramStep(r datasource.TimeRange, step time.Duration, lim datasource.Limits) (time.Duration, error) {

@@ -76,7 +76,7 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 		return *first.answer, nil
 	}
 	done := dispatched{start: time.Now()}
-	done.res, done.err = dispatch(tools.WithReadsRefused(ctx, first.adm.ReadsRefused))
+	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(ctx, first.adm.ReadsRefused), first.adm.Unchecked))
 	done.took = time.Since(done.start)
 	if done.err == nil {
 		done.content, done.err = json.Marshal(done.res.Content)

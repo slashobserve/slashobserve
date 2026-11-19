@@ -121,6 +121,7 @@ type dataMeta struct {
 	SeriesShown    int             `json:"series_shown,omitempty"`
 	SeriesTotal    int             `json:"series_total,omitempty"`
 	Warning        string          `json:"warning,omitempty"`
+	Hint           string          `json:"hint,omitempty"`
 	Note           string          `json:"note,omitempty"`
 	Rows           int             `json:"rows"`
 	RowsTotal      int             `json:"rows_total,omitempty"`
@@ -154,6 +155,7 @@ type resultMeta struct {
 	warning        string
 	seriesShown    int
 	seriesTotal    int
+	hint           string
 	rows           int
 	rowsTotal      int
 	oldest         time.Time
@@ -171,6 +173,7 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 		truncated:      merged.Truncated,
 		partial:        merged.Partial,
 		warning:        merged.Warning,
+		hint:           merged.Hint,
 		rowsTotal:      merged.RowsTotal,
 		jobsDone:       merged.JobsDone,
 		jobsTotal:      merged.JobsTotal,
@@ -514,6 +517,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			SeriesShown:    e.meta.seriesShown,
 			SeriesTotal:    e.meta.seriesTotal,
 			Warning:        e.meta.warning,
+			Hint:           e.meta.hint,
 			Note:           e.meta.note(e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,

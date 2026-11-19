@@ -69,6 +69,12 @@ export function facetsErrorText(error: unknown): {
   if (error instanceof ApiError && error.code === "query_invalid") {
     return { text: "Fields need a log query.", retry: false }
   }
+  if (error instanceof ApiError && error.code === "query_timeout") {
+    return {
+      text: "Counting the fields timed out on this range. Retry, or choose a shorter range.",
+      retry: true,
+    }
+  }
   return { text: "The fields could not be counted.", retry: true }
 }
 

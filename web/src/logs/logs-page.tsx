@@ -211,9 +211,7 @@ function LogsWorkspaceView({
   const [helpOpen, setHelpOpen] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const savable = logsDraft({ uid, type, search, range })
-  const [labelsOpen, setLabelsOpen] = useState(
-    type === "loki" && q === undefined
-  )
+  const [labelsOpen, setLabelsOpen] = useState(false)
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
   const [focusTick, setFocusTick] = useState(0)
   const queryFocus = useRef<() => void>(() => {})

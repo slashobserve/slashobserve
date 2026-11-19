@@ -13,7 +13,7 @@ import (
 func liveTextOf(t *testing.T, opts ObserveOptions, row dbsqlc.AgentRequest) (*string, string) {
 	t.Helper()
 	row.Steps = []byte("[]")
-	reader := NewRunReader(&Service{logger: slog.New(slog.DiscardHandler)}, opts)
+	reader := NewRunDesk(&Service{logger: slog.New(slog.DiscardHandler)}, opts)
 	out := reader.view(context.Background(), row, auth.Principal{}, buildState{}, nil, nil)
 	raw, err := json.Marshal(out)
 	if err != nil {

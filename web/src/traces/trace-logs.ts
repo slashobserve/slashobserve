@@ -8,7 +8,7 @@ import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { logsUrl } from "@/lib/links"
 import { requestZone } from "@/lib/time"
-import { clickhouseLogsTemplate } from "@/logs/context-query"
+import { clickhouseLogsTemplate, lokiAllStreams } from "@/logs/context-query"
 import { rowTime } from "@/logs/frames"
 import type { LogsSearch } from "@/logs/search"
 import { matcherInsert } from "@/panel-editor/insert-text"
@@ -22,7 +22,6 @@ const logsTypes = new Set(["loki", "clickhouse"])
 const paddingMs = 60_000
 const lineLimit = 500
 const bodyNames = new Set(["body", "message", "msg", "line", "log"])
-const lokiSelector = '{service_name=~".+"}'
 const clickhouseTimeFilter = "WHERE $__timeFilter(Timestamp)"
 
 function traceLogsRequest(
@@ -119,7 +118,7 @@ function lokiTraceQuery(traceId: string, spanId: string | undefined): string {
   const filters = [matcherInsert("loki", "trace_id", traceId)]
   if (spanId !== undefined)
     filters.push(matcherInsert("loki", "span_id", spanId))
-  return [lokiSelector, ...filters].join(" | ")
+  return [lokiAllStreams, ...filters].join(" | ")
 }
 
 function clickhouseTraceQuery(

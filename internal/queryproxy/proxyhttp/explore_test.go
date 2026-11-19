@@ -264,6 +264,20 @@ func TestExploreReportsTruncationFromTheDatasource(t *testing.T) {
 	}
 }
 
+func TestExploreCarriesTheDatasourceHintOfAnEmptyResult(t *testing.T) {
+	hn, _ := newExploreHarness(t)
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		return []datasource.Frame{{
+			Fields: []datasource.Field{{Name: "message", Type: datasource.FieldString, Values: []any{}}},
+			Meta:   &datasource.FrameMeta{Hint: "No document has log.level = error in this range, but it has ERROR."},
+		}}, nil
+	}
+	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody("log.level:error")))
+	if body.Meta.Rows != 0 || body.Meta.Hint != "No document has log.level = error in this range, but it has ERROR." {
+		t.Fatalf("meta = %+v, want no rows and the hint", body.Meta)
+	}
+}
+
 func TestExploreReportsAQueryErrorWithoutARef(t *testing.T) {
 	hn, _ := newExploreHarness(t)
 	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {

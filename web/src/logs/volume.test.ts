@@ -9,6 +9,7 @@ import {
   volumeFailureText,
   volumeLabel,
   volumeTotals,
+  isWideRange,
   type LogVolumeBucket,
 } from "./volume"
 
@@ -161,5 +162,25 @@ describe("volumeFailureText", () => {
     expect(volumeFailureText("The query ran out of time.")).toBe(
       "The volume query did not finish (The query ran out of time). The lines below are complete."
     )
+  })
+})
+
+describe("isWideRange", () => {
+  const now = Date.parse("2026-11-19T12:00:00Z")
+
+  it.each([
+    ["now-15m", "now", false],
+    ["now-1h", "now", false],
+    ["now-6h", "now", false],
+    ["now-24h", "now", true],
+    ["now-7d", "now", true],
+    ["2026-11-19T00:00:00Z", "2026-11-19T05:00:00Z", false],
+    ["2026-11-19T00:00:00Z", "2026-11-19T08:00:00Z", true],
+  ])("reads %s to %s as wide: %s", (from, to, wide) => {
+    expect(isWideRange(from, to, now)).toBe(wide)
+  })
+
+  it("is not wide when a time cannot be read", () => {
+    expect(isWideRange("soon", "now", now)).toBe(false)
   })
 })
