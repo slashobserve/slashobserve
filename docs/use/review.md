@@ -23,7 +23,8 @@ They come in four kinds:
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".

@@ -189,6 +189,36 @@ func TestDiscardTakesAnEmptyBodyOrAnEmptyObject(t *testing.T) {
 	d.send(t, editor, http.MethodPost, "/api/v1/proposals/"+second+"/discard", `{"x":1}`, http.StatusBadRequest)
 }
 
+func TestDiscardReasonIsReturnedAndBounded(t *testing.T) {
+	d := newDocumented(t)
+	id := d.createDashboard(t, steady)
+	pid, _ := d.proposeOverHTTP(t, commenter, id, 1, changed)
+	path := "/api/v1/proposals/" + pid
+
+	d.send(t, editor, http.MethodPost, path+"/discard", `{"reason":"`+strings.Repeat("x", 501)+`"}`, http.StatusBadRequest)
+	d.send(t, editor, http.MethodPost, path+"/discard", `{"reason":"a\u0000b"}`, http.StatusBadRequest)
+	got := decode[ProposalJSON](t, d.send(t, editor, http.MethodGet, path, "", http.StatusOK))
+	if got.State != "open" || got.CloseReason != nil {
+		t.Fatalf("after a refused reason = %+v", got.SummaryJSON)
+	}
+
+	rec := d.send(t, editor, http.MethodPost, path+"/discard", `{"reason":"Superseded by the new layout"}`, http.StatusOK)
+	if got := decode[SummaryJSON](t, rec); got.CloseReason == nil || *got.CloseReason != "Superseded by the new layout" {
+		t.Fatalf("discarded = %+v", got)
+	}
+	read := decode[ProposalJSON](t, d.send(t, commenter, http.MethodGet, path, "", http.StatusOK))
+	if read.CloseReason == nil || *read.CloseReason != "Superseded by the new layout" {
+		t.Fatalf("read = %+v", read.SummaryJSON)
+	}
+}
+
+func TestListRefusesARunIdThatIsNotAUUID(t *testing.T) {
+	d := newDocumented(t)
+	id := d.createDashboard(t, steady)
+	d.send(t, editor, http.MethodGet, "/api/v1/dashboards/"+id.String()+"/proposals?run_id=nope", "", http.StatusBadRequest)
+	d.send(t, editor, http.MethodGet, "/api/v1/dashboards/"+id.String()+"/proposals?run_id="+id.String(), "", http.StatusOK)
+}
+
 func TestProposalRoutesAnswerEveryDocumentedError(t *testing.T) {
 	d := newDocumented(t)
 	id := d.createDashboard(t, steady, second)

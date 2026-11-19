@@ -1990,7 +1990,7 @@ components:
     ProposalSummary:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions]
       description: A proposed change to a dashboard, without its document.
       properties:
         id:
@@ -2006,7 +2006,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: The summary of the first revision, cut to 200 characters.
+          description: The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary.
         revision:
           type: integer
           minimum: 1
@@ -2050,6 +2050,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2074,7 +2080,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -2134,6 +2140,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2164,6 +2176,11 @@ components:
           items:
             $ref: "#/components/schemas/ProposalChange"
           description: What the head revision adds, changes, removes or moves compared with `base_version`.
+        diff:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpecChange"
+          description: The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions.
         conflicts:
           type: array
           items:

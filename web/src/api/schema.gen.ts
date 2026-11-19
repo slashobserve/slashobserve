@@ -803,7 +803,7 @@ export interface paths {
         put?: never;
         /**
          * Close a proposal without saving it.
-         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an empty object.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason`; the activity event does not carry it.
          */
         post: operations["discardProposal"];
         delete?: never;
@@ -889,7 +889,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1147,7 +1147,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -4269,7 +4269,7 @@ export interface components {
             dashboard_id: string;
             /** @enum {string} */
             state: "open" | "merged" | "discarded";
-            /** @description The summary of the first revision, cut to 200 characters. */
+            /** @description The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary. */
             title: string;
             /** @description The head revision; every save by the author while the proposal is open adds one. */
             revision: number;
@@ -4295,6 +4295,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4337,6 +4339,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4350,6 +4354,8 @@ export interface components {
             };
             /** @description What the head revision adds, changes, removes or moves compared with `base_version`. */
             changes: components["schemas"]["ProposalChange"][];
+            /** @description The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions. */
+            diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
         };
@@ -8484,6 +8490,8 @@ export interface operations {
         parameters: {
             query?: {
                 state?: "open" | "merged" | "discarded" | "all";
+                /** @description Only the proposal that the agent request with this id opened, which is how a run finds its proposal however many others the dashboard has; a value that is not a UUID is 400. */
+                run_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -8584,7 +8592,10 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** @description Why the proposal is discarded. */
+                    reason?: string;
+                };
             };
         };
         responses: {
