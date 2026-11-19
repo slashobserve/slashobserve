@@ -5,6 +5,7 @@ import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { isModEnter } from "@/lib/shortcuts"
+import { cleanText } from "@/lib/user-text"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
@@ -35,7 +36,7 @@ export function EditMessageForm({
   const [mentioning, setMentioning] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const edit = useEditMessage(queryKey)
-  const text = body.trim()
+  const text = cleanText(body)
   const busy = edit.isPending
 
   useEffect(() => {

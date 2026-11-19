@@ -5,6 +5,7 @@ description: Find dashboards, observations, annotations, comments and saved sear
 
 Search finds past work by its words.
 One query covers dashboards, annotations, observations, comments and saved logs and trace searches, and ranks the matches together.
+The web app shows the matches in the command palette and, in full, on the Search page at `/search?q=<words>`; [Search in the web app](web.md#search) describes both.
 You call it with `GET /api/v1/search`, which needs the Viewer role or higher and works with a session or a service-account key.
 
 ## What each kind matches
@@ -38,6 +39,9 @@ A result never shows a title or a snippet of something you cannot open, and a mo
 
 Every word has to match, either exactly or by its English stem, so `errors` finds `error`.
 Case and punctuation do not matter.
+A hyphen between two words searches both parts, so `demo-shop overview` finds a title written `Demo Shop Overview` or `demo-shop overview`.
+A hyphen before a digit, as in `node-1`, matches a title written the same way.
+A hyphen at the start of a word still excludes it, and `-demo-shop` excludes the words `demo shop` written next to each other, whether the title has a hyphen or a space.
 
 | You write | It finds |
 | --- | --- |

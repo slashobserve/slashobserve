@@ -21,6 +21,8 @@ import {
   timeOptionsFor,
   zonedDateTime,
   zonedDateTimeMs,
+  zoneChoiceLabel,
+  zoneChoices,
   zonedTimeValue,
 } from "./time"
 
@@ -477,5 +479,21 @@ describe("zoned formatting", () => {
     expect(zonedDateTime(Date.UTC(2026, 10, 1, 6, 0, 0), zone)).toBe(
       "2026-11-01 01:00:00"
     )
+  })
+})
+
+describe("zoneChoices", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("lists UTC once when the runtime also reports it as an IANA zone", () => {
+    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue([
+      "Africa/Abidjan",
+      "UTC",
+    ])
+    const labels = zoneChoices().map(zoneChoiceLabel)
+    expect(labels.filter((label) => label === "UTC")).toHaveLength(1)
+    expect(labels).toContain("Africa/Abidjan")
   })
 })

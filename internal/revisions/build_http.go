@@ -286,9 +286,9 @@ func (h *ObserveHandler) continueObserve(c *gin.Context) {
 	if !decodeOptionalBody(c, &req, maxRequestBytes) {
 		return
 	}
-	note, ok := CleanContinueNote(req.Note)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("note must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+	note, err := CheckContinueNote(req.Note)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	row, err := h.service.Continue(c.Request.Context(), id, httpapi.Caller(c), note)

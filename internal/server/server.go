@@ -71,9 +71,13 @@ func New(opts Options) (http.Handler, error) {
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
 	apiGroup := engine.Group(apiPrefix)
+	documented, err := documentedQueryParams()
+	if err != nil {
+		return nil, fmt.Errorf("read documented query parameters: %w", err)
+	}
+	apiGroup.Use(warnUnknownQuery(documented))
 	var checked *contract
 	if opts.ContractCheck {
-		var err error
 		if checked, err = newContract(context.Background(), opts.Logger); err != nil {
 			return nil, err
 		}

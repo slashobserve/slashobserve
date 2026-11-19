@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardList } from "@/dashboards/dashboard-list"
 import type { ListSearch } from "@/dashboards/list-filters"
 import { useDocumentTitle } from "@/lib/document-title"
+import { TopRowTitle } from "@/shell/top-row-title"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
@@ -52,26 +53,38 @@ export function FolderPage({
   const settingsButton = useRef<HTMLButtonElement>(null)
   const query = useQuery(folderQuery(folderId))
   const folder = query.data
-  useDocumentTitle(
-    folder === undefined
-      ? "Folder - SlashObserve"
-      : `${folder.title} - SlashObserve`
+  const name = folder?.title ?? "Folder"
+  useDocumentTitle(`${name} - SlashObserve`)
+
+  const crumb = (
+    <TopRowTitle>
+      <span aria-current="page" className="min-w-0 truncate font-medium">
+        {name}
+      </span>
+    </TopRowTitle>
   )
 
   if (folder === undefined && query.isError) {
-    if (isMissing(query.error)) return <FolderNotFound />
     return (
-      <LoadProblem
-        title="Could not load this folder"
-        detail={loadProblemText(query.error)}
-        retrying={query.isFetching}
-        onRetry={() => void query.refetch()}
-      />
+      <>
+        {crumb}
+        {isMissing(query.error) ? (
+          <FolderNotFound />
+        ) : (
+          <LoadProblem
+            title="Could not load this folder"
+            detail={loadProblemText(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        )}
+      </>
     )
   }
 
   return (
     <>
+      {crumb}
       {folder === undefined ? (
         <Skeleton className="mb-4 h-12 w-64 max-w-full" />
       ) : (

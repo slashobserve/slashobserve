@@ -11,6 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -38,14 +39,9 @@ func invalid(format string, args ...any) *InvalidInputError {
 }
 
 func cleanTitle(raw string) (string, error) {
-	title := strings.TrimSpace(raw)
-	switch {
-	case title == "":
-		return "", invalid("title is required")
-	case utf8.RuneCountInString(title) > maxTitleRunes:
-		return "", invalid("title must be at most %d characters", maxTitleRunes)
-	case hasControl(title):
-		return "", invalid("title must not contain control characters")
+	title, err := usertext.Clean("title", raw, usertext.Line(maxTitleRunes))
+	if err != nil {
+		return "", &InvalidInputError{Code: CodeInvalid, Message: err.Error(), Cause: err}
 	}
 	return title, nil
 }

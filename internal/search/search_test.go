@@ -166,6 +166,39 @@ func TestSearchQuerySyntax(t *testing.T) {
 	}
 }
 
+func TestSearchHyphenatedWordsMatchTheirParts(t *testing.T) {
+	r := newRig(t)
+	for _, title := range []string{"Demo Shop Overview", "demo-shop checkout", "checkout-0 database", "Checkout 0 database", "Payments Service Latency"} {
+		r.finding(t, findingIn{title: title, markdown: "nothing else"})
+	}
+	cases := []struct {
+		q    string
+		want []string
+	}{
+		{"demo-shop overview", []string{"Demo Shop Overview"}},
+		{"demo shop overview", []string{"Demo Shop Overview"}},
+		{"demo-shop", []string{"Demo Shop Overview", "demo-shop checkout"}},
+		{"demo-shop checkout", []string{"demo-shop checkout"}},
+		{"demo-sh", []string{"Demo Shop Overview", "demo-shop checkout"}},
+		{"checkout-0 database", []string{"checkout-0 database"}},
+		{"payments-service latency", []string{"Payments Service Latency"}},
+		{"payments_service latency", []string{"Payments Service Latency"}},
+		{"overview -demo-shop", nil},
+		{"checkout -demo-shop", []string{"Checkout 0 database", "checkout-0 database"}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.q, func(t *testing.T) {
+			got := titles(r.search(t, admin, tt.q))
+			slices.Sort(got)
+			want := slices.Clone(tt.want)
+			slices.Sort(want)
+			if !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0) {
+				t.Fatalf("%q finds %v, want %v", tt.q, got, want)
+			}
+		})
+	}
+}
+
 func TestSearchKindFilter(t *testing.T) {
 	w := buildWorld(t)
 	cases := []struct {

@@ -137,6 +137,16 @@ describe("validateDashboardSearch", () => {
     expect(validateDashboardSearch({ refresh: "45s" }).refresh).toBe("45s")
   })
 
+  it("keeps a time zone choice only when it names a zone", () => {
+    expect(validateDashboardSearch({ tz: "utc" }).tz).toBe("utc")
+    expect(validateDashboardSearch({ tz: "browser" }).tz).toBe("browser")
+    expect(validateDashboardSearch({ tz: "Asia/Tokyo" }).tz).toBe("Asia/Tokyo")
+    expect(validateDashboardSearch({ tz: "Mars/Base" }).tz).toBeUndefined()
+    expect(
+      searchFromState(validateDashboardSearch({ tz: "Asia/Tokyo" }))
+    ).toEqual({ tz: "Asia/Tokyo" })
+  })
+
   it("takes the first value of a repeated scalar key", () => {
     expect(validateDashboardSearch({ from: ["now-1h", "now-2h"] }).from).toBe(
       "now-1h"
