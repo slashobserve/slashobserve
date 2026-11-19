@@ -36,6 +36,7 @@ const reasonLabels: Record<InboxReason, string> = {
   reply: "Reply",
   run_failed: "Run failed",
   repaired: "Repaired",
+  proposal_closed: "Proposal closed",
 }
 
 function field(item: InboxItem, key: string): unknown {
@@ -118,6 +119,18 @@ function repairedText(item: InboxItem): ItemText {
   }
 }
 
+function closedProposalText(item: InboxItem): ItemText {
+  const merged = item.type === "proposal.merged"
+  const title = textField(item, "title") ?? titleOf(item) ?? "a proposal"
+  const version = countField(item, "version")
+  return {
+    actor: item.actor.label,
+    verb: merged ? "merged your proposal" : "discarded your proposal",
+    object:
+      merged && version !== null ? `${title} as version ${version}` : title,
+  }
+}
+
 export function itemText(item: InboxItem): ItemText {
   const actor = item.actor.label
   if (item.type === "run.succeeded" && item.reason === "repaired") {
@@ -139,6 +152,9 @@ export function itemText(item: InboxItem): ItemText {
             : "added a block to",
         object: textField(item, "title") ?? titleOf(item) ?? "an observation",
       }
+    case "proposal.merged":
+    case "proposal.discarded":
+      return closedProposalText(item)
     case "thread.mentioned":
       return { actor, verb: "mentioned you on", object: threadObject(item) }
     case "thread.replied":

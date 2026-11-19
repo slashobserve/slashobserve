@@ -36,9 +36,10 @@ const (
 	ReasonReply          Reason = "reply"
 	ReasonRunFailed      Reason = "run_failed"
 	ReasonRepaired       Reason = "repaired"
+	ReasonProposalClosed Reason = "proposal_closed"
 )
 
-var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed, ReasonRepaired}
+var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed, ReasonRepaired, ReasonProposalClosed}
 
 const (
 	UnreadCap = 100
@@ -76,7 +77,7 @@ func ParseView(s string) (View, bool) {
 func reasonsOf(v View) []string {
 	switch v {
 	case ViewProposals:
-		return []string{string(ReasonProposal)}
+		return []string{string(ReasonProposal), string(ReasonProposalClosed)}
 	case ViewMentions:
 		return []string{string(ReasonMention), string(ReasonReply)}
 	}

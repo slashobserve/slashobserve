@@ -59,64 +59,92 @@ func quotesRun(item InboxItem) bool {
 	return item.Type == TypeRunFailed && item.Reason == ReasonRunFailed
 }
 
+type inboxTexts struct {
+	titles   map[objectRef]string
+	bodies   map[string]string
+	failures map[string]string
+	closes   map[string]string
+}
+
+func (t inboxTexts) excerptOf(item InboxItem) string {
+	switch {
+	case item.Type == TypeThreadMentioned || item.Type == TypeThreadReplied:
+		return Excerpt(t.bodies[dataOf(item.Event).MessageID], inboxExcerptRunes)
+	case quotesRun(item):
+		return Excerpt(t.failures[item.TargetID], inboxExcerptRunes)
+	case item.Reason == ReasonProposalClosed:
+		return Excerpt(t.closes[item.TargetID], inboxExcerptRunes)
+	}
+	return ""
+}
+
 func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
+	texts, err := s.loadInboxTexts(ctx, items)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		item := &items[i]
+		item.TargetTitle = texts.titles[subjectOf(item.Event)]
+		item.Excerpt = texts.excerptOf(*item)
+	}
+	return nil
+}
+
+func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTexts, error) {
 	q := s.db.Queries()
 	byKind := map[string]map[string]bool{"dashboard": {}, "observation": {}, "proposal": {}}
 	messages := map[string]bool{}
 	runs := map[string]bool{}
+	closed := map[string]bool{}
 	for _, item := range items {
 		if ref := subjectOf(item.Event); byKind[ref.kind] != nil {
 			byKind[ref.kind][ref.id] = true
 		}
-		switch item.Type {
-		case TypeThreadMentioned, TypeThreadReplied:
-			if id := dataOf(item.Event).MessageID; id != "" {
-				messages[id] = true
-			}
+		if id := dataOf(item.Event).MessageID; id != "" && (item.Type == TypeThreadMentioned || item.Type == TypeThreadReplied) {
+			messages[id] = true
 		}
 		if quotesRun(item) {
 			runs[item.TargetID] = true
 		}
+		if item.Reason == ReasonProposalClosed {
+			closed[item.TargetID] = true
+		}
 	}
-	titles := map[objectRef]string{}
-	rows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
+	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}}
+	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
 		ProposalIds:    uuidsOf(byKind["proposal"]),
 	})
 	if err != nil {
-		return fmt.Errorf("list inbox titles: %w", err)
+		return inboxTexts{}, fmt.Errorf("list inbox titles: %w", err)
 	}
-	for _, r := range rows {
-		titles[objectRef{r.Kind, r.ID.String()}] = r.Title
+	for _, r := range titleRows {
+		texts.titles[objectRef{r.Kind, r.ID.String()}] = r.Title
 	}
-	bodies := map[string]string{}
 	messageRows, err := q.InboxMessageBodies(ctx, uuidsOf(messages))
 	if err != nil {
-		return fmt.Errorf("list inbox messages: %w", err)
+		return inboxTexts{}, fmt.Errorf("list inbox messages: %w", err)
 	}
 	for _, r := range messageRows {
-		bodies[r.ID.String()] = r.Body
+		texts.bodies[r.ID.String()] = r.Body
 	}
-	failures := map[string]string{}
 	runRows, err := q.InboxRunTexts(ctx, uuidsOf(runs))
 	if err != nil {
-		return fmt.Errorf("list inbox runs: %w", err)
+		return inboxTexts{}, fmt.Errorf("list inbox runs: %w", err)
 	}
 	for _, r := range runRows {
-		failures[r.ID.String()] = firstNonEmpty(r.Error, r.Prompt)
+		texts.failures[r.ID.String()] = firstNonEmpty(r.Error, r.Prompt)
 	}
-	for i := range items {
-		item := &items[i]
-		item.TargetTitle = titles[subjectOf(item.Event)]
-		switch item.Type {
-		case TypeThreadMentioned, TypeThreadReplied:
-			item.Excerpt = Excerpt(bodies[dataOf(item.Event).MessageID], inboxExcerptRunes)
-		case TypeRunFailed:
-			item.Excerpt = Excerpt(failures[item.TargetID], inboxExcerptRunes)
-		}
+	closeRows, err := q.InboxProposalCloseReasons(ctx, uuidsOf(closed))
+	if err != nil {
+		return inboxTexts{}, fmt.Errorf("list inbox proposal close reasons: %w", err)
 	}
-	return nil
+	for _, r := range closeRows {
+		texts.closes[r.ID.String()] = r.CloseReason
+	}
+	return texts, nil
 }
 
 func firstNonEmpty(values ...string) string {

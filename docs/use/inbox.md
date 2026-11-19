@@ -42,6 +42,7 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 | `reply` | A reply by someone else in a thread you wrote in, or a reply that an agent run wrote for a run you requested. |
 | `run_failed` | A run you requested that failed and that nobody has continued. |
 | `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
+| `proposal_closed` | A proposal you opened that someone else merged or discarded. |
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
 A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
@@ -50,6 +51,7 @@ A comment that mentions you and also replies in a thread you wrote in is one `me
 
 A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
 A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
+A closed proposal reads "merged your proposal" or "discarded your proposal" with its title, shows the reason given for a discard, and opens the proposal; the same notice is posted as a comment in the proposal's discussion.
 A failed run opens its chat.
 A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
 An item recorded before the title and panel count were stored reads "Your repair saved version N".
@@ -61,14 +63,14 @@ An item recorded before the title and panel count were stored reads "Your repair
 | View | Holds |
 | --- | --- |
 | `for_you` | Every item with a reason. |
-| `proposals` | The `proposal` items. |
+| `proposals` | The `proposal` and `proposal_closed` items. |
 | `mentions` | The `mention` and `reply` items. |
 | `everything` | Every visible event from others, and every item with a reason, with `reason` null on the events that have none. |
 
 `limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
 An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title` and `excerpt`.
 `target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
-`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters, and is null for other items.
+`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the reason a proposal was discarded, as plain text of at most 200 characters, and is null for other items.
 The rest of an item carries no comment, message or finding text, as in the log.
 
 ## What you have read

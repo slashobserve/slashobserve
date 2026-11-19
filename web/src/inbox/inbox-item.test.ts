@@ -132,6 +132,45 @@ describe("itemText", () => {
       },
     },
     {
+      name: "a merged proposal names its title and the version it saved",
+      over: {
+        type: "proposal.merged",
+        target: { kind: "proposal", id },
+        data: withData({ title: "Add latency", revision: 2, version: 4 }),
+      },
+      text: {
+        actor: "Ada",
+        verb: "merged your proposal",
+        object: "Add latency as version 4",
+      },
+    },
+    {
+      name: "a merged proposal with no saved version names only its title",
+      over: {
+        type: "proposal.merged",
+        target: { kind: "proposal", id },
+        data: withData({ title: "Add latency", revision: 2, version: null }),
+      },
+      text: {
+        actor: "Ada",
+        verb: "merged your proposal",
+        object: "Add latency",
+      },
+    },
+    {
+      name: "a discarded proposal falls back to the target title",
+      over: {
+        type: "proposal.discarded",
+        target: { kind: "proposal", id },
+        target_title: "Add latency",
+      },
+      text: {
+        actor: "Ada",
+        verb: "discarded your proposal",
+        object: "Add latency",
+      },
+    },
+    {
       name: "a failed run names its dashboard by title",
       over: {
         type: "run.failed",

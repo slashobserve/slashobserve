@@ -643,3 +643,44 @@ func TestInboxDropsMentionsAndRepliesWhoseCommentWasDeleted(t *testing.T) {
 		}
 	}
 }
+
+func (r rig) closeProposalAs(t *testing.T, proposal, dashboard pgtype.UUID, by actor.Actor, typ, state string, reason any) int64 {
+	t.Helper()
+	r.db.Exec(t, `UPDATE proposals SET state = $2, closed_at = now(), closed_by_kind = 'user', closed_by_id = $3::uuid, closed_by_name = $4, close_reason = $5 WHERE id = $1::uuid`, proposal.String(), state, by.ID, by.Name, reason)
+	return r.append(t, Entry{Type: typ, TargetID: proposal, Owner: OnDashboard(dashboard), Actor: by, Data: map[string]any{"title": "Add latency"}})
+}
+
+func TestInboxTellsAProposalsAuthorItWasDiscardedWithTheReason(t *testing.T) {
+	r := newRig(t)
+	proposal, dashboard := r.openProposal(t, miaActor)
+	seq := r.closeProposalAs(t, proposal, dashboard, ola, TypeProposalDiscarded, "discarded", "the query is already on the dashboard")
+
+	page := r.inbox(t, mia, ViewForYou)
+	if len(page.Items) != 1 || page.Items[0].Seq != seq || page.Items[0].Reason != ReasonProposalClosed {
+		t.Fatalf("items = %v reasons = %v, want only the discard %d as proposal_closed", inboxSeqs(page), inboxReasons(page), seq)
+	}
+	item := page.Items[0]
+	if item.Excerpt != "the query is already on the dashboard" || item.TargetTitle != "Add latency" {
+		t.Fatalf("excerpt = %q, title = %q, want the discard reason and the proposal title", item.Excerpt, item.TargetTitle)
+	}
+	wantReasons(t, "proposals view", r.inbox(t, mia, ViewProposals), ReasonProposalClosed)
+	wantReasons(t, "mentions view", r.inbox(t, mia, ViewMentions))
+	for _, other := range []auth.Principal{{Kind: auth.KindUser, ID: ola.ID, Name: ola.Name, Role: auth.RoleEditor}} {
+		if got := r.inbox(t, other, ViewForYou); len(got.Items) != 0 {
+			t.Fatalf("the closer's inbox holds %v, want nothing", inboxSeqs(got))
+		}
+	}
+}
+
+func TestInboxTellsAProposalsAuthorItWasMergedAndNotWhenTheyClosedItThemselves(t *testing.T) {
+	r := newRig(t)
+	merged, dashboard := r.openProposal(t, miaActor)
+	seq := r.closeProposalAs(t, merged, dashboard, ola, TypeProposalMerged, "merged", nil)
+	own, ownDashboard := r.openProposal(t, miaActor)
+	r.closeProposalAs(t, own, ownDashboard, miaActor, TypeProposalDiscarded, "discarded", nil)
+
+	page := r.inbox(t, mia, ViewForYou)
+	if len(page.Items) != 1 || page.Items[0].Seq != seq || page.Items[0].Excerpt != "" {
+		t.Fatalf("items = %v, want only the merge %d with no excerpt", inboxSeqs(page), seq)
+	}
+}
