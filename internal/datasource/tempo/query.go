@@ -209,7 +209,7 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 		seen    = map[string]bool{}
 		pacer   datasource.Pacer
 	)
-	for _, w := range searchWindows(r) {
+	for _, w := range datasource.NewestFirst(r, firstSearchWindow) {
 		win, ok := pacer.Start(ctx, w.To.Sub(w.From))
 		if !ok {
 			metrics.cut = true
@@ -241,20 +241,6 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 }
 
 const firstSearchWindow = time.Hour
-
-func searchWindows(r datasource.TimeRange) []datasource.TimeRange {
-	var out []datasource.TimeRange
-	to, span := r.To, firstSearchWindow
-	for to.After(r.From) {
-		from := to.Add(-span)
-		if from.Before(r.From) {
-			from = r.From
-		}
-		out = append(out, datasource.TimeRange{From: from, To: to})
-		to, span = from, span*2
-	}
-	return out
-}
 
 func (d *Datasource) searchWindow(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	sent := newestFirst(text)

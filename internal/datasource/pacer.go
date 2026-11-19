@@ -50,3 +50,17 @@ func (w *Window) End(err error) (ranOut bool) {
 	}
 	return ranOut
 }
+
+func NewestFirst(r TimeRange, first time.Duration) []TimeRange {
+	var out []TimeRange
+	to, span := r.To, first
+	for to.After(r.From) {
+		from := to.Add(-span)
+		if from.Before(r.From) {
+			from = r.From
+		}
+		out = append(out, TimeRange{From: from, To: to})
+		to, span = from, span*2
+	}
+	return out
+}

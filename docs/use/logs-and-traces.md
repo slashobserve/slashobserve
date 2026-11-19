@@ -208,6 +208,8 @@ Facets count the top values of each label, field or column the query matches ove
 Each field says whether its counts are exact or come from a sample of the newest lines.
 
 - On Loki the index labels of the matched streams are counted exactly from the index volume API, in bytes rather than lines, so those fields carry `unit: bytes`; parsed fields (`kind: field`) and structured-metadata fields (`kind: metadata`, the detected fields that no parser produced) are counted from the newest 1,000 lines by default, up to 5,000.
+  Those lines are read from the newest hour first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, so a week does not have to be read whole.
+  When time runs short, the fields are counted over the lines read so far, and `lines_sampled` and the note under each field say how many.
 - On ClickHouse every field is counted exactly with one `GROUP BY` per field: each result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the 20 most frequent `LogAttributes` keys as `LogAttributes.<key>`.
 - On Elasticsearch and OpenSearch one aggregation request counts every field exactly over the whole range, with `sampled: false` and `lines_sampled: 0`, and `sample` is ignored.
 
