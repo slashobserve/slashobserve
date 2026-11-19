@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { datasourcesQuery } from "@/datasources/queries"
 import { observationLink } from "@/lib/links"
+import { cleanText, lineRule, textError } from "@/lib/user-text"
 import { useAgentInfo, useCreateObserveRequest } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -38,15 +39,13 @@ type Props = {
 
 const maxTitleLength = 200
 const maxNoteLength = 4000
-const titleProblem = "Enter a title of 1 to 200 characters."
 const agentStartHint =
   "It reads the note, runs the first queries and writes what it finds as blocks you can keep or discard."
 const noteHint =
   "Links to a logs search, a trace or a dashboard panel in this app become blocks."
 
 function titleError(title: string): string | null {
-  const length = title.trim().length
-  return length >= 1 && length <= maxTitleLength ? null : titleProblem
+  return textError("title", title, lineRule(maxTitleLength))
 }
 
 const reasonsShown = 3
@@ -225,7 +224,7 @@ export function NewObservationForm({
     const text = withNote ? note.trim() : ""
     try {
       const envelope = await create.mutateAsync({
-        title: title.trim(),
+        title: cleanText(title),
         ...(folderId === null ? {} : { folder_id: folderId }),
         ...(text === ""
           ? {}
@@ -235,7 +234,7 @@ export function NewObservationForm({
       await followUps({
         observationId,
         links: noteLinks(text, window.location.origin),
-        prompt: agentStart ? text || title.trim() : null,
+        prompt: agentStart ? text || cleanText(title) : null,
       })
       void navigate(observationLink(observationId))
     } catch (error) {

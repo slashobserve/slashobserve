@@ -440,8 +440,8 @@ func cleanLabel(raw string) (string, bool) {
 	if strings.TrimSpace(raw) == "" {
 		return "", true
 	}
-	label, ok := revisions.CleanTitle(raw)
-	if !ok || utf8.RuneCountInString(label) > maxLabelRunes {
+	label, err := revisions.CheckTitle(raw)
+	if err != nil || utf8.RuneCountInString(label) > maxLabelRunes {
 		return "", false
 	}
 	return label, true

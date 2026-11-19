@@ -28,7 +28,7 @@ func TestTitlesAreTrimmedAndBoundedInRunes(t *testing.T) {
 			t.Errorf("%q: %q, %v", in, got, err)
 		}
 	}
-	for _, in := range []string{"", "   ", strings.Repeat("é", 201), "a\x00b"} {
+	for _, in := range []string{"", "   ", strings.Repeat("é", 201), "a\x00b", "\u200b\u200b", "a\x07b", "a\u202eb", "a\nb"} {
 		if _, err := validateTitle(in); err == nil || codeOf(t, err) != CodeInvalidTitle {
 			t.Errorf("%q: %v", in, err)
 		}
@@ -88,6 +88,9 @@ func TestATextBodyIsMarkdownOfOneToEightThousandRunes(t *testing.T) {
 		"empty":          body(""),
 		"blank":          body(" \n\t"),
 		"NUL":            body("a\x00b"),
+		"zero width":     body("\u200b"),
+		"override":       body("a\u202eb"),
+		"bell":           body("a\x07b"),
 		"no markdown":    json.RawMessage(`{}`),
 		"extra key":      json.RawMessage(`{"markdown":"x","html":"y"}`),
 		"not an object":  json.RawMessage(`"x"`),

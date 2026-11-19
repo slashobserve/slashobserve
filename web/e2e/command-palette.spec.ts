@@ -96,7 +96,9 @@ test("opens a matching dashboard in the same tab and from the arrow in a new tab
   const before = page.url()
   await page.keyboard.type(title)
   await expect(searchInput(page)).toHaveValue(title)
-  const option = palette(page).getByRole("option", { name: title })
+  const option = palette(page).getByRole("option", {
+    name: new RegExp(`^${title}`),
+  })
   await expect(option).toHaveAttribute("data-highlighted", "")
   const arrow = option.getByRole("button", {
     name: `Open ${title} in a new tab`,
@@ -118,12 +120,14 @@ test("opens a matching dashboard in the same tab and from the arrow in a new tab
   await expect(palette(page)).toHaveCount(0)
 })
 
-test("explains an empty result", async ({ page }) => {
+test("offers the full search when nothing matches", async ({ page }) => {
   await openFromButton(page)
   await page.keyboard.type("zzzz-no-match")
   await expect(
-    palette(page).getByText('Nothing matches "zzzz-no-match".')
-  ).toBeVisible()
+    palette(page).getByRole("option", {
+      name: 'See all results for "zzzz-no-match"',
+    })
+  ).toHaveAttribute("data-highlighted", "")
 })
 
 test("closes with Escape and returns focus", async ({ page }) => {

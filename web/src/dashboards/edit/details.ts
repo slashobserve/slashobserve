@@ -1,3 +1,4 @@
+import { cleanText, lineRule, textError } from "@/lib/user-text"
 import type { Dashboard } from "@/spec"
 
 export type Details = { title: string; description: string; tags: string[] }
@@ -41,12 +42,7 @@ export function parseTags(
 }
 
 export function titleError(title: string): string | null {
-  const trimmed = title.trim()
-  if (trimmed === "") return "Enter a title."
-  if (length(trimmed) > maxTitleLength) {
-    return `Use at most ${maxTitleLength} characters.`
-  }
-  return null
+  return textError("title", title, lineRule(maxTitleLength))
 }
 
 export function descriptionError(text: string): string | null {
@@ -57,7 +53,7 @@ export function descriptionError(text: string): string | null {
 }
 
 export function applyDetails(spec: Dashboard, details: Details): Dashboard {
-  const next: Dashboard = { ...spec, title: details.title.trim() }
+  const next: Dashboard = { ...spec, title: cleanText(details.title) }
   const description = details.description.trim()
   if (description === "") delete next.description
   else next.description = description

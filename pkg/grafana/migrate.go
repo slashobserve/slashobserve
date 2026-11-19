@@ -84,7 +84,7 @@ func isLegacyRepeatClone(row map[string]any) bool {
 }
 
 func newNode(raw map[string]any, path string) *panelNode {
-	n := &panelNode{raw: raw, path: path, title: asString(raw["title"])}
+	n := &panelNode{raw: raw, path: path, title: cleanTitle(asString(raw["title"]))}
 	n.typ, n.sourceType = panelTypeOf(raw)
 	n.row = n.typ == "row"
 	n.collapsed = n.row && truthy(raw["collapsed"])
@@ -244,7 +244,7 @@ func (b *legacyBuilder) addRow(row map[string]any, path string) {
 			collapsed:  collapsed,
 			typ:        "row",
 			sourceType: "row",
-			title:      asString(row["title"]),
+			title:      cleanTitle(asString(row["title"])),
 			grafanaID:  &id,
 			pos:        gridPos{x: 0, y: b.y, w: gridColumns, h: 1},
 		}

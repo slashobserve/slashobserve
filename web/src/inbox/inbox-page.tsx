@@ -17,14 +17,8 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { InboxDetail } from "./inbox-detail"
 import { groupItems, itemLink, type InboxItem } from "./inbox-item"
 import { InboxRow } from "./inbox-row"
+import { inboxViews, isInboxView } from "./inbox-views"
 import { inboxInfiniteQuery, useInboxLive, useMarkInboxRead } from "./queries"
-
-const inboxViews: readonly { value: InboxView; label: string }[] = [
-  { value: "for_you", label: "For you" },
-  { value: "everything", label: "Everything" },
-  { value: "proposals", label: "Proposals" },
-  { value: "mentions", label: "Mentions" },
-]
 
 const emptyText: Record<InboxView, string> = {
   for_you: "Nothing needs you right now.",
@@ -47,10 +41,6 @@ function useDetailPane(): boolean {
     () => window.matchMedia(detailQuery).matches,
     () => false
   )
-}
-
-export function isInboxView(value: unknown): value is InboxView {
-  return inboxViews.some((view) => view.value === value)
 }
 
 type Props = {

@@ -311,6 +311,8 @@ This lists only the packages whose purpose the name does not make obvious.
 
 - Every `/api/v1` route is documented in `api/`.
   Only the e2e stack runs with `SLASHOBSERVE_API_CONTRACT_CHECK=true`, which turns a request or response that breaks the document into a 500 `contract_violation` and makes `scripts/e2e.sh` fail; it never belongs in production.
+- A query parameter a route does not document is reported in `X-Unknown-Query-Parameters` (`internal/server/queryparams.go`) and fails the contract check; add a new parameter to the route's YAML or clients will see the header.
+- `/api/v1` answers `Cache-Control: no-store`; a safe, large read opts out through `httpapi.RevalidatedJSON` (private `ETag`, `Vary: Authorization, Cookie`, 304), and never for query proxy data.
 - Document every status a handler can return, and keep `additionalProperties: false` on response objects so new fields must be documented.
 - Wire conventions: JSON field names are `snake_case` (the Spec document inside a response keeps its camelCase), times are RFC 3339 UTC strings, errors are `{"error","code"}` plus optional named fields, 401s carry `WWW-Authenticate: Bearer`, and lists use opaque `cursor` and `next_cursor` (null at the end) with `limit`.
 

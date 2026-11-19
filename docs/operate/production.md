@@ -25,6 +25,12 @@ Each person can hold 20 streams and one server process 1000; past either limit t
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
 The server ignores `X-Forwarded-For`.
 
+Serve the proxy over HTTP/2.
+The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).
+Over HTTP/2 they load in one wave.
+The server compresses with gzip; a proxy that compresses `/assets/` with brotli makes the largest file, the shared vendor chunk, 6 to 15 percent smaller than gzip does, depending on the level.
+Files under `/assets/` carry a content hash in their name and `Cache-Control: immutable`, so a proxy can cache them for a year.
+
 ## Health endpoints
 
 | Endpoint       | Meaning                                                                                                |
