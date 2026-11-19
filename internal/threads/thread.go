@@ -9,6 +9,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -28,6 +29,7 @@ type Thread struct {
 	PanelPresent      bool
 	Status            string
 	AllowedActions    []string
+	Unread            bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	ResolvedAt        *time.Time
@@ -46,8 +48,10 @@ type Message struct {
 	EditedAt    *time.Time
 	Mentions    []Mention
 	CanEdit     bool
+	CanDelete   bool
 	BlockID     string
 	ReplyTo     *ReplyTo
+	Run         *StartedRun
 }
 
 type ReplyTo struct {
@@ -56,7 +60,27 @@ type ReplyTo struct {
 	Excerpt string
 }
 
-func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, canComment bool) Thread {
+type rights struct {
+	Comment, Edit, Started bool
+}
+
+func (r rights) can(w lifecycle.Who) bool {
+	switch w {
+	case lifecycle.Commenter:
+		return r.Comment
+	case lifecycle.Requester:
+		return r.Comment && r.Started
+	case lifecycle.Editor:
+		return r.Edit
+	}
+	return false
+}
+
+func (sc scope) rights(started bool) rights {
+	return rights{Comment: sc.abilities.Comment, Edit: sc.abilities.Edit, Started: started}
+}
+
+func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, r rights) Thread {
 	_, present := latestPanels[row.PanelID.String]
 	t := Thread{
 		ID:             row.ID.String(),
@@ -64,7 +88,7 @@ func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, canComment bo
 		PanelID:        row.PanelID.String,
 		PanelPresent:   !row.PanelID.Valid || present,
 		Status:         row.Status,
-		AllowedActions: allowedActions(row.Status, canComment),
+		AllowedActions: allowedActions(row.Status, r),
 		CreatedAt:      row.CreatedAt.Time.UTC(),
 		UpdatedAt:      row.UpdatedAt.Time.UTC(),
 	}
@@ -112,7 +136,7 @@ func messageOf(row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Princip
 		CreatedAt:   row.CreatedAt.Time.UTC(),
 		UpdatedAt:   row.UpdatedAt.Time.UTC(),
 		Mentions:    mentions,
-		CanEdit:     canComment && row.AuthorKind == string(reader.Kind) && row.AuthorID.String() == reader.ID,
+		CanEdit:     canComment && !row.RunID.Valid && row.AuthorKind == string(reader.Kind) && row.AuthorID.String() == reader.ID,
 	}
 	if row.ObservationBlockID.Valid {
 		m.BlockID = row.ObservationBlockID.String()

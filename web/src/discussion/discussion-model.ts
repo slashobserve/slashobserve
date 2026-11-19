@@ -67,8 +67,10 @@ export function messageVerb(message: Message): string {
     return `replied to ${message.reply_to.actor.label}`
   }
   if (message.id !== message.thread_id) return "replied"
-  const asked = message.mentions.some((mention) => mention.kind !== "user")
-  return threadVerbText(asked, null, null)
+  if (!message.mentions.some((mention) => mention.kind !== "user")) {
+    return threadVerbText(false, null, null)
+  }
+  return message.run ? threadVerbText(true, null, null) : "mentioned the agent"
 }
 
 function byTime(a: DiscussionEntry, b: DiscussionEntry): number {

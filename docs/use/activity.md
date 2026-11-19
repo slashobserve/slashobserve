@@ -33,7 +33,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Run | `run.kept` | The requester kept the build of a stopped run as a version. |
-| Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
+| Thread | `thread.opened`, `thread.replied`, `thread.edited`, `thread.deleted` | A comment thread is started, answered, a message in it is edited, or a message or a whole thread is deleted. |
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
 

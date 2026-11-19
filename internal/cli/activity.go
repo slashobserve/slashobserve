@@ -481,6 +481,8 @@ func describeThread(e activityEvent) (string, bool) {
 		return "replied to a thread", true
 	case "thread.edited":
 		return "edited a comment", true
+	case "thread.deleted":
+		return "deleted a comment", true
 	case "thread.resolved":
 		if d.ResolvedByVersion > 0 {
 			return fmt.Sprintf("resolved a thread (fixed by version %d)", d.ResolvedByVersion), true

@@ -77,6 +77,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/users"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -350,8 +351,10 @@ func run() error {
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
+	viewersService := viewers.New(database)
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
+	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
@@ -403,6 +406,7 @@ func run() error {
 		LiveText:      liveText,
 		Search:        searchService,
 		Stars:         stars.New(database, folderAccess),
+		Viewers:       viewersService,
 		Home:          homedash.New(database, folderAccess),
 		Provider:      llmProvider,
 		DraftBudget:   draftbudget.New(database),
@@ -525,6 +529,7 @@ func run() error {
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
 			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
+			viewers.NewHandler(viewersService, folderAccess, logger),
 			homedash.NewHandler(homedash.New(database, folderAccess), logger),
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),

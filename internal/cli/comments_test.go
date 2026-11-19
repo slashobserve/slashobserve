@@ -133,6 +133,22 @@ func TestCommentsCommands(t *testing.T) {
 			wantErr:  "--status must be open, resolved or all",
 		},
 		{
+			name:       "people lists the mention to paste and says when more match",
+			args:       []string{"comments", "people", "--on", on, "--search", "ad"},
+			response:   `{"people":[{"id":"` + testRun + `","name":"Ada","email":"ada@example.com"}],"more":true}`,
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/v1/threads/mentionable",
+			wantQuery:  "limit=20&q=ad&target=" + strings.Replace(on, ":", "%3A", 1),
+			wantOut:    []string{"Ada", "ada@example.com", "@[Ada](user:" + testRun + ")"},
+			wantErr:    "more people match",
+		},
+		{
+			name:     "people needs a target",
+			args:     []string{"comments", "people"},
+			wantCode: 2,
+			wantErr:  "--on <kind>:<id> is required",
+		},
+		{
 			name:       "resolve without a version",
 			args:       []string{"comments", "resolve", testDashboard, testThread},
 			response:   resolvedPlain,
@@ -543,6 +559,19 @@ func TestCommentsCommands(t *testing.T) {
 			wantPath:   "/api/v1/messages/" + testReply,
 			wantBody:   `{"body":"ok"}`,
 			wantOut:    []string{`"message"`},
+		},
+		{
+			name:       "delete sends the message route",
+			args:       []string{"comments", "delete", testReply},
+			wantMethod: http.MethodDelete,
+			wantPath:   "/api/v1/messages/" + testReply,
+			wantOut:    []string{"Deleted comment " + testReply},
+		},
+		{
+			name:     "delete needs an id",
+			args:     []string{"comments", "delete"},
+			wantCode: 2,
+			wantErr:  "observe comments delete takes one comment id",
 		},
 		{
 			name:     "edit needs text",

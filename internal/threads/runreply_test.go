@@ -1,12 +1,16 @@
 package threads
 
 import (
+	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -120,6 +124,33 @@ func TestAMentionRunAnswersInItsThreadAsTheRequesterAndLeavesItOpen(t *testing.T
 	}
 }
 
+func TestAnAgentReplyCanNotBeEditedByTheRequester(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {
+		t.Fatal(err)
+	}
+	reply := r.runReplies(t, thread)[0]
+
+	for _, by := range []auth.Principal{testUser, admin} {
+		if _, _, _, err := r.service.Edit(t.Context(), by, mustParse(t, reply.ID), "EDITED BY REQUESTER"); !errors.Is(err, ErrNotAuthor) {
+			t.Fatalf("%s editing an agent reply: err = %v, want ErrNotAuthor", by.Name, err)
+		}
+	}
+	for _, m := range r.list(t, testUser, target(KindDashboard, dash)).Messages {
+		if m.ID == reply.ID && m.CanEdit {
+			t.Fatalf("the agent reply is listed as editable: %+v", m)
+		}
+		if m.ID != reply.ID && !m.CanEdit {
+			t.Fatalf("the requester's own message must stay editable: %+v", m)
+		}
+	}
+	if got := r.runReplies(t, thread)[0].Body; got != reply.Body {
+		t.Fatalf("reply body = %q, want it unchanged", got)
+	}
+}
+
 func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 	r := newAgentRig(t, true)
 
@@ -143,7 +174,7 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 		{"canceled", false, func(_ *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			run = ended(run, revisions.StateCanceled)
 			run.FailureCode = pgtype.Text{String: string(revisions.FailureCanceled), Valid: true}
-			return run, "The run was canceled."
+			return run, "The run was stopped before it finished."
 		}},
 		{"proposal", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			proposal := r.createProposal(t, run.DashboardID)
@@ -166,7 +197,7 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Wrote the answer into this observation: Checkout is slow."
+			return run, "Wrote the answer into this observation: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
 	}
 	for _, tt := range tests {
@@ -268,7 +299,7 @@ func TestARunSkipsItsReplyInsteadOfWaitingForADelete(t *testing.T) {
 	}
 }
 
-func TestARevisionRunFromACommentStillResolvesAndPostsNothing(t *testing.T) {
+func TestARevisionRunFromACommentResolvesItAndAnswersInIt(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	r.addVersion(t, dash, 1)
@@ -280,8 +311,9 @@ func TestARevisionRunFromACommentStillResolvesAndPostsNothing(t *testing.T) {
 	if got := r.threadRow(t, comment.ID).Status; got != StatusResolved {
 		t.Fatalf("thread status = %s, want resolved", got)
 	}
-	if got := r.count(t, `SELECT count(*) FROM thread_messages WHERE run_id IS NOT NULL`); got != 0 {
-		t.Fatalf("%d run replies, want none", got)
+	replies := r.runReplies(t, comment.ID)
+	if len(replies) != 1 || replies[0].Body != "Saved version 2 of this dashboard." {
+		t.Fatalf("run replies = %+v, want the saved-version answer", replies)
 	}
 }
 
@@ -335,6 +367,27 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 				t.Fatalf("thread.replied actor = %s %s, want %s %s", actorKind, actorID, tt.wantKind, tt.wantID)
 			}
 		})
+	}
+}
+
+func TestAFindingAnswerLeadsWithItsFirstParagraphAndNeverCutsAWord(t *testing.T) {
+	tests := []struct {
+		name, title, markdown, want string
+	}{
+		{"skips a heading that repeats the title", "Checkout is slow", "# Checkout is slow\n\nThe 5xx rate rose after the deploy.\n\nSecond paragraph.", "\n\nThe 5xx rate rose after the deploy."},
+		{"is empty when the text says nothing more", "Checkout is slow", "Checkout is slow", ""},
+		{"collapses the lines of a paragraph", "t", "first line\nsecond line", "\n\nfirst line second line"},
+		{"cuts a long paragraph at a word", "t", strings.Repeat("latency ", 100), "\n\n" + strings.TrimSpace(strings.Repeat("latency ", 75)) + "..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := findingLead(tt.markdown, tt.title); got != tt.want {
+				t.Fatalf("findingLead = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	if got := sentenceEnd(activity.Excerpt(strings.Repeat("word ", 80), maxReplyHeadingRunes)); !strings.HasSuffix(got, "word...") {
+		t.Fatalf("a cut title ends %q, want an ellipsis and no stray full stop", got[len(got)-10:])
 	}
 }
 

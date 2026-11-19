@@ -41,6 +41,7 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"thread.edited":               "thread",
 		"thread.resolved":             "thread",
 		"thread.reopened":             "thread",
+		"thread.deleted":              "thread",
 		"thread.mentioned":            "thread",
 		"run.queued":                  "run",
 		"run.started":                 "run",

@@ -35,6 +35,7 @@ function comment(overrides: Partial<Comment>): Comment {
     body: "Latency looks high",
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     author: ada,
     actor,
     created_at: "2026-11-06T10:00:00Z",
@@ -45,6 +46,7 @@ function comment(overrides: Partial<Comment>): Comment {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -132,26 +134,56 @@ function json(body: unknown): Response {
 }
 
 describe("ThreadEntry", () => {
+  const fetchMock = vi.fn<(request: Request) => Promise<Response>>()
+
   beforeEach(() => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (request: Request) => {
-        const { pathname } = new URL(request.url)
-        if (pathname === "/api/v1/agent") {
-          return json({
-            available: true,
-            provider: "p",
-            model: "m",
-            effort: null,
-          })
-        }
-        return json({ service_accounts: [] })
-      })
-    )
+    fetchMock.mockReset()
+    fetchMock.mockImplementation(async (request: Request) => {
+      const { pathname } = new URL(request.url)
+      if (pathname.endsWith("/read")) return new Response(null, { status: 204 })
+      if (pathname === "/api/v1/agent") {
+        return json({
+          available: true,
+          provider: "p",
+          model: "m",
+          effort: null,
+        })
+      }
+      return json({ service_accounts: [] })
+    })
+    vi.stubGlobal("fetch", fetchMock)
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it("shows no unread dot on a thread the reader has read", () => {
+    renderThread("open")
+    expect(screen.queryByRole("button", { name: /unread/i })).toBeNull()
+  })
+
+  it("shows an unread dot and marks the thread read once when the reader opens it", async () => {
+    const user = userEvent.setup()
+    renderThread("open", { root: { unread: true } })
+    const dot = screen.getByRole("button", { name: "Unread, mark as read" })
+    await user.click(dot)
+    const reads = fetchMock.mock.calls.filter(([request]) =>
+      new URL(request.url).pathname.endsWith("/threads/root/read")
+    )
+    expect(reads).toHaveLength(1)
+    expect(reads[0][0].method).toBe("POST")
+  })
+
+  it("marks an unread thread read when the reader clicks in its text", async () => {
+    const user = userEvent.setup()
+    renderThread("open", { root: { unread: true } })
+    await user.click(screen.getByText("Latency looks high"))
+    expect(
+      fetchMock.mock.calls.some(([request]) =>
+        new URL(request.url).pathname.endsWith("/threads/root/read")
+      )
+    ).toBe(true)
   })
 
   it("shows an open thread with its replies and actions", () => {

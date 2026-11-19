@@ -39,6 +39,8 @@ function item(over: Partial<InboxItem>): InboxItem {
     created_at: new Date().toISOString(),
     reason: null,
     unread: false,
+    target_title: null,
+    excerpt: null,
     ...over,
   }
 }
@@ -64,14 +66,17 @@ type Server = {
   items?: InboxItem[]
   unread?: number
   forbidden?: boolean
+  thread?: { messages: { id: string; body: string; who: string }[] }
 }
 
 function mockServer({
   items = [needsYou, activity],
   unread = 1,
   forbidden,
+  thread,
 }: Server = {}) {
   const reads: unknown[] = []
+  const states: { path: string; body: unknown }[] = []
   const views: (string | null)[] = []
   vi.stubGlobal(
     "fetch",
@@ -80,6 +85,34 @@ function mockServer({
       if (url.pathname === "/api/v1/inbox/read") {
         reads.push(await request.clone().json())
         return new Response(null, { status: 204 })
+      }
+      if (url.pathname.startsWith("/api/v1/inbox/items/")) {
+        states.push({
+          path: url.pathname,
+          body: await request.clone().json(),
+        })
+        return new Response(null, { status: 204 })
+      }
+      if (url.pathname === "/api/v1/threads" && thread !== undefined) {
+        return json({
+          threads: [threadRecord],
+          messages: thread.messages.map((entry, index) => ({
+            id: entry.id,
+            thread_id: proposalId,
+            body: entry.body,
+            actor: { ...ada, id: entry.id, name: entry.who, label: entry.who },
+            created_at: `2020-11-10T09:0${index}:00Z`,
+            updated_at: `2020-11-10T09:0${index}:00Z`,
+            edited_at: null,
+            mentions: [],
+            can_edit: false,
+            can_delete: false,
+            block_id: null,
+            reply_to: null,
+          })),
+          next_cursor: null,
+          can_comment: true,
+        })
       }
       if (url.pathname === "/api/v1/inbox") {
         views.push(url.searchParams.get("view"))
@@ -91,7 +124,24 @@ function mockServer({
       return json({ error: "unexpected", code: "unexpected" }, 500)
     })
   )
-  return { reads, views }
+  return { reads, views, states }
+}
+
+const threadRecord = {
+  id: proposalId,
+  target: { kind: "dashboard", id: dashboardId },
+  dashboard_id: dashboardId,
+  version: 1,
+  panel_id: null,
+  panel_present: true,
+  status: "open",
+  allowed_actions: ["reply", "resolve"],
+  created_at: "2020-11-10T09:00:00Z",
+  updated_at: "2020-11-10T09:05:00Z",
+  resolved_at: null,
+  resolved_actor: null,
+  resolved_by_version: null,
+  revision: null,
 }
 
 function stubWide(wide: boolean) {
@@ -305,5 +355,76 @@ describe("InboxPage", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: /version created/ })
     )
+  })
+
+  it("names the target by its title and quotes the comment in the row", async () => {
+    mockServer({
+      items: [
+        item({
+          seq: 12,
+          type: "thread.mentioned",
+          target: { kind: "thread", id: proposalId },
+          data: withData({ object: { kind: "dashboard", id: dashboardId } }),
+          reason: "mention",
+          unread: true,
+          target_title: "Checkout latency",
+          excerpt: "@Ada can you look at the p99?",
+        }),
+      ],
+    })
+    renderPage()
+
+    const row = await screen.findByRole("link", { name: /mentioned you on/ })
+    expect(within(row).getByText("Checkout latency")).toBeTruthy()
+    expect(within(row).getByText("@Ada can you look at the p99?")).toBeTruthy()
+  })
+
+  it("marks one item read or unread from its row without moving the rest", async () => {
+    const server = mockServer()
+    const { user } = renderPage()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Mark as read" })
+    )
+    await user.click(screen.getByRole("button", { name: "Mark as unread" }))
+
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/12", body: { unread: false } },
+        { path: "/api/v1/inbox/items/9", body: { unread: true } },
+      ])
+    )
+    expect(server.reads).toEqual([])
+  })
+
+  it("marks an item read once when it opens in the pane", async () => {
+    stubWide(true)
+    const server = mockServer({ thread: { messages: [] } })
+    renderPage({ selected: "12" })
+
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/12", body: { unread: false } },
+      ])
+    )
+  })
+
+  it("shows the thread and a reply box in the pane for a mention", async () => {
+    stubWide(true)
+    mockServer({
+      thread: {
+        messages: [
+          { id: "m1", body: "Why did p99 double?", who: "Grace" },
+          { id: "m2", body: "It was the deploy.", who: "Ada" },
+        ],
+      },
+    })
+    renderPage({ selected: "12" })
+
+    const pane = await screen.findByRole("region", { name: "Selected item" })
+    expect(await within(pane).findByText("Why did p99 double?")).toBeTruthy()
+    expect(within(pane).getByText("It was the deploy.")).toBeTruthy()
+    expect(within(pane).getByRole("textbox", { name: "Reply" })).toBeTruthy()
+    expect(within(pane).getByRole("link", { name: "Open" })).toBeTruthy()
   })
 })

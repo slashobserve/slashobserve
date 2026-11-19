@@ -49,7 +49,7 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 | --- | --- | --- | --- | --- |
 | `open` | - | `open` | `thread.opened` | commenter |
 | `reply` | `open`, `resolved` | - | `thread.replied` | commenter |
-| `resolve` | `open` | `resolved` | `thread.resolved` | commenter, server |
+| `resolve` | `open` | `resolved` | `thread.resolved` | requester, editor, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
 ## Observation

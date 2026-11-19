@@ -232,6 +232,12 @@ type DashboardViewDay struct {
 	Day         pgtype.Date
 }
 
+type DashboardViewer struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	SeenAt      pgtype.Timestamptz
+}
+
 type Datasource struct {
 	ID          pgtype.UUID
 	Uid         string
@@ -370,6 +376,13 @@ type InboxCursor struct {
 	UserID    pgtype.UUID
 	ReadXid   pgtype.Uint64
 	ReadSeq   int64
+	UpdatedAt pgtype.Timestamptz
+}
+
+type InboxItemState struct {
+	UserID    pgtype.UUID
+	Seq       int64
+	Unread    bool
 	UpdatedAt pgtype.Timestamptz
 }
 
@@ -757,6 +770,12 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 }
 
+type ThreadRead struct {
+	UserID   pgtype.UUID
+	ThreadID pgtype.UUID
+	ReadAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID                pgtype.UUID
 	OidcIssuer        string
@@ -773,6 +792,7 @@ type User struct {
 	ManualRoleByID    pgtype.UUID
 	ManualRoleByName  pgtype.Text
 	Groups            []string
+	ThreadsSeenSince  pgtype.Timestamptz
 	DeactivatedAt     pgtype.Timestamptz
 	DeactivatedByID   pgtype.UUID
 	DeactivatedByName pgtype.Text

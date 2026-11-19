@@ -124,6 +124,37 @@ func TestNonEmptyQuery(t *testing.T) {
 	}
 }
 
+func TestDecodeBodyNamesTheFieldThatBrokeARule(t *testing.T) {
+	type input struct {
+		Version *int   `json:"version"`
+		Body    string `json:"body"`
+	}
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"a fraction for a whole number", `{"version": 1.5}`, "version must be a whole number, not number 1.5"},
+		{"a number for a string", `{"body": 3}`, "body must be a string, not number"},
+		{"an unknown field", `{"vesion": 1}`, `unknown field \"vesion\"`},
+		{"broken JSON", `{"version": `, "request body is not valid JSON"},
+		{"an empty body", ``, "request body is empty"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tc.body))
+			if DecodeBody(c, &input{}, 1024) {
+				t.Fatal("decoded a body that breaks a rule")
+			}
+			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tc.want) || !strings.Contains(rec.Body.String(), `"code":"invalid_request"`) {
+				t.Fatalf("status %d body %s, want 400 invalid_request containing %q", rec.Code, rec.Body.String(), tc.want)
+			}
+		})
+	}
+}
+
 func TestAbortTextAddsTheReasonOfATextError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cases := map[string]struct {

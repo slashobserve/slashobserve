@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -149,6 +150,8 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsAddCommand(),
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
+		a.commentsDeleteCommand(),
+		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
 	)
@@ -537,6 +540,82 @@ func (a *app) runCommentsEdit(cmd *cobra.Command, args []string) error {
 	}
 	out.confirm("Edited comment %s", text(edited.Message.ID))
 	return nil
+}
+
+func (a *app) commentsDeleteCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <comment-id>",
+		Short: "Delete one comment",
+		Long:  "Deleting the first comment of a thread deletes the whole thread.\nThe author can delete their own comment while they can still comment on its target, unless an agent run wrote it, and anyone who manages the target's folder can delete any comment.",
+		Args:  exactArgs(1, "one comment id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodDelete, "messages/"+id, nil, func(out *output, _ []byte) error {
+				out.confirm("Deleted comment %s", text(id))
+				return nil
+			})
+		},
+	}
+}
+
+type mentionablePeople struct {
+	People []struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	} `json:"people"`
+	More bool `json:"more"`
+}
+
+func (a *app) commentsPeopleCommand() *cobra.Command {
+	var on, search string
+	var limit int
+	cmd := &cobra.Command{
+		Use:   "people --on <kind>:<id> [--search <text>]",
+		Short: "List the people you can mention on a target",
+		Long:  "people lists the people, other than you, who can see the target, ordered by name, with the mention to paste into a comment.\nA person who cannot see the target is never listed, and mentioning one is refused with invalid_mention.\n--search keeps the people whose name or email contains the text.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			target, err := parseOn(on)
+			if err != nil {
+				return err
+			}
+			query := url.Values{"target": {target}, "q": {search}, "limit": {strconv.Itoa(limit)}}
+			c, err := a.newClient()
+			if err != nil {
+				return err
+			}
+			data, err := c.get(cmd.Context(), "threads/mentionable", query)
+			if err != nil {
+				return err
+			}
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			page, err := decode[mentionablePeople](data)
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(page.People))
+			for _, p := range page.People {
+				rows = append(rows, []string{text(p.Name), text(p.Email), "@[" + text(p.Name) + "](user:" + p.ID + ")"})
+			}
+			out.table([]string{"NAME", "EMAIL", "MENTION"}, rows)
+			if page.More {
+				out.notice("more people match: narrow the list with --search or raise --limit")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&on, "on", "", "the target, as <kind>:<id>")
+	cmd.Flags().StringVar(&search, "search", "", "only people whose name or email contains this text")
+	cmd.Flags().IntVar(&limit, "limit", 20, "people to list, at most 20")
+	return cmd
 }
 
 type resolution struct {

@@ -289,7 +289,7 @@ func TestResolvingAndReopeningThroughTheRoutes(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "version": 1, "body": "fix"})
+	opened := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "version": 1, "body": "fix"})
 	threadID := opened.at(t, "thread", "id").(string)
 
 	resolved := r.call(t, commenter, http.MethodPost, "/threads/"+threadID+"/resolve", map[string]any{"version": 2})
@@ -378,5 +378,36 @@ func TestEitherIdOfAThreadNamesItInTheRoutes(t *testing.T) {
 	byReply.expect(t, http.StatusOK, "")
 	if byReply.at(t, "thread", "id") != threadID || byReply.at(t, "thread", "status") != "resolved" {
 		t.Errorf("resolve by a message id = %v", byReply.body)
+	}
+}
+
+func TestABodyErrorNamesTheFirstRuleBroken(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t, "rps")
+	open := func(body string, version int) response {
+		return r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "version": version, "body": body})
+	}
+	cases := []struct {
+		name, body, want string
+	}{
+		{"empty", "  ", "body must not be empty"},
+		{"too long", strings.Repeat("a", 4001), "body must be at most 4000 characters"},
+		{"bidirectional override", "a\u202eb", "U+202E"},
+		{"NUL", "a\x00b", "control characters"},
+	}
+	seen := map[string]bool{}
+	for _, tc := range cases {
+		got := open(tc.body, 1)
+		got.expect(t, http.StatusUnprocessableEntity, "invalid_body")
+		message, _ := got.body["error"].(string)
+		if !strings.Contains(message, tc.want) || seen[message] {
+			t.Errorf("%s: error %q, want it to contain %q and differ from the others", tc.name, message, tc.want)
+		}
+		seen[message] = true
+	}
+	missing := open("hello", 99)
+	missing.expect(t, http.StatusUnprocessableEntity, "unknown_version")
+	if message, _ := missing.body["error"].(string); !strings.Contains(message, "version") {
+		t.Errorf("unknown version error = %q", message)
 	}
 }

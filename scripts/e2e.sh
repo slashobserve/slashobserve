@@ -1534,7 +1534,7 @@ comments_suite() {
     "$(comment_body 1 "$(printf 'p%.0s' $(seq 1 65))" 'x')" "$(comment_body 0 "$panel" 'x')" '{"version":1,"panel_id":"p"}' \
     "$(comment_body 1 "$panel" 'x' | sed 's/}$/,"extra":1}/')" '{"version":"1","panel_id":"p","body":"x"}'; do
     out="$(api POST "/dashboards/$id/comments" -d "$bad")"
-    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+    if [[ "$out" != 400 ]] || ! grep -qE '"code":"invalid_(request|body|panel_id|version)"' "$TMP/api.body"; then
       fail "invalid comment ${bad:0:80} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
     fi
   done

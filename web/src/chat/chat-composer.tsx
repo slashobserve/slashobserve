@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { roleAtLeast } from "@/lib/roles"
-import { isEditableTarget } from "@/lib/shortcuts"
+import { isEditableTarget, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -335,12 +335,7 @@ export function ChatComposer({
       clearCommand()
       return
     }
-    if (
-      !coarse &&
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (sendsOnEnter(event, coarse)) {
       event.preventDefault()
       void submit()
     }

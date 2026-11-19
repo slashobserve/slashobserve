@@ -18,9 +18,9 @@ import { cn } from "@/lib/utils"
 import { RemoteImage } from "../remote-image"
 import { isExternal } from "./safe-url"
 
-type HastNode = Parameters<typeof toJsxRuntime>[0]
-type HastRoot = Extract<HastNode, { type: "root" }>
-type HastElement = Extract<HastNode, { type: "element" }>
+export type HastNode = Parameters<typeof toJsxRuntime>[0]
+export type HastRoot = Extract<HastNode, { type: "root" }>
+export type HastElement = Extract<HastNode, { type: "element" }>
 
 const extraTags = [
   "center",
@@ -220,6 +220,12 @@ const keepOnlyTaskCheckboxes: Plugin<[], HastRoot> = () => (tree) => {
 
 export const markdownRehypePlugins: PluggableList = [
   rehypeRaw,
+  [rehypeSanitize, textSchema],
+  keepOnlyTaskCheckboxes,
+  sanitizeStyles,
+]
+
+export const commentRehypePlugins: PluggableList = [
   [rehypeSanitize, textSchema],
   keepOnlyTaskCheckboxes,
   sanitizeStyles,
