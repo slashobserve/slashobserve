@@ -107,18 +107,19 @@ func TestLogPatternsComeFromLokiWhenItsPatternAPIAnswers(t *testing.T) {
 		return []datasource.NativePattern{
 			{Pattern: "GET /a status=<*>", Samples: []datasource.PatternSample{{At: volumeStart.Add(2 * time.Minute), Count: 5}, {At: volumeStart, Count: 7}}},
 			{Pattern: "no samples in range"},
-			{Pattern: "POST /checkout status=<*> duration_ms=<*>", Samples: []datasource.PatternSample{{At: volumeStart.Add(time.Minute), Count: 31}}},
+			{Pattern: "POST /checkout status=<*> duration_ms=<*>", Samples: []datasource.PatternSample{{At: volumeStart.Add(time.Minute), Count: 80}}},
 			{Pattern: "a tie with GET", Samples: []datasource.PatternSample{{At: volumeStart, Count: 12}}},
 		}, nil
 	}
 	body := patternsBody(`{app="shop"}`)
 	body["limit"] = 2
+	body["sample"] = 100
 	got := decodePatterns(t, hn.logPatterns("logs", body))
-	if got.Source != "loki" || got.LinesSampled != 0 || got.LinesMatched != 55 || !got.Truncated || len(got.Patterns) != 2 {
+	if got.Source != "loki" || got.LinesSampled != 0 || got.LinesMatched != 104 || !got.Truncated || len(got.Patterns) != 2 {
 		t.Fatalf("patterns = %+v", got)
 	}
 	first := got.Patterns[0]
-	if first.Pattern != "POST /checkout status=<*> duration_ms=<*>" || first.Count != 31 || first.Sample != "" || first.First != "2025-10-09T08:55:00Z" || first.Last != "2025-10-09T08:55:00Z" {
+	if first.Pattern != "POST /checkout status=<*> duration_ms=<*>" || first.Count != 80 || first.Sample != "" || first.First != "2025-10-09T08:55:00Z" || first.Last != "2025-10-09T08:55:00Z" {
 		t.Fatalf("first = %+v", first)
 	}
 	if second := got.Patterns[1]; second.Pattern != "GET /a status=<*>" || second.Count != 12 || second.First != "2025-10-09T08:54:00Z" || second.Last != "2025-10-09T08:56:00Z" {
@@ -144,11 +145,13 @@ func TestLogPatternsFoldLokiSamplesIntoThirtyBucketsAndReadTheLevelFromThePatter
 	hn, logs, _ := newPatternsHarness(t)
 	logs.onPatterns = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
 		return []datasource.NativePattern{
-			{Pattern: "<*> level=error msg=<*>", Samples: []datasource.PatternSample{{At: volumeStart, Count: 4}, {At: volumeStart.Add(time.Minute), Count: 3}, {At: volumeStart.Add(2 * time.Minute), Count: 5}, {At: volumeStart.Add(59 * time.Minute), Count: 1}}},
+			{Pattern: "<*> level=error msg=<*>", Samples: []datasource.PatternSample{{At: volumeStart, Count: 90}, {At: volumeStart.Add(time.Minute), Count: 3}, {At: volumeStart.Add(2 * time.Minute), Count: 5}, {At: volumeStart.Add(59 * time.Minute), Count: 1}}},
 			{Pattern: "GET /a status=<*>", Samples: []datasource.PatternSample{{At: volumeStart, Count: 1}}},
 		}, nil
 	}
-	got := decodePatterns(t, hn.logPatterns("logs", patternsBody(`{app="shop"}`)))
+	body := patternsBody(`{app="shop"}`)
+	body["sample"] = 100
+	got := decodePatterns(t, hn.logPatterns("logs", body))
 	if len(got.Patterns) != 2 {
 		t.Fatalf("patterns = %+v", got)
 	}
@@ -159,7 +162,7 @@ func TestLogPatternsFoldLokiSamplesIntoThirtyBucketsAndReadTheLevelFromThePatter
 	if errors.Trend[0].Start != "2025-10-09T08:54:00Z" || errors.Trend[1].Start != "2025-10-09T08:56:00Z" {
 		t.Fatalf("bucket starts = %q, %q, want a two minute step from the range start", errors.Trend[0].Start, errors.Trend[1].Start)
 	}
-	if errors.Trend[0].Count != 7 || errors.Trend[1].Count != 5 || errors.Trend[29].Count != 1 || errors.Trend[2].Count != 0 {
+	if errors.Trend[0].Count != 93 || errors.Trend[1].Count != 5 || errors.Trend[29].Count != 1 || errors.Trend[2].Count != 0 {
 		t.Fatalf("trend = %+v, want two 60 step samples folded into one bucket and empty buckets kept", errors.Trend)
 	}
 }
@@ -219,6 +222,24 @@ func TestLogPatternsAreComputedFromTheNewestLinesWhenLokiAnswersNotFound(t *test
 	}
 }
 
+func TestLogPatternsFallBackToTheNewestLinesWhenLokiCountsAFewLines(t *testing.T) {
+	hn, logs, _ := newPatternsHarness(t)
+	logs.onPatterns = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
+		return []datasource.NativePattern{
+			{Pattern: "invalid cart: empty items", Samples: []datasource.PatternSample{{At: volumeStart, Count: 110}}},
+		}, nil
+	}
+	logs.onLines = func(datasource.LinesRequest) ([]datasource.Frame, error) {
+		return patternSampleFrames("POST /checkout status=200", "POST /checkout status=500", "GET /health ok"), nil
+	}
+	body := patternsBody(`{app="shop"}`)
+	body["sample"] = 500
+	got := decodePatterns(t, hn.logPatterns("logs", body))
+	if got.Source != "server" || got.LinesSampled != 3 || len(got.Patterns) != 2 {
+		t.Fatalf("patterns = %+v", got)
+	}
+}
+
 func TestLogPatternsOnClickHouseReadTheBodyColumnOfTheSample(t *testing.T) {
 	hn, _, ch := newPatternsHarness(t)
 	ch.onLines = func(datasource.LinesRequest) ([]datasource.Frame, error) {
@@ -258,9 +279,11 @@ func TestLogPatternsOnClickHouseReadTheBodyColumnOfTheSample(t *testing.T) {
 func TestLogPatternsJSONKeys(t *testing.T) {
 	hn, logs, _ := newPatternsHarness(t)
 	logs.onPatterns = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
-		return []datasource.NativePattern{{Pattern: "x", Samples: []datasource.PatternSample{{At: volumeStart, Count: 1}}}}, nil
+		return []datasource.NativePattern{{Pattern: "x", Samples: []datasource.PatternSample{{At: volumeStart, Count: 100}}}}, nil
 	}
-	rec := hn.logPatterns("logs", patternsBody(`{app="shop"}`))
+	body := patternsBody(`{app="shop"}`)
+	body["sample"] = 100
+	rec := hn.logPatterns("logs", body)
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
 		t.Fatalf("body %s: %v", rec.Body.String(), err)

@@ -14,6 +14,7 @@ export type ListSearch = {
   tag?: string[]
   folder?: string
   kind?: ProblemFilter
+  sort?: "views"
   page?: number
 }
 
@@ -80,6 +81,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     tag: undefined,
     folder: undefined,
     kind: undefined,
+    sort: undefined,
     page: undefined,
   }
   const q = firstString(raw.q)?.trim()
@@ -108,6 +110,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   }
   const kind = firstString(raw.kind)
   if (isProblemFilter(kind)) search.kind = kind
+  if (firstString(raw.sort) === "views") search.sort = "views"
   const page = pageText(raw.page)
   if (page !== undefined && pagePattern.test(page)) {
     const n = Number(page)
@@ -132,6 +135,7 @@ export function toFilters(search: ListSearch): DashboardListFilters {
     tags: search.tag,
     folder: search.folder,
     problem: search.kind === importedFilter ? undefined : search.kind,
+    order: search.sort,
   }
 }
 

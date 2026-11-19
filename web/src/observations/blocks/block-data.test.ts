@@ -133,8 +133,8 @@ describe("frozenCaption", () => {
   it("names the frozen range", () => {
     const from = new Date(2026, 10, 6, 10, 0).toISOString()
     const to = new Date(2026, 10, 6, 11, 30).toISOString()
-    expect(frozenCaption(from, to)).toBe(
-      "Frozen, 2026-11-06 10:00 to 2026-11-06 11:30"
+    expect(frozenCaption(from, to)).toMatch(
+      /^Frozen, 2026-11-06 10:00 to 2026-11-06 11:30 \S+$/
     )
   })
 })

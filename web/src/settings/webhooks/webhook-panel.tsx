@@ -12,14 +12,15 @@ import type { WebhookInput } from "./webhook-problems"
 export const webhooksHint =
   "Each event is sent as a signed https request. Only events from now on are sent, and only ones its owner can read."
 
-const editDescription =
-  "Saving makes you the webhook's owner, so it sends what you can read. A new address keeps its place in the log."
+const addDescription = "Send workspace events to an https address."
+
+const editDescription = "Change what this webhook sends and where."
 
 const addNote =
-  "The signing secret is shown once after you add the webhook and cannot be read again."
+  "Only events from now on are sent, and only ones you can read. The signing secret is shown once after you add the webhook and cannot be read again."
 
 const editNote =
-  "The signing secret stays the same. To change it, use Rotate secret in the row menu."
+  "The signing secret stays the same; use Rotate secret in the row menu to change it. A new address keeps its place in the log."
 
 export type WebhookPanelMode =
   { kind: "add" } | { kind: "edit"; webhook: Webhook }
@@ -35,6 +36,7 @@ function inputOf(webhook: Webhook): WebhookInput {
   return {
     name: webhook.name,
     url: webhook.url,
+    format: webhook.format,
     events: webhook.event_types as ActivityType[],
   }
 }
@@ -52,6 +54,7 @@ export function WebhookPanel({ mode, onClose, onCreated, trigger }: Props) {
     const body = {
       name: input.name,
       url: input.url,
+      format: input.format,
       event_types: input.events,
     }
     if (mode.kind === "add") {
@@ -72,7 +75,7 @@ export function WebhookPanel({ mode, onClose, onCreated, trigger }: Props) {
   return (
     <SidePanel
       title={adding ? "Add a webhook" : `Edit ${mode.webhook.name}`}
-      description={adding ? webhooksHint : editDescription}
+      description={adding ? addDescription : editDescription}
       onClose={onClose}
       closeDisabled={active.isPending}
       initialFocus={nameInput}

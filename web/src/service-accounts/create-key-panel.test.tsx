@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react"
+import type { UserEvent } from "@testing-library/user-event"
 import { createRef } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -8,11 +9,6 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { CreateKeyPanel } from "./create-key-panel"
 import type { ServiceAccount } from "./queries"
-
-vi.mock("@tanstack/react-router", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
-  useRouteContext: () => ({ principal: { id: "admin-1", role: "admin" } }),
-}))
 
 function account(over: Partial<ServiceAccount> = {}): ServiceAccount {
   return {
@@ -77,6 +73,11 @@ function renderPanel(current: ServiceAccount) {
   )
 }
 
+async function chooseExistingAccount(user: UserEvent, name: string) {
+  await user.click(await screen.findByLabelText("Service account"))
+  await user.click(await screen.findByRole("option", { name }))
+}
+
 beforeEach(() => {
   document.body.replaceChildren()
 })
@@ -86,9 +87,19 @@ afterEach(() => {
 })
 
 describe("CreateKeyPanel takes agent runs", () => {
-  it("shows the switch off for an account that does not take runs", async () => {
+  it("starts on a new service account even when accounts exist", async () => {
     serve(account())
     renderPanel(account())
+    expect(await screen.findByLabelText("Service account name")).toBeVisible()
+    expect(screen.getByLabelText("Service account")).toHaveTextContent(
+      "New service account"
+    )
+  })
+
+  it("shows the switch off for an account that does not take runs", async () => {
+    serve(account())
+    const { user } = renderPanel(account())
+    await chooseExistingAccount(user, "ci-bot")
     const toggle = await screen.findByRole("switch", {
       name: "Takes agent runs",
     })
@@ -99,6 +110,7 @@ describe("CreateKeyPanel takes agent runs", () => {
   it("sends takes_runs with the new key and nothing else when only the switch changed", async () => {
     const calls = serve(account())
     const { user } = renderPanel(account())
+    await chooseExistingAccount(user, "ci-bot")
     await user.click(
       await screen.findByRole("switch", { name: "Takes agent runs" })
     )
@@ -117,6 +129,7 @@ describe("CreateKeyPanel takes agent runs", () => {
     const current = account({ takes_runs: true })
     const calls = serve(current)
     const { user } = renderPanel(current)
+    await chooseExistingAccount(user, "ci-bot")
     const toggle = await screen.findByRole("switch", {
       name: "Takes agent runs",
     })
@@ -135,6 +148,7 @@ describe("CreateKeyPanel takes agent runs", () => {
   it("sends no update when neither role nor switch changed", async () => {
     const calls = serve(account())
     const { user } = renderPanel(account())
+    await chooseExistingAccount(user, "ci-bot")
     await screen.findByRole("switch", { name: "Takes agent runs" })
     await user.type(screen.getByLabelText("Name"), "laptop")
     await user.click(screen.getByRole("button", { name: "Create key" }))
@@ -147,7 +161,8 @@ describe("CreateKeyPanel takes agent runs", () => {
   it("locks the switch for an account from the service-accounts file", async () => {
     const current = account({ provisioned: true, takes_runs: true })
     serve(current)
-    renderPanel(current)
+    const { user } = renderPanel(current)
+    await chooseExistingAccount(user, "ci-bot")
     expect(
       await screen.findByRole("switch", { name: "Takes agent runs" })
     ).toHaveAttribute("aria-disabled", "true")

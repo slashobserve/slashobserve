@@ -18,6 +18,17 @@ type Props = {
 
 export function FolderSelect({ value, onChange, disabled, id }: Props) {
   const folders = useQuery(foldersQuery())
+  const editable = (folders.data ?? []).filter(
+    (folder) => folder.permissions.edit
+  )
+  const fallback =
+    editable.find((f) => f.personal) ?? editable.find((f) => f.general)
+  const placeholder =
+    fallback === undefined
+      ? "Default folder"
+      : fallback.personal
+        ? "My Dashboards (default, private)"
+        : `${fallback.title} (default)`
   const items = (folders.data ?? [])
     .filter((folder) => folder.permissions.edit)
     .toSorted((a, b) => Number(b.personal) - Number(a.personal))
@@ -33,7 +44,7 @@ export function FolderSelect({ value, onChange, disabled, id }: Props) {
       onValueChange={onChange}
     >
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder="Default folder" />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} align="start">
         {items.map((item) => (

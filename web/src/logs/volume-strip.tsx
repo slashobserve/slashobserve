@@ -79,7 +79,7 @@ export function VolumeStrip({
   from: string
   to: string
 }) {
-  const { update } = useLogsWorkspace()
+  const { update, results } = useLogsWorkspace()
   const volume = useQuery(logVolumeQuery(uid, { query, from, to }))
   if (volume.isError) {
     return (
@@ -89,7 +89,7 @@ export function VolumeStrip({
           <div
             role="group"
             aria-label="Levels"
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
           >
             <Button
               type="button"
@@ -120,7 +120,7 @@ export function VolumeStrip({
           className="flex h-12 items-center gap-2 text-[13px]"
         >
           <p className="min-w-0 truncate">
-            {volumeFailureText(exploreErrorText(volume.error))}
+            {volumeFailureText(exploreErrorText(volume.error), results.isError)}
           </p>
           <Button
             type="button"
@@ -144,7 +144,12 @@ export function VolumeStrip({
     )
   }
   if (volume.data === undefined) {
-    return <Skeleton aria-hidden="true" className="h-[132px] rounded-card" />
+    return (
+      <Skeleton
+        aria-hidden="true"
+        className="h-[134px] shrink-0 rounded-card"
+      />
+    )
   }
   return (
     <VolumeBars
@@ -325,7 +330,7 @@ function VolumeBars({
         <div
           role="group"
           aria-label="Levels"
-          className="flex items-center gap-1"
+          className="flex flex-wrap items-center gap-1"
         >
           <Button
             type="button"

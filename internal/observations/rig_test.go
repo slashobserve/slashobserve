@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -67,6 +68,7 @@ type rig struct {
 	db      *dbtest.Database
 	service *observations.Service
 	freezer *fakeFreezer
+	made    *fakeDashboards
 	shared  pgtype.UUID
 }
 
@@ -74,7 +76,9 @@ func newRig(t *testing.T) rig {
 	t.Helper()
 	d := dbtest.New(t)
 	freezer := &fakeFreezer{}
-	r := rig{db: d, freezer: freezer, service: observations.New(d.DB, folders.NewAccess(d.DB), freezer, nil, slog.New(slog.DiscardHandler))}
+	access := folders.NewAccess(d.DB)
+	made := &fakeDashboards{t: t, db: d}
+	r := rig{db: d, freezer: freezer, made: made, service: observations.New(d.DB, access, freezer, nil, slog.New(slog.DiscardHandler), observations.WithOutputs(made, annotations.New(d.DB, access)))}
 	for _, p := range []auth.Principal{editor, otherEditor, viewer, commenter, otherCommen, admin} {
 		d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
 	}

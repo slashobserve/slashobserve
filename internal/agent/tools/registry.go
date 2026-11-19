@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -161,6 +162,7 @@ type Deps struct {
 	LiveText       LiveText
 	Search         *search.Service
 	Stars          *stars.Service
+	Home           *homedash.Service
 	Provider       llm.Provider
 	PublicURL      *url.URL
 	Logger         *slog.Logger

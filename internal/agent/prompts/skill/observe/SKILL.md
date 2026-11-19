@@ -64,6 +64,7 @@ Send a block's version to update_block or keep_block, and a stale one answers ve
 A person who can only comment gets a requested block, which an editor keeps with keep_block or discards with discard_block; it is not live until kept.
 resolve_observation closes an observation with a one-line summary of what was found.
 publish_rca freezes it as an RCA revision without query text; it never makes a public link, because a person does that in the web app.
+pin_observation pins an observation to a dashboard as an annotation, and make_dashboard turns its panel blocks into a dashboard in My Dashboards; both can be repeated safely.
 
 ## Search logs and traces
 
