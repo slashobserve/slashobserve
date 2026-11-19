@@ -189,8 +189,6 @@ func (cm *Comments) patchComment(c *gin.Context) {
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
 	var invalid *InvalidInputError
 	switch {
-	case errors.Is(err, ErrUnknownVersion):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "version not found: that version does not exist on this dashboard, so use a number from its version list")
 	case abortKnown(c, err):
 	case errors.As(err, &invalid) && invalid.Code != "":
 		httpapi.AbortError(c, http.StatusBadRequest, invalid.Code, invalid.Message)

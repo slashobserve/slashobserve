@@ -119,6 +119,9 @@ func (cm *Comments) open(ctx context.Context, by auth.Principal, dashboardID pgt
 		PanelID: in.PanelID,
 		Body:    in.Body,
 	}, hook)
+	if errors.Is(err, ErrUnknownVersion) {
+		return Comment{}, dashboards.ErrNotFound
+	}
 	if err != nil {
 		return Comment{}, legacyError(err)
 	}
