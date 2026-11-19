@@ -8,9 +8,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-var _ datasource.PageSource = (*Datasource)(nil)
+var (
+	_ datasource.PageSource    = (*Datasource)(nil)
+	_ datasource.SortablePages = (*Datasource)(nil)
+)
 
 func (d *Datasource) PagesByOffset() bool { return true }
+
+func (d *Datasource) SortsPages() bool { return true }
 
 func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
 	page := max(req.Page, 1)
@@ -21,7 +26,12 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	)
 	err := d.readLines(ctx, req.Query, req.Range, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error {
 		lim.MaxRows = min(req.PageSize, lim.MaxRows)
-		rs, err := d.fetchWith(ctx, linesQuery(inner, datasource.Backward), lim, linesParameters(req.Range, lim.MaxRows, offset), extra)
+		if req.Sort != nil {
+			if err := d.requireSortColumn(ctx, inner, lim, extra, req.Sort.Column); err != nil {
+				return err
+			}
+		}
+		rs, err := d.fetchWith(ctx, pageQuery(inner, req.Sort), lim, linesParameters(req.Range, lim.MaxRows, offset), extra)
 		if err != nil {
 			return err
 		}

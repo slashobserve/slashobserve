@@ -32,6 +32,17 @@ export function saveTargets(folders: readonly Folder[]): {
   return { choices, initial: initial?.id ?? null }
 }
 
+export const noSaveFolderText =
+  "You cannot create in any folder, so there is nowhere to save a search."
+
+export function saveBlockedText(
+  folders: readonly Folder[] | undefined
+): string | undefined {
+  return folders !== undefined && saveTargets(folders).choices.length === 0
+    ? noSaveFolderText
+    : undefined
+}
+
 export type LogsDraft =
   { draft: SearchDraft } | { blocked: "no-query" | "pills" }
 

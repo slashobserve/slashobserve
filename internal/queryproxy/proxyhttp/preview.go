@@ -131,7 +131,7 @@ func (h *Handler) preview(c *gin.Context) {
 }
 
 func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgtype.UUID) (string, bool) {
-	if !h.requireEdit(c, principal, id) {
+	if !h.requireComment(c, principal, id) {
 		return "", false
 	}
 	uid := c.Param("uid")
@@ -142,10 +142,10 @@ func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgt
 	return uid, true
 }
 
-func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtype.UUID) bool {
+func (h *Handler) requireComment(c *gin.Context, principal auth.Principal, id pgtype.UUID) bool {
 	access, err := h.access.Dashboard(c.Request.Context(), principal, id)
 	switch {
-	case err == nil && access.Abilities.Edit:
+	case err == nil && access.Abilities.Comment:
 		return true
 	case err == nil, errors.Is(err, folders.ErrForbidden):
 		abortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)

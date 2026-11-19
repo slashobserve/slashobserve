@@ -14,6 +14,8 @@ const (
 	TypeDashboardDeleted = "dashboard.deleted"
 
 	TypeRevisionUpdated = "revision.updated"
+
+	TypeProposalUpdated = "proposal.updated"
 )
 
 type Author struct {
@@ -40,6 +42,7 @@ type Event struct {
 	CreatedAt     string  `json:"created_at,omitempty"`
 	CommentID     string  `json:"comment_id,omitempty"`
 	RevisionID    string  `json:"revision_id,omitempty"`
+	ProposalID    string  `json:"proposal_id,omitempty"`
 	PanelID       string  `json:"panel_id,omitempty"`
 	Status        string  `json:"status,omitempty"`
 	ParentID      string  `json:"parent_id,omitempty"`

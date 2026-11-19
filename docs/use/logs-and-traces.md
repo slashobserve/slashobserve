@@ -336,15 +336,18 @@ The title in the top bar reads **Traces / <source> / <root service> <root span>*
 The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
 A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
+An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
 
-The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
+When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
 
-- **Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
-- **Critical path** outlines the spans on the longest chain, the ones that add up to the trace's duration, and dims the rest; the line under the waterfall says how many spans are on it.
+- **Find in trace** matches a span's name, service, id, status message or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
+- **Critical path** outlines the chain that decides when the trace ends and dims the rest; the line under the waterfall says how many spans are on it.
+  The chain starts at the span that finishes last and includes a span that outlives its parent or starts after the parent ended, such as work the parent started and did not wait for.
 - **Errors only** dims every span that neither failed nor contains a failed span.
 - **Collapse all** folds every span with children, and **Expand all** opens them again.
 - The services legend lists each service with its colour and span count; click a service to dim its spans, and click it again to show them.
@@ -352,14 +355,16 @@ Each row is 32 pixels high with the service and operation on the left, the bar i
 
 ### Span details
 
-A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
+A click on a span shows its details in the side panel on the right, or inline under the span on a screen narrower than 900 pixels: the service and the span's kind (server, client, producer, consumer or internal), its name, its status with the message the span set, such as "card declined", its duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
+A value that reads as a number matches both the number and the same text, such as `(span.order.id = 503 || span.order.id = "503")`, because the page cannot tell whether Tempo stored the attribute as a number or as a string.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
 A span's links are listed after its events: each shows the linked trace id, which opens that trace on the same datasource at the linked span, the linked span id and the link's attributes.
 
 While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
 The waterfall keeps its full width until a span is open, j and k move between spans while the panel stays open, and Escape closes it.
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
+On a phone each row stacks the service and operation, with the duration at the right, above a thinner bar, so the whole name shows instead of its first few characters; **Logs for this trace**, **Add to dashboard** and **Add to observation** move out of the top bar into a row under the title, and the legend hint wraps instead of scrolling sideways.
 
 ### Logs for a span or trace
 
@@ -367,6 +372,7 @@ A span's details end with **Logs for this span**: the first lines that carry its
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
 **Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
+Messages wrap in the panel instead of being cut off.
 The panel replaces the span details while it is open, because the page shows one side panel at a time, and opening a span closes it.
 A ClickHouse trace reads its logs from a ClickHouse datasource and a Tempo trace from Loki; with more than one logs datasource, a select in the section picks one and the choice is remembered in the browser.
 
@@ -384,9 +390,12 @@ When Tempo did not search every block, a banner says that some spans may be miss
 
 ### Export and share
 
+A trace opened from the Logs page or from a trace search shows **Back to logs** or **Back to traces** under the top bar, which returns to that page with the same query and time range.
+A trace opened from a pasted link, a dashboard or after a reload has no such link, because the page it came from is not known.
 **Download JSON** and **Copy link** are icon buttons in the top bar, beside the time range and **Logs for this trace**.
 **Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
 **Copy link** copies the address of the trace with its datasource, time range and open span.
+**Add to dashboard** and **Add to observation**, in the top bar beside **Logs for this trace**, keep the trace: the first adds a full-width traces panel for it under the last row of a dashboard you can edit, with the datasource and the trace id, and the second copies the trace into an [observation](observations.md) as a traces panel, with the datasource, the trace id and the time range the page shows.
 The source name in the title opens the trace search on the same source at `/traces/<datasource uid>`, and a trace opened without a known source shows **Search traces** in the top bar instead.
 
 ## Trace search
@@ -399,42 +408,59 @@ As for logs, the order is set when the app loads and stays fixed until you reloa
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
 `/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
-The time range, **Live**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
-**Live** runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live** to end it.
+The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live tail**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
+**Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
+A range that starts in the future runs no search and says so; a call that reaches the datasource anyway, from the API, the CLI or MCP, is refused with `time_range_in_future` and the same sentence.
+
+Tempo refuses a search over a longer range than its `max_duration`, 7 days by default; the page then reads "Tempo searches at most 7 days at a time; pick a shorter time range" and offers **Last 7 days**, and the API answers `time_range_too_long` with the same text, so a caller can read the limit from the message and retry with a shorter range.
+The limit is named in days when it is a whole number of days, in hours when it is a whole number of hours and otherwise in minutes, and the button uses the same unit.
 On an absolute range **Live** is disabled and says "Live works on a relative time range, like the last 15 minutes.", and choosing an absolute range while it runs turns it off.
 The fields and the **Search traces** button sit in the query card, with Ctrl+Enter or Cmd+Enter as the button's shortcut.
 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
-On Tempo you can also write TraceQL, which replaces the fields, and the link under the TraceQL field opens the TraceQL reference.
+The minimum and maximum are span durations: a trace matches when a span that also fits the service and span name is that long, so a span name with a minimum of `1s` finds nothing when that span runs for 100 ms, even if a later span makes the whole trace slower.
+On Tempo you can also write TraceQL, which replaces the fields: while the TraceQL field has text the other fields are disabled, and only the TraceQL goes into the address.
+The link under the TraceQL field opens the TraceQL reference.
+On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
+The ClickHouse search has no SQL mode; to run your own SQL over `otel_traces`, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
+A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it; the API, the CLI and MCP return the same sentence, without the parser's own `$end` and doubled prefix.
 
 ### Results
 
 A count line above the results says how many traces are on the page.
-A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row.
+A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row; the dots are not keyboard stops, so Tab goes straight to the table, where each trace has one link.
 That p95 is of every trace the search matches in the range, not only the listed ones: the page asks the server for the duration distribution of the matching spans and reads the p95 as the upper edge of the bucket that holds it, so a service filter changes it.
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 
 The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
+On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range and the sort is in the address as `sort`, such as `sort=-spans`; on Tempo only the traces on the current page are sorted, and the line above the table says so.
 Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line, **Spans**, **Errors** and **Started**, which opens the trace.
 **Columns** hides a column.
+**Add to dashboard**, beside **Columns**, adds a full-width traces panel with the same query under the last row of a dashboard you can edit, as it does for logs; **Add to observation** copies the search you ran into an [observation](observations.md) as a traces panel over the time range the page shows: the TraceQL on Tempo, or on ClickHouse a query for the spans of the latest matching trace.
 **Errors** reads OK, or Failed with the number of error spans.
 **Spans** and **Errors** show only when every row carries the count.
 
-- ClickHouse lists the newest traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
+- ClickHouse lists each trace that has a matching span as a whole: the root span's service and name, the number of spans in the whole trace, and the full length of the trace from its first start to its last end, so a row agrees with the trace it opens.
+  With a filter set, a smaller "N matching" under the span count says how many of those spans matched.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
-When Tempo stopped searching at its time limit, a **Partial** note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
+When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
+The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
+
+The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces.
+On Tempo its query is TraceQL; on ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
+A statement such as `SELECT 1`, a second statement, a comment or unbalanced parentheses is refused with that example, and a condition ClickHouse cannot run is reported without the SQL the server built around it.
 
 ### Paging
 
 The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 500 per page.
 ClickHouse offers numbered pages and an exact total of matching traces.
 Tempo pages by start time from the last trace shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, and no total while a search is partial.
-The page and size are in the address as `page` and `size`, and sorting a column sorts only the traces on the current page.
-A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it.
+The page and size are in the address as `page` and `size`, and sorting a column resets to page 1.
+A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it, so **Copy link** on a Tempo source leaves the page out and a shared link opens on page 1.
 
 ### Compare selected traces
 
@@ -446,6 +472,7 @@ While a selection exists, the **What is different about the selected traces** pa
 It ranks the attribute values that appear in a larger share of the selected traces than of the other matching traces: span names, kinds, statuses and the span and resource attributes, each with its share of both sets.
 It reads every span of the newest 50 selected and 150 other loaded traces, says when it could not read them all, and keeps the weaker differences behind **Show weaker differences**.
 **Filter** on a row adds that attribute value to the search: on Tempo it appends the condition to the TraceQL, and on ClickHouse it fills the Span name or Service field, so the other attributes have no **Filter** there.
+Applying a filter, or **Keep only the selection**, switches the query card to Query so the written TraceQL or the filled fields are visible, and drops the Ask question from the address.
 
 ## Ask on the trace search
 
@@ -456,8 +483,8 @@ The mode you last chose on either page is the one both pages open in, and the tr
 
 The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
 A duration the form cannot read is left empty.
-The search runs at once, and the address keeps the question as `ask`.
-The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
+The search runs at once, and the address keeps the question as `ask` until you change a field and search again, which drops it because the fields are then your own query.
+The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min span duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
 The row under the form then shows a "From: <question>" line and **Ask again**, which brings the question back.
 
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
@@ -494,10 +521,13 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
+
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
 A folder with no saved search of that kind is not listed, and a folder's header counts its searches unless the list is cut at 100.
 Each row's menu offers **Rename...**, **Move to folder** and **Delete...** to those with Edit on it.
 The folder list offers only the folders where you can create, and a refused save shows the server's message.
+On the trace search, **Save search** is disabled and says why when you cannot create in any folder.
 
 A search is saved in a folder, which needs the Create permission there.
 Without a folder it goes to your My Dashboards, and a service account saves it in General.
@@ -528,6 +558,8 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 ```
 
 `limit` lowers the row limit and never raises it above 1,000.
+With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
+A cursor remembers the sort it was made with, so send the same `sort` with every cursor of a walk; a cursor sent without it, or with another, is refused with a message naming the sort.
 `POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 

@@ -1,4 +1,5 @@
 import { queryOptions, useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 import { ChevronDownIcon } from "lucide-react"
 
 import { api } from "@/api/client"
@@ -25,6 +26,7 @@ import {
   problemFilterLabels,
   type ProblemFilter,
 } from "@/health/health-labels"
+import { roleAtLeast } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
 import { folderText, madeByText, tagsText } from "./list-filters"
@@ -51,7 +53,13 @@ function Trigger({ children }: { children: string }) {
 }
 
 export function MadeByMenu({ value, onChange }: MenuProps) {
-  const users = useQuery({ ...usersQuery(), refetchInterval: false }).data ?? []
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const users =
+    useQuery({
+      ...usersQuery(),
+      enabled: roleAtLeast(principal.role, "admin"),
+      refetchInterval: false,
+    }).data ?? []
   return (
     <DropdownMenu>
       <Trigger>{`Made by: ${madeByText(value, users)}`}</Trigger>

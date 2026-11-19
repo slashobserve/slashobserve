@@ -48,3 +48,24 @@ func TestIssuesSuffix(t *testing.T) {
 		t.Errorf("suffix = %q", got)
 	}
 }
+
+func TestFailingPanelsSuffix(t *testing.T) {
+	cases := []struct {
+		name  string
+		ids   []string
+		other int
+		want  string
+	}{
+		{"none", nil, 0, ""},
+		{"only ids that are no panel ids", nil, 2, "; still failing: 2 more; ask the agent to fix them one panel at a time"},
+		{"one id and one that is no panel id", []string{"p1"}, 1, "; still failing: p1 and 1 more; ask the agent to fix them one panel at a time"},
+		{"one", []string{"p1"}, 0, "; still failing: p1"},
+		{"two", []string{"p1", "p2"}, 0, "; still failing: p1, p2; ask the agent to fix them one panel at a time"},
+		{"seven", []string{"a", "b", "c", "d", "e", "f", "g"}, 0, "; still failing: a, b, c, d, e and 2 more; ask the agent to fix them one panel at a time"},
+	}
+	for _, tc := range cases {
+		if got := FailingPanelsSuffix(tc.ids, tc.other); got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

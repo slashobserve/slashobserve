@@ -118,8 +118,8 @@ const (
 	propTraceFilters = `"trace_filters":{"type":"object","additionalProperties":false,"properties":{` +
 		`"service":{"type":"string","maxLength":200,"description":"Exact service name from the context."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Exact span name."},` +
-		`"min":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Minimum duration, such as 250ms."},` +
-		`"max":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Maximum duration, such as 2s."},` +
+		`"min":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Minimum span duration, such as 250ms. One span must fit this and the service and span name, so the trace itself may be longer."},` +
+		`"max":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Maximum span duration, such as 2s. One span must fit this and the service and span name."},` +
 		`"errors":{"type":"boolean","description":"Only traces with an error span."}},"description":"The trace search form's fields; set only the ones the question needs."}`
 
 	schemaCannotTranslate = `{"type":"object","properties":{"reason":{"type":"string","minLength":1,"maxLength":300,"description":"One sentence saying why the data cannot answer the question."}},"required":["reason"],"additionalProperties":false}`
