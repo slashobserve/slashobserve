@@ -47,7 +47,7 @@ func addInvite(t *testing.T, database *dbtest.Database, email, role string) {
 	database.Exec(t, "INSERT INTO user_invites (email, role, created_by_kind, created_by_id, created_by_name) VALUES ($1, $2, 'user', gen_random_uuid(), 'Ada')", email, role)
 }
 
-func roleOf(t *testing.T, database *dbtest.Database, email string) (role, source, by string) {
+func roleByEmail(t *testing.T, database *dbtest.Database, email string) (role, source, by string) {
 	t.Helper()
 	var setBy *string
 	if err := database.SQLDB(t).QueryRowContext(t.Context(), "SELECT role, role_source, manual_role_by_name FROM users WHERE email = $1", email).Scan(&role, &source, &setBy); err != nil {
@@ -79,7 +79,7 @@ func TestAVerifiedFirstSignInTakesTheInvitedRole(t *testing.T) {
 		t.Fatal(failure)
 	}
 
-	if role, source, by := roleOf(t, database, "new@example.com"); role != "viewer" || source != "manual" || by != "Ada" {
+	if role, source, by := roleByEmail(t, database, "new@example.com"); role != "viewer" || source != "manual" || by != "Ada" {
 		t.Errorf("role = %s from %s by %q, want viewer chosen by Ada", role, source, by)
 	}
 	if n := countInvites(t, database); n != 0 {
@@ -98,7 +98,7 @@ func TestAnUnverifiedSignInLeavesTheInvitePending(t *testing.T) {
 		t.Fatal(failure)
 	}
 
-	if role, source, _ := roleOf(t, database, "new@example.com"); role != "editor" || source != "default" {
+	if role, source, _ := roleByEmail(t, database, "new@example.com"); role != "editor" || source != "default" {
 		t.Errorf("role = %s from %s, want the default Editor", role, source)
 	}
 	if n := countInvites(t, database); n != 1 {
@@ -120,7 +120,7 @@ func TestAnInviteIsNotAppliedToSomeoneWhoHasSignedInBefore(t *testing.T) {
 		t.Fatal(failure)
 	}
 
-	if role, source, _ := roleOf(t, database, "lead@example.com"); role != "editor" || source != "default" {
+	if role, source, _ := roleByEmail(t, database, "lead@example.com"); role != "editor" || source != "default" {
 		t.Errorf("role = %s from %s, want Bob to keep the default Editor", role, source)
 	}
 	if n := countInvites(t, database); n != 1 {
@@ -141,13 +141,13 @@ func TestRemovingTheFirstPersonMakesNobodyElseTheFirstUser(t *testing.T) {
 	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "cy", Email: "cy@example.com"}); failure != nil {
 		t.Fatal(failure)
 	}
-	if role, source, _ := roleOf(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
+	if role, source, _ := roleByEmail(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
 		t.Fatalf("after sign-in role = %s from %s, want Cy to stay the manual Viewer", role, source)
 	}
 	if err := s.ReconcileRoles(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if role, source, _ := roleOf(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
+	if role, source, _ := roleByEmail(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
 		t.Fatalf("after reconcile role = %s from %s, want Cy to stay the manual Viewer", role, source)
 	}
 }
@@ -190,7 +190,7 @@ func TestTwoFirstSignInsAtOnceMakeOneFirstUser(t *testing.T) {
 	if failure := <-done; failure != nil {
 		t.Fatalf("the second first sign-in failed: %+v", failure)
 	}
-	if role, source, _ := roleOf(t, database, "bob@example.com"); role != "editor" || source != "default" {
+	if role, source, _ := roleByEmail(t, database, "bob@example.com"); role != "editor" || source != "default" {
 		t.Errorf("Bob's role = %s from %s, want the default Editor", role, source)
 	}
 }

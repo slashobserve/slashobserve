@@ -220,7 +220,7 @@ func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailur
 			return "", &loginFailure{code: "internal", err: err}
 		}
 	}
-	if err := s.assignRole(ctx, user, id.Groups); err != nil {
+	if err := s.assignRole(ctx, user, id.Groups, id.EmailVerified); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := opaquetoken.New("")

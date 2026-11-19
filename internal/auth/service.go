@@ -123,9 +123,12 @@ func setUserRoleParams(id pgtype.UUID, d RoleDecision) dbsqlc.SetUserRoleParams 
 	}
 }
 
-func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, groups []string) error {
+func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, groups []string, emailVerified bool) error {
+	if !emailVerified && s.cfg.RolePolicy.listsAdmin(user.Email) {
+		s.logger.WarnContext(ctx, "admin email signed in unverified", slog.String("user_id", user.ID.String()))
+	}
 	return s.inTx(ctx, func(q *dbsqlc.Queries) error {
-		decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: user.FirstUser, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
+		decision := ResolveRole(RoleInputs{Email: user.Email, EmailTrusted: emailVerified, Groups: groups, FirstUser: user.FirstUser, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
 		return s.settleRole(ctx, q, user.ID, decision, !user.Inserted)
 	})
 }
@@ -152,7 +155,8 @@ func (s *Service) ReconcileRoles(ctx context.Context) error {
 	}
 	changed := 0
 	for _, u := range users {
-		decision := ResolveRole(RoleInputs{Email: u.Email, Groups: u.Groups, FirstUser: u.FirstUser, Manual: manualRole(u.ManualRole)}, s.cfg.RolePolicy)
+		keepsAdminByEmail := RoleSource(u.RoleSource) == SourceAdminEmails
+		decision := ResolveRole(RoleInputs{Email: u.Email, EmailTrusted: keepsAdminByEmail, Groups: u.Groups, FirstUser: u.FirstUser, Manual: manualRole(u.ManualRole)}, s.cfg.RolePolicy)
 		want := setUserRoleParams(u.ID, decision)
 		if u.Role == want.Role && u.RoleSource == want.RoleSource && u.RoleGroup == want.RoleGroup {
 			continue

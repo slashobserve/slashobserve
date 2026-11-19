@@ -341,7 +341,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
-	if cred.Loopback && !isLoopbackPeer(r.RemoteAddr) {
+	if cred.Loopback && !isLoopbackPeer(r) {
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}

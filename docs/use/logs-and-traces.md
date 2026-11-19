@@ -532,7 +532,8 @@ When that check fails, it asks the model once more to fix the query, so a questi
 The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches.
 When the model cannot write a query for the question, or the fixed query still fails its check, the answer says it could not turn that into a query and why.
 
-Each person can have 3 questions in flight, and each question stops after 60 seconds.
+Each person can have 3 questions in flight and ask 60 questions per clock hour, and each question stops after 60 seconds.
+After the 60th question the answer says to wait, with the minutes left in the hour, and a service-account key counts the same way.
 Without a model configured on the server, Ask is off.
 
 ## Save a search

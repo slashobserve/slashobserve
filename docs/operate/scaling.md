@@ -61,7 +61,8 @@ Every other limit protects one server's own capacity or one caller, and stays pe
 | Activity streams | 5 per person, 500 per server | Per server | They protect the server. |
 | Live tails | 5 per person, 200 per server | Per server | They protect the server. |
 | Panel data requests in flight | 8 per caller | Per server | It caps one caller. |
-| Query drafts | 3 per caller, 10 per server | Per server | They protect the server. |
+| Query drafts in flight | 3 per caller, 10 per server | Per server | They protect the server. |
+| Query drafts started | 60 per caller per clock hour | Fleet-wide | Postgres counts them, so the model spend is capped however many servers there are. |
 | Grafana imports | 1 per caller, 4 per server | Per server | They protect the server. |
 | Agent requests running at once | `SLASHOBSERVE_AGENT_WORKERS` | Per server | The fleet runs the replica count times this. |
 | New dashboard requests queued or running | 20 in all, 3 per person | Fleet-wide | Postgres counts them. |

@@ -250,25 +250,9 @@ func (s *Service) createKey(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req struct {
-		Name      string     `json:"name"`
-		ExpiresAt *time.Time `json:"expires_at"`
-	}
-	if !decodeBody(c, &req) {
+	name, expiresAt, ok := decodeKeyRequest(c)
+	if !ok {
 		return
-	}
-	if n := utf8.RuneCountInString(req.Name); n < 1 || n > maxKeyNameLength || hasControlChars(req.Name) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "name must be 1 to 64 characters without control characters")
-		return
-	}
-	var expiresAt pgtype.Timestamptz
-	if req.ExpiresAt != nil {
-		now := time.Now()
-		if !req.ExpiresAt.After(now) || req.ExpiresAt.After(now.Add(maxKeyLifetime)) {
-			abortError(c, http.StatusBadRequest, "invalid_request", "expires_at must be in the future and within 366 days")
-			return
-		}
-		expiresAt = pgtype.Timestamptz{Time: *req.ExpiresAt, Valid: true}
 	}
 	token, hash, err := opaquetoken.New(keyPrefix)
 	if err != nil {
@@ -283,9 +267,12 @@ func (s *Service) createKey(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if account.Provisioned {
+			return errProvisioned
+		}
 		if row, err = q.CreateServiceAccountKey(ctx, dbsqlc.CreateServiceAccountKeyParams{
 			ServiceAccountID: accountID,
-			Name:             req.Name,
+			Name:             name,
 			DisplayPrefix:    token[:displayPrefixLength],
 			TokenHash:        hash,
 			CreatedBy:        callerID(c),
@@ -295,6 +282,10 @@ func (s *Service) createKey(c *gin.Context) {
 		}
 		return s.changes.KeyCreated(ctx, q, caller, account, row)
 	})
+	if errors.Is(err, errProvisioned) {
+		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
+		return
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		abortError(c, http.StatusNotFound, "not_found", "service account not found")
 		return
@@ -304,6 +295,29 @@ func (s *Service) createKey(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"key": newKeyJSON(row, time.Now()), "token": token})
+}
+
+func decodeKeyRequest(c *gin.Context) (string, pgtype.Timestamptz, bool) {
+	var req struct {
+		Name      string     `json:"name"`
+		ExpiresAt *time.Time `json:"expires_at"`
+	}
+	if !decodeBody(c, &req) {
+		return "", pgtype.Timestamptz{}, false
+	}
+	if n := utf8.RuneCountInString(req.Name); n < 1 || n > maxKeyNameLength || hasControlChars(req.Name) {
+		abortError(c, http.StatusBadRequest, "invalid_request", "name must be 1 to 64 characters without control characters")
+		return "", pgtype.Timestamptz{}, false
+	}
+	if req.ExpiresAt == nil {
+		return req.Name, pgtype.Timestamptz{}, true
+	}
+	now := time.Now()
+	if !req.ExpiresAt.After(now) || req.ExpiresAt.After(now.Add(maxKeyLifetime)) {
+		abortError(c, http.StatusBadRequest, "invalid_request", "expires_at must be in the future and within 366 days")
+		return "", pgtype.Timestamptz{}, false
+	}
+	return req.Name, pgtype.Timestamptz{Time: *req.ExpiresAt, Valid: true}, true
 }
 
 func (s *Service) listKeys(c *gin.Context) {

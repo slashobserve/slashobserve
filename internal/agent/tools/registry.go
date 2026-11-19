@@ -162,6 +162,7 @@ type Deps struct {
 	Stars         *stars.Service
 	Home          *homedash.Service
 	Provider      llm.Provider
+	DraftBudget   DraftBudget
 	PublicURL     *url.URL
 	Logger        *slog.Logger
 }
@@ -251,8 +252,10 @@ type draftLimiter struct {
 	byCaller map[string]int
 }
 
+func principalKey(p auth.Principal) string { return string(p.Kind) + ":" + p.ID }
+
 func (r *Registry) acquireDraft(p auth.Principal) (release func(), err error) {
-	key := string(p.Kind) + ":" + p.ID
+	key := principalKey(p)
 	l := &r.drafts
 	l.mu.Lock()
 	defer l.mu.Unlock()

@@ -11,10 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -93,7 +91,7 @@ func dashboardUID(link, base string) (string, bool) {
 	return segments[1], true
 }
 
-func (s *Service) FetchLink(ctx context.Context, by auth.Principal, link string) (LinkedDashboard, error) {
+func (s *Service) FetchLink(ctx context.Context, link string) (LinkedDashboard, error) {
 	if _, ok := parseWebURL(link); !ok {
 		return LinkedDashboard{}, ErrNotDashboardLink
 	}
@@ -108,7 +106,7 @@ func (s *Service) FetchLink(ctx context.Context, by auth.Principal, link string)
 		}
 		hostMatched = true
 		if uid, ok := dashboardUID(link, conn.URL); ok {
-			return s.fetchDashboard(ctx, by, conn, uid)
+			return s.fetchDashboard(ctx, conn, uid)
 		}
 	}
 	if hostMatched {
@@ -117,16 +115,13 @@ func (s *Service) FetchLink(ctx context.Context, by auth.Principal, link string)
 	return LinkedDashboard{}, ErrNoMatchingConnection
 }
 
-func (s *Service) fetchDashboard(ctx context.Context, by auth.Principal, conn Connection, uid string) (LinkedDashboard, error) {
+func (s *Service) fetchDashboard(ctx context.Context, conn Connection, uid string) (LinkedDashboard, error) {
 	id, err := db.ParseUUID(conn.ID)
 	if err != nil {
 		return LinkedDashboard{}, err
 	}
 	_, client, err := s.client(ctx, id)
 	if err != nil {
-		return LinkedDashboard{}, err
-	}
-	if err := s.saveOnAllowedHost(ctx, by, client.base.Hostname(), func(*dbsqlc.Queries) error { return nil }); err != nil {
 		return LinkedDashboard{}, err
 	}
 	raw, _, err := client.dashboard(ctx, uid)
@@ -148,6 +143,9 @@ func (s *Service) fetchFailure(ctx context.Context, connectionID string, err err
 	var status *egress.StatusError
 	if errors.As(err, &status) && status.Status == http.StatusNotFound {
 		return ErrDashboardNotFound
+	}
+	if errors.Is(err, egress.ErrNotAllowed) {
+		return err
 	}
 	if !clientgone.Is(ctx, err) {
 		s.logger.WarnContext(ctx, "fetch grafana dashboard from a link", logattrs.Failure("grafana_link_fetch_failed", err, slog.String("connection_id", connectionID))...)
