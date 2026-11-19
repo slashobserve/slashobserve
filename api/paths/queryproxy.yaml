@@ -38,7 +38,8 @@ dashboards-id-versions-version-panels-panel-id-data:
       Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel.
       A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran.
       Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run.
-      The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query.
+      The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query; without one, a Prometheus datasource's `scrapeInterval` is, because a shorter step only repeats samples.
+      `$__interval` and `$__rate_interval` follow the step each query ran with, which `meta.queries[].step_ms` reports.
       A failing query fails the whole request, and the error names it in `ref`.
       Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
     parameters:
