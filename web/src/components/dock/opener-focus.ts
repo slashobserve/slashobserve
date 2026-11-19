@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react"
 
-export function useOpenerFocus(card: RefObject<HTMLElement | null>) {
+export function useOpenerFocus(
+  card: RefObject<HTMLElement | null>,
+  fallback?: () => HTMLElement | null
+) {
   const opener = useRef<HTMLElement | null>(null)
 
   const remember = useCallback(() => {
@@ -17,12 +20,12 @@ export function useOpenerFocus(card: RefObject<HTMLElement | null>) {
   useEffect(remember, [remember])
 
   const restore = useCallback(() => {
-    const from = opener.current
-    if (from === null) return
-    requestAnimationFrame(() => {
-      if (from.isConnected) from.focus()
-    })
-  }, [])
+    const outside = (element: HTMLElement | null | undefined) =>
+      element?.isConnected === true && !card.current?.contains(element)
+    const remembered = opener.current
+    const target = outside(remembered) ? remembered : fallback?.()
+    if (outside(target)) target?.focus()
+  }, [card, fallback])
 
   return { remember, restore }
 }

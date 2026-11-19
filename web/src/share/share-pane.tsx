@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { shareButtonId } from "@/dashboards/pane-openers"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
 import { PublicLinksSection } from "@/public/public-links-section"
@@ -222,6 +223,7 @@ export function ShareToggle({
 }) {
   return (
     <button
+      id={shareButtonId}
       type="button"
       aria-pressed={pressed}
       disabled={disabled}

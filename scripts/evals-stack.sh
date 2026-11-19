@@ -45,7 +45,9 @@ Usage: scripts/evals-stack.sh <command>
 up returns once Prometheus serves what the stack itself guarantees: node_uname_info for the node
 and node-exporter (synthetic) jobs, rates of node_cpu_seconds_total (node job) and the shop's
 http_requests_total, the synth exporter, and the synth samples of the history a retime step needs.
-It waits for rates because they need two scrapes, about 30 seconds after the containers are healthy.
+It waits for two scrapes between 60 and 15 seconds ago, so a one-minute rate exists at the newest
+point of a range query stepped at the 15 second scrape interval, about 45 seconds after the containers
+are healthy.
 That history counts from Prometheus starting to scrape, so it is the last thing up waits for.
 --no-history returns without them; wait-history then blocks until they are there, so work that
 does not read them can run while they accumulate.
@@ -132,8 +134,8 @@ SERIES_TIMEOUT_SLACK=120
 SYNTH_SCRAPE_SECONDS=15
 NODE_SERIES_QUERIES=(
   'count(node_uname_info{job="node"})'
-  'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
-  'count(rate(http_requests_total[1m]))'
+  'count(count_over_time(node_cpu_seconds_total{job="node"}[45s] offset 15s) >= 2)'
+  'count(count_over_time(http_requests_total[45s] offset 15s) >= 2)'
 )
 SYNTH_SERIES_QUERIES=(
   'count(node_uname_info{job="node-exporter"})'

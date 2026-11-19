@@ -246,9 +246,11 @@ func (r exploreRequest) values() url.Values {
 	if r.Timezone != nil {
 		q.Set(paramTimezone, *r.Timezone)
 	}
+	points := queryproxy.AgentMaxDataPoints
 	if r.MaxDataPoints != nil {
-		q.Set(paramMaxDataPoints, strconv.Itoa(*r.MaxDataPoints))
+		points = *r.MaxDataPoints
 	}
+	q.Set(paramMaxDataPoints, strconv.Itoa(points))
 	return q
 }
 

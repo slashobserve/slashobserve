@@ -15,16 +15,18 @@ import { Conversation } from "./conversation"
 export function ChatPane({
   requestId,
   onClose,
+  opener,
 }: {
   requestId: string
   onClose?: () => void
+  opener?: () => HTMLElement | null
 }) {
   const { bounds, width, stacked } = useChatPaneLayout()
   const setChatWidth = useActivityStore((state) => state.setChatWidth)
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const pane = useRef<HTMLElement>(null)
-  const { restore } = useOpenerFocus(pane)
+  const { restore } = useOpenerFocus(pane, opener)
   const request = useObserveRequest(requestId).data
   const dashboardId = request?.dashboard_id ?? null
   const revisions = useQuery({
@@ -33,11 +35,16 @@ export function ChatPane({
   })
   const latest =
     request === undefined ? undefined : latestTurn(request, revisions.data)
+  const close =
+    onClose === undefined
+      ? undefined
+      : () => {
+          restore()
+          onClose()
+        }
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape" || event.defaultPrevented) return
-    if (onClose === undefined) return
-    onClose()
-    restore()
+    close?.()
   }
 
   return (
@@ -55,7 +62,7 @@ export function ChatPane({
         headingRef={heading}
         title="Chat"
         description={latest === undefined ? undefined : runStateText(latest)}
-        onClose={onClose}
+        onClose={close}
         closeLabel="Close panel"
       />
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-3">

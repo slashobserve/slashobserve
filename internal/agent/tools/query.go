@@ -26,7 +26,6 @@ const (
 	maxVariables       = 20
 	defaultFrom        = "now-1h"
 	defaultTo          = "now"
-	defaultDataPoints  = 200
 	minDataPoints      = 10
 	maxDataPoints      = 1000
 	maxTimeExprBytes   = 64
@@ -162,7 +161,7 @@ func (r *Registry) queryRange(ctx context.Context, input json.RawMessage) (Resul
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	points, res, ok := boundedInt(in.MaxDataPoints, defaultDataPoints, minDataPoints, maxDataPoints, "max_data_points")
+	points, res, ok := boundedInt(in.MaxDataPoints, queryproxy.AgentMaxDataPoints, minDataPoints, maxDataPoints, "max_data_points")
 	if !ok {
 		return res, nil
 	}
