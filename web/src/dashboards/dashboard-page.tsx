@@ -1114,6 +1114,8 @@ function DashboardView({
                 dashboardId={dashboardId}
                 spec={envelopeSpec}
                 version={envelopeVersion}
+                folder={envelope.dashboard.folder}
+                folders={folders}
                 open={detailsOpen}
                 onOpenChange={setDetailsOpen}
                 finalFocus={() => findMoreMenuButton() ?? true}

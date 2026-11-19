@@ -95,7 +95,7 @@ An agent does the same with one `move_dashboard` call for each dashboard.
 
 The **More** button at the right of a dashboard's header opens:
 
-- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
+- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version, and has a **Folder** menu of the shared folders you can edit: choosing another one moves the dashboard, after the new version when you changed both, and a move alone saves no version.
 - **Add panel**, when a datasource is configured, adds a panel, see [Edit a panel](edit-panel.md).
 - **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
 - **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
