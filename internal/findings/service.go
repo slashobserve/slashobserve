@@ -226,16 +226,23 @@ func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgty
 	return levels.Visible(), nil
 }
 
-func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
+func (s *Service) pinnable(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
 	f, err := s.Get(ctx, by, id)
+	switch {
+	case err != nil:
+		return Finding{}, err
+	case !f.Saved():
+		return Finding{}, ErrNotSaved
+	case f.DashboardID == "":
+		return Finding{}, ErrNoDashboard
+	}
+	return f, nil
+}
+
+func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
+	f, err := s.pinnable(ctx, by, id)
 	if err != nil {
 		return annotations.Annotation{}, false, err
-	}
-	if !f.Saved() {
-		return annotations.Annotation{}, false, ErrNotSaved
-	}
-	if f.DashboardID == "" {
-		return annotations.Annotation{}, false, ErrNoDashboard
 	}
 	if f.AnnotationID != "" {
 		a, err := s.pinned(ctx, f)
