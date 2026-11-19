@@ -374,7 +374,7 @@ For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `o
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
 Merging needs Edit on the dashboard and a connection that is not in propose mode, and it runs the queries of the panels it changes like any save.
 
-`bin/observe proposals discard <proposal-id>` closes the proposal without saving it and prints `Discarded`.
+`bin/observe proposals discard <proposal-id> [--reason <text>]` closes the proposal without saving it and prints `Discarded`; `--reason` (up to 500 characters) is shown on the proposal, and printed by `proposals show`.
 Its author may discard it, and so may anyone who may merge it.
 
 `-q` hides the confirmation of `merge` and `discard`, and `--json` prints the API response unchanged.
@@ -717,9 +717,7 @@ Add `--json` to any command to get the API response as it is.
 
 ## Permission errors
 
-A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
-When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+A refusal with the code `forbidden_role` and the message "your role does not allow this" gets a hint that an Admin can change the key's role on the API keys page.
 
-When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
-The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
-Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
+A dashboard the key cannot see answers `not_found`, like a dashboard that does not exist.
+A key matches no access list entry, because entries name people and groups, so it sees a restricted folder only as an Admin service account or as the service account that created the folder, as described in [Folders](../teams/folders.md).

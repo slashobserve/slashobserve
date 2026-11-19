@@ -18,6 +18,6 @@ export const roleLabels: Record<Role, string> = {
 export const roleDescriptions: Record<Role, string> = {
   admin: "Everything, plus people, API keys, datasources and folder access.",
   editor: "Create and change dashboards and send work to the agent.",
-  commenter: "View dashboards and comment on them.",
-  viewer: "View dashboards only.",
+  commenter: "View and comment. Build your own in My Dashboards.",
+  viewer: "View dashboards. Build your own in My Dashboards.",
 }

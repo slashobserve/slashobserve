@@ -69,7 +69,7 @@ It draws the panel in the type you chose, and reports its state:
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
 A preview is limited like the agent's draft queries: 15 seconds, 200 series, 100,000 points and 1,000 rows, and it is never cached.
-It runs for the signed-in person only, not for service-account keys.
+It runs for a signed-in person who can comment on the dashboard, so a Commenter sees it too while suggesting an edit, and not for service-account keys.
 If the datasource is slow or busy, the preview says so ("The datasource is not answering.", "Too many requests right now. The preview runs again in a moment.", or "Query A failed: it took too long to run.") and the draft stays as it is.
 
 ### Ask the agent for a query
@@ -154,7 +154,7 @@ Some edits are refused whatever the JSON says:
 ## Save as a new version
 
 The footer states what you changed: "No changes", "2 changes: query, title", or "Fix the JSON to save.".
-**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`.
+**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`, where `<title>` is the panel's saved title before your change.
 **Discard** drops the draft.
 
 The save button reads "Save as version 4" when you are on the latest version, 3.
@@ -163,8 +163,11 @@ The save runs every panel query of the dashboard, not just yours, as the agent's
 A panel that was already unverified and still fails is kept, marked "Unverified" with the reason it failed when it was saved.
 On success the toast reads "Saved version 4" and you return to the timeline.
 
-If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
-It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
+If someone saves a version while you edit, the editor says who saved it ("Ada saved version 4 while you were editing.") and the button becomes "Save my changes as version 5".
+The header keeps the title the panel had when you started, so it agrees with your draft.
+When you and that version changed the same things, the notice lists them, with both values for a title, datasource, panel type or unit ("title: version 4 has "A", yours is "B""); saving keeps your values for those and version 4's for everything else.
+When nothing overlaps, it says so.
+The button saves at once: it applies your change to that version's copy of the panel, and if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
 The toast then reads "Saved version 5, merged with changes made since version 3".

@@ -34,3 +34,19 @@ describe("parseEvent dashboard.deleted", () => {
     ).toBeNull()
   })
 })
+
+describe("parseEvent proposal.updated", () => {
+  it("reads the dashboard id", () => {
+    expect(
+      parseEvent(
+        "proposal.updated",
+        JSON.stringify({
+          type: "proposal.updated",
+          dashboard_id: "d1",
+          proposal_id: "p1",
+          status: "merged",
+        })
+      )
+    ).toEqual({ type: "proposal.updated", dashboardId: "d1" })
+  })
+})

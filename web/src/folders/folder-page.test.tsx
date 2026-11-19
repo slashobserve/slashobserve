@@ -236,6 +236,35 @@ describe("FolderPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("tells someone with View access what they can do in an empty folder instead of offering the chat", async () => {
+    mockServer(
+      folder({
+        dashboard_count: 0,
+        level: "view",
+        permissions: {
+          comment: false,
+          edit: false,
+          manage: false,
+          create: false,
+        },
+      }),
+      []
+    )
+    renderFolderPage()
+
+    expect(
+      await screen.findByText(
+        "Your access: View. Someone with Edit on Shop adds dashboards here."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Open the chat" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Import from Grafana" })
+    ).not.toBeInTheDocument()
+  })
+
   it("lists the folder's observations and saved searches below its dashboards", async () => {
     const listed = mockServer(folder(), [checkout], {
       observations: [slowCheckout],

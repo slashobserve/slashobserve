@@ -23,7 +23,8 @@ They come in four kinds:
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".
@@ -53,7 +54,7 @@ A comment is attached to the latest version when you write it.
 A comment that mentions no agent never asks an agent to do anything.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
-Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
+Without it you see "You can view dashboards in `<folder>`. Ask an Admin of this folder, or of this server, to give you Comment access."
 With Comment but not Edit you see "You can view and comment in `<folder>`. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
@@ -110,9 +111,9 @@ An external agent can pick the comment up over [MCP](mcp.md).
 "Link to this dashboard" copies the address of the dashboard.
 It carries the time range and the variable values you are looking at, and each has a checkbox to leave it out.
 "Link to one panel" picks a data or text panel by title and copies a link that opens the dashboard with that panel focused, expanding its row if the row is collapsed.
-A link grants nothing: the person who opens it signs in, and sees "You don't have access to this dashboard" when the dashboard's folder is not open to them.
+A link grants nothing: the person who opens it signs in, and sees "Dashboard not found" when the dashboard's folder is not open to them, the same page as for a link with a wrong id.
 "Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
-People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
+People who can manage a folder other than General also get a **Manage folder access** button; everyone else sees who can add people and create public links, namely the people who manage that folder; see [Folders](../teams/folders.md).
 
 ## Resolve and reopen
 

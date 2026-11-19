@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -48,12 +50,14 @@ type Proposal struct {
 	Item
 	Spec      *spec.Dashboard
 	Changes   []spec.UnitChange
+	Diff      []spec.Change
 	Conflicts []spec.Conflict
 }
 
 type ListQuery struct {
 	DashboardID pgtype.UUID
 	State       string
+	RunID       pgtype.UUID
 	Limit       int
 	Cursor      string
 }
@@ -219,7 +223,10 @@ func insertProposal(ctx context.Context, q *dbsqlc.Queries, in dashboards.Propos
 }
 
 func addRevision(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID, title string, dashboardID pgtype.UUID, next revisionContent, who actor.Actor) (dashboards.ProposalRef, error) {
-	revision, err := q.AdvanceProposalRevision(ctx, id)
+	if summary := truncate(next.summary, maxTitleRunes); summary != "" {
+		title = summary
+	}
+	revision, err := q.AdvanceProposalRevision(ctx, dbsqlc.AdvanceProposalRevisionParams{ID: id, Title: title})
 	if err != nil {
 		return dashboards.ProposalRef{}, fmt.Errorf("advance proposal revision: %w", err)
 	}
@@ -288,6 +295,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (P
 		Item:      s.itemFor(ctx, by, h, access.Abilities, latest.Number),
 		Spec:      &headSpec,
 		Changes:   spec.Changes(base, &headSpec),
+		Diff:      spec.Diff(base, &headSpec),
 		Conflicts: []spec.Conflict{},
 	}
 	if p.State == StateOpen && p.Behind {
@@ -305,7 +313,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, q ListQuery) (Pag
 	if err != nil {
 		return Page{}, err
 	}
-	params := dbsqlc.ListDashboardProposalsParams{DashboardID: q.DashboardID}
+	params := dbsqlc.ListDashboardProposalsParams{DashboardID: q.DashboardID, RunID: q.RunID}
 	switch q.State {
 	case "", string(StateOpen):
 		params.State = pgtype.Text{String: string(StateOpen), Valid: true}
@@ -388,7 +396,7 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		return Proposal{}, err
 	}
 	merged := func(ctx context.Context, q *dbsqlc.Queries, version *int) error {
-		if err := closeProposal(ctx, q, h, StateMerged, cols); err != nil {
+		if err := closeProposal(ctx, q, h, StateMerged, cols, ""); err != nil {
 			return err
 		}
 		return appendEvent(ctx, q, activity.TypeProposalMerged, who, h.row.ID, h.row.DashboardID, mergedEventData{Title: h.row.Title, Revision: int(h.row.Revision), Version: version})
@@ -431,7 +439,14 @@ func (s *Service) lost(ctx context.Context, id pgtype.UUID, can func(lifecycle.W
 	return &ChangedError{Revision: int(h.row.Revision)}
 }
 
-func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID) (Proposal, error) {
+func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID, reason string) (Proposal, error) {
+	reason = strings.TrimSpace(reason)
+	if utf8.RuneCountInString(reason) > maxReasonRunes {
+		return Proposal{}, &dashboards.InvalidInputError{Message: fmt.Sprintf("reason must be at most %d characters", maxReasonRunes)}
+	}
+	if strings.ContainsRune(reason, 0) {
+		return Proposal{}, &dashboards.InvalidInputError{Message: "reason must not contain the NUL character"}
+	}
 	h, access, err := s.load(ctx, by, id)
 	if err != nil {
 		return Proposal{}, err
@@ -449,7 +464,7 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 		return Proposal{}, err
 	}
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := closeProposal(ctx, q, h, StateDiscarded, cols); err != nil {
+		if err := closeProposal(ctx, q, h, StateDiscarded, cols, reason); err != nil {
 			return err
 		}
 		return appendEvent(ctx, q, activity.TypeProposalDiscarded, who, h.row.ID, h.row.DashboardID, eventData{Title: h.row.Title, Revision: int(h.row.Revision)})
