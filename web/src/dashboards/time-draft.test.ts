@@ -27,8 +27,7 @@ describe("readDraft", () => {
   it("blames From when the range is longer than 400 days", () => {
     expect(readDraft("1700000000", "now", undefined).problem).toEqual({
       field: "from",
-      message:
-        "The range is longer than 400 days. Choose a From closer to To.",
+      message: "The range is longer than 400 days. Choose a From closer to To.",
     })
   })
 
