@@ -33,6 +33,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 import {
   actionsColumn,
   dashboardColumns,
+  folderColumn,
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
@@ -67,11 +68,18 @@ import {
   pageRange,
   withOffset,
 } from "./list-pages"
+import { SortMenu } from "./sort-menu"
 
 const skeletonRows = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
-const listColumns = [...dashboardColumns, actionsColumn]
+const groupedColumns = [...dashboardColumns, actionsColumn]
+const flatColumns = [
+  dashboardColumns[0],
+  folderColumn,
+  ...dashboardColumns.slice(1),
+  actionsColumn,
+]
 const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
 function useDashboardList(search: ListSearch, page: number) {
@@ -92,7 +100,7 @@ function useDashboardList(search: ListSearch, page: number) {
               tag: filters.tags,
               folder: filters.folder,
               problem: filters.problem,
-              order: "folder",
+              order: filters.order ?? "folder",
             },
           },
           signal,
@@ -105,10 +113,10 @@ function useDashboardList(search: ListSearch, page: number) {
   })
 }
 
-function useListTable(data: DashboardSummary[]) {
+function useListTable(data: DashboardSummary[], flat: boolean) {
   return useTable({
     features: listFeatures,
-    columns: listColumns,
+    columns: flat ? flatColumns : groupedColumns,
     data,
     getRowId: dashboardRowId,
   })
@@ -203,6 +211,12 @@ function FilterRow({
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
       />
+      {search.kind === importedFilter ? null : (
+        <SortMenu
+          value={search.sort}
+          onChange={(sort) => onSearchChange({ ...search, sort })}
+        />
+      )}
       <span className="ml-auto flex items-center gap-x-2 text-xs text-muted-foreground">
         <span role="status" className="flex items-center gap-x-2">
           {summary}
@@ -224,6 +238,23 @@ function FilterRow({
       </span>
     </div>
   )
+}
+
+function flatRows(table: ListTable): ReactNode[] {
+  return table.getRowModel().rows.map((row) => (
+    <tr key={row.id} data-dashboard-id={row.id} className="group/row">
+      {row.getAllCells().map((cell) => (
+        <Cell
+          key={cell.id}
+          data-cell={cell.column.id === actionsColumn.id ? "action" : undefined}
+          data-label={cell.column.columnDef.meta?.stackedLabel}
+          className={cell.column.columnDef.meta?.cellClassName}
+        >
+          <table.FlexRender cell={cell} />
+        </Cell>
+      ))}
+    </tr>
+  ))
 }
 
 function sectionRows(
@@ -317,7 +348,8 @@ export function DashboardList({
   )
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
-  const table = useListTable(dashboards)
+  const flat = search.sort === "views"
+  const table = useListTable(dashboards, flat)
   const allFolders = folderResult.data
   const folders = useMemo(
     () =>
@@ -335,15 +367,19 @@ export function DashboardList({
   const clampTo = settled ? pageOutOfRange(page, total) : null
   const sections = useMemo(
     () =>
-      loaded && folders !== undefined && clampTo === null
+      !flat && loaded && folders !== undefined && clampTo === null
         ? groupPage(folders, dashboards, {
             offset: dataOffset,
             total,
             filtered,
           })
         : null,
-    [loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
+    [flat, loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
   )
+  const ready = flat
+    ? loaded && folders !== undefined && clampTo === null
+    : sections !== null
+  const rowCount = flat ? dashboards.length : (sections?.length ?? 0)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const noDashboards =
     folders !== undefined &&
@@ -353,10 +389,10 @@ export function DashboardList({
     !filtered &&
     clampTo === null &&
     (folderLocked || !hasPeopleFolders(folders))
-  const empty = sections !== null && (noDashboards || sections.length === 0)
+  const empty = ready && (noDashboards || rowCount === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending
-  const showTable = pending || clampTo !== null || (sections !== null && !empty)
+  const showTable = pending || clampTo !== null || (ready && !empty)
   const failedQuery = query.isError
     ? query
     : folderResult.isError
@@ -366,11 +402,11 @@ export function DashboardList({
   const retryRef = useRef<HTMLButtonElement>(null)
   const focusIntent = useRef<number | null>(null)
 
-  const { q, made_by: madeBy, datasource, folder, kind } = search
+  const { q, made_by: madeBy, datasource, folder, kind, sort } = search
   const tags = search.tag?.join(",")
   useEffect(() => {
     focusIntent.current = null
-  }, [q, madeBy, datasource, tags, folder, kind])
+  }, [q, madeBy, datasource, tags, folder, kind, sort])
 
   useEffect(() => {
     if (clampTo === null) return
@@ -410,11 +446,11 @@ export function DashboardList({
   const range = pageRange(page, total)
   const summary = query.isPaused
     ? "Offline. The list loads when you are back online."
-    : query.isPlaceholderData || sections === null
+    : query.isPlaceholderData || !ready
       ? undefined
-      : folderLocked && pageCount === 1
+      : (folderLocked || flat) && pageCount === 1
         ? dashboardCountText(total)
-        : listSummary(total, sections.length, page)
+        : listSummary(total, sections?.length ?? 0, page)
 
   const offerImported =
     roleAtLeast(principal.role, "editor") || kind === importedFilter
@@ -546,8 +582,10 @@ export function DashboardList({
             <tbody
               aria-busy={pending || query.isPlaceholderData || clampTo !== null}
             >
-              {sections === null ? (
+              {!ready ? (
                 <SkeletonRows table={table} />
+              ) : sections === null ? (
+                flatRows(table)
               ) : (
                 sectionRows(
                   sections,

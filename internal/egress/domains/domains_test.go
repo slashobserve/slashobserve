@@ -141,3 +141,30 @@ func TestNormalizeHost(t *testing.T) {
 		}
 	}
 }
+
+func TestRefusalsNameTheBrokenRule(t *testing.T) {
+	cases := map[string]string{
+		"":                             "enter a domain",
+		"localhost":                    "at least two parts",
+		"*.com":                        "top-level",
+		"a.*.example.com":              "first part",
+		"https://example.com":          "without a scheme",
+		"example.com/feed":             "without a scheme",
+		"user@example.com":             "user name",
+		"127.0.0.1":                    "IP address",
+		"[::1]":                        "IP address",
+		"x.com:443":                    "without a port",
+		"a b.com":                      "spaces",
+		"-a.example.com":               "hyphen",
+		"a..example.com":               "empty part",
+		"under_score.example.com":      "letters, digits, hyphens and dots",
+		strings.Repeat("a", 64) + ".x": "63 characters",
+	}
+	for entry, want := range cases {
+		_, err := ParsePattern(entry)
+		var invalid *InvalidError
+		if !errors.As(err, &invalid) || !strings.Contains(invalid.Reason, want) {
+			t.Errorf("ParsePattern(%q) error = %v, want a reason containing %q", entry, err, want)
+		}
+	}
+}

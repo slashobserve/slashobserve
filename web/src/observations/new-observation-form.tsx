@@ -18,11 +18,12 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { FolderSelect } from "./folder-select"
 import {
   dashboardPanelBody,
+  linkLabel,
   logsLinkBody,
   noteLinks,
   traceLinkBody,
+  type LinkOutcome,
   type NoteLink,
-  type PanelBlockBody,
 } from "./note-links"
 import { useAddBlockTo, type useCreateObservation } from "./queries"
 
@@ -47,26 +48,45 @@ function titleError(title: string): string | null {
   return textError("title", title, lineRule(maxTitleLength))
 }
 
+const reasonsShown = 3
+
 function unaddedLinksText(count: number): string {
   return count === 1
     ? "1 link in the note could not be added as a block."
     : `${count} links in the note could not be added as blocks.`
 }
 
+function unaddedLinksReasons(reasons: readonly string[]): string {
+  const shown = reasons.slice(0, reasonsShown).join(" ")
+  const more = reasons.length - reasonsShown
+  return more > 0 ? `${shown} And ${more} more.` : shown
+}
+
+async function datasourceType(
+  queryClient: QueryClient,
+  uid: string
+): Promise<string | undefined> {
+  const listed = await queryClient.ensureQueryData(datasourcesQuery())
+  return listed.datasources.find((one) => one.uid === uid)?.type
+}
+
 async function linkBody(
   queryClient: QueryClient,
   link: NoteLink
-): Promise<PanelBlockBody | null> {
+): Promise<LinkOutcome> {
   const now = Date.now()
   switch (link.kind) {
     case "logs": {
-      if (link.search.f === undefined) return logsLinkBody(link, undefined, now)
-      const listed = await queryClient.ensureQueryData(datasourcesQuery())
-      const type = listed.datasources.find((one) => one.uid === link.uid)?.type
-      return logsLinkBody(link, type, now)
+      if (link.search.f === undefined) {
+        return { body: logsLinkBody(link, undefined, now) }
+      }
+      const type = await datasourceType(queryClient, link.uid)
+      return { body: logsLinkBody(link, type, now) }
     }
-    case "trace":
-      return traceLinkBody(link, now)
+    case "trace": {
+      const type = await datasourceType(queryClient, link.uid)
+      return { body: traceLinkBody(link, type, now) }
+    }
     case "panel": {
       const envelope = await queryClient.fetchQuery(
         latestDashboardQuery(queryClient, link.dashboardId)
@@ -90,24 +110,28 @@ function useStartFollowUps() {
     links: NoteLink[]
     prompt: string | null
   }) {
-    let failed = 0
+    const reasons: string[] = []
     for (const link of input.links) {
       try {
-        const body = await linkBody(queryClient, link)
-        if (body === null) {
-          failed += 1
+        const outcome = await linkBody(queryClient, link)
+        if ("reason" in outcome) {
+          reasons.push(`${linkLabel(link)}: ${outcome.reason}`)
           continue
         }
         await addBlock.mutateAsync({
           observationId: input.observationId,
           kind: "panel",
-          body,
+          body: outcome.body,
         })
-      } catch {
-        failed += 1
+      } catch (error) {
+        reasons.push(`${linkLabel(link)}: ${loadProblemText(error)}`)
       }
     }
-    if (failed > 0) toast.error(unaddedLinksText(failed))
+    if (reasons.length > 0) {
+      toast.error(unaddedLinksText(reasons.length), {
+        description: unaddedLinksReasons(reasons),
+      })
+    }
     if (input.prompt === null) return
     try {
       await observe.mutateAsync({

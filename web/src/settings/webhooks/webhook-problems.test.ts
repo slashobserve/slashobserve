@@ -13,6 +13,7 @@ import {
 const valid = {
   name: "Failed runs",
   url: "https://hooks.example.com/in",
+  format: "generic" as const,
   events: ["run.failed" as const],
 }
 
@@ -54,6 +55,9 @@ describe("webhookProblems", () => {
     expect(url("https://user:pw@hooks.example.com")).toMatch(/user name/)
     expect(url("https://hooks.example.com/x#frag")).toMatch(/fragment/)
     expect(url("https://hooks.example.com:443/x")).toBeUndefined()
+    expect(url("https://localhost/x")).toMatch(/public domain name/)
+    expect(url("https://127.0.0.1/x")).toMatch(/IP addresses are refused/)
+    expect(url("https://[::1]/x")).toMatch(/public domain name/)
     expect(url("https://hooks.example.com/" + "a".repeat(2048))).toMatch(
       /at most 2048/
     )

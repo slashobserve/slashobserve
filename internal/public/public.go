@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -196,6 +197,18 @@ func storedSelections(selections map[string][]string) ([]byte, error) {
 	return json.Marshal(selections)
 }
 
+func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
+	var row dbsqlc.CreatePublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if row, err = q.CreatePublicLink(ctx, params); err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	})
+	return row, err
+}
+
 func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in CreateInput) (Created, error) {
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
@@ -236,7 +249,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	row, err := s.db.Queries().CreatePublicLink(ctx, dbsqlc.CreatePublicLinkParams{
+	row, err := s.insertLink(ctx, by, dbsqlc.CreatePublicLinkParams{
 		DashboardID:   dashboardID,
 		TokenHash:     hash,
 		DisplayPrefix: displayPrefix(token),
@@ -294,14 +307,21 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, dashboardID, li
 	if err := s.manage(ctx, by, dashboardID); err != nil {
 		return err
 	}
-	n, err := s.db.Queries().DeletePublicLink(ctx, dbsqlc.DeletePublicLinkParams{ID: linkID, DashboardID: dashboardID})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := recordLink(ctx, q, activity.TypePublicLinkRevoked, by, linkID); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		n, err := q.DeletePublicLink(ctx, dbsqlc.DeletePublicLinkParams{ID: linkID, DashboardID: dashboardID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *Service) Resolve(ctx context.Context, token string) (Resolved, error) {

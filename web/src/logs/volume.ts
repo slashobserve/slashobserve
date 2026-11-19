@@ -132,8 +132,9 @@ export function selectionText(
   return `Selected ${start} to ${end}, ${lineCount(lines)}`
 }
 
-export function volumeFailureText(reason: string): string {
-  return `The volume query did not finish (${reason.replace(/\.$/, "")}). The lines below are complete.`
+export function volumeFailureText(reason: string, linesFailed = false): string {
+  const text = `The volume query did not finish (${reason.replace(/\.$/, "")}).`
+  return linesFailed ? text : `${text} The lines below are complete.`
 }
 
 export function volumeLabel(total: number, totals: VolumeTotals): string {

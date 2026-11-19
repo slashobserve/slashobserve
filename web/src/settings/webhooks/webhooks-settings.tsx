@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ type Props = {
 
 export function WebhooksSettings({ panel, onPanel }: Props) {
   const query = useQuery(webhooksQuery())
+  const { principal } = useRouteContext({ from: "/_authed" })
   const [revealed, setRevealed] = useState<Revealed | null>(null)
   const addButton = useRef<HTMLButtonElement>(null)
   const editing =
@@ -83,6 +85,7 @@ export function WebhooksSettings({ panel, onPanel }: Props) {
           <WebhooksCard
             webhooks={query.data}
             editingId={editing?.id ?? null}
+            meId={principal.id}
             onEdit={(webhookId) => onPanel({ kind: "webhook-edit", webhookId })}
             onSecret={(webhookName, secret) =>
               setRevealed({ webhookName, secret })

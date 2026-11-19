@@ -72,7 +72,7 @@ export function PeopleTable() {
                 >
                   {initials(user.name, user.email).slice(0, 1)}
                 </span>
-                <span className="font-medium wrap-anywhere">{user.name}</span>
+                <span className="font-medium wrap-break-word">{user.name}</span>
               </span>
             </Cell>
             <Cell className="text-muted-foreground">{user.email}</Cell>

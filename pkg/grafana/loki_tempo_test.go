@@ -436,3 +436,31 @@ func TestLokiDatasourceVariable(t *testing.T) {
 	}
 	wantNote(t, res, "logs", "No Loki datasource is configured.")
 }
+
+func lokiVariableDoc(allValue, expr string) string {
+	return fmt.Sprintf(`{"title":"T","schemaVersion":39,
+"templating":{"list":[{"name":"svc","type":"custom","query":"a,b","includeAll":true,"allValue":%q,"current":{"text":"All","value":"$__all"}}]},
+"panels":[{"id":1,"title":"T","type":"logs","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":%s,"targets":[{"refId":"A","expr":%q}]}]}`, allValue, lokiRef, expr)
+}
+
+func TestAnEmptyCompatibleAllValueUsedByALokiQueryIsReported(t *testing.T) {
+	res := convertDoc(t, lokiVariableDoc(".*", `{app=~"$svc"}`))
+	if !slices.ContainsFunc(res.Report.Notes, func(n Note) bool {
+		return n.Subject == "variable svc" && n.Reason == lokiEmptyAllValueReason
+	}) {
+		t.Fatalf("notes = %+v, want the empty-compatible All value reported", res.Report.Notes)
+	}
+}
+
+func TestANonEmptyAllValueOrAnUnusedVariableIsNotReported(t *testing.T) {
+	for name, doc := range map[string]string{
+		"dot plus":   lokiVariableDoc(".+", `{app=~"$svc"}`),
+		"unused":     lokiVariableDoc(".*", `{app="web"}`),
+		"prometheus": panelOn(`{"type":"prometheus","uid":"prom"}`, "timeseries", `{"refId":"A","expr":"up{job=~\"$svc\"}"}`),
+	} {
+		res := convertDoc(t, doc)
+		if slices.ContainsFunc(res.Report.Notes, func(n Note) bool { return n.Reason == lokiEmptyAllValueReason }) {
+			t.Errorf("%s: notes = %+v, want no All value note", name, res.Report.Notes)
+		}
+	}
+}

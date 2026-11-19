@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
 
-import { languageFor } from "./extensions"
+import { languageFor, nameCompletions } from "./extensions"
 import { lintLines } from "./lint-lines"
 import { serverLinter, type LintResult } from "./server-lint"
 import "./query-editor.css"
@@ -24,6 +24,7 @@ type Props = {
   editorRef?: Ref<CodeEditorHandle>
   autoFocus?: boolean
   onFocus?: () => void
+  completionNames?: readonly string[]
 }
 
 const appearance = Prec.highest(
@@ -56,11 +57,14 @@ export function CodeEditor({
   editorRef,
   autoFocus = false,
   onFocus,
+  completionNames,
 }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const access = useRef(new Compartment())
   const label = useRef(new Compartment())
+  const names = useRef(new Compartment())
+  const initialNames = useRef(completionNames)
   const refocus = useRef(autoFocus)
   const latest = useRef({
     value,
@@ -96,6 +100,7 @@ export function CodeEditor({
           appearance,
           access.current.of(accessMode(current.readOnly)),
           label.current.of(labelAttributes(current.ariaLabel)),
+          names.current.of(nameCompletions(initialNames.current ?? [])),
           EditorView.domEventHandlers({
             focus: () => {
               latest.current.onFocus?.()
@@ -129,6 +134,15 @@ export function CodeEditor({
       effects: label.current.reconfigure(labelAttributes(ariaLabel)),
     })
   }, [ariaLabel])
+
+  useEffect(() => {
+    initialNames.current = completionNames
+    viewRef.current?.dispatch({
+      effects: names.current.reconfigure(
+        nameCompletions(completionNames ?? [])
+      ),
+    })
+  }, [completionNames])
 
   useEffect(() => {
     const view = viewRef.current

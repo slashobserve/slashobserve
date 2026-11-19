@@ -7,6 +7,7 @@ import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { roleLabels } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
 import { canRevokeKey, expiryState } from "./key-status"
@@ -29,6 +30,7 @@ function Header() {
       <tr>
         <HeaderCell>Name</HeaderCell>
         <HeaderCell>Key</HeaderCell>
+        <HeaderCell>Role</HeaderCell>
         <HeaderCell>Created by</HeaderCell>
         <HeaderCell>Last used</HeaderCell>
         <HeaderCell>Expires</HeaderCell>
@@ -52,7 +54,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
         <tbody aria-busy="true">
           {[0, 1, 2].map((index) => (
             <tr key={index}>
-              <Cell colSpan={6}>
+              <Cell colSpan={7}>
                 <Skeleton className="h-8 w-full" />
               </Cell>
             </tr>
@@ -103,7 +105,8 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
 
   const names = new Map(users.data?.map((user) => [user.id, user.name]))
 
-  function createdBy(id: string | null): string {
+  function createdBy(id: string | null, provisioned: boolean): string {
+    if (provisioned) return "Service accounts file"
     if (users.isError) return "-"
     if (id === null) return "Unknown"
     return names.get(id) ?? "Unknown"
@@ -123,6 +126,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                   <div className="font-medium wrap-anywhere">{key.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {account.name}
+                    {account.provisioned ? " - from file" : null}
                   </div>
                 </Cell>
                 <Cell>
@@ -130,11 +134,14 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                     {key.display_prefix}…
                   </span>
                 </Cell>
+                <Cell data-label="Role" className="text-muted-foreground">
+                  {roleLabels[account.role]}
+                </Cell>
                 <Cell data-label="Created by" className="text-muted-foreground">
-                  {users.isPending ? (
+                  {users.isPending && !account.provisioned ? (
                     <Skeleton className="h-4 w-16" />
                   ) : (
-                    createdBy(key.created_by)
+                    createdBy(key.created_by, account.provisioned)
                   )}
                 </Cell>
                 <Cell data-label="Last used" className="text-muted-foreground">
@@ -144,7 +151,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                   <StatusLabel tone={state.tone}>{state.text}</StatusLabel>
                 </Cell>
                 <Cell data-cell="action" className="text-right">
-                  {canRevokeKey(key) ? (
+                  {canRevokeKey(key, account) ? (
                     <RevokeKeyButton
                       account={account}
                       serviceKey={key}
@@ -157,7 +164,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
           })}
           {keys.loadingMore ? (
             <tr>
-              <Cell colSpan={6}>
+              <Cell colSpan={7}>
                 <Skeleton className="h-8 w-full" />
               </Cell>
             </tr>

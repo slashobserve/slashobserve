@@ -221,6 +221,28 @@ func TestARevisionWithAUserScopedSnapshotHasNoLink(t *testing.T) {
 	}
 }
 
+func TestAnOlderRevisionsViewNamesTheNewestRevisionAndTheNewestNamesNone(t *testing.T) {
+	r := newRCARig(t)
+	id := r.published(t)
+	first := r.createLink(t, id, 1, CreateRCAInput{})
+	view, err := r.service.ViewRCA(t.Context(), first.Token)
+	if err != nil || view.SupersededBy != nil {
+		t.Fatalf("the only revision: %+v, %v", view, err)
+	}
+	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+		t.Fatal(err)
+	}
+	second := r.createLink(t, id, 2, CreateRCAInput{})
+	old, err := r.service.ViewRCA(t.Context(), first.Token)
+	if err != nil || old.SupersededBy == nil || *old.SupersededBy != 2 {
+		t.Errorf("revision 1 after revision 2: %+v, %v", old, err)
+	}
+	newest, err := r.service.ViewRCA(t.Context(), second.Token)
+	if err != nil || newest.SupersededBy != nil {
+		t.Errorf("revision 2: %+v, %v", newest, err)
+	}
+}
+
 func TestAnObservationHasAtMostTwentyLinksAcrossItsRevisions(t *testing.T) {
 	r := newRCARig(t)
 	id := r.published(t)

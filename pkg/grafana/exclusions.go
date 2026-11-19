@@ -24,6 +24,7 @@ type excludedOption struct {
 var (
 	decisionAlertRules               = decision{"alert-rules", "Alert rules are not part of SlashObserve."}
 	decisionAnnotations              = decision{"annotations", "Annotations are not part of SlashObserve."}
+	decisionAnnotationQueries        = decision{"annotation-queries", "Annotation queries are not imported; SlashObserve annotations are added with the CLI, the HTTP API or an MCP client."}
 	decisionLive                     = decision{"live", "Grafana Live streaming is not part of SlashObserve."}
 	decisionLogContext               = decision{"log-context", "Log context is not part of SlashObserve."}
 	decisionScopes                   = decision{"scopes", "Grafana scopes are not part of SlashObserve."}
@@ -79,7 +80,7 @@ var (
 )
 
 var decisions = []decision{
-	decisionAlertRules, decisionAnnotations, decisionLive, decisionLogContext, decisionScopes,
+	decisionAlertRules, decisionAnnotations, decisionAnnotationQueries, decisionLive, decisionLogContext, decisionScopes,
 	decisionGrafanaImages, decisionInfinity, decisionExploreLinks, decisionDataEditing, decisionFieldCSS,
 	decisionDashboardListHistory, decisionHeatmapSelection, decisionValueAxisPlacement, decisionTimeCompare,
 	decisionBarGaugeLegend, decisionGaugeLayout, decisionLogScrolling, decisionTableMapCells,
@@ -239,7 +240,7 @@ var excludedOptions = slices.Concat(
 		onVariable("query", excludedOption{path: "query", when: findsFields, decision: decisionElasticFieldVariables}),
 		anyVariable(excludedOption{path: "hide", values: []any{3}, decision: decisionControlsMenu}),
 
-		onDashboard(excludedOption{path: "annotations.list[]", decision: decisionAnnotations}),
+		onDashboard(excludedOption{path: "annotations.list[]", decision: decisionAnnotationQueries}),
 		onDashboard(excludedOption{path: "snapshot", decision: decisionSnapshots}),
 		onDashboard(excludedOption{path: "editable", values: []any{false}, decision: decisionReadOnlyDashboards}),
 		onDashboard(excludedOption{path: "links[].icon", decision: decisionLinkPlacement}),

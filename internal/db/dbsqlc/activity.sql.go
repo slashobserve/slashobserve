@@ -126,11 +126,15 @@ WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND ($5::uuid IS NULL OR a.dashboard_id = $5::uuid)
   AND ($6::uuid IS NULL OR a.folder_id = $6::uuid)
   AND ($7::uuid IS NULL OR a.observation_id = $7::uuid)
-  AND (cardinality($8::text[]) = 0 OR a.type = ANY($8::text[]))
-  AND ($9::timestamptz IS NULL OR a.created_at >= $9::timestamptz)
-  AND (NOT $10::boolean OR (a.xid, a.seq) < ($11::xid8, $12::bigint))
+  AND ($2::boolean OR a.type <> ALL($8::text[]))
+  AND (NOT $9::boolean OR a.type = ANY($10::text[]))
+  AND ($11::uuid IS NULL OR a.actor_id = $11::uuid)
+  AND (cardinality($12::text[]) = 0 OR a.type = ANY($12::text[]))
+  AND ($13::timestamptz IS NULL OR a.created_at >= $13::timestamptz)
+  AND ($14::timestamptz IS NULL OR a.created_at <= $14::timestamptz)
+  AND (NOT $15::boolean OR (a.xid, a.seq) < ($16::xid8, $17::bigint))
 ORDER BY a.xid DESC, a.seq DESC
-LIMIT $13
+LIMIT $18
 `
 
 type ListActivityParams struct {
@@ -141,8 +145,13 @@ type ListActivityParams struct {
 	DashboardID   pgtype.UUID
 	FolderID      pgtype.UUID
 	ObservationID pgtype.UUID
+	AdminTypes    []string
+	AdminOnly     bool
+	AuditTypes    []string
+	ActorID       pgtype.UUID
 	Types         []string
 	Since         pgtype.Timestamptz
+	Until         pgtype.Timestamptz
 	HasCursor     bool
 	CursorXid     pgtype.Uint64
 	CursorSeq     int64
@@ -159,8 +168,13 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]A
 		arg.DashboardID,
 		arg.FolderID,
 		arg.ObservationID,
+		arg.AdminTypes,
+		arg.AdminOnly,
+		arg.AuditTypes,
+		arg.ActorID,
 		arg.Types,
 		arg.Since,
+		arg.Until,
 		arg.HasCursor,
 		arg.CursorXid,
 		arg.CursorSeq,
@@ -212,11 +226,15 @@ WHERE a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND ($5::uuid IS NULL OR a.dashboard_id = $5::uuid)
   AND ($6::uuid IS NULL OR a.folder_id = $6::uuid)
   AND ($7::uuid IS NULL OR a.observation_id = $7::uuid)
-  AND (cardinality($8::text[]) = 0 OR a.type = ANY($8::text[]))
-  AND ($9::timestamptz IS NULL OR a.created_at >= $9::timestamptz)
-  AND (a.xid, a.seq) > ($10::xid8, $11::bigint)
+  AND ($2::boolean OR a.type <> ALL($8::text[]))
+  AND (NOT $9::boolean OR a.type = ANY($10::text[]))
+  AND ($11::uuid IS NULL OR a.actor_id = $11::uuid)
+  AND (cardinality($12::text[]) = 0 OR a.type = ANY($12::text[]))
+  AND ($13::timestamptz IS NULL OR a.created_at >= $13::timestamptz)
+  AND ($14::timestamptz IS NULL OR a.created_at <= $14::timestamptz)
+  AND (a.xid, a.seq) > ($15::xid8, $16::bigint)
 ORDER BY a.xid, a.seq
-LIMIT $12
+LIMIT $17
 `
 
 type ListActivityAfterParams struct {
@@ -227,8 +245,13 @@ type ListActivityAfterParams struct {
 	DashboardID   pgtype.UUID
 	FolderID      pgtype.UUID
 	ObservationID pgtype.UUID
+	AdminTypes    []string
+	AdminOnly     bool
+	AuditTypes    []string
+	ActorID       pgtype.UUID
 	Types         []string
 	Since         pgtype.Timestamptz
+	Until         pgtype.Timestamptz
 	AfterXid      pgtype.Uint64
 	AfterSeq      int64
 	RowLimit      int32
@@ -244,8 +267,13 @@ func (q *Queries) ListActivityAfter(ctx context.Context, arg ListActivityAfterPa
 		arg.DashboardID,
 		arg.FolderID,
 		arg.ObservationID,
+		arg.AdminTypes,
+		arg.AdminOnly,
+		arg.AuditTypes,
+		arg.ActorID,
 		arg.Types,
 		arg.Since,
+		arg.Until,
 		arg.AfterXid,
 		arg.AfterSeq,
 		arg.RowLimit,

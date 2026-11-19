@@ -55,7 +55,7 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at
+RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
 type ClaimWebhookParams struct {
@@ -86,6 +86,7 @@ func (q *Queries) ClaimWebhook(ctx context.Context, arg ClaimWebhookParams) (Web
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 	)
 	return i, err
 }
@@ -171,7 +172,7 @@ func (q *Queries) FailWebhook(ctx context.Context, arg FailWebhookParams) (int64
 }
 
 const getWebhook = `-- name: GetWebhook :one
-SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, coalesce(u.name, sa.name, '')::text AS owner_name
+SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, w.format, coalesce(u.name, sa.name, '')::text AS owner_name
 FROM webhooks w
 LEFT JOIN users u ON w.owner_kind = 'user' AND u.id = w.owner_id
 LEFT JOIN service_accounts sa ON w.owner_kind = 'service_account' AND sa.id = w.owner_id
@@ -197,6 +198,7 @@ type GetWebhookRow struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 	OwnerName           string
 }
 
@@ -222,13 +224,14 @@ func (q *Queries) GetWebhook(ctx context.Context, id pgtype.UUID) (GetWebhookRow
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 		&i.OwnerName,
 	)
 	return i, err
 }
 
 const getWebhookForUpdate = `-- name: GetWebhookForUpdate :one
-SELECT id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at FROM webhooks WHERE id = $1 FOR UPDATE
+SELECT id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format FROM webhooks WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetWebhookForUpdate(ctx context.Context, id pgtype.UUID) (Webhook, error) {
@@ -253,20 +256,22 @@ func (q *Queries) GetWebhookForUpdate(ctx context.Context, id pgtype.UUID) (Webh
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 	)
 	return i, err
 }
 
 const insertWebhook = `-- name: InsertWebhook :one
-INSERT INTO webhooks (id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at
+INSERT INTO webhooks (id, name, url, format, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
 type InsertWebhookParams struct {
 	ID               pgtype.UUID
 	Name             string
 	Url              string
+	Format           string
 	SecretCiphertext []byte
 	EventTypes       []string
 	OwnerKind        string
@@ -280,6 +285,7 @@ func (q *Queries) InsertWebhook(ctx context.Context, arg InsertWebhookParams) (W
 		arg.ID,
 		arg.Name,
 		arg.Url,
+		arg.Format,
 		arg.SecretCiphertext,
 		arg.EventTypes,
 		arg.OwnerKind,
@@ -307,6 +313,7 @@ func (q *Queries) InsertWebhook(ctx context.Context, arg InsertWebhookParams) (W
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 	)
 	return i, err
 }
@@ -401,7 +408,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 }
 
 const listWebhooks = `-- name: ListWebhooks :many
-SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, coalesce(u.name, sa.name, '')::text AS owner_name
+SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, w.format, coalesce(u.name, sa.name, '')::text AS owner_name
 FROM webhooks w
 LEFT JOIN users u ON w.owner_kind = 'user' AND u.id = w.owner_id
 LEFT JOIN service_accounts sa ON w.owner_kind = 'service_account' AND sa.id = w.owner_id
@@ -427,6 +434,7 @@ type ListWebhooksRow struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 	OwnerName           string
 }
 
@@ -458,6 +466,7 @@ func (q *Queries) ListWebhooks(ctx context.Context) ([]ListWebhooksRow, error) {
 			&i.DisabledReason,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Format,
 			&i.OwnerName,
 		); err != nil {
 			return nil, err
@@ -520,7 +529,7 @@ const renewWebhookLease = `-- name: RenewWebhookLease :one
 UPDATE webhooks
 SET lease_until = clock_timestamp() + make_interval(secs => $1::double precision)
 WHERE id = $2 AND lease_id = $3 AND disabled_at IS NULL
-RETURNING url, event_types, secret_ciphertext, owner_kind, owner_id
+RETURNING url, format, event_types, secret_ciphertext, owner_kind, owner_id
 `
 
 type RenewWebhookLeaseParams struct {
@@ -531,6 +540,7 @@ type RenewWebhookLeaseParams struct {
 
 type RenewWebhookLeaseRow struct {
 	Url              string
+	Format           string
 	EventTypes       []string
 	SecretCiphertext []byte
 	OwnerKind        string
@@ -542,6 +552,7 @@ func (q *Queries) RenewWebhookLease(ctx context.Context, arg RenewWebhookLeasePa
 	var i RenewWebhookLeaseRow
 	err := row.Scan(
 		&i.Url,
+		&i.Format,
 		&i.EventTypes,
 		&i.SecretCiphertext,
 		&i.OwnerKind,
@@ -553,27 +564,18 @@ func (q *Queries) RenewWebhookLease(ctx context.Context, arg RenewWebhookLeasePa
 const setWebhookSecret = `-- name: SetWebhookSecret :one
 UPDATE webhooks
 SET secret_ciphertext = $1,
-  owner_kind = $2,
-  owner_id = $3,
   updated_at = now()
-WHERE id = $4
-RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at
+WHERE id = $2
+RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
 type SetWebhookSecretParams struct {
 	SecretCiphertext []byte
-	OwnerKind        string
-	OwnerID          pgtype.UUID
 	ID               pgtype.UUID
 }
 
 func (q *Queries) SetWebhookSecret(ctx context.Context, arg SetWebhookSecretParams) (Webhook, error) {
-	row := q.db.QueryRow(ctx, setWebhookSecret,
-		arg.SecretCiphertext,
-		arg.OwnerKind,
-		arg.OwnerID,
-		arg.ID,
-	)
+	row := q.db.QueryRow(ctx, setWebhookSecret, arg.SecretCiphertext, arg.ID)
 	var i Webhook
 	err := row.Scan(
 		&i.ID,
@@ -594,29 +596,56 @@ func (q *Queries) SetWebhookSecret(ctx context.Context, arg SetWebhookSecretPara
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 	)
 	return i, err
+}
+
+const skipWebhookEvent = `-- name: SkipWebhookEvent :execrows
+UPDATE webhooks
+SET cursor_xid = $1,
+  cursor_seq = $2,
+  consecutive_failures = 0,
+  next_attempt_at = clock_timestamp(),
+  updated_at = now()
+WHERE id = $3
+`
+
+type SkipWebhookEventParams struct {
+	CursorXid pgtype.Uint64
+	CursorSeq int64
+	ID        pgtype.UUID
+}
+
+func (q *Queries) SkipWebhookEvent(ctx context.Context, arg SkipWebhookEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, skipWebhookEvent, arg.CursorXid, arg.CursorSeq, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateWebhook = `-- name: UpdateWebhook :one
 UPDATE webhooks
 SET name = $1,
   url = $2,
-  event_types = $3,
-  owner_kind = $4,
-  owner_id = $5,
-  consecutive_failures = $6,
-  next_attempt_at = $7,
-  disabled_at = $8,
-  disabled_reason = $9,
+  format = $3,
+  event_types = $4,
+  owner_kind = $5,
+  owner_id = $6,
+  consecutive_failures = $7,
+  next_attempt_at = $8,
+  disabled_at = $9,
+  disabled_reason = $10,
   updated_at = now()
-WHERE id = $10
-RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at
+WHERE id = $11
+RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
 type UpdateWebhookParams struct {
 	Name                string
 	Url                 string
+	Format              string
 	EventTypes          []string
 	OwnerKind           string
 	OwnerID             pgtype.UUID
@@ -631,6 +660,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 	row := q.db.QueryRow(ctx, updateWebhook,
 		arg.Name,
 		arg.Url,
+		arg.Format,
 		arg.EventTypes,
 		arg.OwnerKind,
 		arg.OwnerID,
@@ -660,6 +690,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 		&i.DisabledReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Format,
 	)
 	return i, err
 }

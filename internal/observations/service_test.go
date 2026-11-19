@@ -43,7 +43,7 @@ func TestCreatingNeedsCreateInTheFolder(t *testing.T) {
 	if o.State != observations.StateOpen || o.FolderID != r.shared.String() || o.Title != "Checkout 5xx" || o.Summary != "" || o.ThreadID != "" {
 		t.Errorf("created %+v", o)
 	}
-	if !slices.Equal(o.AllowedActions, []observations.Action{observations.ActionUpdate, observations.ActionMove, observations.ActionResolve, observations.ActionPublish}) {
+	if !slices.Equal(o.AllowedActions, []observations.Action{observations.ActionUpdate, observations.ActionMove, observations.ActionResolve, observations.ActionPublish, observations.ActionDelete}) {
 		t.Errorf("allowed actions %v", o.AllowedActions)
 	}
 	if o.Actor.ID != editor.ID || o.Actor.Name != "Eve" {
@@ -451,6 +451,42 @@ func TestUpdatingChangesTheTitleAndTheRangeAndClearsItOnRequest(t *testing.T) {
 	}
 }
 
+func TestRenamingRecordsTheTitleBeforeAndAChangeOfRangeDoesNot(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	title := "Renamed"
+	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{ClearRange: true}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data FROM activity WHERE observation_id = $1::uuid AND type = 'observation.updated' ORDER BY seq`, o.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []map[string]any
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(raw, &data); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, data)
+	}
+	if len(got) != 2 || got[0]["from_title"] != o.Title || got[0]["title"] != "Renamed" {
+		t.Fatalf("rename event %v, want from_title %q", got, o.Title)
+	}
+	if _, has := got[1]["from_title"]; has || got[1]["title"] != "Renamed" {
+		t.Errorf("range event %v carries from_title", got[1])
+	}
+}
+
 func TestEveryWriteAppendsExactlyOneActivityRowOfTheObservationTarget(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
@@ -590,6 +626,119 @@ func TestListingShowsOnlyVisibleFoldersFiltersAndPages(t *testing.T) {
 	}
 	if got, _, _ := r.service.List(t.Context(), viewer, observations.ListFilter{}, 10, ""); got[0].Blocks != nil {
 		t.Error("a list item carries blocks")
+	}
+}
+
+func TestListingSearchesTheTitleFiltersByAuthorAndSorts(t *testing.T) {
+	r := newRig(t)
+	create := func(by auth.Principal, title string) observations.Observation {
+		o, err := r.service.Create(t.Context(), by, observations.CreateInput{FolderID: r.shared, Title: title})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return o
+	}
+	beta := create(editor, "Beta latency")
+	alpha := create(otherEditor, "alpha 100% errors")
+	gamma := create(editor, "Gamma_queue")
+	list := func(filter observations.ListFilter) []string {
+		t.Helper()
+		got, err := r.service.Page(t.Context(), viewer, filter, 10, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ids(got.Observations)
+	}
+	if got, want := list(observations.ListFilter{Query: "LATENCY"}), []string{beta.ID}; !slices.Equal(got, want) {
+		t.Errorf("a case-insensitive title search found %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Query: "100%"}), []string{alpha.ID}; !slices.Equal(got, want) {
+		t.Errorf("a percent sign is literal: %v, want %v", got, want)
+	}
+	if got := list(observations.ListFilter{Query: "a_b"}); len(got) != 0 {
+		t.Errorf("an underscore is literal: %v", got)
+	}
+	if got, want := list(observations.ListFilter{Query: "_queue"}), []string{gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("an underscore matches itself: %v, want %v", got, want)
+	}
+	mine, err := r.service.Page(t.Context(), editor, observations.ListFilter{CreatedByMe: true}, 10, 0)
+	if err != nil || mine.Total != 2 || !slices.Equal(ids(mine.Observations), []string{gamma.ID, beta.ID}) {
+		t.Errorf("opened by me %v of %d, %v", ids(mine.Observations), mine.Total, err)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortTitle, Ascending: true}), []string{alpha.ID, beta.ID, gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("by title %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortCreated, Ascending: true}), []string{beta.ID, alpha.ID, gamma.ID}; !slices.Equal(got, want) {
+		t.Errorf("oldest first %v, want %v", got, want)
+	}
+	if got, want := list(observations.ListFilter{Sort: observations.SortTitle}), []string{gamma.ID, beta.ID, alpha.ID}; !slices.Equal(got, want) {
+		t.Errorf("by title descending %v, want %v", got, want)
+	}
+}
+
+func TestPagesCarryTheTotalAndTheRequestedSlice(t *testing.T) {
+	r := newRig(t)
+	var created []string
+	for range 5 {
+		created = append(created, r.create(t, editor, r.shared).ID)
+	}
+	slices.Reverse(created)
+	second, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 2)
+	if err != nil || second.Total != 5 || !slices.Equal(ids(second.Observations), created[2:4]) {
+		t.Errorf("second page %v of %d, %v", ids(second.Observations), second.Total, err)
+	}
+	past, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 10)
+	if err != nil || past.Total != 5 || len(past.Observations) != 0 {
+		t.Errorf("a page past the end %v of %d, %v", ids(past.Observations), past.Total, err)
+	}
+	if _, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{Sort: observations.SortTitle}, 2, "AAAA"); err == nil {
+		t.Error("a cursor with another order was accepted")
+	}
+}
+
+func TestDeletingRemovesTheObservationWithItsPartsAndKeepsTheActivity(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "a")
+	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.Get(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+		t.Errorf("get after delete: %v", err)
+	}
+	var blocks int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1::uuid`, o.ID).Scan(&blocks); err != nil || blocks != 0 {
+		t.Errorf("%d blocks left, %v", blocks, err)
+	}
+	got := r.activityTypes(t, o)
+	if len(got) == 0 || got[len(got)-1] != activity.TypeObservationDeleted {
+		t.Errorf("activity %v does not end with the delete", got)
+	}
+	if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+		t.Errorf("deleting twice: %v", err)
+	}
+}
+
+func TestOnlyTheAuthorWhoEditsOrAManagerDeletes(t *testing.T) {
+	r := newRig(t)
+	own := r.create(t, editor, r.shared)
+	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+		t.Errorf("another editor deleting: %v", err)
+	}
+	if err := r.service.Delete(t.Context(), viewer, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+		t.Errorf("a viewer deleting: %v", err)
+	}
+	if err := r.service.Delete(t.Context(), editor, mustUUID(t, own.ID)); err != nil {
+		t.Errorf("the author who edits: %v", err)
+	}
+	other := r.create(t, otherEditor, r.shared)
+	if err := r.service.Delete(t.Context(), admin, mustUUID(t, other.ID)); err != nil {
+		t.Errorf("a manager of the folder: %v", err)
+	}
+	mine := r.create(t, otherEditor, r.personalFolder(t, otherEditor))
+	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, mine.ID)); err != nil {
+		t.Errorf("the owner of My Dashboards: %v", err)
 	}
 }
 
@@ -785,5 +934,128 @@ func TestATextBlockStoredBeforeTheTextRuleCanStillBeResentUnchanged(t *testing.T
 	_, err = r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: same.Version, Body: textBody(legacy + "\x07")})
 	if !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
 		t.Fatalf("a changed body with a bell: %v", err)
+	}
+}
+
+func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "live")
+	asked, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("asked")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.addText(t, editor, o, "after")
+	askedPanel, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	withIt := []string{"live", "asked", "after", ""}
+	without := []string{"live", "after"}
+	for _, c := range []struct {
+		name string
+		by   auth.Principal
+		want []string
+	}{
+		{"its author", commenter, withIt},
+		{"an editor", editor, withIt},
+		{"another editor", otherEditor, withIt},
+		{"an admin", admin, withIt},
+		{"a viewer", viewer, without},
+		{"another commenter", otherCommen, without},
+	} {
+		if got := r.positions(t, c.by, o); !slices.Equal(got, c.want) {
+			t.Errorf("%s sees %v, want %v", c.name, got, c.want)
+		}
+	}
+	for _, by := range []auth.Principal{viewer, otherCommen} {
+		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); !errors.Is(err, observations.ErrNotFound) {
+			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
+		}
+	}
+	for _, by := range []auth.Principal{commenter, editor} {
+		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); err != nil {
+			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
+		}
+	}
+
+	if _, err := r.service.KeepBlock(t.Context(), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.positions(t, viewer, o); !slices.Equal(got, []string{"live", "asked", "after"}) {
+		t.Errorf("a viewer sees %v after the editor kept it", got)
+	}
+}
+
+func TestDeletingWaitsForTheRunsOfTheObservationToEnd(t *testing.T) {
+	r := newRig(t)
+	about := r.dashboard(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	var run string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
+VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []string{"queued", "running"} {
+		r.db.Exec(t, `UPDATE agent_requests SET state = $2, status = $2 WHERE id = $1::uuid`, run, state)
+		if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrRunInProgress) {
+			t.Fatalf("delete while %s: %v", state, err)
+		}
+	}
+	if _, err := r.service.Get(t.Context(), editor, id); err != nil {
+		t.Fatalf("the observation went with the refused delete: %v", err)
+	}
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'stopped' WHERE id = $1::uuid`, run)
+	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+		t.Fatalf("delete after the run ended: %v", err)
+	}
+}
+
+func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	a := r.addText(t, editor, o, "a")
+	hidden, err := r.service.AddBlock(t.Context(), otherCommen, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("someone else's suggestion")})
+	if err != nil || hidden.State != observations.BlockRequested {
+		t.Fatalf("suggest: %+v %v", hidden, err)
+	}
+	b := r.addText(t, editor, o, "b")
+	order := func(by auth.Principal) []string {
+		got, err := r.service.Get(t.Context(), by, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]string, len(got.Blocks))
+		for i, block := range got.Blocks {
+			ids[i] = block.ID
+			if block.Position != i {
+				t.Errorf("block %d of %s reads position %d", i, by.Name, block.Position)
+			}
+		}
+		return ids
+	}
+	if got := order(commenter); !slices.Equal(got, []string{a.ID, b.ID}) {
+		t.Fatalf("what the commenter reads: %v", got)
+	}
+
+	at := 2
+	mine, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("mine"), Position: &at})
+	if err != nil || mine.Position != 2 {
+		t.Fatalf("add at the end the commenter sees: position %d: %v", mine.Position, err)
+	}
+	if got := order(commenter); !slices.Equal(got, []string{a.ID, b.ID, mine.ID}) {
+		t.Errorf("what the commenter reads after adding: %v", got)
+	}
+	if got := order(editor); !slices.Equal(got, []string{a.ID, hidden.ID, b.ID, mine.ID}) {
+		t.Errorf("what the editor reads after the commenter added: %v", got)
+	}
+
+	first := 0
+	if _, err := r.service.UpdateBlock(t.Context(), commenter, mustUUID(t, mine.ID), observations.BlockChange{Version: mine.Version, Position: &first}); err == nil {
+		t.Error("a commenter moved a suggestion, so UpdateBlock needs the reader's positions too")
 	}
 }

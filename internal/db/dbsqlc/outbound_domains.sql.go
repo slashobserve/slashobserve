@@ -11,6 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimConnectionOutboundDomain = `-- name: ClaimConnectionOutboundDomain :one
+UPDATE outbound_domains SET for_connection = false
+WHERE domain = $1 AND for_connection
+RETURNING domain, created_at, created_by_name, for_connection
+`
+
+type ClaimConnectionOutboundDomainRow struct {
+	Domain        string
+	CreatedAt     pgtype.Timestamptz
+	CreatedByName string
+	ForConnection bool
+}
+
+func (q *Queries) ClaimConnectionOutboundDomain(ctx context.Context, domain string) (ClaimConnectionOutboundDomainRow, error) {
+	row := q.db.QueryRow(ctx, claimConnectionOutboundDomain, domain)
+	var i ClaimConnectionOutboundDomainRow
+	err := row.Scan(
+		&i.Domain,
+		&i.CreatedAt,
+		&i.CreatedByName,
+		&i.ForConnection,
+	)
+	return i, err
+}
+
 const countOutboundDomains = `-- name: CountOutboundDomains :one
 SELECT count(*) FROM outbound_domains
 `
@@ -20,6 +45,18 @@ func (q *Queries) CountOutboundDomains(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteConnectionOutboundDomain = `-- name: DeleteConnectionOutboundDomain :execrows
+DELETE FROM outbound_domains WHERE domain = $1 AND for_connection
+`
+
+func (q *Queries) DeleteConnectionOutboundDomain(ctx context.Context, domain string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteConnectionOutboundDomain, domain)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteOutboundDomain = `-- name: DeleteOutboundDomain :execrows
@@ -35,33 +72,45 @@ func (q *Queries) DeleteOutboundDomain(ctx context.Context, domain string) (int6
 }
 
 const insertOutboundDomain = `-- name: InsertOutboundDomain :one
-INSERT INTO outbound_domains (domain, created_by_id, created_by_name)
-VALUES ($1, $2, $3)
+INSERT INTO outbound_domains (domain, created_by_id, created_by_name, for_connection)
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (domain) DO NOTHING
-RETURNING domain, created_at, created_by_name
+RETURNING domain, created_at, created_by_name, for_connection
 `
 
 type InsertOutboundDomainParams struct {
 	Domain        string
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+	ForConnection bool
 }
 
 type InsertOutboundDomainRow struct {
 	Domain        string
 	CreatedAt     pgtype.Timestamptz
 	CreatedByName string
+	ForConnection bool
 }
 
 func (q *Queries) InsertOutboundDomain(ctx context.Context, arg InsertOutboundDomainParams) (InsertOutboundDomainRow, error) {
-	row := q.db.QueryRow(ctx, insertOutboundDomain, arg.Domain, arg.CreatedByID, arg.CreatedByName)
+	row := q.db.QueryRow(ctx, insertOutboundDomain,
+		arg.Domain,
+		arg.CreatedByID,
+		arg.CreatedByName,
+		arg.ForConnection,
+	)
 	var i InsertOutboundDomainRow
-	err := row.Scan(&i.Domain, &i.CreatedAt, &i.CreatedByName)
+	err := row.Scan(
+		&i.Domain,
+		&i.CreatedAt,
+		&i.CreatedByName,
+		&i.ForConnection,
+	)
 	return i, err
 }
 
 const listOutboundDomains = `-- name: ListOutboundDomains :many
-SELECT domain, created_at, created_by_name, (created_by_id IS NOT NULL)::boolean AS has_author
+SELECT domain, created_at, created_by_name, (created_by_id IS NOT NULL)::boolean AS has_author, for_connection
 FROM outbound_domains
 ORDER BY domain COLLATE "C"
 `
@@ -71,6 +120,7 @@ type ListOutboundDomainsRow struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByName string
 	HasAuthor     bool
+	ForConnection bool
 }
 
 func (q *Queries) ListOutboundDomains(ctx context.Context) ([]ListOutboundDomainsRow, error) {
@@ -87,7 +137,41 @@ func (q *Queries) ListOutboundDomains(ctx context.Context) ([]ListOutboundDomain
 			&i.CreatedAt,
 			&i.CreatedByName,
 			&i.HasAuthor,
+			&i.ForConnection,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutboundUsers = `-- name: ListOutboundUsers :many
+SELECT 'webhook'::text AS kind, name, url FROM webhooks
+UNION ALL
+SELECT 'grafana_connection'::text AS kind, name, url FROM grafana_connections
+ORDER BY kind, name
+`
+
+type ListOutboundUsersRow struct {
+	Kind string
+	Name string
+	Url  string
+}
+
+func (q *Queries) ListOutboundUsers(ctx context.Context) ([]ListOutboundUsersRow, error) {
+	rows, err := q.db.Query(ctx, listOutboundUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOutboundUsersRow
+	for rows.Next() {
+		var i ListOutboundUsersRow
+		if err := rows.Scan(&i.Kind, &i.Name, &i.Url); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

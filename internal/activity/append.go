@@ -61,6 +61,14 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 	return seq, nil
 }
 
+func AppendAdmin(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, typ string, target pgtype.UUID, data any) error {
+	if !IsAdminType(typ) {
+		return fmt.Errorf("activity type %q is not an administrative type", typ)
+	}
+	_, err := Append(ctx, q, Entry{Type: typ, TargetID: target, Actor: by, Data: data}, nil)
+	return err
+}
+
 func Move(ctx context.Context, q *dbsqlc.Queries, owner Owner, folderID pgtype.UUID) error {
 	if !owner.locks() {
 		return fmt.Errorf("activity of a %q owner does not move", owner.kind)
