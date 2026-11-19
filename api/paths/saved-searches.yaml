@@ -104,7 +104,7 @@ saved-searches-id:
   patch:
     operationId: updateSavedSearch
     x-surfaces:
-      cli: [observe saved-searches rename, observe saved-searches move]
+      cli: [observe saved-searches update, observe saved-searches rename, observe saved-searches move]
     summary: Rename a saved search, move it to another folder or change what it searches.
     description: >-
       Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead.
