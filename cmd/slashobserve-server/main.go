@@ -228,9 +228,6 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		return nil, withheld("auth_setup_failed", err)
 	}
 	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
-	if err := service.ReconcileRoles(ctx); err != nil {
-		return nil, withheld("role_reconcile_failed", err)
-	}
 	if cfg.AllowAnyEmailDomain {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
@@ -304,6 +301,10 @@ func run() error {
 	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
 		return err
+	}
+	authService.RecordChanges(database, activity.AuthChanges{})
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
 	}
 	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
 		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)

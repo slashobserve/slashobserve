@@ -228,12 +228,12 @@ func (s *Service) saveOnAllowedHost(ctx context.Context, by auth.Principal, host
 	return err
 }
 
-func (s *Service) releaseHost(ctx context.Context, rawURL string) {
+func (s *Service) releaseHost(ctx context.Context, by auth.Principal, rawURL string) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return
 	}
-	if err := s.domains.Release(ctx, strings.ToLower(u.Hostname())); err != nil {
+	if err := s.domains.Release(ctx, by, strings.ToLower(u.Hostname())); err != nil {
 		s.logger.WarnContext(ctx, "release outbound domain", logattrs.Failure("outbound_release_failed", err, slog.String("host", u.Hostname()))...)
 	}
 }
@@ -265,8 +265,10 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	}
 	var row dbsqlc.GrafanaConnection
 	err = s.saveOnAllowedHost(ctx, by, host, func(q *dbsqlc.Queries) (err error) {
-		row, err = s.store.insert(ctx, q, params)
-		return err
+		if row, err = s.store.insert(ctx, q, params); err != nil {
+			return err
+		}
+		return recordCreated(by, id, name, u.String())(ctx, q)
 	})
 	if err != nil {
 		return Connection{}, err
@@ -314,7 +316,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	}
 	var row dbsqlc.GrafanaConnection
 	save := func(q *dbsqlc.Queries) (err error) {
-		row, err = s.store.update(ctx, q, params)
+		row, err = s.store.update(ctx, q, params, recordUpdated(by, id, params, p.Token != nil))
 		return err
 	}
 	if host != "" {
@@ -330,7 +332,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		return Connection{}, err
 	}
 	if params.Url != current.URL {
-		s.releaseHost(ctx, current.URL)
+		s.releaseHost(ctx, by, current.URL)
 	}
 	s.logger.InfoContext(ctx, "grafana connection updated", slog.String("connection_id", updated.ID), slog.String("actor_id", by.ID), slog.Bool("token_changed", p.Token != nil))
 	return updated.Connection, nil
@@ -341,10 +343,10 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return err
 	}
-	if err := s.store.delete(ctx, id); err != nil {
+	if err := s.store.delete(ctx, id, recordDeleted(by, id, current.Name, current.URL)); err != nil {
 		return err
 	}
-	s.releaseHost(ctx, current.URL)
+	s.releaseHost(ctx, by, current.URL)
 	s.logger.InfoContext(ctx, "grafana connection deleted", slog.String("connection_id", id.String()), slog.String("actor_id", by.ID))
 	return nil
 }

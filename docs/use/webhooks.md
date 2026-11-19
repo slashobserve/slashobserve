@@ -100,6 +100,7 @@ A `PATCH` or a rotation keeps the owner.
 A webhook disabled with the reason `owner` moves to whoever enables it with `enabled: true`, because nobody else could read what it sends.
 
 `event_types` takes the type names from [What is recorded](activity.md#what-is-recorded), at least one and each at most once.
+The [admin changes](activity.md#admin-changes) are among them, and a webhook sends one only while its owner is an Admin, so an Admin can forward the audit trail to another system.
 
 ## Send to Slack or Teams
 

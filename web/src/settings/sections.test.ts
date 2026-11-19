@@ -14,13 +14,19 @@ describe("settingsGroups", () => {
       { label: "You", ids: ["appearance", "connected-agents"] },
       {
         label: "Workspace",
-        ids: ["server", "sign-in", "outbound-access", "agent-access"],
+        ids: [
+          "server",
+          "sign-in",
+          "outbound-access",
+          "agent-access",
+          "audit-log",
+        ],
       },
       { label: "Integrations", ids: ["grafana", "webhooks"] },
     ])
   })
 
-  test("leaves Agent access and Integrations to admins", () => {
+  test("leaves Agent access, the Audit log and Integrations to admins", () => {
     expect(layout("editor")).toEqual([
       { label: "You", ids: ["appearance", "connected-agents"] },
       { label: "Workspace", ids: ["server", "sign-in", "outbound-access"] },
@@ -48,6 +54,7 @@ describe("settingsGroups", () => {
       "Sign-in",
       "Outbound access",
       "Agent access",
+      "Audit log",
       "Grafana connection",
       "Webhooks",
     ])
@@ -74,6 +81,7 @@ describe("selectedSectionId", () => {
     expect(selectedSectionId(admin, "agent-access")).toBe("agent-access")
     expect(selectedSectionId(admin, "grafana")).toBe("grafana")
     expect(selectedSectionId(admin, "webhooks")).toBe("webhooks")
+    expect(selectedSectionId(admin, "audit-log")).toBe("audit-log")
   })
 
   test("selects the server without a hash", () => {
@@ -95,7 +103,7 @@ describe("selectedSectionId", () => {
   test("falls back to the server for a section the role cannot see", () => {
     for (const role of ["editor", "commenter", "viewer"] as const) {
       const groups = settingsGroups(role)
-      for (const hash of ["agent-access", "grafana", "webhooks"]) {
+      for (const hash of ["agent-access", "audit-log", "grafana", "webhooks"]) {
         expect(selectedSectionId(groups, hash)).toBe("server")
       }
     }

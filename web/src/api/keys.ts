@@ -442,3 +442,9 @@ export const agentKeys = {
   all: ["agents"] as const,
   list: () => ["agents", "list"] as const,
 }
+
+export const auditKeys = {
+  all: ["audit"] as const,
+  list: (actor: string | null, type: string | null, range: string) =>
+    ["audit", "list", actor, type, range] as const,
+}

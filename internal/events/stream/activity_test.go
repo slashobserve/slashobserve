@@ -579,3 +579,51 @@ func TestSlotsRefuseBeyondTheLimitsAndFreeOnRelease(t *testing.T) {
 		t.Errorf("acquire after release refused with %d", status)
 	}
 }
+
+func (r *activityRig) appendAdminChange(t *testing.T) int64 {
+	t.Helper()
+	var seq int64
+	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		var err error
+		seq, err = activity.Append(t.Context(), q, activity.Entry{Type: activity.TypeWebhookDeleted, TargetID: nextTarget(), Actor: author, Data: map[string]string{"name": "SIEM"}}, nil)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("append admin change: %v", err)
+	}
+	return seq
+}
+
+func TestActivityStreamSendsAdminChangesToAdminsOnly(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		caller auth.Principal
+		sees   bool
+	}{
+		{"an admin", admin, true},
+		{"a viewer", viewer, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newActivityRig(t, tt.caller)
+			s := r.open(t, "", "")
+			s.expectEvent(t, "ready")
+
+			change := r.appendAdminChange(t)
+			after := r.append(t, visibleToEveryone())
+			r.notifier.wake(after)
+
+			if tt.sees {
+				s.expectActivity(t, change)
+			}
+			s.expectActivity(t, after)
+		})
+	}
+}
+
+func TestActivityStreamRefusesTheAdminScopeToOtherRoles(t *testing.T) {
+	r := newActivityRig(t, viewer)
+	status, code := r.refused(t, "scope=admin", "")
+	if status != http.StatusForbidden || code != "forbidden_role" {
+		t.Fatalf("status %d code %q, want 403 forbidden_role", status, code)
+	}
+}

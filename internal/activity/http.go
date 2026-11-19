@@ -74,6 +74,8 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	switch {
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
+	case errors.Is(err, ErrAdminScope):
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, AdminScopeMessage)
 	case errors.Is(err, ErrPersonOnly):
 		httpapi.AbortError(c, http.StatusForbidden, "user_session_required", inboxSessionText)
 	case errors.Is(err, ErrInvalidCursor):
