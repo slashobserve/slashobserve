@@ -6,7 +6,12 @@ import {
 } from "@tanstack/react-router"
 
 import { parseSearch, stringifySearch } from "@/lib/search"
-import { isTimeValue, refreshOptions, refreshPattern } from "@/lib/time"
+import {
+  isTimeValue,
+  isZoneChoice,
+  refreshOptions,
+  refreshPattern,
+} from "@/lib/time"
 import type { CursorSync } from "@/panels/shared-cursor"
 
 import { isCursorSync } from "./cursor-sync"
@@ -25,6 +30,7 @@ export type DashboardSearch = {
   from?: string
   to?: string
   refresh?: string
+  tz?: string
   cursor?: CursorSync
   version?: number
   panel?: string
@@ -119,6 +125,9 @@ export function validateDashboardSearch(
     state.refresh = refresh
   }
 
+  const tz = firstString(raw.tz)
+  if (tz !== undefined && isZoneChoice(tz)) state.tz = tz
+
   const cursor = firstString(raw.cursor)
   if (cursor !== undefined && isCursorSync(cursor)) state.cursor = cursor
 
@@ -201,6 +210,7 @@ export function searchFromState(
   if (state.from !== undefined) out.from = state.from
   if (state.to !== undefined) out.to = state.to
   if (state.refresh !== undefined) out.refresh = state.refresh
+  if (state.tz !== undefined) out.tz = state.tz
   if (state.cursor !== undefined) out.cursor = state.cursor
   if (state.version !== undefined) out.version = state.version
   if (state.panel !== undefined) out.panel = state.panel

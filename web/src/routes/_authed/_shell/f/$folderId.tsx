@@ -16,7 +16,8 @@ function validateFolderSearch(raw: Record<string, unknown>): FolderSearch {
 
 export const Route = createFileRoute("/_authed/_shell/f/$folderId")({
   staticData: {
-    crumbs: [{ label: "Dashboards", to: "/dashboards" }, { label: "Folder" }],
+    crumbs: [{ label: "Dashboards", to: "/dashboards" }],
+    pageTitle: true,
   },
   validateSearch: validateFolderSearch,
   component: FolderRoute,

@@ -14,13 +14,24 @@ export type Session =
 let cachedSession: Promise<Session> | undefined
 let knownSession: Session | undefined
 let generation = 0
+let ended = false
+
+function remember(session: Session) {
+  if (knownSession?.authenticated && !session.authenticated) ended = true
+  if (session.authenticated) ended = false
+  knownSession = session
+}
+
+export function sessionEnded(): boolean {
+  return ended
+}
 
 export function getSession(): Promise<Session> {
   if (cachedSession) return cachedSession
   const current = ++generation
   const pending: Promise<Session> = fetchSession().then(
     (session) => {
-      if (generation === current) knownSession = session
+      if (generation === current) remember(session)
       return session
     },
     (error: unknown) => {
@@ -40,7 +51,7 @@ export async function refreshSession(): Promise<{
   const session = await fetchSession()
   if (generation !== current) return { session, changed: false }
   const changed = !sameSession(knownSession, session)
-  knownSession = session
+  remember(session)
   cachedSession = Promise.resolve(session)
   return { session, changed }
 }
@@ -75,6 +86,7 @@ async function fetchSession(): Promise<Session> {
 export async function logout(): Promise<void> {
   const response = await apiFetch("/api/v1/auth/logout", { method: "POST" })
   if (!response.ok) throw new Error(`sign out failed: ${response.status}`)
+  knownSession = { authenticated: false }
 }
 
 export function loginHref(returnTo: string): string {

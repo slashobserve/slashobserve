@@ -24,6 +24,12 @@ Press `?` on a dashboard to see them all in the app.
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
 
+## Moving around the app
+
+The first Tab stop on every page after sign-in is **Skip to the page**, which appears at the top left; press Enter to move the focus to the page's heading and skip the sidebar.
+When a page opens because you pressed Enter or followed a link, and the focus was on something that went away with the old page, the focus moves to the new page's heading.
+Focus stays where it is when you open a page from the sidebar, and when the new page puts the focus in a field itself.
+
 ## Which panel a key acts on
 
 `v`, `e` and `i` act on the panel under the pointer.

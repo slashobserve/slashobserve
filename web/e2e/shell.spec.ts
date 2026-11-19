@@ -35,7 +35,7 @@ const pages = [
   ["/agents", "Agents", "Agents"],
   ["/dashboards", "Dashboards", "Dashboards"],
   ["/datasources", "Datasources", "Datasources"],
-  ["/keys", "API keys", "Agents"],
+  ["/keys", "API keys", "API keys"],
   ["/people", "People", "People"],
   ["/settings", "Settings", "Settings"],
 ] as const

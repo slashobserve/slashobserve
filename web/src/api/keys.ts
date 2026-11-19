@@ -342,6 +342,8 @@ export type HomeSearch = { q?: string; tag: string[] }
 export const searchKeys = {
   all: ["search"] as const,
   results: (q: string) => ["search", "results", q] as const,
+  page: (q: string, kind: string | null) =>
+    ["search", "page", q, kind] as const,
 }
 
 export const pinKeys = {

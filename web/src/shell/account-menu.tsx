@@ -1,7 +1,7 @@
 import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
-import { LogOutIcon } from "lucide-react"
+import { BookOpenIcon, LogOutIcon } from "lucide-react"
 
 import { instanceQuery } from "@/api/instance"
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AuthorMark } from "@/components/author-mark"
+import { docsUrl } from "@/lib/docs"
 import { personTint } from "@/lib/author"
 import { cn } from "@/lib/utils"
 import { providerDisplayName } from "@/people/sign-in-policy"
@@ -72,6 +73,12 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start">
         <ThemeMenu />
+        <DropdownMenuItem
+          render={<a href={docsUrl} target="_blank" rel="noreferrer" />}
+        >
+          <BookOpenIcon aria-hidden="true" />
+          Help and docs
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={pending} onClick={signOut}>
           <LogOutIcon aria-hidden="true" />
