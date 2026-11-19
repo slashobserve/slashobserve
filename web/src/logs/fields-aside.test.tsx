@@ -355,4 +355,25 @@ describe("FieldsAside", () => {
     await user.click(screen.getByRole("button", { name: "Show fields" }))
     expect(screen.getByRole("complementary", { name: "Fields" })).toBeVisible()
   })
+
+  it("widens with the keyboard on the resize handle and remembers the width", async () => {
+    const { user } = setup()
+    const aside = screen.getByRole("complementary", { name: "Fields" })
+    expect(aside).toHaveStyle({ width: "248px" })
+    const grip = screen.getByRole("separator", { name: "Resize fields" })
+    grip.focus()
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}")
+    expect(aside).toHaveStyle({ width: "288px" })
+    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("288")
+    await user.dblClick(grip)
+    expect(aside).toHaveStyle({ width: "248px" })
+  })
+
+  it("opens at the width the person left it", () => {
+    localStorage.setItem("slashobserve-logs-fields-width", "400")
+    setup()
+    expect(screen.getByRole("complementary", { name: "Fields" })).toHaveStyle({
+      width: "400px",
+    })
+  })
 })

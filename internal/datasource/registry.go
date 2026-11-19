@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"regexp"
 	"runtime/debug"
 	"slices"
@@ -18,9 +19,13 @@ import (
 )
 
 const (
-	healthTTL     = 10 * time.Second
-	healthTimeout = 5 * time.Second
+	healthTTL       = 10 * time.Second
+	recheckInterval = 2 * time.Second
+	healthTimeout   = 5 * time.Second
+	closeGrace      = 30 * time.Second
 )
+
+var ErrFileOwned = errors.New("a datasource from the file already has this uid")
 
 const UIDPattern = `^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`
 
@@ -28,26 +33,36 @@ var uidPattern = regexp.MustCompile(UIDPattern)
 
 func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
+const (
+	SourceFile = "file"
+	SourceApp  = "app"
+)
+
 type Instance struct {
 	UID         string
 	Name        string
 	GrafanaUIDs []string
 	Datasource  Datasource
+	Source      string
+
+	generation uint64
 }
 
 type Status struct {
 	UID       string    `json:"uid"`
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`
+	Source    string    `json:"source"`
 	Index     string    `json:"index,omitempty"`
 	TimeField string    `json:"time_field,omitempty"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
+	Detail    string    `json:"detail,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
 }
 
 func statusFor(in Instance) Status {
-	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name}
+	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name, Source: in.Source}
 	if indexed, ok := in.Datasource.(IndexSource); ok {
 		s.Index, s.TimeField = indexed.Index()
 	}
@@ -55,12 +70,21 @@ func statusFor(in Instance) Status {
 }
 
 type Registry struct {
-	logger    *slog.Logger
-	instances map[string]Instance
-	group     singleflight.Group
+	logger *slog.Logger
+	group  singleflight.Group
+
+	instancesMu sync.RWMutex
+	instances   map[string]Instance
+	generations uint64
+	retired     map[*retired]struct{}
 
 	mu     sync.Mutex
 	cached map[string]cacheEntry
+}
+
+type retired struct {
+	datasource Datasource
+	timer      *time.Timer
 }
 
 type cacheEntry struct {
@@ -76,40 +100,124 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		logger:    logger,
 		instances: make(map[string]Instance, len(instances)),
 		cached:    make(map[string]cacheEntry, len(instances)),
+		retired:   map[*retired]struct{}{},
 	}
 	for _, in := range instances {
-		switch {
-		case in.UID == "":
-			return nil, errors.New("datasource uid is required")
-		case !ValidUID(in.UID):
-			return nil, fmt.Errorf("datasource uid %q must match %s", in.UID, UIDPattern)
-		case in.Datasource == nil:
-			return nil, fmt.Errorf("datasource %q has no implementation", in.UID)
+		in, err := normalized(in)
+		if err != nil {
+			return nil, err
 		}
 		if _, dup := r.instances[in.UID]; dup {
 			return nil, fmt.Errorf("duplicate datasource uid %q", in.UID)
 		}
-		if strings.TrimSpace(in.Name) == "" {
-			in.Name = in.UID
-		}
-		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
+		in.generation = r.nextGenerationLocked()
 		r.instances[in.UID] = in
 	}
 	return r, nil
 }
 
+func normalized(in Instance) (Instance, error) {
+	switch {
+	case in.UID == "":
+		return Instance{}, errors.New("datasource uid is required")
+	case !ValidUID(in.UID):
+		return Instance{}, fmt.Errorf("datasource uid %q must match %s", in.UID, UIDPattern)
+	case in.Datasource == nil:
+		return Instance{}, fmt.Errorf("datasource %q has no implementation", in.UID)
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		in.Name = in.UID
+	}
+	if in.Source == "" {
+		in.Source = SourceFile
+	}
+	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
+	return in, nil
+}
+
+func (r *Registry) Put(in Instance) error {
+	in.Source = SourceApp
+	in, err := normalized(in)
+	if err != nil {
+		return err
+	}
+	r.instancesMu.Lock()
+	old, exists := r.instances[in.UID]
+	if exists && old.Source == SourceFile {
+		r.instancesMu.Unlock()
+		return ErrFileOwned
+	}
+	in.generation = r.nextGenerationLocked()
+	r.instances[in.UID] = in
+	r.instancesMu.Unlock()
+	r.dropCached(in.UID)
+	if exists {
+		r.retire(old.Datasource)
+	}
+	return nil
+}
+
+func (r *Registry) nextGenerationLocked() uint64 {
+	r.generations++
+	return r.generations
+}
+
+func (r *Registry) current(in Instance) bool {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
+	latest, ok := r.instances[in.UID]
+	return ok && latest.generation == in.generation
+}
+
+func (r *Registry) Remove(uid string) bool {
+	r.instancesMu.Lock()
+	old, exists := r.instances[uid]
+	if !exists || old.Source == SourceFile {
+		r.instancesMu.Unlock()
+		return false
+	}
+	delete(r.instances, uid)
+	r.instancesMu.Unlock()
+	r.dropCached(uid)
+	r.retire(old.Datasource)
+	return true
+}
+
+func (r *Registry) dropCached(uid string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.cached, uid)
+}
+
+func (r *Registry) retire(ds Datasource) {
+	entry := &retired{datasource: ds}
+	r.instancesMu.Lock()
+	entry.timer = time.AfterFunc(closeGrace, func() {
+		r.instancesMu.Lock()
+		delete(r.retired, entry)
+		r.instancesMu.Unlock()
+		_ = ds.Close()
+	})
+	r.retired[entry] = struct{}{}
+	r.instancesMu.Unlock()
+}
+
 func (r *Registry) Get(uid string) (Instance, bool) {
+	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
+	r.instancesMu.RUnlock()
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, ok
 }
 
 func (r *Registry) List() []Instance {
+	r.instancesMu.RLock()
 	out := make([]Instance, 0, len(r.instances))
 	for _, in := range r.instances {
 		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		out = append(out, in)
 	}
+	r.instancesMu.RUnlock()
 	slices.SortFunc(out, func(a, b Instance) int { return strings.Compare(a.UID, b.UID) })
 	return out
 }
@@ -120,11 +228,19 @@ func (r *Registry) Health(ctx context.Context) []Status {
 	var wg sync.WaitGroup
 	for i, in := range list {
 		wg.Go(func() {
-			out[i] = r.status(ctx, in)
+			out[i] = r.status(ctx, in, healthTTL)
 		})
 	}
 	wg.Wait()
 	return out
+}
+
+func (r *Registry) Recheck(ctx context.Context, uid string) (Status, bool) {
+	in, ok := r.Get(uid)
+	if !ok {
+		return Status{}, false
+	}
+	return r.status(ctx, in, recheckInterval), true
 }
 
 func (r *Registry) Close() error {
@@ -134,15 +250,24 @@ func (r *Registry) Close() error {
 			errs = append(errs, fmt.Errorf("close datasource %q: %w", in.UID, err))
 		}
 	}
+	r.instancesMu.Lock()
+	pending := slices.Collect(maps.Keys(r.retired))
+	clear(r.retired)
+	r.instancesMu.Unlock()
+	for _, entry := range pending {
+		if entry.timer.Stop() {
+			_ = entry.datasource.Close()
+		}
+	}
 	return errors.Join(errs...)
 }
 
-func (r *Registry) status(ctx context.Context, in Instance) Status {
-	if s, ok := r.fresh(in.UID); ok {
+func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration) Status {
+	if s, ok := r.fresh(in.UID, maxAge); ok {
 		return s
 	}
-	ch := r.group.DoChan(in.UID, func() (any, error) {
-		if s, ok := r.fresh(in.UID); ok {
+	ch := r.group.DoChan(fmt.Sprintf("%s#%d", in.UID, in.generation), func() (any, error) {
+		if s, ok := r.fresh(in.UID, maxAge); ok {
 			return s, nil
 		}
 		return r.check(ctx, in), nil
@@ -158,11 +283,11 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 	}
 }
 
-func (r *Registry) fresh(uid string) (Status, bool) {
+func (r *Registry) fresh(uid string, maxAge time.Duration) (Status, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	e, ok := r.cached[uid]
-	if !ok || time.Since(e.at) >= healthTTL {
+	if !ok || time.Since(e.at) >= maxAge {
 		return Status{}, false
 	}
 	return e.status, true
@@ -178,11 +303,14 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	s.CheckedAt = time.Now().UTC()
 	if err != nil {
 		s.Message = healthMessage(err)
+		s.Detail = healthDetail(err)
 	}
 
 	r.mu.Lock()
 	prev, seen := r.cached[in.UID]
-	r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
+	if r.current(in) {
+		r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
+	}
 	r.mu.Unlock()
 
 	if err != nil && (!seen || prev.status.Healthy) {
@@ -200,6 +328,10 @@ var healthTexts = []struct {
 	{context.DeadlineExceeded, "Timed out waiting for the datasource"},
 	{ErrAuthFailed, "The datasource refused the credentials"},
 	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address"},
+	{ErrNoSecretKey, "This datasource's credentials need SLASHOBSERVE_SECRET_KEY on the server"},
+	{ErrUnreadable, "The saved credentials cannot be read with the server's secret key; set them again"},
+	{ErrNotLoadable, "The saved definition cannot be used; open the datasource and save it again"},
+	{ErrOutboundBlocked, "The address is not allowed by the outbound allowlist"},
 	{ErrUnavailable, "The datasource is not answering"},
 	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
 	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
@@ -215,6 +347,10 @@ var healthTexts = []struct {
 	{context.Canceled, "The health check was cancelled"},
 }
 
+func Reason(err error) (message, detail string) {
+	return healthMessage(err), healthDetail(err)
+}
+
 func healthMessage(err error) string {
 	for _, h := range healthTexts {
 		if errors.Is(err, h.kind) {
@@ -222,6 +358,21 @@ func healthMessage(err error) string {
 		}
 	}
 	return "The health check failed"
+}
+
+const connectionFailedMessage = "connection failed"
+
+func healthDetail(err error) string {
+	var upstream *UpstreamError
+	switch {
+	case !errors.As(err, &upstream):
+		return ""
+	case upstream.Status > 0:
+		return fmt.Sprintf("The datasource answered HTTP %d", upstream.Status)
+	case upstream.Message == connectionFailedMessage:
+		return "The server could not connect to the datasource's address"
+	}
+	return ""
 }
 
 func (r *Registry) safeCheckHealth(ctx context.Context, in Instance) (err error) {

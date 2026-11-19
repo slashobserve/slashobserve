@@ -488,7 +488,7 @@ key         ok      ci-deploy (service_account)
 role        ok      editor
 version     ok      CLI v0.2.0, server v0.2.0
 datasource  ok      prom (prometheus)
-datasource  fail    logs (loki): connection refused
+datasource  fail    logs (loki): The datasource is not answering (The server could not connect to the datasource's address)
 model       ok      anthropic claude-haiku-5-5, effort low
 ```
 
@@ -501,6 +501,18 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
+
+## Datasources
+
+`bin/observe datasources list` prints each datasource's uid, type, name, health, source (`file` or `app`), the dashboards that use it and when it was last checked.
+An unhealthy one shows the failure and, when the server knows it, the cause.
+`bin/observe datasources recheck <uid>` skips the server's 10 second health cache, prints the new status and exits 1 while the datasource is unhealthy.
+Any role can list and recheck; `--json` prints the API response.
+
+An Admin can also run `datasources get <uid>` (address, login and which credentials are set, never their values), `add <uid> --type <type> --address <address>`, `edit <uid>`, `test <uid> [--saved]` and `remove <uid>`.
+Credentials come from `--password-file`, `--bearer-token-file`, `--api-key-file` or `--header NAME=FILE`, where `-` reads standard input once, and `--clear` removes a stored one.
+`test` exits 1 while the datasource is unhealthy, and `remove` lists the dashboards and saved searches that still use the datasource.
+See [Add datasources in the app](../connect/datasources-in-the-app.md).
 
 ## Logs
 

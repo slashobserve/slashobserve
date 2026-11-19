@@ -306,11 +306,11 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 79 tools: MCP clients get 78, every one except `save_finding`, which only a run offers.
+The server has 80 tools: MCP clients get 79, every one except `save_finding`, which only a run offers.
 The built-in agent gets 28 in a new-dashboard or revision request and 27 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 50 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 51 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `recheck_datasource`, `get_run`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open; an investigation cites what it used by the observation's title and `/o/<id>`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.

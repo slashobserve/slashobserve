@@ -37,6 +37,19 @@ export type DashboardSummary =
 
 const hiddenWhenCramped = "@max-[1000px]:not-narrow:hidden"
 
+const titleMinWidth = "min-w-60"
+
+const columnWidth = {
+  health: "w-40",
+  madeBy: "w-60",
+  datasources: "w-36",
+  openComments: "w-32",
+  version: "w-20",
+  views: "w-20",
+  updated: "w-28",
+  folder: "w-40",
+}
+
 const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
 
 export const listFeatures = tableFeatures({})
@@ -80,7 +93,8 @@ export const dashboardColumns = column.columns([
       </>
     ),
     meta: {
-      cellClassName: "pl-11",
+      headerClassName: titleMinWidth,
+      cellClassName: cn("pl-11", titleMinWidth),
       skeletonClassName: "h-5 w-48 max-w-full",
     },
   }),
@@ -90,7 +104,11 @@ export const dashboardColumns = column.columns([
     cell: ({ row }) => (
       <HealthCell dashboardId={row.original.id} title={row.original.title} />
     ),
-    meta: { cellClassName: "min-w-36", skeletonClassName: "h-5 w-20" },
+    meta: {
+      headerClassName: columnWidth.health,
+      cellClassName: cn("min-w-36", columnWidth.health),
+      skeletonClassName: "h-5 w-20",
+    },
   }),
   column.display({
     id: "madeBy",
@@ -116,7 +134,8 @@ export const dashboardColumns = column.columns([
       )
     },
     meta: {
-      cellClassName: "min-w-40",
+      headerClassName: columnWidth.madeBy,
+      cellClassName: cn("min-w-40", columnWidth.madeBy),
       stackedLabel: "Made by",
       skeletonClassName: "h-5 w-28",
     },
@@ -131,8 +150,8 @@ export const dashboardColumns = column.columns([
         </span>
       ) : null,
     meta: {
-      headerClassName: hiddenWhenCramped,
-      cellClassName: hiddenWhenCramped,
+      headerClassName: cn(hiddenWhenCramped, columnWidth.datasources),
+      cellClassName: cn(hiddenWhenCramped, columnWidth.datasources),
       skeletonClassName: "h-5 w-16",
     },
   }),
@@ -144,8 +163,12 @@ export const dashboardColumns = column.columns([
         ? row.original.open_comment_count
         : null,
     meta: {
-      headerClassName: hiddenWhenCramped,
-      cellClassName: cn("tabular-nums", hiddenWhenCramped),
+      headerClassName: cn(hiddenWhenCramped, columnWidth.openComments),
+      cellClassName: cn(
+        "tabular-nums",
+        hiddenWhenCramped,
+        columnWidth.openComments
+      ),
       stackedLabel: "Open comments",
       skeletonClassName: "h-5 w-10",
     },
@@ -154,7 +177,11 @@ export const dashboardColumns = column.columns([
     id: "version",
     header: "Version",
     cell: ({ row }) => `v${row.original.latest_version}`,
-    meta: { cellClassName: "tabular-nums", skeletonClassName: "h-5 w-8" },
+    meta: {
+      headerClassName: columnWidth.version,
+      cellClassName: cn("tabular-nums", columnWidth.version),
+      skeletonClassName: "h-5 w-8",
+    },
   }),
   column.display({
     id: "views",
@@ -165,7 +192,8 @@ export const dashboardColumns = column.columns([
       </span>
     ),
     meta: {
-      cellClassName: "tabular-nums",
+      headerClassName: columnWidth.views,
+      cellClassName: cn("tabular-nums", columnWidth.views),
       stackedLabel: "Views",
       skeletonClassName: "h-5 w-8",
     },
@@ -175,8 +203,11 @@ export const dashboardColumns = column.columns([
     header: "Updated",
     cell: ({ row }) => <RelativeTime iso={row.original.updated_at} />,
     meta: {
-      headerClassName: "text-right",
-      cellClassName: "text-right whitespace-nowrap text-muted-foreground",
+      headerClassName: cn("text-right", columnWidth.updated),
+      cellClassName: cn(
+        "text-right whitespace-nowrap text-muted-foreground",
+        columnWidth.updated
+      ),
       skeletonClassName: "ml-auto h-5 w-16",
     },
   }),
@@ -188,7 +219,12 @@ export const folderColumn = column.display({
   cell: ({ row }) => (
     <span className="wrap-anywhere">{row.original.folder.title}</span>
   ),
-  meta: { stackedLabel: "Folder", skeletonClassName: "h-5 w-24" },
+  meta: {
+    headerClassName: columnWidth.folder,
+    cellClassName: columnWidth.folder,
+    stackedLabel: "Folder",
+    skeletonClassName: "h-5 w-24",
+  },
 })
 
 export const actionsColumn = column.display({
