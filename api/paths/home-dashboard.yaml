@@ -1,0 +1,88 @@
+me-home-dashboard:
+  get:
+    operationId: getHomeDashboard
+    x-surfaces:
+      mcp: [get_home_dashboard]
+    summary: Get the dashboard that opens for the signed-in person after sign-in.
+    description: >-
+      `status` says whether it is set and still usable.
+      `gone` and `unreadable` keep the choice so the web app can tell the person, and the person clears it or picks another.
+      Only signed-in people have one: a service-account key gets 403 `user_session_required`.
+    responses:
+      "200":
+        description: The home dashboard choice.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/HomeDashboard"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  put:
+    operationId: setHomeDashboard
+    x-surfaces:
+      mcp: [set_home_dashboard]
+    summary: Choose the dashboard that opens after sign-in.
+    description: >-
+      It replaces the earlier choice, and choosing the same dashboard again changes nothing.
+      The caller must be able to view the dashboard, otherwise 404 `not_found`.
+      A service-account key gets 403 `user_session_required`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [dashboard_id]
+            properties:
+              dashboard_id:
+                type: string
+                format: uuid
+    responses:
+      "200":
+        description: The choice after the write.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/HomeDashboard"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: clearHomeDashboard
+    x-surfaces:
+      mcp: [clear_home_dashboard]
+    summary: Clear the home dashboard so Home opens after sign-in.
+    description: Clearing when none is set changes nothing. A service-account key gets 403 `user_session_required`.
+    responses:
+      "204":
+        description: No home dashboard is set.
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

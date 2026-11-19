@@ -52,10 +52,13 @@ const succeeded: Partial<ObserveRequest> = {
   steps: [],
 }
 
-function renderRun(block: Block, onCite = vi.fn()) {
-  const view = renderWithProviders(<RunBlock block={block} onCite={onCite} />, {
-    route: { path: "/", url: "/" },
-  })
+function renderRun(block: Block, onCite = vi.fn(), blocks: Block[] = []) {
+  const view = renderWithProviders(
+    <RunBlock block={block} blocks={blocks} onCite={onCite} />,
+    {
+      route: { path: "/", url: "/" },
+    }
+  )
   return { ...view, onCite }
 }
 
@@ -87,6 +90,31 @@ describe("RunBlock", () => {
     await user.click(screen.getByRole("button", { name: "Panel 1" }))
 
     expect(onCite.mock.calls).toEqual([["text-1"], ["panel-1"]])
+  })
+
+  it("names each cited block by the finding's heading and the panel's title", async () => {
+    stubRequest(succeeded)
+    const cited = [
+      {
+        id: "text-1",
+        kind: "text",
+        body: { markdown: "## Checkout latency doubled\n\nBecause." },
+      },
+      {
+        id: "panel-1",
+        kind: "panel",
+        body: { panel: { title: "p99 latency" } },
+      },
+      { id: "panel-2", kind: "panel", body: { panel: { type: "stat" } } },
+    ] as unknown as Block[]
+    renderRun(runBlock(["text-1", "panel-1", "panel-2"]), vi.fn(), cited)
+    expect(await screen.findByText("Observe Agent finished")).toBeTruthy()
+
+    expect(
+      screen.getByRole("button", { name: "Checkout latency doubled" })
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "p99 latency" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Panel 2" })).toBeTruthy()
   })
 
   it("shows no cites while the run has not saved its finding", async () => {

@@ -1,13 +1,17 @@
 const maxSlugLength = 60
 
-export function exportFileName(title: string, version: number): string {
+export function exportFileName(
+  title: string,
+  version: number,
+  extension = "json"
+): string {
   const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, maxSlugLength)
     .replace(/-+$/g, "")
-  return `${slug === "" ? "dashboard" : slug}-v${version}.json`
+  return `${slug === "" ? "dashboard" : slug}-v${version}.${extension}`
 }
 
 export function downloadFile(blob: Blob, fileName: string) {

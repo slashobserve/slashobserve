@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { ApiError, NetworkError } from "@/api/errors"
 
+import type { Block } from "@/observations/queries"
+
 import { publishProblem } from "./publish-problem"
 
 function failure(
@@ -70,6 +72,50 @@ describe("publishProblem", () => {
   ]
 
   it.each(cases)("words %s", (_name, error, expected) => {
-    expect(publishProblem(error)).toBe(expected)
+    expect(publishProblem(error).text).toBe(expected)
+  })
+
+  describe("a panel that could not be frozen", () => {
+    const blocks = [
+      { id: "b0", position: 0, kind: "text", body: { text: "hi" } },
+      {
+        id: "b2",
+        position: 2,
+        kind: "panel",
+        body: { panel: { title: "Checkout latency" } },
+      },
+    ] as unknown as Block[]
+    const error = failure(422, "panel_failed", "a panel failed", [
+      { path: "/blocks/2", code: "query_timeout", message: "ran out of time" },
+    ])
+
+    it("names the block the issue points at and returns its id", () => {
+      expect(publishProblem(error, blocks)).toEqual({
+        text: 'The panel "Checkout latency" could not be frozen: ran out of time',
+        blockId: "b2",
+      })
+    })
+
+    it("keeps the generic wording when no block has that position", () => {
+      expect(publishProblem(error, [blocks[0]])).toEqual({
+        text: "A panel could not be frozen: ran out of time",
+      })
+    })
+  })
+})
+
+describe("publishProblem unchanged page", () => {
+  it("passes the server's reason through as a sentence", () => {
+    expect(
+      publishProblem(
+        new ApiError(
+          409,
+          "rca_unchanged",
+          "revision 2 already holds this page; change the observation before publishing again"
+        )
+      ).text
+    ).toBe(
+      "Revision 2 already holds this page; change the observation before publishing again."
+    )
   })
 })

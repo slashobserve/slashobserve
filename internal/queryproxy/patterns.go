@@ -68,7 +68,10 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 		found, err := r.nativePatterns(ctx, inst.UID, native, req)
 		switch {
 		case err == nil:
-			return foldNative(found, req.Limit, req.Range, inst.Datasource.Type()), nil
+			folded := foldNative(found, req.Limit, req.Range, inst.Datasource.Type())
+			if inst.Datasource.Type() != PatternSourceLoki || folded.LinesMatched >= int64(req.Sample) {
+				return folded, nil
+			}
 		case !errors.Is(err, datasource.ErrNotFound):
 			return LogPatterns{}, err
 		}

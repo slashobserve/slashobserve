@@ -23,9 +23,13 @@ import {
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
-import { panelUsesVariables } from "@/observations/panel-input"
 import { isEditablePanel } from "@/panel-editor/draft"
-import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
+import {
+  isDataPanel,
+  panelTitle,
+  type LayoutPanel,
+  type Variable,
+} from "@/spec"
 
 import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
 import type { DashboardPermissions } from "./permissions"
@@ -41,6 +45,7 @@ type Props = {
   to: string | undefined
   idle: boolean
   menu: ReactNode
+  observationVariables?: readonly Variable[]
 }
 
 function focusComposerWhenShown(
@@ -125,6 +130,7 @@ export function PanelToolbar({
   to,
   idle,
   menu,
+  observationVariables,
 }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const observationButton = useRef<HTMLButtonElement>(null)
@@ -136,7 +142,6 @@ export function PanelToolbar({
   const title = panelTitle(panel)
   const data = isDataPanel(panel)
   const canPropose = permissions.comment && !permissions.edit
-  const usesVariables = data && panelUsesVariables(panel)
 
   useLayoutEffect(() => {
     if (!root.current) return
@@ -237,12 +242,8 @@ export function PanelToolbar({
       {data ? (
         <ToolbarButton
           label="Add to observation"
-          tooltip={
-            usesVariables
-              ? "Add to observation (uses dashboard variables)"
-              : "Add to observation"
-          }
-          disabled={!idle || usesVariables}
+          tooltip="Add to observation"
+          disabled={!idle}
           buttonRef={observationButton}
           onClick={() => setAddingToObservation(true)}
         >
@@ -253,6 +254,7 @@ export function PanelToolbar({
       {addingToObservation && data ? (
         <AddToObservationPanel
           panel={panel}
+          variables={observationVariables}
           from={from}
           to={to}
           trigger={observationButton}

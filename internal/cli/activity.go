@@ -35,6 +35,9 @@ type activityOptions struct {
 	observation string
 	types       []string
 	since       string
+	until       string
+	actor       string
+	admin       bool
 	limit       int
 	cursor      string
 	all         bool
@@ -46,6 +49,7 @@ type activityActor struct {
 }
 
 type activityData struct {
+	raw           json.RawMessage
 	Version       int      `json:"version"`
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
@@ -64,6 +68,15 @@ type activityData struct {
 		Kind string `json:"kind"`
 		Name string `json:"name"`
 	} `json:"mentioned"`
+}
+
+func (d *activityData) UnmarshalJSON(b []byte) error {
+	type plain activityData
+	if err := json.Unmarshal(b, (*plain)(d)); err != nil {
+		return err
+	}
+	d.raw = slices.Clone(b)
+	return nil
 }
 
 type activityEvent struct {
@@ -94,10 +107,11 @@ func (a *app) activityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity",
 		Short: "List and follow what changed in the workspace",
-		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
+		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, keys, webhooks, connected agents, outbound domains and Grafana connections.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
 		Example: "  observe activity\n" +
 			"  observe activity --dashboard <id> --since 24h\n" +
-			"  observe activity --follow --type run.failed --type run.canceled",
+			"  observe activity --follow --type run.failed --type run.canceled\n" +
+			"  observe activity --admin --actor <person-id> --since 7d",
 		Args: noArgs,
 		RunE: a.runActivity,
 	}
@@ -107,6 +121,9 @@ func (a *app) activityCommand() *cobra.Command {
 	flags.StringVar(&a.activity.observation, "observation", "", "only events of this observation id")
 	flags.StringSliceVar(&a.activity.types, "type", nil, "only events of this type, such as dashboard.moved; repeat for several")
 	flags.StringVar(&a.activity.since, "since", "", "only events since a duration ago such as 24h, or since an RFC 3339 time")
+	flags.StringVar(&a.activity.until, "until", "", "only events until a duration ago such as 1h, or until an RFC 3339 time")
+	flags.StringVar(&a.activity.actor, "actor", "", "only events made by this person or service account id")
+	flags.BoolVar(&a.activity.admin, "admin", false, "only admin changes: roles, keys, webhooks, connected agents, outbound domains and Grafana connections; needs an Admin")
 	flags.IntVar(&a.activity.limit, "limit", defaultActivityLimit, "the newest events to print, 1 to 100")
 	flags.StringVar(&a.activity.cursor, "cursor", "", "continue from the next_cursor a page ended with")
 	flags.BoolVar(&a.activity.all, "all", false, "read every page and print them as one list")
@@ -122,41 +139,35 @@ func (o activityOptions) filters(now time.Time) (url.Values, error) {
 		return nil, usagef("--follow prints the newest events and then new ones, so it cannot be combined with --all or --cursor")
 	}
 	query := url.Values{}
-	if o.dashboard != "" {
-		id, err := parseID(o.dashboard)
+	for _, flag := range []struct{ key, value string }{{"dashboard_id", o.dashboard}, {"folder_id", o.folder}, {"observation_id", o.observation}, {"actor_id", o.actor}} {
+		if flag.value == "" {
+			continue
+		}
+		id, err := parseID(flag.value)
 		if err != nil {
 			return nil, err
 		}
-		query.Set("dashboard_id", id)
-	}
-	if o.folder != "" {
-		id, err := parseID(o.folder)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("folder_id", id)
-	}
-	if o.observation != "" {
-		id, err := parseID(o.observation)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("observation_id", id)
+		query.Set(flag.key, id)
 	}
 	for _, kind := range o.types {
 		query.Add("type", kind)
 	}
-	since, err := parseSince(o.since, now)
-	if err != nil {
-		return nil, err
+	for _, flag := range []struct{ name, key, value string }{{"--since", "since", o.since}, {"--until", "until", o.until}} {
+		at, err := parseTimeFlag(flag.name, flag.value, now)
+		if err != nil {
+			return nil, err
+		}
+		if at != "" {
+			query.Set(flag.key, at)
+		}
 	}
-	if since != "" {
-		query.Set("since", since)
+	if o.admin {
+		query.Set("scope", "admin")
 	}
 	return query, nil
 }
 
-func parseSince(raw string, now time.Time) (string, error) {
+func parseTimeFlag(flag, raw string, now time.Time) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", nil
@@ -167,7 +178,7 @@ func parseSince(raw string, now time.Time) (string, error) {
 	if span, err := time.ParseDuration(raw); err == nil && span > 0 {
 		return now.Add(-span).UTC().Format(time.RFC3339), nil
 	}
-	return "", usagef("--since %q is not a duration such as 24h or an RFC 3339 time such as 2026-11-01T10:00:00Z", text(raw))
+	return "", usagef("%s %q is not a duration such as 24h or an RFC 3339 time such as 2026-11-01T10:00:00Z", flag, text(raw))
 }
 
 func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
@@ -263,27 +274,34 @@ func quotedTitle(title string) string {
 	return `"` + text(title) + `"`
 }
 
-func describe(e activityEvent) string {
+func describeAnnotation(e activityEvent) (string, bool) {
 	d := e.Data
 	switch e.Type {
 	case "annotation.created":
 		if len(d.Tags) > 0 {
-			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
 		}
-		return "added an annotation"
+		return "added an annotation", true
 	case "annotation.updated":
 		if len(d.Tags) > 0 {
-			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
 		}
-		return "edited an annotation"
+		return "edited an annotation", true
 	case "annotation.deleted":
-		return "deleted an annotation"
+		return "deleted an annotation", true
 	case "finding.created":
-		return "saved the finding " + quotedTitle(d.Title)
+		return "saved the finding " + quotedTitle(d.Title), true
 	case "finding.pinned":
-		return "pinned a finding"
+		return "pinned a finding", true
 	case "finding.moved":
-		return "moved the finding " + quotedTitle(d.Title)
+		return "moved the finding " + quotedTitle(d.Title), true
+	}
+	return "", false
+}
+
+func describe(e activityEvent) string {
+	if phrase, ok := describeAnnotation(e); ok {
+		return phrase
 	}
 	if phrase, ok := describeSavedSearch(e); ok {
 		return phrase
@@ -301,6 +319,9 @@ func describe(e activityEvent) string {
 		return phrase
 	}
 	if phrase, ok := describeProposal(e); ok {
+		return phrase
+	}
+	if phrase, ok := describeAdmin(e); ok {
 		return phrase
 	}
 	return text(e.Type)

@@ -6,6 +6,8 @@ outbound-domains:
       The list is empty until a person allows a domain.
       When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`.
       Entries are sorted by `domain` in byte order.
+      `used_by` names the webhooks and Grafana connections that depend on an entry, for Admins only and empty for Editors; dashboard feeds, actions and assets are fetched on demand and not listed.
+      Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`.
       Service accounts cannot call this endpoint.
     responses:
       "200":
@@ -24,7 +26,7 @@ outbound-domains:
     operationId: allowOutboundDomain
     summary: Allow a domain.
     description: >-
-      Any signed-in person may allow a domain; service accounts cannot.
+      Only an Admin may allow a domain; service accounts cannot.
       Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself).
       The entry is stored in its lower case ASCII form.
       At most 100 domains can be allowed.
@@ -40,6 +42,12 @@ outbound-domains:
               domain:
                 type: string
     responses:
+      "200":
+        description: A Grafana connection had already added the domain, so it is now kept as an entry of its own and no longer leaves with the connection.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/OutboundDomain"
       "201":
         description: The domain is allowed.
         content:
@@ -53,7 +61,7 @@ outbound-domains:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "409":
-        description: The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`).
+        description: The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain was already allowed by hand (`domain_exists`).
         content:
           application/json:
             schema:

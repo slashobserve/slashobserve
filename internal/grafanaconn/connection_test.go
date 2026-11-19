@@ -3,11 +3,14 @@ package grafanaconn_test
 import (
 	"bytes"
 	"errors"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 )
 
@@ -203,11 +206,151 @@ func TestConnectionDeleteForgetsIt(t *testing.T) {
 	}
 }
 
+func TestDeletingTheLastConnectionToAHostRemovesTheEntryItAdded(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	second, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Copy", URL: grafanaURL + "/grafana", Token: grafanaToken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, conn.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || !list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the host kept for the other connection", list, err)
+	}
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, second.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the host removed", list, err)
+	}
+}
+
+func TestDeletingAConnectionKeepsAHostAnAdminAllowedByHand(t *testing.T) {
+	r := newRig(t)
+	p, err := domains.ParsePattern(grafanaHost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.domains.Add(t.Context(), r.admin, p); err != nil {
+		t.Fatal(err)
+	}
+	conn := r.connect(t)
+	if err := r.svc.Delete(t.Context(), r.admin, uuidOf(t, conn.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := r.domains.Allowed(t.Context()); err != nil || !list.Allows(grafanaHost) {
+		t.Fatalf("allowlist %v, err %v; want the hand-added host kept", list, err)
+	}
+}
+
+func TestMovingAConnectionToAnotherHostReleasesTheOldOne(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	newURL, replacement := "https://grafana2.example.com", "glsa_new"
+	if _, err := r.svc.Update(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &replacement}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := r.domains.Allowed(t.Context())
+	if err != nil || list.Allows(grafanaHost) || !list.Allows("grafana2.example.com") {
+		t.Fatalf("allowlist %v, err %v; want only the new host", list, err)
+	}
+}
+
 func TestConnectionToAHostTheLockedListRefuses(t *testing.T) {
 	r := newRigWith(t, rigOptions{secretKey: secretKey, lock: allowlist.Lock{Locked: true}})
 	_, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Production", URL: grafanaURL, Token: grafanaToken})
 	var hostErr *egress.HostError
 	if !errors.Is(err, egress.ErrNotAllowed) || !errors.As(err, &hostErr) || hostErr.Host != grafanaHost {
 		t.Fatalf("error %v, want the host not allowed", err)
+	}
+}
+
+func TestConnectionChangesRecordAdminEventsWithoutTheToken(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	id := uuidOf(t, conn.ID)
+	name := "Renamed"
+	if _, err := r.svc.Update(t.Context(), r.admin, id, grafanaconn.Patch{Name: &name}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.Update(t.Context(), r.admin, id, grafanaconn.Patch{Name: &name}); err != nil {
+		t.Fatal(err)
+	}
+	token := "glsa_replacement_token"
+	if _, err := r.svc.Update(t.Context(), r.admin, id, grafanaconn.Patch{Token: &token}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.svc.Delete(t.Context(), r.admin, id); err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type, data::text FROM activity WHERE type LIKE 'grafana_connection.%' ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var types, all []string
+	for rows.Next() {
+		var typ, data string
+		if err := rows.Scan(&typ, &data); err != nil {
+			t.Fatal(err)
+		}
+		types = append(types, typ)
+		all = append(all, data)
+	}
+	want := "grafana_connection.created,grafana_connection.updated,grafana_connection.updated,grafana_connection.deleted"
+	if strings.Join(types, ",") != want {
+		t.Fatalf("events %v, want %s (an update that changes nothing must not record)", types, want)
+	}
+	if !strings.Contains(all[1], `"changes"`) || !strings.Contains(all[1], `"Renamed"`) {
+		t.Fatalf("rename data %s", all[1])
+	}
+	if !strings.Contains(all[2], `"token_changed": true`) {
+		t.Fatalf("token data %s", all[2])
+	}
+	for _, data := range all {
+		for _, secret := range []string{grafanaToken, token} {
+			if strings.Contains(data, secret) {
+				t.Fatalf("an event holds a token: %s", data)
+			}
+		}
+	}
+}
+
+func TestConcurrentRenamesRecordAChainOfChanges(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	id := uuidOf(t, conn.ID)
+	const renames = 12
+	var wg sync.WaitGroup
+	for i := range renames {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			name := "Name " + strconv.Itoa(i)
+			if _, err := r.svc.Update(t.Context(), r.admin, id, grafanaconn.Patch{Name: &name}); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data->'changes'->'name'->>'from', data->'changes'->'name'->>'to' FROM activity WHERE type = 'grafana_connection.updated' ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	previous := conn.Name
+	for rows.Next() {
+		var from, to string
+		if err := rows.Scan(&from, &to); err != nil {
+			t.Fatal(err)
+		}
+		if from != previous {
+			t.Fatalf("a change reads %q to %q after the name was %q", from, to, previous)
+		}
+		previous = to
 	}
 }

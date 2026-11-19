@@ -58,6 +58,7 @@ type dashboardListItemJSON struct {
 	Creator          creatorJSON         `json:"creator"`
 	DatasourceUIDs   []string            `json:"datasource_uids"`
 	OpenCommentCount int                 `json:"open_comment_count"`
+	ViewCount        int                 `json:"view_count"`
 	Folder           dashboardFolderJSON `json:"folder"`
 	Permissions      folders.Permissions `json:"permissions"`
 }
@@ -191,6 +192,7 @@ func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
 		Creator:          newCreatorJSON(d.Creator),
 		DatasourceUIDs:   item.DatasourceUIDs,
 		OpenCommentCount: item.OpenComments,
+		ViewCount:        item.ViewCount,
 		Folder:           newDashboardFolderJSON(d.Folder),
 		Permissions:      folders.PermissionsJSON(d.Abilities),
 	}

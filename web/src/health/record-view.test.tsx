@@ -1,5 +1,10 @@
+import { QueryClientProvider } from "@tanstack/react-query"
 import { renderHook } from "@testing-library/react"
+import type { ReactNode } from "react"
 import { afterEach, describe, expect, test, vi } from "vitest"
+
+import { dashboardKeys } from "@/api/keys"
+import { testQueryClient } from "@/test/render"
 
 import { useRecordView } from "./record-view"
 
@@ -25,12 +30,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function withClient(client = testQueryClient()) {
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  )
+}
+
 describe("useRecordView", () => {
   test("records one view per dashboard id while mounted", () => {
     const fetch = stubFetch()
     const { rerender } = renderHook(({ id }) => useRecordView(id), {
       initialProps: { id: first },
       reactStrictMode: true,
+      wrapper: withClient(),
     })
     rerender({ id: first })
     rerender({ id: second })
@@ -39,5 +51,17 @@ describe("useRecordView", () => {
       ["POST", `/api/v1/dashboards/${first}/views`],
       ["POST", `/api/v1/dashboards/${second}/views`],
     ])
+  })
+
+  test("refreshes the dashboard's view count once the view is recorded", async () => {
+    stubFetch()
+    const client = testQueryClient()
+    const invalidate = vi.spyOn(client, "invalidateQueries")
+    renderHook(() => useRecordView(first), { wrapper: withClient(client) })
+    await vi.waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: dashboardKeys.views(first),
+      })
+    )
   })
 })

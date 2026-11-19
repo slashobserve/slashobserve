@@ -6,13 +6,14 @@ description: Create and revoke the keys that the CLI, MCP clients and scripts us
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
 1. Sign in to the web app as an Admin and open `<public url>/keys`, which the **API keys** link on the Agents page also opens (the old `/settings/keys` address redirects).
-2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
+2. Choose **Create key**, name the key, pick a service account or **New service account** (the default, so an existing account is never changed by accident; name it with lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
 3. Choose **Create key** in the panel and copy the key.
    It is shown once, in that panel, with an `export OBSERVE_TOKEN=…` line to paste into your shell.
    The server stores only a hash of the key, so a lost key cannot be recovered; create a new one and revoke the old one.
 
 Keys start with `sok_`.
 Add more keys to an account, and revoke a key, from the same page.
+The table shows each key's role, which is its account's role.
 A revoked or expired key is refused immediately.
 Each key listed over the API has a `state`: `active`, `expiring` within 7 days of its expiry, `expired` or `revoked`; see [States](../reference/states.md).
 The page also shows ready-made client setup snippets for your server's address; they refer to `OBSERVE_TOKEN` and never contain the key.
@@ -55,6 +56,7 @@ The server refuses to start when the file is invalid, or when an account with a 
 
 A provisioned account is managed through the file only.
 Changing its role in the web app, or its role or `takes_runs` with `PATCH /api/v1/service-accounts/{id}`, answers 409 `provisioned`, and so does revoking one of its keys.
+The web app lists such a key as "from file" and offers no Revoke for it.
 The web app locks its **Takes agent runs** switch.
 To rotate the file key, write a new key to its file and restart the server: the old file key is revoked and the new one replaces it.
 A key that was revoked before cannot come back; write a fresh one.

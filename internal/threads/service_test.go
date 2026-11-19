@@ -485,6 +485,9 @@ func TestEveryEventTypeAppendsItsDataWithoutBodyText(t *testing.T) {
 			t.Errorf("row %d object = %v", i, row.Data["object"])
 		}
 	}
+	if rows[0].Data["title"] == nil || rows[0].Data["title"] == "" || rows[1].Data["title"] != nil {
+		t.Errorf("only the opened event names its object: %v, %v", rows[0].Data["title"], rows[1].Data["title"])
+	}
 	if rows[0].ActorID != testUserID || rows[0].Data["version"] != float64(1) || rows[0].Data["panel_id"] != "rps" {
 		t.Errorf("opened = %+v", rows[0])
 	}

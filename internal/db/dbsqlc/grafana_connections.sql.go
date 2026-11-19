@@ -46,6 +46,29 @@ func (q *Queries) GetGrafanaConnection(ctx context.Context, id pgtype.UUID) (Gra
 	return i, err
 }
 
+const getGrafanaConnectionForUpdate = `-- name: GetGrafanaConnectionForUpdate :one
+SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync FROM grafana_connections WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetGrafanaConnectionForUpdate(ctx context.Context, id pgtype.UUID) (GrafanaConnection, error) {
+	row := q.db.QueryRow(ctx, getGrafanaConnectionForUpdate, id)
+	var i GrafanaConnection
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.TokenCiphertext,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastTestAt,
+		&i.LastTestOk,
+		&i.LastTestMessage,
+		&i.LastSync,
+	)
+	return i, err
+}
+
 const insertGrafanaConnection = `-- name: InsertGrafanaConnection :one
 INSERT INTO grafana_connections (id, name, url, token_ciphertext, created_by)
 VALUES ($1, $2, $3, $4, $5)

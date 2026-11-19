@@ -51,6 +51,7 @@ function answer(
 }
 
 beforeEach(() => {
+  localStorage.clear()
   return () => vi.unstubAllGlobals()
 })
 

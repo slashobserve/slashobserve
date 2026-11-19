@@ -172,6 +172,30 @@ export function withoutField(text: string, field: string): string | null {
   return textOf(rows.filter((row) => row.field !== field))
 }
 
+export function withRenamedField(
+  text: string,
+  from: string,
+  to: string
+): string | null {
+  const rows = rowsOf(text)
+  if (rows === null) return null
+  return textOf(
+    rows.map((row) => (row.field === from ? { ...row, field: to } : row))
+  )
+}
+
+export function equivalentField(
+  field: string,
+  names: readonly string[]
+): string | null {
+  const matches = names.filter(
+    (name) =>
+      !name.endsWith(".keyword") &&
+      (name.endsWith(`.${field}`) || field.endsWith(`.${name}`))
+  )
+  return matches.length === 1 ? matches[0] : null
+}
+
 export function rowLabel(row: BuilderRow): string {
   switch (row.op) {
     case "is":

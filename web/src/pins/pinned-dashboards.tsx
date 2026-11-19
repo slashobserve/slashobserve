@@ -11,7 +11,13 @@ import { dashboardLink, dashboardPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 import type { SubNavRow } from "@/shell/nav"
-import { SubNavList, subNavLinkClass, subNavMoreClass } from "@/shell/sub-nav"
+import {
+  SubNavList,
+  SubNavSkeleton,
+  subNavLinkClass,
+  subNavMoreClass,
+  useReservedRows,
+} from "@/shell/sub-nav"
 
 import { pinProblemText } from "./pin-problems"
 import type { Pin } from "./pins"
@@ -20,8 +26,13 @@ import { usePins } from "./queries"
 const shown = 10
 
 export function useVisiblePins() {
-  const pins = usePins().data ?? []
-  return { pins: pins.slice(0, shown), more: pins.length > shown }
+  const query = usePins()
+  const pins = query.data ?? []
+  return {
+    pins: pins.slice(0, shown),
+    more: pins.length > shown,
+    pending: query.isPending,
+  }
 }
 
 function usePinHealth(pins: readonly Pin[]) {
@@ -47,15 +58,25 @@ export function pinRows(pins: readonly Pin[]): SubNavRow[] {
 export function PinnedDashboards({
   pins,
   more,
+  pending = false,
   currentId,
   onNavigate,
 }: {
   pins: readonly Pin[]
   more: boolean
+  pending?: boolean
   currentId: string | null
   onNavigate?: () => void
 }) {
   const health = usePinHealth(pins)
+  const reserved = useReservedRows(
+    "pins",
+    pending,
+    pins.length + (more ? 1 : 0)
+  )
+  if (pending) {
+    return <SubNavSkeleton label="Pinned dashboards" rows={reserved} />
+  }
   if (pins.length === 0) return null
 
   return (

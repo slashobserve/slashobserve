@@ -39,7 +39,10 @@ type rcaPublishedOut struct {
 
 func (r *Registry) rcaFailure(err error) (Result, error) {
 	var failed *observations.PanelFailedError
+	var unchanged *observations.RCAUnchangedError
 	switch {
+	case errors.As(err, &unchanged):
+		return toolError(observations.CodeRCAUnchanged, unchanged.Error()), nil
 	case errors.Is(err, observations.ErrRCALimit):
 		return toolError(observations.CodeRCALimit, observations.ErrRCALimit.Error()), nil
 	case errors.Is(err, observations.ErrObservationChanged):

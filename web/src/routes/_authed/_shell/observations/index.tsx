@@ -1,22 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { useCallback } from "react"
 
 import { useDocumentTitle } from "@/lib/document-title"
+import { ObservationList } from "@/observations/observation-list"
 import {
-  ObservationList,
-  type ObservationStateFilter,
-} from "@/observations/observation-list"
-
-type ObservationsSearch = { state?: ObservationStateFilter; new?: "1" }
+  searchOf,
+  validateObservationsSearch,
+  viewOf,
+  type ObservationListView,
+} from "@/observations/list-view"
 
 export const Route = createFileRoute("/_authed/_shell/observations/")({
   staticData: { crumbs: [{ label: "Observations" }] },
-  validateSearch: (search: Record<string, unknown>): ObservationsSearch => ({
-    state:
-      search.state === "resolved" || search.state === "all"
-        ? search.state
-        : undefined,
-    new: search.new === "1" ? "1" : undefined,
-  }),
+  validateSearch: validateObservationsSearch,
   component: ObservationsRoute,
 })
 
@@ -24,18 +20,15 @@ function ObservationsRoute() {
   useDocumentTitle("Observations - SlashObserve")
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
-  const state = search.state ?? "open"
-  function go(next: { state: ObservationStateFilter; creating: boolean }) {
-    void navigate({
-      search: {
-        ...(next.state === "open" ? {} : { state: next.state }),
-        ...(next.creating ? { new: "1" as const } : {}),
-      },
-    })
-  }
+  const go = useCallback(
+    (next: ObservationListView, creating: boolean) => {
+      void navigate({ search: searchOf(next, creating) })
+    },
+    [navigate]
+  )
   return (
     <ObservationList
-      state={state}
+      view={viewOf(search)}
       creating={search.new === "1"}
       onChange={go}
     />

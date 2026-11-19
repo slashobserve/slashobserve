@@ -960,6 +960,15 @@ func TestLexerContextCorpus(t *testing.T) {
 		{name: "promql negative regex raw with metacharacters", d: macros.PromQL, query: `up{a!~'${v:raw}'}`, env: envWith(val("v", "(?s).*")), err: true},
 		{name: "promql equality raw keeps metacharacters", d: macros.PromQL, query: `up{a="${v:raw}"}`, env: envWith(val("v", "a.*")), want: `up{a="a.*"}`},
 		{name: "promql all in regex is dot star", d: macros.PromQL, query: `up{a=~"$v"}`, env: envWith(all("v", "x", "y")), want: `up{a=~".*"}`},
+		{name: "logql all in stream selector is not empty compatible", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v", "x", "y")), want: `{app=~".+"}`},
+		{name: "logql all with no options", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v")), want: `{app=~".+"}`},
+		{name: "logql all with explicit regex format", d: macros.LogQL, query: `{app=~"${v:regex}"}`, env: envWith(all("v", "x")), want: `{app=~".+"}`},
+		{name: "logql all in a label filter keeps lines without the label", d: macros.LogQL, query: `{app="x"} | logfmt | level=~"$v"`, env: envWith(all("v", "x")), want: `{app="x"} | logfmt | level=~".*"`},
+		{name: "logql all in a line filter", d: macros.LogQL, query: `{app="x"} |~ "$v"`, env: envWith(all("v", "x")), want: `{app="x"} |~ ".*"`},
+		{name: "logql all in a selector of a metric query", d: macros.LogQL, query: `sum(rate({app=~"$v"}[5m]))`, env: envWith(all("v", "x")), want: `sum(rate({app=~".+"}[5m]))`},
+		{name: "logql all in the selector and the pipeline of one query", d: macros.LogQL, query: `{app=~"$v"} | json | level=~"$v"`, env: envWith(all("v", "x")), want: `{app=~".+"} | json | level=~".*"`},
+		{name: "logql all after a quoted brace", d: macros.LogQL, query: `{app="}"} | json | level=~"$v"`, env: envWith(all("v", "x")), want: `{app="}"} | json | level=~".*"`},
+		{name: "logql selected values keep the alternation", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(val("v", "x", "y")), want: `{app=~"(x|y)"}`},
 	}
 	runExpandCases(t, cases)
 }

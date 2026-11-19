@@ -529,7 +529,8 @@ func TestTheWorkerStopsAClaimWhenTheOwnerChangesMidPass(t *testing.T) {
 	r.append(t, activity.TypeFindingCreated)
 	r.sender.script(func(n int, _ call) (egress.SendResult, error) {
 		if n == 0 {
-			if _, err := r.svc.Update(t.Context(), adminTwo, r.uuid(t, created.Webhook.ID), Patch{}); err != nil {
+			me := ownerMe
+			if _, err := r.svc.Update(t.Context(), adminTwo, r.uuid(t, created.Webhook.ID), Patch{Owner: &me}); err != nil {
 				t.Error(err)
 			}
 		}
