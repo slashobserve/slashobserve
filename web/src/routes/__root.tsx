@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useFocusAfterNavigation } from "@/shell/focus-after-navigation"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,6 +30,7 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 function RootLayout() {
+  useFocusAfterNavigation()
   return (
     <Shell>
       <TooltipProvider>
