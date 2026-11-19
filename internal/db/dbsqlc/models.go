@@ -81,6 +81,7 @@ type AgentRequest struct {
 	ChatID            pgtype.UUID
 	RetriesID         pgtype.UUID
 	TimeZone          pgtype.Text
+	ThreadRepliedAt   pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {

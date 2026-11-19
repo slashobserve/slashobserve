@@ -69,6 +69,9 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	if err != nil {
 		return fmt.Errorf("insert run reply: %w", err)
 	}
+	if err := q.MarkRunReplied(ctx, run.ID); err != nil {
+		return fmt.Errorf("mark run replied: %w", err)
+	}
 	return emitter{scope: sc, thread: thread, actor: author}.replied(ctx, q, message, nil)
 }
 

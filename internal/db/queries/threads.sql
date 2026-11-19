@@ -54,7 +54,11 @@ INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_nam
 SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text
 WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
+  AND EXISTS (SELECT 1 FROM agent_requests WHERE id = @run_id::uuid AND thread_replied_at IS NULL)
 RETURNING *;
+
+-- name: MarkRunReplied :exec
+UPDATE agent_requests SET thread_replied_at = clock_timestamp() WHERE id = @id AND thread_replied_at IS NULL;
 
 -- name: GetRunProposalTitle :one
 SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id LIMIT 1;

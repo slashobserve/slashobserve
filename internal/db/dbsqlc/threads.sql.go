@@ -391,6 +391,7 @@ INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_nam
 SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
   $6::text, $7::text, $8::uuid, $9::text
 WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
+  AND EXISTS (SELECT 1 FROM agent_requests WHERE id = $8::uuid AND thread_replied_at IS NULL)
 RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id
 `
 
@@ -759,6 +760,15 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const markRunReplied = `-- name: MarkRunReplied :exec
+UPDATE agent_requests SET thread_replied_at = clock_timestamp() WHERE id = $1 AND thread_replied_at IS NULL
+`
+
+func (q *Queries) MarkRunReplied(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markRunReplied, id)
+	return err
 }
 
 const markThreadRead = `-- name: MarkThreadRead :exec
