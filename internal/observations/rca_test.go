@@ -181,6 +181,26 @@ func TestAnEditedPageDoesNotChangeAPublishedRevision(t *testing.T) {
 	}
 }
 
+func TestAReopenedObservationIsPublishedWithoutItsOldSummary(t *testing.T) {
+	r, _ := newPublishRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	r.addText(t, editor, o, "note")
+	if _, err := r.service.Resolve(t.Context(), editor, id, "Steady"); err != nil {
+		t.Fatal(err)
+	}
+	if first := r.publish(t, editor, o); first.Summary != "Steady" || first.State != observations.StateResolved {
+		t.Fatalf("resolved revision %+v", first)
+	}
+	reopened, err := r.service.Reopen(t.Context(), editor, id)
+	if err != nil || reopened.Summary != "Steady" {
+		t.Fatalf("reopened %+v, %v", reopened, err)
+	}
+	if second := r.publish(t, editor, o); second.Summary != "" || second.State != observations.StateOpen {
+		t.Errorf("open revision %+v, want no summary", second)
+	}
+}
+
 func TestPublishingLeavesOutRequestedBlocksAndAcceptsAnEmptyPage(t *testing.T) {
 	r, _ := newPublishRig(t)
 	empty := r.publish(t, editor, r.create(t, editor, r.shared))
@@ -223,6 +243,19 @@ func TestPublishingNeedsEditOnAVisibleSharedFolder(t *testing.T) {
 	}
 	if got := r.count(t, `SELECT count(*) FROM observation_rcas`); got != 0 {
 		t.Errorf("%d revisions written by refused publishes", got)
+	}
+}
+
+func TestAnObservationInMyDashboardsIsNotOfferedPublish(t *testing.T) {
+	r, _ := newPublishRig(t)
+	for name, folder := range map[string]observations.Observation{
+		"shared":   r.create(t, editor, r.shared),
+		"personal": r.create(t, editor, r.personalFolder(t, editor)),
+	} {
+		offered := slices.Contains(folder.AllowedActions, observations.ActionPublish)
+		if offered == (name == "personal") {
+			t.Errorf("%s folder: publish offered = %v in %v", name, offered, folder.AllowedActions)
+		}
 	}
 }
 
@@ -547,6 +580,74 @@ func TestRCAHTTPRefusalsUseTheDocumentedCodes(t *testing.T) {
 	mine := d.newObservation(t, editor, d.personalFolder(t, editor).String(), "").Observation.ID
 	if got := errorCode(t, d.call(t, editor, http.MethodPost, "/api/v1/observations/"+mine+"/rcas", http.StatusConflict)); got != "personal_folder" {
 		t.Errorf("personal folder code %q", got)
+	}
+}
+
+func TestRCAHTTPAnUnchangedPageIsNotPublishedAgainButAPageWithAPanelIs(t *testing.T) {
+	d := newRCADocumented(t)
+	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"Started after the deploy"}}`).Observation.ID
+	path := "/api/v1/observations/" + id + "/rcas"
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+
+	rec := d.call(t, editor, http.MethodPost, path, http.StatusConflict)
+	if got := errorCode(t, rec); got != "rca_unchanged" || !strings.Contains(rec.Body.String(), "revision 1 already holds this page") {
+		t.Errorf("the second publish: %s", rec.Body)
+	}
+	if n := d.count(t, `SELECT count(*) FROM observation_rcas WHERE observation_id = $1`, id); n != 1 {
+		t.Errorf("%d revisions after the refusal, want 1", n)
+	}
+
+	d.send(t, editor, http.MethodPatch, "/api/v1/observations/"+id, `{"title":"Checkout 5xx after the deploy"}`, http.StatusOK)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	if got := errorCode(t, d.call(t, editor, http.MethodPost, path, http.StatusConflict)); got != "rca_unchanged" {
+		t.Errorf("after the rename was published: code %q", got)
+	}
+
+	d.send(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/blocks", `{"kind":"panel","body":`+string(titledPanel("Rate"))+`}`, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+}
+
+func TestRCAHTTPWithdrawingARevisionDeletesItUnlessALivePublicLinkReachesIt(t *testing.T) {
+	d := newRCADocumented(t)
+	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"Started after the deploy"}}`).Observation.ID
+	path := "/api/v1/observations/" + id + "/rcas"
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+	d.send(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/blocks", `{"kind":"text","body":{"markdown":"A second note"}}`, http.StatusCreated)
+	d.call(t, editor, http.MethodPost, path, http.StatusCreated)
+
+	for _, by := range []auth.Principal{viewer, commenter} {
+		if got := errorCode(t, d.call(t, by, http.MethodDelete, path+"/1", http.StatusForbidden)); got != "forbidden_role" {
+			t.Errorf("%s withdrawing: code %q", by.ID, got)
+		}
+	}
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/abc", http.StatusBadRequest)); got != "invalid_request" {
+		t.Errorf("a revision that is not a number: code %q", got)
+	}
+
+	d.call(t, editor, http.MethodDelete, path+"/1", http.StatusNoContent)
+	listed := decode[rcaList](t, d.call(t, viewer, http.MethodGet, path, http.StatusOK))
+	if len(listed.RCAs) != 1 || listed.RCAs[0].Revision != 2 {
+		t.Errorf("after withdrawing revision 1: %+v", listed)
+	}
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/1", http.StatusNotFound)); got != "not_found" {
+		t.Errorf("withdrawing it twice: code %q", got)
+	}
+
+	link := `INSERT INTO public_links (rca_id, token_hash, display_prefix, variables, expires_at, created_by_kind, created_by_id, created_by_name)
+		SELECT id, sha256(id::text::bytea), 'abc', 'frozen', $3::timestamptz, 'user', $2::uuid, 'Eve' FROM observation_rcas WHERE observation_id = $1::uuid AND revision = 2`
+	d.db.Exec(t, link, id, editor.ID, nil)
+	if got := errorCode(t, d.call(t, editor, http.MethodDelete, path+"/2", http.StatusConflict)); got != "rca_shared" {
+		t.Errorf("a revision with a live link: code %q", got)
+	}
+	d.db.Exec(t, `UPDATE public_links SET expires_at = now() - interval '1 hour'`)
+	d.call(t, editor, http.MethodDelete, path+"/2", http.StatusNoContent)
+
+	if n := d.count(t, `SELECT count(*) FROM observation_rcas WHERE observation_id = $1::uuid`, id); n != 0 {
+		t.Errorf("%d revisions left", n)
+	}
+	if n := d.count(t, `SELECT count(*) FROM activity WHERE observation_id = $1::uuid AND type = 'observation.rca_withdrawn' AND (data ->> 'revision')::int IN (1, 2)`, id); n != 2 {
+		t.Errorf("%d withdrawn events, want 2", n)
 	}
 }
 

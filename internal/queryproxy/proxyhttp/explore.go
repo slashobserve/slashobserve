@@ -230,6 +230,7 @@ func pageMetaOf(res queryproxy.PageResult) *pageMeta {
 		Next:          res.Next,
 		Prev:          res.Prev,
 		Window:        res.Info.Window,
+		Plain:         res.Info.Plain,
 	}
 	if res.Info.TotalRelation != datasource.TotalUnknown {
 		total := res.Info.Total

@@ -180,7 +180,7 @@ The item is greyed, with the reason after it, when the panel has several queries
 ## Add to an observation
 
 **Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.
-The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
+A panel that uses dashboard variables is copied with them and the values you have selected, see [Add to an observation](observations.md#add-to-an-observation-from-a-panel-or-from-logs); the item is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
 [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs) describes the side panel and the range the block takes.
 
 ## Sidebar

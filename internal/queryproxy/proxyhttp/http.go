@@ -141,6 +141,7 @@ type pageMeta struct {
 	Next          string `json:"next,omitempty"`
 	Prev          string `json:"prev,omitempty"`
 	Window        int    `json:"window,omitempty"`
+	Plain         bool   `json:"plain,omitempty"`
 }
 
 type resultMeta struct {

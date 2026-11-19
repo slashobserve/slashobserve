@@ -2,7 +2,7 @@ import { perLineLokiLabels } from "./context-query"
 import { appendExists, appendIn, appendKql, appendRange } from "./kql"
 import { filterTarget, withFilter } from "./query-filters"
 import { splitForm } from "./query-form"
-import { isSearchFamily } from "./search"
+import { isSearchFamily, maxEncodedPillsLength } from "./search"
 
 export type PillKind = "is" | "oneOf" | "range" | "exists"
 type RangeOperator = ">" | ">=" | "<" | "<="
@@ -192,16 +192,40 @@ export function addPill(pills: Pill[], next: NewPill): Pill[] {
   return renumbered([...pills, { ...next, id: "" }])
 }
 
+export type PillChange = { pills: Pill[] } | { blocked: string }
+
+export function pillsBlocked(pills: Pill[]): string | null {
+  if (pills.length > maxPills) return `Too many filters (${maxPills} at most)`
+  const encoded = encodePills(pills)
+  if (encoded !== undefined && encoded.length > maxEncodedPillsLength) {
+    return "These filters are too long to keep in the link: shorten a value or remove a filter"
+  }
+  return null
+}
+
+export function mergePills(pills: Pill[], next: NewPill[]): PillChange {
+  let merged = pills
+  for (const pill of next) {
+    const twin = merged.some((item) => sameClause(item, pill))
+    if (!twin && merged.length >= maxPills) {
+      return { blocked: `Too many filters (${maxPills} at most)` }
+    }
+    merged = addPill(merged, pill)
+  }
+  const blocked = pillsBlocked(merged)
+  return blocked === null ? { pills: merged } : { blocked }
+}
+
 export function replacePill(
   pills: Pill[],
   id: string,
   next: NewPill[]
-): Pill[] {
+): PillChange {
   const index = pills.findIndex((pill) => pill.id === id)
-  if (index < 0) return pills
+  if (index < 0) return { pills }
   const rest = [...pills.slice(0, index), ...pills.slice(index + 1)]
-  const merged = next.reduce((current, pill) => addPill(current, pill), rest)
-  return renumbered(merged)
+  const change = mergePills(rest, next)
+  return "pills" in change ? { pills: renumbered(change.pills) } : change
 }
 
 export function removePill(pills: Pill[], id: string): Pill[] {
@@ -245,6 +269,22 @@ function applyNativePill(
   )
 }
 
+type Applied = { query: string; refused: string[] }
+
+function applyActive(
+  query: string,
+  type: "loki" | "clickhouse",
+  pills: Pill[]
+): Applied {
+  const refused: string[] = []
+  const applied = pills.reduce((text, pill) => {
+    const next = applyNativePill(text, type, pill)
+    if (next === null) refused.push(pill.id)
+    return next ?? text
+  }, query)
+  return { query: applied, refused }
+}
+
 export function applyPills(
   query: string,
   type: string,
@@ -262,10 +302,19 @@ export function applyPills(
     return query.slice(0, offset) + applied
   }
   if (type !== "loki" && type !== "clickhouse") return null
-  return active.reduce(
-    (text, pill) => applyNativePill(text, type, pill) ?? text,
-    query
+  return applyActive(query, type, active).query
+}
+
+export function refusedPillIds(
+  query: string,
+  type: string,
+  pills: Pill[]
+): ReadonlySet<string> {
+  if (type !== "loki" && type !== "clickhouse") return new Set()
+  const active = pills.filter(
+    (pill) => !pill.paused && pillSupported(type, pill)
   )
+  return new Set(applyActive(query, type, active).refused)
 }
 
 export type LineFilterAction = "in" | "out" | "exists"
@@ -299,14 +348,11 @@ export function lineFilter(
   if (action !== "exists" && value.length > maxLineFilterValueLength) {
     return { blocked: "Too long to filter" }
   }
-  const added = addPill(pills, next)
-  if (added === pills) {
-    return {
-      blocked:
-        pills.length >= maxPills ? "Too many filters" : "Already a filter",
-    }
+  if (pills.some((pill) => sameClause(pill, next) && !pill.paused)) {
+    return { blocked: "Already a filter" }
   }
-  return { pills: added }
+  const change = mergePills(pills, [next])
+  return "pills" in change ? { pills: change.pills } : change
 }
 
 export function unpinnedCleared(pills: Pill[]): Pill[] {

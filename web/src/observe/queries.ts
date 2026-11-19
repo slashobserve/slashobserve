@@ -163,12 +163,16 @@ export function useMyRequests(filters: ChatListFilters, limit = 20) {
   return { requests, query }
 }
 
-export function useAgentInfo() {
-  return useQuery({
+export function agentInfoQuery() {
+  return queryOptions({
     queryKey: observeKeys.agent(),
     queryFn: ({ signal }) => api.GET("/agent", { signal }).then(unwrap),
     staleTime: 60_000,
   })
+}
+
+export function useAgentInfo() {
+  return useQuery(agentInfoQuery())
 }
 
 export function observeRequestQuery(id: string) {

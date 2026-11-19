@@ -723,7 +723,7 @@
       {
         "subject": "annotations",
         "status": "partial",
-        "reason": "Annotations are not part of SlashObserve.",
+        "reason": "Annotation queries are not imported; SlashObserve annotations are added with the CLI, the HTTP API or an MCP client.",
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"

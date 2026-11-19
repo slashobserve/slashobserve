@@ -70,6 +70,45 @@ func TestDraftContextLokiPrefersServiceNameAndDetectedLevel(t *testing.T) {
 	}
 }
 
+func TestDraftContextLokiOffersAStructuredLevelWhenNoLevelLabelIsListed(t *testing.T) {
+	ds := &fakeDS{typ: "loki", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch {
+		case req.Kind == datasource.DiscoverLabels:
+			return &datasource.Catalog{Labels: []string{"service_name", "k8s_pod_name"}}, nil
+		case req.Label == "detected_level":
+			return &datasource.Catalog{Values: []string{"error", "info", "warn"}}, nil
+		}
+		return &datasource.Catalog{Values: []string{"checkout"}}, nil
+	}}
+	facts, err := contextFor(t, ds, signalLogs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `values of detected_level (structured metadata, not an index label: filter after the selector with | detected_level="value", never inside it): "error", "info", "warn"` + "\n"
+	if !strings.Contains(facts.Text, want) {
+		t.Fatalf("text lacks %q:\n%s", want, facts.Text)
+	}
+}
+
+func TestDraftContextLokiSaysNothingAboutAMissingStructuredLevel(t *testing.T) {
+	ds := &fakeDS{typ: "loki", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch {
+		case req.Kind == datasource.DiscoverLabels:
+			return &datasource.Catalog{Labels: []string{"service_name"}}, nil
+		case req.Label == "detected_level":
+			return nil, datasource.Errorf(datasource.ErrUnavailable, "connection refused")
+		}
+		return &datasource.Catalog{Values: []string{"checkout"}}, nil
+	}}
+	facts, err := contextFor(t, ds, signalLogs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(facts.Text, "detected_level") {
+		t.Fatalf("text:\n%s", facts.Text)
+	}
+}
+
 func clickhouseCatalog(tables ...string) func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	return func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		switch req.Kind {

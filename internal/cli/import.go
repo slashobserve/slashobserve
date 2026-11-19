@@ -20,19 +20,26 @@ const (
 	reasonRunes    = 120
 	statusImported = "imported"
 	unresolvedCode = "datasources_unresolved"
-	standardInput  = "-"
+
+	alreadyImportedCode = "already_imported"
+	standardInput       = "-"
 )
 
 type importOptions struct {
 	maps    []string
 	preview bool
 	folder  string
+	update  string
+	asNew   bool
 }
 
 type importRequest struct {
 	JSON    string            `json:"json"`
 	Mapping map[string]string `json:"mapping,omitempty"`
 	Folder  string            `json:"folder,omitempty"`
+
+	UpdateDashboard string `json:"update_dashboard,omitempty"`
+	RefuseExisting  bool   `json:"refuse_existing,omitempty"`
 }
 
 type importCounts struct {
@@ -73,11 +80,39 @@ type importDatasource struct {
 	Candidates []string `json:"candidates"`
 }
 
+type importExisting struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+	Version     int    `json:"version"`
+	CanUpdate   bool   `json:"can_update"`
+}
+
+func (e importExisting) nextStep() string {
+	if e.CanUpdate {
+		return fmt.Sprintf("Run it again with --update %s to save it as version %d, or with --as-new to make another dashboard.", e.DashboardID, e.Version+1)
+	}
+	return "You cannot edit it; run it again with --as-new to make your own copy."
+}
+
+type alreadyImportedBody struct {
+	Existing importExisting `json:"existing"`
+}
+
+type alreadyImportedError struct {
+	api      *apiError
+	existing importExisting
+}
+
+func (e *alreadyImportedError) Error() string { return e.api.Error() + "\n" + e.existing.nextStep() }
+
+func (e *alreadyImportedError) Unwrap() error { return e.api }
+
 type importPreview struct {
 	Summary     importSummary      `json:"summary"`
 	Datasources []importDatasource `json:"datasources"`
 	Ready       bool               `json:"ready"`
 	Report      importReport       `json:"report"`
+	Existing    *importExisting    `json:"existing"`
 }
 
 type importedDashboard struct {
@@ -132,18 +167,24 @@ func (a *app) importCommand() *cobra.Command {
 		Long:  "Import a Grafana dashboard JSON file ('-' reads standard input) and print the address of the new dashboard.\nThe import report goes to standard error.",
 		Example: "  observe import dashboard.json\n" +
 			"  observe import dashboard.json --map prometheus=prom\n" +
-			"  observe import dashboard.json --preview",
+			"  observe import dashboard.json --preview\n" +
+			"  observe import dashboard.json --update <dashboard id>",
 		Args: exactArgs(1, "one file, or - for standard input"),
 		RunE: a.runImport,
 	}
 	cmd.Flags().StringArrayVar(&a.importing.maps, "map", nil, "use our datasource <uid> for a Grafana datasource: <grafana>=<uid> (repeatable)")
 	cmd.Flags().BoolVar(&a.importing.preview, "preview", false, "show the report without saving anything")
 	cmd.Flags().StringVar(&a.importing.folder, "folder", "", "put the dashboard in the folder with this title (default: the folder named in the Grafana export, else your default folder)")
+	cmd.Flags().StringVar(&a.importing.update, "update", "", "save the file as the next version of this dashboard, which an earlier import made, instead of making a new one")
+	cmd.Flags().BoolVar(&a.importing.asNew, "as-new", false, "make a new dashboard even when this Grafana dashboard was already imported")
 	a.addOpenFlag(cmd)
 	return cmd
 }
 
 func (a *app) runImport(cmd *cobra.Command, args []string) error {
+	if a.importing.update != "" && a.importing.asNew {
+		return usagef("--update and --as-new cannot be used together")
+	}
 	mapping, err := parseMappings(a.importing.maps)
 	if err != nil {
 		return err
@@ -156,13 +197,10 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	path, folder := "imports", a.importing.folder
-	if a.importing.preview {
-		path, folder = "imports/preview", ""
-	}
-	data, err := c.withTimeout(importTimeout).post(cmd.Context(), path, importRequest{JSON: source, Mapping: mapping, Folder: folder})
+	path, request := a.importRequest(source, mapping)
+	data, err := c.withTimeout(importTimeout).post(cmd.Context(), path, request)
 	if err != nil {
-		return unresolvedFrom(err)
+		return importFailureFrom(err)
 	}
 	out := a.output()
 	if a.json {
@@ -174,14 +212,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		out.fields(previewFields(preview))
-		out.line("")
-		out.line("%s", datasourcesTable(preview.Datasources))
-		out.line("%s", preview.Report.Counts.line())
-		if table := preview.Report.attention(); table != "" {
-			out.line("")
-			out.line("%s", table)
-		}
+		printPreview(out, preview)
 		return nil
 	}
 	imported, err := decode[importedDashboard](data)
@@ -190,7 +221,11 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	}
 	address := links.Dashboard(c.base, imported.Dashboard.ID, imported.Dashboard.Title)
 	out.line("%s", address)
-	out.notice("Imported %q: %s", text(imported.Import.Title), imported.Import.Report.Counts.line())
+	verb := "Imported"
+	if a.importing.update != "" {
+		verb = "Updated"
+	}
+	out.notice("%s %q: %s", verb, text(imported.Import.Title), imported.Import.Report.Counts.line())
 	out.notice("Folder: %s", text(imported.Dashboard.Folder.Title))
 	if imported.FolderNote != nil {
 		out.warn("%s", text(*imported.FolderNote))
@@ -202,16 +237,44 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func unresolvedFrom(err error) error {
+func (a *app) importRequest(source string, mapping map[string]string) (string, importRequest) {
+	if a.importing.preview {
+		return "imports/preview", importRequest{JSON: source, Mapping: mapping}
+	}
+	return "imports", importRequest{JSON: source, Mapping: mapping, Folder: a.importing.folder, UpdateDashboard: a.importing.update, RefuseExisting: !a.importing.asNew}
+}
+
+func printPreview(out *output, preview importPreview) {
+	out.fields(previewFields(preview))
+	if preview.Existing != nil {
+		out.line("")
+		out.line("Already imported as %q (dashboard %s, version %d). %s", text(preview.Existing.Title), preview.Existing.DashboardID, preview.Existing.Version, preview.Existing.nextStep())
+	}
+	out.line("")
+	out.line("%s", datasourcesTable(preview.Datasources))
+	out.line("%s", preview.Report.Counts.line())
+	if table := preview.Report.attention(); table != "" {
+		out.line("")
+		out.line("%s", table)
+	}
+}
+
+func importFailureFrom(err error) error {
 	var api *apiError
-	if !errors.As(err, &api) || api.status != 422 || api.code != unresolvedCode {
+	if !errors.As(err, &api) {
 		return err
 	}
-	body, decodeErr := decode[unresolvedBody](api.raw)
-	if decodeErr != nil {
-		return err
+	switch {
+	case api.status == 422 && api.code == unresolvedCode:
+		if body, decodeErr := decode[unresolvedBody](api.raw); decodeErr == nil {
+			return &unresolvedError{api: api, datasources: body.Datasources}
+		}
+	case api.status == 409 && api.code == alreadyImportedCode:
+		if body, decodeErr := decode[alreadyImportedBody](api.raw); decodeErr == nil {
+			return &alreadyImportedError{api: api, existing: body.Existing}
+		}
 	}
-	return &unresolvedError{api: api, datasources: body.Datasources}
+	return err
 }
 
 func parseMappings(values []string) (map[string]string, error) {

@@ -3,6 +3,7 @@ package proxyhttp
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -112,5 +113,26 @@ func TestObservationBlockDataRefusals(t *testing.T) {
 	}
 	if hn.heldSlots() != 0 {
 		t.Fatalf("%d slots held after the refusals", hn.heldSlots())
+	}
+}
+
+func TestObservationBlockDataRunsWithTheVariablesBakedIntoTheBlock(t *testing.T) {
+	hn := newHarness(t)
+	d := blockDashboard(`sum(rate(errors{service=~"$service"}[5m]))`)
+	d.Variables = []spec.Variable{{
+		Name:    "service",
+		Type:    spec.CustomVariable,
+		Multi:   true,
+		Options: []spec.VariableOption{{Text: "checkout", Value: "checkout"}, {Text: "cart", Value: "cart"}},
+		Default: &spec.Selection{Values: []string{"checkout", "cart"}, List: true},
+	}}
+	router := hn.observationRouter(&fakePanels{spec: d})
+	decodeData(t, findingGet(router, "/api/v1/blocks/"+hn.id.String()+"/data?"+window, auth.KindUser))
+	query := hn.ds.lastQuery()
+	if query.Text != `sum(rate(errors{service=~"$service"}[5m]))` || len(query.Variables) != 1 {
+		t.Fatalf("ran %+v", query)
+	}
+	if v := query.Variables[0]; v.Name != "service" || !slices.Equal(v.Values, []string{"checkout", "cart"}) {
+		t.Errorf("variable %+v", v)
 	}
 }

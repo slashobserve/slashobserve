@@ -27,13 +27,15 @@ An address that carries a search but no source, such as `/logs?q=...`, opens the
 The page searches that one source in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
 On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
 The address keeps the source, `q`, `from` and `to`, so **Copy link** in the top bar copies a search that opens the same way.
+Times on the page are in the time zone of your browser, and a range between two moments reads with that zone after it, such as `Nov 18, 19:53 to 19:59 GMT+5:30`.
 
 ### What the page shows first
 
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
 On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
-The label browser lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
+The label browser lists the labels of the datasource and their values, and a click on a value puts that matcher into the stream selector the query already holds, replacing the value of the same label, so the rest of the query stays as it is.
+On ClickHouse, or when the query has no selector yet, the click inserts the matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
 
 ### Query modes
@@ -56,6 +58,13 @@ The page opens in the language segment when the address carries a query.
 In the language segment you write the query yourself.
 On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
+A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
+
+Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not.
+The field counts follow the same rule, except that a query selecting `Timestamp` is counted over the time range even without the macro.
+So no ClickHouse request reads a table beyond the range at the top of the page.
+Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.
+Ctrl+Space in the editor completes names: the columns of `otel_logs` on ClickHouse, the stream labels on Loki and the mapped fields on Elasticsearch and OpenSearch, and on ClickHouse also the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows one page of lines at a time, newest first, 50 by default.
 
@@ -81,7 +90,7 @@ The query box shows the same check as you type: a caret under the offending char
 A missing closing parenthesis is closed before the next top-level `and`, or at the end.
 A query that reads as Lucene, such as one with `+`, `-` or `~` operators, offers **Switch to Lucene**, which adds the `lucene:` prefix and runs the text as written.
 **Fix it with Ask** asks the model to repair the text, **Open in the builder** shows it as chips when it can, and **KQL reference** opens this section.
-Nothing runs while the query cannot be read.
+Nothing runs while the query cannot be read, also when a link opens the page with such a query: the box shows the same card, and the volume strip and the results say nothing ran instead of showing a datasource failure.
 The **Language** control under the box switches between KQL, Lucene and Query DSL: it adds or removes the `lucene:` prefix, and picking Query DSL on an empty box inserts a `match_all` body.
 The editor highlights JSON as soon as the text starts with `{`.
 
@@ -96,6 +105,8 @@ Inside a quoted value, `\n`, `\t` and `\r` stand for a newline, a tab and a carr
 A query may hold 200 terms, and the values of one `field:(a or b or ...)` list count separately, up to 5,000, so a large multi-value selection still parses.
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
+When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
+KQL values are case sensitive, so when a query with `log.level:error` finds no lines and the field holds `ERROR`, the empty result says no document has that value and lists the values the field does hold in the range.
 
 ### Share a search
 
@@ -121,26 +132,32 @@ Pick a pill to change it:
 
 The pills are not part of the text in the query box.
 The results, the log volume, the fields and the patterns all read the query with the active pills added, and the address keeps the pills as `f` beside `q`, so a shared link carries both.
-When you run a different query, the pills that are not pinned are cleared and the page says how many.
+When you run a different query, the pills that are not pinned are cleared and a message says how many, with **Undo** to bring them back and run the query again.
+A long pill shortens with an ellipsis, and hovering it shows the whole text.
 A saved search stores the query with its pills folded in as text.
 
 On Elasticsearch and OpenSearch a pill needs a KQL query, so the row asks you to switch the query to KQL while the text starts with `lucene:` or `{`.
 On Loki and ClickHouse only the is and is not operators apply.
-A pill the datasource cannot express is marked "not applied" and left out of the query.
+A pill the datasource cannot express, or the query cannot take, is marked "not applied" and left out of the query.
+On Loki, an exclusion on a stream label stays beside the matcher the query already holds, so `{service_name=~".+"}` with `NOT service_name: frontend` runs as `{service_name=~".+", service_name!="frontend"}`.
+The row holds at most 50 pills, and the address holds the pills in about 4,000 characters, so a form that would go past either limit says so under the row and adds nothing.
 
 ## Volume
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
+Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
 It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
+
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
-When the volume request does not finish, the strip says so with the server's reason, the lines below still load, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
+When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
-- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the volume request fails when the query does not select both.
+- On ClickHouse the level is the `SeverityText` column, counted per `Timestamp` within the time range whatever the query says, so the volume request fails when the query does not select both, and the failure names the column to add.
+A datasource's error text reaches the page without the expanded query, the index names behind a data stream and the exception class names, so a typo reads as the problem and its position.
 - On Elasticsearch and OpenSearch one aggregation request counts the matching documents per time bucket and per value of the level field, the field the datasource's level role names; with no level field every document counts as other, and a query body with its own `aggs` is refused.
 
 Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
@@ -149,7 +166,10 @@ Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings
 
 The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
 The note under **Fields** says where the list comes from, and the search box narrows it by name.
+The counts are read after the lines have arrived, so a wide range shows the lines first and the value counts a moment later.
+A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
+On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
 A badge beside each name says its kind: keyword, text, number, date, boolean, IP, or on Loki a label, a parsed field or structured metadata.
 
 Open a field to see its top five values with their counts and a bar scaled to the largest.
@@ -166,6 +186,7 @@ On Loki the page adds a `| field="value"` stage to a log query.
 On ClickHouse the page adds a condition to the `WHERE` clause, and a query without one keeps its buttons disabled.
 
 **Hide fields** folds the column to a strip with **Show fields**, and the page remembers the choice.
+On a window narrower than 1,000 pixels the column does not fit, so a **Fields** button in the results header opens the same list in a drawer, and choosing a value closes the drawer and runs the query.
 Below 1,000 pixels wide the column is hidden.
 
 ### Facet counts
@@ -191,7 +212,8 @@ Live tail swaps the list for the tail, as [Live tail](#live-tail) describes.
 
 The row above the lines holds **Sort**, **Wrap**, **JSON** and **Columns**.
 **Sort** picks newest first or oldest first, and clicking the **Time** heading flips it.
-**Wrap** wraps long lines, and **JSON** reformats a line whose body is JSON over several rows.
+**Wrap** wraps long lines and starts on when the page opens on a phone, and **JSON** reformats a line whose body is JSON over several rows.
+**Sort**, **Wrap** and **JSON** are your own view of the lines, so **Copy link** does not carry them, and neither a running **Live tail**: the person who opens the link sees the same query, filters, columns, time range, page and open line with their own view settings.
 **Columns** lists the fields found in the loaded lines, and each field you tick becomes a column before the line, written to the address as `cols`.
 On Elasticsearch and OpenSearch the `service` field is a column until you choose others.
 The menu on a column heading sorts the loaded lines A to Z or Z to A, moves the column left or right, or removes it.
@@ -202,6 +224,7 @@ The bar under the lines says which lines are on the page, such as "51-100 of 48,
 The header above the lines gains ", page 3" from the second page on.
 ClickHouse, Elasticsearch and OpenSearch offer numbered pages and an exact total of the lines that match.
 Elasticsearch and OpenSearch stop at the largest offset the index pages to, `max_result_window`, and a note under the bar says which page that is and to narrow the time range to reach older lines.
+An address that names a page past it opens the last page that can be reached, with a note saying which page was asked for, and keeps the page bar.
 Loki pages by time from the last line shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, because a Loki page is reached through the page before it.
 
 The page and size are in the address as `page` and `size`, so a link to a page opens on it; a Loki address beyond page 1 reopens on page 1 with a note, and a query, filter, datasource or time range change returns to page 1.
@@ -211,7 +234,8 @@ Live tail replaces the lines and hides the bar.
 
 ## Reading a line
 
-Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line.
+Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line, and press `j` with nothing focused to land on the first line.
+Only one line is a Tab stop, the one you last had focus on, so Tab crosses the list in one press.
 Opening a line adds `line` to the address, closing it removes `line`, and **Copy link** in the line's details copies an address that opens that line.
 When the linked line is not in the results, the page says so and **Clear** removes `line` from the address.
 
@@ -221,7 +245,7 @@ On Elasticsearch and OpenSearch the panel is titled **Document** and the table g
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
 The panel offers **Show context**, **Copy line**, which copies the line's text, and **Copy link**, and an **Open trace** link when the line carries a trace id.
 
-Each field in the table has **Filter in** and **Filter out** buttons, shown when you hover or focus the row, that add a [filter pill](#filters) for the field and its value, and the page runs the query again with it.
+Each field in the table has **Include** and **Exclude** buttons, shown when you hover or focus the row, that add a [filter pill](#filters) for the field and its value, and the page runs the query again with it.
 On Elasticsearch and OpenSearch **Require** adds an exists pill for a field that has a value; the core fields have no buttons.
 On Loki a stream label becomes a pill that goes into the stream selector, and a parsed field or structured metadata value a pill that goes into a `|` stage at the end of the query; on ClickHouse a column or a `LogAttributes` key goes into the `WHERE` clause.
 A button is disabled when the row's pill is already in the row of filters, when the row holds 50 filters, when the value is longer than 200 characters, or on Elasticsearch and OpenSearch when the query is Lucene or Query DSL.
@@ -246,7 +270,7 @@ The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones
 
 The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
 Lines that just arrived are marked for a moment, and a status line above the list tells when the tail started and how many lines it received.
-Scrolling up pauses the list so it stops moving under the pointer, and a button counts what arrived meanwhile.
+Scrolling up with the wheel, a touch, the keyboard or the scrollbar pauses the list so it stops moving under the pointer, and the list growing as lines arrive never pauses it, and a button counts what arrived meanwhile.
 **Jump to newest**, **Resume** or scrolling back to the bottom resumes it, and a "New since" divider then marks where the lines that arrived during the pause begin, with each of them read out as "new" by a screen reader.
 **Clear** empties the lines shown until you start the tail again.
 
@@ -276,13 +300,13 @@ A query the page cannot rewrite, such as a Lucene or Query DSL query or a ClickH
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.
 The rest fold under "9 of 14 patterns shown, 5 cover under 1% each" until you press **Show all**.
-The page asks for the 20 largest patterns; **Show 100** asks for more when there are more.
+The page asks for the 20 largest patterns, and when the datasource holds more, **Show 100** appears beside **Show all** and asks for up to 100.
 
 ### Pattern templates
 
 Patterns group the lines a query matches into line templates with counts, the variable tokens written `<*>`, through `POST /api/v1/datasources/{uid}/log-patterns` and the `log_patterns` tool, so a noisy service reads as a few templates instead of thousands of lines.
 
-- On a Loki whose pattern ingester is enabled, a query that is a bare stream selector answers from Loki's pattern index over the whole range, and the response says `source: loki`.
+- On a Loki whose pattern ingester is enabled, a query that is a bare stream selector answers from Loki's pattern index over the whole range, and the response says `source: loki`, unless the index counts fewer lines than the sample size, because an ingester that has seen a small share of the lines would claim full coverage; then the server groups the newest lines as below.
 - Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest 2,000 lines by default, up to 5,000, masks numbers, identifiers, addresses and timestamps, clusters lines that share at least 60% of their tokens, and answers `source: server` with each pattern's newest line as its sample.
 - On Elasticsearch the cluster's `categorize_text` aggregation answers over the whole range with `source: elasticsearch`, each pattern being the words its lines share; OpenSearch has no such aggregation, and a cluster without it or without the licence for it falls back to the `source: server` clustering above.
 
@@ -306,7 +330,7 @@ The block stays live on the page, so it runs the query when the page is open.
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 The note under the box says what was filled and how many filters from the address were not applied: range, exists and custom filters are left out.
 A Lucene query gets the `lucene:` prefix, the source you are on stays selected, and nothing is sent to the server: the browser reads the address itself.
 On a Loki datasource or a ClickHouse datasource the address is pasted as plain text.
@@ -338,7 +362,7 @@ A trace opens at `/t/<trace id>?ds=<datasource uid>`.
 The title in the top bar reads **Traces / <source> / <root service> <root span>**, such as **Traces / Tempo / frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
 The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
-A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
+A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, so the trace has to be in that Tempo too, and a ClickHouse line opens in the same ClickHouse datasource.
 An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
@@ -503,6 +527,7 @@ For traces it fills the trace search fields: service, span name, minimum and max
 On Tempo it writes TraceQL instead when the question needs more than those fields.
 
 The server first reads the datasource's labels, attributes or columns and some of their values, so the query names real ones.
+On Loki it also offers the values of `detected_level`, the structured metadata level that Loki adds, when no level label is listed, so a question about errors filters after the selector with `| detected_level="error"`.
 Then it asks the model once.
 It checks the answer with the query lint and one sample run over the last 15 minutes of the time range, and never runs the full query.
 When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
@@ -518,9 +543,11 @@ Without a model configured on the server, Ask is off.
 A saved search keeps what the logs page or the trace view shows so that anyone with access can open it again: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written, such as `now-1h`.
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
+The query may span lines but holds no NUL character, and a column name holds no control characters; the server answers 422 `invalid_saved_search` with the rule in `error`.
 A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
+The title starts as the query with all of it selected, so typing a name replaces it.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
@@ -562,7 +589,7 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 `limit` lowers the row limit and never raises it above 1,000.
 With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
 A cursor remembers the sort it was made with, so send the same `sort` with every cursor of a walk; a cursor sent without it, or with another, is refused with a message naming the sort.
-`POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
+`POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki, ClickHouse, Elasticsearch and OpenSearch.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 
 Scripts ask a question with `POST /api/v1/datasources/{uid}/draft-query`:

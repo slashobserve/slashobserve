@@ -1,4 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query"
+import { useMatch } from "@tanstack/react-router"
 import {
   useCallback,
   useEffect,
@@ -12,6 +13,7 @@ import {
 
 import { assetKeys } from "@/api/keys"
 import { assetImageUrl } from "@/lib/remote-assets"
+import { roleAtLeast } from "@/lib/roles"
 import { useTheme } from "@/lib/theme"
 import { outboundDomainsQuery } from "@/settings/outbound-domains"
 
@@ -22,6 +24,7 @@ import {
   outlineAttribution,
   tileAccess,
   tileUrl,
+  type TileAccess,
   type TileSource,
 } from "./basemaps"
 import {
@@ -411,16 +414,20 @@ const GeomapPanel: PanelRenderer = ({
       layer.kind === "tiles" ? [layer.source] : []
     ),
   ]
+  const role = useMatch({ from: "/_authed", shouldThrow: false })?.context
+    .principal.role
+  const mayListDomains = role !== undefined && roleAtLeast(role, "editor")
   const domains = useQuery({
     ...outboundDomainsQuery(),
-    enabled: tileSources.length > 0,
+    enabled: tileSources.length > 0 && mayListDomains,
     staleTime: 60_000,
   })
   const patterns = useMemo(
     () => domains.data?.domains.map((entry) => entry.domain),
     [domains.data]
   )
-  const accessOf = (source: TileSource) => tileAccess(source, patterns)
+  const accessOf = (source: TileSource): TileAccess =>
+    mayListDomains ? tileAccess(source, patterns) : { state: "allowed" }
   const blocked = tileSources
     .map(accessOf)
     .find((access) => access.state === "blocked")

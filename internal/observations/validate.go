@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,13 +19,14 @@ import (
 )
 
 const (
-	MaxTitleRunes    = 200
-	MaxSummaryRunes  = 500
-	MaxTextRunes     = 8000
-	MaxBlocks        = 100
-	MaxPanelBlocks   = 24
-	MaxSnapshotBytes = 2 << 20
-	MaxRange         = queryproxy.MaxRange
+	MaxTitleRunes     = 200
+	MaxBlockVariables = 20
+	MaxSummaryRunes   = 500
+	MaxTextRunes      = 8000
+	MaxBlocks         = 100
+	MaxPanelBlocks    = 24
+	MaxSnapshotBytes  = 2 << 20
+	MaxRange          = queryproxy.MaxRange
 
 	BlockPanelID = "block"
 
@@ -38,9 +42,11 @@ type TextBody struct {
 }
 
 type PanelBody struct {
-	Panel json.RawMessage `json:"panel"`
-	From  *time.Time      `json:"from,omitempty"`
-	To    *time.Time      `json:"to,omitempty"`
+	Panel          json.RawMessage     `json:"panel"`
+	Variables      []spec.Variable     `json:"variables,omitempty"`
+	VariableValues map[string][]string `json:"variable_values,omitempty"`
+	From           *time.Time          `json:"from,omitempty"`
+	To             *time.Time          `json:"to,omitempty"`
 }
 
 func validateTitle(title string) (string, error) {
@@ -119,6 +125,12 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 	if err := validateRange(body.From, body.To); err != nil {
 		return PanelBody{}, err
 	}
+	if err := bakeValues(&body); err != nil {
+		return PanelBody{}, err
+	}
+	if len(body.Variables) > MaxBlockVariables {
+		return PanelBody{}, invalid(CodeInvalidBlock, fmt.Sprintf("a panel block takes at most %d variables", MaxBlockVariables))
+	}
 	if len(body.Panel) > spec.MaxSuggestedPanelBytes {
 		return PanelBody{}, &InvalidInputError{
 			Code:    CodeInvalidPanel,
@@ -127,6 +139,9 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 		}
 	}
 	if issues := panelIssues(body); len(issues) > 0 {
+		if name, ok := MissingVariable(issues); ok {
+			return PanelBody{}, &InvalidInputError{Code: CodeVariableMissing, Message: fmt.Sprintf("the panel uses the variable %q and no value was given for it; give its value in variable_values", name), Issues: issues}
+		}
 		return PanelBody{}, &InvalidInputError{Code: CodeInvalidPanel, Message: "the panel is invalid", Issues: issues}
 	}
 	body.Panel = compact(body.Panel)
@@ -139,7 +154,7 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 
 func panelIssues(body PanelBody) []spec.Issue {
 	from, to := validationRange(body)
-	d, err := findings.EvidenceSpec(panelWrapperTitle, from, to, []json.RawMessage{body.Panel})
+	d, err := findings.EvidenceSpecWith(panelWrapperTitle, from, to, []json.RawMessage{body.Panel}, body.Variables)
 	var invalidSpec *spec.ValidationError
 	switch {
 	case errors.As(err, &invalidSpec):
@@ -154,6 +169,61 @@ func panelIssues(body PanelBody) []spec.Issue {
 		return []spec.Issue{{Path: panelIssuePath + "/type", Code: spec.CodeSchema, Message: fmt.Sprintf("a %s panel shows no data; a panel block needs a data panel", panel.Type)}}
 	}
 	return nil
+}
+
+var undeclaredVariable = regexp.MustCompile(`undeclared variable "([^"]+)"`)
+
+func MissingVariable(issues []spec.Issue) (string, bool) {
+	for _, issue := range issues {
+		if issue.Code != spec.CodeUnknownVariable {
+			continue
+		}
+		if m := undeclaredVariable.FindStringSubmatch(issue.Message); m != nil {
+			return m[1], true
+		}
+	}
+	return "", false
+}
+
+func bakeValues(body *PanelBody) error {
+	if len(body.VariableValues) == 0 {
+		body.VariableValues = nil
+		return nil
+	}
+	if len(body.Variables) > 0 {
+		return invalid(CodeInvalidBlock, "give either variables or variable_values, not both")
+	}
+	variables, err := ValueVariables(body.VariableValues)
+	if err != nil {
+		return err
+	}
+	body.Variables, body.VariableValues = variables, nil
+	return nil
+}
+
+func ValueVariables(values map[string][]string) ([]spec.Variable, error) {
+	if len(values) > MaxBlockVariables {
+		return nil, invalid(CodeInvalidBlock, fmt.Sprintf("a panel block takes at most %d variables", MaxBlockVariables))
+	}
+	variables := make([]spec.Variable, 0, len(values))
+	for _, name := range slices.Sorted(maps.Keys(values)) {
+		chosen := values[name]
+		if len(chosen) == 0 || slices.Contains(chosen, "") {
+			return nil, invalid(CodeInvalidBlock, fmt.Sprintf("variable_values.%s needs at least one value, none empty", name))
+		}
+		options := make([]spec.VariableOption, len(chosen))
+		for i, v := range chosen {
+			options[i] = spec.VariableOption{Text: v, Value: v}
+		}
+		variables = append(variables, spec.Variable{
+			Name:    name,
+			Type:    spec.CustomVariable,
+			Multi:   len(chosen) > 1,
+			Options: options,
+			Default: &spec.Selection{Values: slices.Clone(chosen), List: len(chosen) > 1},
+		})
+	}
+	return variables, nil
 }
 
 func validationRange(body PanelBody) (time.Time, time.Time) {

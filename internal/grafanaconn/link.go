@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -125,7 +126,7 @@ func (s *Service) fetchDashboard(ctx context.Context, by auth.Principal, conn Co
 	if err != nil {
 		return LinkedDashboard{}, err
 	}
-	if err := s.ensureAllowed(ctx, by, client.base.Hostname()); err != nil {
+	if err := s.saveOnAllowedHost(ctx, by, client.base.Hostname(), func(*dbsqlc.Queries) error { return nil }); err != nil {
 		return LinkedDashboard{}, err
 	}
 	raw, _, err := client.dashboard(ctx, uid)

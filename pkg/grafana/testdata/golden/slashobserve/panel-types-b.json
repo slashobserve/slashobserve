@@ -239,7 +239,14 @@
         "queries": []
       }
     ],
-    "notes": []
+    "notes": [
+      {
+        "subject": "alert rules",
+        "status": "partial",
+        "reason": "Alert rules, contact points and silences are not imported, so the Grafana alerts behind \"Legacy alerts\", \"Grafana-managed alerts\" are lost. Keep alerting on Prometheus rules and Alertmanager.",
+        "paths": []
+      }
+    ]
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=6",

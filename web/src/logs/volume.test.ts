@@ -151,6 +151,12 @@ describe("selectionText", () => {
 })
 
 describe("volumeFailureText", () => {
+  it("does not vouch for the lines when they failed too", () => {
+    expect(volumeFailureText("The query ran out of time.", true)).toBe(
+      "The volume query did not finish (The query ran out of time)."
+    )
+  })
+
   it("puts the server's reason in the notice", () => {
     expect(volumeFailureText("The query ran out of time.")).toBe(
       "The volume query did not finish (The query ran out of time). The lines below are complete."

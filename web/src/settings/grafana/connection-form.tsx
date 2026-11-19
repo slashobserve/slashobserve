@@ -10,6 +10,7 @@ import {
   trimConnection,
   type ConnectionInput,
   type ConnectionProblems,
+  type StoredConnection,
 } from "./connection-problems"
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   serverError: string | null
   onSubmit: (input: ConnectionInput) => void
   firstInputRef: RefObject<HTMLInputElement | null>
+  stored?: StoredConnection
 }
 
 const empty: ConnectionInput = { name: "", url: "", token: "" }
@@ -40,14 +42,17 @@ export function ConnectionForm({
   serverError,
   onSubmit,
   firstInputRef,
+  stored,
 }: Props) {
   const baseId = useId()
-  const [values, setValues] = useState(empty)
+  const [values, setValues] = useState<ConnectionInput>(
+    stored === undefined ? empty : { ...empty, ...stored }
+  )
   const [problems, setProblems] = useState<ConnectionProblems>({})
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    const found = connectionProblems(values)
+    const found = connectionProblems(values, stored)
     setProblems(found)
     if (Object.keys(found).length > 0) return
     onSubmit(trimConnection(values))
@@ -75,7 +80,11 @@ export function ConnectionForm({
               type={field.key === "token" ? "password" : "text"}
               autoComplete="off"
               spellCheck={false}
-              placeholder={field.placeholder}
+              placeholder={
+                field.key === "token" && stored !== undefined
+                  ? "Leave empty to keep the stored token"
+                  : field.placeholder
+              }
               className={cn("narrow:h-11", field.key !== "name" && "font-mono")}
               value={values[field.key]}
               aria-invalid={problem !== undefined}

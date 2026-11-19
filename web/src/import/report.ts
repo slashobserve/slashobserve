@@ -41,6 +41,19 @@ export function initialFilter(report: ImportReport): ReportFilter {
   return filterCounts(report).attention > 0 ? "attention" : "all"
 }
 
+const beforeImportHint =
+  "These counts are taken before any query runs. Queries are checked when you import, so more panels can need a look afterwards: a panel whose queries fail is kept and marked unverified."
+const fixUnverifiedHint =
+  "Ask the agent to fix the unverified panels from the dashboard's activity panel."
+
+export function reportHint(
+  report: ImportReport,
+  imported: boolean
+): string | null {
+  if (!imported) return beforeImportHint
+  return report.counts.unverified > 0 ? fixUnverifiedHint : null
+}
+
 export function statusLabel(status: Status): {
   tone: StatusTone
   text: string

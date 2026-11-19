@@ -13,6 +13,7 @@ import {
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
 
+import { citeLabel } from "../block-rows"
 import { runBlockBody } from "./block-data"
 
 const observeAgentMark: AuthorMarkModel = {
@@ -23,10 +24,10 @@ const observeAgentMark: AuthorMarkModel = {
 
 const unavailableText = "This run is no longer available."
 
-type Props = { block: Block; onCite: (blockId: string) => void }
-
-function citeLabel(index: number): string {
-  return index === 0 ? "Conclusion" : `Panel ${index}`
+type Props = {
+  block: Block
+  blocks: readonly Block[]
+  onCite: (blockId: string) => void
 }
 
 function runHeading(state: ObserveRequest["state"]): string {
@@ -52,9 +53,11 @@ function Unavailable() {
 
 function Cites({
   cites,
+  blocks,
   onCite,
 }: {
   cites: string[]
+  blocks: readonly Block[]
   onCite: (blockId: string) => void
 }) {
   if (cites.length === 0) return null
@@ -69,7 +72,7 @@ function Cites({
           className="h-7"
           onClick={() => onCite(id)}
         >
-          {citeLabel(index)}
+          {citeLabel(blocks, id, index)}
         </Button>
       ))}
     </div>
@@ -79,10 +82,12 @@ function Cites({
 function RunProgress({
   runId,
   cites,
+  blocks,
   onCite,
 }: {
   runId: string
   cites: string[]
+  blocks: readonly Block[]
   onCite: (blockId: string) => void
 }) {
   const query = useObserveRequest(runId)
@@ -133,7 +138,7 @@ function RunProgress({
               {timeline(false)}
             </div>
           </details>
-          <Cites cites={cites} onCite={onCite} />
+          <Cites cites={cites} blocks={blocks} onCite={onCite} />
         </>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -146,8 +151,15 @@ function RunProgress({
 
 function ignoreRetried() {}
 
-export function RunBlock({ block, onCite }: Props) {
+export function RunBlock({ block, blocks, onCite }: Props) {
   const body = runBlockBody(block)
   if (body === null || block.run_id === null) return <Unavailable />
-  return <RunProgress runId={body.runId} cites={body.cites} onCite={onCite} />
+  return (
+    <RunProgress
+      runId={body.runId}
+      cites={body.cites}
+      blocks={blocks}
+      onCite={onCite}
+    />
+  )
 }

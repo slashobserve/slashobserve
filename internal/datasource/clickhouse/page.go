@@ -24,19 +24,25 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		frames []datasource.Frame
 		info   datasource.PageInfo
 	)
-	err := d.readLines(ctx, req.Query, req.Range, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error {
+	err := d.readLines(ctx, req.Query, req.Range, false, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error {
 		lim.MaxRows = min(req.PageSize, lim.MaxRows)
 		if req.Sort != nil {
 			if err := d.requireSortColumn(ctx, inner, lim, extra, req.Sort.Column); err != nil {
 				return err
 			}
 		}
-		rs, err := d.fetchWith(ctx, pageQuery(inner, req.Sort), lim, linesParameters(req.Range, lim.MaxRows, offset), extra)
+		pageSQL, params := plainQuery(inner, req.Sort), plainParameters(lim.MaxRows, offset)
+		countSQL, countParams := plainCountQuery(inner), ch.Parameters(nil)
+		if timed {
+			pageSQL, params = pageQuery(inner, req.Sort), linesParameters(req.Range, lim.MaxRows, offset)
+			countSQL, countParams = countQuery(inner), rangeParameters(req.Range)
+		}
+		rs, err := d.fetchWith(ctx, pageSQL, lim, params, extra)
 		if err != nil {
 			return err
 		}
 		lim.MaxRows = 1
-		counted, err := d.fetchWith(ctx, countQuery(inner), lim, rangeParameters(req.Range), extra)
+		counted, err := d.fetchWith(ctx, countSQL, lim, countParams, extra)
 		if err != nil {
 			return err
 		}
@@ -46,6 +52,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		}
 		frames = []datasource.Frame{rs.tableFrame()}
 		info = pageInfo(page, req.PageSize, offset, len(rs.rows), total)
+		info.Plain = !timed
 		return nil
 	})
 	return frames, info, err

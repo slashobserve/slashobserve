@@ -612,7 +612,7 @@ export function kqlText(node: KqlNode): string {
 
 function appendClause(text: string, clause: string): string {
   const trimmed = text.trim()
-  if (trimmed === "") return clause
+  if (trimmed === "" || trimmed === "*") return clause
   const { node, error } = parseKql(trimmed)
   if (error !== null || node?.kind === "or") {
     return `(${trimmed}) and ${clause}`
