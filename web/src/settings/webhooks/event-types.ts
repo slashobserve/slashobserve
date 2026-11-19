@@ -9,6 +9,7 @@ export const eventTypeLabels = {
   "dashboard.moved": "Dashboard moved",
   "dashboard.deleted": "Dashboard deleted",
   "annotation.created": "Annotation added",
+  "annotation.updated": "Annotation edited",
   "annotation.deleted": "Annotation removed",
   "finding.created": "Finding saved",
   "finding.pinned": "Finding pinned",

@@ -190,7 +190,7 @@ A panel's `repeat` setting is dropped.
 ## Work on one from MCP and the CLI
 
 [MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`, `pin_observation` and `make_dashboard`.
-The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `publish`, `pin` and `dashboard`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
+The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `edit-block`, `remove-block`, `publish`, `pin` and `dashboard`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
 
 `GET /api/v1/observations` filters with `folder_id`, `state`, `q` (a title that contains the text, ignoring case, at most 200 characters) and `created_by=me`, and sorts with `sort` (`updated`, the default, `created` or `title`) and `order` (`asc` or `desc`; `title` starts ascending, the others descending).

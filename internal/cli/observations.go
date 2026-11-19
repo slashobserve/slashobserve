@@ -80,13 +80,14 @@ func readUserFile(path string) ([]byte, error) {
 
 func (a *app) observationsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "o",
-		Short: "Work with observations",
-		Long:  "o creates, reads, extends and resolves observations: pages of Markdown, panel and snapshot blocks about one question.\nA block that someone who can only comment adds is requested until a person who can edit keeps or discards it.",
-		Args:  groupArgs,
-		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Use:     "o",
+		Aliases: []string{"observations"},
+		Short:   "Work with observations",
+		Long:    "o creates, reads, extends and resolves observations: pages of Markdown, panel and snapshot blocks about one question.\nA block that someone who can only comment adds is requested until a person who can edit keeps or discards it.",
+		Args:    groupArgs,
+		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationPinCommand(), a.observationDashboardCommand(), a.observationDeleteCommand(), a.observationRCAsCommand(), a.observationWithdrawCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationPinCommand(), a.observationDashboardCommand(), a.observationDeleteCommand(), a.observationRCAsCommand(), a.observationWithdrawCommand(), a.observationEditBlockCommand(), a.observationRemoveBlockCommand())
 	return cmd
 }
 
@@ -366,7 +367,7 @@ func (a *app) observationResolveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resolve <observation-id> --summary <line>",
 		Short: "Close an observation with a one-line summary",
-		Args:  exactArgs(1, "one observation id"),
+		Args:  exactArgs(1, "one observation id; a summary of several words goes in quotes after --summary"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {
@@ -422,6 +423,9 @@ func (a *app) observationListCommand() *cobra.Command {
 		Short: "List observations, most recently changed first",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := page.check(); err != nil {
+				return err
+			}
 			query := page.query()
 			if folder != "" {
 				id, err := parseID(folder)
@@ -439,22 +443,22 @@ func (a *app) observationListCommand() *cobra.Command {
 			if title != "" {
 				query.Set("q", title)
 			}
-			return a.observationList(cmd, query)
+			return a.observationList(cmd, query, page.all)
 		},
 	}
-	addPageFlags(cmd, &page)
+	addPageFlags(cmd, &page, maxObservationPage)
 	cmd.Flags().StringVar(&folder, "folder", "", "only observations in this folder id")
 	cmd.Flags().StringVar(&state, "state", "", "only open or resolved observations")
 	cmd.Flags().StringVar(&title, "title", "", "only observations whose title contains this text, ignoring case")
 	return cmd
 }
 
-func (a *app) observationList(cmd *cobra.Command, query url.Values) error {
+func (a *app) observationList(cmd *cobra.Command, query url.Values, all bool) error {
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "observations", query)
+	data, err := c.getPages(cmd.Context(), "observations", query, all)
 	if err != nil {
 		return err
 	}
@@ -472,7 +476,7 @@ func (a *app) observationList(cmd *cobra.Command, query url.Values) error {
 		rows = append(rows, []string{text(o.ID), text(o.Title), text(o.State), when(o.UpdatedAt)})
 	}
 	out.table([]string{"ID", "TITLE", "STATE", "UPDATED"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Observations), nil, page.NextCursor)
 	return nil
 }
 

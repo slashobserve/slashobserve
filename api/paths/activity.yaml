@@ -17,7 +17,7 @@ activity:
       `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore);
       `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`;
       `dashboard.deleted` carries `title`;
-      `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.deleted` carries nothing;
+      `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries nothing;
       `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`;
       `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`;
       `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`);
@@ -52,7 +52,7 @@ activity:
         explode: true
         schema:
           type: array
-          maxItems: 45
+          maxItems: 46
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
@@ -127,7 +127,7 @@ activity-stream:
         explode: true
         schema:
           type: array
-          maxItems: 45
+          maxItems: 46
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since

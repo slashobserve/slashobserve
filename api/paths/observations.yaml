@@ -425,6 +425,7 @@ blocks-id:
     operationId: updateObservationBlock
     x-surfaces:
       mcp: [update_block]
+      cli: [observe o edit-block]
     summary: Change a block's body, width or position.
     description: >-
       Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
@@ -461,6 +462,8 @@ blocks-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: removeObservationBlock
+    x-surfaces:
+      cli: [observe o remove-block]
     summary: Remove a live block.
     description: >-
       Needs Edit on the folder and the block's current `version`, as a query parameter.

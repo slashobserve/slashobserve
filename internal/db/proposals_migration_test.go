@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-
-	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
 const (
@@ -29,11 +27,7 @@ const insertObserveRunSQL = `INSERT INTO agent_requests (prompt, requested_by_ki
 VALUES ('p', 'user', gen_random_uuid(), 'seed', 'observe', 'succeeded', 'succeeded', $1::uuid, $2, now())`
 
 func TestProposalsConstraints(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, proposalsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, proposalsVersion)
 	seedDashboard(t, d, proposalsDashboard, 2)
 	seedVersion(t, d, proposalsDashboard, 1, "{}")
 	seedVersion(t, d, proposalsDashboard, 2, "{}")
@@ -104,10 +98,7 @@ func TestProposalsConstraints(t *testing.T) {
 
 func TestProposalsDownRestoresTheObservationsState(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, observationsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, observationsVersion)
 	f := seedObservation(t, d, "")
 	d.Exec(t, `INSERT INTO threads (id, observation_id) VALUES ($1::uuid, $2::uuid)`, obsThread, f.observation)
 	d.Exec(t, insertObservationActivitySQL, f.observation, f.user)
@@ -175,10 +166,7 @@ func TestProposalsDownRestoresTheObservationsState(t *testing.T) {
 
 func TestProposalsDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, proposalsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, proposalsVersion)
 	seedDashboard(t, d, proposalsDashboard, 1)
 	seedVersion(t, d, proposalsDashboard, 1, "{}")
 	sqlDB := d.SQLDB(t)

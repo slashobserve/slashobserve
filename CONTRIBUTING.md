@@ -44,12 +44,13 @@ A change to how the Grafana importer converts a dashboard needs `make golden`; r
 ## Run the evals
 
 The eval runner measures the agent on create, revise, fix, suggest and paste-import tasks against an isolated `slashobserve-evals` stack that never touches the demo stack.
-The replay suite needs no model and no key, and CI runs it on every pull request.
+The replay suite needs no model and no key, and CI runs it on every pull request that changes the agent, its prompts, the Spec or the stack.
 
 | Command | What it does |
 | --- | --- |
-| `make evals-replay` | Boots the replay stack and runs the replay suite against it; every scenario must meet its expectation. |
+| `make evals-replay` | Boots the replay stack with `up --no-history` and runs the replay suite against it with `--await-history`, which runs the scenarios that need no synthetic history first and waits for it once before the first that does; every scenario must meet its expectation. |
 | `make evals-stack-up` | Boots the stack alone on http://localhost:28080, in replay mode by default; `EVALS_STACK_MODE=<env-file>` boots it on the provider settings of that file instead; it returns once Prometheus serves the series the scenarios read. |
+| `scripts/evals-stack.sh warm replay` | Prepares the fixtures and starts every service except the server, then returns; a later `make evals-stack-up` within 30 minutes adopts it and skips the preparation, so the synthetic history accumulates while the server image builds. |
 | `make evals-stack-down` | Removes the stack and drops its volumes only. |
 | `make evals-live` | Runs the live suite once per model listed in `evals/matrix.yaml` (copy `evals/matrix.example.yaml`; the file is git-ignored) against a running stack. |
 
