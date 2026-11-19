@@ -96,6 +96,7 @@ A save that finishes the dashboard ends the run, and the version summary is a se
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
 When the agent answers a question after its reads were refused at its limit of model calls (six in a chat, twelve in an investigation), the answer ends with a line saying reading stopped early and the counts may be partial.
+An answer on Home does not read deploy markers, so it says deploys were not checked rather than that none exist; ask with `/investigate` to have them read.
 Times in an answer are in your browser's time zone with its label, such as 19:52 IST, because the chat sends that zone with each request.
 When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why, so a timeout is never read as no data.
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).

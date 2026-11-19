@@ -701,3 +701,47 @@ func TestAReadThatLaterSucceedsIsNoLongerUnchecked(t *testing.T) {
 		t.Fatalf("unchecked = %+v after the read succeeded", adm.Unchecked)
 	}
 }
+
+func TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     tools.Mode
+		reads    [][2]string
+		markdown string
+		want     string
+	}{
+		{"no metrics after a name search", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","search":"checkout"}`}}, "Prometheus has no checkout metrics.", "set scope"},
+		{"no metrics after a scoped list", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`}}, "Prometheus has no checkout metrics.", ""},
+		{"no deploy without annotations in an investigation", tools.ModeInvestigate, nil, "There was no deploy of checkout today.", "read it with tag deploy"},
+		{"no deploy after reading annotations", tools.ModeInvestigate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "There was no deploy of checkout today.", ""},
+		{"no deploy on Home, where annotations cannot be read", tools.ModeCreate, nil, "No checkout deploy exists.", "say deploys were not checked here"},
+		{"a finding that claims no absence", tools.ModeInvestigate, nil, "Checkout errors rose at 14:22 UTC on checkout-0.", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tt.mode)
+			for _, r := range tt.reads {
+				settleRead(&s, r[0], r[1], tools.Result{})
+			}
+			s.BeginTurn(false)
+			body, err := json.Marshal(map[string]string{"markdown": tt.markdown})
+			if err != nil {
+				t.Fatal(err)
+			}
+			adm := s.Admit(0, jsonCall("save_finding", string(body)))
+			if tt.want == "" {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), tt.want) {
+				t.Fatalf("admission = %+v, want refused with %q", adm, tt.want)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", string(body))); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}

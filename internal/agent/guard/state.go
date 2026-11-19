@@ -16,6 +16,7 @@ type State struct {
 	Reads         map[string]Read `json:"reads,omitempty"`
 	Saves         map[string]bool `json:"saves,omitempty"`
 	Unchecked     []Unchecked     `json:"unchecked,omitempty"`
+	Absence       Absence         `json:"absence,omitzero"`
 	Turn          Turn            `json:"turn"`
 	Counts        Counts          `json:"counts"`
 }
@@ -78,6 +79,7 @@ func (s *State) Restart() {
 	s.Window = Window{}
 	s.Churn, s.ChurnedInRow = nil, 0
 	s.Reads, s.Saves = nil, nil
+	s.Absence = Absence{}
 }
 
 func (s *State) BeginTurn(hasSave bool) {

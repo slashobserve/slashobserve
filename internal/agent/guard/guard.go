@@ -216,6 +216,11 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	case c.Name == toolSaveFinding && s.Building:
 		s.Turn.SaveSeen = true
 		return s.reject(c, adm, "this run already saved panels; finish the dashboard instead of saving a finding")
+	case c.Name == toolSaveFinding:
+		if reason := s.unbackedAbsence(c.Input); reason != "" {
+			s.Absence.Asked = true
+			return s.reject(c, adm, reason)
+		}
 	}
 	s.Turn.SaveSeen = true
 	if s.noteSave(adm.Key) {
