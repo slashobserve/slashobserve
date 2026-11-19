@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -336,12 +337,7 @@ func run() error {
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}
-	findingURL := func(f findings.Finding) string {
-		if !f.Saved() {
-			return ""
-		}
-		return links.Observation(cfg.PublicURL, f.ObservationID)
-	}
+	findingURL := savedFindingURL(cfg.PublicURL)
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
@@ -539,6 +535,15 @@ func run() error {
 		return described("http_server_failed", err)
 	}
 	return nil
+}
+
+func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
+	return func(f findings.Finding) string {
+		if !f.Saved() {
+			return ""
+		}
+		return links.Observation(publicURL, f.ObservationID)
+	}
 }
 
 func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error) {
