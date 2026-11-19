@@ -7,6 +7,7 @@ FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
 LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
 WHERE t.token_hash = @token_hash
+  AND g.revoked_at IS NULL
   AND t.attempt = r.attempts
   AND r.state = 'running'
   AND r.lease_until > clock_timestamp()

@@ -313,6 +313,7 @@ It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id
 No tool deletes an annotation; people do that in the web app or through the HTTP API.
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
+The tool refuses JSON that converts to an HTML text panel, a placeholder panel or a panel action with `import_content_not_allowed`, the same content `update_dashboard` and `create_dashboard` refuse; the message names the panels and asks the agent to remove them or to have a person import the JSON in the web app, where a person can also use `observe import`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
 A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the call fails with `already_imported` and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
 Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version (it needs Edit, keeps the folder, and answers `updated: true`), or set `import_as_new` to make another dashboard on purpose.
@@ -343,6 +344,7 @@ Each connected agent in the list has a `state`, always `active` there because th
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's in Settings, Agent access.
+Disconnecting a client also ends a run it already claimed: the run's token stops working at once, and the run ends when its lease lapses.
 The [Agents page](agents.md) lists the same connections with their mode and presence, and its **Connect an agent** button shows the Claude Code command.
 
 Each client's setup:

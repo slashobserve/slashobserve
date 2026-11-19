@@ -1398,7 +1398,7 @@ export interface paths {
         put?: never;
         /**
          * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
-         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10, and each caller may start 60 drafts per clock hour across all servers; the count is kept in the database. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
          */
         post: operations["draftQuery"];
         delete?: never;
@@ -2536,7 +2536,7 @@ export interface paths {
         put?: never;
         /**
          * Save one dashboard file from a dashboards-as-code directory.
-         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), and 409 `version_conflict` when another save landed during the apply.
          */
         post: operations["applyDashboardFile"];
         delete?: never;
@@ -7278,6 +7278,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -10881,7 +10890,7 @@ export interface operations {
                     "application/json": components["schemas"]["CannotTranslate"];
                 };
             };
-            /** @description Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process). */
+            /** @description The caller has 3 drafts in flight or has used the 60 drafts of this clock hour (`too_many_requests`, and the message says which and how long to wait), or the server process has 10 in flight (`agent_busy`). */
             429: {
                 headers: {
                     [name: string]: unknown;
