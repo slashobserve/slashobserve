@@ -420,6 +420,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     update,
     detail,
     paging,
+    levels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
   const phone = usePhone()
@@ -503,6 +504,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
       onColumnsChange,
       linkedId: search.line,
       onLinkedChange,
+      hiddenLevels: levels.hidden,
     }
   }
 

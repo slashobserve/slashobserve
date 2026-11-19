@@ -6,6 +6,7 @@ import { addPill, encodePills } from "@/logs/pills"
 import {
   defaultTitle,
   logsDraft,
+  matchesSaved,
   noSaveFolderText,
   saveBlockedText,
   saveTargets,
@@ -205,5 +206,40 @@ describe("tracesDraft", () => {
     expect(JSON.parse(JSON.stringify(draft)).filters).toEqual({
       service: "checkout",
     })
+  })
+})
+
+describe("matchesSaved", () => {
+  const saved = {
+    query: "level:error",
+    filters: { columns: ["host"] },
+    from: "now-6h",
+    to: "now",
+  }
+  const draft: SearchDraft = {
+    kind: "logs",
+    datasource_uid: "es",
+    query: "level:error",
+    filters: { columns: ["host"] },
+    from: "now-6h",
+    to: "now",
+  }
+
+  it("is true for the search as it was saved", () => {
+    expect(matchesSaved(draft, saved)).toBe(true)
+  })
+
+  it("treats no columns the same whether the filters are missing or empty", () => {
+    expect(
+      matchesSaved({ ...draft, filters: undefined }, { ...saved, filters: {} })
+    ).toBe(true)
+  })
+
+  it.each([
+    ["query", { query: "level:warn" }],
+    ["range", { from: "now-1h" }],
+    ["columns", { filters: { columns: ["host", "message"] } }],
+  ])("is false when the %s changed", (_name, change) => {
+    expect(matchesSaved({ ...draft, ...change }, saved)).toBe(false)
   })
 })
