@@ -24,6 +24,7 @@ import {
 import {
   CallError,
   NoFixtureError,
+  ReplayError,
   SessionError,
   type Session,
   type SessionFactory,
@@ -102,7 +103,7 @@ function sessionFailure(error: unknown): FailureCode {
   if (error instanceof NoFixtureError) {
     return "no_fixture"
   }
-  if (error instanceof SessionError) {
+  if (error instanceof SessionError || error instanceof ReplayError) {
     return "internal"
   }
   return "provider_error"

@@ -119,6 +119,9 @@ func (a *app) dashboardRestoreCommand() *cobra.Command {
 				if parent, err = a.latestVersion(cmd, id); err != nil {
 					return err
 				}
+				if version > parent {
+					return versionNotFound(id, version, parent)
+				}
 			}
 			body := map[string]any{"parent_version": parent}
 			if summary != "" {

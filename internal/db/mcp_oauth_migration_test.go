@@ -13,10 +13,7 @@ var oauthTables = []string{"oauth_clients", "oauth_requests", "oauth_grants", "o
 
 func TestMCPOAuthDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, oauthVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, oauthVersion)
 	if missing := missingOAuthTables(t, d); len(missing) > 0 {
 		t.Fatalf("tables missing after the up migration: %v", missing)
 	}
@@ -37,11 +34,7 @@ func TestMCPOAuthDown(t *testing.T) {
 }
 
 func TestMCPOAuthConstraints(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, oauthVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, oauthVersion)
 	sqlDB := d.SQLDB(t)
 	var userID, grantID string
 	if err := sqlDB.QueryRow(`INSERT INTO users (oidc_issuer, oidc_subject, email) VALUES ('i', 's', 'a@example.com') RETURNING id`).Scan(&userID); err != nil {

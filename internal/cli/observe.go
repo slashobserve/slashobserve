@@ -24,6 +24,8 @@ type agentRequest struct {
 	ID          string        `json:"id"`
 	Source      string        `json:"source"`
 	Trigger     string        `json:"trigger"`
+	Title       string        `json:"title"`
+	Prompt      string        `json:"prompt"`
 	DashboardID *string       `json:"dashboard_id"`
 	Status      string        `json:"status"`
 	State       string        `json:"state"`
@@ -89,6 +91,11 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		_, _ = fmt.Fprintf(a.std.Err, "a prompt is required\n\n%s", cmd.UsageString())
 		return usageError{}
+	}
+	if a.prompt.dashboard == "" {
+		if err := probableTypo(cmd, args); err != nil {
+			return err
+		}
 	}
 	prompt := strings.TrimSpace(strings.Join(args, " "))
 	if prompt == "" {
@@ -223,6 +230,8 @@ func printRequest(out *output, req agentRequest) {
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
+		{"Title", dash(req.Title)},
+		{"Prompt", dash(req.Prompt)},
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
@@ -281,7 +290,7 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		return err
 	}
 	if req.DashboardID != nil {
-		if title, ok := progress.finish(ctx, *req.DashboardID); ok {
+		if title, ok := progress.finish(ctx, *req.DashboardID, req.ResultVer); ok {
 			address = titled(address, *req.DashboardID, title)
 		}
 	}

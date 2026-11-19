@@ -486,3 +486,13 @@ func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 		t.Errorf("stdout %q posted %q", stdout, posted)
 	}
 }
+
+func TestPrintRequestShowsTheTitleAndPrompt(t *testing.T) {
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "failed", Title: "Checkout latency", Prompt: "checkout p99\nlast 6h"})
+	for _, want := range []string{"Title", "Checkout latency", "Prompt", "checkout p99 last 6h"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output lacks %q:\n%s", want, stdout.String())
+		}
+	}
+}

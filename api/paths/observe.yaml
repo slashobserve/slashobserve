@@ -21,6 +21,8 @@ agent:
 observe:
   get:
     operationId: listObserveRequests
+    x-surfaces:
+      cli: [observe requests list]
     summary: "List agent requests, newest first: the caller's own, or everyone's for an Admin."
     description: >-
       With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own.
@@ -268,6 +270,8 @@ observe-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: updateObserveRequest
+    x-surfaces:
+      cli: [observe requests pin, observe requests unpin, observe requests rename]
     summary: Rename or pin one of your agent requests.
     description: >-
       Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404.
@@ -308,6 +312,8 @@ observe-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: archiveObserveRequest
+    x-surfaces:
+      cli: [observe requests archive]
     summary: Archive one of your agent requests so it leaves your list.
     description: >-
       Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404.

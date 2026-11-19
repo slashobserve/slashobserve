@@ -59,8 +59,10 @@ func importOptions(types map[string]string, mapping map[string]string) grafana.O
 	return opts
 }
 
+var convertDashboard = grafana.Convert
+
 func convertSource(source []byte, opts grafana.Options) (*spec.Dashboard, error) {
-	result, err := grafana.Convert(source, opts)
+	result, err := convertDashboard(source, opts)
 	if err != nil {
 		return nil, err
 	}
