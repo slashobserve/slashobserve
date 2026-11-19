@@ -1,0 +1,114 @@
+datasources-uid-schema:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getDatasourceSchema
+    x-surfaces:
+      mcp: [get_schema]
+      cli: [observe datasources schema]
+    summary: Read the tables, or the columns of one table, of a ClickHouse, Elasticsearch or OpenSearch datasource, or the services and span names of Tempo.
+    description: >-
+      It runs the same code, validation and limits as the agent's `get_schema` tool.
+      Without `table` it lists the tables; with `table` it lists that table's columns with their types, and `offset` pages on from a `next_offset`.
+      A Tempo datasource has no tables: it answers the services, span names and attribute names it holds, and a request with `table` or `offset` is a 400.
+      Prometheus and Loki datasources answer 400 `invalid_request`; their label names are read with the labels route.
+      An unknown datasource is a 404 `not_found`.
+      Any query parameter not listed below, or one given twice, is a 400.
+    parameters:
+      - name: table
+        in: query
+        description: The table whose columns to list.
+        schema:
+          type: string
+          maxLength: 256
+      - name: offset
+        in: query
+        description: How many items to skip, from a previous answer's `next_offset`.
+        schema:
+          type: integer
+          minimum: 0
+    responses:
+      "200":
+        description: One page of tables, or of columns, or the Tempo services and span names.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/DatasourceTables"
+                - $ref: "../openapi.yaml#/components/schemas/DatasourceColumns"
+                - $ref: "../openapi.yaml#/components/schemas/DatasourceSpanSchema"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/QueryUnprocessable"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+      "504":
+        $ref: "../openapi.yaml#/components/responses/QueryTimeout"
+datasources-uid-sample:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getDatasourceSample
+    x-surfaces:
+      mcp: [sample_rows]
+      cli: [observe datasources sample]
+    summary: Read a few rows of a ClickHouse table, or a few log lines or documents of a Loki, Elasticsearch or OpenSearch datasource.
+    description: >-
+      It runs the same code, validation and limits as the agent's `sample_rows` tool.
+      `table` is required on ClickHouse; on Loki it is an optional stream selector, and Elasticsearch and OpenSearch read their index pattern without it.
+      Cell values are cut to 300 bytes, and `truncated` is true when columns, cells or rows were dropped to fit.
+      Any query parameter not listed below, or one given twice, is a 400.
+    parameters:
+      - name: table
+        in: query
+        schema:
+          type: string
+          maxLength: 256
+      - name: limit
+        in: query
+        description: Maximum rows to return.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+    responses:
+      "200":
+        description: Up to `limit` rows with their column names.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceSample"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/QueryUnprocessable"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+      "504":
+        $ref: "../openapi.yaml#/components/responses/QueryTimeout"

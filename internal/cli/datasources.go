@@ -96,7 +96,7 @@ func (a *app) datasourcesCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand(), a.datasourcesGetCommand(), a.datasourcesAddCommand(), a.datasourcesEditCommand(), a.datasourcesTestCommand(), a.datasourcesRemoveCommand(), a.metricsCommand(), a.labelsCommand(), a.labelValuesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
+	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand(), a.datasourcesGetCommand(), a.datasourcesAddCommand(), a.datasourcesEditCommand(), a.datasourcesTestCommand(), a.datasourcesRemoveCommand(), a.datasourceSchemaCommand(), a.datasourceSampleCommand(), a.metricsCommand(), a.labelsCommand(), a.labelValuesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
 	return cmd
 }
 

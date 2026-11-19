@@ -168,6 +168,10 @@ paths:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
+  /datasources/{uid}/schema:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-schema"
+  /datasources/{uid}/sample:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-sample"
   /datasources/{uid}/labels:
     $ref: "./paths/names.yaml#/datasources-uid-labels"
   /datasources/{uid}/labels/{name}/values:
@@ -1841,6 +1845,96 @@ components:
           type: string
         table:
           type: string
+    DatasourceTables:
+      type: object
+      additionalProperties: false
+      required: [tables, truncated]
+      properties:
+        tables:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceColumns:
+      type: object
+      additionalProperties: false
+      required: [table, columns, truncated]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceSpanSchema:
+      type: object
+      additionalProperties: false
+      required: [datasource, columns, rows, attributes]
+      properties:
+        datasource:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        attributes:
+          type: array
+          items:
+            type: string
+        truncated:
+          type: boolean
+    DatasourceSample:
+      type: object
+      additionalProperties: false
+      required: [table, columns, rows]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        truncated:
+          type: boolean
     Author:
       type: object
       additionalProperties: false

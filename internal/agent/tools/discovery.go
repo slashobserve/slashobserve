@@ -766,3 +766,37 @@ func cellValue(v any, maxBytes int) any {
 		return clip(fmt.Sprint(x), maxBytes)
 	}
 }
+
+type ReadError struct {
+	Code    string
+	Message string
+}
+
+func (e *ReadError) Error() string { return e.Code + ": " + e.Message }
+
+func (r *Registry) DatasourceSchema(ctx context.Context, uid, table string, offset *int) (any, error) {
+	return r.read(ctx, nameGetSchema, schemaInput{Datasource: uid, Table: table, Offset: offset})
+}
+
+func (r *Registry) DatasourceSample(ctx context.Context, uid, table string, limit *int) (any, error) {
+	return r.read(ctx, nameSampleRows, sampleInput{Datasource: uid, Table: table, Limit: limit})
+}
+
+func (r *Registry) read(ctx context.Context, tool string, in any) (any, error) {
+	input, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	res, err := r.Call(ctx, tool, input)
+	if err != nil {
+		return nil, err
+	}
+	if !res.IsError {
+		return res.Content, nil
+	}
+	body, ok := res.Content.(errorBody)
+	if !ok {
+		return nil, fmt.Errorf("tool %s: %w: error content is %T", tool, ErrInvariant, res.Content)
+	}
+	return nil, &ReadError{Code: body.Code, Message: body.Message}
+}
