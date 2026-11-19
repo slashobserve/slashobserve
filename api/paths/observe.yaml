@@ -132,9 +132,10 @@ observe:
     description: >-
       The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`.
       Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`.
-      When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`.
+      When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`.
+      That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`.
       With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version.
-      A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null.
+      A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
       With `follows_id`, the id of an earlier request of yours that has no dashboard, the request continues that chat: it gets the same `chat_id`, and the agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters).
       A request with `dashboard_id` is given the earlier turns on that dashboard the same way.
       `follows_id` and `dashboard_id` exclude each other, and `follows_id` needs `kind` `build`.
@@ -411,6 +412,56 @@ observe-id-build-save:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-observation:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: saveObserveRequestAnswer
+    x-surfaces:
+      cli: [observe save-answer]
+      mcp: [save_run_answer]
+    summary: Save the answer of an agent request as an observation.
+    description: >-
+      A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own.
+      This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General).
+      Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes.
+      The request gains `observation_id` and `url`, and `finding.observation_id` is set.
+      A repeat call answers 200 with `replayed` true and the same observation.
+      A request without an answer answers 409 `no_answer`.
+    responses:
+      "200":
+        description: The answer was already an observation; nothing changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerSaved"
+      "201":
+        description: The answer became an observation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerSaved"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The request has no answer to save (`no_answer`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observe-id-cancel:

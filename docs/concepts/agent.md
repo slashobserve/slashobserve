@@ -120,7 +120,7 @@ Two turns in a row in which every call was refused end the run with `no_progress
 ### Answers without a tool call
 
 If the model answers without a tool call while fewer panels than planned are built, its answer is dropped and its conversation is shortened the same way as after a cut-off, with a note that it is told once; its next answer without a tool call saves what is built.
-If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding`, which writes its answer into an observation, or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
+If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding`, which keeps its answer in the chat, or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
 
 ### Cut-offs and shortened conversations
 
@@ -296,11 +296,11 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 72 tools: MCP clients get 71, every one except `save_finding`, which only a run offers.
+The server has 73 tools: MCP clients get 72, every one except `save_finding`, which only a run offers.
 The built-in agent gets 26 in a new-dashboard or revision request and 25 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 45 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 46 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` is offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into; MCP clients also read them in full with `get_observation`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.

@@ -69,9 +69,63 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 		RunID: in.AgentRequestID, DashboardID: in.DashboardID, FolderID: in.FolderID,
 		Title: in.Title, Markdown: in.Markdown, Evidence: in.Evidence, From: in.From, To: in.To,
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+	conclude := func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		return s.observations.WriteConclusion(ctx, q, by, conclusion)
+	}
+	chatOnly, err := s.answersWithoutObservation(ctx, in.AgentRequestID)
+	if err != nil {
+		return Finding{}, false, err
+	}
+	if chatOnly {
+		conclude = func(*dbsqlc.Queries) (pgtype.UUID, bool, error) { return pgtype.UUID{}, false, nil }
+	}
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, conclude)
+}
+
+func (s *Service) answersWithoutObservation(ctx context.Context, requestID pgtype.UUID) (bool, error) {
+	if !requestID.Valid {
+		return false, nil
+	}
+	observationID, err := s.store.runObservation(ctx, requestID)
+	return !observationID.Valid, err
+}
+
+func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
+	f, found, err := s.store.forRequest(ctx, requestID)
+	if err == nil && !found {
+		err = ErrNotFound
+	}
+	if err != nil {
+		return Finding{}, false, err
+	}
+	id, err := db.ParseUUID(f.ID)
+	if err != nil {
+		return Finding{}, false, err
+	}
+	if _, _, err := s.place(ctx, by, f); err != nil {
+		return Finding{}, false, err
+	}
+	if f.Saved() {
+		f, err = s.Get(ctx, by, id)
+		return f, true, err
+	}
+	if !isRequester(by, f) {
+		return Finding{}, false, ErrRequesterOnly
+	}
+	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	if f.DashboardID != "" {
+		if conclusion.DashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
+			return Finding{}, false, err
+		}
+	}
+	attached, err := s.store.attachObservation(ctx, id, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
 		return s.observations.WriteConclusion(ctx, q, by, conclusion)
 	})
+	if err != nil {
+		return Finding{}, false, err
+	}
+	f, err = s.Get(ctx, by, id)
+	return f, !attached, err
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
@@ -83,7 +137,10 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	if err != nil {
 		return Finding{}, err
 	}
-	f.Folder, f.Abilities = &folder, abilities
+	if f.Saved() {
+		f.Folder = &folder
+	}
+	f.Abilities = abilities
 	return f, nil
 }
 
@@ -174,6 +231,9 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
+	if !f.Saved() {
+		return annotations.Annotation{}, false, ErrNotSaved
+	}
 	if f.DashboardID == "" {
 		return annotations.Annotation{}, false, ErrNoDashboard
 	}
@@ -240,6 +300,9 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
+	if !f.Saved() && !isRequester(by, f) {
+		return dashboards.Dashboard{}, dashboards.Version{}, ErrRequesterOnly
+	}
 	if len(f.Evidence) == 0 {
 		return dashboards.Dashboard{}, dashboards.Version{}, ErrNoEvidence
 	}
@@ -266,6 +329,9 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return Placement{}, err
 	}
+	if !f.Saved() {
+		return Placement{}, ErrNotSaved
+	}
 	observationID, err := db.ParseUUID(f.ObservationID)
 	if err != nil {
 		return Placement{}, err
@@ -279,7 +345,17 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	return Placement{Dashboard: dashboardID, Folder: &folder, Activity: activity.OnObservation(observationID), Abilities: abilities}, nil
 }
 
+func isRequester(by auth.Principal, f Finding) bool {
+	return string(by.Kind) == f.RequestedBy.Kind && by.ID == f.RequestedBy.ID
+}
+
 func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (folders.Folder, folders.Abilities, error) {
+	if !f.Saved() {
+		if !isRequester(by, f) && !by.Role.AtLeast(auth.RoleAdmin) {
+			return folders.Folder{}, folders.Abilities{}, ErrNotFound
+		}
+		return folders.Folder{}, folders.Abilities{View: true}, nil
+	}
 	observationID, err := db.ParseUUID(f.ObservationID)
 	if err != nil {
 		return folders.Folder{}, folders.Abilities{}, err

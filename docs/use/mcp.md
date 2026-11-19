@@ -81,6 +81,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `resolve_observation` | Viewer |
 | `restore_dashboard_version` | Viewer |
 | `sample_rows` | Viewer |
+| `save_run_answer` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `trace_stats` | Viewer |
@@ -272,6 +273,12 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
+Only the person who asked and an Admin can read such an answer.
+
+`save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
+It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
+Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

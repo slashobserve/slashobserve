@@ -324,7 +324,15 @@ export function RequestTurn({
           ) : null}
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
-              <FindingCard finding={detail.finding} showOpenLink />
+              <FindingCard
+                finding={detail.finding}
+                showOpenLink
+                saveAnswerOf={
+                  request.requested_by.id === principal.id
+                    ? request.id
+                    : undefined
+                }
+              />
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">

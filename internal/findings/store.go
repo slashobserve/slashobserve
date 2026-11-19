@@ -62,6 +62,9 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		if err != nil {
 			return err
 		}
+		if !row.ObservationID.Valid {
+			return nil
+		}
 		data := map[string]string{"title": row.Title}
 		if row.AgentRequestID.Valid {
 			data["agent_request_id"] = row.AgentRequestID.String()
@@ -91,6 +94,40 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 	return f, false, err
 }
 
+func (s *store) runObservation(ctx context.Context, requestID pgtype.UUID) (pgtype.UUID, error) {
+	id, err := s.db.Queries().RunObservation(ctx, requestID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, fmt.Errorf("read run observation: %w", err)
+	}
+	return id, nil
+}
+
+func (s *store) attachObservation(ctx context.Context, id pgtype.UUID, conclude conclude) (bool, error) {
+	attached := false
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		existing, err := q.LockFinding(ctx, id)
+		if err != nil || existing.Valid {
+			return err
+		}
+		observationID, _, err := conclude(q)
+		if err != nil {
+			return err
+		}
+		if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
+			return err
+		}
+		attached = true
+		return nil
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return false, ErrNotFound
+	case err != nil:
+		return false, fmt.Errorf("save finding as observation: %w", err)
+	}
+	return attached, nil
+}
+
 func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 	row, err := s.db.Queries().GetFinding(ctx, id)
 	switch {
@@ -99,7 +136,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 	case err != nil:
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
-	return findingOf(row.Finding, row.ObservationFolderID, row.RequestTo)
+	return findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
 }
 
 func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding, bool, error) {
@@ -110,7 +147,7 @@ func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding,
 	case err != nil:
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
-	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{})
+	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
 	return f, err == nil, err
 }
 
@@ -229,7 +266,7 @@ func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID)) ([
 	out := make([]Finding, len(rows))
 	for i, r := range rows {
 		row, folder := split(r)
-		f, err := findingOf(row, folder, pgtype.Timestamptz{})
+		f, err := findingOf(row, folder, pgtype.Timestamptz{}, Author{})
 		if err != nil {
 			return nil, err
 		}
@@ -238,16 +275,23 @@ func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID)) ([
 	return out, nil
 }
 
-func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype.Timestamptz) (Finding, error) {
+func requester(kind string, id pgtype.UUID) Author {
+	if !id.Valid {
+		return Author{}
+	}
+	return Author{Kind: kind, ID: id.String()}
+}
+
+func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype.Timestamptz, requestedBy Author) (Finding, error) {
 	f := Finding{
-		ID:            r.ID.String(),
-		ObservationID: r.ObservationID.String(),
-		Title:         r.Title,
-		Markdown:      r.Markdown,
-		From:          r.TimeFrom.Time.UTC(),
-		To:            r.TimeTo.Time.UTC(),
-		CreatedAt:     r.CreatedAt.Time.UTC(),
-		CreatedBy:     Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
+		ID:          r.ID.String(),
+		Title:       r.Title,
+		Markdown:    r.Markdown,
+		From:        r.TimeFrom.Time.UTC(),
+		To:          r.TimeTo.Time.UTC(),
+		CreatedAt:   r.CreatedAt.Time.UTC(),
+		CreatedBy:   Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
+		RequestedBy: requestedBy,
 		Actor: actor.FromColumns(actor.Columns{
 			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
 			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,
@@ -255,6 +299,9 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 	}
 	if err := json.Unmarshal(r.Evidence, &f.Evidence); err != nil {
 		return Finding{}, fmt.Errorf("decode evidence of finding %s: %w", f.ID, err)
+	}
+	if r.ObservationID.Valid {
+		f.ObservationID = r.ObservationID.String()
 	}
 	if r.AgentRequestID.Valid {
 		f.AgentRequestID = r.AgentRequestID.String()

@@ -166,6 +166,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-retry"
   /observe/{id}/build/save:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
+  /observe/{id}/observation:
+    $ref: "./paths/observe.yaml#/observe-id-observation"
   /observe/{id}/build/panels/{panel_id}/data:
     $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
   /observe/{id}/build/variables/{name}/values:
@@ -3626,6 +3628,20 @@ components:
         updated_at:
           type: string
           format: date-time
+    AnswerSaved:
+      type: object
+      additionalProperties: false
+      required: [observation_id, url, replayed]
+      properties:
+        observation_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The address of the observation, empty when the server has no public URL configured.
+        replayed:
+          type: boolean
+          description: True when the answer was already an observation, so this call changed nothing.
     AgentBuildSaved:
       type: object
       additionalProperties: false
@@ -3766,7 +3782,7 @@ components:
         url:
           type: string
           nullable: true
-          description: The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`.
+          description: The address of the dashboard, or of the observation for an investigation or for a question whose answer was saved as an observation, set when the status is `succeeded`; null while an answer is only on the request.
         error:
           type: string
           nullable: true
@@ -3914,7 +3930,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Finding"
-          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved."
+          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it."
     RequestSummary:
       type: object
       additionalProperties: false
@@ -4157,7 +4173,8 @@ components:
         observation_id:
           type: string
           format: uuid
-          description: The observation this finding lives in
+          nullable: true
+          description: The observation this finding lives in; null for the answer to a plain question, which stays on its run until its requester saves it as an observation with `POST /observe/{id}/observation`.
         agent_request_id:
           type: string
           format: uuid
@@ -4210,7 +4227,8 @@ components:
           format: date-time
         url:
           type: string
-          description: Opens the finding's observation; empty when the server has no public URL configured.
+          nullable: true
+          description: Opens the finding's observation; null while the finding has no observation, or when the server has no public URL configured.
     FindingEnvelope:
       type: object
       additionalProperties: false
@@ -4222,7 +4240,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/DashboardFolder"
-          description: The folder of the finding's observation, whose access rule decides who reads the finding.
+          description: The folder of the finding's observation, whose access rule decides who reads the finding; null for an answer that is not an observation yet, which only its requester and an Admin read.
         permissions:
           $ref: "#/components/schemas/Permissions"
     SavedSearchFilters:

@@ -8,16 +8,19 @@ ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING *;
 
 -- name: GetFinding :one
-SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, r.context_to AS request_to
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, r.context_to AS request_to,
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id
 FROM findings f
-JOIN observations o ON o.id = f.observation_id
+LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
 WHERE f.id = @id;
 
 -- name: GetFindingByAgentRequest :one
-SELECT sqlc.embed(f), o.folder_id AS observation_folder_id
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id,
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id
 FROM findings f
-JOIN observations o ON o.id = f.observation_id
+LEFT JOIN observations o ON o.id = f.observation_id
+JOIN agent_requests r ON r.id = f.agent_request_id
 WHERE f.agent_request_id = @agent_request_id;
 
 -- name: ListFindingsByDashboard :many
@@ -55,3 +58,9 @@ LIMIT @row_limit;
 
 -- name: SetFindingAnnotation :execrows
 UPDATE findings SET annotation_id = @annotation_id WHERE id = @id AND annotation_id IS NULL;
+
+-- name: LockFinding :one
+SELECT observation_id FROM findings WHERE id = @id FOR UPDATE;
+
+-- name: SetFindingObservation :execrows
+UPDATE findings SET observation_id = @observation_id WHERE id = @id AND observation_id IS NULL;

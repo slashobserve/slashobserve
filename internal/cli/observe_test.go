@@ -327,6 +327,45 @@ func TestRetryErrorLines(t *testing.T) {
 	}
 }
 
+func TestSaveAnswerPostsAndPrintsTheObservationAddress(t *testing.T) {
+	const saved = `{"observation_id":"` + observationID + `","url":"https://observe.example.com/o/x","replayed":false}`
+	call, stdout, stderr, code := runAgainst(t, http.StatusCreated, saved, "save-answer", stoppedID)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if call.method != http.MethodPost || call.path != "/api/v1/observe/"+stoppedID+"/observation" || call.body != "" {
+		t.Fatalf("got %+v", call)
+	}
+	if strings.TrimSpace(stdout) != "Saved as an observation: https://observe.example.com/o/x" {
+		t.Fatalf("stdout %q", stdout)
+	}
+	_, stdout, _, _ = runAgainst(t, http.StatusOK, strings.Replace(saved, "false", "true", 1), "save-answer", stoppedID)
+	if strings.TrimSpace(stdout) != "Already an observation: https://observe.example.com/o/x" {
+		t.Fatalf("repeat stdout %q", stdout)
+	}
+}
+
+func TestSaveAnswerErrorLines(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		reply  string
+		want   string
+	}{
+		{"no answer", 409, `{"error":"x","code":"no_answer"}`, "request " + stoppedID + " has no answer to save"},
+		{"not yours", 404, `{"error":"agent request not found","code":"not_found"}`, "only the person who made it can save its answer"},
+		{"no folder", 403, `{"error":"x","code":"forbidden_role"}`, "your role or your folders do not allow it"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, stderr, code := runAgainst(t, tc.status, tc.reply, "save-answer", stoppedID)
+			if code != 1 || !strings.Contains(stderr, tc.want) {
+				t.Fatalf("exit %d, stderr %q, want %q", code, stderr, tc.want)
+			}
+		})
+	}
+}
+
 func TestAPromptFollowingAChatSendsFollowsID(t *testing.T) {
 	const created = `{"request":{"id":"` + stoppedID + `","status":"queued","state":"queued","steps":[]}}`
 	call, _, stderr, code := runAgainst(t, http.StatusAccepted, created, "--no-wait", "--follows", stoppedID, "and the day before?")
@@ -343,7 +382,7 @@ func TestAPromptFollowingAChatSendsFollowsID(t *testing.T) {
 }
 
 func TestControlCommandsRejectABadID(t *testing.T) {
-	for _, name := range []string{"cancel", "continue", "retry"} {
+	for _, name := range []string{"cancel", "continue", "retry", "save-answer"} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, name, "nope")
 		if code != 2 || !strings.Contains(stderr, "not a valid id") {
 			t.Fatalf("%s: exit %d, stderr %q", name, code, stderr)

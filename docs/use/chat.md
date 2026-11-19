@@ -7,11 +7,12 @@ The chat on Home's **Ask Observe Agent** tab, and on the Ask page at `/ask`, tur
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
-A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
+A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer in the chat.
+A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
+The answer stays in the chat, and no observation is created, until you choose **Save as observation** under it; an `/investigate` request always opens an observation.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The observation, and a dashboard saved from it, take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
 A chat is titled the same way, from your message.
 
 ## Start a chat
@@ -101,7 +102,7 @@ The new run is yours, whoever started the one you retry.
 A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry is refused with 409 `invalid_transition` instead of starting a duplicate.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
-Only the server's step messages and errors are shown, and for an investigation the answer the agent saved into its observation.
+Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.
 
 A dashboard has 2 to 8 panels unless you ask for another number, and the agent adds variables only when the request asks for a breakdown people will filter on.
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.
@@ -278,7 +279,8 @@ The list ends with how many chats match the search and state, and on Everyone ho
 
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
-An answer is written into an observation, because a finding always lives in one; it goes in your My Dashboards, where only you see it, under the short title described above.
+An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it.
+**Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.

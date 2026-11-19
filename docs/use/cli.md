@@ -68,7 +68,8 @@ In a terminal, the progress goes to standard output with the last line: the agen
 When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 latency")` or a pipe, standard output holds only the address, and the steps, the panel lines and `Saved version N` go to standard error, one per line.
 `-q` hides the steps, the panel lines and `Saved version N`, and prints only the address.
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
-A prompt that only asks a question ends with an answer saved into an [observation](observations.md), which the CLI prints as `observe investigate` does.
+A prompt that only asks a question ends with an answer that stays in the chat, which the CLI prints as `observe investigate` does, followed by the hint `observe save-answer <request-id>`.
+`bin/observe save-answer <request-id>` files that answer as an [observation](observations.md) and prints its address; only the person who asked can, and saving twice prints the same address.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 `--open` opens the dashboard address in the browser once it is saved, with `open` on macOS, `xdg-open` on Linux and the URL handler on Windows; when the opener is missing or fails, the CLI prints a warning and still exits 0.

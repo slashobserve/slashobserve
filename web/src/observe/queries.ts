@@ -12,7 +12,12 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { type ChatListFilters, dashboardKeys, observeKeys } from "@/api/keys"
+import {
+  type ChatListFilters,
+  dashboardKeys,
+  observationKeys,
+  observeKeys,
+} from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
 
@@ -348,6 +353,21 @@ export function useCancelRequest(id: string) {
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),
+  })
+}
+
+export function useSaveAnswer(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observe/{id}/observation", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+      void queryClient.invalidateQueries({ queryKey: observationKeys.lists() })
+    },
   })
 }
 

@@ -99,7 +99,14 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+}
+
+func (r *Registry) findingURL(f findings.Finding) string {
+	if f.Saved() {
+		return links.Observation(r.deps.PublicURL, f.ObservationID)
+	}
+	return links.Chat(r.deps.PublicURL, f.AgentRequestID)
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {

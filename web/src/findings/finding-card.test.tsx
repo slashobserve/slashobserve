@@ -55,6 +55,17 @@ function renderCard(variant?: "card" | "page", showOpenLink = false) {
   )
 }
 
+function renderUnsaved(saveAnswerOf?: string) {
+  return renderWithProviders(
+    <FindingCard
+      finding={{ ...finding(), observation_id: null, url: null }}
+      showOpenLink
+      saveAnswerOf={saveAnswerOf}
+    />,
+    { route: { path: "/", url: "/" } }
+  )
+}
+
 async function frameOf() {
   const range = await screen.findByText(/^(Found|Evidence from)/)
   return { range, frame: range.parentElement }
@@ -95,5 +106,42 @@ describe("FindingCard", () => {
     renderCard("page")
     const { range } = await frameOf()
     expect(range.textContent).toMatch(/^Evidence from .+\.$/)
+  })
+
+  it("keeps an unsaved answer to the chat for a reader who did not ask", async () => {
+    renderUnsaved()
+    await frameOf()
+    expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Save as observation" })
+    ).toBeNull()
+    expect(screen.queryByRole("button", { name: "Pin" })).toBeNull()
+  })
+
+  it("offers its requester to save the answer as an observation and then links to it", async () => {
+    const requested: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        requested.push(`${request.method} ${new URL(request.url).pathname}`)
+        return new Response(
+          JSON.stringify({
+            observation_id: "o5",
+            url: "/o/o5",
+            replayed: false,
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } }
+        )
+      })
+    )
+    renderUnsaved("r1")
+    const save = await screen.findByRole("button", {
+      name: "Save as observation",
+    })
+    save.click()
+    const link = await screen.findByRole("link", { name: "Open observation" })
+    expect(link).toHaveAttribute("href", "/o/o5")
+    expect(requested).toEqual(["POST /api/v1/observe/r1/observation"])
+    vi.unstubAllGlobals()
   })
 })

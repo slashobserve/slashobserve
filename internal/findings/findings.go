@@ -41,6 +41,8 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
+	ErrRequesterOnly  = errors.New("only the one who asked can use the answer of a run that is not an observation")
+	ErrNotSaved       = errors.New("the answer is not an observation yet; save it as an observation first")
 )
 
 type Conclusion struct {
@@ -65,9 +67,14 @@ type Finding struct {
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
 	CreatedBy                                     Author
+	RequestedBy                                   Author
 	Actor                                         actor.Actor
 	Folder                                        *folders.Folder
 	Abilities                                     folders.Abilities
+}
+
+func (f Finding) Saved() bool {
+	return f.ObservationID != ""
 }
 
 func Title(text string) string {

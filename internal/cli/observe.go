@@ -225,7 +225,7 @@ func printRequest(out *output, req agentRequest) {
 		{"Error", orDash(req.Error)},
 	}
 	if req.Finding != nil {
-		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", text(req.Finding.URL)})
+		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
 	}
 	out.fields(fields)
 	switch {
@@ -295,9 +295,11 @@ func (a *app) reportFinding(out *output, req agentRequest) error {
 		return fmt.Errorf("the investigation finished without a finding: observe status %s", text(req.ID))
 	}
 	if !a.json {
-		printFinding(out, *req.Finding)
+		printFinding(out, *req.Finding, req.ID)
 	}
-	a.openLink(out, text(req.Finding.URL))
+	if req.Finding.saved() {
+		a.openLink(out, text(req.Finding.URL))
+	}
 	return nil
 }
 

@@ -90,6 +90,7 @@ A claimed run has its prompt, its target, a session url and token, the kind (bui
 3. Call report_run at least every 30 seconds with the run's id and attempt, optionally with one line saying what you do; the lease ends 60 seconds after the last call, and stop true means the run was canceled or has ended, so stop and call finish_run.
 4. Call finish_run with outcome succeeded after you saved the result, or failed with a message.
    A run that saved a version, a proposal or a finding ends succeeded whatever you send.
+   A question's finding stays in the chat; call save_run_answer with the run id to file it as an observation.
 A call with a run that is not yours is refused, and a connection in propose mode turns the run's dashboard saves into a proposal.
 
 ## Limits

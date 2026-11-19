@@ -48,6 +48,7 @@ type ObserveOptions struct {
 	DashboardURL   func(dashboardID, title string) string
 	ObservationURL func(observationID string) string
 	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	SaveAnswer     AnswerSaver
 	LiveText       func(runID string, attempt int) (string, bool)
 }
 
@@ -208,6 +209,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.DELETE("/observe/:id", auth.RoleViewer, h.archiveObserve)
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
+	api.POST("/observe/:id/observation", auth.RoleViewer, h.saveAnswer)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)

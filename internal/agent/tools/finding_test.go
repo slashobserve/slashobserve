@@ -373,7 +373,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 	return run, row
 }
 
-func TestSaveFindingInAnAnswerRunOnADashboardSitsInTheDashboardsFolder(t *testing.T) {
+func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservation(t *testing.T) {
 	r := newFindingRig(t)
 	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
 	if err != nil {
@@ -396,16 +396,33 @@ func TestSaveFindingInAnAnswerRunOnADashboardSitsInTheDashboardsFolder(t *testin
 	if res.IsError || !ok || saved.Code != "saved" {
 		t.Fatalf("save: %#v", res)
 	}
-	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
-	if err != nil || !after.ObservationID.Valid {
+	if saved.URL != "/c/"+row.ID.String() {
+		t.Errorf("url = %q, want the chat", saved.URL)
+	}
+	if after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID); err != nil || after.ObservationID.Valid {
 		t.Fatalf("run observation %v, %v", after.ObservationID, err)
 	}
-	if saved.URL != "/o/"+after.ObservationID.String() {
-		t.Errorf("url = %q", saved.URL)
+
+	res = r.callIn(t, nil, editorCaller, nameSaveRunAnswer, `{"run_id":"`+row.ID.String()+`"}`)
+	if body, ok := res.Content.(errorBody); !res.IsError || !ok || body.Code != codeNoAnswer {
+		t.Fatalf("another person saves it: %#v", res.Content)
+	}
+	res = r.callIn(t, nil, adminCaller, nameSaveRunAnswer, `{"run_id":"`+row.ID.String()+`"}`)
+	filed, ok := res.Content.(runAnswerSavedOut)
+	if res.IsError || !ok || filed.Code != "saved" || filed.Replayed {
+		t.Fatalf("save answer: %#v", res.Content)
+	}
+	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
+	if err != nil || !after.ObservationID.Valid || filed.URL != "/o/"+after.ObservationID.String() {
+		t.Fatalf("run observation %v, url %q, %v", after.ObservationID, filed.URL, err)
 	}
 	o, err := r.observations.Get(t.Context(), adminCaller, after.ObservationID)
 	if err != nil || o.FolderID != folder.String() {
 		t.Fatalf("observation folder %q, %v, want %s", o.FolderID, err, folder)
+	}
+	again := r.callIn(t, nil, adminCaller, nameSaveRunAnswer, `{"run_id":"`+row.ID.String()+`"}`)
+	if repeat, ok := again.Content.(runAnswerSavedOut); !ok || !repeat.Replayed || repeat.ObservationID != filed.ObservationID {
+		t.Fatalf("repeat: %#v", again.Content)
 	}
 }
 
@@ -428,7 +445,7 @@ func TestSaveFindingFailsWhenTheRunsObservationIsOutOfReach(t *testing.T) {
 	}
 }
 
-func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
+func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	r := newFindingRig(t)
 	run, row := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
 	r.db.Exec(t, `UPDATE agent_requests SET observation_id = NULL WHERE id = $1`, row.ID)
@@ -439,7 +456,7 @@ func TestSaveFindingInARunWithoutAnObservationCreatesIt(t *testing.T) {
 		t.Fatalf("save: %#v", res)
 	}
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
-	if err != nil || !after.ObservationID.Valid || saved.URL != "/o/"+after.ObservationID.String() {
+	if err != nil || after.ObservationID.Valid || saved.URL != "/c/"+row.ID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
 	}
 }
