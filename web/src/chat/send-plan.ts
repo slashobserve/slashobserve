@@ -2,7 +2,7 @@ import type { ObserveInput } from "@/observe/queries"
 
 import type { SlashCommand } from "./slash-commands"
 
-export type Opens = "build" | "chat" | "same"
+export type Opens = "chat" | "same"
 
 export type SendPlan = { input: ObserveInput; opens: Opens }
 
@@ -10,6 +10,7 @@ type SendContext = {
   command: SlashCommand | null
   text: string
   dashboardId?: string
+  followsId?: string
   panelId?: string
   from?: string
   to?: string
@@ -35,20 +36,23 @@ function investigation({
 }
 
 export function planSend(context: SendContext): SendPlan | { error: string } {
-  const { command, text, dashboardId } = context
+  const { command, text, dashboardId, followsId } = context
   switch (command) {
     case "investigate":
       return investigation(context)
     case "import":
-      return { input: { prompt: text }, opens: "build" }
+      return { input: { prompt: text }, opens: "chat" }
     case "revise":
       if (dashboardId === undefined) {
         return { error: "Open a dashboard to revise it." }
       }
       return { input: { prompt: text, dashboardId }, opens: "same" }
     case null:
-      return dashboardId === undefined
-        ? { input: { prompt: text }, opens: "build" }
-        : { input: { prompt: text, dashboardId }, opens: "same" }
+      if (dashboardId !== undefined) {
+        return { input: { prompt: text, dashboardId }, opens: "same" }
+      }
+      return followsId === undefined
+        ? { input: { prompt: text }, opens: "chat" }
+        : { input: { prompt: text, followsId }, opens: "same" }
   }
 }

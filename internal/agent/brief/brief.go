@@ -22,6 +22,7 @@ type Task struct {
 	ThreadContext string
 	Continues     bool
 	Attempt       int
+	TimeZone      string
 }
 
 type View struct {
@@ -54,6 +55,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	}
 	if t.ThreadContext != "" {
 		m.Context += "\n\n" + threadLead + "\n" + t.ThreadContext
+	}
+	if note := zoneNote(t.TimeZone, time.Now()); note != "" && t.Mode != tools.ModeSuggest {
+		m.Context += "\n\n" + note
 	}
 	if digest != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + digest

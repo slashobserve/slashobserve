@@ -9,6 +9,7 @@ import {
   anchorMatcher,
   anchorNs,
   clickhouseLogsTemplate,
+  openingQuery,
   contextFrames,
   contextQueryFor,
   dateFieldNote,
@@ -243,5 +244,17 @@ describe("dateFieldNote", () => {
     ["clickhouse", [whole], false],
   ])("on %s with these lines says %s", (type, frames, expected) => {
     expect(dateFieldNote(type, frames)).toBe(expected)
+  })
+})
+
+describe("openingQuery", () => {
+  it("opens ClickHouse on its template and the search stores on a match-all KQL query", () => {
+    expect(openingQuery("clickhouse")).toBe(clickhouseLogsTemplate)
+    expect(openingQuery("elasticsearch")).toBe("*")
+    expect(openingQuery("opensearch")).toBe("*")
+  })
+
+  it("opens Loki on a selector of every stream that has a service_name", () => {
+    expect(openingQuery("loki")).toBe('{service_name=~".+"}')
   })
 })

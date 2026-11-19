@@ -21,7 +21,43 @@ import {
   type Panel,
 } from "@/spec"
 
+import { Button } from "@/components/ui/button"
+import { maxPromptLength } from "@/prompts/rules"
+
+import { useSendExample } from "./chat-composer"
 import { OpenDashboardLink } from "./turn-failure"
+
+export function plannedPanels(summary: string | undefined): number | null {
+  const match = /(\d+) of (\d+) panels/.exec(summary ?? "")
+  return match === null ? null : Number(match[2])
+}
+
+export function missingPanelsPrompt(prompt: string): string {
+  const lead =
+    "Add the panels that are still missing from this dashboard. The request was: "
+  return lead + [...prompt].slice(0, maxPromptLength - lead.length).join("")
+}
+
+function MissingPanels({
+  dashboardId,
+  prompt,
+}: {
+  dashboardId: string
+  prompt: string
+}) {
+  const { send, pending } = useSendExample()
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="text-foreground"
+      disabled={pending}
+      onClick={() => void send(missingPanelsPrompt(prompt), dashboardId)}
+    >
+      Add the missing panels
+    </Button>
+  )
+}
 
 export const thumbnailColumns = 4
 const nearViewportMargin = "600px"
@@ -91,6 +127,7 @@ export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
 }
 
 type Props = {
+  partial?: { prompt: string }
   dashboardId: string
   version: number
   finishedAt: string | null
@@ -98,13 +135,20 @@ type Props = {
 }
 
 type BodyProps = {
+  partial?: { prompt: string }
   data: DashboardEnvelope | undefined
   dashboardId: string
   version: number
   finishedAt: string | null
 }
 
-function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
+function CardBody({
+  data,
+  dashboardId,
+  version,
+  finishedAt,
+  partial,
+}: BodyProps) {
   const now = useNow()
   const spec = data === undefined ? null : asDashboardSpec(data.version.spec)
   const panels =
@@ -118,12 +162,15 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
     ...new Set(panels.flatMap((panel) => panelDatasourceUids(panel, defaults))),
   ]
   const count = panels.length
+  const planned =
+    partial === undefined ? null : plannedPanels(data?.version.summary)
+  const built = planned === null ? String(count) : `${count} of ${planned}`
   const hint =
     spec === null
       ? "Saved"
-      : `${count} ${count === 1 ? "panel" : "panels"}${
+      : `${built} ${count === 1 && planned === null ? "panel" : "panels"}${
           uids.length > 0 ? ` from ${joinNames(uids)}` : ""
-        }`
+        }${partial === undefined ? "" : ", saved before the run finished"}`
   const shown = thumbnails(panels)
 
   return (
@@ -147,11 +194,16 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
             {hint}
           </span>
         </div>
-        <OpenDashboardLink
-          dashboardId={dashboardId}
-          title={spec?.title}
-          variant="primary"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {partial === undefined ? null : (
+            <MissingPanels dashboardId={dashboardId} prompt={partial.prompt} />
+          )}
+          <OpenDashboardLink
+            dashboardId={dashboardId}
+            title={spec?.title}
+            variant="primary"
+          />
+        </div>
       </div>
       <div className="flex items-center gap-1.5 border-t px-3.5 py-[9px] text-xs text-muted-foreground">
         <StatusIcon tone="ok" />
@@ -171,7 +223,13 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
   )
 }
 
-export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
+export function ResultCard({
+  dashboardId,
+  version,
+  finishedAt,
+  eager,
+  partial,
+}: Props) {
   const card = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(false)
   const fetchVersion = eager || nearViewport
@@ -211,6 +269,7 @@ export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
           dashboardId={dashboardId}
           version={version}
           finishedAt={finishedAt}
+          partial={partial}
         />
       )}
     </div>

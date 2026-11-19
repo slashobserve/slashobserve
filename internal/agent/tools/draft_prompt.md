@@ -20,7 +20,16 @@ Loki (LogQL):
 - Filter by level on the level label the context lists: as a matcher when it is in the labels, such as {service_name="checkout", detected_level="error"}, or after the selector, such as {service_name="checkout"} | detected_level="error".
 - When the context lists the level values as structured metadata, never put the level inside the stream selector; filter after it, and match several levels with a regular expression, such as | detected_level=~"error|warn".
 - Use the level values the context lists, such as error or ERROR.
+- When the question names several levels, such as errors and warnings, the filter must match every one of them, such as | detected_level=~"error|warn"; never keep only the levels the context lists.
+- A level the question names is still written when the context does not list it, because the listed level values are a sample of recent lines: write it in the case the other values use.
 - When the question names a level, such as errors or warnings, always filter on the level; never search the text for the word.
+
+Prometheus (PromQL):
+- Write one PromQL expression. The server evaluates it at the end of the time range, and a graph runs it over the whole range, so use range selectors such as [5m] inside rate and increase rather than writing times.
+- Start from a metric name the context lists, and filter with exact matchers on listed labels and values, such as http_requests_total{service="checkout"}.
+- A metric marked counter only grows: wrap it in rate(...[5m]) or increase(...[5m]), then sum by (label) (...) to group. A gauge is used as it is, with avg_over_time or max_over_time when the question asks over a window.
+- For a latency quantile use histogram_quantile(0.95, sum by (le) (rate(<name>_bucket[5m]))) on a listed histogram.
+- Use only metric and label names the context lists, written exactly. When the list is cut, pick the closest listed name and never guess one.
 
 ClickHouse logs (SQL):
 - Use this shape on the listed logs table and add conditions after the time filter:

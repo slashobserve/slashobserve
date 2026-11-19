@@ -98,6 +98,7 @@ async function renderComposer({
       canInvestigate={canInvestigate}
       placeholder="Write a comment"
       range={{ from: "now-1h", to: "now" }}
+      timeZone="Asia/Kolkata"
     />,
     { route: { path: "/", url: "/" } }
   )
@@ -169,6 +170,29 @@ describe("ActivityComposer", () => {
         panel_id: "latency",
       },
     })
+  })
+
+  it("sends on Enter, adds a line on Shift+Enter, and says a plain comment is for the team", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    const { form } = await renderComposer()
+    expect(
+      await within(form).findByText(/This goes to the team as a comment/)
+    ).toBeTruthy()
+    const field = within(form).getByRole("textbox", {
+      name: "Comment or request",
+    })
+    await user.click(field)
+    await user.keyboard("{Shift>}{Enter}{/Shift}")
+    expect(posts).toHaveLength(0)
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+  })
+
+  it("leaves out the team hint once the draft asks an agent", async () => {
+    await renderComposer({ draft: "@observe make it a bar chart" })
+    await screen.findByRole("form", { name: "Add to the activity" })
+    expect(screen.queryByText(/This goes to the team as a comment/)).toBeNull()
   })
 
   it("puts the cursor back in the field after a send when focus stayed in the form", async () => {
@@ -297,6 +321,7 @@ describe("ActivityComposer", () => {
               canInvestigate={canInvestigate}
               placeholder="Write a comment"
               range={{ from: "now-1h", to: "now" }}
+              timeZone="Asia/Kolkata"
             />
           </QueryClientProvider>
         )
@@ -314,6 +339,55 @@ describe("ActivityComposer", () => {
       )
     }
   )
+
+  it("sends an investigation with the time zone the dashboard shows", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    function Harness() {
+      const [draft, setDraft] = useState("")
+      return (
+        <QueryClientProvider client={testQueryClient()}>
+          <ActivityComposer
+            dashboardId="dashboard"
+            latestVersion={3}
+            panels={panels}
+            target={{ kind: "dashboard" }}
+            onTargetChange={vi.fn()}
+            draft={draft}
+            onDraftChange={setDraft}
+            gate={{ kind: "allowed" }}
+            canInvestigate
+            placeholder="Write a comment"
+            range={{ from: "now-1h", to: "now" }}
+            timeZone="Asia/Kolkata"
+          />
+        </QueryClientProvider>
+      )
+    }
+    render(<Harness />)
+    await user.type(
+      screen.getByRole("textbox", { name: "Comment or request" }),
+      "/investigate why is latency up"
+    )
+    await user.click(screen.getByRole("button", { name: "Investigate" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/observe")
+    expect(posts[0].body).toMatchObject({
+      kind: "investigate",
+      prompt: "why is latency up",
+      time_zone: "Asia/Kolkata",
+    })
+  })
+
+  it("sends rather than investigates when investigate mode is left over for someone who cannot investigate", async () => {
+    useActivityStore.getState().setAgentKind("investigate")
+    const { form } = await renderComposer({ canInvestigate: false })
+    expect(
+      within(form).queryByRole("button", { name: "Investigate" })
+    ).toBeNull()
+    expect(within(form).getByRole("button", { name: "Send" })).toBeEnabled()
+    useActivityStore.getState().setAgentKind("revise")
+  })
 
   it("disables sending while the draft is empty", async () => {
     const { form } = await renderComposer({ draft: "  " })

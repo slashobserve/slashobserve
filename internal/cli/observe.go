@@ -40,6 +40,7 @@ type agentRequest struct {
 	Build         *buildSummary   `json:"build"`
 	BuildSavedAt  *string         `json:"build_saved_at"`
 	ContinuedBy   *string         `json:"continued_by"`
+	RetriedBy     *string         `json:"retried_by"`
 	Finding       *findingSummary `json:"finding"`
 
 	AllowedActions []string `json:"allowed_actions"`
@@ -68,6 +69,7 @@ type requestEnvelope struct {
 
 type promptOptions struct {
 	dashboard string
+	follows   string
 	noWait    bool
 	timeout   time.Duration
 }
@@ -80,6 +82,7 @@ type statusOptions struct {
 func (a *app) addPromptFlags(root *cobra.Command) {
 	flags := root.Flags()
 	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "revise this dashboard with a follow-up prompt")
+	flags.StringVar(&a.prompt.follows, "follows", "", "continue the chat of this earlier request of yours, which has no dashboard")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.prompt.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
 }
@@ -102,12 +105,22 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 		return usagef("--timeout must be positive")
 	}
 	payload := map[string]any{"prompt": prompt}
+	if a.prompt.dashboard != "" && a.prompt.follows != "" {
+		return usagef("--dashboard and --follows exclude each other")
+	}
 	if a.prompt.dashboard != "" {
 		id, err := parseID(a.prompt.dashboard)
 		if err != nil {
 			return err
 		}
 		payload["dashboard_id"] = id
+	}
+	if a.prompt.follows != "" {
+		id, err := parseID(a.prompt.follows)
+		if err != nil {
+			return err
+		}
+		payload["follows_id"] = id
 	}
 	c, err := a.newClient()
 	if err != nil {
@@ -221,7 +234,7 @@ func printRequest(out *output, req agentRequest) {
 		{"Prompt", dash(req.Prompt)},
 	}
 	if req.Finding != nil {
-		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", text(req.Finding.URL)})
+		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
 	}
 	out.fields(fields)
 	switch {
@@ -229,6 +242,8 @@ func printRequest(out *output, req agentRequest) {
 		out.line("Queued, position %d", *req.QueuePosition)
 	case req.Status == "failed" && req.ContinuedBy != nil:
 		out.line("Continued by %s", text(*req.ContinuedBy))
+	case req.RetriedBy != nil:
+		out.line("Retried by %s", text(*req.RetriedBy))
 	case slices.Contains(req.AllowedActions, "continue"):
 		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
 	case slices.Contains(req.AllowedActions, "retry") && req.State != "succeeded":
@@ -289,9 +304,12 @@ func (a *app) reportFinding(out *output, req agentRequest) error {
 		return fmt.Errorf("the investigation finished without a finding: observe status %s", text(req.ID))
 	}
 	if !a.json {
-		printFinding(out, *req.Finding)
+		printFinding(out, *req.Finding, req.ID)
+		printAskOn(out, req.Finding.AskOn, req.Prompt)
 	}
-	a.openLink(out, text(req.Finding.URL))
+	if req.Finding.saved() {
+		a.openLink(out, text(req.Finding.URL))
+	}
 	return nil
 }
 

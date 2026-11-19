@@ -330,6 +330,7 @@ func TestImportOnlyIssuesForHTMLAndActions(t *testing.T) {
 		{"create a code panel holding a tag", mustParse(t, textPanelJSON("t_new", "<div>", `,"mode":"code"`, 0)), nil, htmlCode, []string{"/panels/0"}},
 		{"create Markdown with an autolink", mustParse(t, textPanelJSON("t_new", "see <https://example.com>", "", 0)), nil, nil, nil},
 		{"create plain Markdown", mustParse(t, textPanelJSON("t_new", "# Title\n\n- item", "", 0)), nil, nil, nil},
+		{"create a Markdown table with a bold word", mustParse(t, textPanelJSON("t_new", "**Checkout** status\n\n| Pod | Errors |\n| --- | ---: |\n| checkout-0 | 420 |", "", 0)), nil, nil, nil},
 		{"keep an imported html panel but move it", mustParse(t, textPanelJSON("t_note", "<p>Runbook</p>", importedHTML, 8)), imported, nil, nil},
 		{"edit the content of an imported html panel", mustParse(t, textPanelJSON("t_note", "<p>Changed</p>", importedHTML, 0)), imported, htmlCode, []string{"/panels/0"}},
 		{"switch a plain panel to html", mustParse(t, textPanelJSON("t_note", "Runbook", importedHTML, 0)), plain, htmlCode, []string{"/panels/0"}},
@@ -410,7 +411,7 @@ func TestImportOnlyIssuesForFieldActions(t *testing.T) {
 
 func TestImportOnlyMessagesTellTheAgentWhatToDo(t *testing.T) {
 	html := importOnlyIssues(mustParse(t, textPanelJSON("t_new", "<div>", "", 0)), nil)
-	if len(html) != 1 || html[0].Message != "the agent cannot write HTML; write Markdown without tags, or leave this imported panel unchanged" {
+	if len(html) != 1 || html[0].Message != "the agent cannot write HTML; write Markdown without tags, with a Markdown table for a table, or leave this imported panel unchanged" {
 		t.Fatalf("html issues = %+v", html)
 	}
 	action := importOnlyIssues(mustParse(t, canvasPanelJSON("c_new", "Deploy", deployActions)), nil)

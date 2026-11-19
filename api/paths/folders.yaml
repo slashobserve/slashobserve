@@ -42,6 +42,7 @@ folders:
   post:
     operationId: createFolder
     x-surfaces:
+      mcp: [create_folder]
       cli: [observe folders create]
     summary: Create a folder.
     description: >-
@@ -120,6 +121,7 @@ folders-id:
   patch:
     operationId: renameFolder
     x-surfaces:
+      mcp: [rename_folder]
       cli: [observe folders rename]
     summary: Rename a folder.
     description: Needs the Manage permission on the folder. The General folder cannot be renamed.

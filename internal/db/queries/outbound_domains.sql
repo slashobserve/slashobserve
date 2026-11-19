@@ -25,6 +25,8 @@ DELETE FROM outbound_domains WHERE domain = @domain AND for_connection;
 SELECT 'webhook'::text AS kind, name, url FROM webhooks
 UNION ALL
 SELECT 'grafana_connection'::text AS kind, name, url FROM grafana_connections
+UNION ALL
+SELECT 'datasource'::text AS kind, name, CASE WHEN type = 'clickhouse' THEN 'tcp://' || (config->>'address') ELSE config->>'address' END AS url FROM datasources
 ORDER BY kind, name;
 
 -- name: ClaimConnectionOutboundDomain :one

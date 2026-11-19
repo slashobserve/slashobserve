@@ -12,6 +12,26 @@ export function orderTurns(
   return ids.includes(rootId) ? ids : [rootId, ...ids]
 }
 
+type LatestTurn = {
+  id: string
+  created_at: string
+  status: "queued" | "running" | "succeeded" | "failed"
+  failure_code: string | null
+  result_version: number | null
+}
+
+export function latestTurn(
+  root: LatestTurn,
+  others: readonly LatestTurn[] | undefined
+): LatestTurn {
+  return [root, ...(others ?? [])].reduce((latest, turn) =>
+    turn.created_at > latest.created_at ||
+    (turn.created_at === latest.created_at && turn.id > latest.id)
+      ? turn
+      : latest
+  )
+}
+
 function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }

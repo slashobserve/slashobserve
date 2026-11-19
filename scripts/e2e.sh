@@ -827,12 +827,12 @@ check_datasources() {
   while IFS= read -r entry; do
     keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
     case "$keys" in
-      checked_at,dashboard_count,healthy,name,type,uid | checked_at,dashboard_count,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
+      checked_at,dashboard_count,healthy,name,source,type,uid | checked_at,dashboard_count,healthy,message,name,source,type,uid | checked_at,dashboard_count,detail,healthy,name,source,type,uid | checked_at,dashboard_count,detail,healthy,message,name,source,type,uid) entries=$((entries + 1)) ;;
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
   [[ "$entries" == 6 ]] || fail "expected 6 datasource entries, found $entries"
-  pass "datasource entries carry exactly uid, type, name, healthy, checked_at, dashboard_count and an optional message"
+  pass "datasource entries carry exactly uid, type, name, source, healthy, checked_at, dashboard_count and an optional message and detail"
 }
 
 API_TOKEN=""
@@ -850,6 +850,10 @@ api_token() {
   [[ "$out" == 201 ]] || fail "create the e2e-api key ($out: $(cat "$TMP/api-key.json"))"
   API_TOKEN="$(grep -o '"token":"sok_[^"]*"' "$TMP/api-key.json" | cut -d'"' -f4)"
   [[ "$API_TOKEN" == sok_* ]] || fail "the e2e-api key response has no token"
+}
+
+mcp_dashboard_args() {
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["spec"]["title"]=sys.argv[2]; print(json.dumps(d))' "$FIXTURES/dashboard-valid.json" "$1"
 }
 
 shared_dashboard_body() {
@@ -1534,7 +1538,7 @@ comments_suite() {
     "$(comment_body 1 "$(printf 'p%.0s' $(seq 1 65))" 'x')" "$(comment_body 0 "$panel" 'x')" '{"version":1,"panel_id":"p"}' \
     "$(comment_body 1 "$panel" 'x' | sed 's/}$/,"extra":1}/')" '{"version":"1","panel_id":"p","body":"x"}'; do
     out="$(api POST "/dashboards/$id/comments" -d "$bad")"
-    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+    if [[ "$out" != 400 ]] || ! grep -qE '"code":"invalid_(request|body|panel_id|version)"' "$TMP/api.body"; then
       fail "invalid comment ${bad:0:80} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
     fi
   done
@@ -2382,7 +2386,7 @@ mcp_suite() {
   mcp_expect "query_range with format table on ClickHouse" '"name":"minute"'
   pass "MCP query_range with format table keeps ClickHouse rows as a table"
 
-  mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-valid.json")"
+  mcp_tool create_dashboard "$(mcp_dashboard_args "E2E dashboard over MCP")"
   mcp_expect "create_dashboard" '"dashboard_id":"[0-9a-f-]\{36\}"'
   id="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/mcp.body" | head -1 | cut -d'"' -f4)"
   out="$(api GET "/dashboards/$id")"
@@ -3189,7 +3193,7 @@ dashboard_list_suite() {
   out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create the web dashboard for the list ($out: $(cat "$TMP/list-web.json"))"
   d_web="$(first_json_string "$TMP/list-web.json" id)"
-  out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(cat "$FIXTURES/dashboard-valid.json"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
+  out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(mcp_dashboard_args "E2E dashboard for the list over MCP"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
   if [[ "$out" != 200 ]] || grep -q '"isError":true' "$TMP/mcp.body"; then
     fail "create the MCP dashboard for the list ($out: $(head -c 1500 "$TMP/mcp.body"))"
   fi

@@ -1,6 +1,7 @@
 export type DashboardEvent =
   | { type: "ready"; dashboardId: string; latestVersion: number }
   | { type: "resync"; dashboardId: string }
+  | { type: "role.changed"; dashboardId: string }
   | {
       type: "version.created"
       dashboardId: string
@@ -58,7 +59,8 @@ export function parseEvent(
       return { type: "ready", dashboardId, latestVersion }
     }
     case "resync":
-      return { type: "resync", dashboardId }
+    case "role.changed":
+      return { type: eventName, dashboardId }
     case "dashboard.deleted":
       return {
         type: "dashboard.deleted",

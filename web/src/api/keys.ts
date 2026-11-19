@@ -61,6 +61,7 @@ export const dashboardKeys = {
   diff: (id: string, from: number, to: number) =>
     ["dashboards", id, "diff", from, to] as const,
   comments: (id: string) => ["dashboards", id, "comments"] as const,
+  viewers: (id: string) => ["dashboards", id, "viewers"] as const,
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
   revision: (id: string, revisionId: string) =>
     ["dashboards", id, "revision", revisionId] as const,
@@ -82,6 +83,7 @@ export type ChatListFilters = {
   q?: string
   pinned?: boolean
   dashboardId?: string
+  chatId?: string
   scope?: "all"
   states?: components["schemas"]["RequestSummary"]["state"][]
 }
@@ -125,6 +127,7 @@ export type NameListParams = {
 export const datasourceKeys = {
   all: ["datasources"] as const,
   list: () => ["datasources", "list"] as const,
+  config: (uid: string) => ["datasources", uid, "config"] as const,
   metrics: (uid: string, search: string) =>
     ["datasources", uid, "metrics", search] as const,
   labels: (uid: string, params: NameListParams) =>
@@ -318,7 +321,7 @@ export const findingKeys = {
 }
 
 export type SavedSearchListParams = {
-  kind?: "logs" | "traces"
+  kind?: "logs" | "traces" | "metrics"
   folderId?: string
 }
 

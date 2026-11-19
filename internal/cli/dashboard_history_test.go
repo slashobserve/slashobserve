@@ -23,6 +23,14 @@ func TestRevisionsListPagesAndShowsOne(t *testing.T) {
 	}
 }
 
+func TestDashboardViewersPrintsWhoIsLooking(t *testing.T) {
+	server, seen := recordingServer(t, `{"viewers":[{"id":"`+testDashboard+`","name":"Grace"}]}`)
+	stdout, _, code := runWith(server, "dashboards", "viewers", testDashboard)
+	if code != 0 || seen.path != "/api/v1/dashboards/"+testDashboard+"/viewers" || seen.method != "GET" || !strings.Contains(stdout, "Grace") {
+		t.Fatalf("exit %d, call %+v, stdout %q", code, seen, stdout)
+	}
+}
+
 func TestDashboardTagsPrintsCounts(t *testing.T) {
 	server, seen := recordingServer(t, `{"tags":[{"tag":"prod","dashboards":4}]}`)
 	stdout, _, code := runWith(server, "dashboards", "tags")

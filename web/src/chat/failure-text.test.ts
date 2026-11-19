@@ -30,6 +30,16 @@ describe("failureText", () => {
     })
   })
 
+  it("does not offer a build that is gone", () => {
+    expect(failureText("canceled", false)?.next).toBe("Try again.")
+    expect(failureText("canceled")?.next).toBe(
+      "Save what was built, continue it, or try again."
+    )
+    expect(failureText("rate_limited", false)).toEqual(
+      failureText("rate_limited")
+    )
+  })
+
   it("explains a run no outside agent took", () => {
     expect(failureText("agent_unavailable")).toEqual({
       meaning: "No outside agent took this run within 10 minutes.",

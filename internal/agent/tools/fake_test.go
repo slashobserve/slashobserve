@@ -20,6 +20,7 @@ type fakeDS struct {
 	instantFn  func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error)
 	discoverFn func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
 	lintFn     func(ctx context.Context, query string) ([]datasource.Diagnostic, error)
+	healthErr  error
 
 	mu       sync.Mutex
 	requests []datasource.DiscoverRequest
@@ -32,7 +33,7 @@ func (f *fakeDS) Type() string {
 	}
 	return f.typ
 }
-func (f *fakeDS) CheckHealth(context.Context) error { return nil }
+func (f *fakeDS) CheckHealth(context.Context) error { return f.healthErr }
 func (f *fakeDS) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
 	if f.lintFn != nil {
 		return f.lintFn(ctx, query)
@@ -98,6 +99,12 @@ func errorCode(t *testing.T, res Result) string {
 	t.Helper()
 	if !res.IsError {
 		t.Fatalf("expected a tool error, got %#v", res.Content)
+	}
+	if missing, ok := res.Content.(versionNotFoundOut); ok {
+		return missing.Code
+	}
+	if transition, ok := res.Content.(invalidTransitionOut); ok {
+		return transition.Code
 	}
 	body, ok := res.Content.(errorBody)
 	if !ok {

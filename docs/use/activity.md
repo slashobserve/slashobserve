@@ -14,11 +14,11 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | --- | --- | --- |
 | Dashboard | `dashboard.created`, `dashboard.version_created`, `dashboard.restored` | A version is saved: the first one, a later one, or a restore of an older one. |
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
-| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went, never its text. |
+| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a create and a delete carry a `title`, the first 80 characters of the annotation's text on one line, copied when the event is written, and a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went. |
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
-| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
+| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
@@ -33,7 +33,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Run | `run.kept` | The requester kept the build of a stopped run as a version. |
-| Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
+| Thread | `thread.opened`, `thread.replied`, `thread.edited`, `thread.deleted` | A comment thread is started, answered, a message in it is edited, or a message or a whole thread is deleted. |
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
 
@@ -55,6 +55,7 @@ Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks
 | Outbound domain | `outbound_domain.added`, `outbound_domain.removed` | An Admin allows or removes an outbound domain, including the Grafana host that connecting Grafana allows; `data` has the `domain`. |
 | Connected agent | `mcp_client.connected`, `mcp_client.disconnected` | A person connects an agent over MCP, or the connection ends; `data` has the `client`, the person's `person_id` and `person_name` and the grant's `mode`, and a disconnect adds the `reason`: `person`, `admin`, `client` (the agent revoked its own token), `code_reuse` or `refresh_reuse` (the server revoked it after a token was replayed). The actor is the person, or the Admin who disconnected it. Never a token. |
 | Grafana connection | `grafana_connection.created`, `grafana_connection.updated`, `grafana_connection.deleted` | An Admin connects, changes or removes a Grafana connection; `data` has `name` and `host`, and an update has `changes` with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token was replaced. The token is never recorded. |
+| Datasource | `datasource.created`, `datasource.updated`, `datasource.deleted` | An Admin adds, changes or deletes a datasource in the app; `data` has `uid`, `type`, `name` and `host`, the address's host and port without its path, and an update has `changes` with `{from, to}` for each of `name` and `host` that changed, plus `address_changed`, `settings_changed` and `credentials_changed` when they did. A credential is never recorded. Datasources defined in the datasources file are not recorded. |
 
 Each event has an `actor`, the Admin, with the same `label` and origin as any other event, so an event made through a key says which key and an event made over MCP says which client.
 `data` never holds a secret: a key, a webhook secret or a Grafana token appears only as the fact that it was created, rotated or replaced.
@@ -65,9 +66,9 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 ## What data holds
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
-A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
+A saved search event adds its `kind`, `logs`, `traces` or `metrics`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`, with the block's `state` (`live` or `requested`) on `observation.block_added`; block text, summaries and snapshot data are never in an event.
-It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
+It never holds a prompt, a comment, a finding's text, a query or Spec JSON, and an annotation event holds only the 80-character `title`, never the full text.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
 `thread.opened` also carries the `title` of the dashboard or observation, copied when the thread opens so the row still names it after the object is deleted.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.

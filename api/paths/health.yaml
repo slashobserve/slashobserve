@@ -126,6 +126,7 @@ health-run:
   post:
     operationId: runDashboardHealth
     x-surfaces:
+      mcp: [run_dashboard_health]
       cli: [observe health run]
     summary: Start a health run now.
     description: >-

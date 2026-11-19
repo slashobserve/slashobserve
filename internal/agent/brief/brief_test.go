@@ -81,6 +81,28 @@ func TestRenderAppendsTheDigestToEveryModeButSuggest(t *testing.T) {
 	}
 }
 
+func TestRenderNamesThePersonsTimeZoneToEveryModeButSuggest(t *testing.T) {
+	const note = "Time zone: the person reads times in Asia/Kolkata, labelled IST. Tool results give UTC; write every time in the answer in Asia/Kolkata with its label, such as 14:05 IST, not in UTC."
+	for name, tc := range renderCases(t) {
+		task := tc.task
+		task.TimeZone = "Asia/Kolkata"
+		got, err := Render(statuses, task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if named := strings.Contains(got.Context, note); named == (name == "suggest") {
+			t.Fatalf("%s: zone named = %v in\n%s", name, named, got.Context)
+		}
+		without, err := Render(statuses, tc.task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(without.Context, "Time zone:") {
+			t.Fatalf("%s: a run with no zone named one", name)
+		}
+	}
+}
+
 func TestRenderShowsTheBuildAsTheViewWhenOneExists(t *testing.T) {
 	build, _ := buildOf(t)
 	current := &Revision{DashboardID: "d1", Number: 3, Spec: &spec.Dashboard{Title: "old"}}

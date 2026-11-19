@@ -3,6 +3,7 @@ package annotations
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -61,15 +62,27 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 	return created, nil
 }
 
+const maxEventTitleRunes = 80
+
 type createdData struct {
+	Title    string   `json:"title,omitempty"`
 	PanelID  string   `json:"panel_id,omitempty"`
 	Tags     []string `json:"tags"`
 	TimeFrom string   `json:"time_from"`
 	TimeTo   string   `json:"time_to,omitempty"`
 }
 
+func eventTitle(text string) string {
+	line := strings.Join(strings.Fields(text), " ")
+	runes := []rune(line)
+	if len(runes) <= maxEventTitleRunes {
+		return line
+	}
+	return string(runes[:maxEventTitleRunes-1]) + "…"
+}
+
 func newCreatedData(a Annotation) createdData {
-	d := createdData{PanelID: a.PanelID, Tags: a.Tags, TimeFrom: httpapi.FormatTime(a.From)}
+	d := createdData{Title: eventTitle(a.Text), PanelID: a.PanelID, Tags: a.Tags, TimeFrom: httpapi.FormatTime(a.From)}
 	if a.To != nil {
 		d.TimeTo = httpapi.FormatTime(*a.To)
 	}

@@ -19,6 +19,7 @@ function source(
     uid,
     type: "loki",
     name,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
@@ -49,7 +50,7 @@ function renderList(
 }
 
 function setRecentAtLoad(logs: string[]) {
-  const loaded = { logs, traces: [] }
+  const loaded = { logs, traces: [], metrics: [] }
   useSourceMemory.setState({ ...loaded, atLoad: loaded })
 }
 

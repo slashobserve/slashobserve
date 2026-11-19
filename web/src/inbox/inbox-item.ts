@@ -33,6 +33,7 @@ const kindWords: Record<TargetKind, string> = {
   mcp_client: "an agent connection",
   outbound_domain: "an outbound domain",
   grafana_connection: "a Grafana connection",
+  datasource: "a datasource",
   public_link: "a public link",
 }
 
@@ -43,6 +44,7 @@ const reasonLabels: Record<InboxReason, string> = {
   reply: "Reply",
   run_failed: "Run failed",
   repaired: "Repaired",
+  proposal_closed: "Proposal closed",
 }
 
 function field(item: InboxItem, key: string): unknown {
@@ -73,8 +75,33 @@ function objectRef(item: InboxItem): ObjectRef | null {
     : null
 }
 
+function titleOf(item: InboxItem): string | null {
+  return item.target_title === null || item.target_title === ""
+    ? null
+    : item.target_title
+}
+
+const commentable = new Set<TargetKind>([
+  "dashboard",
+  "annotation",
+  "observation",
+  "proposal",
+])
+
+export function threadTarget(item: InboxItem): string | null {
+  if (item.target.kind !== "thread") return null
+  const ref = objectRef(item)
+  return ref !== null && commentable.has(ref.kind)
+    ? `${ref.kind}:${ref.id}`
+    : null
+}
+
 function threadObject(item: InboxItem): string {
-  return kindWords[objectRef(item)?.kind ?? item.target.kind]
+  return titleOf(item) ?? kindWords[objectRef(item)?.kind ?? item.target.kind]
+}
+
+export function itemExcerpt(item: InboxItem): string | null {
+  return item.excerpt === null || item.excerpt === "" ? null : item.excerpt
 }
 
 function fallbackVerb(type: string): string {
@@ -100,6 +127,18 @@ function repairedText(item: InboxItem): ItemText {
   }
 }
 
+function closedProposalText(item: InboxItem): ItemText {
+  const merged = item.type === "proposal.merged"
+  const title = textField(item, "title") ?? titleOf(item) ?? "a proposal"
+  const version = countField(item, "version")
+  return {
+    actor: item.actor.label,
+    verb: merged ? "merged your proposal" : "discarded your proposal",
+    object:
+      merged && version !== null ? `${title} as version ${version}` : title,
+  }
+}
+
 export function itemText(item: InboxItem): ItemText {
   const actor = item.actor.label
   if (item.type === "run.succeeded" && item.reason === "repaired") {
@@ -107,7 +146,7 @@ export function itemText(item: InboxItem): ItemText {
   }
   switch (item.type) {
     case "proposal.opened": {
-      const title = textField(item, "title")
+      const title = textField(item, "title") ?? titleOf(item)
       return title === null
         ? { actor, verb: "proposed a change to", object: "a dashboard" }
         : { actor, verb: "proposed", object: title }
@@ -119,8 +158,11 @@ export function itemText(item: InboxItem): ItemText {
           field(item, "state") === "requested"
             ? "suggested a block on"
             : "added a block to",
-        object: textField(item, "title") ?? "an observation",
+        object: textField(item, "title") ?? titleOf(item) ?? "an observation",
       }
+    case "proposal.merged":
+    case "proposal.discarded":
+      return closedProposalText(item)
     case "thread.mentioned":
       return { actor, verb: "mentioned you on", object: threadObject(item) }
     case "thread.replied":
@@ -129,13 +171,16 @@ export function itemText(item: InboxItem): ItemText {
       return {
         actor: "",
         verb: "Your run failed on",
-        object: kindWords[item.target.kind],
+        object: titleOf(item) ?? kindWords[item.target.kind],
       }
     default:
       return {
         actor,
         verb: fallbackVerb(item.type),
-        object: textField(item, "title") ?? kindWords[item.target.kind],
+        object:
+          textField(item, "title") ??
+          titleOf(item) ??
+          kindWords[item.target.kind],
       }
   }
 }

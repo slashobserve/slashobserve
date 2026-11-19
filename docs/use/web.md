@@ -15,7 +15,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
 | `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its version history, headed "Versions of <title>", and `thread=<thread id>` opens the activity pane on that comment thread. |
-| `/f/<folder id>` | A folder: its dashboards, observations and saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
+| `/f/<folder id>` | A folder: its dashboards with the same search and filters as the Dashboards list, its observations and its saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
@@ -23,13 +23,14 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to` and `mode` in the query string reopen a query. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
-`/logs` and `/traces` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
+`/logs`, `/traces` and `/explore/metrics` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
-[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
+[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view, and [Metrics](metrics.md) describes the metrics page.
 
 The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
 
@@ -168,7 +169,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, starts a comment on the panel.
-- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target.
+- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target; it is disabled and reads "needs the Editor role" when your role is below Editor.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
@@ -178,7 +179,7 @@ While you have unsaved layout changes, Comment, Ask, Edit query and Add to obser
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you can neither comment nor ask, as a Viewer cannot.
 With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
-**Ask** opens the activity pane in investigate mode for the whole dashboard.
+**Ask** opens the activity pane in investigate mode for the whole dashboard; below the Editor role it is disabled and reads "needs the Editor role".
 
 ### Arrange panels
 
@@ -339,3 +340,11 @@ The app follows your system's light or dark setting until you choose one.
 Open Settings, choose **Appearance** in its section list, and pick **Light**, **Dark** or **Match the system** under **Theme**; the choice applies at once.
 The account menu offers the same three choices under **Theme**, and the toolbar's **Switch theme** button and the command palette's **Switch theme** command flip between light and dark.
 The choice stays in this browser's local storage and never reaches the server, so it does not follow you to another browser.
+
+## Time zone
+
+**Appearance** in Settings also has **Time zone**.
+It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
+It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
+It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

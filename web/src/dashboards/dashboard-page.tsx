@@ -35,6 +35,7 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
+import { preferredZone, usePreferences } from "@/lib/preferences"
 import {
   displayZone,
   isRangeTooLong,
@@ -71,6 +72,8 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
+import { focusComment } from "./panel-actions"
+import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
   cursorSyncLabel,
@@ -291,7 +294,9 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const viewZone = search.tz ?? spec.timezone
+  const preferences = usePreferences()
+  const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
+  const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
     () => timeOptionsFor({ ...spec, timezone: viewZone }),
     [spec, viewZone]
@@ -608,6 +613,7 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
+    comment: () => focusComment(composerRef),
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -735,13 +741,10 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
-        timezone={spec.timezone}
+        timezone={ownZone}
       />
       {spec.timePicker?.hidden ? null : (
-        <ZonePicker
-          value={viewZone ?? "browser"}
-          dashboardZone={spec.timezone}
-        />
+        <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
       )}
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker
@@ -944,6 +947,7 @@ function DashboardView({
                         back={backFromSearch(search)}
                       />
                     }
+                    presence={<ViewerNames dashboardId={dashboardId} />}
                     controls={controls}
                     actions={actions}
                   />
@@ -1029,6 +1033,7 @@ function DashboardView({
                 {kiosk || editingPanel ? null : (
                   <CanvasTools
                     permissions={permissions}
+                    canInvestigate={canInvestigate}
                     idle={!editing}
                     composerRef={composerRef}
                   />

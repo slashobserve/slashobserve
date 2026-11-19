@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query"
-import { screen, within } from "@testing-library/react"
+import { act, screen, within } from "@testing-library/react"
 import { toast } from "sonner"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -143,6 +143,23 @@ describe("FilterPills", () => {
       )
     ).toBeVisible()
     expect(screen.getByRole("button", { name: "Add filter" })).toBeVisible()
+  })
+
+  it("shows the whole value of a pill when it has keyboard focus", async () => {
+    const value = "x".repeat(300)
+    setup({
+      pills: [{ ...seeded[0], value }],
+    })
+    act(() => {
+      screen
+        .getByRole("button", { name: `Filter service.name: ${value}` })
+        .focus()
+    })
+    expect(
+      await screen.findByText(`service.name: ${value}`, {
+        selector: '[data-slot="tooltip-content"]',
+      })
+    ).toBeVisible()
   })
 
   it("names the query language of the datasource", () => {

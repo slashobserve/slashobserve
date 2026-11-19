@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { roleAtLeast } from "@/lib/roles"
-import { isEditableTarget } from "@/lib/shortcuts"
+import { isEditableTarget, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -52,6 +52,7 @@ type Notice = { text: string; invalid: boolean }
 
 type Props = {
   dashboardId?: string
+  followsId?: string
   dashboardTitle?: string
   runningRequestId?: string
   placeholder: string
@@ -72,9 +73,8 @@ export function useOpenSent(append?: (request: ObserveRequest) => void) {
       return
     }
     await navigate({
-      to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
+      to: "/c/$requestId",
       params: { requestId: request.id },
-      viewTransition: opens === "build",
     })
   }
 }
@@ -86,7 +86,7 @@ export function useSendExample() {
   async function send(prompt: string, dashboardId?: string) {
     try {
       const request = await create.mutateAsync({ prompt, dashboardId })
-      await openSent(request, dashboardId === undefined ? "build" : "chat")
+      await openSent(request, "chat")
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     }
@@ -106,6 +106,7 @@ function PickerPopup({
 
 export function ChatComposer({
   dashboardId,
+  followsId,
   dashboardTitle,
   runningRequestId,
   placeholder,
@@ -265,7 +266,7 @@ export function ChatComposer({
       })
       return
     }
-    const plan = planSend({ command, text: trimmed, dashboardId })
+    const plan = planSend({ command, text: trimmed, dashboardId, followsId })
     if ("error" in plan) {
       reject({ text: plan.error, invalid: true })
       return
@@ -334,12 +335,7 @@ export function ChatComposer({
       clearCommand()
       return
     }
-    if (
-      !coarse &&
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (sendsOnEnter(event, coarse)) {
       event.preventDefault()
       void submit()
     }

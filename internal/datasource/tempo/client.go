@@ -121,7 +121,7 @@ func statusError(status int, raw []byte) error {
 	if text == "" || datasource.NamesAddress(text) {
 		text = fallback
 	}
-	return datasource.Errorf(kind, "%s", text)
+	return datasource.ErrorfStatus(kind, status, "%s", text)
 }
 
 var searchRangeExceeds = regexp.MustCompile(`range specified by start and end exceeds ((?:\d+h)?(?:\d+m)?\d+s)`)

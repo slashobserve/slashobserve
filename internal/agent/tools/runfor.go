@@ -53,7 +53,7 @@ type RunSessions interface {
 }
 
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt}
+	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone}
 	switch {
 	case req.Source == revisions.SourceSuggest:
 		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}

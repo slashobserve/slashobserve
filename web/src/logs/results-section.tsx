@@ -9,7 +9,6 @@ import {
   type ReactNode,
   type UIEvent,
 } from "react"
-import { useQuery } from "@tanstack/react-query"
 
 import { EmptyState } from "@/components/empty-state"
 import { PageBar } from "@/components/page-bar"
@@ -44,7 +43,6 @@ import {
   withoutKeys,
   type TailBuffer,
 } from "./frames"
-import { logFacetsQuery } from "./facets"
 import { columnList, columnsText } from "./line-fields"
 import {
   LogsResults,
@@ -73,7 +71,6 @@ import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 import { tailRows } from "./use-live-tail"
-import { firstValueClause, valueMissText } from "./value-miss"
 import { useLogsWorkspace } from "./workspace"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -386,28 +383,6 @@ export function ResultSkeleton() {
   )
 }
 
-function ValueMiss() {
-  const { datasource, effectiveQuery, range } = useLogsWorkspace()
-  const clause = firstValueClause(datasource.type, effectiveQuery)
-  const facets = useQuery({
-    ...logFacetsQuery(datasource.uid, {
-      query: "",
-      from: range.from,
-      to: range.to,
-      limit: 10,
-      fields: [clause?.field ?? ""],
-    }),
-    enabled: clause !== null,
-  })
-  if (clause === null) return null
-  const seen =
-    facets.data?.fields
-      .find((field) => field.name === clause.field)
-      ?.values.map((value) => value.value) ?? []
-  const text = valueMissText(clause, seen)
-  return text === null ? null : <p>{text}</p>
-}
-
 export function ResultsSection({ actions }: { actions: ReactNode }) {
   const {
     datasource,
@@ -420,6 +395,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     update,
     detail,
     paging,
+    levels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
   const phone = usePhone()
@@ -503,6 +479,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
       onColumnsChange,
       linkedId: search.line,
       onLinkedChange,
+      hiddenLevels: levels.hidden,
     }
   }
 
@@ -574,7 +551,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
             No lines in {lowerFirst(describeRange(range.from, range.to))}. Widen
             the time range or loosen the query.
           </p>
-          <ValueMiss />
+          {data?.meta.hint === undefined ? null : <p>{data.meta.hint}</p>}
         </div>
       )
     }

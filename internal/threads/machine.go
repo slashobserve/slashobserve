@@ -30,13 +30,13 @@ var ThreadMachine = lifecycle.Machine[State, Action]{
 	Moves: []lifecycle.Move[State, Action]{
 		{Action: ActionOpen, To: []State{StatusOpen}, Who: []lifecycle.Who{lifecycle.Commenter}},
 		{Action: ActionReply, From: []State{StatusOpen, StatusResolved}, Event: activity.TypeThreadReplied, Who: []lifecycle.Who{lifecycle.Commenter}},
-		{Action: ActionResolve, From: []State{StatusOpen}, To: []State{StatusResolved}, Who: []lifecycle.Who{lifecycle.Commenter, lifecycle.System}},
+		{Action: ActionResolve, From: []State{StatusOpen}, To: []State{StatusResolved}, Who: []lifecycle.Who{lifecycle.Requester, lifecycle.Editor, lifecycle.System}},
 		{Action: ActionReopen, From: []State{StatusResolved}, To: []State{StatusOpen}, Event: activity.TypeThreadReopened, Who: []lifecycle.Who{lifecycle.Commenter}},
 	},
 }
 
-func allowedActions(status string, canComment bool) []string {
-	allowed := ThreadMachine.Allowed(State(status), func(w lifecycle.Who) bool { return w == lifecycle.Commenter && canComment })
+func allowedActions(status string, r rights) []string {
+	allowed := ThreadMachine.Allowed(State(status), r.can)
 	out := make([]string, len(allowed))
 	for i, a := range allowed {
 		out[i] = string(a)

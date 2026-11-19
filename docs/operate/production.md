@@ -20,7 +20,7 @@ That address matters beyond links:
 - It is the trusted origin for the cross-origin check on cookie-authenticated writes.
 
 Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
-It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
+It is a Server-Sent Events stream that sends a ping every 15 seconds, tells the page within 5 seconds when the person's own role changes, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
 The server ignores `X-Forwarded-For`.

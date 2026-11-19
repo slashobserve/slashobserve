@@ -121,14 +121,15 @@ func ParseMentions(body string) (Mentions, error) {
 		}
 	}
 	tokens := tokensOf(body)
+	handles := handleSpans(maskTokens(body, tokens))
+	if len(tokens)+len(handles) > MaxMentions {
+		return nil, &InvalidInputError{Code: CodeTooManyMentions, Message: "a comment can contain at most 20 mentions, counting a repeated one each time; remove some mentions"}
+	}
 	for _, t := range tokens {
 		add(t.mention)
 	}
-	if len(handleSpans(maskTokens(body, tokens))) > 0 {
+	if len(handles) > 0 {
 		add(Mention{Agent: AgentObserve, Name: AgentObserve})
-	}
-	if len(mentions) > MaxMentions {
-		return nil, &InvalidInputError{Code: CodeTooManyMentions, Message: "a comment can mention at most 20 people or agents"}
 	}
 	return mentions, nil
 }

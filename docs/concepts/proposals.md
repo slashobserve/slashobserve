@@ -53,6 +53,8 @@ When the result equals the latest version, nothing is saved, and the proposal cl
 Its author, and anyone who may merge it, can discard it.
 The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason`.
 The reason is not copied into the activity log, which never carries free text: read it from the proposal.
+When someone other than its author merges or discards a proposal, the author gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
+Merging or discarding also posts a comment in the proposal's discussion, "Merged as version N." or "Discarded." with "Reason: ..." when there is one, written as the person or key that closed it; a failed post never undoes the close.
 A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
 
 ## States
@@ -75,7 +77,10 @@ A link opens the dashboard at the version the proposal builds on, or at the merg
 When a change conflicts, its row says in words which panel, variable or setting changed on both sides, shows the panel's title on the dashboard and in the proposal, and asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
 Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
+
 **Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
+When you kept the dashboard's side of a conflict, the toast adds which panels, variables or settings the proposed change was dropped for, and a merge that saved nothing reads "Merged without a new version".
+The agent's merge tool says the same in its step.
 **Discard** asks "Discard this proposal?" with an optional **Reason (optional)** field, and shows to the author and to anyone who may merge.
 A discarded proposal's page shows the reason under its state line.
 If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.

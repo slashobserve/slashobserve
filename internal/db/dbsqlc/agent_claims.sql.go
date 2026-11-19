@@ -21,7 +21,7 @@ func (q *Queries) DeleteRunTokens(ctx context.Context, agentRequestID pgtype.UUI
 }
 
 const getClaimedAgentRequest = `-- name: GetClaimedAgentRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context FROM agent_requests WHERE id = $1 AND attempts = $2 AND claimed_by = $3
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone FROM agent_requests WHERE id = $1 AND attempts = $2 AND claimed_by = $3
 `
 
 type GetClaimedAgentRequestParams struct {
@@ -82,6 +82,9 @@ func (q *Queries) GetClaimedAgentRequest(ctx context.Context, arg GetClaimedAgen
 		&i.ObservationID,
 		&i.ThreadMessageID,
 		&i.ThreadContext,
+		&i.ChatID,
+		&i.RetriesID,
+		&i.TimeZone,
 	)
 	return i, err
 }
@@ -103,7 +106,7 @@ func (q *Queries) GetRunTokenDeadline(ctx context.Context, arg GetRunTokenDeadli
 }
 
 const getRunTokenRun = `-- name: GetRunTokenRun :one
-SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode
+SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode
 FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
 LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
@@ -173,6 +176,9 @@ func (q *Queries) GetRunTokenRun(ctx context.Context, tokenHash []byte) (GetRunT
 		&i.AgentRequest.ObservationID,
 		&i.AgentRequest.ThreadMessageID,
 		&i.AgentRequest.ThreadContext,
+		&i.AgentRequest.ChatID,
+		&i.AgentRequest.RetriesID,
+		&i.AgentRequest.TimeZone,
 		&i.TokenExpiresAt,
 		&i.GrantMode,
 	)
@@ -201,7 +207,7 @@ func (q *Queries) InsertRunToken(ctx context.Context, arg InsertRunTokenParams) 
 }
 
 const listHeldAgentRequests = `-- name: ListHeldAgentRequests :many
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context FROM agent_requests WHERE claimed_by = $1 AND status = 'running'
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone FROM agent_requests WHERE claimed_by = $1 AND status = 'running'
 `
 
 func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Text) ([]AgentRequest, error) {
@@ -262,6 +268,9 @@ func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Te
 			&i.ObservationID,
 			&i.ThreadMessageID,
 			&i.ThreadContext,
+			&i.ChatID,
+			&i.RetriesID,
+			&i.TimeZone,
 		); err != nil {
 			return nil, err
 		}

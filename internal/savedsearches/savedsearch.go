@@ -16,9 +16,16 @@ import (
 type Kind string
 
 const (
-	KindLogs   Kind = "logs"
-	KindTraces Kind = "traces"
+	KindLogs    Kind = "logs"
+	KindTraces  Kind = "traces"
+	KindMetrics Kind = "metrics"
 )
+
+func (k Kind) Valid() bool {
+	return k == KindLogs || k == KindTraces || k == KindMetrics
+}
+
+const ModeTable = "table"
 
 const (
 	CodeInvalid               = "invalid_saved_search"
@@ -50,6 +57,7 @@ type Filters struct {
 	Min     string   `json:"min,omitempty"`
 	Max     string   `json:"max,omitempty"`
 	Errors  bool     `json:"errors,omitempty"`
+	Mode    string   `json:"mode,omitempty"`
 }
 
 type SavedSearch struct {
@@ -90,8 +98,11 @@ type ListFilter struct {
 }
 
 func URL(base *url.URL, s SavedSearch) string {
-	if s.Kind == KindLogs {
+	switch s.Kind {
+	case KindLogs:
 		return links.Logs(base, s.DatasourceUID, s.address())
+	case KindMetrics:
+		return links.Metrics(base, s.DatasourceUID, s.address())
 	}
 	return links.Traces(base, s.DatasourceUID, s.address())
 }
@@ -101,9 +112,15 @@ func (s SavedSearch) address() url.Values {
 	if s.Query != nil {
 		query.Set("q", *s.Query)
 	}
-	if s.Kind == KindLogs {
+	switch s.Kind {
+	case KindLogs:
 		if len(s.Filters.Columns) > 0 {
 			query.Set("cols", strings.Join(s.Filters.Columns, ","))
+		}
+		return query
+	case KindMetrics:
+		if s.Filters.Mode == ModeTable {
+			query.Set("mode", ModeTable)
 		}
 		return query
 	}

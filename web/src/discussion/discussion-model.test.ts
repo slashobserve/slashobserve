@@ -36,6 +36,7 @@ function message(id: string, threadId: string, createdAt: string): Message {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     block_id: null,
     reply_to: null,
   }
@@ -56,6 +57,7 @@ function entry(
       panel_present: true,
       status: "open",
       allowed_actions: allowed,
+      unread: false,
       created_at: messages[0]?.created_at ?? "2026-11-10T09:00:00Z",
       updated_at: "2026-11-10T09:00:00Z",
       resolved_at: null,
@@ -211,14 +213,28 @@ describe("messageVerb", () => {
   })
 
   it.each(["agent", "grant"] as const)(
-    "says asked the agent for a first message mentioning %s",
+    "says asked the agent for a first message mentioning %s that started a run",
     (kind) => {
       expect(
         messageVerb({
           ...message("m1", "m1", "2026-11-10T09:00:00Z"),
           mentions: [mention(kind)],
+          run: { id: "r1", status: "queued", assigned_kind: "builtin" },
         })
       ).toBe("asked the agent")
+    }
+  )
+
+  it.each(["agent", "grant"] as const)(
+    "says mentioned the agent when the first message mentioning %s started no run",
+    (kind) => {
+      expect(
+        messageVerb({
+          ...message("m1", "m1", "2026-11-10T09:00:00Z"),
+          mentions: [mention(kind)],
+          run: null,
+        })
+      ).toBe("mentioned the agent")
     }
   )
 

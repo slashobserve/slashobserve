@@ -98,6 +98,7 @@ func newEventServer(t *testing.T, sessions Principals, access Access, caller aut
 	t.Cleanup(broker.Close)
 	h := NewHandler(broker, fakeDashboards{}, sessions, access, allowAll, slog.New(slog.DiscardHandler))
 	h.pingInterval = testPing
+	h.roleInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
@@ -377,4 +378,16 @@ func TestStreamChecksAccessAsTheRoleTheCallerHasNow(t *testing.T) {
 		case <-time.After(testPing):
 		}
 	}
+}
+
+func TestStreamTellsTheClientWhenItsRoleChanges(t *testing.T) {
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	sessions.role.Store(auth.RoleViewer)
+	s := openEventStream(t, sessions, newFakeAccess())
+	s.waitFor(t, "event: ready")
+
+	sessions.role.Store(auth.RoleEditor)
+	s.waitFor(t, "event: role.changed")
+	s.waitFor(t, `data: {"dashboard_id":"`+dashboardID+`","role":"editor"}`)
 }

@@ -274,21 +274,29 @@ func quotedTitle(title string) string {
 	return `"` + text(title) + `"`
 }
 
+func annotationPhrase(d activityData) string {
+	phrase := "an annotation"
+	if d.Title != "" {
+		phrase += ` "` + text(d.Title) + `"`
+	}
+	if len(d.Tags) > 0 {
+		phrase += " (" + text(strings.Join(d.Tags, ", ")) + ")"
+	}
+	return phrase
+}
+
 func describeAnnotation(e activityEvent) (string, bool) {
 	d := e.Data
 	switch e.Type {
 	case "annotation.created":
-		if len(d.Tags) > 0 {
-			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
-		}
-		return "added an annotation", true
+		return "added " + annotationPhrase(d), true
 	case "annotation.updated":
 		if len(d.Tags) > 0 {
 			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
 		}
 		return "edited an annotation", true
 	case "annotation.deleted":
-		return "deleted an annotation", true
+		return "deleted " + annotationPhrase(d), true
 	case "finding.created":
 		return "saved the finding " + quotedTitle(d.Title), true
 	case "finding.pinned":
@@ -398,8 +406,11 @@ func describeSavedSearch(e activityEvent) (string, bool) {
 	title := `"` + text(d.Title) + `"`
 	switch e.Type {
 	case "saved_search.created":
-		if d.Kind == "traces" {
+		switch d.Kind {
+		case "traces":
 			return "saved the trace search " + title, true
+		case "metrics":
+			return "saved the metrics search " + title, true
 		}
 		return "saved the logs search " + title, true
 	case "saved_search.updated":
@@ -470,6 +481,8 @@ func describeThread(e activityEvent) (string, bool) {
 		return "replied to a thread", true
 	case "thread.edited":
 		return "edited a comment", true
+	case "thread.deleted":
+		return "deleted a comment", true
 	case "thread.resolved":
 		if d.ResolvedByVersion > 0 {
 			return fmt.Sprintf("resolved a thread (fixed by version %d)", d.ResolvedByVersion), true

@@ -282,7 +282,7 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 
 func TestPinningCreatesOneAnnotationAtTheWindowEnd(t *testing.T) {
 	r := newRig(t)
-	f := r.save(t, editor, findings.SaveInput{AgentRequestID: r.request(t, editor, r.open), DashboardID: r.open})
+	f := r.save(t, editor, findings.SaveInput{AgentRequestID: r.investigation(t, editor, r.open), DashboardID: r.open})
 	id := mustUUID(t, f.ID)
 	a, created, err := r.service.Pin(t.Context(), editor, id)
 	if err != nil || !created {

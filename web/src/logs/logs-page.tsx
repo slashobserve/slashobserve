@@ -19,15 +19,17 @@ import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
+import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { OpenSavedSearch } from "./open-saved-search"
 import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
-import { clickhouseLogsTemplate } from "./context-query"
+import { openingQuery } from "./context-query"
 import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
@@ -38,7 +40,7 @@ import { applyPills, decodePills } from "./pills"
 import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
+import { logsTimeRange, runPatch, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
 import { isPlainResult } from "./plain-table"
@@ -174,14 +176,16 @@ function LogsWorkspaceView({
         : (applyPills(q, type, decodePills(filters)) ?? q),
     [q, type, filters]
   )
-  const [draft, setDraft] = useState(
-    () => q ?? (type === "clickhouse" ? clickhouseLogsTemplate : "")
-  )
+  const opening = openingQuery(type)
+  const [draft, setDraft] = useState(() => q ?? opening ?? "")
   const [seenQuery, setSeenQuery] = useState(q)
   if (seenQuery !== q) {
     setSeenQuery(q)
     if (q !== undefined) setDraft(q)
   }
+  const [hiddenLevels, setHiddenLevels] = useState<ReadonlySet<LogLevelKind>>(
+    () => new Set()
+  )
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
@@ -207,9 +211,7 @@ function LogsWorkspaceView({
   const [helpOpen, setHelpOpen] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const savable = logsDraft({ uid, type, search, range })
-  const [labelsOpen, setLabelsOpen] = useState(
-    type === "loki" && q === undefined
-  )
+  const [labelsOpen, setLabelsOpen] = useState(false)
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
   const [focusTick, setFocusTick] = useState(0)
   const queryFocus = useRef<() => void>(() => {})
@@ -239,10 +241,10 @@ function LogsWorkspaceView({
   })
 
   useEffect(() => {
-    if (type === "clickhouse" && q === undefined) {
-      update({ q: clickhouseLogsTemplate }, { replace: true })
+    if (opening !== undefined && q === undefined) {
+      update({ q: opening }, { replace: true })
     }
-  }, [type, q, update])
+  }, [opening, q, update])
 
   useEffect(() => {
     if (focusTick > 0) queryFocus.current()
@@ -282,15 +284,14 @@ function LogsWorkspaceView({
     announce("Live tail on")
   }
 
-  function run(raw?: string, asked?: string) {
+  function run(raw?: string, asked?: string, alongside?: Partial<LogsSearch>) {
     const text = (raw ?? draft).trim()
     if (text === "") return
     setTailing(false)
     setTailShown(false)
-    if (text === q) void results.refetch()
-    if (text !== q || (asked !== undefined && asked !== search.ask)) {
-      update(asked === undefined ? { q: text } : { q: text, ask: asked })
-    }
+    const next = runPatch({ text, current: search, asked, alongside })
+    if (Object.keys(next).length === 0) void results.refetch()
+    else update(next)
   }
 
   function selectLine(next: LogSelection | null, tab?: DetailTab) {
@@ -337,6 +338,7 @@ function LogsWorkspaceView({
     focusQuery,
     registerQueryFocus,
     labels: { open: labelsOpen, setOpen: setLabelsOpen },
+    levels: { hidden: hiddenLevels, setHidden: setHiddenLevels },
     detail: {
       selection,
       tab: detailTab,
@@ -365,6 +367,7 @@ function LogsWorkspaceView({
       <div className="flex h-full min-h-0 flex-col gap-3">
         <h1 className="sr-only">Logs in {datasource.name}</h1>
         <SourceTitle kind="logs" source={datasource} />
+        <OpenSavedSearch savable={savable} />
         {q === undefined ? (
           <span id={notRunId} className="sr-only">
             Run a query first.

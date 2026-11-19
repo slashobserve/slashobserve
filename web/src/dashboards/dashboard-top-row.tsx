@@ -19,6 +19,7 @@ type Props = {
   madeBy: string | null
   views?: string | null
   versionControl: ReactNode
+  presence?: ReactNode
   controls: ReactNode[]
   actions: ReactNode[]
 }
@@ -57,6 +58,7 @@ export function DashboardTopRow({
   madeBy,
   views,
   versionControl,
+  presence,
   controls,
   actions,
 }: Props) {
@@ -122,6 +124,7 @@ export function DashboardTopRow({
           </span>
         ) : null}
         {versionControl}
+        {presence}
       </nav>
       {narrow ? (
         <Sheet>

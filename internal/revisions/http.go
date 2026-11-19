@@ -70,6 +70,7 @@ type revisionJSON struct {
 	BuildSavedAt *string            `json:"build_saved_at"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
+	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
 }
 
@@ -275,7 +276,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnavailable):
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
-	case errors.Is(err, ErrInvalidCursor):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, append(idAttrs, principalAttrs(c)...)...)...)
@@ -320,6 +321,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		BuildSavedAt: formatOptionalTime(r.BuildSavedAt),
 		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
 		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
 	}
 	return out

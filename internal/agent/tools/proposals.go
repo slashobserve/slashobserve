@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -205,7 +206,20 @@ func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Re
 	if merged.MergedVersion != nil {
 		step = "Merged proposal as version " + strconv.Itoa(*merged.MergedVersion)
 	}
+	if dropped := droppedUnits(choices); dropped != "" {
+		step += "; the proposed change to " + dropped + " was dropped because the dashboard's own was kept"
+	}
 	return success(step, proposals.NewSummaryJSON(merged.Item)), nil
+}
+
+func droppedUnits(choices []spec.Choice) string {
+	var units []string
+	for _, c := range choices {
+		if c.Take == spec.SideOurs {
+			units = append(units, string(c.Kind)+" "+strconv.Quote(c.ID))
+		}
+	}
+	return strings.Join(units, ", ")
 }
 
 func (r *Registry) discardProposal(ctx context.Context, input json.RawMessage) (Result, error) {

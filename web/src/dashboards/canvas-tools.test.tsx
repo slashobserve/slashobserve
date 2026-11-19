@@ -9,7 +9,8 @@ import { CanvasTools } from "./canvas-tools"
 
 async function renderTools(
   permissions: { comment: boolean; edit: boolean },
-  agentAvailable: boolean
+  agentAvailable: boolean,
+  canInvestigate = true
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -21,7 +22,12 @@ async function renderTools(
   renderWithProviders(
     <>
       <p>page</p>
-      <CanvasTools permissions={permissions} idle composerRef={createRef()} />
+      <CanvasTools
+        permissions={permissions}
+        canInvestigate={canInvestigate}
+        idle
+        composerRef={createRef()}
+      />
     </>,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -44,6 +50,14 @@ describe("CanvasTools", () => {
   it("shows Ask to an Editor with an agent", async () => {
     await renderTools({ comment: false, edit: true }, true)
     expect(screen.getByRole("button", { name: "Ask" })).toBeInTheDocument()
+  })
+
+  it("disables Ask and names the Editor role for someone with Edit who is not an Editor", async () => {
+    await renderTools({ comment: true, edit: true }, true, false)
+    const ask = screen.getByRole("button", {
+      name: "Ask (needs the Editor role)",
+    })
+    expect(ask).toHaveAttribute("aria-disabled", "true")
   })
 
   it.each([

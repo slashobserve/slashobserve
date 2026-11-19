@@ -35,6 +35,14 @@ type documentedObserve struct {
 
 func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Principal, finding func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error)) *documentedObserve {
 	t.Helper()
+	return newDocumentedObserveWith(t, svc, who, revisions.ObserveOptions{
+		ObservationURL: func(id string) string { return "/o/" + id },
+		Finding:        finding,
+	})
+}
+
+func newDocumentedObserveWith(t *testing.T, svc *revisions.Service, who auth.Principal, opts revisions.ObserveOptions) *documentedObserve {
+	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
 	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
@@ -43,10 +51,6 @@ func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Princip
 	}
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	opts := revisions.ObserveOptions{
-		ObservationURL: func(id string) string { return "/o/" + id },
-		Finding:        finding,
-	}
 	revisions.NewObserveHandler(svc, opts).Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(who)))
 	})))

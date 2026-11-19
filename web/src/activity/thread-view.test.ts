@@ -37,6 +37,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     body: "text",
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     author,
     actor,
     created_at: at(0),
@@ -47,6 +48,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -81,6 +83,7 @@ function request(overrides: Partial<Revision> = {}): Revision {
     build_saved_at: null,
     continues_id: null,
     continued_by: null,
+    retried_by: null,
     continue_note: null,
     ...overrides,
   }

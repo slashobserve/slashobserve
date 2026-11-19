@@ -187,12 +187,17 @@ func (r *rig) filedObservationIn(t *testing.T, by auth.Principal, folder pgtype.
 
 func (r *rig) saveFinding(t *testing.T, by auth.Principal, in findings.SaveInput) pgtype.UUID {
 	t.Helper()
+	return mustParse(t, r.answer(t, by, in).ObservationID)
+}
+
+func (r *rig) answer(t *testing.T, by auth.Principal, in findings.SaveInput) findings.Finding {
+	t.Helper()
 	in.Title, in.Markdown, in.From, in.To = "Checkout is slow", "the 5xx rate rose", time.Now().Add(-time.Hour), time.Now()
 	f, _, err := r.findings.Save(t.Context(), by, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return mustParse(t, f.ObservationID)
+	return f
 }
 
 func (r *rig) createAnnotation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {

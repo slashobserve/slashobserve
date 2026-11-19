@@ -137,10 +137,10 @@ func (q *Queries) GetAgentRequestBuildView(ctx context.Context, agentRequestID p
 
 const listAgentRequestBuildState = `-- name: ListAgentRequestBuildState :many
 SELECT q.id::uuid AS id, b.saves, b.panels, b.planned_panels, coalesce(b.spec ->> 'title', '')::text AS title, b.updated_at,
-  c.id AS continued_by
+  (SELECT c.id FROM agent_requests c WHERE c.continues_id = q.id) AS continued_by,
+  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by
 FROM unnest($1::uuid[]) AS q(id)
 LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id
-LEFT JOIN agent_requests c ON c.continues_id = q.id
 `
 
 type ListAgentRequestBuildStateRow struct {
@@ -151,6 +151,7 @@ type ListAgentRequestBuildStateRow struct {
 	Title         string
 	UpdatedAt     pgtype.Timestamptz
 	ContinuedBy   pgtype.UUID
+	RetriedBy     pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestBuildState(ctx context.Context, ids []pgtype.UUID) ([]ListAgentRequestBuildStateRow, error) {
@@ -170,6 +171,7 @@ func (q *Queries) ListAgentRequestBuildState(ctx context.Context, ids []pgtype.U
 			&i.Title,
 			&i.UpdatedAt,
 			&i.ContinuedBy,
+			&i.RetriedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -188,7 +190,7 @@ SET result_version = $1::integer,
   build_saved_at = clock_timestamp(),
   result_kind = 'partial_version'
 WHERE id = $3 AND state = ANY($4::text[]) AND build_saved_at IS NULL
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone
 `
 
 type MarkAgentRequestBuildSavedParams struct {
@@ -255,6 +257,9 @@ func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentR
 		&i.ObservationID,
 		&i.ThreadMessageID,
 		&i.ThreadContext,
+		&i.ChatID,
+		&i.RetriesID,
+		&i.TimeZone,
 	)
 	return i, err
 }

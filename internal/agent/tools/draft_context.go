@@ -18,6 +18,10 @@ const (
 	draftLabelsLimit  = 200
 	draftValuesLimit  = 100
 	draftTablesLimit  = 100
+	draftMetricsLimit = 150
+	draftKeywordLimit = 40
+	draftKeywords     = 4
+	minKeywordRunes   = 3
 	draftFieldsShown  = 60
 	draftValueBytes   = 200
 	moreNotShown      = " (more not shown)"
@@ -32,6 +36,15 @@ const (
 var (
 	lokiServiceLabels = []string{"service_name", "service", "app", "job"}
 	lokiLevelLabels   = []string{"detected_level", "level", "severity_text", "severity", "lvl"}
+
+	prometheusServiceLabels = []string{"service", "service_name", "app", "job"}
+
+	questionStopWords = map[string]bool{
+		"the": true, "and": true, "for": true, "per": true, "how": true, "what": true, "are": true, "was": true,
+		"with": true, "from": true, "show": true, "over": true, "last": true, "many": true, "much": true,
+		"all": true, "any": true, "that": true, "this": true, "has": true, "have": true, "does": true,
+		"which": true, "when": true, "where": true, "who": true, "give": true, "tell": true, "our": true,
+	}
 )
 
 const lokiStructuredLevel = "detected_level"
@@ -57,7 +70,7 @@ type factsBuilder struct {
 	succeeded bool
 }
 
-func (r *Registry) draftContext(ctx context.Context, inst datasource.Instance, signal string, rng datasource.TimeRange) (draftFacts, error) {
+func (r *Registry) draftContext(ctx context.Context, inst datasource.Instance, signal string, rng datasource.TimeRange, question string) (draftFacts, error) {
 	dsType := typeOf(inst)
 	b := &factsBuilder{r: r, ctx: ctx, uid: inst.UID}
 	b.line("datasource: " + inst.UID + " (" + string(dsType) + "), signal: " + signal)
@@ -65,6 +78,8 @@ func (r *Registry) draftContext(ctx context.Context, inst datasource.Instance, s
 	b.line("time range: " + rng.From.UTC().Format(time.RFC3339) + " to " + rng.To.UTC().Format(time.RFC3339))
 	var err error
 	switch dsType {
+	case spec.Prometheus:
+		err = b.prometheus(question)
 	case spec.Loki:
 		err = b.loki()
 	case spec.Tempo:
@@ -107,8 +122,89 @@ func (b *factsBuilder) structuredLevel() error {
 	if err != nil || !ok || len(cat.Values) == 0 {
 		return err
 	}
-	b.list("values of "+lokiStructuredLevel+" (structured metadata, not an index label: filter after the selector with | "+lokiStructuredLevel+"=\"value\", never inside it)", quoted(cat.Values), cat.Truncated)
+	b.list("values of "+lokiStructuredLevel+" (structured metadata read from a sample of the newest lines, so a level can exist that is not listed; not an index label: filter after the selector with | "+lokiStructuredLevel+"=\"value\", never inside it)", quoted(cat.Values), cat.Truncated)
 	return nil
+}
+
+func (b *factsBuilder) prometheus(question string) error {
+	labels, err := b.read("labels", datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Limit: draftLabelsLimit})
+	if err != nil {
+		return err
+	}
+	if labels != nil {
+		b.list("labels", names(labels.Labels), labels.Truncated)
+	}
+	if err := b.metrics(question); err != nil {
+		return err
+	}
+	if labels == nil {
+		return nil
+	}
+	if label := firstPresent(labels.Labels, prometheusServiceLabels); label != "" {
+		return b.values("values of "+label, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: label, Limit: draftValuesLimit})
+	}
+	return nil
+}
+
+func (b *factsBuilder) metrics(question string) error {
+	all, err := b.read("metrics", datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics, Limit: draftMetricsLimit})
+	if err != nil || all == nil {
+		return err
+	}
+	shown, more := all.Metrics, all.Truncated
+	if all.Truncated {
+		found, err := b.metricsMatching(question)
+		if err != nil {
+			return err
+		}
+		if len(found) > 0 {
+			shown = found
+		}
+	}
+	b.list("metrics", metricItems(shown), more)
+	return nil
+}
+
+func (b *factsBuilder) metricsMatching(question string) ([]datasource.Metric, error) {
+	var found []datasource.Metric
+	seen := map[string]bool{}
+	for _, word := range questionKeywords(question) {
+		cat, err := b.read("metrics matching "+word, datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics, Search: word, Limit: draftKeywordLimit})
+		if err != nil {
+			return nil, err
+		}
+		if cat == nil {
+			continue
+		}
+		for _, m := range cat.Metrics {
+			if !seen[m.Name] {
+				seen[m.Name] = true
+				found = append(found, m)
+			}
+		}
+	}
+	return found, nil
+}
+
+func questionKeywords(question string) []string {
+	words := strings.FieldsFunc(strings.ToLower(question), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	var keywords []string
+	for _, word := range words {
+		if len([]rune(word)) >= minKeywordRunes && !questionStopWords[word] && !slices.Contains(keywords, word) {
+			keywords = append(keywords, word)
+		}
+	}
+	return keywords[:min(len(keywords), draftKeywords)]
+}
+
+func metricItems(metrics []datasource.Metric) []string {
+	items := make([]string, len(metrics))
+	for i, m := range metrics {
+		items[i] = strings.TrimSpace(factName(m.Name) + " " + factName(m.Type))
+	}
+	return items
 }
 
 func (b *factsBuilder) tempo() error {

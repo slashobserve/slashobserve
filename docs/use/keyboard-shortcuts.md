@@ -11,6 +11,7 @@ Press `?` on a dashboard to see them all in the app.
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
+| `c` | Open the activity pane and put the cursor in its comment box. |
 | `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
@@ -66,6 +67,16 @@ The logs page answers keys of its own, described in [Logs and traces](logs-and-t
 | `Enter` | Open the line that has the focus. |
 | `Esc` | Close the open line and return to it. |
 | `?` | Show this list. |
+
+## Metrics page keys
+
+The metrics page answers three keys, described in [Metrics](metrics.md).
+
+| Keys | What they do |
+| --- | --- |
+| `/` | Focus the query. |
+| `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+| `⌘I` or `Ctrl+I` | Switch between Ask and PromQL, from anywhere on the page. |
 
 ## Trace search keys
 

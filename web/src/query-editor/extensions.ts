@@ -138,7 +138,7 @@ const nameCharacters = /[\w.@-]*/
 
 export function nameCompletions(names: readonly string[]): Extension {
   const options = names.map((label) => ({ label, type: "property" }))
-  return EditorState.languageData.of(() => [
+  const data = [
     {
       autocomplete: (context: CompletionContext) => {
         const word = context.matchBefore(nameCharacters)
@@ -148,7 +148,8 @@ export function nameCompletions(names: readonly string[]): Extension {
         return { from: word.from, options, validFor: nameCharacters }
       },
     },
-  ])
+  ]
+  return EditorState.languageData.of(() => data)
 }
 
 export function languageFor(type: string | undefined): Extension {

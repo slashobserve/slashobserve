@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -189,3 +191,228 @@ type indexedBlocked struct {
 
 func (indexedBlocked) Type() string                       { return "elasticsearch" }
 func (indexedBlocked) Index() (pattern, timeField string) { return "logs-*", "@timestamp" }
+
+type flippingHealth struct {
+	datasource.Datasource
+	err   atomic.Pointer[error]
+	calls atomic.Int32
+}
+
+func (f *flippingHealth) Type() string { return "loki" }
+func (f *flippingHealth) CheckHealth(context.Context) error {
+	f.calls.Add(1)
+	if err := f.err.Load(); err != nil {
+		return *err
+	}
+	return nil
+}
+func (f *flippingHealth) Close() error { return nil }
+
+func TestHealthDetailNamesTheCauseWithoutTheAddress(t *testing.T) {
+	address := "http://10.1.2.3:3100"
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"connection failed", datasource.Errorf(datasource.ErrUnavailable, "connection failed"), "The server could not connect to the datasource's address"},
+		{"http status", datasource.ErrorfStatus(datasource.ErrUnavailable, 503, "Ingester not ready at %s", address), "The datasource answered HTTP 503"},
+		{"no detail", datasource.Errorf(datasource.ErrTimeout, "%s timed out", address), ""},
+		{"not an upstream error", errors.New(address), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: failingHealth{err: tt.err}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := registry.Health(t.Context())[0]
+			if got.Detail != tt.want {
+				t.Errorf("detail = %q, want %q", got.Detail, tt.want)
+			}
+			if strings.Contains(got.Detail, "10.1.2.3") {
+				t.Errorf("detail %q carries the address", got.Detail)
+			}
+		})
+	}
+}
+
+func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := registry.Health(t.Context())[0]; first.Healthy {
+		t.Fatalf("first status = %+v", first)
+	}
+
+	var recovered *error
+	ds.err.Store(recovered)
+	if cached := registry.Health(t.Context())[0]; cached.Healthy {
+		t.Fatalf("a plain health read inside the cache window must not recheck: %+v", cached)
+	}
+	time.Sleep(2100 * time.Millisecond)
+	got, ok := registry.Recheck(t.Context(), "loki")
+	if !ok || !got.Healthy || got.Detail != "" {
+		t.Fatalf("recheck = %+v, ok %v", got, ok)
+	}
+	calls := ds.calls.Load()
+	if again, _ := registry.Recheck(t.Context(), "loki"); !again.Healthy || ds.calls.Load() != calls {
+		t.Errorf("a recheck inside the throttle window ran another check: calls %d -> %d", calls, ds.calls.Load())
+	}
+	if _, ok := registry.Recheck(t.Context(), "missing"); ok {
+		t.Error("recheck of an unknown uid reported found")
+	}
+}
+
+type closeCounting struct {
+	failingHealth
+	closed atomic.Int32
+}
+
+func (c *closeCounting) Close() error {
+	c.closed.Add(1)
+	return nil
+}
+
+func TestPutAddsAndReplacesAppDatasources(t *testing.T) {
+	fromFile := datasource.Instance{UID: "file", Datasource: failingHealth{}}
+	registry, err := datasource.NewRegistry(nil, fromFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := &closeCounting{}, &closeCounting{}
+
+	if err := registry.Put(datasource.Instance{UID: "added", Name: "One", Datasource: first}); err != nil {
+		t.Fatal(err)
+	}
+	in, ok := registry.Get("added")
+	if !ok || in.Source != datasource.SourceApp || in.Name != "One" {
+		t.Fatalf("instance = %+v, ok = %v", in, ok)
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Name: "Two", Datasource: second}); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := registry.Get("added"); in.Name != "Two" {
+		t.Fatalf("name after replace = %q", in.Name)
+	}
+	if first.closed.Load() != 0 {
+		t.Fatal("the replaced adapter closed before the grace period")
+	}
+	_ = registry.Close()
+	if first.closed.Load() != 1 || second.closed.Load() != 1 {
+		t.Fatalf("closed first=%d second=%d, want each once", first.closed.Load(), second.closed.Load())
+	}
+}
+
+func TestPutAndRemoveLeaveFileDatasourcesAlone(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "file", Name: "From file", Datasource: failingHealth{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Put(datasource.Instance{UID: "file", Datasource: failingHealth{}}); !errors.Is(err, datasource.ErrFileOwned) {
+		t.Fatalf("Put over a file uid = %v, want ErrFileOwned", err)
+	}
+	if registry.Remove("file") {
+		t.Fatal("Remove took a file datasource")
+	}
+	if in, ok := registry.Get("file"); !ok || in.Source != datasource.SourceFile || in.Name != "From file" {
+		t.Fatalf("instance = %+v, ok = %v", in, ok)
+	}
+}
+
+func TestPutForgetsTheCachedHealthOfTheReplacedDatasource(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := datasource.Instance{UID: "added", Datasource: failingHealth{err: datasource.Errorf(datasource.ErrUnavailable, "down")}}
+	if err := registry.Put(broken); err != nil {
+		t.Fatal(err)
+	}
+	if got := registry.Health(t.Context()); got[0].Healthy {
+		t.Fatalf("status = %+v", got[0])
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := registry.Health(t.Context()); !got[0].Healthy {
+		t.Fatalf("an edited datasource still reports the cached failure: %+v", got[0])
+	}
+}
+
+func TestRemoveDropsAnAppDatasource(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.Remove("added") {
+		t.Fatal("Remove found nothing")
+	}
+	if _, ok := registry.Get("added"); ok || len(registry.Health(t.Context())) != 0 {
+		t.Fatal("a removed datasource is still listed")
+	}
+	if registry.Remove("added") {
+		t.Fatal("Remove reported a second removal")
+	}
+}
+
+type signalledHealth struct {
+	datasource.Datasource
+	started chan struct{}
+	release chan struct{}
+	err     error
+}
+
+func (s signalledHealth) Type() string { return "prometheus" }
+func (s signalledHealth) CheckHealth(context.Context) error {
+	close(s.started)
+	<-s.release
+	return s.err
+}
+func (s signalledHealth) Close() error { return nil }
+
+func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := signalledHealth{started: make(chan struct{}), release: make(chan struct{}), err: datasource.Errorf(datasource.ErrUnavailable, "down")}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: old}); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		registry.Health(t.Context())
+	}()
+	<-old.started
+
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	rechecked := make(chan datasource.Status, 1)
+	go func() {
+		status, _ := registry.Recheck(t.Context(), "added")
+		rechecked <- status
+	}()
+	select {
+	case status := <-rechecked:
+		if !status.Healthy {
+			t.Fatalf("a recheck after the edit reported the old definition: %+v", status)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a recheck after the edit waited for the check of the old definition")
+	}
+	close(old.release)
+	<-done
+	if got := registry.Health(t.Context()); !got[0].Healthy {
+		t.Fatalf("the finished check of the old definition replaced the cached status: %+v", got[0])
+	}
+}

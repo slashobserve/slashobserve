@@ -103,12 +103,12 @@ describe("ChatComposer", () => {
     expect(onSent).not.toHaveBeenCalled()
   })
 
-  it("sends the trimmed prompt on Enter and opens a build without a dashboard", async () => {
+  it("sends the trimmed prompt on Enter and opens the chat without a dashboard", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer()
     await user.type(await box(), "  checkout health  {Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
-    expect(onSent.mock.calls[0][1]).toBe("build")
+    expect(onSent.mock.calls[0][1]).toBe("chat")
     const sent = (await fetch.mock.calls[0][0].json()) as { prompt: string }
     expect(sent.prompt).toBe("checkout health")
     expect(await box()).toHaveValue("")

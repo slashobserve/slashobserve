@@ -317,7 +317,9 @@ export function DiscussionFeed({
                 <MessageText
                   message={message}
                   people={people}
+                  target={target}
                   queryKey={threadKeys.list(target)}
+                  root={message.id === message.thread_id}
                 />
                 {block === undefined ? null : (
                   <EntryMeta>
@@ -416,6 +418,7 @@ export function DiscussionFeed({
             )
           }
           people={people}
+          target={target}
           agents={agents}
           disabledReason={disabledReason}
           onSubmit={send}

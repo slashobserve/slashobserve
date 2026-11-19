@@ -11,19 +11,43 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func TestTitleIsTheFirstLineCutAtEightyRunes(t *testing.T) {
+func TestTitleIsAShortCleanFirstLine(t *testing.T) {
 	cases := []struct {
 		name, text, want string
 	}{
 		{"plain", "why is checkout slow", "why is checkout slow"},
 		{"blank leading lines", "\n  \n  why is checkout slow\nsecond line", "why is checkout slow"},
-		{"multi-byte cut", strings.Repeat("é", 90), strings.Repeat("é", 80)},
-		{"trailing space after the cut", strings.Repeat("a", 79) + " b", strings.Repeat("a", 79)},
+		{"mention at the start", "@observe why is checkout slow", "why is checkout slow"},
+		{"mention with a colon", "@Observe: why is checkout slow", "why is checkout slow"},
+		{"mention in the middle", "why is @observe checkout slow", "why is checkout slow"},
+		{"a longer name is not a mention", "ask @observer", "ask @observer"},
+		{"cut at a word", "which pod is responsible for the elevated server errors in checkout today", "which pod is responsible for the elevated server errors in..."},
+		{"one long word", strings.Repeat("a", 70), strings.Repeat("a", 60) + "..."},
+		{"multi-byte cut", strings.Repeat("é", 90), strings.Repeat("é", 60) + "..."},
+		{"too short to name anything", "x", "Finding"},
+		{"only a mention", "@observe", "Finding"},
 		{"empty", " \n ", "Finding"},
 	}
 	for _, c := range cases {
 		if got := findings.Title(c.text); got != c.want {
 			t.Errorf("%s: Title(%q) = %q, want %q", c.name, c.text, got, c.want)
+		}
+	}
+}
+
+func TestTitleFromPrefersTheTitleTheAgentGave(t *testing.T) {
+	long := "which pod is responsible for the elevated server errors in checkout today"
+	cases := []struct {
+		name, given, prompt, want string
+	}{
+		{"given", "Checkout 5xx by pod", long, "Checkout 5xx by pod"},
+		{"given is cleaned too", "@observe " + long, "x", "which pod is responsible for the elevated server errors in..."},
+		{"blank given falls back to the prompt", "  ", "@observe why is checkout slow", "why is checkout slow"},
+		{"nothing to name it by", "", "x", "Finding"},
+	}
+	for _, c := range cases {
+		if got := findings.TitleFrom(c.given, c.prompt); got != c.want {
+			t.Errorf("%s: TitleFrom(%q, %q) = %q, want %q", c.name, c.given, c.prompt, got, c.want)
 		}
 	}
 }
@@ -36,7 +60,7 @@ func TestFirstLineStripsMarkdownMarkers(t *testing.T) {
 		{"bullet", "\n- checkout-0 returns 500s", "checkout-0 returns 500s"},
 		{"quote", "> the queue is backed up", "the queue is backed up"},
 		{"long", strings.Repeat("x", 250), strings.Repeat("x", 200)},
-		{"only markers", "## \n", "##"},
+		{"only markers", "## \n", "Finding"},
 	}
 	for _, c := range cases {
 		if got := findings.FirstLine(c.markdown); got != c.want {

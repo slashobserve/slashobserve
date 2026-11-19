@@ -19,6 +19,14 @@ WHERE $__timeFilter(Timestamp)
 ORDER BY Timestamp DESC
 LIMIT 1000`
 
+export const lokiAllStreams = '{service_name=~".+"}'
+
+export function openingQuery(type: string): string | undefined {
+  if (type === "clickhouse") return clickhouseLogsTemplate
+  if (type === "loki") return lokiAllStreams
+  return isSearchFamily(type) ? "*" : undefined
+}
+
 export const perLineLokiLabels = new Set([
   "trace_id",
   "span_id",

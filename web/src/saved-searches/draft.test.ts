@@ -6,6 +6,8 @@ import { addPill, encodePills } from "@/logs/pills"
 import {
   defaultTitle,
   logsDraft,
+  matchesSaved,
+  metricsDraft,
   noSaveFolderText,
   saveBlockedText,
   saveTargets,
@@ -205,5 +207,70 @@ describe("tracesDraft", () => {
     expect(JSON.parse(JSON.stringify(draft)).filters).toEqual({
       service: "checkout",
     })
+  })
+})
+
+describe("metricsDraft", () => {
+  it("saves the query that ran with its range", () => {
+    expect(metricsDraft({ uid: "prom", search: { q: "up" }, range })).toEqual({
+      draft: {
+        kind: "metrics",
+        datasource_uid: "prom",
+        query: "up",
+        filters: undefined,
+        from: "now-6h",
+        to: "now",
+      },
+    })
+  })
+
+  it("keeps the table mode", () => {
+    const saved = metricsDraft({
+      uid: "prom",
+      search: { q: "up", mode: "table" },
+      range,
+    })
+    expect("draft" in saved && saved.draft.filters).toEqual({ mode: "table" })
+  })
+
+  it("is blocked until a query has run", () => {
+    expect(metricsDraft({ uid: "prom", search: {}, range })).toEqual({
+      blocked: "no-query",
+    })
+  })
+})
+
+describe("matchesSaved", () => {
+  const saved = {
+    query: "level:error",
+    filters: { columns: ["host"] },
+    from: "now-6h",
+    to: "now",
+  }
+  const draft: SearchDraft = {
+    kind: "logs",
+    datasource_uid: "es",
+    query: "level:error",
+    filters: { columns: ["host"] },
+    from: "now-6h",
+    to: "now",
+  }
+
+  it("is true for the search as it was saved", () => {
+    expect(matchesSaved(draft, saved)).toBe(true)
+  })
+
+  it("treats no columns the same whether the filters are missing or empty", () => {
+    expect(
+      matchesSaved({ ...draft, filters: undefined }, { ...saved, filters: {} })
+    ).toBe(true)
+  })
+
+  it.each([
+    ["query", { query: "level:warn" }],
+    ["range", { from: "now-1h" }],
+    ["columns", { filters: { columns: ["host", "message"] } }],
+  ])("is false when the %s changed", (_name, change) => {
+    expect(matchesSaved({ ...draft, ...change }, saved)).toBe(false)
   })
 })

@@ -60,6 +60,9 @@ type datasourceEntry struct {
 	Name           string  `json:"name"`
 	Healthy        bool    `json:"healthy"`
 	Message        *string `json:"message"`
+	Detail         *string `json:"detail"`
+	Source         string  `json:"source"`
+	CheckedAt      string  `json:"checked_at"`
 	DashboardCount int     `json:"dashboard_count"`
 }
 
@@ -285,11 +288,7 @@ func checkDatasources(ctx context.Context, c *client) []checkResult {
 			rows = append(rows, checkResult{Status: checkOK, Detail: label})
 			continue
 		}
-		message := "unhealthy"
-		if ds.Message != nil && *ds.Message != "" {
-			message = *ds.Message
-		}
-		rows = append(rows, checkResult{Status: checkFail, Detail: label + ": " + message})
+		rows = append(rows, checkResult{Status: checkFail, Detail: label + ": " + strings.TrimPrefix(datasourceHealth(ds), "unhealthy: ")})
 	}
 	return rows
 }

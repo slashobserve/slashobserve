@@ -1,5 +1,9 @@
 import { createDashboard, loadSpec, mutationHeaders, uniqueTitle } from "./api"
-import { holdRequestPollsUntilFinished } from "./builds"
+import {
+  holdRequestPollsUntilFinished,
+  reachDashboard,
+  sentRequestId,
+} from "./builds"
 import { expectPanelsReady } from "./dashboards"
 import { expect, test, type Page } from "./fixtures"
 
@@ -9,13 +13,12 @@ const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
-const buildPath = /\/b\/([0-9a-f-]{36})$/
 const dashboardPath = /\/d\/([0-9a-f-]{36})/
 const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
 const openLink = { name: "Open dashboard", exact: true }
 
-function chatPane(page: Page) {
-  return page.getByRole("complementary", { name: "Chat" })
+function turns(page: Page) {
+  return page.getByRole("region", { name: /^Request / })
 }
 
 type ObserveBody = {
@@ -34,20 +37,16 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
 
-  await expect(page).toHaveURL(buildPath)
-  const requestId = buildPath.exec(page.url())?.[1] ?? ""
-  const chat = chatPane(page)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "New dashboard"
-  )
-  await expect(chat.getByText(redPrompt, { exact: true })).toBeVisible()
-  await expect(chat.getByText("Queued, position 1")).toBeVisible()
+  const requestId = await sentRequestId(page)
+  const turn = turns(page)
+  await expect(turn.getByText(redPrompt, { exact: true })).toBeVisible()
+  await expect(turn.getByText("Queued, position 1")).toBeVisible()
   await expect(
-    chat.getByRole("list", { name: "Progress" }).getByText("Working")
+    turn.getByRole("list", { name: "Progress" }).getByText("Working")
   ).toHaveCount(0)
   await release(requestId)
 
-  await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+  await reachDashboard(page)
   await expectPanelsReady(page)
   await expect(page.getByRole("alert")).toHaveCount(0)
 
@@ -112,8 +111,8 @@ test("explains a failed request", async ({ page }) => {
   await promptBar.fill(neverSavesPrompt)
   await page.getByRole("button", { name: "Send" }).click()
 
-  await expect(page).toHaveURL(buildPath)
-  const chat = chatPane(page)
+  await sentRequestId(page)
+  const chat = turns(page)
   const alert = chat.getByRole("alert")
   await expect(alert).toContainText("without saving", { timeout: 90_000 })
   await expect(alert.getByRole("button", { name: "Try again" })).toBeVisible()
@@ -129,7 +128,7 @@ test("explains a failed request", async ({ page }) => {
   const failedUrl = page.url()
   await alert.getByRole("button", { name: "Try again" }).click()
   await expect(page).not.toHaveURL(failedUrl)
-  await expect(page).toHaveURL(buildPath)
+  await sentRequestId(page)
   await expect(chat.getByText(neverSavesPrompt, { exact: true })).toBeVisible()
   await expect(alert).toContainText("without saving", { timeout: 90_000 })
 })
@@ -223,10 +222,9 @@ test("follows up in the same chat", async ({ page }) => {
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
 
-  await expect(page).toHaveURL(buildPath)
-  const requestId = buildPath.exec(page.url())?.[1] ?? ""
+  const requestId = await sentRequestId(page)
   await release(requestId)
-  await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+  await reachDashboard(page)
 
   let openRevisions!: () => void
   const revisionsGate = new Promise<void>(
@@ -302,14 +300,13 @@ test.describe("touch device", () => {
     await expect(page).toHaveURL(/\/ask$/)
 
     await page.getByRole("button", { name: "Send" }).click()
-    await expect(page).toHaveURL(buildPath)
-    const requestId = buildPath.exec(page.url())?.[1] ?? ""
+    const requestId = await sentRequestId(page)
     await expect(
-      chatPane(page).getByText(redPrompt, { exact: true })
+      turns(page).getByText(redPrompt, { exact: true })
     ).toBeVisible()
     await release(requestId)
 
-    await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+    await reachDashboard(page)
     await expectPanelsReady(page)
   })
 })

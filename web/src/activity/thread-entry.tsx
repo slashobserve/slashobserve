@@ -10,7 +10,7 @@ import {
 import { dashboardKeys } from "@/api/keys"
 import { MessageText } from "@/comments/message-text"
 import { threadParticipants } from "@/comments/mentions"
-import { useSetCommentStatus } from "@/comments/queries"
+import { useMarkThreadRead, useSetCommentStatus } from "@/comments/queries"
 
 import type { AgentGate } from "./agent-gate"
 import {
@@ -59,6 +59,8 @@ export function ThreadEntry({
   const statusButton = useRef<HTMLButtonElement | null>(null)
   const toggleButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
+  const markRead = useMarkThreadRead(dashboardId)
+  const reading = useRef(false)
   const commentsKey = dashboardKeys.comments(dashboardId)
   const people = threadParticipants(
     [root, ...replies].map((comment) => comment.author)
@@ -83,6 +85,16 @@ export function ThreadEntry({
       if (document.activeElement === node) replyButton.current?.focus()
     }
   }, [])
+
+  function readThread() {
+    if (!root.unread || reading.current) return
+    reading.current = true
+    markRead.mutate(root.id, {
+      onSettled: () => {
+        reading.current = false
+      },
+    })
+  }
 
   function closeReply() {
     setReplying(false)
@@ -150,11 +162,14 @@ export function ThreadEntry({
       at={root.created_at}
       edited={root.edited_at !== null}
       focused={focused}
+      unread={root.unread ? { onRead: readThread } : undefined}
     >
       <MessageText
         message={root}
         people={people}
+        target={`dashboard:${dashboardId}`}
         queryKey={commentsKey}
+        root
         folded={folded}
       />
       {folded || replies.length === 0 ? null : (
@@ -172,6 +187,7 @@ export function ThreadEntry({
               <MessageText
                 message={reply}
                 people={people}
+                target={`dashboard:${dashboardId}`}
                 queryKey={commentsKey}
               />
             </EntryFrame>

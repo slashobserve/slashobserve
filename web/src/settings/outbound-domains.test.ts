@@ -23,16 +23,19 @@ function entry(overrides: Partial<OutboundDomain>): OutboundDomain {
 }
 
 describe("removeConsequence", () => {
-  test("names the webhooks and connections that lose the domain", () => {
+  test("names the webhooks, connections and datasources that lose the domain", () => {
     const text = removeConsequence(
       entry({
         used_by: [
           { kind: "webhook", name: "Deploys" },
           { kind: "grafana_connection", name: "Prod" },
+          { kind: "datasource", name: "Metrics" },
         ],
       })
     )
-    expect(text).toContain("Webhook Deploys, Grafana connection Prod")
+    expect(text).toContain(
+      "Webhook Deploys, Grafana connection Prod, Datasource Metrics"
+    )
     expect(text).toContain("can no longer reach it")
   })
 
@@ -46,7 +49,7 @@ describe("removeConsequence", () => {
 describe("originText", () => {
   test("says a connection added the entry", () => {
     expect(originText(entry({ from_connection: true }))).toBe(
-      "Added for a Grafana connection"
+      "Added for a connection or datasource"
     )
   })
 

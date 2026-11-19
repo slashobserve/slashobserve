@@ -195,6 +195,12 @@ describe("isRetryable", () => {
     }
   })
 
+  test("does not retry a query that timed out on the server", () => {
+    expect(isRetryable(new ApiError(504, "query_timeout", "timed out"))).toBe(
+      false
+    )
+  })
+
   test("does not retry other errors", () => {
     expect(isRetryable(new Error("boom"))).toBe(false)
     expect(isRetryable("boom")).toBe(false)

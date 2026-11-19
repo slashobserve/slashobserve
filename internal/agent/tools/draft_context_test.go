@@ -24,7 +24,7 @@ func contextFor(t *testing.T, ds *fakeDS, signal string) (draftFacts, error) {
 	if !ok {
 		t.Fatal("no datasource")
 	}
-	return r.draftContext(context.Background(), inst, signal, draftRange)
+	return r.draftContext(context.Background(), inst, signal, draftRange, "")
 }
 
 func valueRequests(ds *fakeDS) []datasource.DiscoverRequest {
@@ -84,7 +84,7 @@ func TestDraftContextLokiOffersAStructuredLevelWhenNoLevelLabelIsListed(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `values of detected_level (structured metadata, not an index label: filter after the selector with | detected_level="value", never inside it): "error", "info", "warn"` + "\n"
+	want := `values of detected_level (structured metadata read from a sample of the newest lines, so a level can exist that is not listed; not an index label: filter after the selector with | detected_level="value", never inside it): "error", "info", "warn"` + "\n"
 	if !strings.Contains(facts.Text, want) {
 		t.Fatalf("text lacks %q:\n%s", want, facts.Text)
 	}
@@ -262,7 +262,7 @@ func searchFacts(t *testing.T, ds datasource.Datasource) (draftFacts, error) {
 	t.Helper()
 	r := searchRegistry(t, nil, ds)
 	inst, _ := r.deps.Datasources.Get("es")
-	return r.draftContext(context.Background(), inst, signalLogs, draftRange)
+	return r.draftContext(context.Background(), inst, signalLogs, draftRange, "")
 }
 
 func TestDraftContextSearchListsFieldsWithKindsAndTheRoleValues(t *testing.T) {
@@ -325,5 +325,13 @@ func TestDraftContextSearchKeepsTheFieldsWhenTheRolesCannotBeRead(t *testing.T) 
 	}
 	if !strings.Contains(facts.Text, "fields: service.name\n") || !strings.Contains(facts.Text, "field roles: unavailable\n") || len(facts.Services) != 0 {
 		t.Fatalf("facts %+v\n%s", facts, facts.Text)
+	}
+}
+
+func TestDraftPromptTellsALevelQuestionToKeepEveryNamedLevel(t *testing.T) {
+	for _, rule := range []string{`| detected_level=~"error|warn"`, "never keep only the levels the context lists", "a sample of recent lines"} {
+		if !strings.Contains(draftSystem, rule) {
+			t.Errorf("the draft prompt lacks %q", rule)
+		}
 	}
 }

@@ -31,6 +31,7 @@ describe("paletteGroups", () => {
       "Dashboards",
       "Logs",
       "Traces",
+      "Metrics",
       "Agents",
       "Datasources",
       "API keys",
@@ -125,6 +126,7 @@ describe("paletteGroups", () => {
       "Dashboards",
       "Logs",
       "Traces",
+      "Metrics",
       "Agents",
       "Settings",
     ])

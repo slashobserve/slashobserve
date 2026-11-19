@@ -10,6 +10,7 @@ function makeDatasource(
     uid: "prom",
     type: "prometheus",
     name: "Prometheus",
+    source: "file",
     healthy: true,
     checked_at: "2026-03-10T12:00:00Z",
     dashboard_count: 0,
@@ -47,8 +48,11 @@ describe("exploreTargets", () => {
     expect(exploreTargets("opensearch")).toEqual(["logs"])
   })
 
-  test("offers nothing for Prometheus or an unknown type", () => {
-    expect(exploreTargets("prometheus")).toEqual([])
+  test("offers metrics for Prometheus", () => {
+    expect(exploreTargets("prometheus")).toEqual(["metrics"])
+  })
+
+  test("offers nothing for an unknown type", () => {
     expect(exploreTargets("graphite")).toEqual([])
   })
 })

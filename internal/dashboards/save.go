@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -128,8 +129,14 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 }
 
 func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, access folders.DashboardAccess) (SaveResult, error) {
-	if !in.ProposeIfNeeded || s.proposer == nil || !access.Abilities.Comment {
-		return SaveResult{}, folders.ErrForbidden
+	if !access.Abilities.Comment {
+		return SaveResult{}, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("comment", access.Folder.Title))
+	}
+	if !in.ProposeIfNeeded || s.proposer == nil {
+		if access.Abilities.Edit {
+			return SaveResult{}, folders.ErrForbidden
+		}
+		return SaveResult{}, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("edit", access.Folder.Title))
 	}
 	summary, parsed, _, err := validateSave(in.Spec, in.Summary, "", s.parentSpec(ctx, in))
 	if err != nil {

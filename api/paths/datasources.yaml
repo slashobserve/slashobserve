@@ -18,3 +18,280 @@ datasources:
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createDatasource
+    x-surfaces:
+      cli: [observe datasources add]
+    summary: Add a datasource in the app.
+    description: >-
+      Only Admins can call this endpoint.
+      The server saves the definition, encrypts every credential with a key derived from `SLASHOBSERVE_SECRET_KEY`, and starts using the datasource at once; other servers pick it up within 15 seconds.
+      The uid must not belong to any datasource, from the file or the app, so a retried request answers 409 `uid_taken` and never adds a second one.
+      The address host must pass the outbound allowlist like a Grafana connection's: a domain name is added to an unlocked list, and refused when the list is set by configuration and does not hold it.
+      An IP address or a name without a dot cannot be listed, so it is refused when the list is set by configuration.
+      Link-local, unspecified and multicast addresses are always refused.
+      At most 100 datasources can be added in the app.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/DatasourceDraft"
+    responses:
+      "201":
+        description: The datasource is saved and in use; credentials are not returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceConfig"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The definition is not valid (`invalid_datasource`, with the fields to fix), 100 datasources already exist (`too_many_datasources`), or the outbound allowlist is full (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/InvalidDatasourceError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+datasources-uid-recheck:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: recheckDatasource
+    x-surfaces:
+      mcp: [recheck_datasource]
+      cli: [observe datasources recheck]
+    summary: Run a fresh health check on one datasource now.
+    description: >-
+      Skips the 10 second cache of `GET /datasources` and returns the new status.
+      Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource.
+      An unhealthy status carries `message` and, when known, `detail`.
+    responses:
+      "200":
+        description: The datasource's status after the check.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+datasources-test:
+  post:
+    operationId: testDatasource
+    x-surfaces:
+      cli: [observe datasources test]
+    summary: Check a datasource definition against the real datasource without saving it.
+    description: >-
+      Only Admins can call this endpoint.
+      The body is a draft like the one for adding a datasource.
+      With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again.
+      The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it.
+      A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+    parameters:
+      - name: base
+        in: query
+        required: false
+        schema:
+          type: string
+        description: The uid of a saved app datasource to start from.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/DatasourceDraft"
+    responses:
+      "200":
+        description: The result of the health check.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceTestResult"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The definition is not valid (`invalid_datasource`, with the fields to fix).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/InvalidDatasourceError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+datasources-uid:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  patch:
+    operationId: updateDatasource
+    x-surfaces:
+      cli: [observe datasources edit]
+    summary: Change a datasource added in the app.
+    description: >-
+      Only Admins can call this endpoint.
+      The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored.
+      `uid` and `type` cannot change.
+      `secrets` replaces the credentials it names and `clear_secrets` removes them.
+      A new address passes the outbound allowlist check like adding one.
+      The change applies at once on this server and within 15 seconds on the others.
+      A datasource from the datasources file answers 409 `datasource_read_only`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/DatasourceDraft"
+    responses:
+      "200":
+        description: The changed datasource; credentials are not returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceConfig"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the new address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The definition is not valid (`invalid_datasource`, with the fields to fix).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/InvalidDatasourceError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteDatasource
+    x-surfaces:
+      cli: [observe datasources remove]
+    summary: Remove a datasource added in the app.
+    description: >-
+      Only Admins can call this endpoint.
+      A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first.
+      The list holds only what the caller can see, and `hidden` counts the rest.
+      A datasource from the datasources file answers 409 `datasource_read_only`.
+    responses:
+      "204":
+        description: The datasource is removed.
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/DatasourceInUseError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+datasources-uid-config:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getDatasourceConfig
+    x-surfaces:
+      cli: [observe datasources get]
+    summary: Read the definition of a datasource added in the app.
+    description: >-
+      Only Admins can call this endpoint.
+      The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned.
+      `GET /datasources` never carries an address.
+      A datasource from the datasources file answers 409 `datasource_read_only`.
+    responses:
+      "200":
+        description: The definition without credentials.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DatasourceConfig"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The datasource is from the file (`datasource_read_only`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
