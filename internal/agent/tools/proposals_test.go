@@ -180,6 +180,32 @@ func TestGetProposal(t *testing.T) {
 	})
 }
 
+func TestGetProposalDropsTheDiffBeforeItDropsTheProposal(t *testing.T) {
+	big := newPanelsRig(t)
+	chunk := strings.Repeat("a", 19000)
+	var panels []string
+	for i := range 5 {
+		panels = append(panels, suggestText(fmt.Sprintf("t%d", i), chunk, i*4))
+	}
+	dash := big.seed(t, panels...)
+	res, _ := big.as(asUser(commenterCaller)).run(t, nameUpdatePanels, panelPatch(dash, 1, `[`+suggestText("added", chunk, 40)+`]`))
+	proposal, ok := res.Content.(proposedOut)
+	if !ok {
+		t.Fatalf("propose: %#v", res.Content)
+	}
+	res, _ = big.as(asUser(editorCaller)).run(t, nameGetProposal, idInput(proposal.ProposalID))
+	out, ok := res.Content.(proposals.ProposalJSON)
+	if res.IsError || !ok {
+		t.Fatalf("get_proposal: %#v", res.Content)
+	}
+	if len(out.Diff) != 0 || len(out.Changes) == 0 || out.Spec == nil {
+		t.Fatalf("diff = %d, changes = %d, spec = %v, want the diff left out and the rest kept", len(out.Diff), len(out.Changes), out.Spec != nil)
+	}
+	if !strings.Contains(res.Step, "diff left out") {
+		t.Fatalf("step = %q, want it to say the diff was left out", res.Step)
+	}
+}
+
 func TestProposalsOverMCPNameTheClient(t *testing.T) {
 	rig := newProposalsRig(t)
 	mcp := origin.With(asUser(commenterCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
@@ -214,7 +240,7 @@ func TestMergeProposal(t *testing.T) {
 		rig.editMain(t, "Same")
 		res := rig.call(asUser(editorCaller), t, nameMergeProposal, mergeInput(id, 1, ""))
 		out := summaryOf(t, res)
-		if out.State != "merged" || out.MergedVersion != nil || res.Step != "Merged proposal; the dashboard already had its change" {
+		if out.State != "merged" || out.MergedVersion != nil || res.Step != "Merged proposal; it saved no new version because the dashboard already had everything kept" {
 			t.Fatalf("out = %+v step = %q", out, res.Step)
 		}
 	})
@@ -303,6 +329,19 @@ func TestDiscardProposal(t *testing.T) {
 		rig := newProposalsRig(t)
 		id := rig.propose(asUser(commenterCaller), t, "Proposed")
 		if out := summaryOf(t, rig.call(asUser(editorCaller), t, nameDiscardProposal, idInput(id))); out.State != "discarded" {
+			t.Fatalf("out = %+v", out)
+		}
+	})
+	t.Run("the reason is kept and bounded", func(t *testing.T) {
+		rig := newProposalsRig(t)
+		id := rig.propose(asUser(commenterCaller), t, "Proposed")
+		long := fmt.Sprintf(`{"proposal_id":%q,"reason":%q}`, id, strings.Repeat("x", 501))
+		if got := errorCodeOf(t, rig.call(asUser(editorCaller), t, nameDiscardProposal, long)); got != "invalid_request" {
+			t.Fatalf("code = %q, want invalid_request", got)
+		}
+		input := fmt.Sprintf(`{"proposal_id":%q,"reason":"Superseded"}`, id)
+		out := summaryOf(t, rig.call(asUser(editorCaller), t, nameDiscardProposal, input))
+		if out.CloseReason == nil || *out.CloseReason != "Superseded" {
 			t.Fatalf("out = %+v", out)
 		}
 	})

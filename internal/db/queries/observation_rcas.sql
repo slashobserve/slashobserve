@@ -32,3 +32,15 @@ SELECT EXISTS (
   JOIN snapshots s ON s.id::text = item ->> 'snapshot_id' AND s.observation_id = r.observation_id
   WHERE r.id = @rca_id AND s.user_scoped
 ) AS user_scoped;
+
+-- name: LockRCAByRevision :one
+SELECT id FROM observation_rcas
+WHERE observation_id = @observation_id AND revision = @revision
+FOR UPDATE;
+
+-- name: LiveRCALinkCount :one
+SELECT count(*)::int AS total FROM public_links
+WHERE rca_id = @rca_id AND (expires_at IS NULL OR expires_at > now());
+
+-- name: DeleteRCA :execrows
+DELETE FROM observation_rcas WHERE id = @id;

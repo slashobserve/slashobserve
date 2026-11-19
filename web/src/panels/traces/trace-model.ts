@@ -40,6 +40,7 @@ export type Span = {
   depth: number
   slot: number
   error: boolean
+  statusMessage: string
   hasChildren: boolean
   attributes: SpanAttribute[]
   kind: string | null
@@ -52,6 +53,8 @@ export type TraceModel =
   | {
       reason: null
       traceId: string
+      traceCount: number
+      traceIndex: number
       rootService: string
       rootOperation: string
       start: number
@@ -77,6 +80,7 @@ type Columns = {
   start: PreparedField
   duration?: PreparedField
   status?: PreparedField
+  statusMessage?: PreparedField
   kind?: PreparedField
   events?: PreparedField
   links?: PreparedField
@@ -91,6 +95,7 @@ type SpanRow = {
   start: number
   duration: number
   error: boolean
+  statusMessage: string
   attributes: SpanAttribute[]
   kind: string | null
   events: SpanEvent[]
@@ -105,6 +110,7 @@ const serviceNames = new Set(["servicename"])
 const startNames = new Set(["starttime", "timestamp"])
 const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
+const statusMessageNames = new Set(["statusmessage"])
 const kindNames = new Set(["spankind"])
 const eventNames = new Set(["spanevents"])
 const linkNames = new Set(["spanlinks"])
@@ -138,6 +144,7 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     start,
     duration: named(frame, durationNames),
     status: named(frame, statusNames),
+    statusMessage: named(frame, statusMessageNames),
     kind: named(frame, kindNames),
     events: named(frame, eventNames),
     links: named(frame, linkNames),
@@ -269,6 +276,7 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
           status !== null &&
           status !== undefined &&
           errorStatuses.has(String(status).toLowerCase()),
+        statusMessage: textOf(columns.statusMessage?.values[index] ?? ""),
         attributes: columns.attributes
           .flatMap(({ field, source }) => pairsOf(field.values[index], source))
           .sort(compareKeys),
@@ -324,7 +332,7 @@ function treeOrder(rows: SpanRow[]) {
 export function traceModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  options: { maxSpans?: number } = {}
+  options: { maxSpans?: number; traceIndex?: number } = {}
 ): TraceModel {
   const cap = options.maxSpans ?? maxSpans
   const located = frames.flatMap((frame) => {
@@ -339,13 +347,15 @@ export function traceModel(
       traces.set(traceId, spans)
     }
   }
-  const first = traces.entries().next()
-  if (first.done) return { reason: missingColumnsReason }
-  const [traceId, all] = first.value
+  if (traces.size === 0) return { reason: missingColumnsReason }
+  const traceIndex = Math.min(
+    Math.max(options.traceIndex ?? 0, 0),
+    traces.size - 1
+  )
+  const [traceId, all] = [...traces.entries()][traceIndex]
   const { frame, columns } = located[0]
 
   const notes: string[] = []
-  if (traces.size > 1) notes.push(`Showing trace 1 of ${traces.size}.`)
   const byStart = [...all].sort((a, b) => a.start - b.start)
   const rows = byStart.slice(0, cap)
   if (byStart.length > cap) {
@@ -374,6 +384,7 @@ export function traceModel(
     depth,
     slot: slots.get(row.service) ?? 0,
     error: row.error,
+    statusMessage: row.statusMessage,
     hasChildren: children.has(row.id),
     attributes: row.attributes,
     kind: row.kind,
@@ -388,6 +399,8 @@ export function traceModel(
   return {
     reason: null,
     traceId,
+    traceCount: traces.size,
+    traceIndex,
     rootService: spans[0].service,
     rootOperation: spans[0].operation,
     start: traceStart,

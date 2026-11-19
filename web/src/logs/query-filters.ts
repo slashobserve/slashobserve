@@ -141,12 +141,19 @@ function rewriteLokiStream(
   if (span === null) return unsupported
   const body = query.slice(span.start + 1, span.end)
   const fresh = matcher("loki", name, value, negate)
-  const existing = selectorMatchers(body).find(
-    (candidate) => candidate.label === name
-  )
+  const matchers = selectorMatchers(body)
+  if (
+    matchers.some(
+      (candidate) => body.slice(candidate.start, candidate.end) === fresh
+    )
+  ) {
+    return present
+  }
+  const existing = negate
+    ? undefined
+    : matchers.find((candidate) => candidate.label === name)
   let next: string
   if (existing !== undefined) {
-    if (body.slice(existing.start, existing.end) === fresh) return present
     next = body.slice(0, existing.start) + fresh + body.slice(existing.end)
   } else {
     const head = body.trimEnd()
@@ -236,5 +243,6 @@ export function withFilter(
   negate: boolean
 ): string | null {
   const result = rewrite(type, target, name, query, value, negate)
-  return "text" in result ? result.text : null
+  if ("text" in result) return result.text
+  return result.reason === "present" ? query : null
 }

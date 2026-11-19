@@ -57,6 +57,7 @@ import { useSelectionStore } from "./selection-store"
 import { useInView } from "./use-in-view"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { UnverifiedLabel } from "./unverified-label"
+import { blockVariables } from "@/observations/panel-input"
 import { sortSelections, VariableLoadError } from "./variables"
 
 function useFramePreparer(
@@ -131,6 +132,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  canInvestigate?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   focusOnRender: boolean
   onFocused: () => void
@@ -173,6 +175,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  canInvestigate = false,
   onToggleResponsive,
   focusOnRender,
   onFocused,
@@ -206,6 +209,11 @@ export const PanelContainer = memo(function PanelContainer({
         ? reusedFilterOf(panel, reused, variables, selections)
         : undefined,
     [panel, reused, variables, selections]
+  )
+  const observationVariables = useMemo(
+    () =>
+      isDataPanel(panel) ? blockVariables(panel, variables, selections) : [],
+    [panel, variables, selections]
   )
   const supported = isRenderable(panel.type)
 
@@ -427,6 +435,7 @@ export const PanelContainer = memo(function PanelContainer({
       onSavePng={onSavePng}
       canComment={canComment}
       canEdit={canEdit}
+      canInvestigate={canInvestigate}
       onToggleResponsive={
         onToggleResponsive && !layoutSession
           ? () => onToggleResponsive(panel)
@@ -434,6 +443,7 @@ export const PanelContainer = memo(function PanelContainer({
       }
       composerRef={composerRef}
       inToolbar={inToolbar}
+      observationVariables={observationVariables}
     />
   )
 
@@ -525,6 +535,7 @@ export const PanelContainer = memo(function PanelContainer({
           to={to}
           idle={!layoutSession}
           menu={panelMenu(true)}
+          observationVariables={observationVariables}
         />
       ) : null}
     </div>

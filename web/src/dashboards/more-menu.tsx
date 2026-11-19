@@ -25,14 +25,18 @@ import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
+import { HomeDashboardItem } from "./home-dashboard-item"
+import { ExportItems } from "./print/export-items"
 
 import { moreMenuButtonId } from "./edit/layout-store"
 
 type Props = {
+  dashboardId: string
   mayEdit: boolean
   detailsBlockedBy: string | null
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
+  exportBlockedBy: string | null
   onEditDetails: () => void
   onDuplicate: (() => void) | null
   onDelete: () => void
@@ -44,10 +48,12 @@ type Props = {
 }
 
 export function MoreMenu({
+  dashboardId,
   mayEdit,
   detailsBlockedBy,
   duplicateBlockedBy,
   deleteBlockedBy,
+  exportBlockedBy,
   onEditDetails,
   onDuplicate,
   onDelete,
@@ -64,7 +70,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, open on sign-in, export, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -89,10 +95,12 @@ export function MoreMenu({
               : `Edit details (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
+        <HomeDashboardItem dashboardId={dashboardId} />
         <DropdownMenuItem onClick={onExport}>
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
         </DropdownMenuItem>
+        <ExportItems blockedBy={exportBlockedBy} />
         {onDuplicate !== null ? (
           <DropdownMenuItem
             disabled={duplicateBlockedBy !== null}

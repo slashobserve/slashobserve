@@ -16,6 +16,7 @@ export type CreateWebhookBody = components["schemas"]["CreateWebhookRequest"]
 export type UpdateWebhookBody = components["schemas"]["UpdateWebhookRequest"]
 
 const deliveriesLimit = 20
+const webhooksPollMs = 5000
 
 export function webhooksQuery() {
   return queryOptions({
@@ -25,6 +26,7 @@ export function webhooksQuery() {
         .GET("/webhooks", { signal })
         .then(unwrap)
         .then((body) => body.webhooks),
+    refetchInterval: webhooksPollMs,
   })
 }
 
@@ -39,6 +41,7 @@ function deliveriesQuery(id: string) {
         })
         .then(unwrap)
         .then((body) => body.deliveries),
+    refetchInterval: webhooksPollMs,
   })
 }
 
@@ -94,7 +97,24 @@ export function useTestWebhook() {
         .POST("/webhooks/{id}/test", { params: { path: { id } } })
         .then(unwrap),
     onSettled: (_result, _error, id) =>
-      queryClient.invalidateQueries({ queryKey: webhookKeys.deliveries(id) }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: webhookKeys.deliveries(id) }),
+        queryClient.invalidateQueries({ queryKey: webhookKeys.list() }),
+      ]),
+  })
+}
+
+export function useSkipWebhookEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    gcTime: 0,
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .POST("/webhooks/{id}/skip", { params: { path: { id } } })
+        .then(unwrap),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: webhookKeys.all }),
   })
 }
 

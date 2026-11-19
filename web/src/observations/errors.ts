@@ -62,3 +62,9 @@ export function blockWriteProblem(error: unknown): BlockWriteProblem {
   }
   return { kind: "other", text: otherText }
 }
+
+export function observationIsMissing(error: unknown): boolean {
+  return (
+    error instanceof ApiError && (error.status === 404 || error.status === 400)
+  )
+}

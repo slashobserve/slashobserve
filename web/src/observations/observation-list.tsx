@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from "react"
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { PlusIcon } from "lucide-react"
+import { EllipsisIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
 import { EmptyState } from "@/components/empty-state"
@@ -12,24 +13,54 @@ import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FolderHeaderRow } from "@/folders/folder-header-row"
-import { countText, groupByFolder } from "@/folders/group-by-folder"
-import { foldersQuery } from "@/folders/queries"
+import { clampQuery } from "@/dashboards/list-filters"
+import { foldersQuery, type Folder } from "@/folders/queries"
 import { markOf } from "@/lib/author"
 import { observationLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { DeleteObservationsDialog } from "./delete-dialog"
+import { ObservationsPagination } from "./list-pagination"
+import {
+  filtersApplied,
+  pageCountOf,
+  pageRange,
+  pageSizes,
+  sortChoices,
+  sortValue,
+  type ObservationListView,
+  type ObservationStateFilter,
+} from "./list-view"
 import { NewObservationPanel } from "./new-observation-panel"
-import { observationsInfiniteQuery, type Observation } from "./queries"
+import {
+  observationsPageQuery,
+  useReopenObservationRow,
+  type Observation,
+} from "./queries"
+import { ResolveManyDialog } from "./resolve-many-dialog"
 
-export type ObservationStateFilter = "open" | "resolved" | "all"
+export type { ObservationStateFilter } from "./list-view"
 
 type Props = {
-  state: ObservationStateFilter
+  view: ObservationListView
   creating: boolean
-  onChange: (next: { state: ObservationStateFilter; creating: boolean }) => void
+  onChange: (next: ObservationListView, creating: boolean) => void
 }
 
 const stateItems: { value: ObservationStateFilter; label: string }[] = [
@@ -42,59 +73,169 @@ function isStateFilter(value: unknown): value is ObservationStateFilter {
   return stateItems.some((item) => item.value === value)
 }
 
-const tableWidth = 720
-const columnCount = 4
+const tableWidth = 860
 const skeletonRows = 3
 const tableLabel = "Observations"
+const searchDelayMs = 250
+const emptyList: Observation[] = []
+const noneSelected: ReadonlySet<string> = new Set()
 
-export function ObservationList({ state, creating, onChange }: Props) {
+type Action = "resolve" | "reopen" | "delete"
+
+function mayDo(observation: Observation, action: Action): boolean {
+  return observation.allowed_actions.includes(action)
+}
+
+function TitleSearch({
+  value,
+  onSearch,
+}: {
+  value: string
+  onSearch: (q: string) => void
+}) {
+  const [text, setText] = useState(value)
+  const emitted = useRef(value)
+  const typed = text.trim()
+
+  useEffect(() => {
+    if (value === emitted.current) return
+    emitted.current = value
+    setText(value)
+  }, [value])
+
+  useEffect(() => {
+    if (typed === value) return
+    const timer = setTimeout(() => {
+      emitted.current = typed
+      onSearch(typed)
+    }, searchDelayMs)
+    return () => clearTimeout(timer)
+  }, [typed, value, onSearch])
+
+  return (
+    <label className="flex h-8 w-[260px] max-w-full items-center gap-2 rounded-control border bg-background px-2.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring">
+      <SearchIcon
+        aria-hidden="true"
+        className="size-3.5 flex-none text-muted-foreground"
+      />
+      <span className="sr-only">Search observations by title</span>
+      <input
+        type="text"
+        value={text}
+        autoComplete="off"
+        placeholder="Search by title"
+        onChange={(event) => setText(clampQuery(event.target.value))}
+        className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+      />
+    </label>
+  )
+}
+
+export function ObservationList({ view, creating, onChange }: Props) {
   const newButton = useRef<HTMLButtonElement>(null)
-  const list = useInfiniteQuery(
-    observationsInfiniteQuery(state === "all" ? {} : { state })
+  const list = useQuery(
+    observationsPageQuery({
+      state: view.state === "all" ? undefined : view.state,
+      q: view.q,
+      mine: view.mine,
+      sort: view.sort,
+      order: view.order,
+      page: view.page,
+      size: view.size,
+    })
   )
   const folderResult = useQuery(foldersQuery())
-  const pages = list.data?.pages
-  const folders = folderResult.data
-  const items = useMemo(
-    () => pages?.flatMap((page) => page.observations) ?? [],
-    [pages]
+  const items = list.data?.observations ?? emptyList
+  const total = list.data?.total ?? 0
+  const settled = list.data !== undefined && !list.isPlaceholderData
+  const pageCount = pageCountOf(total, view.size)
+  const clampTo = settled && view.page > pageCount ? pageCount : null
+  const range = pageRange(view.page, view.size, total)
+  const folderOf = useMemo(
+    () => new Map((folderResult.data ?? []).map((f) => [f.id, f])),
+    [folderResult.data]
   )
-  const sections = useMemo(
-    () =>
-      folders === undefined
-        ? null
-        : groupByFolder(folders, items, (observation) => observation.folder_id),
-    [folders, items]
-  )
-  const partial = list.hasNextPage
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
-  const toggle = (folderId: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (!next.delete(folderId)) next.add(folderId)
-      return next
-    })
-  const filtered = state !== "open"
+  const filtered = filtersApplied(view)
 
-  function clearFilters() {
-    onChange({ state: "open", creating })
+  const viewKey = JSON.stringify(view)
+  const [selection, setSelection] = useState<{
+    key: string
+    ids: ReadonlySet<string>
+  }>({ key: viewKey, ids: new Set() })
+  const selected = selection.key === viewKey ? selection.ids : noneSelected
+  const setSelected = (next: ReadonlySet<string>) =>
+    setSelection({ key: viewKey, ids: next })
+  const [deleting, setDeleting] = useState<readonly Observation[] | null>(null)
+  const [resolving, setResolving] = useState<readonly Observation[] | null>(
+    null
+  )
+  const reopen = useReopenObservationRow()
+
+  const shown = useMemo(() => new Set(items.map((o) => o.id)), [items])
+  const chosen = useMemo(
+    () => items.filter((o) => selected.has(o.id)),
+    [items, selected]
+  )
+
+  useEffect(() => {
+    if (clampTo !== null) onChange({ ...view, page: clampTo }, creating)
+  }, [clampTo, view, creating, onChange])
+
+  function change(next: Partial<ObservationListView>) {
+    onChange({ ...view, page: 1, ...next }, creating)
   }
 
+  function toggle(id: string, on: boolean) {
+    const next = new Set(selected)
+    if (on) next.add(id)
+    else next.delete(id)
+    setSelected(next)
+  }
+
+  function forget(ids: readonly string[]) {
+    const next = new Set(selected)
+    for (const id of ids) next.delete(id)
+    setSelected(next)
+  }
+
+  function reopenRow(observation: Observation) {
+    reopen.mutate(observation.id, {
+      onError: (error) =>
+        toast.error(
+          error instanceof Error && error.message !== ""
+            ? error.message
+            : "It could not be reopened. Try again."
+        ),
+    })
+  }
+
+  const allShown = items.length > 0 && items.every((o) => selected.has(o.id))
+  const someShown = items.some((o) => selected.has(o.id))
+  const resolvable = chosen.filter((o) => mayDo(o, "resolve"))
+  const deletable = chosen.filter((o) => mayDo(o, "delete"))
+
   const newObservation = (
-    <Button ref={newButton} onClick={() => onChange({ state, creating: true })}>
+    <Button ref={newButton} onClick={() => onChange(view, true)}>
       <PlusIcon aria-hidden="true" />
       New observation
     </Button>
   )
+
+  const summary =
+    list.data === undefined || list.isPlaceholderData
+      ? undefined
+      : total === 0
+        ? undefined
+        : `${range.first}-${range.last} of ${total}`
 
   return (
     <>
       <PageHeader title="Observations" actions={newObservation} />
       <FilterToolbar label="Observation filters">
         <Tabs
-          value={state}
+          value={view.state}
           onValueChange={(next) => {
-            if (isStateFilter(next)) onChange({ state: next, creating })
+            if (isStateFilter(next)) change({ state: next })
           }}
         >
           <TabsList variant="line" aria-label="State">
@@ -105,7 +246,78 @@ export function ObservationList({ state, creating, onChange }: Props) {
             ))}
           </TabsList>
         </Tabs>
+        <TitleSearch value={view.q} onSearch={(q) => change({ q })} />
+        <Button
+          variant="outline"
+          aria-pressed={view.mine}
+          className={view.mine ? "border-primary text-primary" : undefined}
+          onClick={() => change({ mine: !view.mine })}
+        >
+          Opened by me
+        </Button>
+        <Select
+          items={sortChoices}
+          value={sortValue(view)}
+          onValueChange={(next) => {
+            const choice = sortChoices.find((c) => c.value === next)
+            if (choice !== undefined) {
+              change({ sort: choice.sort, order: choice.order })
+            }
+          }}
+        >
+          <SelectTrigger size="sm" aria-label="Sort observations">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {sortChoices.map((choice) => (
+              <SelectItem key={choice.value} value={choice.value}>
+                {choice.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span
+          role="status"
+          className="ml-auto text-xs text-muted-foreground tabular-nums"
+        >
+          {summary}
+        </span>
       </FilterToolbar>
+      {chosen.length === 0 ? null : (
+        <div
+          role="group"
+          aria-label="Selected observations"
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-card border bg-background px-3.5 py-2 text-[13px]"
+        >
+          <span className="font-medium tabular-nums">
+            {chosen.length} selected
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={resolvable.length === 0}
+            onClick={() => setResolving(resolvable)}
+          >
+            Resolve {resolvable.length}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={deletable.length === 0}
+            onClick={() => setDeleting(deletable)}
+          >
+            <Trash2Icon aria-hidden="true" />
+            Delete {deletable.length}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear selection
+          </Button>
+        </div>
+      )}
       {list.isError && list.data === undefined ? (
         <LoadProblem
           title="Could not load observations"
@@ -115,13 +327,28 @@ export function ObservationList({ state, creating, onChange }: Props) {
         />
       ) : list.data === undefined ? (
         <ObservationSkeleton />
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && clampTo === null ? (
         <div className="rounded-card border bg-background">
           {filtered ? (
             <EmptyState
               title="No observations match these filters."
               action={
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    onChange(
+                      {
+                        ...view,
+                        state: "open",
+                        q: "",
+                        mine: false,
+                        page: 1,
+                      },
+                      creating
+                    )
+                  }
+                >
                   Clear filters
                 </Button>
               }
@@ -133,60 +360,88 @@ export function ObservationList({ state, creating, onChange }: Props) {
             </EmptyState>
           )}
         </div>
-      ) : folderResult.isError ? (
-        <LoadProblem
-          title="Could not load folders"
-          detail={loadProblemText(folderResult.error)}
-          retrying={folderResult.isFetching}
-          onRetry={() => void folderResult.refetch()}
-        />
-      ) : sections === null ? (
-        <ObservationSkeleton />
       ) : (
         <>
+          {folderResult.isError ? (
+            <div className="mb-3">
+              <LoadProblem
+                title="Could not load folders"
+                detail={loadProblemText(folderResult.error)}
+                retrying={folderResult.isFetching}
+                onRetry={() => void folderResult.refetch()}
+              />
+            </div>
+          ) : null}
           <TableCard label={tableLabel} stackOnNarrow minWidth={tableWidth}>
-            <ObservationColumns />
-            <tbody>
-              {sections.flatMap(({ folder, rows }) => {
-                const isCollapsed = collapsed.has(folder.id)
-                const header = (
-                  <FolderHeaderRow
-                    key={`folder:${folder.id}`}
-                    folder={folder}
-                    collapsed={isCollapsed}
-                    countText={
-                      partial
-                        ? null
-                        : countText(rows.length, "observation", "observations")
-                    }
-                    columnCount={columnCount}
-                    onToggle={() => toggle(folder.id)}
-                  />
-                )
-                return isCollapsed
-                  ? [header]
-                  : [
-                      header,
-                      ...rows.map((observation) => (
-                        <ObservationRow
-                          key={observation.id}
-                          observation={observation}
-                        />
-                      )),
-                    ]
-              })}
+            <thead>
+              <tr>
+                <HeaderCell>
+                  <span className="inline-flex items-center gap-2.5">
+                    <Checkbox
+                      aria-label="Select every observation on this page"
+                      checked={allShown}
+                      indeterminate={someShown && !allShown}
+                      onCheckedChange={(on) =>
+                        setSelected(on ? new Set(shown) : new Set())
+                      }
+                    />
+                    Title
+                  </span>
+                </HeaderCell>
+                <HeaderCell>Folder</HeaderCell>
+                <HeaderCell>State</HeaderCell>
+                <HeaderCell>Opened by</HeaderCell>
+                <HeaderCell>Updated</HeaderCell>
+                <HeaderCell>
+                  <span className="sr-only">Actions</span>
+                </HeaderCell>
+              </tr>
+            </thead>
+            <tbody aria-busy={list.isPlaceholderData || clampTo !== null}>
+              {items.map((observation) => (
+                <ObservationRow
+                  key={observation.id}
+                  observation={observation}
+                  folder={folderOf.get(observation.folder_id)}
+                  selected={selected.has(observation.id)}
+                  onSelect={(on) => toggle(observation.id, on)}
+                  onResolve={() => setResolving([observation])}
+                  onReopen={() => reopenRow(observation)}
+                  onDelete={() => setDeleting([observation])}
+                />
+              ))}
             </tbody>
           </TableCard>
-          {partial ? (
-            <div className="mt-3 flex justify-center">
-              <Button
-                variant="outline"
-                disabled={list.isFetchingNextPage}
-                aria-busy={list.isFetchingNextPage}
-                onClick={() => void list.fetchNextPage()}
-              >
-                Load more
-              </Button>
+          {pageCount > 1 || total > pageSizes[0] ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                Per page
+                <Select
+                  items={pageSizes.map((n) => ({
+                    value: String(n),
+                    label: String(n),
+                  }))}
+                  value={String(view.size)}
+                  onValueChange={(next) => {
+                    const size = pageSizes.find((n) => String(n) === next)
+                    if (size !== undefined) change({ size })
+                  }}
+                >
+                  <SelectTrigger size="sm" aria-label="Observations per page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} align="start">
+                    {pageSizes.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </span>
+              {pageCount > 1 ? (
+                <ObservationsPagination view={view} pageCount={pageCount} />
+              ) : null}
             </div>
           ) : null}
         </>
@@ -194,36 +449,78 @@ export function ObservationList({ state, creating, onChange }: Props) {
       {creating ? (
         <NewObservationPanel
           trigger={newButton}
-          onClose={() => onChange({ state, creating: false })}
+          onClose={() => onChange(view, false)}
         />
       ) : null}
+      <DeleteObservationsDialog
+        targets={deleting ?? []}
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        onDeleted={forget}
+      />
+      <ResolveManyDialog
+        targets={resolving ?? []}
+        open={resolving !== null}
+        onOpenChange={(open) => {
+          if (!open) setResolving(null)
+        }}
+        onResolved={forget}
+      />
     </>
   )
 }
 
-function ObservationColumns() {
-  return (
-    <thead>
-      <tr>
-        <HeaderCell>Title</HeaderCell>
-        <HeaderCell>State</HeaderCell>
-        <HeaderCell>Opened by</HeaderCell>
-        <HeaderCell>Updated</HeaderCell>
-      </tr>
-    </thead>
-  )
+type RowProps = {
+  observation: Observation
+  folder: Folder | undefined
+  selected: boolean
+  onSelect: (on: boolean) => void
+  onResolve: () => void
+  onReopen: () => void
+  onDelete: () => void
 }
 
-function ObservationRow({ observation }: { observation: Observation }) {
+function ObservationRow({
+  observation,
+  folder,
+  selected,
+  onSelect,
+  onResolve,
+  onReopen,
+  onDelete,
+}: RowProps) {
+  const canResolve = mayDo(observation, "resolve")
+  const canReopen = mayDo(observation, "reopen")
+  const canDelete = mayDo(observation, "delete")
   return (
-    <tr>
+    <tr data-observation-id={observation.id}>
       <Cell className="max-w-[48ch] font-medium wrap-anywhere">
-        <Link
-          {...observationLink(observation.id)}
-          className="underline-offset-4 hover:underline"
-        >
-          {observation.title}
-        </Link>
+        <span className="inline-flex items-center gap-2.5">
+          <Checkbox
+            aria-label={`Select ${observation.title}`}
+            checked={selected}
+            onCheckedChange={onSelect}
+          />
+          <Link
+            {...observationLink(observation.id)}
+            className="underline-offset-4 hover:underline"
+          >
+            {observation.title}
+          </Link>
+        </span>
+      </Cell>
+      <Cell data-label="Folder" className="wrap-anywhere">
+        {folder === undefined ? null : (
+          <Link
+            to="/f/$folderId"
+            params={{ folderId: folder.id }}
+            className="underline-offset-4 hover:underline"
+          >
+            {folder.title}
+          </Link>
+        )}
       </Cell>
       <Cell>
         {observation.state === "open" ? (
@@ -241,6 +538,37 @@ function ObservationRow({ observation }: { observation: Observation }) {
       <Cell className="whitespace-nowrap text-muted-foreground">
         <RelativeTime iso={observation.updated_at} />
       </Cell>
+      <Cell data-cell="action" className="w-10">
+        {canResolve || canReopen || canDelete ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Actions for ${observation.title}`}
+                />
+              }
+            >
+              <EllipsisIcon aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-max">
+              {canResolve ? (
+                <DropdownMenuItem onClick={onResolve}>Resolve</DropdownMenuItem>
+              ) : null}
+              {canReopen ? (
+                <DropdownMenuItem onClick={onReopen}>Reopen</DropdownMenuItem>
+              ) : null}
+              {canDelete ? (
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                  <Trash2Icon aria-hidden="true" />
+                  Delete
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </Cell>
     </tr>
   )
 }
@@ -248,12 +576,26 @@ function ObservationRow({ observation }: { observation: Observation }) {
 function ObservationSkeleton() {
   return (
     <TableCard label={tableLabel} stackOnNarrow minWidth={tableWidth}>
-      <ObservationColumns />
+      <thead>
+        <tr>
+          <HeaderCell>Title</HeaderCell>
+          <HeaderCell>Folder</HeaderCell>
+          <HeaderCell>State</HeaderCell>
+          <HeaderCell>Opened by</HeaderCell>
+          <HeaderCell>Updated</HeaderCell>
+          <HeaderCell>
+            <span className="sr-only">Actions</span>
+          </HeaderCell>
+        </tr>
+      </thead>
       <tbody aria-busy="true">
         {Array.from({ length: skeletonRows }, (_, index) => (
           <tr key={index}>
             <Cell>
               <Skeleton className="h-4 w-56 motion-safe:animate-none" />
+            </Cell>
+            <Cell>
+              <Skeleton className="h-4 w-24 motion-safe:animate-none" />
             </Cell>
             <Cell>
               <Skeleton className="h-4 w-14 motion-safe:animate-none" />
@@ -264,6 +606,7 @@ function ObservationSkeleton() {
             <Cell>
               <Skeleton className="h-4 w-12 motion-safe:animate-none" />
             </Cell>
+            <Cell />
           </tr>
         ))}
       </tbody>

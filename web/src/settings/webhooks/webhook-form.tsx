@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 
 import {
@@ -30,6 +31,7 @@ import {
   trimWebhook,
   webhookProblems,
   webhookProblemText,
+  type WebhookFormat,
   type WebhookInput,
   type WebhookProblems,
 } from "./webhook-problems"
@@ -42,7 +44,30 @@ type Props = {
   firstInputRef: RefObject<HTMLInputElement | null>
 }
 
-const empty: WebhookInput = { name: "", url: "", events: [] }
+const empty: WebhookInput = {
+  name: "",
+  url: "",
+  format: "generic",
+  events: [],
+}
+
+const formats: { value: WebhookFormat; label: string; hint: string }[] = [
+  {
+    value: "generic",
+    label: "Signed JSON",
+    hint: "The whole event and a signature header, for a receiver you run.",
+  },
+  {
+    value: "slack",
+    label: "Slack",
+    hint: "One line of text for a Slack incoming webhook address.",
+  },
+  {
+    value: "teams",
+    label: "Microsoft Teams",
+    hint: "One line in an Adaptive Card for a Teams workflow address.",
+  },
+]
 
 function ServerProblem({
   error,
@@ -183,6 +208,32 @@ export function WebhookForm({
           </p>
         )}
       </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-[13px] font-medium">Message</legend>
+        <RadioGroup
+          value={values.format}
+          onValueChange={(next) => change({ format: next as WebhookFormat })}
+        >
+          {formats.map((format) => (
+            <label
+              key={format.value}
+              className="flex items-start gap-2 narrow:min-h-11"
+            >
+              <RadioGroupItem value={format.value} className="mt-0.5" />
+              <span className="flex flex-col">
+                <span className="text-[13px]">{format.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {format.hint}
+                </span>
+              </span>
+            </label>
+          ))}
+        </RadioGroup>
+        <p className="text-xs text-muted-foreground">
+          Slack and Teams addresses must be on the outbound allowlist too, for
+          example hooks.slack.com.
+        </p>
+      </fieldset>
       <fieldset
         aria-describedby={
           problems.events === undefined ? undefined : `${eventsId}-error`

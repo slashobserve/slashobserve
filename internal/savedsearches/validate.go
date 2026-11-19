@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -109,6 +110,8 @@ func checkQuery(kind Kind, query *string) error {
 		return invalid("query must not be blank")
 	case n > maxQueryRunes:
 		return invalid("query must be at most %d characters", maxQueryRunes)
+	case strings.ContainsRune(*query, 0) || !utf8.ValidString(*query):
+		return invalid("query must be valid text without the NUL character")
 	}
 	return nil
 }
@@ -138,8 +141,8 @@ func checkLogsFilters(f Filters) error {
 		return invalid("columns takes at most %d names", maxColumns)
 	}
 	for _, name := range f.Columns {
-		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") {
-			return invalid("a column name is 1 to %d characters without a comma", maxColumnRunes)
+		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") || hasControl(name) || !utf8.ValidString(name) {
+			return invalid("a column name is 1 to %d characters without a comma or control characters", maxColumnRunes)
 		}
 	}
 	return nil
@@ -159,7 +162,18 @@ func checkTraceFilters(f Filters) error {
 			return invalid("%s must be a duration such as 250ms or 2s", v.name)
 		}
 	}
+	if f.Min != "" && f.Max != "" && durationNanos(f.Min) > durationNanos(f.Max) {
+		return invalid("min must not be greater than max")
+	}
 	return nil
+}
+
+var nanosecondsPer = map[string]float64{"ns": 1, "us": 1e3, "µs": 1e3, "ms": 1e6, "s": 1e9, "m": 60e9, "h": 3600e9}
+
+func durationNanos(text string) float64 {
+	match := durationPattern.FindStringSubmatch(text)
+	n, _ := strconv.ParseFloat(match[1], 64)
+	return n * nanosecondsPer[match[2]]
 }
 
 func fitDatasource(kind Kind, dsType spec.DatasourceType, query *string) error {

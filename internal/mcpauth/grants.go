@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
@@ -178,7 +179,11 @@ func (s *Server) disconnectMine(c *gin.Context) {
 		s.abortInternal(c, "disconnect agent", err)
 		return
 	}
-	n, err := s.db.Queries().RevokeUserOAuthGrant(c.Request.Context(), dbsqlc.RevokeUserOAuthGrantParams{UserID: userID, ID: id})
+	ctx := c.Request.Context()
+	by := activity.By(ctx, caller)
+	n, err := s.revokeRecorded(ctx, id, reasonPerson, &by, func(q *dbsqlc.Queries) (int64, error) {
+		return q.RevokeUserOAuthGrant(ctx, dbsqlc.RevokeUserOAuthGrantParams{UserID: userID, ID: id})
+	})
 	s.finishDisconnect(c, id, reasonPerson, n, err)
 }
 
@@ -232,7 +237,11 @@ func (s *Server) disconnectAny(c *gin.Context) {
 		s.abortInternal(c, "disconnect agent", err)
 		return
 	}
-	n, err := s.db.Queries().RevokeOAuthGrant(c.Request.Context(), dbsqlc.RevokeOAuthGrantParams{Reason: reasonAdmin, By: adminID, ID: id})
+	ctx := c.Request.Context()
+	by := activity.By(ctx, caller)
+	n, err := s.revokeRecorded(ctx, id, reasonAdmin, &by, func(q *dbsqlc.Queries) (int64, error) {
+		return q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{Reason: reasonAdmin, By: adminID, ID: id})
+	})
 	s.finishDisconnect(c, id, reasonAdmin, n, err)
 }
 

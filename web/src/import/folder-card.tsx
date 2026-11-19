@@ -40,7 +40,8 @@ export function FolderCard({
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Automatic uses the folder named in the Grafana export, else your My
-          Dashboards.
+          Dashboards. The page starts on the shared folder you imported into
+          last.
         </p>
       </div>
       <div className="flex flex-col gap-2 p-3.5">

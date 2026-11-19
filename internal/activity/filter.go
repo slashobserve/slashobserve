@@ -1,7 +1,6 @@
 package activity
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -11,31 +10,60 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 )
 
+const ScopeAdmin = "admin"
+
 type Filter struct {
 	DashboardID   pgtype.UUID
 	FolderID      pgtype.UUID
 	ObservationID pgtype.UUID
+	ActorID       pgtype.UUID
 	Types         []string
 	Since         time.Time
+	Until         time.Time
+	AdminOnly     bool
+}
+
+func uuidParam(q url.Values, name string) (pgtype.UUID, error) {
+	raw := q.Get(name)
+	if raw == "" {
+		return pgtype.UUID{}, nil
+	}
+	id, err := db.ParseUUID(raw)
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("%s must be a UUID", name)
+	}
+	return id, nil
+}
+
+func timeParam(q url.Values, name string) (time.Time, error) {
+	raw := q.Get(name)
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	at, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s must be an RFC 3339 time", name)
+	}
+	return at, nil
 }
 
 func ParseFilter(q url.Values) (Filter, error) {
 	var f Filter
 	var err error
-	if raw := q.Get("dashboard_id"); raw != "" {
-		if f.DashboardID, err = db.ParseUUID(raw); err != nil {
-			return Filter{}, errors.New("dashboard_id must be a UUID")
+	for _, param := range []struct {
+		name string
+		dst  *pgtype.UUID
+	}{{"dashboard_id", &f.DashboardID}, {"folder_id", &f.FolderID}, {"observation_id", &f.ObservationID}, {"actor_id", &f.ActorID}} {
+		if *param.dst, err = uuidParam(q, param.name); err != nil {
+			return Filter{}, err
 		}
 	}
-	if raw := q.Get("folder_id"); raw != "" {
-		if f.FolderID, err = db.ParseUUID(raw); err != nil {
-			return Filter{}, errors.New("folder_id must be a UUID")
-		}
-	}
-	if raw := q.Get("observation_id"); raw != "" {
-		if f.ObservationID, err = db.ParseUUID(raw); err != nil {
-			return Filter{}, errors.New("observation_id must be a UUID")
-		}
+	switch scope := q.Get("scope"); scope {
+	case "":
+	case ScopeAdmin:
+		f.AdminOnly = true
+	default:
+		return Filter{}, fmt.Errorf("scope must be %q", ScopeAdmin)
 	}
 	types := q["type"]
 	if len(types) > len(knownTypes) {
@@ -47,10 +75,11 @@ func ParseFilter(q url.Values) (Filter, error) {
 		}
 	}
 	f.Types = types
-	if raw := q.Get("since"); raw != "" {
-		if f.Since, err = time.Parse(time.RFC3339, raw); err != nil {
-			return Filter{}, errors.New("since must be an RFC 3339 time")
-		}
+	if f.Since, err = timeParam(q, "since"); err != nil {
+		return Filter{}, err
+	}
+	if f.Until, err = timeParam(q, "until"); err != nil {
+		return Filter{}, err
 	}
 	return f, nil
 }

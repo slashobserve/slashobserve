@@ -759,7 +759,14 @@
         ]
       }
     ],
-    "notes": []
+    "notes": [
+      {
+        "subject": "alert rules",
+        "status": "partial",
+        "reason": "Alert rules, contact points and silences are not imported, so the Grafana alerts behind \"Missing TCPv4 SYN-ACKs\", \"Missing TCPv6 SYN-ACKs\", \"Missing ICMPv4 Echo-Reply\", \"Missing DNS Responses\" are lost. Keep alerting on Prometheus rules and Alertmanager.",
+        "paths": []
+      }
+    ]
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=8",

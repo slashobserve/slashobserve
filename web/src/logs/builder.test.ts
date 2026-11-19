@@ -5,6 +5,8 @@ import {
   rowLabel,
   rowsOf,
   textOf,
+  equivalentField,
+  withRenamedField,
   withoutField,
   type BuilderRow,
 } from "./builder"
@@ -100,6 +102,39 @@ describe("withoutField", () => {
 
   it("gives nothing back when the builder cannot show the query", () => {
     expect(withoutField("a:1 or b:2", "a")).toBeNull()
+  })
+})
+
+describe("withRenamedField", () => {
+  it("renames the field of every clause that uses it", () => {
+    expect(withRenamedField("a:1 and b:2 and a:3", "a", "x.a")).toBe(
+      "x.a : 1 and b : 2 and x.a : 3"
+    )
+  })
+
+  it("gives nothing back when the builder cannot show the query", () => {
+    expect(withRenamedField("a:1 or b:2", "a", "x.a")).toBeNull()
+  })
+})
+
+describe("equivalentField", () => {
+  it("finds the one mapped field that ends with the unknown name", () => {
+    expect(
+      equivalentField("service.name", ["resource.service.name", "message"])
+    ).toBe("resource.service.name")
+  })
+
+  it("finds the shorter mapped name inside a prefixed unknown one", () => {
+    expect(
+      equivalentField("resource.service.name", ["service.name", "message"])
+    ).toBe("service.name")
+  })
+
+  it("ignores keyword shadows and stays silent when two fields fit", () => {
+    expect(equivalentField("name", ["a.name", "b.name"])).toBeNull()
+    expect(
+      equivalentField("service.name", ["resource.service.name.keyword"])
+    ).toBeNull()
   })
 })
 

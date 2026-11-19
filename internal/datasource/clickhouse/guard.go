@@ -71,6 +71,9 @@ func guardWith(query string, tf *tableFunctionSet) (string, error) {
 		return "", forbidden("empty query")
 	}
 	if !startsStatement(query, sig[0]) {
+		if word, ok := misspeltStart(query, sig[0]); ok {
+			return "", datasource.Errorf(datasource.ErrInvalidQuery, "the query must start with SELECT or WITH, not %q (check the first word)", word)
+		}
 		return "", forbidden("only a single SELECT statement is allowed")
 	}
 	end := len(query)
@@ -107,6 +110,39 @@ func startsStatement(query string, t macros.Token) bool {
 	}
 	word := query[t.Start:t.End]
 	return strings.EqualFold(word, "SELECT") || strings.EqualFold(word, "WITH")
+}
+
+func misspeltStart(query string, t macros.Token) (string, bool) {
+	if t.Kind != macros.TokenWord {
+		return "", false
+	}
+	word := query[t.Start:t.End]
+	for _, keyword := range []string{"SELECT", "WITH"} {
+		if editDistance(strings.ToUpper(word), keyword) <= 2 && len(word) >= 3 {
+			return word, true
+		}
+	}
+	return "", false
+}
+
+func editDistance(a, b string) int {
+	previous := make([]int, len(b)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		current := make([]int, len(b)+1)
+		current[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			current[j] = min(previous[j]+1, current[j-1]+1, previous[j-1]+cost)
+		}
+		previous = current
+	}
+	return previous[len(b)]
 }
 
 func isPunct(query string, t macros.Token, text string) bool {

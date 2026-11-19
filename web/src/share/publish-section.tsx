@@ -3,6 +3,16 @@ import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -16,18 +26,21 @@ import { useMoveDashboard } from "@/dashboards/queries"
 import { foldersQuery } from "@/folders/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { publishTargets } from "./publish"
+import { publishAudience, publishTargets } from "./publish"
 
 export function PublishSection({
   dashboardId,
+  title,
   headingId,
 }: {
   dashboardId: string
+  title: string
   headingId: string
 }) {
   const folders = useQuery(foldersQuery())
   const move = useMoveDashboard()
   const [chosen, setChosen] = useState<string>()
+  const [confirming, setConfirming] = useState(false)
 
   const targets = folders.data === undefined ? [] : publishTargets(folders.data)
   const target = targets.find((folder) => folder.id === chosen) ?? targets.at(0)
@@ -41,8 +54,14 @@ export function PublishSection({
     move.mutate(
       { id: dashboardId, folderId: target.id },
       {
-        onSuccess: () => toast.success(`Published to ${target.title}`),
-        onError: (error) => toast.error(loadProblemText(error)),
+        onSuccess: () => {
+          setConfirming(false)
+          toast.success(`Published to ${target.title}`)
+        },
+        onError: (error) => {
+          setConfirming(false)
+          toast.error(loadProblemText(error))
+        },
       }
     )
   }
@@ -98,14 +117,36 @@ export function PublishSection({
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              disabled={move.isPending}
-              aria-busy={move.isPending}
-              onClick={publish}
-            >
-              Publish
-            </Button>
+            <Button onClick={() => setConfirming(true)}>Publish</Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {publishAudience(target)}
+          </p>
+          <AlertDialog open={confirming} onOpenChange={setConfirming}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Publish to {target.title}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {title} leaves My Dashboards and moves into {target.title}.{" "}
+                  {publishAudience(target)} To have a private copy again,
+                  duplicate it into My Dashboards.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel aria-disabled={move.isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={move.isPending}
+                  focusableWhenDisabled
+                  aria-busy={move.isPending}
+                  onClick={publish}
+                >
+                  Publish to {target.title}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </section>

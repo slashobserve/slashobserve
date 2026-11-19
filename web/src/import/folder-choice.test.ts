@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import type { Folder } from "@/folders/queries"
 
-import { folderChoices, requestedFolder } from "./folder-choice"
+import {
+  automaticFolder,
+  defaultFolder,
+  folderChoices,
+  requestedFolder,
+  sharedFolderTitle,
+} from "./folder-choice"
 
 function folder(
   title: string,
@@ -61,5 +67,34 @@ describe("requestedFolder", () => {
 
   it("sends nothing when the chosen folder is no longer offered", () => {
     expect(requestedFolder("Deleted", choices)).toBeUndefined()
+  })
+})
+
+describe("defaultFolder", () => {
+  it("uses the remembered folder while the person can still create in it", () => {
+    expect(defaultFolder("Platform", ["Platform", "Checkout"])).toBe("Platform")
+  })
+
+  it("falls back to Automatic when the folder is gone or nothing is remembered", () => {
+    expect(defaultFolder("Gone", ["Platform"])).toBe(automaticFolder)
+    expect(defaultFolder(null, ["Platform"])).toBe(automaticFolder)
+  })
+})
+
+describe("sharedFolderTitle", () => {
+  it("remembers only a shared folder, not General or a personal folder", () => {
+    expect(
+      sharedFolderTitle({ title: "Platform", general: false, personal: false })
+    ).toBe("Platform")
+    expect(
+      sharedFolderTitle({ title: "General", general: true, personal: false })
+    ).toBeNull()
+    expect(
+      sharedFolderTitle({
+        title: "My Dashboards",
+        general: false,
+        personal: true,
+      })
+    ).toBeNull()
   })
 })

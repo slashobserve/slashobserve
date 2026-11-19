@@ -24,6 +24,7 @@ type mentionJSON struct {
 
 type eventData struct {
 	Object            objectRef    `json:"object"`
+	Title             string       `json:"title,omitempty"`
 	Version           *int32       `json:"version,omitempty"`
 	PanelID           string       `json:"panel_id,omitempty"`
 	MessageID         string       `json:"message_id,omitempty"`
@@ -72,6 +73,11 @@ func (e emitter) live(typ string, commentID, parentID pgtype.UUID, status string
 
 func (e emitter) opened(ctx context.Context, q *dbsqlc.Queries, message dbsqlc.ThreadMessage, mentions []Mention) error {
 	data := e.data()
+	title, err := q.GetThreadEventTitle(ctx, dbsqlc.GetThreadEventTitleParams{DashboardID: e.scope.dashboard, ObservationID: e.thread.ObservationID})
+	if err != nil {
+		return err
+	}
+	data.Title = title
 	if e.thread.DashboardID.Valid {
 		version := e.thread.DashboardVersion.Int32
 		data.Version, data.PanelID = &version, e.thread.PanelID.String

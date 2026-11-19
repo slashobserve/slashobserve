@@ -11,6 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const observationHasActiveRun = `-- name: ObservationHasActiveRun :one
+SELECT EXISTS (
+  SELECT 1 FROM agent_requests r
+  WHERE r.status IN ('queued', 'running')
+    AND (r.observation_id = $1 OR r.id = (SELECT run_id FROM observations WHERE id = $1))
+)
+`
+
+func (q *Queries) ObservationHasActiveRun(ctx context.Context, observationID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, observationHasActiveRun, observationID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const runBlockOfRun = `-- name: RunBlockOfRun :one
 SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at FROM observation_blocks
 WHERE observation_id = $1 AND run_id = $2 AND kind = 'run'

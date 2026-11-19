@@ -1,0 +1,31 @@
+@media print {
+  html[data-export],
+  html[data-export] body {
+    background: #fff !important;
+  }
+
+  html[data-export] [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  html[data-export] .export-bar {
+    display: none !important;
+  }
+
+  html[data-export] .export-sheet {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+  }
+
+  html[data-export] .export-scroll {
+    overflow: visible !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  html[data-export] .export-sheet * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

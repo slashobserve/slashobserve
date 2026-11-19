@@ -47,6 +47,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 			ID:             id,
 			AgentRequestID: in.AgentRequestID,
 			DashboardID:    in.DashboardID,
+			AskDashboardID: in.AskDashboardID,
 			ObservationID:  observationID,
 			Title:          in.Title,
 			Markdown:       in.Markdown,
@@ -136,7 +137,8 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 	case err != nil:
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
-	return findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
+	f, err := findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
+	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err
 }
 
 func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding, bool, error) {
@@ -148,7 +150,14 @@ func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding,
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
-	return f, err == nil, err
+	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
+}
+
+func withAskOn(f Finding, id pgtype.UUID, title pgtype.Text) Finding {
+	if id.Valid && title.Valid {
+		f.AskOnID, f.AskOnTitle = id.String(), title.String
+	}
+	return f
 }
 
 func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, visible []pgtype.UUID, after *httpapi.TimeCursor, rows int) ([]Finding, error) {

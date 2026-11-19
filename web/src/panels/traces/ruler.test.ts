@@ -31,6 +31,32 @@ describe("niceTicks", () => {
   })
 })
 
+describe("niceTicks in a zoomed window", () => {
+  it("puts the ticks on round offsets from the start of the trace", () => {
+    const origin = 65.55
+    const ticks = niceTicks(300, 6, origin)
+    const labels = ticks.map((tick) => origin + tick)
+    expect(labels).toEqual([100, 150, 200, 250, 300, 350])
+    expect(ticks[0]).toBeCloseTo(34.45)
+  })
+
+  it("matches the unzoomed ticks at the start of the trace", () => {
+    expect(niceTicks(1000, 6, 0)).toEqual(niceTicks(1000))
+  })
+
+  it("keeps four to six round ticks in the window", () => {
+    for (const origin of [3.3, 65.55, 480, 1234.5]) {
+      const ticks = niceTicks(300, 6, origin)
+      expect(ticks.length).toBeGreaterThanOrEqual(4)
+      expect(ticks.length).toBeLessThanOrEqual(6)
+      for (const tick of ticks) {
+        expect(tick).toBeGreaterThanOrEqual(0)
+        expect(tick).toBeLessThanOrEqual(300)
+      }
+    }
+  })
+})
+
 describe("niceTicks on a narrow ruler", () => {
   it("keeps three round ticks when only three fit", () => {
     expect(niceTicks(1000, 3)).toEqual([0, 500, 1000])

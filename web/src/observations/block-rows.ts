@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/errors"
-import type { DataPanel } from "@/spec"
+import type { DataPanel, Variable } from "@/spec"
 
 import { blockWriteProblem } from "./errors"
 import type { Block, Observation } from "./queries"
@@ -41,6 +41,44 @@ export function blockTitle(block: Block): string {
   }
 }
 
+export function citeLabel(
+  blocks: readonly Block[],
+  blockId: string,
+  index: number
+): string {
+  const cited = blocks.find((block) => block.id === blockId)
+  if (cited?.kind === "text") {
+    const markdown = cited.body.markdown
+    const heading =
+      typeof markdown === "string" ? /^#{1,6}\s+(.+)$/m.exec(markdown) : null
+    return heading?.[1]?.trim() || "Conclusion"
+  }
+  if (cited?.kind === "panel") {
+    const title = blockTitle(cited)
+    if (title !== "Panel") return title
+  }
+  return index === 0 ? "Conclusion" : `Panel ${index}`
+}
+
+export function holdsAgentOutput(block: Block): boolean {
+  return (
+    block.kind === "run" ||
+    block.created_by.run_id !== null ||
+    block.created_by.origin === "mcp"
+  )
+}
+
+export function moveTarget(
+  blocks: readonly Block[],
+  blockId: string,
+  direction: "up" | "down"
+): number | null {
+  const sorted = blocks.toSorted((a, b) => a.position - b.position)
+  const index = sorted.findIndex((block) => block.id === blockId)
+  if (index === -1) return null
+  return sorted[direction === "up" ? index - 1 : index + 1]?.position ?? null
+}
+
 export function nextBlockId(
   blocks: readonly Block[],
   removedId: string
@@ -53,15 +91,24 @@ export function nextBlockId(
 
 export function newPanelBody(
   panel: DataPanel,
-  range: Pick<Observation, "from" | "to">
-): { panel: Record<string, unknown>; from?: string; to?: string } {
+  range: Pick<Observation, "from" | "to">,
+  variables: readonly Variable[] = []
+): {
+  panel: Record<string, unknown>
+  variables?: Variable[]
+  from?: string
+  to?: string
+} {
   const copy: Record<string, unknown> = { ...panel }
   delete copy.id
   delete copy.gridPos
+  const body: ReturnType<typeof newPanelBody> = { panel: copy }
+  if (variables.length > 0) body.variables = [...variables]
   if (range.from !== null && range.to !== null) {
-    return { panel: copy, from: range.from, to: range.to }
+    body.from = range.from
+    body.to = range.to
   }
-  return { panel: copy }
+  return body
 }
 
 export function addProblemText(error: unknown): string {
