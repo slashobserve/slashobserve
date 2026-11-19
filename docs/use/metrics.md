@@ -15,6 +15,7 @@ With two or more Prometheus datasources they are listed under **Metrics** in the
 The five you used last on this browser come first and the rest follow by name, and **More** opens the Metrics list.
 The order is set when the app loads and stays fixed until you reload.
 With one source nothing is listed under **Metrics**, and **Metrics** still opens the list.
+On a phone the line under the page title names the source and PromQL, as it does on the logs and trace pages; with two or more sources it opens the **Metric sources** sheet, and with one there is nothing to switch to.
 An address that carries a query but no source, such as `/explore/metrics?q=up`, opens the source you used last on this browser, else the first by name.
 The address keeps the source, `q`, `from`, `to` and `mode`, so **Copy link** in the top bar copies a query that opens the same way.
 
