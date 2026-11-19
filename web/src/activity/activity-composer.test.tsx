@@ -269,6 +269,38 @@ describe("ActivityComposer", () => {
     expect(screen.getByRole("option", { name: /Observe Agent/ })).toBeVisible()
   })
 
+  it("opens the mention picker on a typed @ and puts the chosen agent in the box", async () => {
+    const user = userEvent.setup()
+    function Harness() {
+      const [draft, setDraft] = useState("")
+      return (
+        <QueryClientProvider client={testQueryClient()}>
+          <ActivityComposer
+            dashboardId="dashboard"
+            latestVersion={3}
+            panels={panels}
+            target={{ kind: "dashboard" }}
+            onTargetChange={vi.fn()}
+            draft={draft}
+            onDraftChange={setDraft}
+            gate={{ kind: "allowed" }}
+            canInvestigate
+            placeholder="Write a comment"
+            range={{ from: "now-1h", to: "now" }}
+            timeZone="Asia/Kolkata"
+          />
+        </QueryClientProvider>
+      )
+    }
+    render(<Harness />)
+    const field = screen.getByRole("textbox", { name: "Comment or request" })
+    await user.type(field, "please @")
+    await user.click(
+      await screen.findByRole("option", { name: /Observe Agent/ })
+    )
+    await waitFor(() => expect(field).toHaveValue("please @observe "))
+  })
+
   it("blocks sending a message that mentions two agents", async () => {
     const { form } = await renderComposer({
       draft: `@observe @[Claude Code](grant:${grantId}) go`,

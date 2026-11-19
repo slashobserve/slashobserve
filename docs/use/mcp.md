@@ -101,6 +101,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
+| `set_inbox_item_done` | Viewer |
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
@@ -250,6 +251,7 @@ Every comment the comment tools return carries `block_id` (null for the whole ob
 
 `list_mentionable_people` takes a `target` and an optional `query` and returns the people who can see it, with the `id` to put in `@[Name](user:<id>)`; it returns at most 20, and `more` is true when others match, so narrow with `query`.
 Mentioning a person who does not exist or cannot see the target answers `invalid_mention`, and a mentioned person gets it in their Inbox.
+An observation has one discussion, so `create_comment` on an observation that has one answers `observation_thread_exists` and names the `comment_id` to give `reply_to_comment`.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
 `create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
@@ -260,7 +262,7 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
 It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
@@ -345,8 +347,11 @@ Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types
 It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
-Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
+Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter` (`open` by default, `unread` for the open items that are unread, `done` for the items marked done), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
 It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a service-account key gets `user_session_required`, and it is over MCP only, so the built-in agent does not have it.
+
+`set_inbox_item_done` marks one inbox item done by its `seq` from `list_inbox`, or brings it back with `done: false`.
+A done item leaves the default list, counts as read and stays done when the inbox is read, as the done button in the web app does; it answers like `PUT /api/v1/inbox/items/{seq}`, and a service-account key gets `user_session_required`.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.

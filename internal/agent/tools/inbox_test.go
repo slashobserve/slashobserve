@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -71,7 +72,7 @@ func TestListInboxAnswersWhatTheRouteAnswers(t *testing.T) {
 	if len(out.Items) != 2 || out.NextCursor == nil {
 		t.Fatalf("first page = %d items, next_cursor %v", len(out.Items), out.NextCursor)
 	}
-	want, err := r.registry.deps.Activity.Inbox(auth.WithPrincipal(t.Context(), viewerCaller), viewerCaller, activity.ViewMentions, "", 2)
+	want, err := r.registry.deps.Activity.Inbox(auth.WithPrincipal(t.Context(), viewerCaller), viewerCaller, activity.ViewMentions, activity.TriageOpen, "", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +108,7 @@ func TestListInboxRefusesBadInput(t *testing.T) {
 		"limit 0":        {`{"limit":0}`, "limit must be between 1 and 100"},
 		"limit 101":      {`{"limit":101}`, "limit must be between 1 and 100"},
 		"unknown view":   {`{"view":"all"}`, "view must be one of for_you, everything, proposals, mentions"},
+		"unknown filter": {`{"filter":"archived"}`, "filter must be one of open, unread, done"},
 		"bad cursor":     {`{"cursor":"nope"}`, "cursor is not valid"},
 		"cursor too big": {`{"cursor":"` + strings.Repeat("c", maxNameBytes+1) + `"}`, "cursor must be at most 256 bytes"},
 	}
@@ -132,6 +134,64 @@ func TestListInboxIsMCPOnlyAndNeedsAViewer(t *testing.T) {
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
 		if tool.OfferedIn(mode) {
 			t.Errorf("list_inbox is offered to the agent in %s", mode)
+		}
+	}
+}
+
+func (r activityRig) setDone(t *testing.T, by auth.Principal, input string) Result {
+	t.Helper()
+	res, err := r.registry.Call(auth.WithPrincipal(t.Context(), by), nameSetInboxItemDone, []byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+func TestSetInboxItemDoneMovesAnItemOutOfTheDefaultListAndBack(t *testing.T) {
+	r := newActivityRig(t)
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $1, $1 || '@example.com', $2)`, viewerCaller.ID, viewerCaller.Name)
+	r.mentionOf(t, viewerCaller)
+	r.mentionOf(t, viewerCaller)
+	open, _ := r.inbox(t, viewerCaller, `{}`)
+	if len(open.Items) != 2 {
+		t.Fatalf("items = %d, want 2", len(open.Items))
+	}
+	seq := open.Items[0].Seq
+
+	if res := r.setDone(t, viewerCaller, `{"seq":`+strconv.FormatInt(seq, 10)+`}`); res.IsError {
+		t.Fatalf("set done: %+v", res.Content)
+	}
+	after, _ := r.inbox(t, viewerCaller, `{}`)
+	done, _ := r.inbox(t, viewerCaller, `{"filter":"done"}`)
+	if len(after.Items) != 1 || after.Items[0].Seq == seq || len(done.Items) != 1 || done.Items[0].Seq != seq || after.UnreadCount != 1 {
+		t.Fatalf("open %+v, done %+v", after.Items, done.Items)
+	}
+
+	if res := r.setDone(t, viewerCaller, `{"seq":`+strconv.FormatInt(seq, 10)+`,"done":false}`); res.IsError {
+		t.Fatalf("bring back: %+v", res.Content)
+	}
+	if back, _ := r.inbox(t, viewerCaller, `{}`); len(back.Items) != 2 {
+		t.Fatalf("items after bringing it back = %d, want 2", len(back.Items))
+	}
+}
+
+func TestSetInboxItemDoneRefusesAKeyBadInputAndAnUnknownSeq(t *testing.T) {
+	r := newActivityRig(t)
+	cases := map[string]struct {
+		by    auth.Principal
+		input string
+		code  string
+	}{
+		"a key":        {keyCaller, `{"seq":1}`, codeUserSessionRequired},
+		"no seq":       {viewerCaller, `{}`, codeInvalidRequest},
+		"seq 0":        {viewerCaller, `{"seq":0}`, codeInvalidRequest},
+		"unknown seq":  {viewerCaller, `{"seq":99999999}`, codeNotFound},
+		"extra fields": {viewerCaller, `{"seq":1,"x":1}`, codeInvalidRequest},
+	}
+	for name, c := range cases {
+		body, _ := r.setDone(t, c.by, c.input).Content.(errorBody)
+		if body.Code != c.code {
+			t.Errorf("%s: code %q, want %q", name, body.Code, c.code)
 		}
 	}
 }

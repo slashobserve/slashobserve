@@ -26,6 +26,7 @@ import {
   SectionList,
   rowLinkClass,
 } from "./home-section"
+import { plainTitle } from "@/comments/plain-title"
 
 const shown = 5
 const observationsFetched = 20
@@ -110,7 +111,7 @@ export function OpenObservationsList() {
                 <NotebookTextIcon />
               </IconTile>
               <RowText
-                title={observation.title}
+                title={plainTitle(observation.title)}
                 meta={
                   <>
                     <span>Started by {observation.created_by.label}</span>

@@ -188,8 +188,13 @@ func (cm *Comments) patchComment(c *gin.Context) {
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
 	var invalid *InvalidInputError
+	var missing *VersionNotFoundError
 	switch {
+	case errors.As(err, &missing):
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": missing.Error(), "code": CodeVersionNotFound, "latest_version": missing.Latest})
 	case abortKnown(c, err):
+	case errors.As(err, &invalid) && isMentionCode(invalid.Code):
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
 	case errors.As(err, &invalid) && invalid.Code != "":
 		httpapi.AbortError(c, http.StatusBadRequest, invalid.Code, invalid.Message)
 	case errors.Is(err, revisions.ErrTooManyRevisions):

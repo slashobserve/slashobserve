@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ const (
 	codeUnknownPanel      = "unknown_panel"
 	codeNotAuthor         = "not_author"
 	codeNotStarter        = "not_starter"
+	codeThreadExists      = "observation_thread_exists"
 	commentNotFoundNotice = "comment or target not found"
 )
 
@@ -206,9 +208,12 @@ func rejectAgentRun(ctx context.Context) (Result, bool) {
 
 func commentFailure(err error) (Result, error) {
 	var bad *threads.InvalidInputError
+	var exists *threads.ObservationThreadExistsError
 	switch {
 	case errors.As(err, &bad):
 		return invalid("%s", bad.Message), nil
+	case errors.As(err, &exists):
+		return toolError(codeThreadExists, fmt.Sprintf("%s; add to it with reply_to_comment and comment_id %s", exists.Error(), exists.ThreadID.String())), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
 	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):

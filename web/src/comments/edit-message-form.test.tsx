@@ -31,11 +31,14 @@ function stubServer(respond: () => Response) {
   return sent
 }
 
-function renderForm(onClose = vi.fn()) {
+function renderForm(
+  onClose = vi.fn(),
+  people: { id: string; name: string }[] = []
+) {
   const view = renderWithProviders(
     <EditMessageForm
       message={message}
-      people={[]}
+      people={people}
       target={null}
       queryKey={queryKey}
       onClose={onClose}
@@ -93,6 +96,17 @@ describe("EditMessageForm", () => {
         body: { body: "Latency looks high\nmore" },
       },
     ])
+  })
+
+  it("opens the mention picker on a typed @ and swaps it for the chosen person", async () => {
+    const { user } = renderForm(vi.fn(), [
+      { id: "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f", name: "Ada" },
+    ])
+    const field = screen.getByRole("textbox", { name: "Edit comment" })
+    await user.clear(field)
+    await user.type(field, "ask @")
+    await user.click(await screen.findByRole("option", { name: "Ada" }))
+    await waitFor(() => expect(field).toHaveValue("ask @Ada "))
   })
 
   it("closes without a request when the body did not change", async () => {

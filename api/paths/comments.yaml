@@ -80,7 +80,7 @@ dashboards-id-comments:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
-        description: The dashboard, the version or the comment named by `parent_id` does not exist.
+        description: The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`).
         content:
           application/json:
             schema:
@@ -88,7 +88,8 @@ dashboards-id-comments:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: The panel id does not exist in that version's Spec (`unknown_panel`).
+        description: >-
+          The panel id does not exist in that version's Spec (`unknown_panel`), or a mention is refused: `invalid_mention` (a person who does not exist or cannot see the dashboard, an agent that is not the caller's own, or a service account that takes no runs), `too_many_mentions` or `too_many_agents`.
         content:
           application/json:
             schema:

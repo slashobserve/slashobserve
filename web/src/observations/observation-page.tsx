@@ -26,6 +26,7 @@ import {
   useObservationLive,
   type ObservationEnvelope,
 } from "./queries"
+import { plainTitle } from "@/comments/plain-title"
 
 const columnClass = "flex w-full flex-col gap-8"
 
@@ -220,7 +221,10 @@ export function ObservationPage({
   rca: RcaControl
 }) {
   const query = useObservation(observationId)
-  const title = query.data?.observation.title
+  const title =
+    query.data === undefined
+      ? undefined
+      : plainTitle(query.data.observation.title)
   useDocumentTitle(
     title === undefined
       ? "Observation - SlashObserve"

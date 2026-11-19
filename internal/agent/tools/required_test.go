@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -57,6 +58,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{
+		Activity:      activity.NewStore(database.DB, access),
 		Datasources:   datasources,
 		Runner:        runner,
 		Dashboards:    service,
@@ -92,6 +94,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	samples := map[string]json.RawMessage{
 		"id":             json.RawMessage(`"` + runID + `"`),
+		"seq":            json.RawMessage(`1`),
 		"datasource":     json.RawMessage(`"` + fakeUID + `"`),
 		"datasource_uid": json.RawMessage(`"` + fakeUID + `"`),
 		"kind":           json.RawMessage(`"logs"`),

@@ -120,7 +120,11 @@ func (cm *Comments) open(ctx context.Context, by auth.Principal, dashboardID pgt
 		Body:    in.Body,
 	}, hook)
 	if errors.Is(err, ErrUnknownVersion) {
-		return Comment{}, dashboards.ErrNotFound
+		latest, latestErr := cm.service.dashboards.LatestVersion(ctx, dashboardID)
+		if latestErr != nil {
+			return Comment{}, legacyError(latestErr)
+		}
+		return Comment{}, &VersionNotFoundError{Version: in.Version, Latest: latest}
 	}
 	if err != nil {
 		return Comment{}, legacyError(err)

@@ -20,6 +20,7 @@ const (
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
 	replyAnsweredInChat  = "Answered in the chat of the person who asked."
+	replyChatLinkLead    = "Full answer (only the person who asked and Admins can open it): "
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
@@ -68,6 +69,9 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	}
 	if err != nil {
 		return fmt.Errorf("insert run reply: %w", err)
+	}
+	if err := q.MarkRunReplied(ctx, run.ID); err != nil {
+		return fmt.Errorf("mark run replied: %w", err)
 	}
 	return emitter{scope: sc, thread: thread, actor: author}.replied(ctx, q, message, nil)
 }
@@ -136,7 +140,7 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 			return "", fmt.Errorf("read finding of run: %w", err)
 		}
 		if !found.Finding.ObservationID.Valid {
-			return replyAnsweredInChat, nil
+			return chatAnswerBody(found.Finding, run.ID), nil
 		}
 		lead := "Saved a finding: "
 		if target == KindObservation {
@@ -145,6 +149,14 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
 	}
 	return replyFinished, nil
+}
+
+func chatAnswerBody(found dbsqlc.Finding, runID pgtype.UUID) string {
+	lead := findingLead(found.Markdown, found.Title)
+	if lead == "" {
+		lead = "\n\n" + activity.Excerpt(found.Title, maxReplyLeadRunes)
+	}
+	return replyAnsweredInChat + strings.TrimRight(lead, "\n ") + "\n\n" + replyChatLinkLead + "[the chat](/c/" + runID.String() + ")"
 }
 
 func findingLead(markdown, title string) string {

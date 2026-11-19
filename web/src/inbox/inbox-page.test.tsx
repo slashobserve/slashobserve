@@ -1,11 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { InboxView } from "@/api/keys"
+import type { InboxFilter, InboxView } from "@/api/keys"
 import { renderWithProviders } from "@/test/render"
 
 import type { InboxItem } from "./inbox-item"
-import { InboxPage } from "./inbox-page"
+import { InboxPage, type InboxState } from "./inbox-page"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -78,6 +78,7 @@ function mockServer({
   const reads: unknown[] = []
   const states: { path: string; body: unknown }[] = []
   const views: (string | null)[] = []
+  const filters: (string | null)[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
@@ -116,6 +117,7 @@ function mockServer({
       }
       if (url.pathname === "/api/v1/inbox") {
         views.push(url.searchParams.get("view"))
+        filters.push(url.searchParams.get("filter"))
         if (forbidden) {
           return json({ error: "no", code: "user_session_required" }, 403)
         }
@@ -124,7 +126,7 @@ function mockServer({
       return json({ error: "unexpected", code: "unexpected" }, 500)
     })
   )
-  return { reads, views, states }
+  return { reads, views, filters, states }
 }
 
 const threadRecord = {
@@ -156,13 +158,17 @@ function stubWide(wide: boolean) {
 function renderPage(
   props: {
     view?: InboxView
+    filter?: InboxFilter
+    grouped?: boolean
     selected?: string
-    onChange?: (next: { view: InboxView; item: string | undefined }) => void
+    onChange?: (next: InboxState) => void
   } = {}
 ) {
   return renderWithProviders(
     <InboxPage
       view={props.view ?? "for_you"}
+      filter={props.filter ?? "open"}
+      grouped={props.grouped ?? false}
       selected={props.selected}
       onChange={props.onChange ?? (() => {})}
     />,
@@ -233,7 +239,7 @@ describe("InboxPage", () => {
 
   it("asks for the chosen view and switches views through the tabs", async () => {
     const server = mockServer()
-    const changes: { view: InboxView; item: string | undefined }[] = []
+    const changes: InboxState[] = []
     const { user } = renderPage({
       view: "mentions",
       onChange: (next) => changes.push(next),
@@ -246,7 +252,9 @@ describe("InboxPage", () => {
     ).toBeTruthy()
 
     await user.click(screen.getByRole("tab", { name: "Proposals" }))
-    expect(changes).toEqual([{ view: "proposals", item: undefined }])
+    expect(changes).toEqual([
+      { view: "proposals", filter: "open", grouped: false, item: undefined },
+    ])
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "For you",
       "Everything",
@@ -311,7 +319,9 @@ describe("InboxPage", () => {
     await user.click(
       await screen.findByRole("button", { name: /mentioned you on/ })
     )
-    expect(changes).toEqual([{ view: "for_you", item: "12" }])
+    expect(changes).toEqual([
+      { view: "for_you", filter: "open", grouped: false, item: "12" },
+    ])
   })
 
   it("from 1100 px the pane shows the selected item and a link to its page", async () => {
@@ -351,7 +361,9 @@ describe("InboxPage", () => {
     first.focus()
     await user.keyboard("{ArrowDown}")
 
-    expect(changes).toEqual([{ view: "for_you", item: "9" }])
+    expect(changes).toEqual([
+      { view: "for_you", filter: "open", grouped: false, item: "9" },
+    ])
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: /version created/ })
     )
@@ -395,6 +407,81 @@ describe("InboxPage", () => {
       ])
     )
     expect(server.reads).toEqual([])
+  })
+
+  it("marks an item done from its row and offers to undo it", async () => {
+    const server = mockServer()
+    const { user } = renderPage()
+
+    const buttons = await screen.findAllByRole("button", { name: "Mark done" })
+    await user.click(buttons[0])
+
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/12", body: { done: true } },
+      ])
+    )
+    await waitFor(() =>
+      expect(toasts.success).toHaveBeenCalledWith(
+        "Marked done",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Undo" }),
+        })
+      )
+    )
+  })
+
+  it("asks for the chosen filter and moves a done item back to the inbox", async () => {
+    const server = mockServer()
+    const { user } = renderPage({ filter: "done" })
+
+    await screen.findByRole("heading", { name: "Needs you" })
+    expect(server.filters).toEqual(["done"])
+    expect(
+      screen.getByRole("button", { name: "Done", pressed: true })
+    ).toBeTruthy()
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Move back to the inbox" })[0]
+    )
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/12", body: { done: false } },
+      ])
+    )
+  })
+
+  it("reports the filter and grouping the person picks", async () => {
+    mockServer()
+    const changes: InboxState[] = []
+    const { user } = renderPage({ onChange: (next) => changes.push(next) })
+
+    await screen.findByRole("heading", { name: "Needs you" })
+    await user.click(screen.getByRole("button", { name: "Unread" }))
+    await user.click(
+      screen.getByRole("button", { name: "Group by dashboard or observation" })
+    )
+
+    expect(changes).toEqual([
+      { view: "for_you", filter: "unread", grouped: false, item: undefined },
+      { view: "for_you", filter: "open", grouped: true, item: undefined },
+    ])
+  })
+
+  it("groups the list by dashboard when asked", async () => {
+    mockServer()
+    renderPage({ grouped: true })
+
+    await screen.findAllByRole("listitem")
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1)
+    expect(screen.queryByRole("heading", { name: "Needs you" })).toBeNull()
+  })
+
+  it("says nothing is unread in the unread filter", async () => {
+    mockServer({ items: [], unread: 0 })
+    renderPage({ filter: "unread" })
+
+    expect(await screen.findByText("Nothing unread.")).toBeTruthy()
   })
 
   it("marks an item read once when it opens in the pane", async () => {

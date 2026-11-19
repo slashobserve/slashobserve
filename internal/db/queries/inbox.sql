@@ -19,6 +19,8 @@ WHERE NOT inbox_superseded(a, @reader_id::uuid)
          THEN n.reason IS NOT NULL OR NOT (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid)
          ELSE n.reason = ANY(@reasons::text[])
        END)
+  AND coalesce(st.done, false) = @done::boolean
+  AND (NOT @unread_only::boolean OR coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq)))
   AND (NOT @has_cursor::boolean OR (a.xid, a.seq) < (@cursor_xid::xid8, @cursor_seq::bigint))
 ORDER BY a.xid DESC, a.seq DESC
 LIMIT @row_limit;
@@ -41,6 +43,7 @@ FROM (
       OR (a.folder_id IS NULL AND (@admin::boolean OR (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid))))
     AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded')
     AND n.reason IS NOT NULL
+    AND NOT coalesce(st.done, false)
     AND coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
   LIMIT 101
 ) unread;
@@ -56,12 +59,22 @@ WITH moved AS (
 )
 DELETE FROM inbox_item_states s
 USING activity a, moved
-WHERE s.user_id = @user_id::uuid AND a.seq = s.seq AND (a.xid, a.seq) <= (moved.read_xid, moved.read_seq);
+WHERE s.user_id = @user_id::uuid AND NOT s.done AND a.seq = s.seq AND (a.xid, a.seq) <= (moved.read_xid, moved.read_seq);
 
 -- name: SetInboxItemUnread :exec
 INSERT INTO inbox_item_states (user_id, seq, unread)
 VALUES (@user_id::uuid, @seq::bigint, @unread::boolean)
-ON CONFLICT (user_id, seq) DO UPDATE SET unread = EXCLUDED.unread, updated_at = now();
+ON CONFLICT (user_id, seq) DO UPDATE
+SET unread = EXCLUDED.unread, done = inbox_item_states.done AND NOT EXCLUDED.unread, updated_at = now();
+
+-- name: SetInboxItemDone :exec
+INSERT INTO inbox_item_states (user_id, seq, unread, done)
+VALUES (@user_id::uuid, @seq::bigint, false, true)
+ON CONFLICT (user_id, seq) DO UPDATE SET unread = false, done = true, updated_at = now();
+
+-- name: ReopenInboxItem :exec
+UPDATE inbox_item_states SET done = false, updated_at = now()
+WHERE user_id = @user_id::uuid AND seq = @seq::bigint;
 
 -- name: InboxObjectTitles :many
 SELECT 'dashboard'::text AS kind, d.id AS id, d.title AS title FROM dashboards d WHERE d.id = ANY(@dashboard_ids::uuid[])

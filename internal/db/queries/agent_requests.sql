@@ -481,6 +481,6 @@ SELECT r.* FROM agent_requests r
 WHERE r.state = ANY(@terminal::text[])
   AND r.thread_message_id IS NOT NULL
   AND r.finished_at > clock_timestamp() - make_interval(secs => @within_seconds::float8)
-  AND NOT EXISTS (SELECT 1 FROM thread_messages m WHERE m.run_id = r.id)
+  AND r.thread_replied_at IS NULL
 ORDER BY r.finished_at DESC, r.id
 LIMIT @max_rows::int;

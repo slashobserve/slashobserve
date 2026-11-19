@@ -156,6 +156,7 @@ FROM (
       OR (a.folder_id IS NULL AND ($5::boolean OR (a.actor_kind = $6::text AND a.actor_id = $1::uuid))))
     AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded')
     AND n.reason IS NOT NULL
+    AND NOT coalesce(st.done, false)
     AND coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
   LIMIT 101
 ) unread
@@ -205,9 +206,11 @@ WHERE NOT inbox_superseded(a, $1::uuid)
          THEN n.reason IS NOT NULL OR NOT (a.actor_kind = $6::text AND a.actor_id = $1::uuid)
          ELSE n.reason = ANY($8::text[])
        END)
-  AND (NOT $9::boolean OR (a.xid, a.seq) < ($10::xid8, $11::bigint))
+  AND coalesce(st.done, false) = $9::boolean
+  AND (NOT $10::boolean OR coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq)))
+  AND (NOT $11::boolean OR (a.xid, a.seq) < ($12::xid8, $13::bigint))
 ORDER BY a.xid DESC, a.seq DESC
-LIMIT $12
+LIMIT $14
 `
 
 type ListInboxParams struct {
@@ -219,6 +222,8 @@ type ListInboxParams struct {
 	ReaderKind   string
 	Everything   bool
 	Reasons      []string
+	Done         bool
+	UnreadOnly   bool
 	HasCursor    bool
 	CursorXid    pgtype.Uint64
 	CursorSeq    int64
@@ -242,6 +247,8 @@ func (q *Queries) ListInbox(ctx context.Context, arg ListInboxParams) ([]ListInb
 		arg.ReaderKind,
 		arg.Everything,
 		arg.Reasons,
+		arg.Done,
+		arg.UnreadOnly,
 		arg.HasCursor,
 		arg.CursorXid,
 		arg.CursorSeq,
@@ -297,7 +304,7 @@ WITH moved AS (
 )
 DELETE FROM inbox_item_states s
 USING activity a, moved
-WHERE s.user_id = $1::uuid AND a.seq = s.seq AND (a.xid, a.seq) <= (moved.read_xid, moved.read_seq)
+WHERE s.user_id = $1::uuid AND NOT s.done AND a.seq = s.seq AND (a.xid, a.seq) <= (moved.read_xid, moved.read_seq)
 `
 
 type MarkInboxReadParams struct {
@@ -311,10 +318,42 @@ func (q *Queries) MarkInboxRead(ctx context.Context, arg MarkInboxReadParams) er
 	return err
 }
 
+const reopenInboxItem = `-- name: ReopenInboxItem :exec
+UPDATE inbox_item_states SET done = false, updated_at = now()
+WHERE user_id = $1::uuid AND seq = $2::bigint
+`
+
+type ReopenInboxItemParams struct {
+	UserID pgtype.UUID
+	Seq    int64
+}
+
+func (q *Queries) ReopenInboxItem(ctx context.Context, arg ReopenInboxItemParams) error {
+	_, err := q.db.Exec(ctx, reopenInboxItem, arg.UserID, arg.Seq)
+	return err
+}
+
+const setInboxItemDone = `-- name: SetInboxItemDone :exec
+INSERT INTO inbox_item_states (user_id, seq, unread, done)
+VALUES ($1::uuid, $2::bigint, false, true)
+ON CONFLICT (user_id, seq) DO UPDATE SET unread = false, done = true, updated_at = now()
+`
+
+type SetInboxItemDoneParams struct {
+	UserID pgtype.UUID
+	Seq    int64
+}
+
+func (q *Queries) SetInboxItemDone(ctx context.Context, arg SetInboxItemDoneParams) error {
+	_, err := q.db.Exec(ctx, setInboxItemDone, arg.UserID, arg.Seq)
+	return err
+}
+
 const setInboxItemUnread = `-- name: SetInboxItemUnread :exec
 INSERT INTO inbox_item_states (user_id, seq, unread)
 VALUES ($1::uuid, $2::bigint, $3::boolean)
-ON CONFLICT (user_id, seq) DO UPDATE SET unread = EXCLUDED.unread, updated_at = now()
+ON CONFLICT (user_id, seq) DO UPDATE
+SET unread = EXCLUDED.unread, done = inbox_item_states.done AND NOT EXCLUDED.unread, updated_at = now()
 `
 
 type SetInboxItemUnreadParams struct {

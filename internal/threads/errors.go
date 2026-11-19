@@ -2,6 +2,7 @@ package threads
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -15,6 +16,17 @@ var (
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )
+
+type VersionNotFoundError struct {
+	Version int
+	Latest  int
+}
+
+func (e *VersionNotFoundError) Error() string {
+	return fmt.Sprintf("version %d does not exist on this dashboard; its latest version is %d", e.Version, e.Latest)
+}
+
+const CodeVersionNotFound = "version_not_found"
 
 var errInvalidMention = &InvalidInputError{Code: CodeInvalidMention, Message: "you can mention only your own connected agents and service accounts that take runs"}
 
@@ -31,6 +43,10 @@ type ObservationThreadExistsError struct {
 
 func (e *ObservationThreadExistsError) Error() string {
 	return "this observation already has a discussion"
+}
+
+func isMentionCode(code string) bool {
+	return code == CodeInvalidMention || code == CodeTooManyMentions || code == CodeTooManyAgents
 }
 
 type InvalidInputError struct {

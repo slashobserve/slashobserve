@@ -3947,10 +3947,10 @@ export interface paths {
         };
         get?: never;
         /**
-         * Mark one inbox item read or unread.
-         * @description Marks the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position. `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * Mark one inbox item read, unread or done.
+         * @description Send `unread` to mark the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position; marking a done item unread also takes it out of done. `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here. Send `done: true` to mark it done: it leaves the default list and `filter=unread`, counts as read, and stays done when the inbox is read; `done: false` brings it back to the open list as read. Send exactly one of `unread` and `done`. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
-        put: operations["setInboxItemUnread"];
+        put: operations["setInboxItemState"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3979,6 +3979,8 @@ export interface components {
             needed_access?: "view" | "comment" | "edit" | "manage";
             /** @description The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder. */
             folder_title?: string;
+            /** @description On a `version_not_found` refusal, the dashboard's latest version. */
+            latest_version?: number;
         };
         Issue: {
             path: string;
@@ -10588,7 +10590,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The dashboard, the version or the comment named by `parent_id` does not exist. */
+            /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -10598,7 +10600,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The panel id does not exist in that version's Spec (`unknown_panel`). */
+            /** @description The panel id does not exist in that version's Spec (`unknown_panel`), or a mention is refused: `invalid_mention` (a person who does not exist or cannot see the dashboard, an agent that is not the caller's own, or a service account that takes no runs), `too_many_mentions` or `too_many_agents`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -17490,6 +17492,8 @@ export interface operations {
         parameters: {
             query?: {
                 view?: "for_you" | "everything" | "proposals" | "mentions";
+                /** @description `open`, the default, lists every item the caller has not marked done; `unread` lists the open items that are unread; `done` lists the items the caller marked done with `PUT /api/v1/inbox/items/{seq}`. A done item is read, never counts in `unread_count`, and stays done when the inbox is read. */
+                filter?: "open" | "unread" | "done";
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
@@ -17509,7 +17513,7 @@ export interface operations {
                     "application/json": components["schemas"]["InboxList"];
                 };
             };
-            /** @description The `view` is not one of the four (`invalid_view`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`). */
+            /** @description The `view` is not one of the four (`invalid_view`), the `filter` is not `open`, `unread` or `done` (`invalid_filter`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17580,7 +17584,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    setInboxItemUnread: {
+    setInboxItemState: {
         parameters: {
             query?: never;
             header?: never;
@@ -17592,7 +17596,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    unread: boolean;
+                    unread?: boolean;
+                    done?: boolean;
                 };
             };
         };

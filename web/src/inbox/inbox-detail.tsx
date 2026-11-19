@@ -85,10 +85,14 @@ function ProposalDetail({ proposalId }: { proposalId: string }) {
 
 function ItemDetail({
   item,
+  done,
   onToggleUnread,
+  onToggleDone,
 }: {
   item: InboxItem
+  done: boolean
   onToggleUnread: (item: InboxItem) => void
+  onToggleDone: (item: InboxItem) => void
 }) {
   const { actor, verb, object } = itemText(item)
   const link = itemLink(item)
@@ -133,6 +137,13 @@ function ItemDetail({
         >
           {item.unread ? "Mark as read" : "Mark as unread"}
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onToggleDone(item)}
+        >
+          {done ? "Move back to the inbox" : "Mark done"}
+        </Button>
       </div>
     </div>
   )
@@ -140,10 +151,14 @@ function ItemDetail({
 
 export function InboxDetail({
   item,
+  done,
   onToggleUnread,
+  onToggleDone,
 }: {
   item: InboxItem | null
+  done: boolean
   onToggleUnread: (item: InboxItem) => void
+  onToggleDone: (item: InboxItem) => void
 }) {
   if (item === null) {
     return (
@@ -155,5 +170,12 @@ export function InboxDetail({
   if (item.target.kind === "proposal") {
     return <ProposalDetail key={item.target.id} proposalId={item.target.id} />
   }
-  return <ItemDetail item={item} onToggleUnread={onToggleUnread} />
+  return (
+    <ItemDetail
+      item={item}
+      done={done}
+      onToggleUnread={onToggleUnread}
+      onToggleDone={onToggleDone}
+    />
+  )
 }

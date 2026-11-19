@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -67,7 +68,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "add_block,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,publish_rca,recheck_datasource,rename_folder,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_workspace,set_home_dashboard,start_run,unpin_dashboard,update_annotation,update_block,update_observation" {
+	if strings.Join(got, ",") != "add_block,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,publish_rca,recheck_datasource,rename_folder,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_workspace,set_home_dashboard,set_inbox_item_done,start_run,unpin_dashboard,update_annotation,update_block,update_observation" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -262,6 +263,10 @@ func TestCommentItemAuthorFallsBackToEmail(t *testing.T) {
 
 func TestCommentFailure(t *testing.T) {
 	internal := errors.New("database down")
+	threadID, err := db.ParseUUID("5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21")
+	if err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name     string
 		err      error
@@ -280,6 +285,7 @@ func TestCommentFailure(t *testing.T) {
 		{name: "not the starter", err: threads.ErrNotStarter, wantCode: codeNotStarter, wantMsg: threads.ErrNotStarter.Error()},
 		{name: "unknown panel", err: threads.ErrUnknownPanel, wantCode: codeUnknownPanel, wantMsg: threads.ErrUnknownPanel.Error()},
 		{name: "unknown version", err: threads.ErrUnknownVersion, wantCode: codeUnknownVersion, wantMsg: threads.ErrUnknownVersion.Error()},
+		{name: "observation already has a discussion", err: &threads.ObservationThreadExistsError{ThreadID: threadID}, wantCode: codeThreadExists, wantMsg: "this observation already has a discussion; add to it with reply_to_comment and comment_id 5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21"},
 		{name: "internal", err: internal, wantErr: internal},
 	}
 	for _, tt := range tests {

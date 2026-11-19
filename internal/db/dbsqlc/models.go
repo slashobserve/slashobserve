@@ -81,6 +81,7 @@ type AgentRequest struct {
 	ChatID            pgtype.UUID
 	RetriesID         pgtype.UUID
 	TimeZone          pgtype.Text
+	ThreadRepliedAt   pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -385,6 +386,7 @@ type InboxItemState struct {
 	Seq       int64
 	Unread    bool
 	UpdatedAt pgtype.Timestamptz
+	Done      bool
 }
 
 type Instance struct {

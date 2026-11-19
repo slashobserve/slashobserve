@@ -27,6 +27,15 @@ inbox:
           type: string
           enum: [for_you, everything, proposals, mentions]
           default: for_you
+      - name: filter
+        in: query
+        description: >-
+          `open`, the default, lists every item the caller has not marked done; `unread` lists the open items that are unread; `done` lists the items the caller marked done with `PUT /api/v1/inbox/items/{seq}`.
+          A done item is read, never counts in `unread_count`, and stays done when the inbox is read.
+        schema:
+          type: string
+          enum: [open, unread, done]
+          default: open
       - name: cursor
         in: query
         description: The `next_cursor` of the previous page.
@@ -47,7 +56,7 @@ inbox:
             schema:
               $ref: "../openapi.yaml#/components/schemas/InboxList"
       "400":
-        description: The `view` is not one of the four (`invalid_view`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`).
+        description: The `view` is not one of the four (`invalid_view`), the `filter` is not `open`, `unread` or `done` (`invalid_filter`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`).
         content:
           application/json:
             schema:
@@ -107,11 +116,15 @@ inbox-read:
         $ref: "../openapi.yaml#/components/responses/Internal"
 inbox-item:
   put:
-    operationId: setInboxItemUnread
-    summary: Mark one inbox item read or unread.
+    operationId: setInboxItemState
+    x-surfaces:
+      mcp: [set_inbox_item_done]
+    summary: Mark one inbox item read, unread or done.
     description: >-
-      Marks the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position.
+      Send `unread` to mark the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position; marking a done item unread also takes it out of done.
       `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here.
+      Send `done: true` to mark it done: it leaves the default list and `filter=unread`, counts as read, and stays done when the inbox is read; `done: false` brings it back to the open list as read.
+      Send exactly one of `unread` and `done`.
       Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
     parameters:
       - name: seq
@@ -128,9 +141,12 @@ inbox-item:
           schema:
             type: object
             additionalProperties: false
-            required: [unread]
+            minProperties: 1
+            maxProperties: 1
             properties:
               unread:
+                type: boolean
+              done:
                 type: boolean
     responses:
       "204":

@@ -187,11 +187,11 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultProposal)
 			return run, "Opened a proposal: " + title + "."
 		}},
-		{"chat-only answer from a dashboard thread never shows its title", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"chat-only answer from a dashboard thread carries its text and a link to the chat", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Answered in the chat of the person who asked."
+			return run, "Answered in the chat of the person who asked.\n\nthe 5xx rate rose\n\nFull answer (only the person who asked and Admins can open it): [the chat](/c/" + run.ID.String() + ")"
 		}},
 		{"finding in an observation thread", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
@@ -234,6 +234,44 @@ func TestEndingARunTwiceAnswersOnce(t *testing.T) {
 	}
 	if got := r.count(t, `SELECT count(*) FROM activity WHERE type = 'thread.replied'`); got != 1 {
 		t.Fatalf("%d thread.replied rows, want 1", got)
+	}
+}
+
+func TestAReplyAPersonDeletedIsNotPostedAgain(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	finished := succeededWithVersion(run, 2)
+	if err := r.runEnded(t, finished); err != nil {
+		t.Fatal(err)
+	}
+	reply := r.runReplies(t, thread)[0]
+	if err := r.service.Delete(t.Context(), admin, mustParse(t, reply.ID)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.runEnded(t, finished); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v, want the deleted reply to stay deleted", replies)
+	}
+}
+
+func TestARunWhoseReplyFailedIsStillAwaitingItsReply(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	_, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', finished_at = now() WHERE id = $1`, run.ID)
+
+	rows, err := r.db.Queries().ListRunsAwaitingReply(t.Context(), dbsqlc.ListRunsAwaitingReplyParams{
+		Terminal: []string{"succeeded"}, WithinSeconds: 3600, MaxRows: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ID != run.ID {
+		t.Fatalf("awaiting = %d rows, want the run whose reply was never posted", len(rows))
 	}
 }
 
