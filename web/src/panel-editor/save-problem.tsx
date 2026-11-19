@@ -232,8 +232,8 @@ export function SaveProblem({
       <Alert>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-pretty">
           <span className="min-w-[min(100%,16rem)] flex-1">
-            {problem.message} If that is expected, you can save it anyway; the
-            panel is then marked "Unverified".
+            {sentence(problem.message)} If that is expected, you can save it
+            anyway; the panel is then marked "Unverified".
           </span>
           <Button
             variant="outline"

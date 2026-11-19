@@ -48,12 +48,46 @@ func FailureMessage(code FailureCode, source Source) string {
 	case FailureOutputLimit:
 		return noResultMessage(source) + OutputLimitSuffix
 	case FailureValidationExhausted:
+		if source == SourceInvestigate {
+			return fmt.Sprintf("the finding was rejected in %d saves in a row", maxRejectionsInRow)
+		}
 		if source == SourceSuggest {
 			return fmt.Sprintf("the proposed panel still failed validation after %d rejected saves in a row", maxRejectionsInRow)
 		}
 		return fmt.Sprintf("the dashboard still failed validation after %d rejected saves in a row", maxRejectionsInRow)
 	}
 	return failureMessages[code]
+}
+
+type Rejection struct {
+	Finding   bool
+	Transient bool
+	Panels    []string
+	Other     int
+	Codes     []string
+}
+
+func ValidationExhaustedMessage(source Source, r Rejection) string {
+	if r.Finding || source == SourceInvestigate {
+		return findingRejectedMessage(r)
+	}
+	return FailureMessage(FailureValidationExhausted, source) + FailingPanelsSuffix(r.Panels, r.Other) + IssuesSuffix(r.Codes)
+}
+
+func findingRejectedMessage(r Rejection) string {
+	message := fmt.Sprintf("the finding was rejected in %d saves in a row", maxRejectionsInRow)
+	if total := len(r.Panels) + r.Other; total > 0 {
+		shown := r.Panels[:min(len(r.Panels), maxFailingPanelsShown)]
+		message += "; its evidence that failed: " + strings.Join(shown, ", ")
+		if more := total - len(shown); more > 0 {
+			message += fmt.Sprintf(" and %d more", more)
+		}
+	}
+	message += IssuesSuffix(r.Codes)
+	if r.Transient {
+		message += "; a datasource did not answer in time, so ask again when it is healthy"
+	}
+	return message
 }
 
 func FailingPanelsSuffix(ids []string, other int) string {

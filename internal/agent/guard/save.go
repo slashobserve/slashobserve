@@ -41,6 +41,9 @@ type Outcome struct {
 	Rejected   bool
 	IssueCodes []string
 
+	RejectedFinding bool
+	Transient       bool
+
 	FailingPanels []string
 	FailingOther  int
 }
@@ -64,9 +67,11 @@ type saveBody struct {
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
 	FailingPanels []string        `json:"failing_panels"`
-	Issues        []struct {
-		Code string `json:"code"`
-	} `json:"issues"`
+	Issues        []issueBody     `json:"issues"`
+}
+
+type issueBody struct {
+	Code string `json:"code"`
 }
 
 func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error) {
@@ -87,6 +92,8 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 }
 
 func (s *State) settleRead(c Call, res tools.Result) Settled {
+	s.noteChecked(c, res)
+	s.noteAbsenceRead(c, res)
 	key := Key(c.Name, c.Input)
 	entry, ok := s.Reads[key]
 	if !ok || res.IsError || tools.Phase(c.Name) == tools.PhaseQuery {
@@ -120,7 +127,14 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 	}
 	s.Rejections++
 	failing, other := body.failingPanels()
-	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes(), FailingPanels: failing, FailingOther: other}}, nil
+	return Settled{Outcome: Outcome{
+		Rejected:        true,
+		IssueCodes:      body.issueCodes(),
+		FailingPanels:   failing,
+		FailingOther:    other,
+		RejectedFinding: s.Mode == tools.ModeInvestigate || c.label() == toolSaveFinding,
+		Transient:       body.onlyUnreachable(),
+	}}, nil
 }
 
 func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settled, error) {
@@ -182,6 +196,10 @@ func (b saveBody) failingPanels() (ids []string, other int) {
 		}
 	}
 	return ids, other
+}
+
+func (b saveBody) onlyUnreachable() bool {
+	return len(b.Issues) > 0 && !slices.ContainsFunc(b.Issues, func(issue issueBody) bool { return !tools.CouldNotCheck(issue.Code) })
 }
 
 func (b saveBody) issueCodes() []string {

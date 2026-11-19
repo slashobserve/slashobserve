@@ -290,7 +290,7 @@ func TestLintQueryReportsAnUnavailableDatasource(t *testing.T) {
 	}}
 	r := newTestRegistry(t, ds, nil)
 	res, err := call(t, r, nameLintQuery, `{"datasource":"fake","query":"up"}`)
-	if err != nil || !res.IsError || res.Step != "Could not lint a query on fake: datasource_unavailable" {
+	if err != nil || !res.IsError || res.Step != "Could not lint a query on fake: could not check, datasource_unavailable" {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
 }

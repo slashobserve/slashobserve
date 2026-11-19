@@ -34,7 +34,8 @@ Times on the page are in the time zone of your browser, and a range between two 
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
 On Elasticsearch and OpenSearch it runs `*`, which matches every document, and shows the newest lines of the time range, so you can see which services the source holds in the Fields column before you narrow the query.
-On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
+On Loki it runs `{service_name=~".+"}`, which reads every stream that has a `service_name` label and shows the newest lines of the time range; a Loki whose streams carry no `service_name` answers no lines until you pick a label.
+The **Builder** segment of the mode switch opens the label browser.
 The label browser lists the labels of the datasource and their values, and a click on a value puts that matcher into the stream selector the query already holds, replacing the value of the same label, so the rest of the query stays as it is.
 On ClickHouse, or when the query has no selector yet, the click inserts the matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
@@ -108,6 +109,7 @@ Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cl
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
 KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines and a field in any of its clauses holds `ERROR` where the query says `error`, the empty result says no document has that value and lists the values the field does hold in the range.
+The server writes that sentence, as `meta.hint` of the query response, so the HTTP API and the MCP tool `query_instant` give the same words: an agent reads it in the step text and in the result's `hint`.
 
 ### Share a search
 
@@ -171,6 +173,9 @@ Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings
 The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
 The note under **Fields** says where the list comes from, and the search box narrows it by name.
 The counts are read after the lines have arrived, so a wide range shows the lines first and the value counts a moment later.
+On a range wider than six hours the counts also wait for the volume strip to answer, so the two heaviest requests on a busy source do not run together, and the label names are asked for after the lines have arrived.
+When the count times out, the column says so with **Retry** and suggests a shorter range.
+
 A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
 On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
@@ -336,7 +341,7 @@ The block stays live on the page, so it runs the query when the page is open.
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, or type it into **Ask** and press Ask (the address is never sent to the model), and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 The note under the box says what was filled and how many filters from the address were not applied: range, exists and custom filters are left out.
 A Lucene query gets the `lucene:` prefix, the source you are on stays selected, and nothing is sent to the server: the browser reads the address itself.
 On a Loki datasource or a ClickHouse datasource the address is pasted as plain text.
@@ -373,7 +378,7 @@ An address with a trace id and no `ds` opens the only trace datasource when ther
 
 ### Waterfall
 
-The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge; a very short window shows three round labels, or two or one on a narrow ruler, rather than its two edges.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
@@ -401,7 +406,7 @@ On a phone each row stacks the service and operation, with the duration at the r
 
 ### Logs for a span or trace
 
-A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
+A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found; a datasource that has not answered after 15 seconds ends in an error with **Retry**, never in placeholders that stay.
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
 **Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.

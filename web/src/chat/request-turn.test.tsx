@@ -72,6 +72,68 @@ describe("RequestTurn", () => {
   })
 })
 
+describe("RequestTurn with a build saved before the run finished", () => {
+  const saved: TurnSummary = {
+    ...failed,
+    requested_by: { id: "viewer-1", name: "Ada" },
+    dashboard_id: "d1",
+    result_kind: "partial_version",
+    result_version: 1,
+    allowed_actions: [],
+    build: null,
+  }
+
+  beforeEach(() => {
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            dashboard: { id: "d1" },
+            version: {
+              version: 1,
+              summary: "5 of 8 panels",
+              spec: {
+                specVersion: "0",
+                title: "Shop",
+                time: { from: "now-1h", to: "now" },
+                panels: [],
+              },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+    )
+  })
+
+  it("offers Add the missing panels while it is the latest turn", async () => {
+    renderWithProviders(
+      <RequestTurn summary={saved} loadSteps onRetried={vi.fn()} latest />,
+      { route: { path: "/", url: "/" } }
+    )
+    expect(
+      await screen.findByRole("button", { name: "Add the missing panels" })
+    ).toBeInTheDocument()
+  })
+
+  it("drops the button once a later turn exists", async () => {
+    renderWithProviders(
+      <RequestTurn
+        summary={saved}
+        loadSteps
+        onRetried={vi.fn()}
+        latest={false}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    expect(
+      await screen.findByText(/saved before the run finished/)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Add the missing panels" })
+    ).toBeNull()
+  })
+})
+
 describe("RequestTurn while a run settles", () => {
   const answered: TurnSummary = {
     ...failed,

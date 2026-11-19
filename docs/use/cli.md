@@ -70,6 +70,7 @@ When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 l
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
 A prompt that only asks a question ends with an answer that stays in the chat, which the CLI prints as `observe investigate` does, followed by the hint `observe save-answer <request-id>`.
 `bin/observe save-answer <request-id>` files that answer as an [observation](observations.md) and prints its address; only the person who asked can, and saving twice prints the same address.
+When the prompt asked to change one existing dashboard, the answer ends with that dashboard's title and the `observe --dashboard <id> '<prompt>'` command that asks for the change there.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 `--open` opens the dashboard address in the browser once it is saved, with `open` on macOS, `xdg-open` on Linux and the URL handler on Windows; when the opener is missing or fails, the CLI prints a warning and still exits 0.
@@ -180,6 +181,8 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
 | `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when the directory cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
+| `bin/observe dashboards schema` | Prints the JSON Schema every dashboard file must satisfy, the document the `get_spec_guide` MCP tool returns; it is part of the program and needs no server. |
+| `bin/observe dashboards sample` | Prints a complete example Spec with variables, several panel types and a layout, to save as a `.json` file and edit before `apply`; it needs no server. |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
@@ -218,13 +221,23 @@ bin/observe folders list
 bin/observe folders create Team Payments
 bin/observe folders rename <folder-id> Team Billing
 bin/observe folders delete <folder-id>
+bin/observe folders permissions show <folder-id>
+bin/observe folders permissions grant <folder-id> --email ada@example.com --level edit
+bin/observe folders permissions revoke <folder-id> --group payments
+bin/observe folders permissions open <folder-id> --yes
 ```
 
 `list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)` and your My Dashboards `(yours)`.
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`; a title that another folder uses answers `folder_exists`.
 `rename` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id, and the General folder answers `general_folder`.
 `delete` works only on an empty folder, asks for no `--yes`, and answers `folder_not_empty` when anything is still filed in it.
-Folder permissions are managed in the web app.
+`permissions show` lists who the folder is restricted to, users first and then groups, or says the folder is open to everyone by role.
+`permissions grant` adds a person (`--user <id>` or `--email <address>`) or a group (`--group <name>`) at a `--level` of `view`, `comment`, `edit` or `admin`, or changes the level of the entry that names the same person or group, and keeps every other entry; the first grant restricts the folder.
+`permissions revoke` removes one entry and keeps the others; it answers that the name is not on the list when it is not, and needs `--yes` when it removes the last entry, because the folder is then open to everyone by role again.
+`permissions open --yes` clears the whole list in one step.
+
+Changing the list needs Manage on the folder, which an Admin key has on every folder except another person's personal one, and the General folder cannot be restricted.
+Each command is one read followed by one replace of the whole list, so two people changing the same folder at once can overwrite each other.
 
 ## Saved prompts
 
@@ -269,6 +282,7 @@ A block that someone who can only comment added shows the state `requested`.
 Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
 `--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
 A panel whose queries use variables needs `--var name=value` for each, repeated for more values of the same name, and without one the block is refused with `variable_missing` and the name of the variable.
+The server runs the check the MCP `add_block` tool runs: a panel whose query is invalid, or returns nothing in its range, is refused with the failing paths below the error, exits 1 and adds no block; `o edit-block --panel-file` is checked the same way.
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
 

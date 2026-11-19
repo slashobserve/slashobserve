@@ -286,6 +286,11 @@ func distinctIDs(ids []pgtype.UUID) []pgtype.UUID {
 }
 
 func (h *Handler) run(c *gin.Context) {
+	h.StartRun()
+	c.Status(http.StatusAccepted)
+}
+
+func (h *Handler) StartRun() {
 	h.runs.Add(1)
 	go func() {
 		defer h.runs.Done()
@@ -298,7 +303,6 @@ func (h *Handler) run(c *gin.Context) {
 			h.logger.WarnContext(h.life, "start a dashboard health run", logattrs.Failure("health_run_failed", err)...)
 		}
 	}()
-	c.Status(http.StatusAccepted)
 }
 
 func (h *Handler) view(c *gin.Context) {

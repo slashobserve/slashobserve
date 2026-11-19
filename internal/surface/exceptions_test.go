@@ -12,7 +12,6 @@ const (
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
 	noMCPDeletes        = "no MCP tool deletes anything: every MCP write is advertised as non-destructive, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
-	builtInAgentQueue   = "starts or steers a run of the built-in agent; an outside agent does the work itself with its own model and the same tools"
 	browserSignIn       = "the browser's sign-in and session flow; keys and MCP clients authenticate with a bearer token"
 	personOnly          = "a person's own action in the web app: keys are refused (auth.RequireUser or 403 user_session_required), and the CLI signs in with a key"
 	openRecording       = "dashboard opens are recorded for people only; a key that posts one records nothing"
@@ -20,6 +19,7 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
+	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one"
 	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
 	removesPeople       = "an Admin removes a deactivated person in the web app; keys never manage people's accounts (auth.RequireUser), and the CLI signs in with a key"
 	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
@@ -73,19 +73,17 @@ var exceptions = map[string]exception{
 	"viewPublicRca":          {MCP: publicView, CLI: publicView},
 	"viewPublicRcaSnapshot":  {MCP: publicView, CLI: publicView},
 
-	"createFolder":         {MCP: notBuilt},
 	"getFolder":            {MCP: notBuilt, CLI: notBuilt},
-	"renameFolder":         {MCP: notBuilt},
 	"deleteFolder":         {MCP: noMCPDeletes},
-	"getFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
-	"setFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
+	"getFolderPermissions": {MCP: notBuilt},
+	"setFolderPermissions": {MCP: notBuilt},
 
 	"listGrafanaConnections":  {MCP: notBuilt, CLI: notBuilt},
-	"createGrafanaConnection": {MCP: notBuilt},
+	"createGrafanaConnection": {MCP: grafanaConnecting},
 	"getGrafanaConnection":    {MCP: notBuilt, CLI: notBuilt},
-	"updateGrafanaConnection": {MCP: notBuilt, CLI: notBuilt},
-	"deleteGrafanaConnection": {MCP: notBuilt, CLI: notBuilt},
-	"testGrafanaConnection":   {MCP: notBuilt},
+	"updateGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
+	"deleteGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
+	"testGrafanaConnection":   {MCP: grafanaConnecting},
 	"listGrafanaFolders":      {MCP: notBuilt},
 	"listGrafanaDatasources":  {MCP: notBuilt, CLI: notBuilt},
 	"startGrafanaImport":      {MCP: notBuilt},
@@ -107,8 +105,7 @@ var exceptions = map[string]exception{
 	"markInboxRead":      {MCP: personOnly, CLI: personOnly},
 	"setInboxItemUnread": {MCP: personOnly, CLI: personOnly},
 
-	"requestHealthRepairs": {MCP: builtInAgentQueue},
-	"runDashboardHealth":   {MCP: notBuilt},
+	"requestHealthRepairs": {MCP: notBuilt},
 
 	"previewImport":      {MCP: notBuilt},
 	"listImports":        {MCP: notBuilt, CLI: notBuilt},
@@ -122,14 +119,10 @@ var exceptions = map[string]exception{
 
 	"getAgent":                {MCP: notBuilt},
 	"listObserveRequests":     {MCP: builtInRuns},
-	"createObserveRequest":    {MCP: builtInAgentQueue},
-	"updateObserveRequest":    {MCP: builtInAgentQueue},
-	"archiveObserveRequest":   {MCP: builtInAgentQueue},
-	"getObserveRequestBuild":  {MCP: builtInRuns},
-	"saveObserveRequestBuild": {MCP: builtInAgentQueue, CLI: notBuilt},
-	"cancelObserveRequest":    {MCP: builtInAgentQueue},
-	"retryObserveRequest":     {MCP: builtInAgentQueue},
-	"continueObserveRequest":  {MCP: builtInAgentQueue},
+	"updateObserveRequest":    {MCP: notBuilt},
+	"archiveObserveRequest":   {MCP: notBuilt},
+	"saveObserveRequestBuild": {MCP: notBuilt, CLI: notBuilt},
+	"continueObserveRequest":  {MCP: notBuilt},
 	"getBuildPanelData":       {MCP: personOnly, CLI: personOnly},
 	"getBuildVariableValues":  {MCP: personOnly, CLI: personOnly},
 
@@ -139,7 +132,7 @@ var exceptions = map[string]exception{
 
 	"previewDraftPanel": {MCP: personOnly, CLI: personOnly},
 
-	"listSavedPrompts":  {MCP: builtInAgentQueue},
+	"listSavedPrompts":  {MCP: notBuilt},
 	"createSavedPrompt": {MCP: personOnly, CLI: personOnly},
 	"updateSavedPrompt": {MCP: personOnly, CLI: personOnly},
 	"deleteSavedPrompt": {MCP: personOnly, CLI: personOnly},
@@ -160,9 +153,9 @@ var exceptions = map[string]exception{
 	"getVariableValues": {MCP: webRendering, CLI: webRendering},
 
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
-	"requestRepairs": {MCP: builtInAgentQueue, CLI: notBuilt},
+	"requestRepairs": {MCP: notBuilt, CLI: notBuilt},
 
-	"createDashboardRevision": {MCP: builtInAgentQueue},
+	"createDashboardRevision": {MCP: notBuilt},
 	"listDashboardRevisions":  {MCP: builtInRuns},
 	"getDashboardRevision":    {MCP: builtInRuns},
 
@@ -185,8 +178,8 @@ var exceptions = map[string]exception{
 	"setHomeDashboard":   {CLI: personOnly},
 	"clearHomeDashboard": {CLI: personOnly},
 
-	"createPanelSuggestion": {MCP: builtInAgentQueue, CLI: notBuilt},
-	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
+	"createPanelSuggestion": {MCP: notBuilt, CLI: notBuilt},
+	"getPanelSuggestion":    {MCP: notBuilt, CLI: notBuilt},
 
 	"tailLogs": {MCP: liveWebPage},
 

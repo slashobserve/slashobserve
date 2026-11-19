@@ -58,6 +58,8 @@ import {
   type FilterMode,
   type LogFacets,
 } from "./facets"
+import { isPlainResult } from "./plain-table"
+import { isWideRange, logVolumeQuery } from "./volume"
 import { useLogsWorkspace } from "./workspace"
 
 const iconButtonClass = "size-5 text-muted-foreground"
@@ -319,17 +321,40 @@ function FieldsPanel({
   onHide?: () => void
   onApplied?: () => void
 }) {
-  const { datasource, search, effectiveQuery, range, setDraft, run, results } =
-    useLogsWorkspace()
+  const {
+    datasource,
+    search,
+    effectiveQuery,
+    range,
+    setDraft,
+    run,
+    results,
+    tail,
+  } = useLogsWorkspace()
   const [filterText, setFilterText] = useState("")
   const [openField, setOpenField] = useState<string | null>(null)
   const uid = datasource.uid
   const type = datasource.type
   const q = search.q
-  const { ready, slow } = useAfterMainQuery(
+  const { ready: linesAnswered, slow } = useAfterMainQuery(
     results,
     JSON.stringify([uid, effectiveQuery, range.from, range.to])
   )
+  const volume = useQuery({
+    ...logVolumeQuery(uid, {
+      query: effectiveQuery ?? "",
+      from: range.from,
+      to: range.to,
+    }),
+    enabled: false,
+  })
+  const volumePending =
+    effectiveQuery !== undefined &&
+    !tail.shown &&
+    (results.data === undefined || !isPlainResult(results.data)) &&
+    isWideRange(range.from, range.to) &&
+    volume.status === "pending"
+  const ready = linesAnswered && !volumePending
   const names = useQuery({
     ...labelNamesQuery(uid, { from: range.from, to: range.to }),
     enabled: type !== "clickhouse" && ready,
@@ -377,9 +402,11 @@ function FieldsPanel({
           <p className="m-0 text-xs text-muted-foreground">
             {slow
               ? "This source is slow: the fields load when the query answers"
-              : loading
-                ? "Reading the fields"
-                : fieldsNote(type, datasource.index, rows.length)}
+              : volumePending && linesAnswered
+                ? "The fields load when the volume answers"
+                : loading
+                  ? "Reading the fields"
+                  : fieldsNote(type, datasource.index, rows.length)}
           </p>
         </div>
         {onHide === undefined ? null : (

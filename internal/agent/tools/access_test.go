@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -357,4 +358,113 @@ func folderOf(t *testing.T, r *accessRig, res Result) pgtype.UUID {
 		t.Fatal(err)
 	}
 	return folderID
+}
+
+func TestCreateDashboardTwiceWithTheSameSpecReturnsTheFirstOne(t *testing.T) {
+	r := newAccessRig(t)
+	eve, bob := r.person(t, "eve", auth.RoleEditor), r.person(t, "bob", auth.RoleEditor)
+	ops, other := r.newFolder(t, "Ops"), r.newFolder(t, "Other")
+
+	savedOf := func(res Result) savedOut {
+		t.Helper()
+		saved, ok := res.Content.(savedOut)
+		if res.IsError || !ok {
+			t.Fatalf("create_dashboard = %s", textOf(t, res))
+		}
+		return saved
+	}
+	first := savedOf(r.create(t, eve, "Checkout", ops))
+	if first.Replayed != nil && *first.Replayed {
+		t.Fatal("the first save was reported as a replay")
+	}
+	again := savedOf(r.create(t, eve, "Checkout", ops))
+	if again.DashboardID != first.DashboardID || again.Replayed == nil || !*again.Replayed {
+		t.Fatalf("a retry made %+v, want the first dashboard %s replayed", again, first.DashboardID)
+	}
+	for name, res := range map[string]Result{
+		"another folder": r.create(t, eve, "Checkout", other),
+		"another title":  r.create(t, eve, "Checkout 2", ops),
+		"another person": r.create(t, bob, "Checkout", ops),
+	} {
+		if got := savedOf(res); got.DashboardID == first.DashboardID {
+			t.Errorf("%s: returned the first dashboard", name)
+		}
+	}
+}
+
+func TestCreateDashboardDoesNotReplayForSomeoneWhoMayNoLongerCreate(t *testing.T) {
+	r := newAccessRig(t)
+	eve := r.person(t, "eve", auth.RoleEditor)
+	ops := r.newFolder(t, "Ops")
+	if res := r.create(t, eve, "Checkout", ops); res.IsError {
+		t.Fatalf("first save: %s", textOf(t, res))
+	}
+	demoted := eve
+	demoted.Role = auth.RoleViewer
+	res := r.create(t, demoted, "Checkout", ops)
+	if code := errorCode(t, res); code != codeForbiddenRole {
+		t.Fatalf("a demoted Viewer's retry: code %q, want %q: %s", code, codeForbiddenRole, textOf(t, res))
+	}
+}
+
+func TestCreateAndRenameFolder(t *testing.T) {
+	r := newAccessRig(t)
+	eve := r.person(t, "eve", auth.RoleEditor)
+	bob := r.person(t, "bob", auth.RoleEditor)
+	folderOf := func(res Result) folderItemOut {
+		t.Helper()
+		out, ok := res.Content.(folderItemOut)
+		if res.IsError || !ok {
+			t.Fatalf("folder tool = %s", textOf(t, res))
+		}
+		return out
+	}
+
+	made := folderOf(r.call(t, eve, nameCreateFolder, `{"title":"  Payments  "}`))
+	if made.Title != "Payments" || made.ID == "" || !made.CanCreate {
+		t.Fatalf("created = %+v", made)
+	}
+	listed := r.call(t, eve, nameListFolders, `{}`).Content.(folderListOut)
+	if !slices.ContainsFunc(listed.Folders, func(f folderItemOut) bool { return f.ID == made.ID }) {
+		t.Fatalf("the new folder is not listed: %+v", listed)
+	}
+
+	renamed := folderOf(r.call(t, eve, nameRenameFolder, `{"folder_id":"`+made.ID+`","title":"Payments team"}`))
+	if renamed.Title != "Payments team" {
+		t.Fatalf("renamed = %+v", renamed)
+	}
+
+	for name, call := range map[string]struct {
+		by          auth.Principal
+		tool, input string
+		code        string
+	}{
+		"a taken title":           {eve, nameCreateFolder, `{"title":"payments TEAM"}`, "folder_exists"},
+		"a reserved title":        {eve, nameCreateFolder, `{"title":"general"}`, "folder_exists"},
+		"an empty title":          {eve, nameCreateFolder, `{"title":"   "}`, codeInvalidRequest},
+		"a viewer creating":       {viewerCaller, nameCreateFolder, `{"title":"Nope"}`, codeForbiddenRole},
+		"an editor with no grant": {bob, nameRenameFolder, `{"folder_id":"` + made.ID + `","title":"Mine now"}`, codeForbiddenRole},
+		"an unknown folder":       {eve, nameRenameFolder, `{"folder_id":"00000000-0000-4000-8000-000000000000","title":"Ghost"}`, codeNotFound},
+		"not a uuid":              {eve, nameRenameFolder, `{"folder_id":"payments","title":"Ghost"}`, codeInvalidRequest},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := errorCode(t, r.call(t, call.by, call.tool, call.input)); got != call.code {
+				t.Fatalf("code = %q, want %q", got, call.code)
+			}
+		})
+	}
+
+	var general string
+	for _, f := range listed.Folders {
+		if f.General {
+			general = f.ID
+		}
+	}
+	if general == "" {
+		t.Fatal("no General folder listed")
+	}
+	root := r.person(t, "root", auth.RoleAdmin)
+	if got := errorCode(t, r.call(t, root, nameRenameFolder, `{"folder_id":"`+general+`","title":"Everything"}`)); got != "general_folder" {
+		t.Fatalf("renaming General answered %q", got)
+	}
 }

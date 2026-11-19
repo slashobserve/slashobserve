@@ -13,6 +13,7 @@ import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useOpenerFocus } from "@/components/dock/opener-focus"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
+import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
@@ -234,6 +235,7 @@ export function ActivityCard({
               from: timeRange.from ?? spec.time.from,
               to: timeRange.to ?? spec.time.to,
             }}
+            timeZone={agentZone(search.tz ?? spec.timezone)}
           />
         </>
       )}

@@ -417,6 +417,7 @@ type querySummary struct {
 	MoreRows  bool            `json:"more_rows,omitempty"`
 	Partial   bool            `json:"partial,omitempty"`
 	Warning   string          `json:"warning,omitempty"`
+	Hint      string          `json:"hint,omitempty"`
 	Note      string          `json:"note,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
@@ -430,6 +431,8 @@ func (s querySummary) describe() string {
 
 func (s querySummary) describeData() string {
 	switch {
+	case s.Empty && s.Hint != "":
+		return "no data (" + s.Hint + ")"
 	case s.Empty:
 		return "no data"
 	case len(s.Series) > 0 && s.Table != nil:
@@ -483,6 +486,7 @@ func summarize(res queryproxy.Result) querySummary {
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
 		Warning:  meta.Warning,
+		Hint:     meta.Hint,
 		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
 	}
 	if s.Empty {

@@ -1,11 +1,17 @@
 package tools
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 )
@@ -17,28 +23,28 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder so people can open it from its page. Check the query with lint_query or draft_query first. Returns its url."
+	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder (default your My Dashboards) so people can open it from its page. A query with a lint_query error is not saved; draft_query writes one. A repeat returns the saved search with replayed true. Returns its url."
 	descListSavedSearches = "List the saved logs, trace and metrics searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"Short title."},` +
-		`"datasource_uid":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
+		`"datasource":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
-		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
-		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
-		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: shortest span duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: longest span duration, such as 2s."},` +
+		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: columns to show."},` +
+		`"service":{"type":"string","maxLength":200,"description":"Traces: this service."},` +
+		`"span":{"type":"string","maxLength":200,"description":"Traces: spans with this name."},` +
+		`"min":{"type":"string","description":"Traces: shortest span, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: longest span, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
 		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
-		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
+		`"additionalProperties":false},` +
 		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the range, such as now or RFC 3339. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"The folder, from list_folders. Default your My Dashboards, else General."}},` +
-		`"required":["kind","title","datasource_uid"],"additionalProperties":false}`
+		`"required":["kind","title","datasource"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
 		`"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Only searches of this kind."},` +
@@ -61,6 +67,7 @@ func (r *Registry) savedSearchEntries() []entry {
 type saveSearchInput struct {
 	Kind          string          `json:"kind"`
 	Title         string          `json:"title"`
+	Datasource    string          `json:"datasource"`
 	DatasourceUID string          `json:"datasource_uid"`
 	Query         *string         `json:"query"`
 	Filters       json.RawMessage `json:"filters"`
@@ -103,11 +110,18 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
+	uid := cmp.Or(in.Datasource, in.DatasourceUID)
+	if res, ok, err := r.searchQueryPasses(ctx, uid, in.Query); err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
+	if res, found, err := r.alreadySavedSearch(ctx, principal, in, uid, folderID); err != nil || found {
+		return res, err
+	}
 	saved, err := r.deps.SavedSearches.Create(ctx, principal, savedsearches.CreateInput{
 		Kind:          savedsearches.Kind(in.Kind),
 		Title:         in.Title,
-		DatasourceUID: in.DatasourceUID,
+		DatasourceUID: uid,
 		Query:         in.Query,
 		Filters:       in.Filters,
 		From:          in.From,
@@ -118,6 +132,86 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 		return savedSearchFailure(err)
 	}
 	return success("Saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
+}
+
+type savedSearchReplayOut struct {
+	savedsearches.SavedSearchJSON
+	Replayed bool `json:"replayed"`
+}
+
+func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Principal, in saveSearchInput, uid string, folderID pgtype.UUID) (Result, bool, error) {
+	wanted, err := searchFilters(in.Filters)
+	if err != nil {
+		return Result{}, false, nil
+	}
+	if r.deps.Folders == nil {
+		return Result{}, false, nil
+	}
+	folder, err := r.deps.Folders.CreationFolder(ctx, principal, folderID)
+	if err != nil {
+		return Result{}, false, nil
+	}
+	from, to := savedsearches.RangeOrDefault(in.From, in.To)
+	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind), FolderID: folder.ID}, identicalSearchLimit, "")
+	if err != nil {
+		return Result{}, false, nil
+	}
+	for _, item := range items {
+		same := item.Actor.Kind == principal.Kind && item.Actor.ID == principal.ID &&
+			item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == uid &&
+			ptrEqual(item.Query, in.Query) && item.From == from && item.To == to
+		if !same {
+			continue
+		}
+		if have, err := searchFilters(mustJSON(item.Filters)); err != nil || have != wanted {
+			continue
+		}
+		return success("Found the search already saved as "+item.ID, savedSearchReplayOut{SavedSearchJSON: savedsearches.JSONOf(item), Replayed: true}), true, nil
+	}
+	return Result{}, false, nil
+}
+
+func searchFilters(raw json.RawMessage) (string, error) {
+	var f savedsearches.Filters
+	if len(bytes.TrimSpace(raw)) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		if err := json.Unmarshal(raw, &f); err != nil {
+			return "", err
+		}
+	}
+	out, err := json.Marshal(f)
+	return string(out), err
+}
+
+func mustJSON(v any) json.RawMessage {
+	out, _ := json.Marshal(v)
+	return out
+}
+
+func ptrEqual(a, b *string) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
+}
+
+func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *string) (Result, bool, error) {
+	if query == nil || *query == "" || r.deps.Datasources == nil {
+		return Result{}, true, nil
+	}
+	inst, found := r.deps.Datasources.Get(uid)
+	if !found {
+		return Result{}, true, nil
+	}
+	diagnostics, _, ran, err := r.lint(ctx, inst, *query)
+	if ctx.Err() != nil {
+		return Result{}, false, ctx.Err()
+	}
+	if err != nil || !ran {
+		return Result{}, true, nil
+	}
+	for _, d := range diagnostics {
+		if d.Severity == datasource.SeverityError {
+			return invalid("the query does not pass the lint check, so nothing was saved: %s", clip(d.Message, maxCellBytes)), false, nil
+		}
+	}
+	return Result{}, true, nil
 }
 
 type listSavedSearchesInput struct {

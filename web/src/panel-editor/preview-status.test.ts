@@ -5,6 +5,7 @@ import { ApiError, NetworkError } from "@/api/errors"
 import {
   previewBlocksSave,
   previewErrorText,
+  previewErrorShownInline,
   previewStatusText,
   seriesCount,
   type PreviewStatus,
@@ -36,6 +37,54 @@ describe("seriesCount", () => {
 
   it("counts nothing for no frames", () => {
     expect(seriesCount([])).toBe(0)
+  })
+})
+
+describe("previewErrorShownInline", () => {
+  const invalid = new ApiError(
+    422,
+    "query_invalid",
+    "bad",
+    [],
+    undefined,
+    undefined,
+    "A"
+  )
+
+  it("is true when the query's own lint error already names the problem", () => {
+    expect(previewErrorShownInline(invalid, new Set(["A"]))).toBe(true)
+  })
+
+  it("is false when no lint error is shown for that query", () => {
+    expect(previewErrorShownInline(invalid, new Set(["B"]))).toBe(false)
+    expect(previewErrorShownInline(invalid, new Set())).toBe(false)
+  })
+
+  it("is false for faults the lint does not find", () => {
+    for (const code of ["expression_error", "unknown_macro", "query_timeout"]) {
+      const error = new ApiError(
+        422,
+        code,
+        "bad",
+        [],
+        undefined,
+        undefined,
+        "A"
+      )
+      expect(previewErrorShownInline(error, new Set(["A"]))).toBe(false)
+    }
+    expect(previewErrorShownInline(new NetworkError("x"), new Set(["A"]))).toBe(
+      false
+    )
+  })
+
+  it("is false when the error names no query", () => {
+    expect(
+      previewErrorShownInline(
+        new ApiError(422, "query_invalid", "bad"),
+        new Set(["A"])
+      )
+    ).toBe(false)
   })
 })
 

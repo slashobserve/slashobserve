@@ -199,6 +199,8 @@ dashboards-tags:
                       dashboards:
                         type: integer
                         minimum: 1
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":

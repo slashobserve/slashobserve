@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -661,5 +662,119 @@ func TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince(t *testing.T) {
 	}
 	if s.Counts.SaveNowRefusals != 2 {
 		t.Fatalf("the run's own refusal count changed to %d", s.Counts.SaveNowRefusals)
+	}
+}
+
+func settleRead(s *State, name, input string, res tools.Result) {
+	s.Window = Window{}
+	s.BeginTurn(false)
+	c := Call{Name: name, Input: json.RawMessage(input)}
+	if adm := s.Admit(0, c); adm.Verdict == Dispatch {
+		_, _ = s.Settle(c, res, []byte(`{"ok":true}`))
+	}
+}
+
+func TestAFindingCarriesTheReadsThatCouldNotBeChecked(t *testing.T) {
+	s := New(tools.ModeCreate)
+	timedOut := tools.Result{IsError: true, Unchecked: "query_timeout"}
+	settleRead(&s, "query_range", `{"datasource":"loki","query":"{service=\"checkout\"}"}`, timedOut)
+	settleRead(&s, "log_patterns", `{"datasource":"loki","query":"{service=\"checkout\"}"}`, timedOut)
+	settleRead(&s, "list_metrics", `{"datasource":"prom","search":"checkout"}`, tools.Result{IsError: true, Unchecked: "datasource_unavailable"})
+	settleRead(&s, "list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`, tools.Result{})
+	settleRead(&s, "lint_query", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true, Unchecked: "query_timeout"})
+	settleRead(&s, "query_instant", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true})
+
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`))
+	want := []tools.Unchecked{{Datasource: "loki", Code: "query_timeout"}}
+	if adm.Verdict != Dispatch || !reflect.DeepEqual(adm.Unchecked, want) {
+		t.Fatalf("admission = %+v, want unchecked %+v", adm, want)
+	}
+}
+
+func TestAReadThatLaterSucceedsIsNoLongerUnchecked(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	input := `{"datasource":"loki","query":"{service=\"checkout\"}"}`
+	settleRead(&s, "query_range", input, tools.Result{IsError: true, Unchecked: "query_timeout"})
+	settleRead(&s, "query_range", `{"datasource":"loki","query":"{service=\"checkout\"} |= \"error\""}`, tools.Result{})
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`)); len(adm.Unchecked) != 0 {
+		t.Fatalf("unchecked = %+v after the read succeeded", adm.Unchecked)
+	}
+}
+
+func TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     tools.Mode
+		reads    [][2]string
+		markdown string
+		want     string
+	}{
+		{"no metrics after a name search", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","search":"checkout"}`}}, "Prometheus has no checkout metrics.", "set scope"},
+		{"no metrics after a scoped list", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`}}, "Prometheus has no checkout metrics.", ""},
+		{"no deploy without annotations in an investigation", tools.ModeInvestigate, nil, "There was no deploy of checkout today.", "read it with tag deploy"},
+		{"no deploy after reading annotations", tools.ModeInvestigate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "There was no deploy of checkout today.", ""},
+		{"no deploy on Home without annotations", tools.ModeCreate, nil, "No checkout deploy exists.", "read it with tag deploy"},
+		{"no deploy on Home after reading annotations", tools.ModeCreate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "No checkout deploy exists.", ""},
+		{"a finding that claims no absence", tools.ModeInvestigate, nil, "Checkout errors rose at 14:22 UTC on checkout-0.", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tt.mode)
+			for _, r := range tt.reads {
+				settleRead(&s, r[0], r[1], tools.Result{})
+			}
+			s.BeginTurn(false)
+			body, err := json.Marshal(map[string]string{"markdown": tt.markdown})
+			if err != nil {
+				t.Fatal(err)
+			}
+			adm := s.Admit(0, jsonCall("save_finding", string(body)))
+			if tt.want == "" {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), tt.want) {
+				t.Fatalf("admission = %+v, want refused with %q", adm, tt.want)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", string(body))); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}
+
+func TestARejectedFindingNamesItsEvidenceAndWhetherADatasourceWasUnreachable(t *testing.T) {
+	cases := []struct {
+		name      string
+		mode      tools.Mode
+		tool      string
+		body      string
+		finding   bool
+		transient bool
+		failing   []string
+	}{
+		{"timed out evidence", tools.ModeInvestigate, "save_finding", `{"code":"invalid_spec","failing_panels":["evidence-2"],"issues":[{"code":"query_timeout"},{"code":"datasource_unavailable"}]}`, true, true, []string{"evidence-2"}},
+		{"evidence that is empty", tools.ModeInvestigate, "save_finding", `{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_timeout"},{"code":"query_empty"}]}`, true, false, []string{"evidence-1"}},
+		{"a finding in a question run", tools.ModeCreate, "save_finding", `{"code":"finding_too_long"}`, true, false, nil},
+		{"a dashboard save", tools.ModeCreate, "update_panels", `{"code":"invalid_spec","failing_panels":["p1"],"issues":[{"code":"query_timeout"}]}`, false, true, []string{"p1"}},
+	}
+	for _, tc := range cases {
+		s := New(tc.mode)
+		s.BeginTurn(true)
+		c := jsonCall(tc.tool, `{"n":1}`)
+		s.Admit(0, c)
+		settled, err := s.Settle(c, tools.Result{IsError: true}, []byte(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := settled.Outcome
+		if !out.Rejected || out.RejectedFinding != tc.finding || out.Transient != tc.transient || !slices.Equal(out.FailingPanels, tc.failing) {
+			t.Errorf("%s: outcome = %+v", tc.name, out)
+		}
 	}
 }

@@ -7,7 +7,8 @@ An investigation asks the agent a question instead of asking it for a dashboard,
 The agent reads your datasources the way it does for a build, then ends by saving its answer, a finding, into an [observation](observations.md).
 It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike, and cites the ones that fit with their times.
 It can also read earlier [observations](observations.md) in the folders you can open, as you, and when one bears on the question it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
-The agent writes every time in a finding as UTC with the word UTC, because it does not know your browser's time zone, while the page shows times in your own.
+The web app sends the time zone you read times in, the dashboard's zone or the one in its time zone box on a dashboard and your browser's elsewhere, and the agent writes every time in the finding in that zone with its label, such as 19:52 IST; a finding that labels its times UTC instead is sent back to the agent to convert.
+Over the CLI and MCP no zone is known, so times are written in UTC with the word UTC; an API caller can name one with `time_zone`.
 A finding starts with one plain sentence, names the window it used, and says what it did not check; when two pods or services tie it leads with the one with the most errors.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 

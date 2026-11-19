@@ -7,9 +7,12 @@ This page covers two behaviors of `/api/v1` that are easy to trip over from a sc
 
 ## Query parameters
 
-The API reads the query parameters its routes document and ignores any other.
-A misspelt filter such as `?health=duplicate_title` for `?problem=duplicate_title` is therefore not an error, and the list comes back unfiltered.
+A list route, which is a `GET` that returns a page of items, refuses a query parameter it does not document and a value its parameter does not accept.
+`GET /api/v1/dashboards?health=duplicate_title` answers `400 invalid_request` with `unknown query parameter health; this route takes ...` and the parameters the route does take, and `?order=oldest` answers `query parameter "order" must be one of updated, folder, views`.
+A query string that cannot be parsed, such as an unescaped `;`, is refused the same way.
+A script never gets an unfiltered list because of a misspelt filter.
 
+Every other route reads the parameters it documents and ignores the rest.
 So that this does not go unnoticed, the server names the parameters it did not use in a response header:
 
 ```http
@@ -17,8 +20,8 @@ X-Unknown-Query-Parameters: health
 ```
 
 The header lists up to 10 names, separated by commas, and ends with `...` when more were ignored.
-It is sent on every route, in every deployment, and the status and body do not change.
-A script that must not act on an unfiltered list should fail when the header is present.
+It is sent on every route that does not refuse, in every deployment, and the status and body do not change.
+A script that must not act on an ignored parameter should fail when the header is present.
 
 Parameters that start with `var-` are dashboard variable selections.
 They are not listed in the document by name, so the server never reports them.

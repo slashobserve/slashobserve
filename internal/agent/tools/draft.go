@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	_ "embed"
 	"encoding/json"
@@ -50,12 +51,12 @@ const (
 		"The code cannot_translate means the datasource cannot answer the question, with the reason as the message. Run a returned query with query_instant."
 
 	schemaDraftQuery = `{"type":"object","properties":{` +
-		`"datasource_uid":{"type":"string","minLength":1,"description":"Uid of a Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, from list_datasources."},` +
+		`"datasource":{"type":"string","minLength":1,"description":"Uid of a Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, from list_datasources."},` +
 		`"question":{"type":"string","minLength":1,"maxLength":2000,"description":"The question in plain language, such as error logs from checkout with a trace id."},` +
 		`"from":{"type":"string","description":"Start of the range the answer is for: a relative time such as now-1h, epoch milliseconds or an RFC 3339 time. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the range, in the same forms. Default now."},` +
 		`"signal":{"type":"string","enum":["logs","traces","metrics"],"description":"Which data the question is about. Loki, Elasticsearch and OpenSearch default to logs, Tempo to traces and Prometheus to metrics; ClickHouse needs it."}},` +
-		`"required":["datasource_uid","question"],"additionalProperties":false}`
+		`"required":["datasource","question"],"additionalProperties":false}`
 )
 
 var (
@@ -166,6 +167,7 @@ func (r *Registry) draftEntries() []entry {
 
 func (r *Registry) draftQuery(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in struct {
+		Datasource    string `json:"datasource"`
 		DatasourceUID string `json:"datasource_uid"`
 		Question      string `json:"question"`
 		Signal        string `json:"signal"`
@@ -175,7 +177,7 @@ func (r *Registry) draftQuery(ctx context.Context, input json.RawMessage) (Resul
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	draft, err := r.DraftQuery(ctx, DraftInput(in))
+	draft, err := r.DraftQuery(ctx, DraftInput{DatasourceUID: cmp.Or(in.Datasource, in.DatasourceUID), Question: in.Question, Signal: in.Signal, From: in.From, To: in.To})
 	if err != nil {
 		code, message, ok := DraftFailure(err)
 		if !ok {
@@ -237,7 +239,7 @@ func (r *Registry) draftRequest(in DraftInput) (draftRun, string, error) {
 		return draftRun{}, "", invalidDraftf("signal must be logs, traces or metrics")
 	}
 	if in.DatasourceUID == "" {
-		return draftRun{}, "", invalidDraftf("datasource_uid is required")
+		return draftRun{}, "", invalidDraftf("datasource is required")
 	}
 	inst, found := r.deps.Datasources.Get(in.DatasourceUID)
 	if !found {

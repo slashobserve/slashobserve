@@ -17,6 +17,10 @@ import (
 
 const (
 	nameListDashboardHealth = "list_dashboard_health"
+	nameRunDashboardHealth  = "run_dashboard_health"
+
+	descRunDashboardHealth   = "Start a dashboard health run now, which checks the dashboards that are due as the hourly run does; Admin only. The run works in the background and the call answers at once. Safe to repeat: while a run is going no second one starts. Read the job field of list_dashboard_health to follow it (state and when it last finished), then read the problems it found."
+	schemaRunDashboardHealth = `{"type":"object","properties":{},"additionalProperties":false}`
 
 	defaultListHealth   = 20
 	maxListHealth       = 50
@@ -46,6 +50,7 @@ func init() { registerEntries((*Registry).healthEntries) }
 
 func (r *Registry) healthEntries() []entry {
 	return []entry{
+		{Tool{Name: nameRunDashboardHealth, Description: descRunDashboardHealth, InputSchema: json.RawMessage(schemaRunDashboardHealth), MCPOnly: true, MinRole: auth.RoleAdmin}, r.runDashboardHealth},
 		{Tool{Name: nameListDashboardHealth, Description: descListDashboardHealth, InputSchema: json.RawMessage(schemaListDashboardHealth), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listDashboardHealth},
 	}
 }
@@ -267,4 +272,19 @@ func rfc3339(t *time.Time) string {
 		return ""
 	}
 	return t.UTC().Format(time.RFC3339)
+}
+
+var errHealthRunsNotConfigured = errors.New("health runs are not configured")
+
+type healthRunStartedOut struct {
+	Started bool   `json:"started"`
+	Message string `json:"message"`
+}
+
+func (r *Registry) runDashboardHealth(_ context.Context, _ json.RawMessage) (Result, error) {
+	if r.deps.StartHealthRun == nil {
+		return Result{}, errHealthRunsNotConfigured
+	}
+	r.deps.StartHealthRun()
+	return success("Started a health run", healthRunStartedOut{Started: true, Message: "the run is starting, or one is already going; read the job field of list_dashboard_health to follow it"}), nil
 }

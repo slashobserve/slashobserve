@@ -21,12 +21,12 @@ type listedFolders struct {
 func (a *app) foldersCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "folders",
-		Short: "List, create, rename and delete folders",
-		Long:  "folders manages the folders that hold dashboards, observations and saved searches.\nPermissions are managed in the web app.",
+		Short: "List, create, rename and delete folders, and set who can see them",
+		Long:  "folders manages the folders that hold dashboards, observations and saved searches, and who each is restricted to.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.foldersListCommand(), a.foldersCreateCommand(), a.foldersRenameCommand(), a.foldersDeleteCommand())
+	cmd.AddCommand(a.foldersListCommand(), a.foldersCreateCommand(), a.foldersRenameCommand(), a.foldersDeleteCommand(), a.foldersPermissionsCommand())
 	return cmd
 }
 
