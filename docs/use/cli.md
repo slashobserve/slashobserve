@@ -334,6 +334,7 @@ A snapshot block's body cannot change, and a requested block is kept or discarde
 `bin/observe saved-searches save --kind logs|traces|metrics --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
 A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
+A query with a lint error is refused with `query_invalid` and nothing is saved, and a search you already saved with the same title, datasource, query, filters, range and folder prints `Search <id> was already saved` and its address instead of a second copy; `--json` shows `replayed: true`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.

@@ -2728,7 +2728,7 @@ export interface paths {
         put?: never;
         /**
          * Save a logs, trace or metrics search in a folder.
-         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -6303,6 +6303,28 @@ export interface components {
             updated_at: string;
             /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
+        };
+        SavedSearchReplayed: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "logs" | "traces" | "metrics";
+            title: string;
+            datasource_uid: string;
+            query: string | null;
+            filters: components["schemas"]["SavedSearchFilters"];
+            from: string;
+            to: string;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+            actor: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            url: string;
+            /** @description Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy. */
+            replayed: boolean;
         };
         SavedSearchList: {
             saved_searches: components["schemas"]["SavedSearch"][];
@@ -14783,6 +14805,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The search this key had already saved, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchReplayed"];
+                };
+            };
             /** @description The saved search. */
             201: {
                 headers: {
@@ -14797,7 +14828,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
-            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`). */
+            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`). */
             422: {
                 headers: {
                     [name: string]: unknown;

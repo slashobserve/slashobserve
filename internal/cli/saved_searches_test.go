@@ -92,6 +92,16 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantErr:    "Saved search ",
 		},
 		{
+			name:       "save says when the search was already saved",
+			args:       []string{"saved-searches", "save", "--kind", "traces", "--title", "Slow", "--datasource", "tempo"},
+			response:   strings.TrimSuffix(saved, "}") + `,"replayed":true}`,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/saved-searches",
+			wantBody:   `{"datasource_uid":"tempo","from":"now-1h","kind":"traces","title":"Slow","to":"now"}`,
+			wantExact:  new(savedURL + "\n"),
+			wantErr:    "Search " + testSavedSearch + " was already saved",
+		},
+		{
 			name:       "save a trace search sends its filters",
 			args:       []string{"saved-searches", "save", "--kind", "traces", "--title", "Slow", "--datasource", "tempo", "--service", "checkout", "--span", "POST /pay", "--min", "250ms", "--max", "2s", "--errors", "--from", "now-6h", "--to", "now-1h"},
 			response:   saved,

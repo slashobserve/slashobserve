@@ -520,7 +520,7 @@ func run() error {
 			findings.NewHandler(findingsService, findingURL, logger),
 			observations.NewHandler(observationsService, logger, observations.WithPanelChecker(toolRegistry)),
 			observations.NewRCAHandler(observationsService, logger),
-			savedsearches.NewHandler(savedSearchesService, logger),
+			savedsearches.NewHandler(savedSearchesService, logger, savedsearches.WithSaveGuard(toolRegistry)),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),

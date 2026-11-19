@@ -253,7 +253,9 @@ When a run started with `start_runs` ends, whatever the outcome, the server post
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
 It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource` (the old name `datasource_uid` still works, as it does on `draft_query`), and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
 The query is linted as `lint_query` does it, and one with a lint error is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
-When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved as the HTTP API and the CLI save it.
+When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved anyway.
+A repeat of a search you already saved, with the same title, datasource, query, filters, range and folder, returns that search with `replayed` true and saves no second copy.
+`POST /api/v1/saved-searches` and `observe saved-searches save` apply the same two checks to a service-account key, and refuse a lint error with 422 `query_invalid` and answer a repeat with 200 and `replayed` true; a person's browser session saves as before.
 A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 

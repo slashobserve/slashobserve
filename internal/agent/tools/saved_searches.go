@@ -8,8 +8,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -110,24 +108,25 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	uid := cmp.Or(in.Datasource, in.DatasourceUID)
-	if res, ok, err := r.searchQueryPasses(ctx, uid, in.Query); err != nil || !ok {
-		return res, err
-	}
-	principal, _ := auth.FromContext(ctx)
-	if res, found, err := r.alreadySavedSearch(ctx, principal, in, uid, folderID); err != nil || found {
-		return res, err
-	}
-	saved, err := r.deps.SavedSearches.Create(ctx, principal, savedsearches.CreateInput{
+	create := savedsearches.CreateInput{
 		Kind:          savedsearches.Kind(in.Kind),
 		Title:         in.Title,
-		DatasourceUID: uid,
+		DatasourceUID: cmp.Or(in.Datasource, in.DatasourceUID),
 		Query:         in.Query,
 		Filters:       in.Filters,
 		From:          in.From,
 		To:            in.To,
 		FolderID:      folderID,
-	})
+	}
+	principal, _ := auth.FromContext(ctx)
+	existing, err := r.GuardSavedSearch(ctx, principal, create)
+	if err != nil {
+		return savedSearchFailure(err)
+	}
+	if existing != nil {
+		return success("Found the search already saved as "+existing.ID, savedSearchReplayOut{SavedSearchJSON: savedsearches.JSONOf(*existing), Replayed: true}), nil
+	}
+	saved, err := r.deps.SavedSearches.Create(ctx, principal, create)
 	if err != nil {
 		return savedSearchFailure(err)
 	}
@@ -139,26 +138,30 @@ type savedSearchReplayOut struct {
 	Replayed bool `json:"replayed"`
 }
 
-func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Principal, in saveSearchInput, uid string, folderID pgtype.UUID) (Result, bool, error) {
+func (r *Registry) GuardSavedSearch(ctx context.Context, by auth.Principal, in savedsearches.CreateInput) (*savedsearches.SavedSearch, error) {
+	if err := r.searchQueryPasses(ctx, in.DatasourceUID, in.Query); err != nil {
+		return nil, err
+	}
+	return r.alreadySavedSearch(ctx, by, in)
+}
+
+func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Principal, in savedsearches.CreateInput) (*savedsearches.SavedSearch, error) {
 	wanted, err := searchFilters(in.Filters)
-	if err != nil {
-		return Result{}, false, nil
+	if err != nil || r.deps.Folders == nil || r.deps.SavedSearches == nil {
+		return nil, nil
 	}
-	if r.deps.Folders == nil {
-		return Result{}, false, nil
-	}
-	folder, err := r.deps.Folders.CreationFolder(ctx, principal, folderID)
+	folder, err := r.deps.Folders.CreationFolder(ctx, principal, in.FolderID)
 	if err != nil {
-		return Result{}, false, nil
+		return nil, nil
 	}
 	from, to := savedsearches.RangeOrDefault(in.From, in.To)
-	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind), FolderID: folder.ID}, identicalSearchLimit, "")
+	items, _, err := r.deps.SavedSearches.List(ctx, principal, savedsearches.ListFilter{Kind: in.Kind, FolderID: folder.ID}, identicalSearchLimit, "")
 	if err != nil {
-		return Result{}, false, nil
+		return nil, nil
 	}
 	for _, item := range items {
 		same := item.Actor.Kind == principal.Kind && item.Actor.ID == principal.ID &&
-			item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == uid &&
+			item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == in.DatasourceUID &&
 			ptrEqual(item.Query, in.Query) && item.From == from && item.To == to
 		if !same {
 			continue
@@ -166,12 +169,12 @@ func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Princi
 		if have, err := searchFilters(mustJSON(item.Filters)); err != nil || have != wanted {
 			continue
 		}
-		return success("Found the search already saved as "+item.ID, savedSearchReplayOut{SavedSearchJSON: savedsearches.JSONOf(item), Replayed: true}), true, nil
+		return &item, nil
 	}
-	return Result{}, false, nil
+	return nil, nil
 }
 
-func searchFilters(raw json.RawMessage) (string, error) {
+func searchFilters(raw []byte) (string, error) {
 	var f savedsearches.Filters
 	if len(bytes.TrimSpace(raw)) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		if err := json.Unmarshal(raw, &f); err != nil {
@@ -191,27 +194,27 @@ func ptrEqual(a, b *string) bool {
 	return (a == nil) == (b == nil) && (a == nil || *a == *b)
 }
 
-func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *string) (Result, bool, error) {
+func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *string) error {
 	if query == nil || *query == "" || r.deps.Datasources == nil {
-		return Result{}, true, nil
+		return nil
 	}
 	inst, found := r.deps.Datasources.Get(uid)
 	if !found {
-		return Result{}, true, nil
+		return nil
 	}
 	diagnostics, _, ran, err := r.lint(ctx, inst, *query)
 	if ctx.Err() != nil {
-		return Result{}, false, ctx.Err()
+		return ctx.Err()
 	}
 	if err != nil || !ran {
-		return Result{}, true, nil
+		return nil
 	}
 	for _, d := range diagnostics {
 		if d.Severity == datasource.SeverityError {
-			return invalid("the query does not pass the lint check, so nothing was saved: %s", clip(d.Message, maxCellBytes)), false, nil
+			return &savedsearches.InvalidInputError{Code: savedsearches.CodeQueryInvalid, Message: "the query does not pass the lint check, so nothing was saved: " + clip(d.Message, maxCellBytes)}
 		}
 	}
-	return Result{}, true, nil
+	return nil
 }
 
 type listSavedSearchesInput struct {

@@ -4922,6 +4922,47 @@ components:
         url:
           type: string
           description: The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured.
+    SavedSearchReplayed:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, datasource_uid, query, filters, from, to, folder, permissions, actor, created_at, updated_at, url, replayed]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [logs, traces, metrics]
+        title:
+          type: string
+        datasource_uid:
+          type: string
+        query:
+          type: string
+          nullable: true
+        filters:
+          $ref: "#/components/schemas/SavedSearchFilters"
+        from:
+          type: string
+        to:
+          type: string
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+        replayed:
+          type: boolean
+          description: Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy.
     SavedSearchList:
       type: object
       additionalProperties: false
