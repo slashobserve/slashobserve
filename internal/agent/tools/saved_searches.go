@@ -36,8 +36,8 @@ const (
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: this service."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Traces: spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: shortest span duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: longest span duration, such as 2s."},` +
+		`"min":{"type":"string","description":"Traces: shortest span, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: longest span, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
 		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
 		`"additionalProperties":false},` +
