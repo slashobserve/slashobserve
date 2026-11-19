@@ -2,6 +2,7 @@ package datasourceadmin
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -295,5 +296,27 @@ func TestAliasesCannotShadowAnotherDatasource(t *testing.T) {
 		if _, err := svc.Create(t.Context(), r.admin, second, Secrets{}); !errors.As(err, &invalidErr) {
 			t.Fatalf("alias %q: error = %v, want InvalidError", alias, err)
 		}
+	}
+}
+
+func TestCredentialsThatTogetherOutgrowTheStoredColumnAreRefusedByName(t *testing.T) {
+	r, svc := newRig(t, testKey)
+	server := upstream(t, nil)
+	headers := func(prefix string, n int) map[string]string {
+		out := map[string]string{}
+		for i := range n {
+			out[fmt.Sprintf("%s-%d", prefix, i)] = strings.Repeat("v", 4000)
+		}
+		return out
+	}
+	if _, err := svc.Create(t.Context(), r.admin, prometheus("added", server.URL), Secrets{Headers: headers("A", 10)}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := svc.Update(t.Context(), r.admin, "added", prometheus("added", server.URL), SecretsChange{Set: Secrets{Headers: headers("B", 10)}})
+
+	var invalidErr *InvalidError
+	if !errors.As(err, &invalidErr) || invalidErr.Fields[0].Field != "secrets.headers" {
+		t.Fatalf("error = %v, want invalid_datasource naming secrets.headers", err)
 	}
 }
