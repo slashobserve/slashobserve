@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
@@ -83,6 +84,34 @@ func TestDeactivateEndsSessionsAndAgentsAndKeepsThePerson(t *testing.T) {
 	r.addSession(bob, "bob-2")
 	if _, err := r.db.Queries().GetSessionUser(t.Context(), opaquetoken.Hash("bob-2")); !errors.Is(err, pgx.ErrNoRows) {
 		t.Errorf("a session of a deactivated person resolves: %v", err)
+	}
+}
+
+func TestKeysADeactivatedPersonCreatedKeepWorking(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	r.makeAdmin(admin)
+	bob := r.addUser("bob", time.Now())
+	r.makeAdmin(bob)
+	ctx := t.Context()
+	account, err := r.db.Queries().CreateServiceAccount(ctx, dbsqlc.CreateServiceAccountParams{Name: "ci", CreatedBy: bob, Role: "editor"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.Queries().CreateServiceAccountKey(ctx, dbsqlc.CreateServiceAccountKeyParams{
+		ServiceAccountID: account.ID, Name: "deploy", DisplayPrefix: "so_test", TokenHash: opaquetoken.Hash("bob-key"), CreatedBy: bob,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	decodePerson(t, http.StatusOK, r.do(http.MethodPost, "/api/v1/users/"+bob.String()+"/deactivate", adminCaller(admin, "Ada")))
+
+	key, err := r.db.Queries().GetKeyPrincipal(ctx, opaquetoken.Hash("bob-key"))
+	if err != nil {
+		t.Fatalf("a key Bob created stopped working when Bob was deactivated: %v", err)
+	}
+	if key.ServiceAccountID != account.ID {
+		t.Fatalf("key resolves to %v, want the ci account %v", key.ServiceAccountID, account.ID)
 	}
 }
 
