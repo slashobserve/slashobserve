@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import routeTree from "../routeTree.gen.ts?raw"
+import routeTree from "@/routeTree.gen.ts?raw"
 
 const serverPaths = [
   "api",
