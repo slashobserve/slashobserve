@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +23,8 @@ const (
 	nanosFormat    = "strict_date_optional_time_nanos"
 	trackedHits    = 10000
 )
+
+var scriptKeys = []string{"script", "script_fields", "script_score", "scripted_metric", "init_script", "map_script", "combine_script", "reduce_script", "minimum_should_match_script", "_script"}
 
 var dslKeys = []string{"query", "aggs", "aggregations", "size", "sort", "fields", "_source", "runtime_mappings"}
 
@@ -54,6 +57,7 @@ type plan struct {
 	step      time.Duration
 	timeout   time.Duration
 	totalHits any
+	zone      string
 }
 
 type prepared struct {
@@ -91,7 +95,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	}
 	p := plan{kind: searchLines, size: min(lim.MaxRows, maxLogLines), timeout: lim.Timeout, totalHits: trackedHits}
 	if !instant && prep.form != FormDSL {
-		p.kind, p.totalHits = searchCount, false
+		p.kind, p.totalHits, p.zone = searchCount, false, q.TimeZone
 		if p.step, err = histogramStep(r, step, lim); err != nil {
 			return nil, err
 		}
@@ -236,7 +240,89 @@ func parseDSL(body string) (map[string]any, []dslProblem) {
 			problems = append(problems, dslProblem{message: fmt.Sprintf("unsupported key %q in the query body", truncateText(key.name)), start: key.start, end: key.end})
 		}
 	}
+	if name, found := findScriptKey(obj, clauseKeys); found {
+		quoted := strconv.Quote(name)
+		start := max(strings.Index(body, quoted), 0)
+		problems = append(problems, dslProblem{message: fmt.Sprintf("scripts are not allowed in a query body: remove %q", name), start: start, end: min(start+len(quoted), len(body))})
+	}
 	return obj, problems
+}
+
+type keyRole int
+
+const (
+	clauseKeys keyRole = iota
+	fieldKeys
+	nameKeys
+	aggregationKeys
+	pipelineKeys
+	strictKeys
+)
+
+var bucketScriptAggregations = []string{"bucket_script", "moving_fn"}
+
+var namedChildren = []string{"aggs", "aggregations"}
+
+var fieldChildren = []string{"term", "terms", "terms_set", "match", "match_phrase", "match_phrase_prefix", "match_bool_prefix", "range", "prefix", "wildcard", "regexp", "fuzzy", "span_term", "sort", "fields", "runtime_mappings"}
+
+func (r keyRole) isScript(name string) bool {
+	switch r {
+	case fieldKeys:
+		return name == "_script"
+	case nameKeys:
+		return false
+	case pipelineKeys:
+		return name != "script" && slices.Contains(scriptKeys, name)
+	}
+	return slices.Contains(scriptKeys, name)
+}
+
+func (r keyRole) child(name string) keyRole {
+	switch r {
+	case clauseKeys:
+		switch {
+		case slices.Contains(namedChildren, name):
+			return nameKeys
+		case slices.Contains(fieldChildren, name):
+			return fieldKeys
+		}
+		return clauseKeys
+	case fieldKeys:
+		return clauseKeys
+	case nameKeys:
+		return aggregationKeys
+	case aggregationKeys:
+		switch {
+		case slices.Contains(namedChildren, name):
+			return nameKeys
+		case name == "filter":
+			return clauseKeys
+		case slices.Contains(bucketScriptAggregations, name):
+			return pipelineKeys
+		}
+	}
+	return strictKeys
+}
+
+func findScriptKey(node any, role keyRole) (string, bool) {
+	switch v := node.(type) {
+	case map[string]any:
+		for _, name := range slices.Sorted(maps.Keys(v)) {
+			if role.isScript(name) {
+				return name, true
+			}
+			if found, ok := findScriptKey(v[name], role.child(name)); ok {
+				return found, true
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if found, ok := findScriptKey(item, role); ok {
+				return found, true
+			}
+		}
+	}
+	return "", false
 }
 
 func syntaxProblem(err error, body string) dslProblem {
@@ -318,7 +404,7 @@ func buildBody(u userQuery, timeField string, r datasource.TimeRange, adhoc []an
 	case p.kind == searchCount && u.dsl == nil:
 		body["size"] = 0
 		body["track_total_hits"] = false
-		body["aggs"] = map[string]any{countAgg: map[string]any{"date_histogram": map[string]any{
+		histogram := map[string]any{
 			"field":          timeField,
 			"fixed_interval": fixedInterval(p.step),
 			"min_doc_count":  0,
@@ -326,7 +412,11 @@ func buildBody(u userQuery, timeField string, r datasource.TimeRange, adhoc []an
 				"min": r.From.UnixMilli(),
 				"max": r.To.UnixMilli(),
 			},
-		}}}
+		}
+		if p.zone != "" {
+			histogram["time_zone"] = p.zone
+		}
+		body["aggs"] = map[string]any{countAgg: map[string]any{"date_histogram": histogram}}
 	case tree != nil:
 		body["size"] = 0
 		body["track_total_hits"] = true
@@ -389,13 +479,8 @@ func (d *Datasource) resultFrames(raw []byte, body map[string]any, prep prepared
 		if err != nil {
 			return nil, err
 		}
-		if resp.partial() && len(frames) > 0 {
-			meta := datasource.FrameMeta{}
-			if frames[0].Meta != nil {
-				meta = *frames[0].Meta
-			}
-			meta.Partial = true
-			frames[0].Meta = &meta
+		if resp.partial() {
+			frames = datasource.MarkPartial(frames)
 		}
 		return frames, nil
 	}

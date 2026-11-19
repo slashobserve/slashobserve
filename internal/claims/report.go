@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -39,12 +40,14 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 	if revisions.State(row.State).Terminal() {
 		return ReportAnswer{State: row.State, Stop: true}, nil
 	}
-	passed, err := s.deadlinePassed(ctx, row)
-	if err != nil {
-		return ReportAnswer{}, err
-	}
-	if passed {
-		return s.timeOut(ctx, row)
+	if s.runTimeout > 0 {
+		passed, err := s.deadlinePassed(ctx, row)
+		if err != nil {
+			return ReportAnswer{}, err
+		}
+		if passed {
+			return s.timeOut(ctx, row)
+		}
 	}
 	canceled, err := s.runs.RenewLease(ctx, row)
 	if errors.Is(err, revisions.ErrLeaseLost) {
@@ -52,6 +55,11 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 	}
 	if err != nil {
 		return ReportAnswer{}, err
+	}
+	if s.runTimeout <= 0 {
+		if err := s.renewTokens(ctx, row); err != nil {
+			return ReportAnswer{}, err
+		}
 	}
 	s.recordNote(ctx, row, in.Note)
 	if canceled {
@@ -98,6 +106,12 @@ func (s *Service) deadlinePassed(ctx context.Context, row dbsqlc.AgentRequest) (
 		return false, err
 	}
 	return !deadline.Valid || !deadline.Time.After(time.Now()), nil
+}
+
+func (s *Service) renewTokens(ctx context.Context, row dbsqlc.AgentRequest) error {
+	return s.db.Queries().RenewRunTokens(ctx, dbsqlc.RenewRunTokensParams{
+		AgentRequestID: row.ID, Attempt: row.Attempts, ExpiresAt: pgtype.Timestamptz{Time: s.tokenExpiry(), Valid: true},
+	})
 }
 
 func (s *Service) timeOut(ctx context.Context, row dbsqlc.AgentRequest) (ReportAnswer, error) {

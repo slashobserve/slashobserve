@@ -109,6 +109,9 @@ func repairTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID,
 	if active > 0 {
 		return 0, "", repairs.ReasonActive, nil
 	}
+	if target.CheckedVersion != target.LatestVersion {
+		return 0, "", repairs.ReasonNothingToRepair, nil
+	}
 	problems, err := decodeProblems(target.Issues)
 	if err != nil {
 		return 0, "", "", err

@@ -384,3 +384,22 @@ func TestServerRecordsRequestsByRouteTemplate(t *testing.T) {
 		t.Errorf("an API request was not logged:\n%s", logs.String())
 	}
 }
+
+func TestMetricsRefuseAPercentEncodedPathThatAnIngressRuleWouldNotMatch(t *testing.T) {
+	r := metrics.New()
+	handler, err := server.New(server.Options{
+		Logger: slog.New(slog.DiscardHandler),
+		Auth:   openAuth{},
+		Mounts: []server.Mount{{Path: "/metrics", Handler: r.Handler()}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]int{"/metrics": http.StatusOK, "/%6Detrics": http.StatusNotFound, "/metric%73": http.StatusNotFound} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if rec.Code != want {
+			t.Errorf("GET %s = %d, want %d", path, rec.Code, want)
+		}
+	}
+}

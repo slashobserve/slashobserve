@@ -78,7 +78,7 @@ A query takes one of three forms, chosen by its first characters:
 | --------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | KQL       | The default, or a `kql:` prefix.                                                              | The Kibana query language, compiled on the server to Query DSL. See [what is out](../use/logs-and-traces.md#kql-on-elasticsearch-and-opensearch). |
 | Lucene    | A `lucene:` prefix, or `queryLanguage: lucene` on the datasource.                             | The Lucene query string syntax, sent as a `query_string` query with `analyze_wildcard`.            |
-| Query DSL | Text that starts with `{`.                                                                    | A JSON search body. Only `query`, `aggs`, `aggregations`, `size`, `sort`, `fields`, `_source` and `runtime_mappings` are accepted; any other key is refused so the body cannot widen the time range or the limits. |
+| Query DSL | Text that starts with `{`.                                                                    | A JSON search body. Only `query`, `aggs`, `aggregations`, `size`, `sort`, `fields`, `_source` and `runtime_mappings` are accepted; any other key is refused so the body cannot widen the time range or the limits, and so is a script anywhere in the body (`script`, `script_fields`, `script_score`, `scripted_metric` and the other script keys), including one inside `runtime_mappings`; a field, a sort or an aggregation that is only named `script` is accepted, and so is the `script` of a `bucket_script` or `moving_fn` aggregation, which sees only the values of its buckets. |
 
 Prefixes are case-insensitive, and an empty query matches every document.
 The time range and any ad hoc filters wrap your query in a `bool` filter, in every form.
@@ -88,7 +88,7 @@ What a query returns depends on its kind and form:
 - An instant query, such as the logs explorer's, returns log lines newest first as one frame with the columns `Time`, `TimeNs`, `Body`, `level`, `ID`, `Index`, `service`, `trace_id`, `span_id` and `Fields`.
   A role column is left out when no field plays that role, and `Fields` holds the remaining fields of the document as JSON.
   `TimeNs` is exact on a `date_nanos` time field, and on a `date` field it is the milliseconds the index stores times one million.
-- A range query in KQL or Lucene counts documents over time: one series named `count`, with one point per step.
+- A range query in KQL or Lucene counts documents over time: one series named `count`, with one point per step, and on a dashboard whose `timezone` names a zone the buckets follow that zone, so a daily step starts at local midnight.
 - A Query DSL body with `aggs` runs with `size` forced to 0 and its result is folded into series or a table, whatever the kind.
   A body without `aggs` returns lines like an instant query, with `size` capped at the line limit.
 
@@ -99,7 +99,7 @@ A range query is refused when its step would make more than 11,000 buckets or mo
 
 `$__from` and `$__to` expand to epoch milliseconds, `$__interval` to the step in seconds such as `300s`, and `$__range` as on Loki.
 Inside a quoted string, such as a Query DSL value, a variable is escaped for JSON, and a variable with several values needs a format such as `${var:pipe}`.
-Outside quotes, a variable with several values expands to a parenthesised list of quoted values joined with `or`.
+Outside quotes, a variable with several values expands to a parenthesised list of quoted values joined with `OR`, which KQL and Lucene both read as an operator.
 
 ### Aggregations
 

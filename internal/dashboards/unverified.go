@@ -1,12 +1,14 @@
 package dashboards
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -372,4 +374,33 @@ func variableNames(text string) []string {
 		}
 	}
 	return names
+}
+
+type acceptedEmptyKey struct{}
+
+func withAcceptedEmpty(ctx context.Context) context.Context {
+	return context.WithValue(ctx, acceptedEmptyKey{}, true)
+}
+
+func acceptsEmpty(ctx context.Context) bool {
+	accepted, _ := ctx.Value(acceptedEmptyKey{}).(bool)
+	return accepted
+}
+
+func acceptEmpty(ctx context.Context, d *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, Unverified) {
+	if !acceptsEmpty(ctx) {
+		return issues, Unverified{}
+	}
+	empty := slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code != queryproxy.CodeQueryEmpty })
+	accepted, _ := UnverifiedOf(d, empty)
+	return slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty }), accepted
+}
+
+func (u Unverified) with(more Unverified) Unverified {
+	for _, p := range more.Panels {
+		if _, found := u.Panel(p.PanelID); !found {
+			u.Panels = append(u.Panels, p)
+		}
+	}
+	return u
 }

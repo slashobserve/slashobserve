@@ -1051,16 +1051,17 @@ func (q *Queries) LockDashboardForDelete(ctx context.Context, id pgtype.UUID) (s
 }
 
 const moveDashboard = `-- name: MoveDashboard :one
-UPDATE dashboards SET folder_id = $1 WHERE id = $2 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
+UPDATE dashboards SET folder_id = $1 WHERE id = $2 AND folder_id = $3 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id, created_run_id
 `
 
 type MoveDashboardParams struct {
-	FolderID pgtype.UUID
-	ID       pgtype.UUID
+	FolderID     pgtype.UUID
+	ID           pgtype.UUID
+	FromFolderID pgtype.UUID
 }
 
 func (q *Queries) MoveDashboard(ctx context.Context, arg MoveDashboardParams) (Dashboard, error) {
-	row := q.db.QueryRow(ctx, moveDashboard, arg.FolderID, arg.ID)
+	row := q.db.QueryRow(ctx, moveDashboard, arg.FolderID, arg.ID, arg.FromFolderID)
 	var i Dashboard
 	err := row.Scan(
 		&i.ID,

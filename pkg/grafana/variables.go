@@ -753,6 +753,9 @@ func (c *converter) variableDefault(raw map[string]any, path, subject string, v 
 		picked = kept
 	}
 	if !v.Multi {
+		if len(picked) > 1 {
+			c.note(subject, "The variable takes one value, so only the first of the saved selection is kept.", path+".current")
+		}
 		picked = picked[:1]
 		isList = false
 	}

@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest"
 import type { ApiIssue } from "@/api/errors"
 
 import {
+  onlyEmptyResult,
+  onlyGridOverlap,
   rejectedQueryLines,
   showsProblem,
   splitRejected,
+  transientLines,
   withoutQuery,
   type Problem,
 } from "./save-problem"
@@ -221,7 +224,75 @@ describe("showsProblem", () => {
       false
     )
     expect(showsProblem({ kind: "gone" })).toBe(true)
-    expect(showsProblem({ kind: "transient" })).toBe(true)
+    expect(showsProblem({ kind: "transient", lines: [] })).toBe(true)
     expect(showsProblem({ kind: "failed", message: "x" })).toBe(true)
+  })
+})
+
+describe("transientLines", () => {
+  it("names the query and datasource that did not answer, once each", () => {
+    const timeout = {
+      path: "/panels/1/queries/1/query",
+      code: "query_timeout",
+      message: "Query timed out after 30s",
+    }
+    const lines = transientLines(
+      [timeout, timeout, issue("/panels/1/queries/0/query")],
+      pointer,
+      [
+        { ref: "A", datasource: "prom" },
+        { ref: "B", datasource: "tempo" },
+      ]
+    )
+    expect(lines).toEqual(["Query B on tempo: query timed out after 30s"])
+  })
+
+  it("keeps the message of an issue outside the panel's queries", () => {
+    expect(
+      transientLines(
+        [{ path: "/variables/0", code: "internal", message: "internal error" }],
+        pointer,
+        []
+      )
+    ).toEqual(["internal error"])
+  })
+})
+
+describe("onlyEmptyResult", () => {
+  it("is true when every issue is an empty result", () => {
+    expect(
+      onlyEmptyResult([
+        issue("/panels/1/queries", "query_empty"),
+        issue("/panels/1/queries", "query_empty"),
+      ])
+    ).toBe(true)
+  })
+
+  it("is false when a query failed beside the empty result", () => {
+    expect(
+      onlyEmptyResult([
+        issue("/panels/1/queries", "query_empty"),
+        issue("/panels/1/queries/0/query"),
+      ])
+    ).toBe(false)
+  })
+
+  it("is false for no issues", () => {
+    expect(onlyEmptyResult([])).toBe(false)
+  })
+})
+
+describe("onlyGridOverlap", () => {
+  it("is true only when every issue is an overlap", () => {
+    expect(onlyGridOverlap([issue("/panels/3/gridPos", "grid_overlap")])).toBe(
+      true
+    )
+    expect(
+      onlyGridOverlap([
+        issue("/panels/3/gridPos", "grid_overlap"),
+        issue("/panels/3/queries/0/query"),
+      ])
+    ).toBe(false)
+    expect(onlyGridOverlap([])).toBe(false)
   })
 })

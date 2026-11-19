@@ -177,12 +177,12 @@ func (q *Queries) ListSavedSearches(ctx context.Context, arg ListSavedSearchesPa
 	return items, nil
 }
 
-const lockSavedSearchForDelete = `-- name: LockSavedSearchForDelete :one
+const lockSavedSearch = `-- name: LockSavedSearch :one
 SELECT id, kind, title, datasource_uid, query, filters, time_from, time_to, folder_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at FROM saved_searches WHERE id = $1 FOR UPDATE
 `
 
-func (q *Queries) LockSavedSearchForDelete(ctx context.Context, id pgtype.UUID) (SavedSearch, error) {
-	row := q.db.QueryRow(ctx, lockSavedSearchForDelete, id)
+func (q *Queries) LockSavedSearch(ctx context.Context, id pgtype.UUID) (SavedSearch, error) {
+	row := q.db.QueryRow(ctx, lockSavedSearch, id)
 	var i SavedSearch
 	err := row.Scan(
 		&i.ID,

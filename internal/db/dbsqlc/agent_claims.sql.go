@@ -108,6 +108,7 @@ FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
 LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
 WHERE t.token_hash = $1
+  AND g.revoked_at IS NULL
   AND t.attempt = r.attempts
   AND r.state = 'running'
   AND r.lease_until > clock_timestamp()
@@ -296,6 +297,21 @@ func (q *Queries) PruneRunTokens(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const renewRunTokens = `-- name: RenewRunTokens :exec
+UPDATE run_tokens SET expires_at = $1 WHERE agent_request_id = $2 AND attempt = $3
+`
+
+type RenewRunTokensParams struct {
+	ExpiresAt      pgtype.Timestamptz
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+}
+
+func (q *Queries) RenewRunTokens(ctx context.Context, arg RenewRunTokensParams) error {
+	_, err := q.db.Exec(ctx, renewRunTokens, arg.ExpiresAt, arg.AgentRequestID, arg.Attempt)
+	return err
 }
 
 const touchAgentWorker = `-- name: TouchAgentWorker :exec

@@ -33,8 +33,35 @@ func (s *Service) sweep(ctx context.Context, q *dbsqlc.Queries, savepoint db.Sav
 			}
 		}
 	}
+	if err := s.retryThreadReplies(ctx, q, savepoint); err != nil {
+		return err
+	}
 	s.deleteExpiredBuilds(ctx, savepoint)
 	return nil
+}
+
+func (s *Service) retryThreadReplies(ctx context.Context, q *dbsqlc.Queries, savepoint db.Savepoint) error {
+	if s.threads == nil {
+		return nil
+	}
+	rows, err := q.ListRunsAwaitingReply(ctx, dbsqlc.ListRunsAwaitingReplyParams{
+		Terminal: stateNames(RunMachine.Terminal), WithinSeconds: ReplyRetryFor.Seconds(), MaxRows: ReplyRetryBatch,
+	})
+	if err != nil {
+		return fmt.Errorf("list runs awaiting a thread reply: %w", err)
+	}
+	for _, row := range rows {
+		s.runEnded(ctx, savepoint, row)
+	}
+	return nil
+}
+
+func stateNames(states []State) []string {
+	names := make([]string, len(states))
+	for i, state := range states {
+		names[i] = string(state)
+	}
+	return names
 }
 
 func (s *Service) Sweep(ctx context.Context) error {

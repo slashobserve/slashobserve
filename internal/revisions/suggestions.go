@@ -139,13 +139,6 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 	if len(raw) > spec.MaxSuggestedPanelBytes {
 		return ErrDraftTooLarge
 	}
-	canonical, err := json.Marshal(candidate)
-	if err != nil {
-		return fmt.Errorf("marshal draft dashboard: %w", err)
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return &DraftError{Issues: issues}
-	}
 	return nil
 }
 

@@ -153,8 +153,11 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 	if len(rows) > lim.MaxRows {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && !metrics.partial() {
 		return []datasource.Frame{}, nil
+	}
+	if len(rows) == 0 {
+		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}, nil
 	}
 	f := traceFrame(rows)
 	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {

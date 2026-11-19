@@ -37,10 +37,6 @@ type Dashboards interface {
 	LatestVersion(ctx context.Context, id pgtype.UUID) (int, error)
 }
 
-type Sessions interface {
-	Valid(r *http.Request) (bool, error)
-}
-
 type Access interface {
 	Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error)
 }
@@ -48,7 +44,7 @@ type Access interface {
 type Handler struct {
 	broker       *events.Broker
 	dashboards   Dashboards
-	sessions     Sessions
+	principals   Principals
 	access       Access
 	view         gin.HandlerFunc
 	logger       *slog.Logger
@@ -56,8 +52,8 @@ type Handler struct {
 	slots        *slots
 }
 
-func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, sessions: sessions, access: access, view: view, logger: logger, pingInterval: pingInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
+func NewHandler(b *events.Broker, d Dashboards, principals Principals, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
+	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -166,27 +162,16 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID)
 	}
 }
 
-func (h *Handler) credentialsValid(c *gin.Context) (valid, failed bool) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
-	defer cancel()
-	ok, err := h.sessions.Valid(c.Request.WithContext(ctx))
-	if err != nil {
-		if c.Request.Context().Err() == nil {
-			h.logger.WarnContext(c.Request.Context(), "re-check event stream credentials", logattrs.Failure("stream_auth_check_failed", err)...)
-		}
-		return c.Request.Context().Err() == nil, true
-	}
-	return ok, false
-}
-
 func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bool) {
-	valid, failed = h.credentialsValid(c)
-	if !valid || failed {
-		return valid, failed
-	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
 	defer cancel()
-	principal, _ := auth.FromContext(c.Request.Context())
+	principal, ok, err := h.principals.RequestPrincipal(c.Request.WithContext(ctx))
+	if err != nil {
+		return h.checkFailed(c, "re-check event stream credentials", "stream_auth_check_failed", err)
+	}
+	if !ok {
+		return false, false
+	}
 	access, err := h.access.Dashboard(ctx, principal, id)
 	switch {
 	case err == nil:
@@ -194,8 +179,12 @@ func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bo
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		return false, false
 	}
+	return h.checkFailed(c, "re-check event stream dashboard access", "stream_access_check_failed", err, slog.String("dashboard_id", id.String()))
+}
+
+func (h *Handler) checkFailed(c *gin.Context, message, code string, err error, attrs ...any) (valid, failed bool) {
 	if c.Request.Context().Err() == nil {
-		h.logger.WarnContext(c.Request.Context(), "re-check event stream dashboard access", logattrs.Failure("stream_access_check_failed", err, slog.String("dashboard_id", id.String()))...)
+		h.logger.WarnContext(c.Request.Context(), message, logattrs.Failure(code, err, attrs...)...)
 	}
 	return c.Request.Context().Err() == nil, true
 }

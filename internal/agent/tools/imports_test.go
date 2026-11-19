@@ -269,3 +269,34 @@ func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
 		t.Fatalf("res = %#v, err = %v", res.Content, err)
 	}
 }
+
+func TestImportContentRefusalRefusesWhatTheAgentCannotWrite(t *testing.T) {
+	frame := `"gridPos":{"x":0,"y":0,"w":6,"h":4}`
+	tests := []struct {
+		name   string
+		panel  string
+		refuse bool
+	}{
+		{"html text panel", `{"id":1,"title":"T",` + frame + `,"type":"text","options":{"mode":"html","content":"<b>Hi</b>"}}`, true},
+		{"unsupported panel kept as a placeholder", `{"id":1,"title":"T",` + frame + `,"type":"no-such-grafana-panel"}`, true},
+		{"markdown text panel", `{"id":1,"title":"T",` + frame + `,"type":"text","options":{"mode":"markdown","content":"Hi"}}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converted, err := grafana.Convert([]byte(`{"title":"D","schemaVersion":39,"panels":[`+tt.panel+`]}`), grafana.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, refused := importContentRefusal(converted.Spec)
+			if refused != tt.refuse {
+				t.Fatalf("refused = %v, want %v (res = %#v)", refused, tt.refuse, res)
+			}
+			if body, ok := res.Content.(importErrorOut); refused && (!res.IsError || !ok || body.Code != codeImportContent) {
+				t.Fatalf("res = %#v, want an error with code %q", res, codeImportContent)
+			}
+			if body, _ := res.Content.(importErrorOut); refused && (strings.Contains(body.Message, "observe import") || !strings.Contains(body.Message, "ask a person")) {
+				t.Fatalf("refusal = %q, want it to send the agent to a person, not to another import path", body.Message)
+			}
+		})
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/observeagent"
 )
 
@@ -49,7 +50,7 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 		t.Fatal(err)
 	}
 	settings := modelSettingsOf(config.LLM{
-		Provider: "anthropic", Model: "m", APIKey: "k", BaseURL: base, Effort: "high", MaxTokens: 4096,
+		Provider: "anthropic", Model: "m", APIKey: datasource.NewSecret("k"), BaseURL: base, Effort: "high", MaxTokens: 4096,
 		RequestTimeout: 90 * time.Second, IdleTimeout: 30 * time.Second, ReplayDir: "/replay", LogProviderErrors: true,
 	}, 262144)
 	got := settings()

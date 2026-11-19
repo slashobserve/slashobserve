@@ -236,7 +236,7 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day.
 
 `save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
 It takes `kind` (`logs` or `traces`), `title` and `datasource` (the old name `datasource_uid` still works, as it does on `draft_query`), and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
@@ -346,6 +346,7 @@ It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id
 No tool deletes an annotation; people do that in the web app or through the HTTP API.
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
+The tool refuses JSON that converts to an HTML text panel, a placeholder panel or a panel action with `import_content_not_allowed`, the same content `update_dashboard` and `create_dashboard` refuse; the message names the panels and asks the agent to remove them or to have a person import the JSON in the web app, where a person can also use `observe import`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
 A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the call fails with `already_imported` and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
 Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version (it needs Edit, keeps the folder, and answers `updated: true`), or set `import_as_new` to make another dashboard on purpose.
@@ -376,6 +377,7 @@ Each connected agent in the list has a `state`, always `active` there because th
 Service-account keys cannot call any of them.
 
 Disconnect a client in Settings, Connected agents; an Admin sees and disconnects everyone's in Settings, Agent access.
+Disconnecting a client also ends a run it already claimed: the run's token stops working at once, and the run ends when its lease lapses.
 The [Agents page](agents.md) lists the same connections with their mode and presence, and its **Connect an agent** button shows the Claude Code command.
 
 Each client's setup:
@@ -548,6 +550,7 @@ The loop of an agent that takes runs:
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
 5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
+   When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
@@ -594,6 +597,7 @@ Some results also carry a note after the content, which an agent reads like any 
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against, and the server may replace `reason` (with `conflict` after a rebase, with the resume reason when the run has a build).
 An agent that never calls it works from the claim answer and the `observe` prompt.
 It answers `run_ended` for a run that has ended.
+A request on the run's token after the run ended is answered with HTTP 409 and `run_ended`, not a server error.
 
 `report_run` also takes, all optional:
 

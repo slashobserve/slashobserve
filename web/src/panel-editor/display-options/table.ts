@@ -50,7 +50,7 @@ export const table: readonly DisplayOption[] = [
       { value: "mean", label: "Mean" },
       { value: "min", label: "Min" },
       { value: "max", label: "Max" },
-      { value: "lastNotNull", label: "Last" },
+      { value: "lastNotNull", label: "Last (not null)" },
       { value: "count", label: "Count" },
     ],
   },

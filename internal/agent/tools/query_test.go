@@ -216,6 +216,7 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 	}{
 		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ")"},
 		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + ")"},
+		{"warned", datasource.FrameMeta{Partial: true, Warning: "store a is down"}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + "; the datasource warned: store a is down)"},
 		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ") (" + queryproxy.PartialNote + ")"},
 	}
 	for _, tc := range cases {

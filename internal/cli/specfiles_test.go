@@ -212,3 +212,39 @@ func TestDashboardsApplyPostsEachFileAndFailsWhenOneFails(t *testing.T) {
 		t.Errorf("stderr %q", stderr.String())
 	}
 }
+
+func TestDashboardsExportKeepsAHostileFolderTitleInsideTheDirectory(t *testing.T) {
+	for _, title := range []string{"..", ".", "../..", `..\..`} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/api/v1/folders":
+				_, _ = fmt.Fprintf(w, `{"folders":[{"id":%q,"title":%q,"general":false,"personal":false}]}`, exportFolder, title)
+			case "/api/v1/dashboards":
+				_, _ = fmt.Fprintf(w, `{"dashboards":[{"id":%q,"title":"Checkout"}],"next_cursor":null}`, exportA)
+			case "/api/v1/provision/applied":
+				_, _ = fmt.Fprint(w, `{"applied":[]}`)
+			default:
+				_, _ = fmt.Fprint(w, `{"dashboard":{"id":"x"},"version":{"version":1,"spec":{"specVersion":"0","title":"T","panels":[]}}}`)
+			}
+		}))
+		parent := t.TempDir()
+		dir := filepath.Join(parent, "out")
+		if err := os.Mkdir(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr bytes.Buffer
+		code := Main([]string{"--server", server.URL, "--token", "k", "dashboards", "export", exportFolder, "--dir", dir}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+		server.Close()
+		if code != 0 {
+			t.Fatalf("title %q: exit %d: %s", title, code, stderr.String())
+		}
+		outside, err := os.ReadDir(parent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(outside) != 1 {
+			t.Errorf("title %q wrote beside the directory: %v", title, outside)
+		}
+	}
+}

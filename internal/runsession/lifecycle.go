@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -280,11 +281,12 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	if !ok {
 		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
+	health := s.statuses.Health(ctx)
 	var answer tools.BriefAnswer
 	ended := false
 	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		var err error
-		answer, err = sess.brief(ctx, why)
+		answer, err = sess.brief(ctx, why, health)
 		ended = sess.ended
 		return err
 	})
@@ -294,7 +296,7 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	return answer, err
 }
 
-func (sess *session) brief(ctx context.Context, why brief.Reason) (tools.BriefAnswer, error) {
+func (sess *session) brief(ctx context.Context, why brief.Reason, health []datasource.Status) (tools.BriefAnswer, error) {
 	mode := sess.state.Guard.Mode
 	task := briefTask(sess.req, mode)
 	current, build, restarted, err := sess.settleBuildOnLatest(ctx)
@@ -316,7 +318,7 @@ func (sess *session) brief(ctx context.Context, why brief.Reason) (tools.BriefAn
 	if build != nil {
 		sess.state.Build = buildProgress(*build)
 	}
-	message, err := brief.Render(sess.s.statuses.Health(ctx), task, brief.View{Current: current, Build: build}, why, sess.state.Digest.Text())
+	message, err := brief.Render(health, task, brief.View{Current: current, Build: build}, why, sess.state.Digest.Text())
 	if err != nil {
 		sess.s.failure(ctx, "run session could not render the brief", "run_session_brief_failed", err, sess.req)
 		return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)

@@ -33,6 +33,17 @@ var (
 	errRunNotRunning = errors.New("the run is not running at this attempt")
 )
 
+type slots chan struct{}
+
+func (l slots) acquire(ctx context.Context) (release func(), err error) {
+	select {
+	case l <- struct{}{}:
+		return func() { <-l }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 type Builds interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
 	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Commit, error)
@@ -75,6 +86,7 @@ type Service struct {
 	prices     pricing.Table
 	maxRunCost float64
 	logger     *slog.Logger
+	inFlight   slots
 }
 
 func New(c Config) *Service {
@@ -88,6 +100,7 @@ func New(c Config) *Service {
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
 		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, logger: c.Logger,
+		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
 
@@ -109,6 +122,11 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
 	}
+	release, err := s.inFlight.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	ctx = origin.With(auth.WithPrincipal(ctx, req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {

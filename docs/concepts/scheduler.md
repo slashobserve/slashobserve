@@ -12,6 +12,7 @@ Every job has one row in the `jobs` table of the database, written when a server
 The row keeps when the job runs next, which server holds it, and when and how it last ran: `last_outcome` is `succeeded` or `failed`, and `last_error` is a short description of a failure, such as its error type, never the error's own text.
 
 A server looks for due jobs when it starts and every 15 seconds after.
+Each due job runs in its own goroutine, so a long job such as the dashboard health check never holds up a short one that is due at the same time.
 A run starts the next interval: a job that runs every 5 minutes and starts at 10:00 is due again at 10:05, whether it succeeded or failed, so a failing job is retried on its normal schedule.
 When a newer server changes a job's interval, the row takes the new interval and keeps its next run time.
 

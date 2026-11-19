@@ -20,6 +20,7 @@ type timeoutKey struct{}
 type envelope struct {
 	Status    string          `json:"status"`
 	Data      json.RawMessage `json:"data"`
+	Warnings  []string        `json:"warnings"`
 	ErrorType string          `json:"errorType"`
 	Error     string          `json:"error"`
 }
@@ -74,43 +75,63 @@ func (d *Datasource) newRequest(ctx context.Context, method, path string, form u
 }
 
 func (d *Datasource) do(ctx context.Context, method, path string, form url.Values) (json.RawMessage, error) {
+	raw, _, err := d.doWithWarnings(ctx, method, path, form)
+	return raw, err
+}
+
+func (d *Datasource) doWithWarnings(ctx context.Context, method, path string, form url.Values) (json.RawMessage, []string, error) {
 	req, err := d.newRequest(ctx, method, path, form)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return nil, transportError(ctx, err)
+		return nil, nil, transportError(ctx, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
 	if err != nil {
-		return nil, transportError(ctx, err)
+		return nil, nil, transportError(ctx, err)
 	}
 	if int64(len(raw)) > d.opts.MaxResponseBytes {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
+		return nil, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
 	}
 	return decodeResponse(resp.StatusCode, raw)
 }
 
-func decodeResponse(status int, raw []byte) (json.RawMessage, error) {
+func decodeResponse(status int, raw []byte) (json.RawMessage, []string, error) {
 	switch status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, datasource.Errorf(datasource.ErrAuthFailed, "authentication failed (HTTP %d)", status)
+		return nil, nil, datasource.Errorf(datasource.ErrAuthFailed, "authentication failed (HTTP %d)", status)
 	case http.StatusTooManyRequests:
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
+		return nil, nil, datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
 	}
 	var env envelope
 	if err := json.Unmarshal(raw, &env); err != nil || (env.Status != "success" && env.Status != "error") {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
+		return nil, nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
 	}
 	if env.Status == "error" {
-		return nil, upstreamError(env)
+		return nil, nil, upstreamError(env)
 	}
 	if status < 200 || status > 299 {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
+		return nil, nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", status)
 	}
-	return env.Data, nil
+	return env.Data, upstreamWarnings(env.Warnings), nil
+}
+
+func upstreamWarnings(raw []string) []string {
+	var out []string
+	for _, w := range raw {
+		w = truncateText(w)
+		if w == "" {
+			continue
+		}
+		if datasource.NamesAddress(w) {
+			w = "the datasource reported a warning"
+		}
+		out = append(out, w)
+	}
+	return out
 }
 
 func upstreamError(env envelope) error {

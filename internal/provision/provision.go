@@ -199,7 +199,7 @@ func (p *Provisioner) retrying() bool {
 }
 
 func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row dbsqlc.ProvisionedDashboard, found bool) (bool, error) {
-	raw, err := os.ReadFile(filepath.Join(p.dir, filepath.FromSlash(f.Path)))
+	raw, err := specfiles.Read(p.dir, f.Path)
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}

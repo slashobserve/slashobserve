@@ -95,7 +95,7 @@ WHERE dashboard_id = @dashboard_id AND day >= @views_since::date;
 DELETE FROM dashboard_view_days WHERE day < @kept_since::date;
 
 -- name: HealthRepairTarget :one
-SELECT d.folder_id, d.latest_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
+SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = @dashboard_id;

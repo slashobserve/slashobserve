@@ -14,9 +14,10 @@ Behind a transaction-mode pooler the lock needs `SLASHOBSERVE_DATABASE_DIRECT_UR
 Each file whose name ends in `.json` is one dashboard, written as an [ObserveSpec](../concepts/observespec.md) document.
 A file directly in the directory goes to General.
 A file in a subdirectory goes to the folder named like its first subdirectory, which is created when no folder has that title; `team/payments/api.json` goes to the `team` folder too, because folders are flat.
-A directory name cannot hold `/`, so a folder title is written with `%` as `%25` and `/` as `%2F`, and nothing else changes: the directory `Team %2F Payments` is the folder `Team / Payments`.
+A directory name cannot hold `/`, so a folder title is written with `%` as `%25`, `/` as `%2F` and `\` as `%5C`, and a leading `.` as `%2E`, and nothing else changes: the directory `Team %2F Payments` is the folder `Team / Payments`.
 A subdirectory named General or My Dashboards, or one whose name is not a valid folder title, puts its files in General.
 Files and directories whose names start with `.` are skipped, so `.git` is never read, and files with other extensions are ignored.
+A file may be a symbolic link, relative as in a Kubernetes ConfigMap mount or absolute, only when it points to a file inside the provisioning directory; a link that leaves the directory is not read and shows as a failed file, and a file that is not a regular file is skipped.
 
 ```text
 /provision

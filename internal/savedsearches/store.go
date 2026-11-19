@@ -117,12 +117,15 @@ type change struct {
 	moveTo pgtype.UUID
 }
 
-func (s *store) update(ctx context.Context, by actor.Actor, id pgtype.UUID, c change) (dbsqlc.SavedSearch, error) {
+func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pgtype.UUID, c change) (dbsqlc.SavedSearch, error) {
 	var row dbsqlc.SavedSearch
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		before, err := q.GetSavedSearch(ctx, id)
+		before, err := q.LockSavedSearch(ctx, id)
 		if err != nil {
 			return err
+		}
+		if before.FolderID != checkedFolder {
+			return errFolderMoved
 		}
 		row = before
 		if c.title != nil {
@@ -150,6 +153,8 @@ func (s *store) update(ctx context.Context, by actor.Actor, id pgtype.UUID, c ch
 		return nil
 	})
 	switch {
+	case errors.Is(err, errFolderMoved):
+		return dbsqlc.SavedSearch{}, err
 	case errors.Is(err, pgx.ErrNoRows):
 		return dbsqlc.SavedSearch{}, ErrNotFound
 	case db.IsForeignKeyViolation(err):
@@ -162,7 +167,7 @@ func (s *store) update(ctx context.Context, by actor.Actor, id pgtype.UUID, c ch
 
 func (s *store) delete(ctx context.Context, by actor.Actor, id pgtype.UUID, authorize func(folderID pgtype.UUID) error) error {
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.LockSavedSearchForDelete(ctx, id)
+		row, err := q.LockSavedSearch(ctx, id)
 		if err != nil {
 			return err
 		}
