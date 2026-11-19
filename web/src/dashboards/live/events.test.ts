@@ -50,3 +50,11 @@ describe("parseEvent proposal.updated", () => {
     ).toEqual({ type: "proposal.updated", dashboardId: "d1" })
   })
 })
+
+describe("parseEvent role.changed", () => {
+  it("reads the dashboard id", () => {
+    expect(
+      parseEvent("role.changed", '{"dashboard_id":"d1","role":"editor"}')
+    ).toEqual({ type: "role.changed", dashboardId: "d1" })
+  })
+})

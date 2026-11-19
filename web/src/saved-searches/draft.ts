@@ -3,7 +3,7 @@ import { applyPills, decodePills } from "@/logs/pills"
 import type { LogsSearch } from "@/logs/search"
 import type { TraceSearch } from "@/traces/search"
 
-import type { CreateSavedSearch } from "./queries"
+import type { CreateSavedSearch, SavedSearch } from "./queries"
 
 export type SearchDraft = Omit<CreateSavedSearch, "title" | "folder_id">
 
@@ -17,6 +17,20 @@ export function defaultTitle(draft: SearchDraft): string {
       .join(" ")
   const flat = source.replace(/[\p{Cc}\s]+/gu, " ").trim()
   return [...flat].slice(0, titleCodePoints).join("").trimEnd()
+}
+
+export function matchesSaved(
+  draft: SearchDraft,
+  saved: Pick<SavedSearch, "query" | "filters" | "from" | "to">
+): boolean {
+  const columns = (columnsOf: { columns?: string[] } | null | undefined) =>
+    (columnsOf?.columns ?? []).join(",")
+  return (
+    (draft.query ?? null) === saved.query &&
+    draft.from === saved.from &&
+    draft.to === saved.to &&
+    columns(draft.filters) === columns(saved.filters)
+  )
 }
 
 export function saveTargets(folders: readonly Folder[]): {

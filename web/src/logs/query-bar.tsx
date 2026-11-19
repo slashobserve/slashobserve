@@ -402,16 +402,18 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
       imported.pills
     )
     const next: Partial<LogsSearch> = {}
-    if (imported.q !== undefined) next.q = imported.q
     if (imported.from !== undefined) next.from = imported.from
     if (imported.to !== undefined) next.to = imported.to
     if (imported.cols !== undefined) next.cols = imported.cols.join(",")
     if (imported.pills.length > 0 && "pills" in merged) {
       next.f = encodePills(merged.pills)
     }
-    if (imported.q !== undefined) setDraft(imported.q)
-    update(next)
-    if (imported.q !== undefined) run(imported.q)
+    if (imported.q !== undefined) {
+      setDraft(imported.q)
+      run(imported.q, undefined, next)
+    } else {
+      update(next)
+    }
     setDiscoverNote(
       "blocked" in merged
         ? `${importSummary(imported)} ${merged.blocked}.`

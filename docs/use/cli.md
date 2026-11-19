@@ -399,6 +399,7 @@ A proposal is a change that someone who cannot edit a dashboard, or whose connec
 `bin/observe proposals show <proposal-id>` prints the proposal's summary, then `Changes`, one line for each panel, variable or setting it adds, changes, removes or moves, such as `added panel p4`, then `Conflicts` with the units a merge onto the latest version would hit, and the actions you may take now.
 
 `bin/observe proposals merge <proposal-id> --revision <n>` merges the proposal as the next version of its dashboard and prints `Merged as version <n>`, or `Already in the dashboard` when the dashboard already held its change.
+When a `--take` keeps the dashboard's side, it also prints which units the proposal's change was dropped for, and `Merged without a new version` replaces `Already in the dashboard` if nothing was saved.
 `--revision` is the revision `show` printed, and a proposal that gained a newer one is refused with `proposal_changed`.
 For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `ours` keeping the dashboard's unit and `theirs` taking the proposal's, and it repeats: `--take panel:p1=theirs --take setting:title=ours`.
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.

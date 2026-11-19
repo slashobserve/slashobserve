@@ -367,8 +367,7 @@ func (s *Service) addVersion(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if abilities := folders.DashboardFrom(c).Abilities; !abilities.Edit && !abilities.Comment {
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+	if !requireSaveAbility(c) {
 		return
 	}
 	var req versionRequest
@@ -402,6 +401,15 @@ func (s *Service) addVersion(c *gin.Context) {
 	s.answerSave(c, res)
 }
 
+func requireSaveAbility(c *gin.Context) bool {
+	access := folders.DashboardFrom(c)
+	if access.Abilities.Edit || access.Abilities.Comment {
+		return true
+	}
+	c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsAccess("comment", access.Folder.Title))
+	return false
+}
+
 func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 	if res.Proposal != nil {
 		c.Header("Location", "/api/v1/proposals/"+res.Proposal.ID)
@@ -423,8 +431,7 @@ func (s *Service) patchPanels(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if abilities := folders.DashboardFrom(c).Abilities; !abilities.Edit && !abilities.Comment {
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+	if !requireSaveAbility(c) {
 		return
 	}
 	var req panelsRequest
@@ -529,7 +536,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUserSessionRequired):
 		httpapi.AbortError(c, http.StatusForbidden, "user_session_required", "accept_empty is for signed-in people; MCP clients and scripts fix the query instead")
 	case errors.As(err, &conflict):
