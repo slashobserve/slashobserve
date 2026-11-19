@@ -208,6 +208,18 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
+func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
+	}
+	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
+		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+	}); err != nil {
+		return serviceAccountsExit(err)
+	}
+	return nil
+}
+
 func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Queries, logger *slog.Logger) (*auth.Service, error) {
 	rolePolicy, err := rolePolicyOf(cfg)
 	if err != nil {
@@ -305,13 +317,8 @@ func run() error {
 		return err
 	}
 	authService.RecordChanges(database, activity.AuthChanges{})
-	if err := authService.ReconcileRoles(ctx); err != nil {
-		return withheld("role_reconcile_failed", err)
-	}
-	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
-		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
-	}); err != nil {
-		return serviceAccountsExit(err)
+	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+		return err
 	}
 
 	folderAccess := folders.NewAccess(database)
