@@ -81,7 +81,7 @@ The box above the list filters by title, and the folder and tag menus narrow it 
 The **More** button at the right of a dashboard's header opens:
 
 - **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
-- **Open on sign-in** makes the dashboard open in place of Home, see [Open a dashboard on sign-in](#open-a-dashboard-on-sign-in); it reads **Stop opening on sign-in** when it already does.
+- **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
 - **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
 - **Print or save as PDF** and **Download as image** lay the dashboard out for paper or draw it as one PNG, see [Print a dashboard or download it as an image](#print-a-dashboard-or-download-it-as-an-image).
 - **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
