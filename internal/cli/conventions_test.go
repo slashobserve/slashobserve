@@ -57,3 +57,14 @@ func TestAFileThatCannotBeReadExitsTwoEverywhere(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyNeedsADirectoryAndNeverScansTheCurrentOne(t *testing.T) {
+	call, _, stderr, code := runAgainst(t, 200, `{}`, "dashboards", "apply")
+	if code != 2 || call.method != "" || !strings.Contains(stderr, "--dir") {
+		t.Fatalf("exit %d, stderr %q, call %+v", code, stderr, call)
+	}
+	call, _, stderr, code = runAgainst(t, 200, `{}`, "dashboards", "apply", "some-file.json")
+	if code != 2 || call.method != "" || !strings.Contains(stderr, "--dir") {
+		t.Fatalf("a file argument: exit %d, stderr %q, call %+v", code, stderr, call)
+	}
+}
