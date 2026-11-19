@@ -93,5 +93,5 @@ The query runs as given, so a Prometheus datasource shows what its credentials c
 
 ## With the CLI
 
-`observe metrics query` runs the same query from a terminal, `--ask "<question>"` takes a question instead of the query, `observe saved-searches save --kind metrics` saves it, and `observe metrics names`, `labels` and `values` list what the browser lists; see [Metrics](cli.md#metrics).
+`observe metrics query` runs the same query from a terminal, `--ask "<question>"` takes a question instead of the query, `observe saved-searches save --kind metrics` saves it, and `observe datasources metrics`, `labels` and `label-values` list what the browser lists; see [Metrics](cli.md#metrics) and [Discovering what a datasource holds](cli.md#discovering-what-a-datasource-holds).
 The MCP tools `query_range`, `query_instant`, `list_metrics`, `list_labels` and `list_label_values` do the same for an agent, and `draft_query` answers a question with PromQL; see [MCP](mcp.md).

@@ -93,7 +93,7 @@ func (a *app) datasourcesCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.datasourcesListCommand(), a.metricNamesCommand(), a.labelsCommand(), a.labelValuesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
+	cmd.AddCommand(a.datasourcesListCommand(), a.metricsCommand(), a.labelsCommand(), a.labelValuesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
 	return cmd
 }
 
@@ -185,7 +185,7 @@ func truncatedNotice(out *output, truncated bool, limit int) {
 	}
 }
 
-func (a *app) metricNamesCommand() *cobra.Command {
+func (a *app) metricsCommand() *cobra.Command {
 	var opts nameListOptions
 	cmd := &cobra.Command{
 		Use:   "metrics <datasource-uid>",
