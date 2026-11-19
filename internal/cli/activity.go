@@ -274,27 +274,34 @@ func quotedTitle(title string) string {
 	return `"` + text(title) + `"`
 }
 
-func describe(e activityEvent) string {
+func describeAnnotation(e activityEvent) (string, bool) {
 	d := e.Data
 	switch e.Type {
 	case "annotation.created":
 		if len(d.Tags) > 0 {
-			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
 		}
-		return "added an annotation"
+		return "added an annotation", true
 	case "annotation.updated":
 		if len(d.Tags) > 0 {
-			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")", true
 		}
-		return "edited an annotation"
+		return "edited an annotation", true
 	case "annotation.deleted":
-		return "deleted an annotation"
+		return "deleted an annotation", true
 	case "finding.created":
-		return "saved the finding " + quotedTitle(d.Title)
+		return "saved the finding " + quotedTitle(d.Title), true
 	case "finding.pinned":
-		return "pinned a finding"
+		return "pinned a finding", true
 	case "finding.moved":
-		return "moved the finding " + quotedTitle(d.Title)
+		return "moved the finding " + quotedTitle(d.Title), true
+	}
+	return "", false
+}
+
+func describe(e activityEvent) string {
+	if phrase, ok := describeAnnotation(e); ok {
+		return phrase
 	}
 	if phrase, ok := describeSavedSearch(e); ok {
 		return phrase
