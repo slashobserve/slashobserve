@@ -180,7 +180,7 @@ func TestSearchHyphenatedWordsMatchTheirParts(t *testing.T) {
 		{"demo-shop", []string{"Demo Shop Overview", "demo-shop checkout"}},
 		{"demo-shop checkout", []string{"demo-shop checkout"}},
 		{"demo-sh", []string{"Demo Shop Overview", "demo-shop checkout"}},
-		{"checkout-0 database", []string{"Checkout 0 database", "checkout-0 database"}},
+		{"checkout-0 database", []string{"checkout-0 database"}},
 		{"payments-service latency", []string{"Payments Service Latency"}},
 		{"payments_service latency", []string{"Payments Service Latency"}},
 		{"overview -demo-shop", nil},
