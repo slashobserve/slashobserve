@@ -5390,7 +5390,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 65
+          maxItems: 68
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5481,7 +5481,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 65
+          maxItems: 68
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5502,7 +5502,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 65
+          maxItems: 68
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
