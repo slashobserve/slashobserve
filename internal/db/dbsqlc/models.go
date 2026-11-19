@@ -92,6 +92,7 @@ type AgentRequestBuild struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	PlannedPanels  int32
+	FolderID       pgtype.UUID
 }
 
 type AgentWorker struct {
@@ -241,6 +242,7 @@ type Finding struct {
 	OriginClient   pgtype.Text
 	FolderID       pgtype.UUID
 	ObservationID  pgtype.UUID
+	AskDashboardID pgtype.UUID
 }
 
 type Folder struct {

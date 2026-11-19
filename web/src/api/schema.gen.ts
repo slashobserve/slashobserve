@@ -5354,6 +5354,12 @@ export interface components {
             id: string;
             name: string;
         };
+        FindingAskOn: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The dashboard's title, for a button such as "Ask this on Checkout". */
+            title: string;
+        };
         Finding: {
             /** Format: uuid */
             id: string;
@@ -5377,6 +5383,8 @@ export interface components {
              * @description The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
              */
             folder_id: string | null;
+            /** @description The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do. Start an ordinary revision with the same prompt and this `dashboard_id` to make the change. Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null. */
+            ask_on: components["schemas"]["FindingAskOn"] | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;

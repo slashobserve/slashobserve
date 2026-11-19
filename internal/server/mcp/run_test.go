@@ -185,7 +185,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKind(t *testing.T) {
 					t.Errorf("%s does not carry the agent wording", name)
 				}
 			}
-			for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run", "list_folders"} {
+			for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run", "list_inbox"} {
 				if _, ok := listed[name]; ok {
 					t.Errorf("%s is listed in a run session", name)
 				}

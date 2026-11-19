@@ -56,7 +56,7 @@ func TestBuildCarriesOnlyTheSectionsOfItsTypes(t *testing.T) {
 }
 
 func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
-	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
+	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding; only a short definition of an observability term comes from general knowledge.\n\n# Authoring guide\n"
 	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
 		if strings.Count(system, scope) != 1 || strings.Count(system, "Every answer uses only") != 1 {
 			t.Errorf("%s system text does not carry the scope once before the guide", name)
@@ -100,6 +100,39 @@ func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)
+		}
+	}
+}
+
+func TestBuildAnswersATermAndNamesWhatTheServerCannotDo(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		`"what does p99 mean": answer with ` + "`save_finding`" + ` in two or three lines`,
+		"alerts, notifications and schedules",
+		"that is a rule and offer plain text",
+		"keep panel ids, positions, filters, variables",
+		"naming each repaired query and what changed",
+		"keeping its metric and meaning",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"write every time as UTC with the word UTC",
+		"When several pods or services tie, lead with the one with the most errors, then the first by name",
+		"Call `list_annotations`",
+		"read it with `get_observation`, and cite it by its title and `/o/<id>`",
+		"Before you say a signal does not exist, list its metrics with a filter for the service",
+		"say in the finding what you did not read",
+		"Write the first sentence in plain words",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("investigate text lacks %q", want)
 		}
 	}
 }
