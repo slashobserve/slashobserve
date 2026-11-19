@@ -236,6 +236,7 @@ export type ExploreParams = {
   pageSize?: number
   page?: number
   cursor?: string
+  sort?: string
 }
 
 export type ContextParams = {
@@ -419,6 +420,8 @@ export const proposalKeys = {
   list: (dashboardId: string, state: ProposalState) =>
     ["proposals", "list", dashboardId, state] as const,
   detail: (id: string) => ["proposals", "detail", id] as const,
+  run: (dashboardId: string, runId: string) =>
+    ["proposals", "run", dashboardId, runId] as const,
 }
 
 export type InboxView = "for_you" | "everything" | "proposals" | "mentions"

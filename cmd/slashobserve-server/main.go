@@ -336,7 +336,7 @@ func run() error {
 		return described("findings_setup_failed", err)
 	}
 	findingURL := func(f findings.Finding) string { return links.Observation(cfg.PublicURL, f.ObservationID) }
-	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService))
+	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})

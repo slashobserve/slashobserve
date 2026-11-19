@@ -121,3 +121,47 @@ func TestPageRefusesAQueryWithoutTimestamp(t *testing.T) {
 		t.Fatalf("statements = %q, want only the probe", conn.statements)
 	}
 }
+
+func TestPageQueryOrdersByTheSortColumnThenNewest(t *testing.T) {
+	inner := "SELECT 1"
+	got := pageQuery(inner, &datasource.PageSort{Column: "Duration", Descending: true})
+	want := "SELECT * FROM (\nSELECT 1\n)\n" + rangeFilter() + "ORDER BY `Duration` DESC, `Timestamp` DESC\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
+	if got != want {
+		t.Fatalf("query =\n%s\nwant\n%s", got, want)
+	}
+	if got := pageQuery(inner, &datasource.PageSort{Column: "Spans"}); !strings.Contains(got, "ORDER BY `Spans` ASC, `Timestamp` DESC") {
+		t.Fatalf("query = %s, want an ascending Spans order", got)
+	}
+	if pageQuery(inner, nil) != linesQuery(inner, datasource.Backward) {
+		t.Fatal("no sort must keep the newest first order")
+	}
+}
+
+func TestPageSortQueryPassesTheGuard(t *testing.T) {
+	text := pageQuery("SELECT TraceId, min(Timestamp) AS Timestamp, max(Duration) AS Duration FROM otel_traces GROUP BY TraceId", &datasource.PageSort{Column: "Duration", Descending: true})
+	if _, err := guard(text); err != nil {
+		t.Fatalf("refused by the guard: %v", err)
+	}
+}
+
+func TestPageSortNeedsAColumnOfTheResult(t *testing.T) {
+	conn := &pageConn{fakeConn: &fakeConn{columns: logColumns, rows: logLines(5)}, total: 5}
+	req := pageRequest(webLogsTemplate, 1, 100)
+	req.Sort = &datasource.PageSort{Column: "Duration"}
+	_, _, err := pageDatasource(conn).QueryPage(context.Background(), req)
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "sort column Duration is not in the result; the columns are Timestamp, Body") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestPageSortRunsTheOrderedQueryOnAKnownColumn(t *testing.T) {
+	conn := &pageConn{fakeConn: &fakeConn{columns: logColumns, rows: logLines(5)}, total: 5}
+	req := pageRequest(webLogsTemplate, 1, 100)
+	req.Sort = &datasource.PageSort{Column: "Body", Descending: true}
+	if _, _, err := pageDatasource(conn).QueryPage(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if len(conn.statements) != 4 || !strings.Contains(conn.statements[2], "ORDER BY `Body` DESC, `Timestamp` DESC") {
+		t.Fatalf("statements = %q, want the probes, the ordered page query and the count", conn.statements)
+	}
+}

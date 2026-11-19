@@ -108,7 +108,7 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { PanelSource } from "./panel-source"
-import type { DashboardAccess } from "./permissions"
+import { mayInvestigate, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -240,6 +240,7 @@ function DashboardView({
   const setSearch = useSetDashboardSearch()
   const { permissions } = access
   const { principal } = useRouteContext({ from: "/_authed" })
+  const canInvestigate = mayInvestigate(permissions, principal.role)
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -815,6 +816,7 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      canInvestigate={canInvestigate}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }

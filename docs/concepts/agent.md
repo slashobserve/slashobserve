@@ -64,8 +64,8 @@ The model repairs the panels the server names when it rejects a save, as [What a
 Every accepted save, into a build or by an MCP client, also returns advice that never rejects a save:
 
 - `uncovered` names up to 50 families of the caller's last scoped inventory that no panel query names, and `uncovered_total` counts them all; a histogram, summary or counter is covered when a query names any of its series.
-- `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
-  A save into a build lists them only for the panels it added or changed, and the finished version lists them for the whole dashboard.
+- `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, a stat with no `description`, and, on a build save or an `update_panels` save only, a query, custom, textbox, interval or constant variable that an earlier version used and this save left without a user.
+  A save into a build lists the panel hints only for the panels it added or changed, and the finished version lists them for the whole dashboard.
 
 The model is told to finish only when `uncovered` is empty or the `summary` of its last save says why each family in it was left out.
 
@@ -152,6 +152,8 @@ Three rejected saves in a row end it.
 The guards steer before they stop, and every refusal and every stop shows as a step that names its rule, such as "Refused query_range: ..." or "Stopped: ...".
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
+When a read was refused because the run reached its window of model calls, the finding the run then saves ends with a line saying reading stopped early and how many reads were refused, so its counts are not taken for complete.
+A run that is stopped after three rejected saves names the panels that kept failing in its reason.
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards (see [MCP](../use/mcp.md#the-run-session-enforces-the-guards)).
 
@@ -277,7 +279,13 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
-A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key.
+A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key, unless the request names a folder the requester can create in: the agent reads the folders with `list_folders` and passes one as `folder_id`, and a folder it cannot create in is refused and never replaced by another.
+
+A request on Home that asks to change a dashboard that already exists is answered with a finding, because a Home run only builds new dashboards.
+The agent finds the dashboard with `list_dashboards` by the id or exact title in the request; when exactly one matches, it passes that dashboard's id as `ask_on_dashboard_id` on `save_finding`, and the server stores it only if the requester can view the dashboard.
+The finding then carries `ask_on`, the dashboard's `dashboard_id` and `title`, so the web app can start a revision there with the same prompt; when none or several match, the finding lists the candidates and carries no `ask_on`.
+A run never changes its own mode, and only a run on Home takes `ask_on_dashboard_id`.
+
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
@@ -297,15 +305,15 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 ### Tools in a run
 
 The server has 76 tools: MCP clients get 75, every one except `save_finding`, which only a run offers.
-The built-in agent gets 26 in a new-dashboard or revision request and 25 in a suggestion, which leaves out `save_finding`.
+The built-in agent gets 28 in a new-dashboard or revision request and 27 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 49 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
-`list_observations` is offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into; MCP clients also read them in full with `get_observation`.
+The other 47 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+`list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open; an investigation cites what it used by the observation's title and `/o/<id>`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
-Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.
+Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` takes `folder_id` only on the first save of a build, which the server keeps with the build until it becomes a version.
 Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide with the sections of the configured types, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 When a message that mentions an agent started the run, the server instead posts one status reply in that thread when the run ends, whatever the outcome, and leaves the thread as it is; the agent also reads the thread's earlier messages with the request.
@@ -327,6 +335,6 @@ It looks for `observe-agent` on `PATH`, and it does not start when the binary is
 An MCP client such as Claude Code runs the loop itself, with its own model, against the same tools at `<public url>/mcp`.
 The server needs no LLM provider for that.
 Each call is checked against the role of the key's service account and the folders it can see, and a save goes through the same validation and query check as above.
-The client can also read and answer comments and pick a folder, which the built-in agent cannot.
+The client can also read and answer comments, which the built-in agent cannot.
 A version saved this way records `mcp` as its origin and the client's name.
 See [MCP](../use/mcp.md) for the tools and the setup.
