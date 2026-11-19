@@ -108,6 +108,7 @@ datasources-uid-trace-stats:
     operationId: traceStats
     x-surfaces:
       mcp: [trace_stats]
+      cli: [observe datasources trace-stats]
     summary: Count spans and errors per bucket and give the duration distribution of the spans a filter matches.
     description: >-
       On Tempo `query` is a TraceQL spanset filter such as `{ resource.service.name = "checkout" }`, and `{}` matches every span; on ClickHouse it is a SQL boolean expression over `otel_traces` such as `ServiceName = 'checkout'`, and an empty string matches every span.

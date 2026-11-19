@@ -11,10 +11,7 @@ const activityVersion = 27
 
 func TestActivityDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, activityVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, activityVersion)
 	if !activityTableExists(t, d) {
 		t.Fatal("activity table missing after the up migration")
 	}
