@@ -126,7 +126,8 @@ func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 		"When several pods or services tie, lead with the one with the most errors, then the first by name",
 		"Call `list_annotations`",
 		"read it with `get_observation`, and cite it by its title and `/o/<id>`",
-		"Before you say a signal does not exist, list its metrics with a filter for the service",
+		"Before you say a signal does not exist, list its metrics with scope set to a selector for the service",
+		"a read that failed or timed out could not check anything",
 		"say in the finding what you did not read",
 		"Write the first sentence in plain words",
 	} {

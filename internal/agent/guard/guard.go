@@ -108,6 +108,7 @@ type Admission struct {
 	Note    string
 
 	ReadsRefused int
+	Unchecked    []tools.Unchecked
 }
 
 type Stop struct {
@@ -226,6 +227,7 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	}
 	if c.Name == toolSaveFinding {
 		adm.ReadsRefused = s.Window.Refused
+		adm.Unchecked = s.uncheckedReads()
 	}
 	return adm
 }

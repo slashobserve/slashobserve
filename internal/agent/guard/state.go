@@ -15,6 +15,7 @@ type State struct {
 	ChurnedInRow  int             `json:"churned_in_row,omitempty"`
 	Reads         map[string]Read `json:"reads,omitempty"`
 	Saves         map[string]bool `json:"saves,omitempty"`
+	Unchecked     []Unchecked     `json:"unchecked,omitempty"`
 	Turn          Turn            `json:"turn"`
 	Counts        Counts          `json:"counts"`
 }
@@ -24,6 +25,12 @@ type Window struct {
 	Stalled  int  `json:"stalled"`
 	Diagnose bool `json:"diagnose,omitempty"`
 	Refused  int  `json:"refused,omitempty"`
+}
+
+type Unchecked struct {
+	Tool       string `json:"tool"`
+	Datasource string `json:"datasource"`
+	Code       string `json:"code"`
 }
 
 type Read struct {

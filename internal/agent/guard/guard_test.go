@@ -663,3 +663,41 @@ func TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince(t *testing.T) {
 		t.Fatalf("the run's own refusal count changed to %d", s.Counts.SaveNowRefusals)
 	}
 }
+
+func settleRead(s *State, name, input string, res tools.Result) {
+	s.Window = Window{}
+	s.BeginTurn(false)
+	c := Call{Name: name, Input: json.RawMessage(input)}
+	if adm := s.Admit(0, c); adm.Verdict == Dispatch {
+		_, _ = s.Settle(c, res, []byte(`{"ok":true}`))
+	}
+}
+
+func TestAFindingCarriesTheReadsThatCouldNotBeChecked(t *testing.T) {
+	s := New(tools.ModeCreate)
+	timedOut := tools.Result{IsError: true, Unchecked: "query_timeout"}
+	settleRead(&s, "query_range", `{"datasource":"loki","query":"{service=\"checkout\"}"}`, timedOut)
+	settleRead(&s, "log_patterns", `{"datasource":"loki","query":"{service=\"checkout\"}"}`, timedOut)
+	settleRead(&s, "list_metrics", `{"datasource":"prom","search":"checkout"}`, tools.Result{IsError: true, Unchecked: "datasource_unavailable"})
+	settleRead(&s, "list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`, tools.Result{})
+	settleRead(&s, "lint_query", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true, Unchecked: "query_timeout"})
+	settleRead(&s, "query_instant", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true})
+
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`))
+	want := []tools.Unchecked{{Datasource: "loki", Code: "query_timeout"}}
+	if adm.Verdict != Dispatch || !reflect.DeepEqual(adm.Unchecked, want) {
+		t.Fatalf("admission = %+v, want unchecked %+v", adm, want)
+	}
+}
+
+func TestAReadThatLaterSucceedsIsNoLongerUnchecked(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	input := `{"datasource":"loki","query":"{service=\"checkout\"}"}`
+	settleRead(&s, "query_range", input, tools.Result{IsError: true, Unchecked: "query_timeout"})
+	settleRead(&s, "query_range", `{"datasource":"loki","query":"{service=\"checkout\"} |= \"error\""}`, tools.Result{})
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`)); len(adm.Unchecked) != 0 {
+		t.Fatalf("unchecked = %+v after the read succeeded", adm.Unchecked)
+	}
+}
