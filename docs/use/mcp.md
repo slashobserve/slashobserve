@@ -20,6 +20,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | ---- | ----------- |
 | `add_block` | Viewer |
 | `claim_run` | Viewer |
+| `clear_home_dashboard` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
@@ -33,6 +34,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
 | `get_dashboard` | Viewer |
+| `get_home_dashboard` | Viewer |
 | `get_observation` | Viewer |
 | `get_panels` | Viewer |
 | `get_proposal` | Viewer |
@@ -85,6 +87,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `sample_rows` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
+| `set_home_dashboard` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `update_annotation` | Viewer |
@@ -111,6 +114,9 @@ If both changed the same panel, variable or setting, it returns the tool error `
 The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
 A Viewer still gets `forbidden_role`.
 `get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
+
+`get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `window_days`.
+`list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default) or `views` for the most viewed first; pass a `next_cursor` back with the order that produced it.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -180,6 +186,11 @@ No tool deletes a dashboard: people do that in the web app, through the HTTP API
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
 `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
+They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
+
+`get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` manage the dashboard that opens for the person after sign-in in place of Home; the HTTP API calls it `/me/home-dashboard`.
+`get_home_dashboard` returns `status` (`none`, `ok`, `gone` or `unreadable`) and, when it is `ok`, the dashboard.
+`set_home_dashboard` needs a dashboard the person can view and answers `not_found` otherwise; setting the same dashboard again changes nothing.
 They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.

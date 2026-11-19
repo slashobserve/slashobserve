@@ -24,6 +24,7 @@ export type DashboardListFilters = {
   problem?: NonNullable<
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
+  order?: "views"
 }
 
 export const dashboardKeys = {
@@ -66,6 +67,7 @@ export const dashboardKeys = {
   saves: (id: string) => ["dashboards", id, "saves"] as const,
   deletes: (id: string) => ["dashboards", id, "deletes"] as const,
   posts: (id: string) => ["dashboards", id, "posts"] as const,
+  views: (id: string) => ["dashboards", id, "views"] as const,
 }
 
 export const folderKeys = {
@@ -343,6 +345,10 @@ export const searchKeys = {
 export const pinKeys = {
   all: ["pins"] as const,
   list: () => ["pins", "list"] as const,
+}
+
+export const homeDashboardKeys = {
+  current: () => ["home-dashboard"] as const,
 }
 
 export const homeKeys = {

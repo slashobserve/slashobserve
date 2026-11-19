@@ -224,6 +224,12 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DashboardViewDay struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	Day         pgtype.Date
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID
@@ -311,6 +317,12 @@ type GrafanaSyncItem struct {
 	UnverifiedPanels  int32
 	PlaceholderPanels int32
 	Error             pgtype.Text
+}
+
+type HomeDashboard struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	SetAt       pgtype.Timestamptz
 }
 
 type Import struct {

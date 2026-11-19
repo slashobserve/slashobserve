@@ -11,7 +11,10 @@ const layout = (role: Parameters<typeof settingsGroups>[0]) =>
 describe("settingsGroups", () => {
   test("groups an admin's sections under You, Workspace and Integrations", () => {
     expect(layout("admin")).toEqual([
-      { label: "You", ids: ["appearance", "connected-agents"] },
+      {
+        label: "You",
+        ids: ["appearance", "home-dashboard", "connected-agents"],
+      },
       {
         label: "Workspace",
         ids: [
@@ -28,7 +31,10 @@ describe("settingsGroups", () => {
 
   test("leaves Agent access, the Audit log and Integrations to admins", () => {
     expect(layout("editor")).toEqual([
-      { label: "You", ids: ["appearance", "connected-agents"] },
+      {
+        label: "You",
+        ids: ["appearance", "home-dashboard", "connected-agents"],
+      },
       { label: "Workspace", ids: ["server", "sign-in", "outbound-access"] },
     ])
   })
@@ -36,7 +42,10 @@ describe("settingsGroups", () => {
   test("leaves the outbound allowlist to editors and admins", () => {
     for (const role of ["commenter", "viewer"] as const) {
       expect(layout(role)).toEqual([
-        { label: "You", ids: ["appearance", "connected-agents"] },
+        {
+          label: "You",
+          ids: ["appearance", "home-dashboard", "connected-agents"],
+        },
         { label: "Workspace", ids: ["server", "sign-in"] },
       ])
     }
@@ -49,6 +58,7 @@ describe("settingsGroups", () => {
         .map((section) => section.label)
     ).toEqual([
       "Appearance",
+      "Home dashboard",
       "Connected agents",
       "Server",
       "Sign-in",

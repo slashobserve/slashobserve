@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest"
 import { exportFileName } from "./export-spec"
 
 describe("exportFileName", () => {
+  it("takes the extension of the file being saved", () => {
+    expect(exportFileName("Checkout service health", 7, "png")).toBe(
+      "checkout-service-health-v7.png"
+    )
+  })
+
   it("slugs the title and appends the version", () => {
     expect(exportFileName("Checkout service health", 7)).toBe(
       "checkout-service-health-v7.json"

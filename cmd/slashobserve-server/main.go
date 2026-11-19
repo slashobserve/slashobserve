@@ -43,6 +43,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
@@ -391,6 +392,7 @@ func run() error {
 		LiveText:      liveText,
 		Search:        searchService,
 		Stars:         stars.New(database, folderAccess),
+		Home:          homedash.New(database, folderAccess),
 		Provider:      llmProvider,
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,
@@ -501,6 +503,7 @@ func run() error {
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
 			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
+			homedash.NewHandler(homedash.New(database, folderAccess), logger),
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,

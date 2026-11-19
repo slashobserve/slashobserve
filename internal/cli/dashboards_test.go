@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -143,5 +144,74 @@ func TestDashboardsDelete(t *testing.T) {
 				t.Fatalf("stderr %q lacks %q", stderr.String(), tc.wantErr)
 			}
 		})
+	}
+}
+
+func runDashboards(t *testing.T, handler http.HandlerFunc, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	var out, errOut bytes.Buffer
+	full := append([]string{"--server", server.URL, "--token", "k"}, args...)
+	code = Main(full, IO{In: strings.NewReader(""), Out: &out, Err: &errOut}, "test")
+	return out.String(), errOut.String(), code
+}
+
+func TestDashboardsListShowsViewsAndSortsByThem(t *testing.T) {
+	var query string
+	out, errOut, code := runDashboards(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"dashboards":[{"id":"`+testDashboard+`","title":"Shop","latest_version":2,"view_count":14,"updated_at":"2026-01-02T00:00:00Z","updated_by":{"name":"Ada"}}],"next_cursor":null}`)
+	}, "dashboards", "list", "--order", "views")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(query, "order=views") {
+		t.Errorf("query %q does not ask for order=views", query)
+	}
+	lines := strings.Split(out, "\n")
+	if !strings.Contains(lines[0], "VIEWS") || !strings.Contains(lines[1], "14") {
+		t.Errorf("table lacks the views column:\n%s", out)
+	}
+}
+
+func TestDashboardsListRejectsAnUnknownOrderBeforeAnyRequest(t *testing.T) {
+	called := false
+	_, errOut, code := runDashboards(t, func(http.ResponseWriter, *http.Request) { called = true }, "dashboards", "list", "--order", "title")
+	if code != 2 || called || !strings.Contains(errOut, "--order must be one of updated, views") {
+		t.Fatalf("exit %d, called %t, stderr %q", code, called, errOut)
+	}
+}
+
+func TestDashboardsShowPrintsViewsAndAddsThemToJSON(t *testing.T) {
+	const shown = `{"dashboard":{"id":"` + testDashboard + `","title":"Shop","latest_version":2,"updated_at":"2026-01-02T00:00:00Z","updated_by":{"name":"Ada"}},"version":{"version":2,"summary":"s","actor":{"label":"Ada"},"created_at":"2026-01-02T00:00:00Z","spec":{"panels":[]}}}`
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/views") {
+			_, _ = fmt.Fprint(w, `{"view_count":9,"window_days":30}`)
+			return
+		}
+		_, _ = fmt.Fprint(w, shown)
+	}
+	out, errOut, code := runDashboards(t, handler, "dashboards", "show", testDashboard)
+	if code != 0 || !strings.Contains(out, "9 in the last 30 days") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	out, errOut, code = runDashboards(t, handler, "--json", "dashboards", "show", testDashboard)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var body struct {
+		ViewCount  int             `json:"view_count"`
+		WindowDays int             `json:"window_days"`
+		Dashboard  json.RawMessage `json:"dashboard"`
+		Version    json.RawMessage `json:"version"`
+	}
+	if err := json.Unmarshal([]byte(out), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.ViewCount != 9 || body.WindowDays != 30 || len(body.Dashboard) == 0 || len(body.Version) == 0 {
+		t.Errorf("json = %s", out)
 	}
 }

@@ -560,7 +560,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the dashboards the caller can see, most recently updated first or grouped by folder.
+         * List the dashboards the caller can see, most recently updated first, grouped by folder or most viewed first.
          * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor. Dashboards in folders the caller cannot see are never listed or counted. A `cursor` only works with the `order` it came from; a cursor from the other order is a 400. `next_cursor` is also set on an `offset` page and continues after its last row.
          */
         get: operations["listDashboards"];
@@ -821,11 +821,15 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Count how many people opened the dashboard in the last 30 days.
+         * @description Needs View on the dashboard. The count is person-days: a person who opens the dashboard on three different UTC days counts three, however often they open it on one day. The window is the last 30 UTC days including today, and the same count is `view_count` on each item of `GET /dashboards`.
+         */
+        get: operations["getDashboardViews"];
         put?: never;
         /**
          * Record that the caller opened the dashboard.
-         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. A service-account key gets 204 and nothing is written, because only people count as opens.
+         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. It also records that the caller opened the dashboard on this UTC day, once however often they open it, which `view_count` counts. A service-account key gets 204 and nothing is written, because only people count as opens.
          */
         post: operations["recordDashboardView"];
         delete?: never;
@@ -2996,6 +3000,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/home-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the dashboard that opens for the signed-in person after sign-in.
+         * @description `status` says whether it is set and still usable. `gone` and `unreadable` keep the choice so the web app can tell the person, and the person clears it or picks another. Only signed-in people have one: a service-account key gets 403 `user_session_required`.
+         */
+        get: operations["getHomeDashboard"];
+        /**
+         * Choose the dashboard that opens after sign-in.
+         * @description It replaces the earlier choice, and choosing the same dashboard again changes nothing. The caller must be able to view the dashboard, otherwise 404 `not_found`. A service-account key gets 403 `user_session_required`.
+         */
+        put: operations["setHomeDashboard"];
+        post?: never;
+        /**
+         * Clear the home dashboard so Home opens after sign-in.
+         * @description Clearing when none is set changes nothing. A service-account key gets 403 `user_session_required`.
+         */
+        delete: operations["clearHomeDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/public-links": {
         parameters: {
             query?: never;
@@ -4243,6 +4275,27 @@ export interface components {
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
         };
+        HomeDashboard: {
+            /**
+             * @description `none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it.
+             * @enum {string}
+             */
+            status: "none" | "ok" | "gone" | "unreadable";
+            /** @description Set only when `status` is `ok`. */
+            dashboard: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** Format: uuid */
+                folder_id: string;
+                folder_title: string;
+            } | null;
+            /**
+             * Format: date-time
+             * @description When the person chose it; null when `status` is `none`.
+             */
+            set_at: string | null;
+        };
         DashboardListItem: {
             /** Format: uuid */
             id: string;
@@ -4261,6 +4314,8 @@ export interface components {
             datasource_uids: string[];
             /** @description Open comment threads on the dashboard; replies are not counted. */
             open_comment_count: number;
+            /** @description Person-days on which someone opened the dashboard in the last 30 UTC days, today included. */
+            view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
         };
@@ -8250,8 +8305,8 @@ export interface operations {
                 q?: string;
                 /** @description Only dashboards in this folder; a folder that does not exist or that the caller cannot see gives an empty page, not an error. */
                 folder?: string;
-                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. */
-                order?: "updated" | "folder";
+                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. `views` sorts by `view_count`, most viewed first, then by most recent update. */
+                order?: "updated" | "folder" | "views";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
                 /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them. The same rules as `GET /health`. */
@@ -8828,6 +8883,36 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["ProposalNotOpen"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDashboardViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The count and the window it covers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        view_count: number;
+                        window_days: number;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
     };
@@ -14583,6 +14668,106 @@ export interface operations {
                         }[];
                     };
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The home dashboard choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The choice after the write. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    clearHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No home dashboard is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */

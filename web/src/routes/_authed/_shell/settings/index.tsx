@@ -11,6 +11,7 @@ import { roleAtLeast } from "@/lib/roles"
 import { AgentAccessSection } from "@/settings/agent-access-section"
 import { AuditSettings } from "@/settings/audit/audit-settings"
 import { AppearanceSection } from "@/settings/appearance-card"
+import { HomeDashboardSection } from "@/settings/home-dashboard-section"
 import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
 import { OutboundAccessSection } from "@/settings/outbound-access-card"
 import {
@@ -101,6 +102,8 @@ function SelectedSection({
   switch (id) {
     case "appearance":
       return <AppearanceSection />
+    case "home-dashboard":
+      return <HomeDashboardSection />
     case "connected-agents":
       return <ConnectedAgentsSection />
     case "server":

@@ -77,10 +77,22 @@ WHERE s.folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('folder')::uuid IS NULL OR s.folder_id = sqlc.narg('folder')::uuid);
 
 -- name: RecordDashboardView :exec
+WITH day AS (
+  INSERT INTO dashboard_view_days (dashboard_id, user_id, day)
+  VALUES (@dashboard_id, @user_id, (now() AT TIME ZONE 'utc')::date)
+  ON CONFLICT DO NOTHING
+)
 INSERT INTO dashboard_views (user_id, dashboard_id, viewed_at)
 VALUES (@user_id, @dashboard_id, now())
 ON CONFLICT (user_id, dashboard_id) DO UPDATE SET viewed_at = EXCLUDED.viewed_at
 WHERE dashboard_views.viewed_at < now() - interval '10 minutes';
+
+-- name: CountDashboardViews :one
+SELECT count(*)::integer FROM dashboard_view_days
+WHERE dashboard_id = @dashboard_id AND day >= @views_since::date;
+
+-- name: PruneDashboardViewDays :execrows
+DELETE FROM dashboard_view_days WHERE day < @kept_since::date;
 
 -- name: HealthRepairTarget :one
 SELECT d.folder_id, d.latest_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues

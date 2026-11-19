@@ -140,7 +140,10 @@ import { TimeRangePicker } from "./time-range-picker"
 import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
+import { ExportView } from "./print/export-view"
+import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
+import { useViewsText } from "./views"
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -437,6 +440,8 @@ function DashboardView({
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const folders = useQuery(foldersQuery()).data ?? []
+  const viewsText = useViewsText(dashboardId)
+  const exporting = useExportStore((state) => state.mode !== null)
   const duplicate = duplicateTargets(folders, envelope.dashboard.folder.id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -718,6 +723,7 @@ function DashboardView({
     <ProposalsButton key="proposals" dashboardId={dashboardId} />,
     <MoreMenu
       key="more"
+      dashboardId={dashboardId}
       mayEdit={permissions.edit}
       detailsBlockedBy={detailsBlockReason({
         pinned,
@@ -729,6 +735,7 @@ function DashboardView({
         editingLayout: editing,
       })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
+      exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
@@ -826,15 +833,36 @@ function DashboardView({
     />
   )
 
+  const annotationActions = {
+    dashboardId,
+    zone: displayZone(undefined, spec.timezone),
+    panelTitle: annotationPanelTitle,
+    canEdit: permissions.edit && !kiosk,
+    principal,
+  }
+
+  if (exporting) {
+    return (
+      <AnnotationActionsProvider {...annotationActions}>
+        <ExportView
+          spec={spec}
+          folder={access.folder.title}
+          version={version}
+          from={effectiveFrom}
+          to={effectiveTo}
+          states={states}
+          selections={selections}
+          values={values}
+          actions={actionContext}
+          renderPanel={(item, size) => renderPanel(item, size)}
+        />
+      </AnnotationActionsProvider>
+    )
+  }
+
   return (
     <PanelHostContext value={panelHost}>
-      <AnnotationActionsProvider
-        dashboardId={dashboardId}
-        zone={displayZone(undefined, spec.timezone)}
-        panelTitle={annotationPanelTitle}
-        canEdit={permissions.edit && !kiosk}
-        principal={principal}
-      >
+      <AnnotationActionsProvider {...annotationActions}>
         <div className="flex min-h-svh bg-chrome">
           {kiosk ? null : <Sidebar rail />}
           <div className="flex min-w-0 flex-1 flex-col">
@@ -860,6 +888,7 @@ function DashboardView({
                     title={spec.title}
                     folder={access.folder}
                     madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                    views={viewsText}
                     versionControl={
                       <VersionMenu
                         dashboardId={dashboardId}
@@ -898,6 +927,7 @@ function DashboardView({
                 <LayoutAnnouncer />
                 <main
                   ref={gridBox}
+                  data-export-pane=""
                   className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
                 >
                   <ActionProvider value={actionContext}>
