@@ -13,7 +13,7 @@ No MCP tool or agent tool reads or changes a webhook, because a webhook sends wo
 
 ## What is sent and to whom
 
-A webhook has a name, an address, the event types it wants and an owner, the Admin who created it or the one an Admin moved it to.
+A webhook has a name, an address, the event types it wants and an owner, the Admin who created it or the one who took it over on purpose.
 It sends an event only when its owner could read that event in the activity log at the moment of sending, by the rules in [Who sees an event](activity.md#who-sees-an-event).
 So an event in a folder the owner cannot view is passed over, and an event in a person's personal folder reaches only a webhook that person owns.
 When the owner is deleted or stops being an Admin, the webhook is disabled with the reason `owner`.
@@ -30,6 +30,8 @@ The server seals each signing secret with `SLASHOBSERVE_SECRET_KEY`, so creating
 Changing that key makes every stored secret unreadable: each webhook is disabled with the reason `secret_unreadable`, and you rotate its secret and enable it again.
 
 The address must be `https` on port 443 with a domain name, with no user name, password or fragment, and at most 2048 bytes.
+An address that breaks one of these rules answers `400 invalid_request` with a message that names the rule, such as `url must use port 443, got 8443` or `url host: an IP address is not allowed; use a domain name`.
+A receiver on `localhost`, a private IP address or another port is refused on purpose, because the server only calls public addresses; to test against a service on your own machine, publish it behind an https domain with a tunnel or a reverse proxy.
 The request goes through the same [outbound access](../operate/outbound-access.md) rules as every other call the server makes: a public address only, and the domain must be on the allowlist.
 A webhook never adds its domain to the allowlist.
 If the domain is not allowed, creating the webhook answers `403 outbound_domain_not_allowed`, and an Admin has to allow the domain first.
@@ -43,7 +45,8 @@ Admins see a Webhooks section in Settings; nobody else does.
 
 1. Open Settings, then Webhooks.
 2. Select **Add webhook** at the top of the section; a panel opens beside the page (at the bottom of the screen on a phone).
-3. Enter the name, the https address and the events to send.
+3. Enter the name, the https address, the message and the events to send.
+   The message is the signed JSON of [The request](#the-request) by default, or one line of text for a Slack incoming webhook or a Teams workflow address; see [Send to Slack or Teams](#send-to-slack-or-teams).
    The events are grouped as Dashboards, Annotations, Findings, Saved searches, Observations, Proposals, Comment threads and Agent runs.
    Each group shows how many of its events are chosen, its box chooses all of them, and its arrow lists them.
 4. Select **Add webhook** at the bottom of the panel.
@@ -52,12 +55,17 @@ Admins see a Webhooks section in Settings; nobody else does.
    The page keeps the secret only until then, and the server cannot show it again.
 
 Each webhook in the table shows its owner, address, events and status: `Sending`, `Retrying` after failed attempts, or `Disabled` with the reason.
+A retrying webhook also says how many events wait behind the failing one and when the next attempt is due, because a webhook delivers in order and one refused event holds back all the later ones.
+The table refreshes every few seconds and when you open Attempts, so a webhook that starts failing changes its status without a reload.
+
 Over HTTP the same answer is the webhook's `state`, `sending`, `retrying` or `disabled`; see [States](../reference/states.md).
 Test sends a `webhook.test` event and reports the outcome, status and duration.
 Attempts lists the recent attempts of that webhook.
 The menu next to them edits the webhook, enables or disables it, rotates its secret and deletes it, and rotating and deleting ask for confirmation first.
+On a retrying webhook the menu also offers **Skip stuck event**, which asks for confirmation and then passes over the oldest event the webhook is waiting to send; see [Skip a stuck event](#skip-a-stuck-event).
 Edit opens the same panel with the webhook's values.
-Saving an edit or rotating the secret makes you the webhook's owner.
+Editing or rotating the secret keeps the owner.
+**Make me the owner** in the menu asks for confirmation and then makes you the owner.
 
 ## Manage webhooks over HTTP
 
@@ -66,11 +74,12 @@ All of these need the Admin role.
 | Request | What it does |
 | --- | --- |
 | `GET /api/v1/webhooks` | Lists the webhooks. |
-| `POST /api/v1/webhooks` | Creates one from `name`, `url` and `event_types`, and returns it with its `secret`. |
-| `PATCH /api/v1/webhooks/{id}` | Changes `name`, `url`, `event_types` or `enabled`. |
+| `POST /api/v1/webhooks` | Creates one from `name`, `url`, `event_types` and an optional `format`, and returns it with its `secret`. |
+| `PATCH /api/v1/webhooks/{id}` | Changes `name`, `url`, `format`, `event_types` or `enabled`. |
 | `DELETE /api/v1/webhooks/{id}` | Deletes the webhook and its attempts. |
 | `POST /api/v1/webhooks/{id}/secret` | Makes a new signing secret and returns it. |
 | `POST /api/v1/webhooks/{id}/test` | Sends one `webhook.test` event now and returns the attempt. |
+| `POST /api/v1/webhooks/{id}/skip` | Passes over the oldest event a retrying webhook is stuck on and returns the webhook and the `skipped` attempt. |
 | `GET /api/v1/webhooks/{id}/deliveries` | Lists the recent attempts, newest first, with `limit` and `cursor`. |
 
 ```sh
@@ -86,10 +95,25 @@ Rotating takes effect at once: the next request is signed with the new secret an
 `PATCH` with `enabled: false` disables the webhook with the reason `manual`.
 `PATCH` with `enabled: true` turns it on again, clears the failure count and makes it send at once.
 Changing the address keeps the webhook's place in the log, clears the failure count and sends at once, so it carries on from the event it had reached.
-Whoever changes a webhook, with a `PATCH` or by rotating its secret, becomes its owner, so from then on it sends what that Admin can read.
+A `PATCH` or a rotation keeps the owner.
+`PATCH` with `owner: "me"` makes the caller the owner, so from then on the webhook sends what that Admin can read, and an event in the new owner's personal folder reaches it.
+A webhook disabled with the reason `owner` moves to whoever enables it with `enabled: true`, because nobody else could read what it sends.
 
 `event_types` takes the type names from [What is recorded](activity.md#what-is-recorded), at least one and each at most once.
 The [admin changes](activity.md#admin-changes) are among them, and a webhook sends one only while its owner is an Admin, so an Admin can forward the audit trail to another system.
+
+## Send to Slack or Teams
+
+A webhook's `format` is `generic` (the default), `slack` or `teams`.
+The signed headers go out in every format, so a receiver you run in front of Slack can still verify them, but Slack and Teams ignore them.
+
+- `slack` posts `{"text": "<line>"}`, which a Slack incoming webhook address (`https://hooks.slack.com/services/...`) accepts.
+- `teams` posts a `message` with one Adaptive Card that holds the line, which a Teams workflow "when a webhook request is received" address accepts.
+- The line names the actor and the event type, and the title when the event has one, such as `Ada: dashboard.version_created - Checkout`.
+  It never holds more than that, so an event's other data does not reach a chat room.
+
+Allow the receiver's domain in Outbound access first, such as `hooks.slack.com` for Slack, because a webhook never adds its domain to the allowlist.
+Use `format: "generic"` when your own receiver needs the whole event.
 
 ## The request
 
@@ -232,6 +256,14 @@ def verify(secret, header, body, now=None):
   A `410 Gone` disables it with the reason `gone`, and 50 failed attempts in a row disable it with `failing`.
   The server does not follow a redirect, so a `3xx` is a failed attempt.
 
+## Skip a stuck event
+
+A receiver that keeps refusing one event holds back every event behind it, because a webhook delivers in order.
+A retrying webhook in `GET /api/v1/webhooks` carries `waiting_events`, the number of events it still has to send (counted up to 100, with `more` true beyond that), and `next_attempt_at`.
+`POST /api/v1/webhooks/{id}/skip`, `observe webhooks skip <id>` and the **Skip stuck event** menu item pass over the oldest of those events.
+The skipped event is never sent to this receiver, it is recorded as a `skipped` attempt with the error `skipped_by_admin`, the failure count goes back to 0 and the webhook sends the next event at once.
+The call answers `409 nothing_to_skip` when the webhook is not retrying or is disabled and `409 webhook_busy` while a server is delivering for it, so retry after a few seconds.
+
 A disabled webhook sends nothing.
 Its `disabled_reason` says why: `manual`, `gone`, `failing`, `owner` or `secret_unreadable`.
 Fix the cause and `PATCH` it with `enabled: true`; it continues from the event it stopped at.
@@ -240,7 +272,7 @@ Events that happened while it was disabled are still in the log, so after a long
 
 ## Attempts
 
-Each attempt is kept for 7 days, with its time, duration, the receiver's status, an outcome (`delivered`, `failed` or `skipped`) and an error code: `status`, `unreachable`, `blocked_address`, `domain_not_allowed` or `too_large`.
+Each attempt is kept for 7 days, with its time, duration, the receiver's status, an outcome (`delivered`, `failed` or `skipped`) and an error code: `status`, `unreachable`, `blocked_address`, `domain_not_allowed`, `too_large` or `skipped_by_admin`.
 The server never stores or logs the address's path, a header, the request body or what the receiver answered, only that status and code.
 Read them with `GET /api/v1/webhooks/{id}/deliveries` or `observe webhooks deliveries`.
 

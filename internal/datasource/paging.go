@@ -74,6 +74,7 @@ type PageInfo struct {
 	HasNext        bool
 	Next           *PageCursor
 	Window         int
+	Plain          bool
 }
 
 type PageSource interface {

@@ -66,10 +66,12 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
+| `make_dashboard` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
 | `move_observation` | Viewer |
 | `pin_dashboard` | Viewer |
+| `pin_observation` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
@@ -220,15 +222,19 @@ No tool renames, moves or deletes a saved search: people do that on the web or w
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
 `create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the blocks are added in order after the observation exists, and the first refused one stops the rest and answers `block_refused` with its `block_index` and the `observation_id` that was created.
 `get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel's `title`, `type` and datasources, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit.
-`list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id` or one `state` (`open` or `resolved`), and pages with `next_cursor`.
-`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel` and optionally its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+`list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id`, one `state` (`open` or `resolved`) or a `title` that contains the given text, and pages with `next_cursor`.
+
+`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel`, optionally `variables` (an object of variable name to a list of values, for each variable the panel's queries use) and its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
+`get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
 Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
 
-`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
+No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
 
@@ -238,6 +244,10 @@ A block's `version` is checked by `update_block` and `keep_block`: a stale one a
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
 `update_observation` changes the title or range, `move_observation` moves it to another folder and `reopen_observation` reopens a resolved one.
+
+`pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
+`make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.
+An observation with no dashboard to pin to answers `observation_has_no_dashboard`, and one with no live panel block answers `observation_has_no_panels`.
 No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
@@ -293,6 +303,12 @@ No tool deletes an annotation; people do that in the web app or through the HTTP
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
+A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice: the call fails with `already_imported` and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
+Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version (it needs Edit, keeps the folder, and answers `updated: true`), or set `import_as_new` to make another dashboard on purpose.
+An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
+A retried call of the same agent request still answers with the dashboard it made.
+The built-in agent in a run that creates a dashboard imports as before and is not refused, because the person asked it to import that JSON; it may not use `update_dashboard` on this tool, because that run may not save a version of an existing dashboard.
+
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).
 

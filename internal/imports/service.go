@@ -65,6 +65,35 @@ type Request struct {
 	FolderID       pgtype.UUID
 	GrafanaVersion int
 	RequestID      pgtype.UUID
+	Update         pgtype.UUID
+	RefuseExisting bool
+}
+
+type Existing struct {
+	DashboardID string
+	Title       string
+	Version     int
+	CanUpdate   bool
+}
+
+type AlreadyImportedError struct{ Existing Existing }
+
+func (e *AlreadyImportedError) Error() string {
+	return fmt.Sprintf("this Grafana dashboard was already imported as %q (dashboard %s, version %d)", e.Existing.Title, e.Existing.DashboardID, e.Existing.Version)
+}
+
+type UIDMismatchError struct {
+	DashboardID string
+	Held        string
+	Given       string
+}
+
+func (e *UIDMismatchError) Error() string {
+	given := "has no uid"
+	if e.Given != "" {
+		given = fmt.Sprintf("has the uid %q", e.Given)
+	}
+	return fmt.Sprintf("dashboard %s was imported from the Grafana dashboard with uid %q, but this file %s; import the file as a new dashboard instead", e.DashboardID, e.Held, given)
 }
 
 type GrafanaImport struct {
@@ -104,6 +133,7 @@ type Imported struct {
 	Dashboard  dashboards.Dashboard
 	Version    dashboards.Version
 	Replayed   bool
+	Updated    bool
 	FolderNote string
 }
 
@@ -127,6 +157,14 @@ func New(database *db.DB, dash *dashboards.Service, access *folders.Access, regi
 }
 
 type LoadFunc func() (Request, error)
+
+func loadChecked(load LoadFunc) (Request, error) {
+	req, err := load()
+	if err != nil {
+		return Request{}, err
+	}
+	return req, checkLimits(req)
+}
 
 func fixed(req Request) LoadFunc {
 	return func() (Request, error) { return req, nil }
@@ -152,6 +190,35 @@ func (s *Service) PreviewFrom(_ context.Context, by auth.Principal, load LoadFun
 	return grafana.Convert(req.JSON, s.options(req))
 }
 
+func (s *Service) ExistingFor(ctx context.Context, by auth.Principal, uid string) (*Existing, error) {
+	if uid == "" {
+		return nil, nil
+	}
+	held, found, err := s.DashboardByGrafanaUID(ctx, uid)
+	if err != nil || !found {
+		return nil, err
+	}
+	return s.existingOf(ctx, by, held.DashboardID)
+}
+
+func (s *Service) existingOf(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (*Existing, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
+	if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	dash, ver, err := s.dashboard.Get(ctx, dashboardID)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &Existing{DashboardID: dash.ID, Title: dash.Title, Version: ver.Number, CanUpdate: access.Abilities.Has(folders.NeedEdit)}, nil
+}
+
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
 	if req.RequestID.Valid {
 		dash, ver, found, err := s.dashboard.CreatedByRequest(ctx, req.RequestID)
@@ -171,12 +238,12 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		return Imported{}, ErrBusy
 	}
 	defer release()
-	req, err := load()
+	req, err := loadChecked(load)
 	if err != nil {
 		return Imported{}, err
 	}
-	if err := checkLimits(req); err != nil {
-		return Imported{}, err
+	if req.Update.Valid {
+		return s.update(ctx, by, req.Update, req)
 	}
 
 	result, err := grafana.Convert(req.JSON, s.options(req))
@@ -185,6 +252,9 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	}
 	if !result.Ready() {
 		return Imported{}, &UnresolvedError{Datasources: result.Datasources}
+	}
+	if err := s.refuseExisting(ctx, by, req, result.Summary.UID); err != nil {
+		return Imported{}, err
 	}
 	rawSpec, err := json.Marshal(result.Spec)
 	if err != nil {
@@ -200,25 +270,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	}
 
 	var inserted dbsqlc.InsertImportRow
-	hook := func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
-		result.Verify(issues)
-		replaceNULInReport(&result.Report)
-		params, err := insertParams(req, cols, result.Report, dash, ver, by)
-		if err != nil {
-			return err
-		}
-		params.GrafanaUid = result.Summary.UID
-		if params.GrafanaUid != "" {
-			if err := q.LockImportGrafanaUID(ctx, params.GrafanaUid); err != nil {
-				return fmt.Errorf("lock grafana uid: %w", err)
-			}
-		}
-		inserted, err = q.InsertImport(ctx, params)
-		if err != nil {
-			return fmt.Errorf("insert import: %w", err)
-		}
-		return nil
-	}
+	hook := s.insertHook(req, by, cols, result, &inserted)
 	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, target.Folder.ID, rawSpec, versionSummary(importedPrefix, result.Summary.Title), req.RequestID, hook)
 	if err != nil {
 		return Imported{}, err
@@ -230,24 +282,81 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		Dashboard:  dash,
 		Version:    ver,
 		FolderNote: target.Note,
-		Record: Record{
-			ID:              inserted.ID.String(),
-			DashboardID:     dash.ID,
-			Version:         ver.Number,
-			ImporterVersion: grafana.ImporterVersion,
-			Title:           dash.Title,
-			Mapping:         mappingOf(req),
-			Summary:         result.Summary,
-			Datasources:     result.Datasources,
-			Report:          result.Report,
-			GrafanaUID:      inserted.GrafanaUid,
-			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
-			Actor:           actor.Of(by, origin.From(ctx), req.RequestID.String()),
-			CreatedAt:       inserted.CreatedAt.Time.UTC(),
-		},
+		Record:     newRecord(ctx, req, by, result, dash, ver, inserted),
 	}
 	s.logImported(ctx, imported)
 	return imported, nil
+}
+
+func (s *Service) refuseExisting(ctx context.Context, by auth.Principal, req Request, uid string) error {
+	if !req.RefuseExisting {
+		return nil
+	}
+	existing, err := s.ExistingFor(ctx, by, uid)
+	if err != nil || existing == nil {
+		return err
+	}
+	return &AlreadyImportedError{Existing: *existing}
+}
+
+func (s *Service) insertHook(req Request, by auth.Principal, cols columns, result *grafana.Result, inserted *dbsqlc.InsertImportRow) func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version, []spec.Issue) error {
+	return func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
+		result.Verify(issues)
+		replaceNULInReport(&result.Report)
+		params, err := insertParams(req, cols, result.Report, dash, ver, by)
+		if err != nil {
+			return err
+		}
+		params.GrafanaUid = result.Summary.UID
+		if params.GrafanaUid != "" {
+			if err := q.LockImportGrafanaUID(ctx, params.GrafanaUid); err != nil {
+				return fmt.Errorf("lock grafana uid: %w", err)
+			}
+			if req.RefuseExisting {
+				if err := s.refuseHeld(ctx, q, by, params.GrafanaUid); err != nil {
+					return err
+				}
+			}
+		}
+		*inserted, err = q.InsertImport(ctx, params)
+		if err != nil {
+			return fmt.Errorf("insert import: %w", err)
+		}
+		return nil
+	}
+}
+
+func newRecord(ctx context.Context, req Request, by auth.Principal, result *grafana.Result, dash dashboards.Dashboard, ver dashboards.Version, inserted dbsqlc.InsertImportRow) Record {
+	return Record{
+		ID:              inserted.ID.String(),
+		DashboardID:     dash.ID,
+		Version:         ver.Number,
+		ImporterVersion: grafana.ImporterVersion,
+		Title:           dash.Title,
+		Mapping:         mappingOf(req),
+		Summary:         result.Summary,
+		Datasources:     result.Datasources,
+		Report:          result.Report,
+		GrafanaUID:      inserted.GrafanaUid,
+		CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
+		Actor:           actor.Of(by, origin.From(ctx), req.RequestID.String()),
+		CreatedAt:       inserted.CreatedAt.Time.UTC(),
+	}
+}
+
+func (s *Service) refuseHeld(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, uid string) error {
+	held, err := q.DashboardByGrafanaUID(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("find import by grafana uid: %w", err)
+	}
+	existing, err := s.existingOf(ctx, by, held.DashboardID)
+	if err != nil || existing == nil {
+		return err
+	}
+	return &AlreadyImportedError{Existing: *existing}
 }
 
 func (s *Service) importFolder(ctx context.Context, by auth.Principal, req Request, fromJSON string) (folders.ImportFolder, error) {
@@ -271,9 +380,33 @@ func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err := checkLimits(req); err != nil {
 		return Imported{}, err
 	}
+	return s.reimport(ctx, by, dashboardID, req, "")
+}
+
+func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
+	access, err := s.access.Dashboard(ctx, by, dashboardID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		return Imported{}, dashboards.ErrNotFound
+	case err != nil:
+		return Imported{}, err
+	case !access.Abilities.Has(folders.NeedEdit):
+		return Imported{}, folders.ErrForbidden
+	}
+	held, err := s.ForDashboard(ctx, dashboardID)
+	if err != nil {
+		return Imported{}, err
+	}
+	return s.reimport(ctx, by, dashboardID, req, held.Summary.UID)
+}
+
+func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request, wantUID string) (Imported, error) {
 	result, err := grafana.Convert(req.JSON, s.options(req))
 	if err != nil {
 		return Imported{}, err
+	}
+	if wantUID != "" && result.Summary.UID != wantUID {
+		return Imported{}, &UIDMismatchError{DashboardID: dashboardID.String(), Held: wantUID, Given: result.Summary.UID}
 	}
 	if !result.Ready() {
 		return Imported{}, &UnresolvedError{Datasources: result.Datasources}
@@ -321,7 +454,7 @@ func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err != nil {
 		return Imported{}, err
 	}
-	imported := Imported{Record: record, Dashboard: dash, Version: ver}
+	imported := Imported{Record: record, Dashboard: dash, Version: ver, Updated: true}
 	s.logImported(ctx, imported)
 	return imported, nil
 }

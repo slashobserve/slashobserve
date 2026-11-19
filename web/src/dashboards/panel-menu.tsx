@@ -37,7 +37,6 @@ import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
-import { panelUsesVariables } from "@/observations/panel-input"
 import { isRenderable } from "@/panels"
 import { shortcutText } from "@/shortcuts/chords"
 import {
@@ -45,6 +44,7 @@ import {
   panelTitle,
   resolveDatasourceRef,
   type LayoutPanel,
+  type Variable,
 } from "@/spec"
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
@@ -65,6 +65,7 @@ type Props = {
   onToggleResponsive?: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
   inToolbar?: boolean
+  observationVariables?: readonly Variable[]
 }
 
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
@@ -106,6 +107,7 @@ export function PanelMenu({
   onToggleResponsive,
   composerRef,
   inToolbar = false,
+  observationVariables,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
@@ -153,14 +155,10 @@ export function PanelMenu({
     })
   }
   if (data && idle) {
-    const usesVariables = panelUsesVariables(panel)
     items.push({
       id: "observation",
-      label: usesVariables
-        ? "Add to observation (uses dashboard variables)"
-        : "Add to observation",
+      label: "Add to observation",
       icon: <NotebookTextIcon aria-hidden="true" />,
-      disabled: usesVariables,
       onSelect: () => {
         focusAfterClose = "none"
         setAddingToObservation(true)
@@ -344,6 +342,7 @@ export function PanelMenu({
       {addingToObservation && data ? (
         <AddToObservationPanel
           panel={panel}
+          variables={observationVariables}
           from={dashboardSearch.from}
           to={dashboardSearch.to}
           trigger={menuButton}

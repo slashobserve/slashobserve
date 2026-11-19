@@ -27,10 +27,17 @@ describe("settingsGroups", () => {
   })
 
   test("leaves Agent access, the Audit log and Integrations to admins", () => {
-    for (const role of ["editor", "commenter", "viewer"] as const) {
+    expect(layout("editor")).toEqual([
+      { label: "You", ids: ["appearance", "connected-agents"] },
+      { label: "Workspace", ids: ["server", "sign-in", "outbound-access"] },
+    ])
+  })
+
+  test("leaves the outbound allowlist to editors and admins", () => {
+    for (const role of ["commenter", "viewer"] as const) {
       expect(layout(role)).toEqual([
         { label: "You", ids: ["appearance", "connected-agents"] },
-        { label: "Workspace", ids: ["server", "sign-in", "outbound-access"] },
+        { label: "Workspace", ids: ["server", "sign-in"] },
       ])
     }
   })
@@ -58,9 +65,15 @@ describe("selectedSectionId", () => {
   const admin = settingsGroups("admin")
   const viewer = settingsGroups("viewer")
 
+  test("falls back to Server when a viewer asks for the allowlist", () => {
+    expect(selectedSectionId(viewer, "outbound-access")).toBe("server")
+  })
+
   test("selects the section the hash names", () => {
     expect(selectedSectionId(admin, "server")).toBe("server")
-    expect(selectedSectionId(viewer, "outbound-access")).toBe("outbound-access")
+    expect(selectedSectionId(settingsGroups("editor"), "outbound-access")).toBe(
+      "outbound-access"
+    )
     expect(selectedSectionId(viewer, "connected-agents")).toBe(
       "connected-agents"
     )

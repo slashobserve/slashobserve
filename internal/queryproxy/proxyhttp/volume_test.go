@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -143,7 +144,7 @@ func TestVolumeRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	hn, _, _ := newVolumeHarness(t)
 	rec := hn.volume("prom", volumeBody("up"))
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
-	if got := decodeError(t, rec).Error; got != "volume reads Loki and ClickHouse datasources" {
+	if got := decodeError(t, rec).Error; got != "volume reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
 		t.Fatalf("error = %q", got)
 	}
 	expectError(t, hn.volume("missing", volumeBody("up")), http.StatusNotFound, "not_found")
@@ -380,6 +381,26 @@ func TestVolumeAsksACapabilityDatasourceForTheAlignedWindow(t *testing.T) {
 	}
 }
 
+func TestVolumeCountsTheTrailingPartialBucket(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		h := logvolume.New(req.Range.From, req.Step, req.Buckets())
+		h.Add(req.Range.From.Add(60*req.Step), logvolume.Info, 5)
+		return h, nil
+	}
+	body := volumeBody(`service.name:checkout`)
+	body["from"] = strconv.FormatInt(volumeStart.Add(20*time.Second).UnixMilli(), 10)
+	body["to"] = strconv.FormatInt(volumeStart.Add(time.Hour+20*time.Second).UnixMilli(), 10)
+	got := decodeVolume(t, hn.volume("search", body))
+	reqs := search.volumeRequests()
+	if len(reqs) != 1 || !reqs[0].Range.To.Equal(volumeStart.Add(61*time.Minute)) {
+		t.Fatalf("requests %+v", reqs)
+	}
+	if len(got.Buckets) != 61 || got.Total != 5 {
+		t.Fatalf("%d buckets, total %d", len(got.Buckets), got.Total)
+	}
+}
+
 func TestVolumeBucketsCapTheBucketCountOnACapabilityDatasource(t *testing.T) {
 	hn, search := newVolumeCapabilityHarness(t)
 	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
@@ -411,5 +432,46 @@ func TestVolumeMapsCapabilityErrorsAndHoldsOneUpstreamSlot(t *testing.T) {
 	expectError(t, hn.volume("search", volumeBody(`*`)), http.StatusTooManyRequests, "too_many_requests")
 	if n := len(search.volumeRequests()); n != before {
 		t.Fatalf("%d volume calls while every slot is held", n-before)
+	}
+}
+
+func TestVolumeAlignmentCoversTheWholeRangeAtEveryWidth(t *testing.T) {
+	now := time.Date(2026, 11, 18, 19, 19, 31, 456_000_000, time.UTC)
+	for _, span := range []time.Duration{time.Hour, 3 * time.Hour, 6 * time.Hour, 24 * time.Hour, 48 * time.Hour, 7 * 24 * time.Hour, 14 * 24 * time.Hour, 30 * 24 * time.Hour, 90 * 24 * time.Hour} {
+		rng := datasource.TimeRange{From: now.Add(-span), To: now}
+		al := volumeAlignment(rng, 60)
+		if al.rng.From.After(rng.From) || al.rng.To.Before(rng.To) {
+			t.Fatalf("%v: window %v to %v does not cover %v to %v", span, al.rng.From, al.rng.To, rng.From, rng.To)
+		}
+		if got := int(al.rng.To.Sub(al.rng.From) / al.step); got != al.maxDataPoints {
+			t.Fatalf("%v: %d steps in the window but %d buckets", span, got, al.maxDataPoints)
+		}
+		if got := queryproxy.StepFor(al.rng, al.maxDataPoints); got != al.step {
+			t.Fatalf("%v: the runner would step by %v, not %v", span, got, al.step)
+		}
+	}
+}
+
+func TestVolumeProblemSpeaksOfTheQueryNotOfTheWrapper(t *testing.T) {
+	invalid := func(message string) error { return datasource.Errorf(datasource.ErrInvalidQuery, "%s", message) }
+	cases := []struct {
+		name string
+		in   error
+		want string
+	}{
+		{"a parser failing on plain text", invalid(`pipeline error: 'JSONParserErr' for series: {app="x"}. Use a label filter to intentionally skip this error.`), "a parser stage failed on some lines (JSONParserErr)"},
+		{"a wrapper parse position", invalid("parse error at line 0, col 1: syntax error: unexpected RANGE, expecting } or ,"), "could not read the query as written"},
+		{"a ClickHouse wrapper position", invalid("failed at position 443 (*) ) GROUP BY Time"), "could not read the query as written"},
+		{"the expanded time macro", invalid("Unknown table in WHERE fromUnixTimestamp64Milli(toInt64(1), 'UTC')"), "could not read the query as written"},
+		{"a message that names only the query", invalid("the volume needs the query to select SeverityText"), "the volume needs the query to select SeverityText"},
+		{"another kind of error", datasource.Errorf(datasource.ErrTimeout, "parse error at line 1, col 1"), "parse error at line 1, col 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := volumeProblem(tc.in)
+			if !strings.Contains(got.Error(), tc.want) || strings.Contains(got.Error(), "line 0, col 1") && tc.name != "another kind of error" {
+				t.Fatalf("got %q, want it to contain %q", got, tc.want)
+			}
+		})
 	}
 }

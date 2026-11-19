@@ -74,3 +74,24 @@ func TestErrorMappingIsIdempotent(t *testing.T) {
 		t.Fatalf("second mapping = %v, want %v unchanged", second, first)
 	}
 }
+
+func TestExceptionMessagesLeaveOutTheExpandedQuery(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		want    string
+	}{
+		{"a column the user's query lacks", "Unknown expression identifier `nosuchcol` in scope SELECT nosuchcol FROM otel_logs WHERE ((Timestamp >= fromUnixTimestamp64Milli(toInt64(1795023705928), 'UTC')))", "Unknown expression identifier `nosuchcol`"},
+		{"a volume that lacks SeverityText", "Unknown expression or function identifier `SeverityText` in scope SELECT toStartOfInterval(Timestamp, toIntervalSecond(60)) AS Time FROM (SELECT Timestamp, Body FROM otel_logs)", "the volume needs the query to select SeverityText"},
+		{"a volume that lacks Timestamp", "Unknown expression or function identifier `Timestamp` in scope SELECT toStartOfInterval(Timestamp, toIntervalSecond(60)) AS Time FROM (SELECT Body FROM otel_logs)", "the volume needs the query to select Timestamp"},
+		{"a message without a scope", "Syntax error: failed at position 8", "Syntax error: failed at position 8"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mapError(context.Background(), &ch.Exception{Code: 47, Message: tt.message}, time.Second)
+			if !errors.Is(got, datasource.ErrInvalidQuery) || got.Error() != "invalid query: "+tt.want {
+				t.Fatalf("mapError = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

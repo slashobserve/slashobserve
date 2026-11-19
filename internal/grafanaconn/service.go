@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
@@ -209,31 +210,32 @@ func cleanToken(raw string) (string, error) {
 	return token, nil
 }
 
-func (s *Service) ensureAllowed(ctx context.Context, by auth.Principal, host string) error {
-	list, err := s.domains.Allowed(ctx)
-	if err != nil {
-		return err
-	}
-	if list.Allows(host) {
-		return nil
-	}
-	pattern, err := domains.ParsePattern(host)
-	if err != nil {
-		return &InvalidError{Message: "url must name a domain"}
-	}
-	_, err = s.domains.Add(ctx, by, pattern)
+func (s *Service) saveOnAllowedHost(ctx context.Context, by auth.Principal, host string, save func(*dbsqlc.Queries) error) error {
+	added, err := s.domains.SaveOnAllowedHost(ctx, by, host, save)
 	switch {
 	case err == nil:
-		s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", pattern.String()))
+		if added != "" {
+			s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", added))
+		}
 		return nil
-	case errors.Is(err, allowlist.ErrExists):
-		return nil
+	case errors.Is(err, allowlist.ErrNotADomain):
+		return &InvalidError{Message: "url must name a domain"}
 	case errors.Is(err, allowlist.ErrLocked):
 		return &egress.HostError{Host: host, Err: egress.ErrNotAllowed}
 	case errors.Is(err, allowlist.ErrTooMany):
 		return ErrTooManyDomains
 	}
 	return err
+}
+
+func (s *Service) releaseHost(ctx context.Context, by auth.Principal, rawURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return
+	}
+	if err := s.domains.Release(ctx, by, strings.ToLower(u.Hostname())); err != nil {
+		s.logger.WarnContext(ctx, "release outbound domain", logattrs.Failure("outbound_release_failed", err, slog.String("host", u.Hostname()))...)
+	}
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Connection, error) {
@@ -252,9 +254,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if !s.key.Set() {
 		return Connection{}, ErrNoSecretKey
 	}
-	if err := s.ensureAllowed(ctx, by, host); err != nil {
-		return Connection{}, err
-	}
 	id := newID()
 	ciphertext, err := s.sealToken(id, token)
 	if err != nil {
@@ -264,7 +263,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if creator, err := db.ParseUUID(by.ID); err == nil {
 		params.CreatedBy = creator
 	}
-	created, err := s.store.insert(ctx, params, recordCreated(by, id, name, u.String()))
+	var row dbsqlc.GrafanaConnection
+	err = s.saveOnAllowedHost(ctx, by, host, func(q *dbsqlc.Queries) (err error) {
+		if row, err = s.store.insert(ctx, q, params); err != nil {
+			return err
+		}
+		return recordCreated(by, id, name, u.String())(ctx, q)
+	})
+	if err != nil {
+		return Connection{}, err
+	}
+	created, err := s.store.one(ctx, row)
 	if err != nil {
 		return Connection{}, err
 	}
@@ -305,14 +314,25 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		}
 		params.ResetTest = true
 	}
-	if host != "" {
-		if err := s.ensureAllowed(ctx, by, host); err != nil {
-			return Connection{}, err
-		}
+	var row dbsqlc.GrafanaConnection
+	save := func(q *dbsqlc.Queries) (err error) {
+		row, err = s.store.update(ctx, q, params, recordUpdated(by, id, params, p.Token != nil))
+		return err
 	}
-	updated, err := s.store.update(ctx, params, recordUpdated(by, id, params, p.Token != nil))
+	if host != "" {
+		err = s.saveOnAllowedHost(ctx, by, host, save)
+	} else {
+		err = s.store.db.InTx(ctx, save)
+	}
 	if err != nil {
 		return Connection{}, err
+	}
+	updated, err := s.store.one(ctx, row)
+	if err != nil {
+		return Connection{}, err
+	}
+	if params.Url != current.URL {
+		s.releaseHost(ctx, by, current.URL)
 	}
 	s.logger.InfoContext(ctx, "grafana connection updated", slog.String("connection_id", updated.ID), slog.String("actor_id", by.ID), slog.Bool("token_changed", p.Token != nil))
 	return updated.Connection, nil
@@ -326,6 +346,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err := s.store.delete(ctx, id, recordDeleted(by, id, current.Name, current.URL)); err != nil {
 		return err
 	}
+	s.releaseHost(ctx, by, current.URL)
 	s.logger.InfoContext(ctx, "grafana connection deleted", slog.String("connection_id", id.String()), slog.String("actor_id", by.ID))
 	return nil
 }

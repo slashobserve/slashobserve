@@ -45,6 +45,8 @@ var (
 
 var serviceAccountName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 
+const serviceAccountNameMessage = "name must be lowercase letters, digits and hyphens, start with a letter or digit, and be at most 63 characters"
+
 type serviceAccountJSON struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
@@ -108,7 +110,7 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		role = parsed
 	}
 	if !serviceAccountName.MatchString(req.Name) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "name must match ^[a-z0-9][a-z0-9-]{0,62}$")
+		abortError(c, http.StatusBadRequest, "invalid_request", serviceAccountNameMessage)
 		return
 	}
 	if utf8.RuneCountInString(req.Description) > maxDescriptionLength || hasControlChars(req.Description) {

@@ -19,7 +19,7 @@ const (
 	defaultListActivity = 50
 	maxListActivity     = 100
 
-	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, narrowed to one dashboard, folder or observation, to some types, or to events since a time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor. An Admin key also sees admin changes (roles, keys, webhooks, connected agents, outbound domains, Grafana); scope admin lists only those and public link events."
+	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed by dashboard, folder, observation, types or time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor. An Admin key also sees admin changes (roles, keys, webhooks, connected agents, outbound domains, Grafana) and public links; scope admin lists only those."
 )
 
 var schemaListActivity = `{"type":"object","properties":{` +

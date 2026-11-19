@@ -22,6 +22,7 @@ const (
 	ActionResolve Action = "resolve"
 	ActionReopen  Action = "reopen"
 	ActionPublish Action = "publish"
+	ActionDelete  Action = "delete"
 )
 
 type BlockState string
@@ -78,6 +79,7 @@ var Machine = lifecycle.Machine[State, Action]{
 		{Action: ActionResolve, From: []State{StateOpen}, To: []State{StateResolved}, Who: editor},
 		{Action: ActionReopen, From: []State{StateResolved}, To: []State{StateOpen}, Event: activity.TypeObservationReopened, Who: editor},
 		{Action: ActionPublish, From: []State{StateOpen, StateResolved}, Event: activity.TypeObservationPublished, Who: editor},
+		{Action: ActionDelete, From: []State{StateOpen, StateResolved}, Event: activity.TypeObservationDeleted, Who: []lifecycle.Who{lifecycle.Admin, lifecycle.Requester}},
 	},
 }
 
@@ -119,8 +121,20 @@ func can(abilities folders.Abilities, author bool) func(lifecycle.Who) bool {
 	}
 }
 
-func allowedActions(state State, abilities folders.Abilities) []Action {
-	return Machine.Allowed(state, can(abilities, false))
+func canObservation(abilities folders.Abilities, author bool) func(lifecycle.Who) bool {
+	return func(w lifecycle.Who) bool {
+		switch w {
+		case lifecycle.Admin:
+			return abilities.Manage
+		case lifecycle.Requester:
+			return author && abilities.Edit
+		}
+		return can(abilities, author)(w)
+	}
+}
+
+func allowedActions(state State, abilities folders.Abilities, author bool) []Action {
+	return Machine.Allowed(state, canObservation(abilities, author))
 }
 
 func allowedBlockActions(state BlockState, abilities folders.Abilities, author bool) []BlockAction {

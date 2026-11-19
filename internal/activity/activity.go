@@ -32,9 +32,11 @@ const (
 	TypeObservationCreated        = "observation.created"
 	TypeObservationUpdated        = "observation.updated"
 	TypeObservationMoved          = "observation.moved"
+	TypeObservationDeleted        = "observation.deleted"
 	TypeObservationResolved       = "observation.resolved"
 	TypeObservationReopened       = "observation.reopened"
 	TypeObservationPublished      = "observation.published"
+	TypeObservationRCAWithdrawn   = "observation.rca_withdrawn"
 	TypeObservationBlockAdded     = "observation.block_added"
 	TypeObservationBlockUpdated   = "observation.block_updated"
 	TypeObservationBlockKept      = "observation.block_kept"
@@ -129,9 +131,11 @@ var workspaceTypes = []string{
 	TypeObservationCreated,
 	TypeObservationUpdated,
 	TypeObservationMoved,
+	TypeObservationDeleted,
 	TypeObservationResolved,
 	TypeObservationReopened,
 	TypeObservationPublished,
+	TypeObservationRCAWithdrawn,
 	TypeObservationBlockAdded,
 	TypeObservationBlockUpdated,
 	TypeObservationBlockKept,

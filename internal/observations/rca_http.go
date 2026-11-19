@@ -87,6 +87,7 @@ func (h *RCAHandler) Register(api auth.Routes) {
 	api.POST("/observations/:id/rcas", auth.RoleViewer, h.publish)
 	api.GET("/observations/:id/rcas", auth.RoleViewer, h.list)
 	api.GET("/observations/:id/rcas/:revision", auth.RoleViewer, h.get)
+	api.DELETE("/observations/:id/rcas/:revision", auth.RoleViewer, h.withdraw)
 }
 
 func (h *RCAHandler) publish(c *gin.Context) {
@@ -145,13 +146,34 @@ func (h *RCAHandler) get(c *gin.Context) {
 	c.JSON(http.StatusOK, rcaEnvelopeJSON{RCA: RCAOf(rca)})
 }
 
+func (h *RCAHandler) withdraw(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	revision, ok := RevisionParam(c)
+	if !ok {
+		return
+	}
+	if err := h.service.WithdrawRCA(c.Request.Context(), httpapi.Caller(c), id, revision); err != nil {
+		h.fail(c, "withdraw observation RCA", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (h *RCAHandler) fail(c *gin.Context, action string, err error) {
 	var failed *PanelFailedError
+	var unchanged *RCAUnchangedError
 	switch {
+	case errors.As(err, &unchanged):
+		httpapi.AbortError(c, http.StatusConflict, CodeRCAUnchanged, unchanged.Error())
 	case errors.Is(err, ErrRevisionNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrRevisionNotFound.Error())
 	case errors.Is(err, ErrRCALimit):
 		httpapi.AbortError(c, http.StatusConflict, CodeRCALimit, ErrRCALimit.Error())
+	case errors.Is(err, ErrRCAShared):
+		httpapi.AbortError(c, http.StatusConflict, CodeRCAShared, ErrRCAShared.Error())
 	case errors.Is(err, ErrObservationChanged):
 		httpapi.AbortError(c, http.StatusConflict, CodeObservationChanged, ErrObservationChanged.Error())
 	case errors.Is(err, ErrPublishPersonal):

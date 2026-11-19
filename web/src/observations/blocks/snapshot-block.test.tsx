@@ -67,7 +67,9 @@ describe("SnapshotBlock", () => {
     renderSnapshot(snapshotBlock({ snapshot_id: snapshotId }), frozen([]))
 
     expect(
-      await screen.findByText("Frozen, 2026-11-06 10:00 to 2026-11-06 11:30")
+      await screen.findByText(
+        /^Frozen, 2026-11-06 10:00 to 2026-11-06 11:30 \S+$/
+      )
     ).toBeTruthy()
     expect(screen.getByText("From Observe Agent")).toBeTruthy()
     expect(screen.getByText("No data")).toBeTruthy()

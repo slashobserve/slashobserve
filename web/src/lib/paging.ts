@@ -77,6 +77,14 @@ export function pagesByOffset(type: string): boolean {
   )
 }
 
+const searchResultWindow = 10_000
+
+export function lastReachablePage(type: string, pageSize: number): number {
+  return type === "elasticsearch" || type === "opensearch"
+    ? Math.max(1, Math.floor(searchResultWindow / pageSize))
+    : Number.POSITIVE_INFINITY
+}
+
 export function pageStateOf(
   meta: PageMeta | undefined,
   rows: number,

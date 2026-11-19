@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query"
 import { screen, within } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { toast } from "sonner"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -9,6 +10,8 @@ import { FilterPills } from "./filter-pills"
 import { applyPills, decodePills, encodePills, type Pill } from "./pills"
 import type { LogsSearch } from "./search"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
+
+vi.mock("sonner", () => ({ toast: vi.fn() }))
 
 const range = { from: "now-1h", to: "now" }
 
@@ -111,6 +114,18 @@ function lastFilters(update: ReturnType<typeof vi.fn>): Pill[] {
 }
 
 describe("FilterPills", () => {
+  beforeEach(() => {
+    vi.mocked(toast).mockClear()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ labels: [], values: [], truncated: false })
+      )
+    )
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
   it("shows a pill for each filter with the caption", () => {
     setup()
     const list = screen.getByRole("list", { name: "Filters" })
@@ -286,19 +301,39 @@ describe("FilterPills", () => {
   })
 
   it("keeps only pinned pills when the query text changes", () => {
-    const { changeQuery, update, announce } = setup()
+    const { changeQuery, update } = setup()
     changeQuery("payment failed")
     expect(lastFilters(update).map((pill) => pill.field)).toEqual(["host.name"])
     expect(update).toHaveBeenLastCalledWith(expect.anything(), {
       replace: true,
     })
-    expect(announce).toHaveBeenCalledWith(
-      "2 filters cleared; pinned filters kept"
+    expect(toast).toHaveBeenCalledWith(
+      "2 filters cleared; pinned filters kept",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Undo" }),
+      })
     )
   })
 
+  it("restores the cleared pills and reruns the query on Undo", () => {
+    const { changeQuery, update, run } = setup()
+    const before = vi.mocked(update).mock.calls.length
+    changeQuery("payment failed")
+    const options = vi.mocked(toast).mock.calls[0][1] as unknown as {
+      action: { onClick: () => void }
+    }
+    options.action.onClick()
+    expect(update.mock.calls.length).toBeGreaterThan(before)
+    expect(lastFilters(update).map((pill) => pill.field)).toEqual([
+      "service.name",
+      "host.name",
+      "kubernetes.namespace",
+    ])
+    expect(run).toHaveBeenLastCalledWith("payment failed")
+  })
+
   it("keeps the pills that arrive with the new query text", () => {
-    const { changeQuery, update, announce } = setup()
+    const { changeQuery, update } = setup()
     const imported: Pill = {
       id: "3",
       kind: "is",
@@ -310,7 +345,7 @@ describe("FilterPills", () => {
     }
     changeQuery("payment failed", [...seeded, imported])
     expect(update).not.toHaveBeenCalled()
-    expect(announce).not.toHaveBeenCalled()
+    expect(toast).not.toHaveBeenCalled()
   })
 
   it("keeps every pill when the first query is run", () => {

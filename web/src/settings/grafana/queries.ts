@@ -37,8 +37,38 @@ export function useCreateConnection() {
   return useMutation({
     gcTime: 0,
     networkMode: "always",
-    mutationFn: (input: ConnectionInput) =>
-      api.POST("/grafana", { body: input }).then(unwrap),
+    mutationFn: async (input: ConnectionInput) => {
+      const created = await api.POST("/grafana", { body: input }).then(unwrap)
+      return api
+        .POST("/grafana/{id}/test", { params: { path: { id: created.id } } })
+        .then(unwrap)
+        .catch(() => created)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: grafanaKeys.connections() }),
+  })
+}
+
+export function useUpdateConnection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    gcTime: 0,
+    networkMode: "always",
+    mutationFn: async ({
+      id,
+      body,
+    }: {
+      id: string
+      body: Partial<ConnectionInput>
+    }) => {
+      const updated = await api
+        .PATCH("/grafana/{id}", { params: { path: { id } }, body })
+        .then(unwrap)
+      return api
+        .POST("/grafana/{id}/test", { params: { path: { id } } })
+        .then(unwrap)
+        .catch(() => updated)
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: grafanaKeys.connections() }),
   })

@@ -151,7 +151,13 @@ for (const colorScheme of ["light", "dark"] as const) {
         await report.getByRole("tab", { name: /^All panels/ }).click()
         await expect(
           report.getByRole("tabpanel").getByRole("listitem")
-        ).toHaveCount(27)
+        ).toHaveCount(28)
+        await expect(
+          report.getByRole("tabpanel").getByRole("listitem").filter({
+            hasText:
+              "Alert rules, contact points and silences are not imported",
+          })
+        ).toHaveCount(1)
       })
 
       let dashboardId = ""

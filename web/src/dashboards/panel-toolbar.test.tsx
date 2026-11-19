@@ -126,14 +126,14 @@ describe("PanelToolbar", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("greys Add to observation for a panel that uses variables", async () => {
+  it("offers Add to observation for a panel that uses variables", async () => {
     serveAgent(true)
     renderToolbar(viewer, {
       panel: { ...panel, queries: [{ query: 'up{job=~"$job"}' }] },
     })
     expect(
       await screen.findByRole("button", { name: "Add to observation" })
-    ).toBeDisabled()
+    ).toBeEnabled()
   })
 
   it("disables the actions that need a finished layout while it has unsaved moves", async () => {
