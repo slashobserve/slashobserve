@@ -18,6 +18,8 @@ const (
 	MaxLayoutMoves  = 200
 )
 
+var ErrUserSessionRequired = errors.New("only a signed-in person may save a panel whose query returns no data")
+
 type PatchInput struct {
 	DashboardID     pgtype.UUID
 	Parent          int
@@ -25,6 +27,7 @@ type PatchInput struct {
 	Summary         string
 	RequestID       pgtype.UUID
 	ProposeIfNeeded bool
+	AcceptEmpty     bool
 	Check           func(next, parent *spec.Dashboard) []spec.Issue
 }
 
@@ -47,6 +50,12 @@ func PatchSizeError(p spec.PanelPatch) *InvalidInputError {
 func (s *Service) SavePatch(ctx context.Context, by auth.Principal, in PatchInput) (SaveResult, error) {
 	if err := PatchSizeError(in.Patch); err != nil {
 		return SaveResult{}, err
+	}
+	if in.AcceptEmpty {
+		if by.Kind != auth.KindUser {
+			return SaveResult{}, ErrUserSessionRequired
+		}
+		ctx = withAcceptedEmpty(ctx)
 	}
 	_, parent, err := s.GetVersion(ctx, in.DashboardID, in.Parent)
 	if err != nil {

@@ -654,6 +654,10 @@ dashboards-id-panels:
                 type: boolean
                 default: false
                 description: Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+              accept_empty:
+                type: boolean
+                default: false
+                description: Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
     responses:
       "200":
         description: The request repeats the latest version, so that version is returned.

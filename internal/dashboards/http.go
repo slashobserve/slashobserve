@@ -66,6 +66,7 @@ type panelsRequest struct {
 	Summary         *string `json:"summary"`
 	ParentVersion   *int    `json:"parent_version"`
 	ProposeIfNeeded bool    `json:"propose_if_needed"`
+	AcceptEmpty     bool    `json:"accept_empty"`
 }
 
 type restoreRequest struct {
@@ -442,6 +443,7 @@ func (s *Service) patchPanels(c *gin.Context) {
 		Patch:           req.PanelPatch,
 		Summary:         *req.Summary,
 		ProposeIfNeeded: req.ProposeIfNeeded,
+		AcceptEmpty:     req.AcceptEmpty,
 	})
 	if err != nil {
 		s.fail(c, "patch dashboard panels", err)
@@ -526,6 +528,8 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+	case errors.Is(err, ErrUserSessionRequired):
+		httpapi.AbortError(c, http.StatusForbidden, "user_session_required", "accept_empty is for signed-in people; MCP clients and scripts fix the query instead")
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest, Conflicts: conflict.Conflicts})
 	case errors.As(err, &proposalRequired):

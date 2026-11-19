@@ -8463,6 +8463,11 @@ export interface operations {
                      * @default false
                      */
                     propose_if_needed?: boolean;
+                    /**
+                     * @description Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
+                     * @default false
+                     */
+                    accept_empty?: boolean;
                 };
             };
         };

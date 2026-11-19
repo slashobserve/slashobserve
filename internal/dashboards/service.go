@@ -585,23 +585,28 @@ func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dash
 		if err != nil {
 			return Unverified{}, err
 		}
-		if len(issues) > 0 {
-			return Unverified{}, &InvalidSpecError{Issues: issues}
+		blocking, accepted := acceptEmpty(ctx, next, issues)
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
 		}
-		return CarryUnchanged(prev, prevUnverified, next, panels, variables), nil
-	}
-	if prev == nil || prevUnverified.Empty() {
-		return Unverified{}, s.checkQueries(ctx, by, next)
+		return CarryUnchanged(prev, prevUnverified, next, panels, variables).with(accepted), nil
 	}
 	issues, err := s.runner.CheckSpec(ctx, next, time.Now(), queryproxy.UserFor(by))
 	if err != nil {
 		return Unverified{}, err
 	}
-	carried, blocking := CarryUnverified(prev, prevUnverified, next, issues)
+	blocking, accepted := acceptEmpty(ctx, next, issues)
+	if prev == nil || prevUnverified.Empty() {
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
+		}
+		return accepted, nil
+	}
+	carried, blocking := CarryUnverified(prev, prevUnverified, next, blocking)
 	if len(blocking) > 0 {
 		return Unverified{}, &InvalidSpecError{Issues: blocking}
 	}
-	return carried, nil
+	return carried.with(accepted), nil
 }
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
