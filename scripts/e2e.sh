@@ -1525,7 +1525,7 @@ comments_suite() {
     fail "comment on an unknown panel ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 99 "$panel" 'x')")"
-  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"version_not_found"' "$TMP/api.body"; then
     fail "comment on an unknown version ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api POST "/dashboards/$nil_id/comments" -d "$(comment_body 1 "$panel" 'x')")"
