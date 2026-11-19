@@ -201,6 +201,7 @@ While you type a title, the editor heading and the panel on the dashboard show i
 The save button reads "Save as version 4" when you are on the latest version, 3.
 It saves the whole dashboard with your panel replaced, as the next version after the one you opened.
 The save runs only your panel's queries, as the agent's `update_panels` saves do, and a panel that fails is refused.
+
 A panel whose queries run but return no data for the dashboard's time range is refused too, with a notice that says so and **Save anyway**.
 Save anyway keeps the panel and marks it "Unverified" with the empty result as the reason, which suits a query that is empty while things are healthy.
 Only a signed-in person can do this: the agent, MCP clients, the CLI and service-account keys still get the refusal, and a request that sets `accept_empty` with a key answers 403 `user_session_required`.
