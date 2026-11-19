@@ -60,6 +60,9 @@ func TestPageQueryAddsOffsetAndOrder(t *testing.T) {
 	if len(frames) != 1 || frames[0].Rows() != 100 || frames[0].Meta != nil {
 		t.Fatalf("frames = %+v, want one frame of 100 rows with no truncation meta", frames)
 	}
+	if info.Plain {
+		t.Fatalf("a result with Timestamp is not plain: %+v", info)
+	}
 	want := datasource.PageInfo{Page: 3, PageSize: 100, Total: 350, TotalRelation: datasource.TotalExact, HasNext: true, Next: &datasource.PageCursor{Page: 4}}
 	if !reflect.DeepEqual(info, want) {
 		t.Fatalf("info = %+v, want %+v", info, want)
@@ -127,8 +130,8 @@ func TestPageReadsAQueryWithoutTimestampAsAPlainTable(t *testing.T) {
 	if len(frames) != 1 || len(frames[0].Fields) != 1 || frames[0].Fields[0].Name != "Body" {
 		t.Fatalf("frames = %+v", frames)
 	}
-	if info.Total != 41 || info.Page != 2 || !info.HasNext {
-		t.Fatalf("info = %+v", info)
+	if info.Total != 41 || info.Page != 2 || !info.HasNext || !info.Plain {
+		t.Fatalf("info = %+v, want a plain page", info)
 	}
 	if len(conn.statements) != 3 {
 		t.Fatalf("statements = %q, want the probe, the page and the count", conn.statements)

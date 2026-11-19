@@ -52,7 +52,7 @@ import {
   usePhone,
   type ResultsView,
 } from "./logs-results"
-import { hasTimeField, PlainTable } from "./plain-table"
+import { isPlainResult, PlainTable } from "./plain-table"
 import { useUserScroll } from "./user-scroll"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
@@ -578,7 +578,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </div>
       )
     }
-    if (!hasTimeField(frames)) return <PlainTable frame={frames[0]} />
+    if (data !== undefined && isPlainResult(data)) return <PlainTable frame={frames[0]} />
     return height > 0 ? (
       <LogsResults frames={frames} height={height} {...resultsProps()} />
     ) : null

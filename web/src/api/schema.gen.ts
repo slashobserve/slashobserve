@@ -4681,6 +4681,8 @@ export interface components {
             prev?: string;
             /** @description The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused. */
             window?: number;
+            /** @description True when the rows are a plain table, not log lines, such as a ClickHouse result with no `Timestamp` column; a client shows them as a table and has no volume to draw. */
+            plain?: boolean;
         };
         PanelDataError: {
             error: string;

@@ -486,6 +486,20 @@ func TestExplorePageMetaCarriesTheWindowOnlyWhenSet(t *testing.T) {
 	}
 }
 
+func TestExplorePageMetaSaysWhenTheRowsAreAPlainTable(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	for _, plain := range []bool{false, true} {
+		logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+			return logFrames(), datasource.PageInfo{Page: 1, PageSize: 100, Total: 3, TotalRelation: datasource.TotalExact, Plain: plain}, nil
+		}
+		rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+		got, present := rawPage(t, rec)["plain"]
+		if present != plain || (present && string(got) != "true") {
+			t.Fatalf("plain = %s (present %v) for %v", got, present, plain)
+		}
+	}
+}
+
 func TestExplorePageWithUnknownTotalLeavesTotalOut(t *testing.T) {
 	hn, logs := newPageHarness(t)
 	logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {

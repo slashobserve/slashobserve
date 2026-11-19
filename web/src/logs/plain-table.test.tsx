@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import type { WireFrame } from "@/dashboards/queries"
-import { cellText, hasTimeField, PlainTable } from "./plain-table"
+import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
+import { cellText, isPlainResult, PlainTable } from "./plain-table"
 
 const untimed: WireFrame = {
   ref: "A",
@@ -13,17 +13,32 @@ const untimed: WireFrame = {
   ],
 }
 
-describe("hasTimeField", () => {
-  it("is false for an aggregate and true once a time field is present", () => {
-    expect(hasTimeField([untimed])).toBe(false)
+function response(frames: WireFrame[], page?: { plain?: boolean }): PanelDataResponse {
+  return { frames, meta: { page } } as unknown as PanelDataResponse
+}
+
+describe("isPlainResult", () => {
+  it("is true for an aggregate with no time field and false once one is present", () => {
+    expect(isPlainResult(response([untimed]))).toBe(true)
     expect(
-      hasTimeField([
-        {
-          ...untimed,
-          fields: [{ name: "Timestamp", type: "time", values: [1] }],
-        },
-      ])
-    ).toBe(true)
+      isPlainResult(
+        response([
+          {
+            ...untimed,
+            fields: [{ name: "Timestamp", type: "time", values: [1] }],
+          },
+        ])
+      )
+    ).toBe(false)
+  })
+
+  it("follows the server when a result has a time field but ran as a plain table", () => {
+    const withMinute = {
+      ...untimed,
+      fields: [{ name: "minute", type: "time" as const, values: [1] }],
+    }
+    expect(isPlainResult(response([withMinute], { plain: true }))).toBe(true)
+    expect(isPlainResult(response([withMinute], { plain: false }))).toBe(false)
   })
 })
 

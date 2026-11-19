@@ -42,6 +42,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		}
 		frames = []datasource.Frame{rs.tableFrame()}
 		info = pageInfo(page, req.PageSize, offset, len(rs.rows), total)
+		info.Plain = !timed
 		return nil
 	})
 	return frames, info, err

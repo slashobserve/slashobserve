@@ -41,7 +41,7 @@ import { ResultSkeleton, ResultsSection } from "./results-section"
 import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
-import { hasTimeField } from "./plain-table"
+import { isPlainResult } from "./plain-table"
 import { VolumeStrip } from "./volume-strip"
 import {
   LogsWorkspaceContext,
@@ -381,7 +381,7 @@ function LogsWorkspaceView({
         </section>
         {effectiveQuery !== undefined &&
         !tailShown &&
-        (results.data === undefined || hasTimeField(results.data.frames)) ? (
+        (results.data === undefined || !isPlainResult(results.data)) ? (
           <VolumeStrip
             uid={uid}
             query={effectiveQuery}

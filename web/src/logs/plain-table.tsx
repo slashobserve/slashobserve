@@ -1,9 +1,12 @@
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
-import type { WireFrame } from "@/dashboards/queries"
+import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 
-export function hasTimeField(frames: readonly WireFrame[]): boolean {
-  return frames.some((frame) =>
-    frame.fields.some((field) => field.type === "time")
+export function isPlainResult(data: PanelDataResponse): boolean {
+  return (
+    data.meta.page?.plain === true ||
+    !data.frames.some((frame) =>
+      frame.fields.some((field) => field.type === "time")
+    )
   )
 }
 
