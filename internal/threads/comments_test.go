@@ -481,6 +481,9 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 		{"no access to the dashboard", folders.ErrNoAccess, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"dashboard is gone", dashboards.ErrNotFound, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"comment is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+		{"a mentioned person who cannot see it", errInvalidPerson, http.StatusUnprocessableEntity, CodeInvalidMention, errInvalidPerson.Message},
+		{"too many mentions", &InvalidInputError{Code: CodeTooManyMentions, Message: "too many"}, http.StatusUnprocessableEntity, CodeTooManyMentions, "too many"},
+		{"an invalid body stays a bad request", &InvalidInputError{Code: CodeInvalidBody, Message: "bad body"}, http.StatusBadRequest, CodeInvalidBody, "bad body"},
 		{"version is missing", &VersionNotFoundError{Version: 99, Latest: 3}, http.StatusNotFound, "version_not_found", "version 99 does not exist on this dashboard; its latest version is 3"},
 	}
 	for _, tt := range tests {

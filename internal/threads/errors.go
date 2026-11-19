@@ -45,6 +45,10 @@ func (e *ObservationThreadExistsError) Error() string {
 	return "this observation already has a discussion"
 }
 
+func isMentionCode(code string) bool {
+	return code == CodeInvalidMention || code == CodeTooManyMentions || code == CodeTooManyAgents
+}
+
 type InvalidInputError struct {
 	Code    string
 	Message string
