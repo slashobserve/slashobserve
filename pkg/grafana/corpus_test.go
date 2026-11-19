@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/grafana"
@@ -90,7 +91,22 @@ type outcome struct {
 	inputCode string
 }
 
+type convertedFile struct {
+	once sync.Once
+	o    outcome
+}
+
+var convertedFiles sync.Map
+
 func convertFile(t *testing.T, f corpusFile) outcome {
+	t.Helper()
+	entry, _ := convertedFiles.LoadOrStore(f.id(), &convertedFile{})
+	c := entry.(*convertedFile)
+	c.once.Do(func() { c.o = convertFileFresh(t, f) })
+	return c.o
+}
+
+func convertFileFresh(t *testing.T, f corpusFile) outcome {
 	t.Helper()
 	res, err := grafana.Convert(f.raw, corpusOptions)
 	var input *grafana.InputError
@@ -190,6 +206,7 @@ func goldenBytes(t *testing.T, o outcome) []byte {
 }
 
 func TestCorpusGoldens(t *testing.T) {
+	t.Parallel()
 	for _, f := range corpusFiles(t) {
 		t.Run(f.id(), func(t *testing.T) {
 			got := goldenBytes(t, convertFile(t, f))
@@ -371,6 +388,7 @@ func expectedLegacyPanels(rows []any) []sourcePanel {
 }
 
 func TestCorpusInvariants(t *testing.T) {
+	t.Parallel()
 	for _, f := range corpusFiles(t) {
 		t.Run(f.id(), func(t *testing.T) {
 			first := convertFile(t, f)
@@ -389,7 +407,7 @@ func TestCorpusInvariants(t *testing.T) {
 			t.Run("panel order follows the grid", func(t *testing.T) { checkOrder(t, f, res) })
 			t.Run("units are known", func(t *testing.T) { checkUnits(t, res) })
 			t.Run("conversion is deterministic", func(t *testing.T) {
-				if !bytes.Equal(goldenBytes(t, first), goldenBytes(t, convertFile(t, f))) {
+				if !bytes.Equal(goldenBytes(t, first), goldenBytes(t, convertFileFresh(t, f))) {
 					t.Error("two conversions of the same bytes differ")
 				}
 			})
@@ -667,6 +685,7 @@ func listedOptions(blocks []grafana.Block) int {
 }
 
 func TestCorpusBlockReportsFitTheLimits(t *testing.T) {
+	t.Parallel()
 	const maxListed, maxBytes = 10_000, 2 << 20
 	for _, f := range corpusFiles(t) {
 		t.Run(f.id(), func(t *testing.T) {
@@ -689,6 +708,7 @@ func TestCorpusBlockReportsFitTheLimits(t *testing.T) {
 }
 
 func TestCorpusRatio(t *testing.T) {
+	t.Parallel()
 	var total, imported, partial, placeholder, failedPanels int
 	var failed []string
 	byType := map[string]int{}

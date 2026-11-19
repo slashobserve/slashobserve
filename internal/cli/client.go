@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/forbidden"
@@ -34,6 +35,11 @@ type client struct {
 }
 
 const (
+	outboundDomainHint = "A key cannot change the allowlist: an Admin adds the domain in the web app under Settings, Outbound access, then run the command again."
+	badCursorHint      = "Pass the next_cursor exactly as the previous page printed it, or add --all to read every page."
+)
+
+const (
 	forbiddenRoleHint   = "This key's service account role does not allow it; an admin can change the role on the API keys page."
 	forbiddenAccessHint = "This key cannot see that dashboard or its folder. A folder Admin or an instance Admin decides who sees a folder, but access lists name people and groups, which a key never matches, so use a key of an Admin service account or of the service account that created the folder."
 )
@@ -43,7 +49,15 @@ type apiError struct {
 	message string
 	code    string
 	raw     []byte
+	issues  []apiIssue
 }
+
+type apiIssue struct {
+	Path    string `json:"path"`
+	Message string `json:"message"`
+}
+
+const maxIssueLines = 10
 
 func (e *apiError) Error() string {
 	switch {
@@ -53,23 +67,50 @@ func (e *apiError) Error() string {
 		return e.message
 	}
 	text := fmt.Sprintf("%s (%s)", e.message, e.code)
+	for i, issue := range e.issues {
+		if i == maxIssueLines {
+			text += fmt.Sprintf("\n  and %d more", len(e.issues)-maxIssueLines)
+			break
+		}
+		text += "\n  " + issueLine(issue)
+	}
 	if hint := e.hint(); hint != "" {
 		text += "\n" + hint
 	}
 	return text
 }
 
-func (e *apiError) hint() string {
-	if e.code != forbidden.Code {
-		return ""
+func issueLine(issue apiIssue) string {
+	if issue.Path == "" {
+		return issue.Message
 	}
-	switch e.message {
-	case forbidden.RoleMessage:
+	return issue.Path + ": " + issue.Message
+}
+
+func (e *apiError) hint() string {
+	switch {
+	case e.code == forbidden.Code && e.message == forbidden.RoleMessage:
 		return forbiddenRoleHint
-	case forbidden.AccessMessage:
+	case e.code == forbidden.Code && e.message == forbidden.AccessMessage:
 		return forbiddenAccessHint
+	case e.code == "outbound_domain_not_allowed":
+		return outboundDomainHint
+	case e.code == "observation_thread_exists":
+		return e.threadExistsHint()
+	case e.status == http.StatusBadRequest && strings.Contains(e.message, "cursor"):
+		return badCursorHint
 	}
 	return ""
+}
+
+func (e *apiError) threadExistsHint() string {
+	var body struct {
+		ThreadID string `json:"thread_id"`
+	}
+	if json.Unmarshal(e.raw, &body) != nil || !idPattern.MatchString(body.ThreadID) {
+		return "An observation has one discussion: reply to it with observe comments reply <thread-id> <text>."
+	}
+	return "An observation has one discussion: reply to it with observe comments reply " + body.ThreadID + " <text>."
 }
 
 func (a *app) newClient() (*client, error) {
@@ -255,13 +296,17 @@ func redirectError(resp *http.Response) error {
 
 func decodeAPIError(status int, data []byte) error {
 	var body struct {
-		Error string `json:"error"`
-		Code  string `json:"code"`
+		Error  string     `json:"error"`
+		Code   string     `json:"code"`
+		Issues []apiIssue `json:"issues"`
 	}
 	if json.Unmarshal(data, &body) != nil {
 		return &apiError{status: status, raw: data}
 	}
-	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data}
+	for i := range body.Issues {
+		body.Issues[i].Path, body.Issues[i].Message = text(body.Issues[i].Path), text(body.Issues[i].Message)
+	}
+	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data, issues: body.Issues}
 }
 
 type transportFailure struct{ error }
@@ -292,6 +337,10 @@ func (c *client) transportError(ctx context.Context, err error) error {
 func decode[T any](data []byte) (T, error) {
 	var value T
 	if err := json.Unmarshal(data, &value); err != nil {
+		var syntax *json.SyntaxError
+		if errors.As(err, &syntax) {
+			return value, errors.New("the address answered with something that is not JSON, so it is probably not a SlashObserve server: check --server or OBSERVE_SERVER, which is the address you open in the browser, with no extra path")
+		}
 		return value, errors.New("the server sent a response the CLI cannot read; check that the CLI and the server versions match")
 	}
 	return value, nil

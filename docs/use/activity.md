@@ -14,7 +14,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | --- | --- | --- |
 | Dashboard | `dashboard.created`, `dashboard.version_created`, `dashboard.restored` | A version is saved: the first one, a later one, or a restore of an older one. |
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
-| Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed; a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went, never its text. |
+| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went, never its text. |
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |

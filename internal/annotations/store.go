@@ -87,6 +87,49 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Annotation, error) {
 	return annotationOf(row), nil
 }
 
+func (s *store) named(ctx context.Context, id pgtype.UUID) (Annotation, error) {
+	row, err := s.db.Queries().GetAnnotationNamed(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Annotation{}, ErrNotFound
+	}
+	if err != nil {
+		return Annotation{}, err
+	}
+	return namedAnnotationOf(dbsqlc.ListAnnotationsRow(row)), nil
+}
+
+func (s *store) update(ctx context.Context, id pgtype.UUID, text string, tags []string, by actor.Actor) (Annotation, error) {
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.UpdateAnnotation(ctx, dbsqlc.UpdateAnnotationParams{ID: id, Text: text, Tags: tags})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		row, err := q.GetAnnotation(ctx, id)
+		if err != nil {
+			return err
+		}
+		_, err = activity.Append(ctx, q, activity.Entry{
+			Type:     activity.TypeAnnotationUpdated,
+			TargetID: id,
+			Owner:    activityOwner(row.DashboardID),
+			Actor:    by,
+			Data:     updatedData{Tags: tags},
+		}, nil)
+		return err
+	})
+	if err != nil {
+		return Annotation{}, err
+	}
+	return s.named(ctx, id)
+}
+
+type updatedData struct {
+	Tags []string `json:"tags"`
+}
+
 func activityOwner(dashboardID pgtype.UUID) activity.Owner {
 	if dashboardID.Valid {
 		return activity.OnDashboard(dashboardID)
@@ -144,25 +187,28 @@ func (s *store) list(ctx context.Context, q ListQuery, limit int) ([]Annotation,
 	}
 	out := make([]Annotation, 0, len(rows))
 	for _, r := range rows {
-		a := annotationOf(dbsqlc.Annotation{
-			ID:          r.ID,
-			DashboardID: r.DashboardID,
-			PanelID:     r.PanelID,
-			TimeFrom:    r.TimeFrom,
-			TimeTo:      r.TimeTo,
-			Text:        r.Text,
-			Tags:        r.Tags,
-			CreatedBy:   r.CreatedBy,
-			CreatedAt:   r.CreatedAt,
-
-			CreatedByKind: r.CreatedByKind,
-			Origin:        r.Origin,
-			OriginClient:  r.OriginClient,
-		})
-		a.CreatedByName = r.CreatedByName
-		out = append(out, a)
+		out = append(out, namedAnnotationOf(r))
 	}
 	return out, nil
+}
+
+func namedAnnotationOf(r dbsqlc.ListAnnotationsRow) Annotation {
+	a := annotationOf(dbsqlc.Annotation{
+		ID:            r.ID,
+		DashboardID:   r.DashboardID,
+		PanelID:       r.PanelID,
+		TimeFrom:      r.TimeFrom,
+		TimeTo:        r.TimeTo,
+		Text:          r.Text,
+		Tags:          r.Tags,
+		CreatedBy:     r.CreatedBy,
+		CreatedAt:     r.CreatedAt,
+		CreatedByKind: r.CreatedByKind,
+		Origin:        r.Origin,
+		OriginClient:  r.OriginClient,
+	})
+	a.CreatedByName = r.CreatedByName
+	return a
 }
 
 func timestamp(t *time.Time) pgtype.Timestamptz {

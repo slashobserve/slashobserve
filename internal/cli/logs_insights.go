@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"slices"
 	"strconv"
@@ -57,8 +58,9 @@ type logPatternsRequest struct {
 }
 
 type logPatternsBody struct {
-	LinesSampled int `json:"lines_sampled"`
-	LinesMatched int `json:"lines_matched"`
+	Source       string `json:"source"`
+	LinesSampled int    `json:"lines_sampled"`
+	LinesMatched int    `json:"lines_matched"`
 	Patterns     []struct {
 		Pattern string `json:"pattern"`
 		Count   int    `json:"count"`
@@ -229,11 +231,18 @@ func printLogPatterns(out *output, data []byte) error {
 		rows = append(rows, []string{strconv.Itoa(p.Count), text(p.Pattern)})
 	}
 	out.table([]string{"COUNT", "PATTERN"}, rows)
-	out.notice("%d lines matched, %d lines sampled", patterns.LinesMatched, patterns.LinesSampled)
+	out.notice("%s", patternsCoverage(patterns))
 	if patterns.Truncated {
 		out.notice("More patterns exist than are shown; raise --limit, up to %d", maxLogPatterns)
 	}
 	return nil
+}
+
+func patternsCoverage(p logPatternsBody) string {
+	if p.Source != "server" && p.Source != "" {
+		return fmt.Sprintf("%d lines matched, counted by %s", p.LinesMatched, text(p.Source))
+	}
+	return fmt.Sprintf("%d lines matched, %d lines sampled", p.LinesMatched, p.LinesSampled)
 }
 
 func printLogContext(out *output, data []byte) error {

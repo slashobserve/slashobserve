@@ -10,6 +10,7 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"dashboard.moved":             "dashboard",
 		"dashboard.deleted":           "dashboard",
 		"annotation.created":          "annotation",
+		"annotation.updated":          "annotation",
 		"annotation.deleted":          "annotation",
 		"finding.created":             "finding",
 		"finding.pinned":              "finding",
