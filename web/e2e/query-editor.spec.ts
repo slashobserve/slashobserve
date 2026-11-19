@@ -189,7 +189,7 @@ test("saves an edited query as a new version", async ({ page, request }) => {
   })
 })
 
-test("rejects a query the server cannot run", async ({
+test("blocks saving a query the server cannot run", async ({
   page,
   request,
   consoleErrors,
@@ -199,18 +199,14 @@ test("rejects a query the server cannot run", async ({
   await openFromMenu(page, rpsTitle)
 
   await replaceQuery(page, "sum(rate(")
-  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+  await draftPreviewRejectionLogged(consoleErrors)
 
   await expect(
-    sheet(page)
-      .getByRole("group", { name: "Query A" })
-      .getByRole("alert")
-      .filter({ hasText: "parse error: unclosed left parenthesis" })
-  ).toBeVisible()
+    sheet(page).getByRole("button", { name: saveVersionButton })
+  ).toHaveAttribute("aria-disabled", "true")
+  await expect(sheet(page).getByText("Fix the query to save.")).toBeVisible()
   await expect(sheet(page).getByText("This panel was rejected:")).toHaveCount(0)
-  await expect(sheet(page)).toBeVisible()
   expect((await getDashboard(request, id)).latestVersion).toBe(1)
-  expectLoggedOnce(consoleErrors, 422)
 })
 
 test("offers to save a query that returns no data anyway", async ({
@@ -656,7 +652,9 @@ test("offers Try again when the server cannot check the query right now", async 
   await expect(
     sheet(page).getByText("Other problems in this dashboard:")
   ).toHaveCount(0)
-  await expect(sheet(page).getByText("prometheus returned 502")).toHaveCount(0)
+  await expect(
+    sheet(page).getByText(/^Query A( on .+)?: prometheus returned 502$/)
+  ).toHaveCount(1)
   expectLoggedOnce(consoleErrors, 422)
 
   await page.unroute(/\/dashboards\/[^/]+\/panels$/)
