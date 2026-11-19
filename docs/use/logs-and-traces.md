@@ -378,7 +378,7 @@ When the query returns more than one trace, the panel shows one at a time with *
 - **Errors only** dims every span that neither failed nor contains a failed span.
 - **Collapse all** folds every span with children, and **Expand all** opens them again.
 - The services legend lists each service with its colour and span count; click a service to dim its spans, and click it again to show them.
-- The overview strip above the ruler draws the whole trace in one line per span; drag on it, or on the ruler, to zoom the time axis to that window, and **Reset zoom** shows the whole trace again.
+- The overview strip above the ruler draws the whole trace in one line per span, on the same time columns as the ruler so a span has the same x in both; drag on it, or on the ruler, to zoom the time axis to that window, and **Reset zoom** shows the whole trace again.
 
 ### Span details
 
