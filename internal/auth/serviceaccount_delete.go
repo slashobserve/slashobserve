@@ -17,6 +17,7 @@ func (s *Service) deleteServiceAccount(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	caller, _ := FromContext(ctx)
 	err := s.inTx(ctx, func(q *dbsqlc.Queries) error {
 		account, err := q.GetServiceAccount(ctx, id)
 		if err != nil {
@@ -29,7 +30,10 @@ func (s *Service) deleteServiceAccount(c *gin.Context) {
 		if err == nil && n == 0 {
 			return pgx.ErrNoRows
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return s.changes.ServiceAccountDeleted(ctx, q, caller, account)
 	})
 	switch {
 	case errors.Is(err, errProvisioned):

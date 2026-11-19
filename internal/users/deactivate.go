@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -22,8 +23,10 @@ func (h *Handler) deactivate(c *gin.Context) {
 	var done auth.Deactivation
 	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		done, err = auth.Deactivate(ctx, q, caller, id)
-		return err
+		if done, err = auth.Deactivate(ctx, q, caller, id); err != nil {
+			return err
+		}
+		return recordDeactivated(ctx, q, caller, id, done)
 	})
 	switch {
 	case errors.Is(err, auth.ErrNoUser):
@@ -53,7 +56,14 @@ func (h *Handler) reactivate(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	err := auth.Reactivate(ctx, h.db.Queries(), id)
+	caller := httpapi.Caller(c)
+	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		done, err := auth.Reactivate(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		return recordReactivated(ctx, q, caller, id, done)
+	})
 	switch {
 	case errors.Is(err, auth.ErrNoUser):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
@@ -66,7 +76,7 @@ func (h *Handler) reactivate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.logger.InfoContext(ctx, "reactivated a person", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("user_id", id.String()))
+	h.logger.InfoContext(ctx, "reactivated a person", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()))
 	c.JSON(http.StatusOK, person)
 }
 
@@ -76,10 +86,14 @@ func (h *Handler) remove(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	caller := httpapi.Caller(c)
 	active := false
 	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		n, err := q.RemoveDeactivatedUser(ctx, id)
-		if err != nil || n > 0 {
+		name, err := q.RemoveDeactivatedUser(ctx, id)
+		if err == nil {
+			return recordRemoved(ctx, q, caller, id, name)
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		exists, err := q.UserExists(ctx, id)
@@ -103,6 +117,6 @@ func (h *Handler) remove(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusConflict, "not_deactivated", "deactivate this person first; only a deactivated person can be removed")
 		return
 	}
-	h.logger.InfoContext(ctx, "removed a person", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("user_id", id.String()))
+	h.logger.InfoContext(ctx, "removed a person", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()))
 	c.Status(http.StatusNoContent)
 }

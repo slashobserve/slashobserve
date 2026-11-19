@@ -357,29 +357,25 @@ func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
 	return items, nil
 }
 
-const reactivateUser = `-- name: ReactivateUser :execrows
+const reactivateUser = `-- name: ReactivateUser :exec
 UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
 WHERE id = $1
 `
 
-func (q *Queries) ReactivateUser(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, reactivateUser, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) ReactivateUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, reactivateUser, id)
+	return err
 }
 
-const removeDeactivatedUser = `-- name: RemoveDeactivatedUser :execrows
-DELETE FROM users WHERE id = $1 AND deactivated_at IS NOT NULL
+const removeDeactivatedUser = `-- name: RemoveDeactivatedUser :one
+DELETE FROM users WHERE id = $1 AND deactivated_at IS NOT NULL RETURNING name
 `
 
-func (q *Queries) RemoveDeactivatedUser(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, removeDeactivatedUser, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) RemoveDeactivatedUser(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, removeDeactivatedUser, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const setManualRole = `-- name: SetManualRole :exec

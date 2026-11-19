@@ -13,6 +13,8 @@ import (
 var ErrDeactivateSelf = errors.New("cannot deactivate self")
 
 type Deactivation struct {
+	Name     string
+	Changed  bool
 	Sessions int64
 	Grants   int64
 }
@@ -43,7 +45,7 @@ func Deactivate(ctx context.Context, q *dbsqlc.Queries, by Principal, userID pgt
 	if err := q.DeactivateUser(ctx, dbsqlc.DeactivateUserParams{ID: userID, ByID: byID, ByName: pgtype.Text{String: by.Name, Valid: by.Name != ""}}); err != nil {
 		return Deactivation{}, err
 	}
-	var d Deactivation
+	d := Deactivation{Name: user.Name, Changed: true}
 	if d.Sessions, err = q.DeleteUserSessions(ctx, userID); err != nil {
 		return Deactivation{}, err
 	}
@@ -56,13 +58,24 @@ func Deactivate(ctx context.Context, q *dbsqlc.Queries, by Principal, userID pgt
 	return d, nil
 }
 
-func Reactivate(ctx context.Context, q *dbsqlc.Queries, userID pgtype.UUID) error {
-	n, err := q.ReactivateUser(ctx, userID)
+type Reactivation struct {
+	Name    string
+	Changed bool
+}
+
+func Reactivate(ctx context.Context, q *dbsqlc.Queries, userID pgtype.UUID) (Reactivation, error) {
+	user, err := q.GetUserForRole(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Reactivation{}, ErrNoUser
+	}
 	if err != nil {
-		return err
+		return Reactivation{}, err
 	}
-	if n == 0 {
-		return ErrNoUser
+	if !user.DeactivatedAt.Valid {
+		return Reactivation{Name: user.Name}, nil
 	}
-	return nil
+	if err := q.ReactivateUser(ctx, userID); err != nil {
+		return Reactivation{}, err
+	}
+	return Reactivation{Name: user.Name, Changed: true}, nil
 }

@@ -36,16 +36,15 @@ func (q *Queries) AcceptInvite(ctx context.Context, arg AcceptInviteParams) (pgt
 	return manual_role, err
 }
 
-const deleteInvite = `-- name: DeleteInvite :execrows
-DELETE FROM user_invites WHERE id = $1
+const deleteInvite = `-- name: DeleteInvite :one
+DELETE FROM user_invites WHERE id = $1 RETURNING email
 `
 
-func (q *Queries) DeleteInvite(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteInvite, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) DeleteInvite(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, deleteInvite, id)
+	var email string
+	err := row.Scan(&email)
+	return email, err
 }
 
 const emailHasSignedIn = `-- name: EmailHasSignedIn :one
@@ -110,10 +109,14 @@ func (q *Queries) ListInvites(ctx context.Context, arg ListInvitesParams) ([]Lis
 }
 
 const upsertInvite = `-- name: UpsertInvite :one
+WITH previous AS (
+  SELECT role FROM user_invites WHERE lower(email) = lower($1::text) FOR UPDATE
+)
 INSERT INTO user_invites (email, role, created_by_kind, created_by_id, created_by_name)
 VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT ((lower(email))) DO UPDATE SET role = EXCLUDED.role, updated_at = now()
-RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted
+RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted,
+  coalesce((SELECT role FROM previous), '')::text AS previous_role
 `
 
 type UpsertInviteParams struct {
@@ -132,6 +135,7 @@ type UpsertInviteRow struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Inserted      bool
+	PreviousRole  string
 }
 
 func (q *Queries) UpsertInvite(ctx context.Context, arg UpsertInviteParams) (UpsertInviteRow, error) {
@@ -151,6 +155,7 @@ func (q *Queries) UpsertInvite(ctx context.Context, arg UpsertInviteParams) (Ups
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Inserted,
+		&i.PreviousRole,
 	)
 	return i, err
 }

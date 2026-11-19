@@ -1,11 +1,13 @@
 package users
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -126,7 +128,10 @@ func (h *Handler) createInvite(c *gin.Context) {
 		row, err = q.UpsertInvite(ctx, dbsqlc.UpsertInviteParams{
 			Email: email, Role: string(role), CreatedByKind: string(caller.Kind), CreatedByID: callerID, CreatedByName: caller.Name,
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		return recordInvite(ctx, q, caller, row)
 	})
 	if err != nil {
 		h.fail(c, "create invite", err)
@@ -149,15 +154,23 @@ func (h *Handler) deleteInvite(c *gin.Context) {
 	if !ok {
 		return
 	}
-	n, err := h.db.Queries().DeleteInvite(c.Request.Context(), id)
+	ctx := c.Request.Context()
+	caller := httpapi.Caller(c)
+	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		email, err := q.DeleteInvite(ctx, id)
+		if err != nil {
+			return err
+		}
+		return recordInviteWithdrawn(ctx, q, caller, id, email)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "invite not found; it was withdrawn or the person has signed in")
+		return
+	}
 	if err != nil {
 		h.fail(c, "delete invite", err, slog.String("invite_id", id.String()))
 		return
 	}
-	if n == 0 {
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "invite not found; it was withdrawn or the person has signed in")
-		return
-	}
-	h.logger.InfoContext(c.Request.Context(), "invite withdrawn", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("invite_id", id.String()))
+	h.logger.InfoContext(ctx, "invite withdrawn", slog.String("actor_id", caller.ID), slog.String("invite_id", id.String()))
 	c.Status(http.StatusNoContent)
 }

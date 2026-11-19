@@ -73,6 +73,14 @@ func (AuthChanges) ServiceAccountUpdated(ctx context.Context, q *dbsqlc.Queries,
 	return AppendAdmin(ctx, q, By(ctx, by), TypeServiceAccountUpdated, after.ID, data)
 }
 
+type serviceAccountDeletedData struct {
+	Name string `json:"name"`
+}
+
+func (AuthChanges) ServiceAccountDeleted(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, a dbsqlc.ServiceAccount) error {
+	return AppendAdmin(ctx, q, By(ctx, by), TypeServiceAccountDeleted, a.ID, serviceAccountDeletedData{Name: a.Name})
+}
+
 type keyData struct {
 	Name      string  `json:"name"`
 	KeyID     string  `json:"key_id"`

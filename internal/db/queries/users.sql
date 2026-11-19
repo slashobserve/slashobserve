@@ -86,9 +86,9 @@ SELECT id, email, name, groups, manual_role, role, role_source, deactivated_at F
 UPDATE users SET deactivated_at = now(), deactivated_by_id = sqlc.narg('by_id'), deactivated_by_name = sqlc.narg('by_name')
 WHERE id = @id AND deactivated_at IS NULL;
 
--- name: ReactivateUser :execrows
+-- name: ReactivateUser :exec
 UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
 WHERE id = @id;
 
--- name: RemoveDeactivatedUser :execrows
-DELETE FROM users WHERE id = @id AND deactivated_at IS NOT NULL;
+-- name: RemoveDeactivatedUser :one
+DELETE FROM users WHERE id = @id AND deactivated_at IS NOT NULL RETURNING name;
